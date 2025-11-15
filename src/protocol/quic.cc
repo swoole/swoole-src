@@ -15,6 +15,7 @@
 */
 
 #include "swoole_quic.h"
+#include "swoole_string.h"
 
 #ifdef SW_USE_QUIC
 
@@ -402,12 +403,12 @@ ngtcp2_callbacks Connection::create_callbacks() {
     callbacks.recv_crypto_data = on_recv_crypto_data;
     callbacks.handshake_completed = on_handshake_completed;
     callbacks.recv_stream_data = on_recv_stream_data;
-    callbacks.stream_open = on_stream_open;
-    callbacks.stream_close = on_stream_close;
+    callbacks.stream_open = ::on_stream_open;
+    callbacks.stream_close = ::on_stream_close;
     callbacks.acked_stream_data_offset = on_acked_stream_data_offset;
-    callbacks.extend_max_streams_bidi = on_extend_max_streams;
-    callbacks.extend_max_streams_uni = on_extend_max_streams;
-    callbacks.rand = on_rand;
+    callbacks.extend_max_local_streams_bidi = on_extend_max_streams;
+    callbacks.extend_max_local_streams_uni = on_extend_max_streams;
+    // callbacks.rand = on_rand;  // OpenSSL 3.5 uses internal RNG
     callbacks.get_new_connection_id = on_get_new_connection_id;
 
     return callbacks;
@@ -474,12 +475,12 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
     }
 
     SSL_set_accept_state(ssl);
-    SSL_set_quic_early_data_enabled(ssl, 1);
+    SSL_set_quic_tls_early_data_enabled(ssl, 1);
 
-    rv = ngtcp2_crypto_ossl_configure_server_context(ssl_ctx);
+    rv = ngtcp2_crypto_ossl_configure_server_session(ssl);
     if (rv != 0) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_INIT,
-                         "ngtcp2_crypto_ossl_configure_server_context failed: %d", rv);
+                         "ngtcp2_crypto_ossl_configure_server_session failed: %d", rv);
         return false;
     }
 
@@ -536,7 +537,7 @@ bool Connection::init_client(const struct sockaddr *local_addr, socklen_t local_
 
     SSL_set_connect_state(ssl);
     SSL_set_tlsext_host_name(ssl, server_name);
-    SSL_set_quic_early_data_enabled(ssl, 1);
+    SSL_set_quic_tls_early_data_enabled(ssl, 1);
 
     ngtcp2_conn_set_tls_native_handle(conn, ssl);
 

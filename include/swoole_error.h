@@ -227,7 +227,10 @@ enum swErrorCode {
     /**
      * HTTP/3 protocol error
      */
-    SW_ERROR_HTTP3_SEND = 12001,
+    SW_ERROR_HTTP3_INIT = 12001,
+    SW_ERROR_HTTP3_SEND,
+    SW_ERROR_HTTP3_RECV,
+    SW_ERROR_HTTP3_STREAM,
 
     /**
      * SSL/TLS error extensions

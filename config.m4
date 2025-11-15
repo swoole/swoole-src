@@ -1174,9 +1174,9 @@ EOF
     if test "$PHP_NGTCP2_DIR" != "no"; then
         PHP_ADD_INCLUDE("${PHP_NGTCP2_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(ngtcp2, "${PHP_NGTCP2_DIR}/${PHP_LIBDIR}")
-        PHP_ADD_LIBRARY_WITH_PATH(ngtcp2_crypto_quictls, "${PHP_NGTCP2_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY_WITH_PATH(ngtcp2_crypto_ossl, "${PHP_NGTCP2_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY(ngtcp2, 1, SWOOLE_SHARED_LIBADD)
-        PHP_ADD_LIBRARY(ngtcp2_crypto_quictls, 1, SWOOLE_SHARED_LIBADD)
+        PHP_ADD_LIBRARY(ngtcp2_crypto_ossl, 1, SWOOLE_SHARED_LIBADD)
         AC_DEFINE(SW_USE_QUIC, 1, [enable QUIC support])
     fi
 

@@ -15,6 +15,7 @@
 */
 
 #include "swoole_http3.h"
+#include "swoole_string.h"
 
 #ifdef SW_USE_HTTP3
 
@@ -496,13 +497,13 @@ nghttp3_callbacks Connection::create_callbacks() {
     nghttp3_callbacks callbacks;
     memset(&callbacks, 0, sizeof(callbacks));
 
-    callbacks.recv_header = on_recv_header;
-    callbacks.end_headers = on_end_headers;
-    callbacks.recv_data = on_recv_data;
-    callbacks.end_stream = on_end_stream;
-    callbacks.stream_close = on_stream_close;
-    callbacks.stop_sending = on_stop_sending;
-    callbacks.reset_stream = on_reset_stream;
+    callbacks.recv_header = ::on_recv_header;
+    callbacks.end_headers = ::on_end_headers;
+    callbacks.recv_data = ::on_recv_data;
+    callbacks.end_stream = ::on_end_stream;
+    callbacks.stream_close = ::on_stream_close;
+    callbacks.stop_sending = ::on_stop_sending;
+    callbacks.reset_stream = ::on_reset_stream;
 
     return callbacks;
 }
@@ -556,22 +557,24 @@ bool Connection::open_control_streams() {
     }
 
     // Open control stream
-    int64_t stream_id;
-    int rv = nghttp3_conn_bind_control_stream(conn, &stream_id);
+    control_stream_id = is_server ? 2 : 3;  // Server uses stream 2, client uses stream 3
+    swoole::quic::Stream *qs = quic_conn->open_stream(control_stream_id);
+    if (!qs) {
+        return false;
+    }
+
+    int rv = nghttp3_conn_bind_control_stream(conn, control_stream_id);
     if (rv != 0) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_HTTP3_STREAM,
                          "nghttp3_conn_bind_control_stream failed: %s", nghttp3_strerror(rv));
         return false;
     }
 
-    control_stream_id = stream_id;
-    swoole::quic::Stream *qs = quic_conn->open_stream(stream_id);
-    if (!qs) {
-        return false;
-    }
+    // Open QPACK encoder/decoder streams
+    qpack_enc_stream_id = is_server ? 6 : 7;
+    qpack_dec_stream_id = is_server ? 10 : 11;
 
-    // Open QPACK encoder stream
-    rv = nghttp3_conn_bind_qpack_streams(conn, &qpack_enc_stream_id, &qpack_dec_stream_id);
+    rv = nghttp3_conn_bind_qpack_streams(conn, qpack_enc_stream_id, qpack_dec_stream_id);
     if (rv != 0) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_HTTP3_STREAM,
                          "nghttp3_conn_bind_qpack_streams failed: %s", nghttp3_strerror(rv));
@@ -592,17 +595,8 @@ bool Connection::open_control_streams() {
 }
 
 bool Connection::send_settings() {
-    if (!conn) {
-        return false;
-    }
-
-    int rv = nghttp3_conn_submit_settings(conn);
-    if (rv != 0) {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_HTTP3_SEND,
-                         "nghttp3_conn_submit_settings failed: %s", nghttp3_strerror(rv));
-        return false;
-    }
-
+    // Settings are sent automatically by nghttp3 during connection setup
+    // No explicit submission needed in newer versions
     return true;
 }
 
@@ -729,7 +723,7 @@ ssize_t Connection::write_streams() {
 
 bool Connection::close() {
     if (conn) {
-        nghttp3_conn_shutdown(conn, 0);
+        nghttp3_conn_shutdown(conn);
     }
 
     if (quic_conn) {
@@ -741,7 +735,7 @@ bool Connection::close() {
 
 // ==================== HTTP/3 Server Implementation ====================
 
-Server::Server()
+swoole::http3::Server::Server()
     : quic_server(nullptr),
       max_field_section_size(SW_HTTP3_MAX_FIELD_SECTION_SIZE),
       qpack_max_table_capacity(SW_HTTP3_MAX_TABLE_CAPACITY),
@@ -755,11 +749,11 @@ Server::Server()
     Connection::setup_settings(&settings);
 }
 
-Server::~Server() {
+swoole::http3::Server::~Server() {
     stop();
 }
 
-bool Server::bind(const char *host, int port, SSL_CTX *ssl_ctx) {
+bool swoole::http3::Server::bind(const char *host, int port, SSL_CTX *ssl_ctx) {
     quic_server = new swoole::quic::Server();
     if (!quic_server) {
         return false;
@@ -816,7 +810,7 @@ bool Server::bind(const char *host, int port, SSL_CTX *ssl_ctx) {
     return true;
 }
 
-Connection* Server::accept_connection(swoole::quic::Connection *quic_conn) {
+Connection* swoole::http3::Server::accept_connection(swoole::quic::Connection *quic_conn) {
     if (!quic_conn) {
         return nullptr;
     }
@@ -852,7 +846,7 @@ Connection* Server::accept_connection(swoole::quic::Connection *quic_conn) {
     return conn;
 }
 
-bool Server::remove_connection(Connection *conn) {
+bool swoole::http3::Server::remove_connection(Connection *conn) {
     for (auto it = connections.begin(); it != connections.end(); ++it) {
         if (it->second == conn) {
             delete conn;
@@ -863,7 +857,7 @@ bool Server::remove_connection(Connection *conn) {
     return false;
 }
 
-bool Server::start() {
+bool swoole::http3::Server::start() {
     if (!quic_server) {
         return false;
     }
@@ -872,7 +866,7 @@ bool Server::start() {
     return true;
 }
 
-void Server::stop() {
+void swoole::http3::Server::stop() {
     for (auto &pair : connections) {
         delete pair.second;
     }
