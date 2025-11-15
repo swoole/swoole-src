@@ -177,8 +177,11 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 
-#ifdef __APPLE__
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #define SOL_TCP IPPROTO_TCP
+#endif
+
+#ifdef __APPLE__
 #define TCP_INFO TCP_CONNECTION_INFO
 using tcp_info = tcp_connection_info;
 #endif
