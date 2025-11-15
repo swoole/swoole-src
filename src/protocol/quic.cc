@@ -25,6 +25,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <errno.h>
+#include <vector>
 #include <openssl/rand.h>
 
 using namespace swoole;
@@ -833,9 +834,194 @@ bool swoole::quic::Server::remove_connection(Connection *conn) {
 }
 
 void swoole::quic::Server::run() {
-    // Main event loop would go here
-    // This would integrate with Swoole's reactor
-    swoole_trace("QUIC server running...");
+    if (fd < 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "server not bound");
+        return;
+    }
+
+    swoole_trace("QUIC server running on fd=%d...", fd);
+
+    // Event loop
+    while (true) {
+        fd_set readfds;
+        struct timeval tv;
+
+        FD_ZERO(&readfds);
+        FD_SET(fd, &readfds);
+
+        // Set timeout to 1 second for processing timeouts
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+
+        int ret = select(fd + 1, &readfds, nullptr, nullptr, &tv);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "select failed: %s", strerror(errno));
+            break;
+        }
+
+        // Handle incoming packets
+        if (ret > 0 && FD_ISSET(fd, &readfds)) {
+            uint8_t buf[65536];
+            struct sockaddr_storage addr;
+            socklen_t addrlen = sizeof(addr);
+
+            ssize_t nread = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &addr, &addrlen);
+            if (nread < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                    continue;
+                }
+                swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "recvfrom failed: %s", strerror(errno));
+                continue;
+            }
+
+            if (nread == 0) {
+                continue;
+            }
+
+            swoole_trace("Received %zd bytes from client", nread);
+
+            // Try to parse packet header to get destination CID
+            ngtcp2_version_cid version_cid;
+            int rv = ngtcp2_pkt_decode_version_cid(&version_cid, buf, nread, NGTCP2_MIN_CIDLEN);
+
+            Connection *conn = nullptr;
+            if (rv == 0) {
+                // Convert DCID to string and look up connection
+                ngtcp2_cid dcid;
+                ngtcp2_cid_init(&dcid, version_cid.dcid, version_cid.dcidlen);
+                std::string cid_str = cid_to_string(&dcid);
+
+                auto it = connections.find(cid_str);
+                if (it != connections.end()) {
+                    conn = it->second;
+                    swoole_trace("Found existing connection for CID");
+                } else {
+                    // New connection - accept it
+                    conn = accept_connection((struct sockaddr *) &addr, addrlen, buf, nread);
+                    if (!conn) {
+                        swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_INIT, "Failed to accept connection");
+                        continue;
+                    }
+                    swoole_trace("Accepted new QUIC connection");
+                    // First packet was already processed in accept_connection
+                    goto send_packets;
+                }
+            }
+
+            // Process packet for existing connection
+            if (conn) {
+                rv = conn->recv_packet(buf, nread);
+                if (rv < 0) {
+                    swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_RECV, "Failed to process packet");
+                    // Don't remove connection yet, let it timeout
+                }
+            }
+
+send_packets:
+            // Send outgoing packets for this connection
+            if (conn) {
+                while (true) {
+                    uint8_t sendbuf[65536];
+                    ngtcp2_path_storage ps;
+                    ngtcp2_pkt_info pi;
+
+                    ngtcp2_path_storage_zero(&ps);
+
+                    ngtcp2_ssize nwrite = ngtcp2_conn_write_pkt(conn->conn, &ps.path, &pi,
+                                                                 sendbuf, sizeof(sendbuf),
+                                                                 timestamp());
+                    if (nwrite < 0) {
+                        swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_SEND,
+                                        "ngtcp2_conn_write_pkt: %s", ngtcp2_strerror(nwrite));
+                        break;
+                    }
+
+                    if (nwrite == 0) {
+                        break;
+                    }
+
+                    // Send packet
+                    ssize_t nsent = sendto(fd, sendbuf, nwrite, 0,
+                                          ps.path.remote.addr, ps.path.remote.addrlen);
+                    if (nsent < 0) {
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                            // Would block, try again later
+                            break;
+                        }
+                        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL,
+                                        "sendto failed: %s", strerror(errno));
+                        break;
+                    }
+
+                    swoole_trace("Sent %zd bytes to client", nsent);
+                }
+            }
+        }
+
+        // Process timeouts and idle connections
+        ngtcp2_tstamp now = timestamp();
+        std::vector<Connection*> to_remove;
+
+        for (auto &pair : connections) {
+            Connection *conn = pair.second;
+
+            // Check expiry
+            ngtcp2_tstamp expiry = ngtcp2_conn_get_expiry(conn->conn);
+            if (expiry != UINT64_MAX && expiry <= now) {
+                swoole_trace("Connection expired, handling timeout");
+
+                // Handle timeout
+                int rv = ngtcp2_conn_handle_expiry(conn->conn, now);
+                if (rv != 0) {
+                    swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_TIMEOUT,
+                                    "ngtcp2_conn_handle_expiry: %s", ngtcp2_strerror(rv));
+                    to_remove.push_back(conn);
+                    continue;
+                }
+
+                // Send packets after timeout handling
+                while (true) {
+                    uint8_t sendbuf[65536];
+                    ngtcp2_path_storage ps;
+                    ngtcp2_pkt_info pi;
+
+                    ngtcp2_path_storage_zero(&ps);
+
+                    ngtcp2_ssize nwrite = ngtcp2_conn_write_pkt(conn->conn, &ps.path, &pi,
+                                                                 sendbuf, sizeof(sendbuf), now);
+                    if (nwrite <= 0) {
+                        break;
+                    }
+
+                    ssize_t nsent = sendto(fd, sendbuf, nwrite, 0,
+                                          ps.path.remote.addr, ps.path.remote.addrlen);
+                    if (nsent < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+                        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL,
+                                        "sendto failed: %s", strerror(errno));
+                        break;
+                    }
+                }
+            }
+
+            // Check if connection should be closed
+            if (ngtcp2_conn_in_closing_period(conn->conn) ||
+                ngtcp2_conn_in_draining_period(conn->conn)) {
+                swoole_trace("Connection in closing/draining period");
+                to_remove.push_back(conn);
+            }
+        }
+
+        // Remove closed connections
+        for (Connection *conn : to_remove) {
+            swoole_trace("Removing closed connection");
+            remove_connection(conn);
+        }
+    }
+
+    swoole_trace("QUIC server stopped");
 }
 
 #endif // SW_USE_QUIC
