@@ -400,7 +400,13 @@ ngtcp2_callbacks Connection::create_callbacks() {
     ngtcp2_callbacks callbacks;
     memset(&callbacks, 0, sizeof(callbacks));
 
+    // Client-side callback
     callbacks.client_initial = on_client_initial;
+
+    // Server-side callback (required for server connections)
+    callbacks.recv_client_initial = ngtcp2_crypto_recv_client_initial_cb;
+
+    // Common callbacks
     callbacks.recv_crypto_data = on_recv_crypto_data;
     callbacks.handshake_completed = on_handshake_completed;
     callbacks.recv_stream_data = on_recv_stream_data;
