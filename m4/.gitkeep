@@ -1,0 +1,3 @@
+# This directory is used by aclocal to resolve autoconf macros
+# Run: aclocal -I m4
+# This helps resolve PKG_CHECK_MODULES and other autoconf macros
