@@ -195,11 +195,16 @@ build_swoole() {
     # Run phpize
     phpize
 
+    # Run aclocal to resolve autoconf macros (like PKG_CHECK_MODULES)
+    # This automatically includes system macros from /usr/share/aclocal/
+    aclocal -I m4
+
     # Configure
     ./configure \
         --enable-swoole \
         --enable-openssl \
         --enable-http2 \
+        --with-openssl-dir=/usr/local/openssl35 \
         --with-ngtcp2-dir=/usr/local \
         --with-nghttp3-dir=/usr/local
 
