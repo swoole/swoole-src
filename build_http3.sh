@@ -199,6 +199,9 @@ build_swoole() {
     # This automatically includes system macros from /usr/share/aclocal/
     aclocal -I m4
 
+    # Regenerate configure script with resolved macros
+    autoconf
+
     # Configure
     ./configure \
         --enable-swoole \
