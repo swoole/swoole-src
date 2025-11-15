@@ -195,6 +195,11 @@ build_swoole() {
     # Run phpize
     phpize
 
+    # Run aclocal first to collect m4 macros (including PKG_CHECK_MODULES from pkg.m4)
+    # This must be done before autoreconf to ensure all macros are available
+    print_info "Collecting autoconf macros..."
+    aclocal -I m4
+
     # Run autoreconf to properly regenerate build system with all macros
     # This resolves PKG_CHECK_MODULES and maintains libtool compatibility
     autoreconf -fi
