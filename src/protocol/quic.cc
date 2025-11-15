@@ -170,29 +170,9 @@ static int on_client_initial(ngtcp2_conn *conn, void *user_data) {
     return 0;
 }
 
-static int on_recv_crypto_data(ngtcp2_conn *conn,
-                                ngtcp2_encryption_level encryption_level,
-                                uint64_t offset,
-                                const uint8_t *data,
-                                size_t datalen,
-                                void *user_data) {
-    Connection *c = (Connection *) user_data;
-
-    if (!c->ssl) {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_HANDSHAKE, "SSL not initialized");
-        return NGTCP2_ERR_CRYPTO;
-    }
-
-    int rv = ngtcp2_crypto_read_write_crypto_data(
-        conn, encryption_level, data, datalen);
-    if (rv != 0) {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_HANDSHAKE,
-                         "ngtcp2_crypto_read_write_crypto_data failed: %d", rv);
-        return rv;
-    }
-
-    return 0;
-}
+// Use the ngtcp2_crypto callback wrapper which handles SSL context automatically
+// This is the correct approach for ngtcp2 v1.16.0 with OpenSSL 3.5
+// The wrapper is defined in ngtcp2_crypto.h and handles the SSL object internally
 
 static int on_handshake_completed(ngtcp2_conn *conn, void *user_data) {
     Connection *c = (Connection *) user_data;
@@ -413,8 +393,8 @@ ngtcp2_callbacks Connection::create_callbacks() {
     callbacks.update_key = ngtcp2_crypto_update_key_cb;
     callbacks.rand = on_rand;
 
-    // Crypto data handling
-    callbacks.recv_crypto_data = on_recv_crypto_data;
+    // Crypto data handling - use ngtcp2 provided wrapper
+    callbacks.recv_crypto_data = ngtcp2_crypto_recv_crypto_data_cb;
 
     // Stream callbacks
     callbacks.handshake_completed = on_handshake_completed;
