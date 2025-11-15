@@ -845,9 +845,10 @@ void swoole::quic::Server::run() {
         return;
     }
 
-    swoole_trace("QUIC server running on fd=%d...", fd);
+    swoole_warning("QUIC server starting event loop on fd=%d", fd);
 
     // Event loop
+    int loop_count = 0;
     while (true) {
         fd_set readfds;
         struct timeval tv;
@@ -866,6 +867,11 @@ void swoole::quic::Server::run() {
             }
             swoole_error_log(SW_LOG_ERROR, SW_ERROR_SYSTEM_CALL_FAIL, "select failed: %s", strerror(errno));
             break;
+        }
+
+        // Periodic debug output every 10 seconds
+        if (++loop_count % 10 == 0) {
+            swoole_warning("QUIC server loop iteration %d, active connections: %zu", loop_count, connections.size());
         }
 
         // Handle incoming packets
@@ -887,7 +893,7 @@ void swoole::quic::Server::run() {
                 continue;
             }
 
-            swoole_trace("Received %zd bytes from client", nread);
+            swoole_warning("QUIC server received %zd bytes from client", nread);
 
             // Try to parse packet header to get destination CID
             ngtcp2_version_cid version_cid;
@@ -911,7 +917,7 @@ void swoole::quic::Server::run() {
                         swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_INIT, "Failed to accept connection");
                         continue;
                     }
-                    swoole_trace("Accepted new QUIC connection");
+                    swoole_warning("Accepted new QUIC connection, total connections: %zu", connections.size());
                     // First packet was already processed in accept_connection
                     goto send_packets;
                 }
@@ -962,7 +968,7 @@ send_packets:
                         break;
                     }
 
-                    swoole_trace("Sent %zd bytes to client", nsent);
+                    swoole_warning("Sent %zd bytes to client", nsent);
                 }
             }
         }
