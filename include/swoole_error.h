@@ -222,6 +222,7 @@ enum swErrorCode {
     SW_ERROR_QUIC_SEND,
     SW_ERROR_QUIC_RECV,
     SW_ERROR_QUIC_TIMEOUT,
+    SW_ERROR_QUIC_HANDSHAKE,
 
     /**
      * HTTP/3 protocol error

@@ -447,9 +447,9 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
     this->dcid = *dcid;
     this->scid = *scid;
 
-    ngtcp2_path path;
-    ngtcp2_path_storage_init2(&path, (struct sockaddr *) &this->local_addr,
-                               (struct sockaddr *) &this->remote_addr);
+    ngtcp2_path_storage path;
+    ngtcp2_path_storage_init(&path, (struct sockaddr *) &this->local_addr, local_addrlen,
+                              (struct sockaddr *) &this->remote_addr, remote_addrlen, nullptr);
 
     ngtcp2_callbacks callbacks = create_callbacks();
     setup_settings(&settings);
@@ -457,7 +457,7 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
     last_ts = timestamp();
     settings.initial_ts = last_ts;
 
-    int rv = ngtcp2_conn_server_new(&conn, &this->dcid, &this->scid, &path,
+    int rv = ngtcp2_conn_server_new(&conn, &this->dcid, &this->scid, &path.path,
                                      NGTCP2_PROTO_VER_V1, &callbacks, &settings, &params, nullptr, this);
 
     if (rv != 0) {
@@ -508,9 +508,9 @@ bool Connection::init_client(const struct sockaddr *local_addr, socklen_t local_
         return false;
     }
 
-    ngtcp2_path path;
-    ngtcp2_path_storage_init2(&path, (struct sockaddr *) &this->local_addr,
-                               (struct sockaddr *) &this->remote_addr);
+    ngtcp2_path_storage path;
+    ngtcp2_path_storage_init(&path, (struct sockaddr *) &this->local_addr, local_addrlen,
+                              (struct sockaddr *) &this->remote_addr, remote_addrlen, nullptr);
 
     ngtcp2_callbacks callbacks = create_callbacks();
     setup_settings(&settings);
@@ -518,7 +518,7 @@ bool Connection::init_client(const struct sockaddr *local_addr, socklen_t local_
     last_ts = timestamp();
     settings.initial_ts = last_ts;
 
-    int rv = ngtcp2_conn_client_new(&conn, &dcid, &scid, &path,
+    int rv = ngtcp2_conn_client_new(&conn, &dcid, &scid, &path.path,
                                      NGTCP2_PROTO_VER_V1, &callbacks, &settings, &params, nullptr, this);
 
     if (rv != 0) {
@@ -613,16 +613,16 @@ ssize_t Connection::recv_packet(const uint8_t *data, size_t datalen) {
         return -1;
     }
 
-    ngtcp2_path path;
-    ngtcp2_path_storage_init2(&path, (struct sockaddr *) &local_addr,
-                               (struct sockaddr *) &remote_addr);
+    ngtcp2_path_storage path;
+    ngtcp2_path_storage_init(&path, (struct sockaddr *) &local_addr, local_addrlen,
+                              (struct sockaddr *) &remote_addr, remote_addrlen, nullptr);
 
     ngtcp2_pkt_info pi;
     memset(&pi, 0, sizeof(pi));
 
     ngtcp2_tstamp ts = timestamp();
 
-    int rv = ngtcp2_conn_read_pkt(conn, &path, &pi, data, datalen, ts);
+    int rv = ngtcp2_conn_read_pkt(conn, &path.path, &pi, data, datalen, ts);
 
     if (rv != 0) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_RECV,
@@ -765,8 +765,12 @@ Connection* swoole::quic::Server::accept_connection(const struct sockaddr *remot
         return nullptr;
     }
 
+    // Convert version_cid to ngtcp2_cid
+    ngtcp2_cid dcid;
+    ngtcp2_cid_init(&dcid, version_cid.dcid, version_cid.dcidlen);
+
     // Check if connection already exists
-    std::string cid_str = cid_to_string(&version_cid.dcid);
+    std::string cid_str = cid_to_string(&dcid);
     auto it = connections.find(cid_str);
     if (it != connections.end()) {
         return it->second;
@@ -787,7 +791,7 @@ Connection* swoole::quic::Server::accept_connection(const struct sockaddr *remot
 
     if (!conn->init_server((struct sockaddr *) &local_addr, local_addrlen,
                             remote_addr, remote_addrlen,
-                            &version_cid.dcid, &scid, ssl_ctx)) {
+                            &dcid, &scid, ssl_ctx)) {
         delete conn;
         return nullptr;
     }
