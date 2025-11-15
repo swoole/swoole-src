@@ -308,9 +308,9 @@ static int on_extend_max_streams(ngtcp2_conn *conn,
     return 0;
 }
 
-static int on_rand(uint8_t *dest, size_t destlen,
+static void on_rand(uint8_t *dest, size_t destlen,
                     const ngtcp2_rand_ctx *rand_ctx) {
-    return generate_secure_random(dest, destlen);
+    generate_secure_random(dest, destlen);
 }
 
 static int on_get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
@@ -411,6 +411,7 @@ ngtcp2_callbacks Connection::create_callbacks() {
     callbacks.decrypt = ngtcp2_crypto_decrypt_cb;
     callbacks.hp_mask = ngtcp2_crypto_hp_mask_cb;
     callbacks.update_key = ngtcp2_crypto_update_key_cb;
+    callbacks.rand = on_rand;
 
     // Crypto data handling
     callbacks.recv_crypto_data = on_recv_crypto_data;
