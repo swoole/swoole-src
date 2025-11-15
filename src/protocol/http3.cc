@@ -557,7 +557,10 @@ bool Connection::open_control_streams() {
     }
 
     // Open control stream
-    control_stream_id = is_server ? 2 : 3;  // Server uses stream 2, client uses stream 3
+    // QUIC stream IDs: bit 0 = initiator (0=client, 1=server), bit 1 = type (0=bidi, 1=uni)
+    // Server must use server-initiated unidirectional streams: 3, 7, 11, 15...
+    // Client must use client-initiated unidirectional streams: 2, 6, 10, 14...
+    control_stream_id = is_server ? 3 : 2;  // Server uses stream 3, client uses stream 2
     swoole::quic::Stream *qs = quic_conn->open_stream(control_stream_id);
     if (!qs) {
         return false;
@@ -571,8 +574,10 @@ bool Connection::open_control_streams() {
     }
 
     // Open QPACK encoder/decoder streams
-    qpack_enc_stream_id = is_server ? 6 : 7;
-    qpack_dec_stream_id = is_server ? 10 : 11;
+    // Server uses 7 (encoder) and 11 (decoder)
+    // Client uses 6 (encoder) and 10 (decoder)
+    qpack_enc_stream_id = is_server ? 7 : 6;
+    qpack_dec_stream_id = is_server ? 11 : 10;
 
     rv = nghttp3_conn_bind_qpack_streams(conn, qpack_enc_stream_id, qpack_dec_stream_id);
     if (rv != 0) {
