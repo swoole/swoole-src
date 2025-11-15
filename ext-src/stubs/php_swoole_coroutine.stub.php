@@ -26,6 +26,7 @@ namespace Swoole {
         public static function enableScheduler(): bool {}
         public static function disableScheduler(): bool {}
         public static function getExecuteTime(): int {}
+        public static function setTimeLimit(float $timeout): bool {}
     }
 
     class ExitException {

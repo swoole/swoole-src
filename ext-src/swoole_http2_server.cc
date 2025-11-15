@@ -320,9 +320,7 @@ _destroy:
     zval_ptr_dtor(ctx->response.zobject);
 }
 
-static void http2_server_set_date_header(Http2::HeaderSet *headers) {
-
-}
+static void http2_server_set_date_header(Http2::HeaderSet *headers) {}
 
 static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const String *body) {
     zval *zheader =
@@ -412,7 +410,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
     }
     if (!(header_flags & HTTP_HEADER_DATE)) {
-    	auto date_str = php_swoole_http_get_date();
+        auto date_str = php_swoole_http_get_date();
         headers.add(ZEND_STRL("date"), ZSTR_VAL(date_str), ZSTR_LEN(date_str));
     }
     if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {

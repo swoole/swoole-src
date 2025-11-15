@@ -89,6 +89,8 @@ static zend_class_entry *swoole_coroutine_context_ce;
 
 static zend_class_entry *swoole_coroutine_canceled_exception_ce;
 static zend_object_handlers swoole_coroutine_canceled_exception_handlers;
+static zend_class_entry *swoole_coroutine_timeout_exception_ce;
+static zend_object_handlers swoole_coroutine_timeout_exception_handlers;
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine, exists);
@@ -96,6 +98,7 @@ static PHP_METHOD(swoole_coroutine, yield);
 static PHP_METHOD(swoole_coroutine, resume);
 static PHP_METHOD(swoole_coroutine, join);
 static PHP_METHOD(swoole_coroutine, cancel);
+static PHP_METHOD(swoole_coroutine, setTimeLimit);
 static PHP_METHOD(swoole_coroutine, isCanceled);
 static PHP_METHOD(swoole_coroutine, stats);
 static PHP_METHOD(swoole_coroutine, getCid);
@@ -128,6 +131,7 @@ static const zend_function_entry swoole_coroutine_methods[] =
     PHP_ME(swoole_coroutine, cancel,                      arginfo_class_Swoole_Coroutine_cancel,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, join,                        arginfo_class_Swoole_Coroutine_join,             ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, isCanceled,                  arginfo_class_Swoole_Coroutine_isCanceled,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, setTimeLimit,                arginfo_class_Swoole_Coroutine_setTimeLimit,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine, suspend, yield,          arginfo_class_Swoole_Coroutine_suspend,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, resume,                      arginfo_class_Swoole_Coroutine_resume,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, stats,                       arginfo_class_Swoole_Coroutine_stats,            ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -1041,6 +1045,14 @@ void php_swoole_coroutine_minit(int module_number) {
                             zend_get_std_object_handlers());
     swoole_coroutine_canceled_exception_ce->ce_flags |= ZEND_ACC_FINAL;
 
+    SW_INIT_CLASS_ENTRY_EX2(swoole_coroutine_timeout_exception,
+                                "Swoole\\Coroutine\\TimeoutException",
+                                nullptr,
+                                nullptr,
+                                zend_ce_exception,
+                                zend_get_std_object_handlers());
+    swoole_coroutine_timeout_exception_ce->ce_flags |= ZEND_ACC_FINAL;
+
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_SERVER", SW_EXIT_IN_SERVER);
 
@@ -1340,31 +1352,22 @@ static PHP_METHOD(swoole_coroutine, join) {
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_coroutine, cancel) {
-    zend_long cid;
-    bool throw_exception = false;
-
-    ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_LONG(cid)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(throw_exception)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
+static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception, zend_class_entry *ce) {
     if (throw_exception) {
         auto *task = PHPCoroutine::get_context_by_cid(cid);
         // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
         if (!task) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
-            RETURN_FALSE;
+            return false;
         }
 
-        if (task->exception && task->exception_class == swoole_coroutine_canceled_exception_ce) {
+        if (task->exception && task->exception_class == ce) {
             swoole_set_last_error(SW_ERROR_CO_CANCELED);
-            RETURN_FALSE;
+            return false;
         }
 
         zend_object *previous = task->exception;
-        task->exception_class = swoole_coroutine_canceled_exception_ce;
+        task->exception_class = ce;
         task->exception = zend_objects_new(task->exception_class);
         object_properties_init(task->exception, task->exception_class);
         if (previous) {
@@ -1380,15 +1383,51 @@ static PHP_METHOD(swoole_coroutine, cancel) {
         // Ignore the result of Co::cancel(). Even if the coroutine is in an irrevocable state,
         // it will directly throw an exception and terminate the coroutine
         task->co->cancel();
-        RETURN_TRUE;
+        return true;
     } else {
         Coroutine *co = swoole_coroutine_get(cid);
         if (!co) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
-            RETURN_FALSE;
+            return false;
         }
-        RETURN_BOOL(co->cancel());
+        return co->cancel();
     }
+}
+
+static PHP_METHOD(swoole_coroutine, cancel) {
+    zend_long cid;
+    bool throw_exception = false;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_LONG(cid)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_BOOL(throw_exception)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_BOOL(php_swoole_coroutine_throw_exception(cid, throw_exception, swoole_coroutine_canceled_exception_ce));
+}
+
+static PHP_METHOD(swoole_coroutine, setTimeLimit) {
+    double timeout = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    Coroutine *co = Coroutine::get_current_safe();
+    if (timeout == 0 || co == nullptr) {
+        RETURN_FALSE;
+    }
+
+    long cid = co->get_cid();
+    swoole_timer_add((long) timeout * 1000, false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
+        swoole_timer_del(tnode);
+        if (PHPCoroutine::get_context_by_cid(cid) != nullptr) {
+            php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
+        }
+    });
+
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_coroutine, isCanceled) {
