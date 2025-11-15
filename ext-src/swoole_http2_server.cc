@@ -310,7 +310,8 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
 
     args[0] = *ctx->request.zobject;
     args[1] = *ctx->response.zobject;
-    if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
+    if (UNEXPECTED(
+            !zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine(), serv->max_execution_time))) {
         stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
         php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
     }
@@ -320,9 +321,7 @@ _destroy:
     zval_ptr_dtor(ctx->response.zobject);
 }
 
-static void http2_server_set_date_header(Http2::HeaderSet *headers) {
-
-}
+static void http2_server_set_date_header(Http2::HeaderSet *headers) {}
 
 static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const String *body) {
     zval *zheader =
@@ -412,7 +411,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
     }
     if (!(header_flags & HTTP_HEADER_DATE)) {
-    	auto date_str = php_swoole_http_get_date();
+        auto date_str = php_swoole_http_get_date();
         headers.add(ZEND_STRL("date"), ZSTR_VAL(date_str), ZSTR_LEN(date_str));
     }
     if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {

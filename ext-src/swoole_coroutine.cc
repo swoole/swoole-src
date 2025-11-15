@@ -800,7 +800,8 @@ void PHPCoroutine::main_func(void *_args) {
     }
 }
 
-long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable) {
+long PHPCoroutine::create(
+    zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable, const uint32_t max_execution_time) {
     if (sw_unlikely(Coroutine::count() >= config.max_num)) {
         php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return Coroutine::ERR_LIMIT;
@@ -826,7 +827,19 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
     _args.callable = callable;
     save_context(get_context());
 
-    return Coroutine::create(main_func, (void *) &_args);
+    long cid = Coroutine::create(main_func, (void *) &_args);
+    if (cid >= 0 && max_execution_time > 0 && get_context_by_cid(cid) != nullptr) {
+        swoole_timer_add((long) max_execution_time * 1000, false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
+            swoole_timer_del(tnode);
+            if (swoole::PHPCoroutine::get_context_by_cid(cid) != nullptr) {
+                zval params[2];
+                ZVAL_LONG(&params[0], cid);
+                ZVAL_BOOL(&params[1], true);
+                zend::function::call(R"(\Swoole\Coroutine::cancel)", 2, params);
+            }
+        });
+    }
+    return cid;
 }
 
 void PHPCoroutine::defer(zend::Function *fci) {

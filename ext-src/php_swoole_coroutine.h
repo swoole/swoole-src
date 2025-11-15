@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "php_swoole_cxx.h"
+
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
@@ -146,7 +148,11 @@ class PHPCoroutine {
 
     static const uint8_t MAX_EXEC_MSEC = 10;
     static void shutdown();
-    static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable);
+    static long create(zend_fcall_info_cache *fci_cache,
+                       uint32_t argc,
+                       zval *argv,
+                       zval *callable,
+                       const uint32_t max_execution_time = 0);
     static PHPContext *create_context(const Args *args);
     static void defer(zend::Function *fci);
     static void deadlock_check();

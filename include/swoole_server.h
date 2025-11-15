@@ -773,6 +773,7 @@ class Server {
     network::Socket *udp_socket_ipv6 = nullptr;
     network::Socket *dgram_socket = nullptr;
 
+    uint32_t max_execution_time = 0;
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
     uint32_t worker_max_concurrency = UINT_MAX;
 
