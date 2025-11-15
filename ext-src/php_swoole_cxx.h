@@ -659,11 +659,21 @@ class ConcurrencyHashMap {
 
 namespace function {
 /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
-bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, bool enable_coroutine);
+bool call(zend_fcall_info_cache *fci_cache,
+          uint32_t argc,
+          zval *argv,
+          zval *retval,
+          const bool enable_coroutine,
+          const uint32_t max_execution_time = 0);
 Variable call(const std::string &func_name, int argc, zval *argv);
 
-static inline bool call(Callable *cb, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine) {
-    return call(cb->ptr(), argc, argv, retval, enable_coroutine);
+static inline bool call(Callable *cb,
+                        uint32_t argc,
+                        zval *argv,
+                        zval *retval,
+                        const bool enable_coroutine,
+                        const uint32_t max_execution_time = 0) {
+    return call(cb->ptr(), argc, argv, retval, enable_coroutine, max_execution_time);
 }
 }  // namespace function
 

@@ -75,6 +75,7 @@ class HttpServer {
     uint32_t compression_min_length;
     std::shared_ptr<std::unordered_set<std::string>> compression_types = nullptr;
 #endif
+    uint32_t max_execution_time = 0;
 
     explicit HttpServer(SocketType type) {
         socket = new Socket(type);
@@ -494,6 +495,11 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         hs->upload_tmp_dir = str_v.dup();
     }
 
+    if (php_swoole_array_get_value(vht, "max_execution_time", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        hs->max_execution_time = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+    }
+
     hs->running = true;
 
     while (hs->running) {
@@ -501,7 +507,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         if (conn) {
             zval zsocket;
             php_swoole_init_socket_object(&zsocket, conn);
-            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, zcallback.ptr());
+            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, zcallback.ptr(), hs->max_execution_time);
             zval_dtor(&zsocket);
             if (cid < 0) {
                 goto _wait_1s;

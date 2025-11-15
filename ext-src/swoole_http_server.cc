@@ -44,7 +44,8 @@ static void http_server_process_request(const Server *serv, zend::Callable *cb, 
     zval args[2];
     args[0] = *ctx->request.zobject;
     args[1] = *ctx->response.zobject;
-    if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
+    if (UNEXPECTED(
+            !zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine(), serv->max_execution_time))) {
         php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
