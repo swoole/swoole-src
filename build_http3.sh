@@ -192,17 +192,21 @@ build_swoole() {
     make clean 2>/dev/null || true
     phpize --clean 2>/dev/null || true
 
-    # Run phpize
+    # Copy pkg.m4 to m4/ directory so phpize can include PKG_CHECK_MODULES macro
+    # This is needed because config.m4 uses PKG_CHECK_MODULES for dependency detection
+    print_info "Preparing autoconf macros..."
+    mkdir -p m4
+    if [ -f /usr/share/aclocal/pkg.m4 ]; then
+        cp /usr/share/aclocal/pkg.m4 m4/
+    else
+        print_warn "pkg.m4 not found, PKG_CHECK_MODULES macro may not be available"
+    fi
+
+    # Run phpize - it will now include the macros from m4/ directory
+    # This generates the configure script specifically for PHP extensions
+    # IMPORTANT: Do NOT run aclocal/autoreconf after phpize as it would
+    # overwrite phpize's configure script and break PHP extension build
     phpize
-
-    # Run aclocal first to collect m4 macros (including PKG_CHECK_MODULES from pkg.m4)
-    # This must be done before autoreconf to ensure all macros are available
-    print_info "Collecting autoconf macros..."
-    aclocal -I m4
-
-    # Run autoreconf to properly regenerate build system with all macros
-    # This resolves PKG_CHECK_MODULES and maintains libtool compatibility
-    autoreconf -fi
 
     # Configure
     ./configure \
