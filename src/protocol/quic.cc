@@ -310,6 +310,12 @@ static int on_get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
 
 // ==================== QUIC Connection Implementation ====================
 
+// Callback to retrieve ngtcp2_conn from ngtcp2_crypto_conn_ref
+static ngtcp2_conn *get_conn(ngtcp2_crypto_conn_ref *ref) {
+    Connection *connection = static_cast<Connection *>(ref->user_data);
+    return connection->conn;
+}
+
 Connection::Connection()
     : conn(nullptr),
       ssl(nullptr),
@@ -340,6 +346,10 @@ Connection::Connection()
     memset(&remote_addr, 0, sizeof(remote_addr));
     memset(&settings, 0, sizeof(settings));
     memset(&params, 0, sizeof(params));
+
+    // Initialize ngtcp2_crypto_conn_ref
+    conn_ref.get_conn = get_conn;
+    conn_ref.user_data = this;
 
     send_buffer = (uint8_t *) sw_malloc(send_buffer_size);
     recv_buffer = (uint8_t *) sw_malloc(recv_buffer_size);
@@ -485,6 +495,7 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
     }
 
     SSL_set_accept_state(ssl);
+    SSL_set_app_data(ssl, &conn_ref);
     SSL_set_quic_tls_early_data_enabled(ssl, 1);
 
     rv = ngtcp2_crypto_ossl_configure_server_session(ssl);
@@ -550,6 +561,7 @@ bool Connection::init_client(const struct sockaddr *local_addr, socklen_t local_
     }
 
     SSL_set_connect_state(ssl);
+    SSL_set_app_data(ssl, &conn_ref);
     SSL_set_tlsext_host_name(ssl, server_name);
     SSL_set_quic_tls_early_data_enabled(ssl, 1);
 
