@@ -202,16 +202,16 @@ build_swoole() {
         print_warn "pkg.m4 not found, PKG_CHECK_MODULES macro may not be available"
     fi
 
-    # Run phpize to generate initial build system for PHP extension
+    # Run phpize to generate the PHP extension build system
+    print_info "Running phpize..."
     phpize
 
-    # Update aclocal.m4 to include PKG_CHECK_MODULES from m4/pkg.m4
-    # This doesn't overwrite configure, just updates the macro definitions
-    print_info "Updating aclocal.m4 with PKG_CHECK_MODULES macro..."
-    aclocal -I m4
+    # Add m4_include for pkg.m4 at the beginning of configure.ac
+    # This ensures PKG_CHECK_MODULES macro is available when config.m4 is processed
+    print_info "Patching configure.ac to include pkg.m4..."
+    sed -i '1 a\m4_include([m4/pkg.m4])' configure.ac
 
-    # Regenerate configure script with updated macros
-    # Use autoconf (not autoreconf) to preserve phpize's build system setup
+    # Regenerate configure script with the PKG_CHECK_MODULES macro included
     print_info "Regenerating configure script..."
     autoconf
 
