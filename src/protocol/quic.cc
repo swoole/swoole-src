@@ -406,8 +406,16 @@ ngtcp2_callbacks Connection::create_callbacks() {
     // Server-side callback (required for server connections)
     callbacks.recv_client_initial = ngtcp2_crypto_recv_client_initial_cb;
 
-    // Common callbacks
+    // Crypto callbacks (required)
+    callbacks.encrypt = ngtcp2_crypto_encrypt_cb;
+    callbacks.decrypt = ngtcp2_crypto_decrypt_cb;
+    callbacks.hp_mask = ngtcp2_crypto_hp_mask_cb;
+    callbacks.update_key = ngtcp2_crypto_update_key_cb;
+
+    // Crypto data handling
     callbacks.recv_crypto_data = on_recv_crypto_data;
+
+    // Stream callbacks
     callbacks.handshake_completed = on_handshake_completed;
     callbacks.recv_stream_data = on_recv_stream_data;
     callbacks.stream_open = ::on_stream_open;
@@ -415,7 +423,12 @@ ngtcp2_callbacks Connection::create_callbacks() {
     callbacks.acked_stream_data_offset = on_acked_stream_data_offset;
     callbacks.extend_max_local_streams_bidi = on_extend_max_streams;
     callbacks.extend_max_local_streams_uni = on_extend_max_streams;
-    // callbacks.rand = on_rand;  // OpenSSL 3.5 uses internal RNG
+
+    // Cleanup callbacks
+    callbacks.delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb;
+    callbacks.delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb;
+
+    // Connection ID callback
     callbacks.get_new_connection_id = on_get_new_connection_id;
 
     return callbacks;
