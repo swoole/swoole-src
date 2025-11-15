@@ -195,12 +195,9 @@ build_swoole() {
     # Run phpize
     phpize
 
-    # Run aclocal to resolve autoconf macros (like PKG_CHECK_MODULES)
-    # This automatically includes system macros from /usr/share/aclocal/
-    aclocal -I m4
-
-    # Regenerate configure script with resolved macros
-    autoconf
+    # Run autoreconf to properly regenerate build system with all macros
+    # This resolves PKG_CHECK_MODULES and maintains libtool compatibility
+    autoreconf -fi
 
     # Configure
     ./configure \
