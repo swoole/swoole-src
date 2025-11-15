@@ -320,6 +320,7 @@ Connection::Connection()
     : conn(nullptr),
       ssl(nullptr),
       ssl_ctx(nullptr),
+      ossl_ctx(nullptr),
       local_addrlen(0),
       remote_addrlen(0),
       state(SW_QUIC_STATE_INITIAL),
@@ -373,6 +374,11 @@ Connection::~Connection() {
     if (ssl) {
         SSL_free(ssl);
         ssl = nullptr;
+    }
+
+    if (ossl_ctx) {
+        ngtcp2_crypto_ossl_ctx_del(ossl_ctx);
+        ossl_ctx = nullptr;
     }
 
     if (send_buffer) {
@@ -494,6 +500,14 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
         return false;
     }
 
+    // Setup ngtcp2 OpenSSL context
+    rv = ngtcp2_crypto_ossl_ctx_new(&ossl_ctx, ssl);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_INIT,
+                         "ngtcp2_crypto_ossl_ctx_new failed: %d", rv);
+        return false;
+    }
+
     SSL_set_accept_state(ssl);
     SSL_set_app_data(ssl, &conn_ref);
     SSL_set_quic_tls_early_data_enabled(ssl, 1);
@@ -557,6 +571,14 @@ bool Connection::init_client(const struct sockaddr *local_addr, socklen_t local_
     ssl = SSL_new(ssl_ctx);
     if (!ssl) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SSL_CTX_INIT, "SSL_new failed");
+        return false;
+    }
+
+    // Setup ngtcp2 OpenSSL context
+    rv = ngtcp2_crypto_ossl_ctx_new(&ossl_ctx, ssl);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUIC_INIT,
+                         "ngtcp2_crypto_ossl_ctx_new failed: %d", rv);
         return false;
     }
 

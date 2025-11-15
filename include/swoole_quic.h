@@ -124,6 +124,7 @@ struct Connection {
     SSL *ssl;
     SSL_CTX *ssl_ctx;
     ngtcp2_crypto_conn_ref conn_ref;
+    ngtcp2_crypto_ossl_ctx *ossl_ctx;
 
     // Connection ID
     ngtcp2_cid dcid;  // Destination Connection ID
