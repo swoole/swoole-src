@@ -881,7 +881,7 @@ void swoole::quic::Server::run() {
         return;
     }
 
-    swoole_warning("QUIC server starting event loop on fd=%d", fd);
+    swoole_trace("QUIC server starting event loop on fd=%d", fd);
 
     // Event loop
     int loop_count = 0;
@@ -907,7 +907,7 @@ void swoole::quic::Server::run() {
 
         // Periodic debug output every 10 seconds
         if (++loop_count % 10 == 0) {
-            swoole_warning("QUIC server loop iteration %d, active connections: %zu", loop_count, connections.size());
+            swoole_trace("QUIC server loop iteration %d, active connections: %zu", loop_count, connections.size());
         }
 
         // Handle incoming packets
