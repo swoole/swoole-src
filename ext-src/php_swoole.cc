@@ -514,6 +514,11 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_HAVE_BROTLI", 1);
 #endif
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_HTTP2", 1);
+#ifdef SW_USE_HTTP3
+    SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_HTTP3", 1);
+#else
+    SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_HTTP3", 0);
+#endif
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_SHORTNAME", SWOOLE_G(use_shortname));
 
     /**
@@ -888,6 +893,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_http_server_minit(module_number);
     php_swoole_http_server_coro_minit(module_number);
     php_swoole_websocket_server_minit(module_number);
+#ifdef SW_USE_HTTP3
+    php_swoole_http3_server_minit(module_number);
+#endif
     php_swoole_redis_server_minit(module_number);
     php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
