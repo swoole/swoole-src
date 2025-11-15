@@ -28,59 +28,56 @@ cat > /tmp/gdb_http3_commands.txt <<'EOF'
 set pagination off
 set print pretty on
 
-# Set breakpoints at critical locations
-break swoole::quic::Server::accept_connection
-break swoole::quic::Connection::recv_packet
-break swoole::http3::Connection::init_server
-break swoole::http3::Connection::open_control_streams
+# Enable pending breakpoints (for shared libraries not yet loaded)
+set breakpoint pending on
 
 # Handle signals
-handle SIGSEGV stop print
-handle SIGABRT stop print
+handle SIGSEGV stop print nopass
+handle SIGABRT stop print nopass
 
-# Display helpful info on breakpoint
-commands 1
-  echo \n=== accept_connection called ===\n
-  continue
-end
-
-commands 2
-  echo \n=== recv_packet called ===\n
-  continue
-end
-
-commands 3
-  echo \n=== HTTP/3 init_server called ===\n
-  continue
-end
-
-commands 4
-  echo \n=== open_control_streams called ===\n
-  continue
-end
-
+# Start the program and let it run until it hits a signal or exits
 echo \n========================================\n
-echo Server is ready. Send your HTTP/3 request now.\n
-echo If it crashes, backtrace will be displayed.\n
+echo Starting HTTP/3 server...\n
+echo Server will run until crash or Ctrl+C\n
+echo Send your HTTP/3 request from another terminal\n
 echo ========================================\n\n
 
 run
 
-# If we get here, either the program ended normally or crashed
+# If we get here, the program crashed or exited
 echo \n\n========================================\n
-echo CRASH DETECTED - Backtrace:\n
+echo Program stopped. Analyzing...\n
+echo ========================================\n
+
+# Check if program is still running
+if $_siginfo
+  echo \nSignal received: $_siginfo\n
+end
+
+echo \n========================================\n
+echo BACKTRACE:\n
 echo ========================================\n
 backtrace full
 
 echo \n========================================\n
-echo Register dump:\n
+echo REGISTERS:\n
 echo ========================================\n
 info registers
 
 echo \n========================================\n
-echo Thread information:\n
+echo THREADS:\n
 echo ========================================\n
 info threads
+
+echo \n========================================\n
+echo LOCAL VARIABLES (current frame):\n
+echo ========================================\n
+info locals
+
+echo \n========================================\n
+echo ARGUMENTS (current frame):\n
+echo ========================================\n
+info args
 
 quit
 EOF
