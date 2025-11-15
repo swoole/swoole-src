@@ -429,6 +429,9 @@ ngtcp2_callbacks Connection::create_callbacks() {
     callbacks.delete_crypto_aead_ctx = ngtcp2_crypto_delete_crypto_aead_ctx_cb;
     callbacks.delete_crypto_cipher_ctx = ngtcp2_crypto_delete_crypto_cipher_ctx_cb;
 
+    // Path challenge (required)
+    callbacks.get_path_challenge_data = ngtcp2_crypto_get_path_challenge_data_cb;
+
     // Connection ID callback
     callbacks.get_new_connection_id = on_get_new_connection_id;
 
