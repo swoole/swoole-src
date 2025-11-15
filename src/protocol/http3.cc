@@ -108,7 +108,7 @@ Stream::Stream(int64_t id, Connection *c, swoole::quic::Stream *qs)
       is_response(0),
       user_data(nullptr) {
 
-    body = swString_new(SW_BUFFER_SIZE_STD);
+    body = new swoole::String(SW_BUFFER_SIZE_STD);
 
     if (qs) {
         qs->user_data = this;
@@ -119,7 +119,7 @@ Stream::~Stream() {
     headers.clear();
 
     if (body) {
-        swString_free(body);
+        delete body;
     }
 }
 
@@ -172,9 +172,7 @@ bool Stream::send_body(const uint8_t *data, size_t len, bool fin) {
 
     // Store data in buffer for later transmission
     if (len > 0) {
-        if (swString_append_ptr(body, (const char *) data, len) < 0) {
-            return false;
-        }
+        body->append((const char *) data, len);
     }
 
     // The actual sending will be done in write_streams()
@@ -232,9 +230,7 @@ bool Stream::recv_headers(const nghttp3_nv *nva, size_t nvlen) {
 
 bool Stream::recv_body(const uint8_t *data, size_t len) {
     if (len > 0) {
-        if (swString_append_ptr(body, (const char *) data, len) < 0) {
-            return false;
-        }
+        body->append((const char *) data, len);
     }
     return true;
 }
@@ -471,8 +467,9 @@ Connection::Connection(swoole::quic::Connection *qc)
     memset(&settings, 0, sizeof(settings));
     setup_settings(&settings);
 
-    nghttp3_qpack_encoder_init(&qpack_enc);
-    nghttp3_qpack_decoder_init(&qpack_dec, SW_HTTP3_MAX_TABLE_CAPACITY, SW_HTTP3_MAX_BLOCKED_STREAMS);
+    // QPACK encoder/decoder are managed by nghttp3_conn internally
+    // nghttp3_qpack_encoder_init(&qpack_enc);
+    // nghttp3_qpack_decoder_init(&qpack_dec, SW_HTTP3_MAX_TABLE_CAPACITY, SW_HTTP3_MAX_BLOCKED_STREAMS);
 
     if (qc) {
         qc->user_data = this;
@@ -490,8 +487,9 @@ Connection::~Connection() {
         conn = nullptr;
     }
 
-    nghttp3_qpack_encoder_free(&qpack_enc);
-    nghttp3_qpack_decoder_free(&qpack_dec);
+    // QPACK encoder/decoder are managed by nghttp3_conn internally
+    // nghttp3_qpack_encoder_free(&qpack_enc);
+    // nghttp3_qpack_decoder_free(&qpack_dec);
 }
 
 nghttp3_callbacks Connection::create_callbacks() {

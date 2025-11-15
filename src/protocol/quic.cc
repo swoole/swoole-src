@@ -78,8 +78,8 @@ Stream::Stream(int64_t id, Connection *c)
       rst_sent(0),
       user_data(nullptr) {
 
-    recv_buffer = swString_new(SW_BUFFER_SIZE_STD);
-    send_buffer = swString_new(SW_BUFFER_SIZE_STD);
+    recv_buffer = new String(SW_BUFFER_SIZE_STD);
+    send_buffer = new String(SW_BUFFER_SIZE_STD);
 
     if (id >= 0) {
         state = SW_QUIC_STREAM_OPEN;
@@ -88,10 +88,10 @@ Stream::Stream(int64_t id, Connection *c)
 
 Stream::~Stream() {
     if (recv_buffer) {
-        swString_free(recv_buffer);
+        delete recv_buffer;
     }
     if (send_buffer) {
-        swString_free(send_buffer);
+        delete send_buffer;
     }
 }
 
@@ -103,9 +103,7 @@ bool Stream::send_data(const uint8_t *data, size_t len, bool fin) {
     }
 
     if (len > 0) {
-        if (swString_append_ptr(send_buffer, (const char *) data, len) < 0) {
-            return false;
-        }
+        send_buffer->append((const char *) data, len);
         tx_offset += len;
     }
 
@@ -133,9 +131,7 @@ bool Stream::recv_data(const uint8_t *data, size_t len, bool fin) {
             return false;
         }
 
-        if (swString_append_ptr(recv_buffer, (const char *) data, len) < 0) {
-            return false;
-        }
+        recv_buffer->append((const char *) data, len);
         rx_offset += len;
     }
 
@@ -699,7 +695,7 @@ bool Connection::close(uint64_t error_code) {
 
 // ==================== QUIC Server Implementation ====================
 
-Server::Server()
+swoole::quic::Server::Server()
     : fd(-1),
       ssl_ctx(nullptr),
       on_connection(nullptr),
@@ -709,7 +705,7 @@ Server::Server()
       user_data(nullptr) {
 }
 
-Server::~Server() {
+swoole::quic::Server::~Server() {
     for (auto &pair : connections) {
         delete pair.second;
     }
@@ -721,7 +717,7 @@ Server::~Server() {
     }
 }
 
-bool Server::bind(const char *host, int port) {
+bool swoole::quic::Server::bind(const char *host, int port) {
     // Create UDP socket
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
@@ -756,7 +752,7 @@ bool Server::bind(const char *host, int port) {
     return true;
 }
 
-Connection* Server::accept_connection(const struct sockaddr *remote_addr, socklen_t remote_addrlen,
+Connection* swoole::quic::Server::accept_connection(const struct sockaddr *remote_addr, socklen_t remote_addrlen,
                                        const uint8_t *data, size_t datalen) {
     // Parse QUIC packet to extract connection IDs
     ngtcp2_pkt_hd hd;
@@ -796,10 +792,16 @@ Connection* Server::accept_connection(const struct sockaddr *remote_addr, sockle
         return nullptr;
     }
 
-    // Set callbacks
-    conn->on_stream_open = on_stream_open;
-    conn->on_stream_close = on_stream_close;
-    conn->on_stream_data = on_stream_data;
+    // Set callbacks from server to connection
+    if (on_stream_open) {
+        conn->on_stream_open = on_stream_open;
+    }
+    if (on_stream_close) {
+        conn->on_stream_close = on_stream_close;
+    }
+    if (on_stream_data) {
+        conn->on_stream_data = on_stream_data;
+    }
 
     connections[cid_str] = conn;
 
@@ -813,7 +815,7 @@ Connection* Server::accept_connection(const struct sockaddr *remote_addr, sockle
     return conn;
 }
 
-bool Server::remove_connection(Connection *conn) {
+bool swoole::quic::Server::remove_connection(Connection *conn) {
     std::string cid_str = cid_to_string(&conn->scid);
     auto it = connections.find(cid_str);
     if (it == connections.end()) {
@@ -825,7 +827,7 @@ bool Server::remove_connection(Connection *conn) {
     return true;
 }
 
-void Server::run() {
+void swoole::quic::Server::run() {
     // Main event loop would go here
     // This would integrate with Swoole's reactor
     swoole_trace("QUIC server running...");
