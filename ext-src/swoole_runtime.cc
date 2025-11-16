@@ -282,8 +282,8 @@ void php_swoole_runtime_minit(int module_number) {
 
 struct PhpFunc {
     zend_function *function;
-    zif_handler ori_handler;
     zend_internal_arg_info *ori_arg_info;
+    zif_handler ori_handler;
     zend_internal_arg_info *arg_info_copy;
     uint32_t ori_fn_flags;
     uint32_t ori_num_args;
@@ -293,6 +293,26 @@ struct PhpFunc {
 
 void php_swoole_runtime_rinit() {
     if (!sw_is_main_thread()) {
+#if PHP_VERSION_ID < 80300
+        // After creating a thread, the parent process will not modify the hook table,
+        // so this zend_array is read-only and safe for multi-threaded reading
+        zend_string *key = NULL;
+        void *ptr;
+        ZEND_HASH_REVERSE_FOREACH_STR_KEY_PTR(tmp_function_table, key, ptr) {
+            PhpFunc *rf = (PhpFunc *) ptr;
+            // PHP 8.3 version modified function_table, where all threads share internal_function memory,
+            // while 8.1 and 8.2 each have independent threads that need to copy handlers and arg_info from the main
+            // thread
+            if (rf->function && rf->function->internal_function.handler != rf->ori_handler) {
+                auto zf = zend::get_function(key);
+                zf->internal_function.handler = rf->function->internal_function.handler;
+                if (rf->function->internal_function.arg_info != rf->ori_arg_info) {
+                    zf->internal_function.arg_info = rf->function->internal_function.arg_info;
+                }
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+#endif
         return;
     }
 
