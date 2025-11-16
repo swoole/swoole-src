@@ -104,6 +104,11 @@ do
     fi
 done
 
+apt install -y valgrind
+USE_ZEND_ALLOC=0 valgrind php swoole_thread/co-stream.phpt
+USE_ZEND_ALLOC=0 valgrind php swoole_thread/signal.phpt
+USE_ZEND_ALLOC=0 valgrind php swoole_thread/pipe.phpt
+
 if [ "`should_exit_with_error`" ]; then
     exit 255
 fi

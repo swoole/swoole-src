@@ -227,7 +227,7 @@ static void free_arg_info(const zend_internal_function *function, zend_internal_
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
 static int runtime_hook_flags = 0;
-static zend_array *tmp_function_table = nullptr;
+static zend_array *hook_function_table = nullptr;
 static std::unordered_map<std::string, zend_class_entry *> child_class_entries;
 static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(nullptr);
 static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_arg_infos(nullptr);
@@ -298,7 +298,7 @@ void php_swoole_runtime_rinit() {
         // so this zend_array is read-only and safe for multi-threaded reading
         zend_string *key = NULL;
         void *ptr;
-        ZEND_HASH_REVERSE_FOREACH_STR_KEY_PTR(tmp_function_table, key, ptr) {
+        ZEND_HASH_REVERSE_FOREACH_STR_KEY_PTR(hook_function_table, key, ptr) {
             PhpFunc *rf = (PhpFunc *) ptr;
             // PHP 8.3 version modified function_table, where all threads share internal_function memory,
             // while 8.1 and 8.2 each have independent threads that need to copy handlers and arg_info from the main
@@ -317,8 +317,8 @@ void php_swoole_runtime_rinit() {
         return;
     }
 
-    tmp_function_table = static_cast<zend_array *>(emalloc(sizeof(zend_array)));
-    zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
+    hook_function_table = static_cast<zend_array *>(emalloc(sizeof(zend_array)));
+    zend_hash_init(hook_function_table, 8, nullptr, nullptr, 0);
 
 #if defined(HAVE_PUTENV) && defined(SW_THREAD)
     /**
@@ -354,7 +354,7 @@ void php_swoole_runtime_rshutdown() {
     ori_func_arg_infos.clear();
 
     void *ptr;
-    ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
+    ZEND_HASH_FOREACH_PTR(hook_function_table, ptr) {
         auto *rf = static_cast<PhpFunc *>(ptr);
         // php library function
         if (rf->fci_cache) {
@@ -365,13 +365,15 @@ void php_swoole_runtime_rshutdown() {
             free_arg_info(&rf->function->internal_function, rf->arg_info_copy);
             rf->arg_info_copy = nullptr;
         }
+        rf->function->internal_function.handler = rf->ori_handler;
+        rf->function->internal_function.arg_info = rf->ori_arg_info;
         efree(rf);
     }
     ZEND_HASH_FOREACH_END();
 
-    zend_hash_destroy(tmp_function_table);
-    efree(tmp_function_table);
-    tmp_function_table = nullptr;
+    zend_hash_destroy(hook_function_table);
+    efree(hook_function_table);
+    hook_function_table = nullptr;
 
     clear_class_entries();
 }
@@ -1260,7 +1262,7 @@ static ZEND_FUNCTION(swoole_display_disabled_function) {
 }
 
 static bool disable_func(const char *name, size_t l_name) {
-    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (rf) {
         rf->function->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
         return true;
@@ -1284,12 +1286,12 @@ static bool disable_func(const char *name, size_t l_name) {
     zf->internal_function.fn_flags &= ~(ZEND_ACC_VARIADIC | ZEND_ACC_HAS_TYPE_HINTS | ZEND_ACC_HAS_RETURN_TYPE);
     zf->internal_function.num_args = 0;
 
-    zend_hash_add_ptr(tmp_function_table, zf->common.function_name, rf);
+    zend_hash_add_ptr(hook_function_table, zf->common.function_name, rf);
     return true;
 }
 
 static bool enable_func(const char *name, size_t l_name) {
-    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (!rf) {
         return false;
     }
@@ -2067,7 +2069,7 @@ static PHP_FUNCTION(swoole_stream_select) {
 }
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_internal_arg_info *arg_info) {
-    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     bool use_php_func = false;
     /**
      * use php library function
@@ -2124,11 +2126,11 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         rf->fci_cache = fci_cache;
     }
 
-    zend_hash_add_ptr(tmp_function_table, fn_str, rf);
+    zend_hash_add_ptr(hook_function_table, fn_str, rf);
 }
 
 static void unhook_func(const char *name, size_t l_name) {
-    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (rf == nullptr) {
         return;
     }
@@ -2220,7 +2222,7 @@ static PHP_FUNCTION(swoole_user_func_handler) {
         return;
     }
 
-    auto *rf = static_cast<PhpFunc *>(zend_hash_find_ptr(tmp_function_table, fn_str));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_find_ptr(hook_function_table, fn_str));
     if (!rf) {
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_UNDEFINED_BEHAVIOR, "%s func not exists", fn_str->val);
         return;
