@@ -415,11 +415,12 @@ void PHPCoroutine::activate() {
         interrupt_thread_start();
     }
 
-    if (config.hook_flags) {
-        enable_hook(config.hook_flags);
+    if (sw_is_main_thread()) {
+        if (config.hook_flags) {
+            enable_hook(config.hook_flags);
+        }
+        disable_unsafe_function();
     }
-
-    disable_unsafe_function();
 
     /* deactivate when reactor free */
     sw_reactor()->add_destroy_callback(deactivate, nullptr);
@@ -438,10 +439,11 @@ void PHPCoroutine::deactivate(void *ptr) {
     }
     activated = false;
     interrupt_thread_stop();
-    /**
-     * reset runtime hook
-     */
-    disable_hook();
+
+    if (sw_is_main_thread()) {
+        disable_hook();
+        enable_unsafe_function();
+    }
 
     Coroutine::set_on_yield(nullptr);
     Coroutine::set_on_resume(nullptr);
@@ -453,7 +455,6 @@ void PHPCoroutine::deactivate(void *ptr) {
         deadlock_check();
     }
 
-    enable_unsafe_function();
     Coroutine::deactivate();
 }
 
@@ -468,6 +469,9 @@ void PHPCoroutine::shutdown() {
     free_main_context();
 }
 
+// !!! [Danger Warning]
+// The deadlock_check function can only print information and cannot execute any async functions
+// This function can only execute internal code and cannot provide any callbacks, allowing the execution of user code
 void PHPCoroutine::deadlock_check() {
     if (Coroutine::count() == 0) {
         return;

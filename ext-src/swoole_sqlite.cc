@@ -23,7 +23,7 @@
 #ifdef SW_USE_SQLITE
 using swoole::Coroutine;
 
-static SW_THREAD_LOCAL bool swoole_sqlite_blocking = true;
+static bool swoole_sqlite_blocking = true;
 
 void swoole_sqlite_set_blocking(bool blocking) {
     if (blocking) {
