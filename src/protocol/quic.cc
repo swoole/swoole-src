@@ -193,15 +193,18 @@ static int on_recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid, voi
     swoole_warning("[DEBUG] on_recv_client_initial: dcid length=%zu", dcid->datalen);
 
     if (c) {
-        swoole_warning("[DEBUG] on_recv_client_initial: Connection found, ssl=%p, ossl_ctx=%p",
-                      c->ssl, c->ossl_ctx);
+        swoole_warning("[DEBUG] on_recv_client_initial: Connection found, ssl=%p, ossl_ctx=%p, conn_ref=%p",
+                      c->ssl, c->ossl_ctx, &c->conn_ref);
+
+        // IMPORTANT: ngtcp2_crypto_recv_client_initial_cb expects ngtcp2_crypto_conn_ref, not Connection*
+        // We need to pass &c->conn_ref instead of user_data
+        int rv = ngtcp2_crypto_recv_client_initial_cb(conn, dcid, &c->conn_ref);
+        swoole_warning("[DEBUG] on_recv_client_initial: ngtcp2_crypto_recv_client_initial_cb returned %d", rv);
+        return rv;
+    } else {
+        swoole_warning("[DEBUG] on_recv_client_initial: Connection is NULL!");
+        return NGTCP2_ERR_CALLBACK_FAILURE;
     }
-
-    // Call the actual ngtcp2_crypto function
-    int rv = ngtcp2_crypto_recv_client_initial_cb(conn, dcid, user_data);
-    swoole_warning("[DEBUG] on_recv_client_initial: ngtcp2_crypto_recv_client_initial_cb returned %d", rv);
-
-    return rv;
 }
 
 static int on_handshake_completed(ngtcp2_conn *conn, void *user_data) {
