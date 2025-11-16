@@ -329,30 +329,20 @@ void php_swoole_runtime_rshutdown() {
     }
 
     PHPCoroutine::disable_hook();
-    ori_func_handlers.each([](std::string fname, zif_handler handler) {
-        auto *zf = zend::get_function(fname);
-        if (zf) {
-            zf->internal_function.handler = handler;
-        }
-    });
-    ori_func_arg_infos.each([](std::string fname, zend_internal_arg_info *arg_info) {
-        auto *zf = zend::get_function(fname);
-        if (zf) {
-            zf->internal_function.arg_info = arg_info;
-        }
-    });
     ori_func_handlers.clear();
     ori_func_arg_infos.clear();
 
     void *ptr;
     ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
         auto *rf = static_cast<PhpFunc *>(ptr);
-        /**
-         * php library function
-         */
+        // php library function
         if (rf->fci_cache) {
             zval_dtor(&rf->name);
             sw_callable_free(rf->fci_cache);
+        }
+        if (rf->arg_info_copy) {
+            free_arg_info(&rf->function->internal_function, rf->arg_info_copy);
+            rf->arg_info_copy = nullptr;
         }
         efree(rf);
     }
@@ -1697,6 +1687,7 @@ static void hook_all_func(uint32_t flags) {
 bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (!sw_is_main_thread() || sw_active_thread_count() > 1) {
         swoole_warning("The runtime hook can only set on the main thread and no child threads have been created");
+        return false;
     }
 
     if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
@@ -2066,7 +2057,10 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
 
     if (rf) {
-        swoole_warning("The function named `%s` has been hooked and cannot be executed repeatedly", name);
+    	rf->function->internal_function.handler = handler;
+		if (arg_info) {
+			rf->function->internal_function.arg_info = arg_info;
+		}
         return;
     }
 
@@ -2116,15 +2110,8 @@ static void unhook_func(const char *name, size_t l_name) {
     if (rf == nullptr) {
         return;
     }
-    if (rf->arg_info_copy) {
-        free_arg_info(&rf->function->internal_function, rf->arg_info_copy);
-        rf->arg_info_copy = nullptr;
-    }
     rf->function->internal_function.handler = rf->ori_handler;
     rf->function->internal_function.arg_info = rf->ori_arg_info;
-
-    efree(rf->function);
-    rf->function = nullptr;
 }
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC) {

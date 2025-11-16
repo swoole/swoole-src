@@ -2668,18 +2668,18 @@ static PHP_METHOD(swoole_server, start) {
 
     if (serv->is_started()) {
         php_swoole_fatal_error(
-            E_WARNING, "server is running, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The server is running, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
     if (serv->is_shutdown()) {
         php_swoole_fatal_error(
-            E_WARNING, "server have been shutdown, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The server have been shutdown, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     if (sw_reactor()) {
         php_swoole_fatal_error(
-            E_WARNING, "eventLoop has already been created, unable to start %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The event-loop has already been created, unable to start %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
