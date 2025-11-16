@@ -226,9 +226,9 @@ static void free_arg_info(const zend_internal_function *function, zend_internal_
 #define SW_HOOK_LIBRARY_FE(name, arg_info)                                                                             \
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
-static SW_THREAD_LOCAL int runtime_hook_flags = 0;
-static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
-static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
+static int runtime_hook_flags = 0;
+static zend_array *tmp_function_table = nullptr;
+static std::unordered_map<std::string, zend_class_entry *> child_class_entries;
 static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(nullptr);
 static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_arg_infos(nullptr);
 
@@ -282,7 +282,6 @@ void php_swoole_runtime_minit(int module_number) {
 
 struct PhpFunc {
     zend_function *function;
-    zend_function *ori_function;
     zif_handler ori_handler;
     zend_internal_arg_info *ori_arg_info;
     zend_internal_arg_info *arg_info_copy;
@@ -325,23 +324,25 @@ void php_swoole_runtime_rinit() {
 }
 
 void php_swoole_runtime_rshutdown() {
-    if (sw_is_main_thread()) {
-        PHPCoroutine::disable_hook();
-        ori_func_handlers.each([](std::string fname, zif_handler handler) {
-            auto *zf = zend::get_function(fname);
-            if (zf) {
-                zf->internal_function.handler = handler;
-            }
-        });
-        ori_func_arg_infos.each([](std::string fname, zend_internal_arg_info *arg_info) {
-            auto *zf = zend::get_function(fname);
-            if (zf) {
-                zf->internal_function.arg_info = arg_info;
-            }
-        });
-        ori_func_handlers.clear();
-        ori_func_arg_infos.clear();
+    if (!sw_is_main_thread()) {
+    	return;
     }
+
+    PHPCoroutine::disable_hook();
+    ori_func_handlers.each([](std::string fname, zif_handler handler) {
+        auto *zf = zend::get_function(fname);
+        if (zf) {
+            zf->internal_function.handler = handler;
+        }
+    });
+    ori_func_arg_infos.each([](std::string fname, zend_internal_arg_info *arg_info) {
+        auto *zf = zend::get_function(fname);
+        if (zf) {
+            zf->internal_function.arg_info = arg_info;
+        }
+    });
+    ori_func_handlers.clear();
+    ori_func_arg_infos.clear();
 
     void *ptr;
     ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
@@ -1725,18 +1726,13 @@ static void hook_all_func(uint32_t flags) {
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
-    /**
-     * Stream-related settings are global variables, not thread-local resources.
-     * The child threads must not modify stream settings;
-     * the main thread can only make changes when there are no active worker threads.
-     */
-    if (sw_is_main_thread()) {
-        if (sw_active_thread_count() > 1) {
-            swoole_warning(
-                "The stream runtime hook must be enabled or disabled only when there are no active threads.");
-            hook_remove_stream_flags(&flags);
-        }
-    } else {
+    if (!sw_is_main_thread()) {
+        swoole_warning("Only the main process can set coroutine runtime hooks");
+    }
+
+    if (sw_active_thread_count() > 1) {
+        swoole_warning(
+            "The runtime hook must be enabled or disabled only when there are no active threads.");
         hook_remove_stream_flags(&flags);
     }
 
@@ -2105,16 +2101,15 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         handler = PHP_FN(swoole_user_func_handler);
         use_php_func = true;
     }
-    if (rf && rf->function) {
-        rf->function->internal_function.handler = handler;
-        if (arg_info) {
-            rf->function->internal_function.arg_info = arg_info;
-        }
+
+    if (rf) {
+    	swoole_warning("This function `%s` has been hooked and cannot be executed repeatedly", name);
         return;
     }
 
     auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
+    	swoole_warning("The function named %s is not found", name);
         return;
     }
 
@@ -2122,28 +2117,14 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     rf = static_cast<PhpFunc *>(emalloc(sizeof(PhpFunc)));
     sw_memset_zero(rf, sizeof(*rf));
 
-    rf->ori_function = zf;
-    rf->function = static_cast<zend_function *>(emalloc(sizeof(zend_function)));
-    memcpy(rf->function, zf, sizeof(*zf));
-
-    auto fn_dtor = EG(function_table)->pDestructor;
-    EG(function_table)->pDestructor = nullptr;
-    zend_hash_str_update_ptr(EG(function_table), name, l_name, rf->function);
-    EG(function_table)->pDestructor = fn_dtor;
-
     auto fn_name = std::string(fn_str->val, fn_str->len);
 
-    do {
-#ifdef SW_THREAD
-        std::unique_lock<std::mutex> _lock(sw_thread_lock);
-#endif
-        if (!ori_func_arg_infos.exists(fn_name)) {
-            ori_func_handlers.set(fn_name, zf->internal_function.handler);
-            ori_func_arg_infos.set(fn_name, zf->internal_function.arg_info);
-        }
-        rf->ori_handler = ori_func_handlers.get(fn_name);
-        rf->ori_arg_info = ori_func_arg_infos.get(fn_name);
-    } while (0);
+	if (!ori_func_arg_infos.exists(fn_name)) {
+		ori_func_handlers.set(fn_name, zf->internal_function.handler);
+		ori_func_arg_infos.set(fn_name, zf->internal_function.arg_info);
+	}
+	rf->ori_handler = ori_func_handlers.get(fn_name);
+	rf->ori_arg_info = ori_func_arg_infos.get(fn_name);
 
     zf->internal_function.handler = handler;
     if (arg_info) {
@@ -2178,11 +2159,6 @@ static void unhook_func(const char *name, size_t l_name) {
     }
     rf->function->internal_function.handler = rf->ori_handler;
     rf->function->internal_function.arg_info = rf->ori_arg_info;
-
-    auto fn_dtor = EG(function_table)->pDestructor;
-    EG(function_table)->pDestructor = nullptr;
-    zend_hash_str_update_ptr(EG(function_table), Z_STRVAL(rf->name), Z_STRLEN(rf->name), rf->ori_function);
-    EG(function_table)->pDestructor = fn_dtor;
 
     efree(rf->function);
     rf->function = nullptr;

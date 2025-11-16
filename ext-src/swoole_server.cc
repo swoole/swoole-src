@@ -2661,10 +2661,6 @@ static PHP_METHOD(swoole_server, start) {
          */
         php_swoole_set_coroutine_option(ht);
 
-        if (PHPCoroutine::get_hook_flags() > 0) {
-            PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
-        }
-
         worker_thread_fn();
         RETURN_TRUE;
     }
@@ -2721,6 +2717,7 @@ static PHP_METHOD(swoole_server, start) {
          *These runtime hooks must be modified in a single-threaded environment.
          */
         if (PHPCoroutine::get_hook_flags() > 0) {
+        	printf("hook all\n");
             PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
         }
     }

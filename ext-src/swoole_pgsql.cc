@@ -29,7 +29,7 @@ using swoole::Reactor;
 using swoole::translate_events_to_poll;
 using swoole::coroutine::Socket;
 
-static SW_THREAD_LOCAL bool swoole_pgsql_blocking = true;
+static bool swoole_pgsql_blocking = true;
 
 static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, double timeout = -1, bool check_nonblock = false) {
     if (swoole_pgsql_blocking) {
