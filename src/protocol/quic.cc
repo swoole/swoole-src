@@ -27,6 +27,8 @@
 #include <errno.h>
 #include <vector>
 #include <openssl/rand.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 using namespace swoole;
 using namespace swoole::quic;
@@ -166,7 +168,17 @@ bool Stream::close(uint64_t error_code) {
 // ==================== QUIC Connection Callbacks ====================
 
 static int on_client_initial(ngtcp2_conn *conn, void *user_data) {
-    swoole_trace("QUIC: client_initial callback");
+    Connection *c = (Connection *) user_data;
+    swoole_warning("[DEBUG] on_client_initial callback called for conn=%p, user_data=%p", conn, user_data);
+
+    // Log SSL state
+    if (c && c->ssl) {
+        swoole_warning("[DEBUG] on_client_initial: SSL=%p, state=%d", c->ssl, SSL_get_state(c->ssl));
+    } else {
+        swoole_warning("[DEBUG] on_client_initial: Connection or SSL is NULL (c=%p, ssl=%p)",
+                      c, c ? c->ssl : nullptr);
+    }
+
     return 0;
 }
 
@@ -680,9 +692,34 @@ ssize_t Connection::recv_packet(const uint8_t *data, size_t datalen) {
 
     ngtcp2_tstamp ts = timestamp();
 
+    swoole_warning("[DEBUG] recv_packet: About to call ngtcp2_conn_read_pkt, datalen=%zu, first_byte=0x%02x",
+                   datalen, datalen > 0 ? data[0] : 0);
+
     int rv = ngtcp2_conn_read_pkt(conn, &path.path, &pi, data, datalen, ts);
 
     if (rv != 0) {
+        // Check for specific error codes
+        if (rv == NGTCP2_ERR_RETRY) {
+            swoole_warning("[DEBUG] ngtcp2_conn_read_pkt returned NGTCP2_ERR_RETRY (-76)");
+        } else if (rv == NGTCP2_ERR_CRYPTO) {
+            swoole_warning("[DEBUG] ngtcp2_conn_read_pkt returned NGTCP2_ERR_CRYPTO (-50) - SSL error");
+            // Log SSL errors
+            if (ssl) {
+                unsigned long ssl_err = ERR_peek_last_error();
+                char err_buf[256];
+                ERR_error_string_n(ssl_err, err_buf, sizeof(err_buf));
+                swoole_warning("[DEBUG] SSL error: %s (code=%lu)", err_buf, ssl_err);
+            }
+        } else if (rv == NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM) {
+            swoole_warning("[DEBUG] ngtcp2_conn_read_pkt returned NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM");
+        } else if (rv == NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM) {
+            swoole_warning("[DEBUG] ngtcp2_conn_read_pkt returned NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM");
+        } else if (rv == NGTCP2_ERR_TRANSPORT_PARAM) {
+            swoole_warning("[DEBUG] ngtcp2_conn_read_pkt returned NGTCP2_ERR_TRANSPORT_PARAM");
+        } else if (rv == NGTCP2_ERR_CALLBACK_FAILURE) {
+            swoole_warning("[DEBUG] ngtcp2_conn_read_pkt returned NGTCP2_ERR_CALLBACK_FAILURE - a callback failed");
+        }
+
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_RECV,
                          "ngtcp2_conn_read_pkt failed: %s (rv=%d, datalen=%zu)",
                          ngtcp2_strerror(rv), rv, datalen);
@@ -872,17 +909,24 @@ Connection* swoole::quic::Server::accept_connection(const struct sockaddr *remot
     }
 
     // Process initial packet
+    swoole_warning("[DEBUG] accept_connection: About to process initial packet (size=%zu bytes)", datalen);
+    swoole_warning("[DEBUG] accept_connection: Connection state before recv_packet: conn=%p, ssl=%p, ossl_ctx=%p",
+                   conn->conn, conn->ssl, conn->ossl_ctx);
+
     int recv_rv = conn->recv_packet(data, datalen);
+
+    swoole_warning("[DEBUG] accept_connection: recv_packet returned rv=%d", recv_rv);
 
     if (recv_rv < 0) {
         // Failed to process initial packet - this connection is invalid
         // This is expected for non-QUIC packets or malformed data
-        swoole_trace("Failed to process initial packet, dropping connection");
+        swoole_warning("[DEBUG] accept_connection: Failed to process initial packet (rv=%d), dropping connection", recv_rv);
         delete conn;
         return nullptr;
     }
 
     // Only add to connections map if initial packet was successfully processed
+    swoole_warning("[DEBUG] accept_connection: Successfully processed initial packet, adding to connections map");
     connections[cid_str] = conn;
 
     return conn;
