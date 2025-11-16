@@ -507,9 +507,12 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
                          "ngtcp2_crypto_ossl_ctx_new failed: %d", rv);
         return false;
     }
+    swoole_trace("ngtcp2_crypto_ossl_ctx_new succeeded, ossl_ctx=%p", ossl_ctx);
 
     SSL_set_accept_state(ssl);
     SSL_set_app_data(ssl, &conn_ref);
+    swoole_trace("SSL_set_app_data: ssl=%p, conn_ref=%p (get_conn=%p, user_data=%p)",
+                 ssl, &conn_ref, conn_ref.get_conn, conn_ref.user_data);
     SSL_set_quic_tls_early_data_enabled(ssl, 1);
 
     rv = ngtcp2_crypto_ossl_configure_server_session(ssl);
@@ -519,13 +522,19 @@ bool Connection::init_server(const struct sockaddr *local_addr, socklen_t local_
         return false;
     }
 
-    ngtcp2_conn_set_tls_native_handle(conn, ssl);
+    ngtcp2_conn_set_tls_native_handle(conn, ossl_ctx);
+    swoole_trace("ngtcp2_conn_set_tls_native_handle: conn=%p, ossl_ctx=%p", conn, ossl_ctx);
+
+    // Verify SSL app data was set correctly
+    void *app_data = SSL_get_app_data(ssl);
+    swoole_trace("SSL_get_app_data returned: %p (expected: %p)", app_data, &conn_ref);
 
     // Note: Initial crypto keys will be installed automatically by
     // ngtcp2_crypto_recv_client_initial_cb when we receive the first
     // valid Initial packet from the client
 
     state = SW_QUIC_STATE_HANDSHAKE;
+    swoole_trace("init_server completed successfully");
     return true;
 }
 
@@ -587,7 +596,7 @@ bool Connection::init_client(const struct sockaddr *local_addr, socklen_t local_
     SSL_set_tlsext_host_name(ssl, server_name);
     SSL_set_quic_tls_early_data_enabled(ssl, 1);
 
-    ngtcp2_conn_set_tls_native_handle(conn, ssl);
+    ngtcp2_conn_set_tls_native_handle(conn, ossl_ctx);
 
     state = SW_QUIC_STATE_HANDSHAKE;
     return true;
