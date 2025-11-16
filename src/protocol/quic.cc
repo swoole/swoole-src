@@ -984,16 +984,21 @@ void swoole::quic::Server::run() {
 
             // Process packet for existing connection
             if (conn) {
+                swoole_warning("[DEBUG] Processing packet for existing connection, size=%zd", nread);
                 rv = conn->recv_packet(buf, nread);
                 if (rv < 0) {
-                    swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_RECV, "Failed to process packet");
+                    swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_RECV, "Failed to process packet, rv=%d", rv);
                     // Don't remove connection yet, let it timeout
+                } else {
+                    swoole_warning("[DEBUG] Packet processed successfully, rv=%d", rv);
                 }
             }
 
 send_packets:
             // Send outgoing packets for this connection
             if (conn) {
+                swoole_warning("[DEBUG] Attempting to send packets for connection");
+                int pkt_count = 0;
                 while (true) {
                     uint8_t sendbuf[65536];
                     ngtcp2_path_storage ps;
@@ -1011,8 +1016,10 @@ send_packets:
                     }
 
                     if (nwrite == 0) {
+                        swoole_warning("[DEBUG] ngtcp2_conn_write_pkt returned 0 (no packets to send), sent %d packets total", pkt_count);
                         break;
                     }
+                    pkt_count++;
 
                     // Send packet
                     ssize_t nsent = sendto(fd, sendbuf, nwrite, 0,
