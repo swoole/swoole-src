@@ -294,15 +294,18 @@ struct PhpFunc {
 void php_swoole_runtime_rinit() {
     if (!sw_is_main_thread()) {
 #if PHP_VERSION_ID < 80300
-        // After creating a thread, the parent process will not modify the hook table,
-        // so this zend_array is read-only and safe for multi-threaded reading
+        // After creating a thread, the main thread will not modify the runtime hook,
+        // so this `hook_function_table` is read-only and safe for multi-threaded reading
         zend_string *key = NULL;
         void *ptr;
         ZEND_HASH_REVERSE_FOREACH_STR_KEY_PTR(hook_function_table, key, ptr) {
             PhpFunc *rf = (PhpFunc *) ptr;
-            // PHP 8.3 version modified function_table, where all threads share internal_function memory,
-            // while 8.1 and 8.2 each have independent threads that need to copy handlers and arg_info from the main
-            // thread
+            // The PHP 8.3 and later removed `function_copy_ctor`. The `zend_internal_function` pointer in
+            // `EG(function_table)` and `CG(function_table)` are in shared memory across all threads, so updating the
+            // handler and arginfo once in the main thread takes effect for every thread. In PHP 8.2 and earlier, each
+            // thread called `function_copy_ctor` to copy the `zend_internal_function` memory. As a result,
+            // `EG(function_table)` and `CG(function_table)` were thread-local, and must set the `handler` and
+            // `arginfo` again in the thread `RINIT` function.
             if (rf->function && rf->function->internal_function.handler != rf->ori_handler) {
                 auto zf = zend::get_function(key);
                 auto ifn = &rf->function->internal_function;
