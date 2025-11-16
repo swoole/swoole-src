@@ -684,10 +684,12 @@ ssize_t Connection::recv_packet(const uint8_t *data, size_t datalen) {
 
     if (rv != 0) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_QUIC_RECV,
-                         "ngtcp2_conn_read_pkt failed: %s", ngtcp2_strerror(rv));
+                         "ngtcp2_conn_read_pkt failed: %s (rv=%d, datalen=%zu)",
+                         ngtcp2_strerror(rv), rv, datalen);
         return rv;
     }
 
+    swoole_warning("[DEBUG] recv_packet: successfully read %zu bytes, rv=0", datalen);
     last_ts = ts;
     return datalen;
 }
@@ -1034,7 +1036,7 @@ send_packets:
                         break;
                     }
 
-                    swoole_warning("Sent %zd bytes to client", nsent);
+                    swoole_warning("Sent %zd bytes to client (packet type: first_byte=0x%02x)", nsent, sendbuf[0]);
                 }
             }
         }
