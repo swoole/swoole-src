@@ -2711,13 +2711,8 @@ static PHP_METHOD(swoole_server, start) {
             php_swoole_thread_start(thread, bootstrap_copy, thread_argv);
         };
 
-        /**
-         *The hook must be enabled before creating child threads.
-         *The stream factory and ops are global variables, not thread-local resources.
-         *These runtime hooks must be modified in a single-threaded environment.
-         */
+        // The runtime hook must be enabled before creating child threads.
         if (PHPCoroutine::get_hook_flags() > 0) {
-        	printf("hook all\n");
             PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
         }
     }

@@ -325,7 +325,7 @@ void php_swoole_runtime_rinit() {
 
 void php_swoole_runtime_rshutdown() {
     if (!sw_is_main_thread()) {
-    	return;
+        return;
     }
 
     PHPCoroutine::disable_hook();
@@ -1318,37 +1318,6 @@ static void hook_stream_throw_exception(const char *type) {
         swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "failed to register `%s` stream transport factory", type);
 }
 
-static void hook_remove_stream_flags(uint32_t *flags_ptr) {
-    uint32_t flags = *flags_ptr;
-    // stream factory
-    if (flags & PHPCoroutine::HOOK_TCP) {
-        flags ^= PHPCoroutine::HOOK_TCP;
-    }
-    if (flags & PHPCoroutine::HOOK_UDP) {
-        flags ^= PHPCoroutine::HOOK_UDP;
-    }
-    if (flags & PHPCoroutine::HOOK_UNIX) {
-        flags ^= PHPCoroutine::HOOK_UNIX;
-    }
-    if (flags & PHPCoroutine::HOOK_UDG) {
-        flags ^= PHPCoroutine::HOOK_UDG;
-    }
-    if (flags & PHPCoroutine::HOOK_SSL) {
-        flags ^= PHPCoroutine::HOOK_SSL;
-    }
-    if (flags & PHPCoroutine::HOOK_TLS) {
-        flags ^= PHPCoroutine::HOOK_TLS;
-    }
-    // stream ops
-    if (flags & PHPCoroutine::HOOK_FILE) {
-        flags ^= PHPCoroutine::HOOK_FILE;
-    }
-    if (flags & PHPCoroutine::HOOK_STDIO) {
-        flags ^= PHPCoroutine::HOOK_STDIO;
-    }
-    *flags_ptr = flags;
-}
-
 static void hook_stream_factory(uint32_t *flags_ptr) {
     uint32_t flags = *flags_ptr;
 
@@ -1726,14 +1695,8 @@ static void hook_all_func(uint32_t flags) {
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
-    if (!sw_is_main_thread()) {
-        swoole_warning("Only the main process can set coroutine runtime hooks");
-    }
-
-    if (sw_active_thread_count() > 1) {
-        swoole_warning(
-            "The runtime hook must be enabled or disabled only when there are no active threads.");
-        hook_remove_stream_flags(&flags);
+    if (!sw_is_main_thread() || sw_active_thread_count() > 1) {
+        swoole_warning("The runtime hook can only set on the main thread and no child threads have been created");
     }
 
     if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
@@ -2103,13 +2066,13 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
 
     if (rf) {
-    	swoole_warning("This function `%s` has been hooked and cannot be executed repeatedly", name);
+        swoole_warning("The function named `%s` has been hooked and cannot be executed repeatedly", name);
         return;
     }
 
     auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
-    	swoole_warning("The function named %s is not found", name);
+        swoole_warning("The function named `%s` is not found", name);
         return;
     }
 
@@ -2119,12 +2082,12 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
 
     auto fn_name = std::string(fn_str->val, fn_str->len);
 
-	if (!ori_func_arg_infos.exists(fn_name)) {
-		ori_func_handlers.set(fn_name, zf->internal_function.handler);
-		ori_func_arg_infos.set(fn_name, zf->internal_function.arg_info);
-	}
-	rf->ori_handler = ori_func_handlers.get(fn_name);
-	rf->ori_arg_info = ori_func_arg_infos.get(fn_name);
+    if (!ori_func_arg_infos.exists(fn_name)) {
+        ori_func_handlers.set(fn_name, zf->internal_function.handler);
+        ori_func_arg_infos.set(fn_name, zf->internal_function.arg_info);
+    }
+    rf->ori_handler = ori_func_handlers.get(fn_name);
+    rf->ori_arg_info = ori_func_arg_infos.get(fn_name);
 
     zf->internal_function.handler = handler;
     if (arg_info) {
