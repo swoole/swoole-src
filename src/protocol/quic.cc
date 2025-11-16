@@ -186,6 +186,24 @@ static int on_client_initial(ngtcp2_conn *conn, void *user_data) {
 // This is the correct approach for ngtcp2 v1.16.0 with OpenSSL 3.5
 // The wrapper is defined in ngtcp2_crypto.h and handles the SSL object internally
 
+// Wrapper for recv_client_initial to add debugging
+static int on_recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid, void *user_data) {
+    Connection *c = (Connection *) user_data;
+    swoole_warning("[DEBUG] on_recv_client_initial callback called: conn=%p, user_data=%p", conn, user_data);
+    swoole_warning("[DEBUG] on_recv_client_initial: dcid length=%zu", dcid->datalen);
+
+    if (c) {
+        swoole_warning("[DEBUG] on_recv_client_initial: Connection found, ssl=%p, ossl_ctx=%p",
+                      c->ssl, c->ossl_ctx);
+    }
+
+    // Call the actual ngtcp2_crypto function
+    int rv = ngtcp2_crypto_recv_client_initial_cb(conn, dcid, user_data);
+    swoole_warning("[DEBUG] on_recv_client_initial: ngtcp2_crypto_recv_client_initial_cb returned %d", rv);
+
+    return rv;
+}
+
 static int on_handshake_completed(ngtcp2_conn *conn, void *user_data) {
     Connection *c = (Connection *) user_data;
 
@@ -412,7 +430,8 @@ ngtcp2_callbacks Connection::create_callbacks() {
     callbacks.client_initial = on_client_initial;
 
     // Server-side callback (required for server connections)
-    callbacks.recv_client_initial = ngtcp2_crypto_recv_client_initial_cb;
+    // Using our wrapper to debug
+    callbacks.recv_client_initial = on_recv_client_initial;
 
     // Crypto callbacks (required)
     callbacks.encrypt = ngtcp2_crypto_encrypt_cb;
