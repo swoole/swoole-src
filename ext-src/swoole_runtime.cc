@@ -292,6 +292,10 @@ struct PhpFunc {
 };
 
 void php_swoole_runtime_rinit() {
+    if (!sw_is_main_thread()) {
+        return;
+    }
+
     tmp_function_table = static_cast<zend_array *>(emalloc(sizeof(zend_array)));
     zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
 
@@ -302,10 +306,6 @@ void php_swoole_runtime_rinit() {
      */
     SW_HOOK_FUNC(putenv);
 #endif
-
-    if (!sw_is_main_thread()) {
-        return;
-    }
 
 #if PHP_VERSION_ID >= 80400
     SW_HOOK_FUNC(exit);
