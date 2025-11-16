@@ -307,7 +307,8 @@ void php_swoole_runtime_rinit() {
                 auto zf = zend::get_function(key);
                 zf->internal_function.handler = rf->function->internal_function.handler;
                 if (rf->function->internal_function.arg_info != rf->ori_arg_info) {
-                    zf->internal_function.arg_info = rf->function->internal_function.arg_info;
+                    zf->internal_function.arg_info =
+                        copy_arginfo(&rf->function->internal_function, rf->function->internal_function.arg_info);
                 }
             }
         }
