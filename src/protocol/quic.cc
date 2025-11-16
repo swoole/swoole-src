@@ -186,6 +186,28 @@ static int on_client_initial(ngtcp2_conn *conn, void *user_data) {
 // This is the correct approach for ngtcp2 v1.16.0 with OpenSSL 3.5
 // The wrapper is defined in ngtcp2_crypto.h and handles the SSL object internally
 
+// Wrapper for recv_crypto_data to add debugging
+static int on_recv_crypto_data(ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
+                                 uint64_t offset, const uint8_t *data, size_t datalen, void *user_data) {
+    Connection *c = (Connection *) user_data;
+    swoole_warning("[DEBUG] on_recv_crypto_data called: level=%d, offset=%lu, datalen=%zu, conn=%p, user_data=%p",
+                   (int)encryption_level, offset, datalen, conn, user_data);
+
+    if (c) {
+        swoole_warning("[DEBUG] on_recv_crypto_data: Connection found, ssl=%p, conn_ref=%p",
+                      c->ssl, &c->conn_ref);
+
+        // IMPORTANT: ngtcp2_crypto_recv_crypto_data_cb expects ngtcp2_crypto_conn_ref, not Connection*
+        // We need to pass &c->conn_ref instead of user_data
+        int rv = ngtcp2_crypto_recv_crypto_data_cb(conn, encryption_level, offset, data, datalen, &c->conn_ref);
+        swoole_warning("[DEBUG] on_recv_crypto_data: ngtcp2_crypto_recv_crypto_data_cb returned %d", rv);
+        return rv;
+    } else {
+        swoole_warning("[DEBUG] on_recv_crypto_data: Connection is NULL!");
+        return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
+}
+
 // Wrapper for recv_client_initial to add debugging
 static int on_recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid, void *user_data) {
     Connection *c = (Connection *) user_data;
@@ -443,8 +465,8 @@ ngtcp2_callbacks Connection::create_callbacks() {
     callbacks.update_key = ngtcp2_crypto_update_key_cb;
     callbacks.rand = on_rand;
 
-    // Crypto data handling - use ngtcp2 provided wrapper
-    callbacks.recv_crypto_data = ngtcp2_crypto_recv_crypto_data_cb;
+    // Crypto data handling - use our wrapper for debugging
+    callbacks.recv_crypto_data = on_recv_crypto_data;
 
     // Stream callbacks
     callbacks.handshake_completed = on_handshake_completed;
