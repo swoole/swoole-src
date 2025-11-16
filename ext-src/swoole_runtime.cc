@@ -2057,10 +2057,10 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
 
     if (rf) {
-    	rf->function->internal_function.handler = handler;
-		if (arg_info) {
-			rf->function->internal_function.arg_info = arg_info;
-		}
+        rf->function->internal_function.handler = handler;
+        if (arg_info) {
+            rf->function->internal_function.arg_info = arg_info;
+        }
         return;
     }
 
@@ -2073,6 +2073,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     auto fn_str = zf->common.function_name;
     rf = static_cast<PhpFunc *>(emalloc(sizeof(PhpFunc)));
     sw_memset_zero(rf, sizeof(*rf));
+    rf->function = zf;
 
     auto fn_name = std::string(fn_str->val, fn_str->len);
 
