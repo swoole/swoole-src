@@ -1510,7 +1510,7 @@ static void php_swoole_server_onWorkerStart(Server *serv, Worker *worker) {
     zend_update_property_bool(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("taskworker"), serv->is_task_worker());
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("worker_pid"), getpid());
 
-    if (serv->is_task_worker() && !serv->task_enable_coroutine) {
+    if (serv->is_task_worker() && !serv->task_enable_coroutine && !serv->is_thread_mode()) {
         PHPCoroutine::disable_hook();
     }
     serv->get_worker_message_bus()->set_allocator(sw_zend_string_allocator());
