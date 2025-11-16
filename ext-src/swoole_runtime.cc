@@ -305,10 +305,10 @@ void php_swoole_runtime_rinit() {
             // thread
             if (rf->function && rf->function->internal_function.handler != rf->ori_handler) {
                 auto zf = zend::get_function(key);
-                zf->internal_function.handler = rf->function->internal_function.handler;
-                if (rf->function->internal_function.arg_info != rf->ori_arg_info) {
-                    zf->internal_function.arg_info =
-                        copy_arginfo(&rf->function->internal_function, rf->function->internal_function.arg_info);
+                auto ifn = &rf->function->internal_function;
+                zf->internal_function.handler = ifn->handler;
+                if (ifn->arg_info != rf->ori_arg_info && ifn->arg_info) {
+                    zf->internal_function.arg_info = copy_arginfo(ifn, ifn->arg_info);
                 }
             }
         }
