@@ -746,6 +746,18 @@ ssize_t Connection::recv_packet(const uint8_t *data, size_t datalen) {
     }
 
     swoole_warning("[DEBUG] recv_packet: successfully read %zu bytes, rv=0", datalen);
+
+    // Check for SSL errors even when ngtcp2_conn_read_pkt succeeds
+    // Sometimes SSL errors can be queued but not returned
+    if (ssl) {
+        unsigned long ssl_err;
+        while ((ssl_err = ERR_get_error()) != 0) {
+            char err_buf[256];
+            ERR_error_string_n(ssl_err, err_buf, sizeof(err_buf));
+            swoole_warning("[DEBUG] recv_packet: SSL error in queue (even though rv=0): %s (code=%lu)", err_buf, ssl_err);
+        }
+    }
+
     last_ts = ts;
     return datalen;
 }

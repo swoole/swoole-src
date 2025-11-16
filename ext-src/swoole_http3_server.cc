@@ -499,6 +499,29 @@ static void http3_server_on_request(http3::Connection *conn, http3::Stream *stre
     zval_ptr_dtor(&zresponse);
 }
 
+// ALPN callback for HTTP/3 protocol negotiation
+static int http3_alpn_select_callback(SSL *ssl, const unsigned char **out, unsigned char *outlen,
+                                       const unsigned char *in, unsigned int inlen, void *arg) {
+    swoole_warning("[DEBUG] ALPN callback called: inlen=%u", inlen);
+
+    // HTTP/3 ALPN identifier
+    static const unsigned char alpn_h3[] = "\x02h3";
+
+    // Try to select h3 protocol
+    int result = SSL_select_next_proto((unsigned char **)out, outlen, alpn_h3, sizeof(alpn_h3) - 1, in, inlen);
+
+    swoole_warning("[DEBUG] SSL_select_next_proto returned: %d (NEGOTIATED=%d), outlen=%u",
+                   result, OPENSSL_NPN_NEGOTIATED, out ? *outlen : 0);
+
+    if (result != OPENSSL_NPN_NEGOTIATED) {
+        swoole_warning("[DEBUG] ALPN: No match found, returning NOACK");
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+
+    swoole_warning("[DEBUG] ALPN: Successfully negotiated h3");
+    return SSL_TLSEXT_ERR_OK;
+}
+
 static PHP_METHOD(swoole_http3_server, start) {
     Http3ServerObject *hso = php_swoole_http3_server_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (!hso->server) {
@@ -525,6 +548,23 @@ static PHP_METHOD(swoole_http3_server, start) {
         php_swoole_fatal_error(E_ERROR, "failed to create SSL context");
         RETURN_FALSE;
     }
+
+    // Configure SSL_CTX for QUIC (following ngtcp2 examples)
+    // See: https://github.com/ngtcp2/ngtcp2/blob/main/examples/tls_server_context_ossl.cc
+
+    // Set QUIC-specific options
+    SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL | SSL_OP_NO_ANTI_REPLAY);
+    SSL_CTX_set_options(ssl_ctx, SSL_OP_SINGLE_ECDH_USE | SSL_OP_CIPHER_SERVER_PREFERENCE);
+
+    // Enable 0-RTT with max early data
+    SSL_CTX_set_max_early_data(ssl_ctx, UINT32_MAX);
+
+    // Set minimum and maximum TLS protocol version to TLS 1.3 (required for QUIC)
+    SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
+    SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
+
+    // Set ALPN callback for HTTP/3 protocol negotiation
+    SSL_CTX_set_alpn_select_cb(ssl_ctx, http3_alpn_select_callback, nullptr);
 
     // Load certificate and key
     if (SSL_CTX_use_certificate_file(ssl_ctx, Z_STRVAL_P(zcert), SSL_FILETYPE_PEM) != 1) {
