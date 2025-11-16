@@ -567,9 +567,14 @@ static PHP_METHOD(swoole_http3_server, start) {
     SSL_CTX_set_alpn_select_cb(ssl_ctx, http3_alpn_select_callback, nullptr);
 
     // Load certificate and key
-    if (SSL_CTX_use_certificate_file(ssl_ctx, Z_STRVAL_P(zcert), SSL_FILETYPE_PEM) != 1) {
+    // Use SSL_CTX_use_certificate_chain_file to load the full certificate chain
+    // This is critical for QUIC/TLS 1.3 where the entire chain must be sent
+    if (SSL_CTX_use_certificate_chain_file(ssl_ctx, Z_STRVAL_P(zcert)) != 1) {
+        unsigned long err = ERR_get_error();
+        char err_buf[256];
+        ERR_error_string_n(err, err_buf, sizeof(err_buf));
         SSL_CTX_free(ssl_ctx);
-        php_swoole_fatal_error(E_ERROR, "failed to load SSL certificate");
+        php_swoole_fatal_error(E_ERROR, "failed to load SSL certificate chain: %s", err_buf);
         RETURN_FALSE;
     }
 
