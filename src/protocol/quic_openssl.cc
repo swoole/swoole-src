@@ -757,27 +757,28 @@ bool Connection::process_events() {
 
             // Only process bidirectional streams via callbacks
             // Unidirectional control streams are handled by HTTP/3 layer internally
-            if (!is_unidirectional) {
-                // Get or create stream object for bidirectional streams
-                // HTTP/3 layer may have already created it, check first
-                Stream *stream = get_stream(stream_id);
+            // Get or create stream object for ALL streams (bidi and uni)
+            // HTTP/3 layer needs to process both request streams and control streams
+            Stream *stream = get_stream(stream_id);
+            if (!stream) {
+                // Create stream object
+                stream = create_stream(stream_id);
                 if (!stream) {
-                    // Create stream object - this is needed for callbacks
-                    stream = create_stream(stream_id);
-                    if (!stream) {
-                        swoole_warning("Failed to create stream %lu", stream_id);
-                        break;
-                    }
+                    swoole_warning("Failed to create stream %lu", stream_id);
+                    break;
                 }
+            }
 
-                // Trigger callback with received data
-                if (on_stream_data && nread > 0) {
-                    on_stream_data(this, stream, buffer, nread);
-                }
-            } else {
-                // For control streams, just log but don't trigger callback
-                // HTTP/3 layer handles these internally
-                swoole_trace_log(SW_TRACE_QUIC, "Control stream %lu data (%zu bytes) - handled internally",
+            // Trigger callback with received data for ALL streams
+            // nghttp3 needs to process:
+            // - Bidirectional streams (0, 4, 8...): HTTP requests
+            // - Unidirectional streams (2, 6, 10...): Control and QPACK streams from client
+            if (on_stream_data && nread > 0) {
+                on_stream_data(this, stream, buffer, nread);
+            }
+
+            if (is_unidirectional) {
+                swoole_trace_log(SW_TRACE_QUIC, "Unidirectional stream %lu data (%zu bytes) sent to HTTP/3 layer",
                                 stream_id, nread);
             }
 
@@ -788,13 +789,11 @@ bool Connection::process_events() {
             swoole_trace_log(SW_TRACE_QUIC, "Total %zu bytes read from stream %lu", total_read, stream_id);
         }
 
-        // Check if stream is finished (only for bidirectional streams)
-        if (!is_unidirectional) {
-            Stream *stream = get_stream(stream_id);
-            if (stream && SSL_get_stream_read_state(stream_ssl) == SSL_STREAM_STATE_FINISHED) {
-                swoole_trace_log(SW_TRACE_QUIC, "Stream %lu finished (EOF)", stream_id);
-                stream->fin_received = 1;
-            }
+        // Check if stream is finished (for all streams)
+        Stream *stream = get_stream(stream_id);
+        if (stream && SSL_get_stream_read_state(stream_ssl) == SSL_STREAM_STATE_FINISHED) {
+            swoole_trace_log(SW_TRACE_QUIC, "Stream %lu finished (EOF)", stream_id);
+            stream->fin_received = 1;
         }
 
         // For HTTP/3, we might need to keep the stream SSL object

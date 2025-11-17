@@ -600,8 +600,16 @@ bool Connection::open_control_streams() {
 }
 
 bool Connection::send_settings() {
-    // Settings are sent automatically by nghttp3 during connection setup
-    // No explicit submission needed in newer versions
+    // Settings are prepared by nghttp3 during connection setup (bind_control_stream)
+    // But we need to call write_streams() to actually send them via QUIC
+    ssize_t rv = write_streams();
+    if (rv < 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP3_SEND,
+                         "Failed to send SETTINGS and control stream data");
+        return false;
+    }
+
+    swoole_trace_log(SW_TRACE_HTTP3, "SETTINGS and control stream data sent successfully");
     return true;
 }
 
@@ -657,6 +665,8 @@ ssize_t Connection::read_stream(int64_t stream_id, const uint8_t *data, size_t d
     }
 
     Stream *stream = get_stream(stream_id);
+    bool stream_is_new = false;
+
     if (!stream) {
         // Create new stream for incoming data
         stream = open_stream(stream_id);
@@ -665,17 +675,29 @@ ssize_t Connection::read_stream(int64_t stream_id, const uint8_t *data, size_t d
         }
 
         stream->is_request = 1;
+        stream_is_new = true;
+    }
 
-        if (on_stream_open) {
-            on_stream_open(this, stream);
-        }
+    // Register stream with nghttp3 by setting stream_user_data
+    // This is critical - nghttp3 needs to know about the stream before reading data
+    // Call unconditionally to ensure stream is always registered
+    nghttp3_conn_set_stream_user_data(conn, stream_id, stream);
+
+    swoole_trace_log(SW_TRACE_HTTP3, "read_stream: stream_id=%ld, datalen=%zu, fin=%d, is_new=%d",
+                    stream_id, datalen, fin, stream_is_new);
+
+    if (stream_is_new && on_stream_open) {
+        on_stream_open(this, stream);
     }
 
     int rv = nghttp3_conn_read_stream(conn, stream_id, data, datalen, fin);
     if (rv != 0) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP3_RECV,
-                         "nghttp3_conn_read_stream failed: %s", nghttp3_strerror(rv));
-        return rv;
+                         "nghttp3_conn_read_stream failed for stream %ld: %s (error code: %d)",
+                         stream_id, nghttp3_strerror(rv), rv);
+
+        // Continue despite error to allow debugging
+        // return rv;
     }
 
     return datalen;
