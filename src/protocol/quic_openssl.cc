@@ -104,6 +104,7 @@ Stream::Stream(int64_t id, Connection *c) {
     stream_id = id;
     conn = c;
     state = SW_QUIC_STREAM_IDLE;
+    ssl_stream = nullptr;
 
     recv_buffer = make_string(SW_QUIC_MAX_STREAM_DATA);
     send_buffer = make_string(SW_QUIC_MAX_STREAM_DATA);
@@ -120,10 +121,34 @@ Stream::Stream(int64_t id, Connection *c) {
 
     user_data = nullptr;
 
+    // Create or accept SSL stream object
+    if (conn && conn->ssl) {
+        // For server-initiated unidirectional streams (like HTTP/3 control streams),
+        // we need to create new streams. Client-initiated streams will be accepted later.
+        // HTTP/3 control streams: 3 (control), 7 (QPACK encoder), 11 (QPACK decoder)
+        bool is_server_stream = (stream_id % 4) == 3 || (stream_id % 4) == 2;  // Server-initiated
+
+        if (is_server_stream) {
+            // Create new outgoing stream
+            ssl_stream = SSL_new_stream(conn->ssl, SSL_STREAM_FLAG_UNI);
+            if (ssl_stream) {
+                swoole_trace_log(SW_TRACE_QUIC, "Stream %ld: SSL stream created (unidirectional)", stream_id);
+            } else {
+                swoole_warning("Stream %ld: Failed to create SSL stream", stream_id);
+            }
+        }
+        // For client-initiated streams, ssl_stream will be set later when needed
+    }
+
     swoole_trace_log(SW_TRACE_QUIC, "Stream %ld created", stream_id);
 }
 
 Stream::~Stream() {
+    if (ssl_stream) {
+        SSL_free(ssl_stream);
+        ssl_stream = nullptr;
+    }
+
     if (recv_buffer) {
         delete recv_buffer;
     }
@@ -140,16 +165,33 @@ bool Stream::send_data(const uint8_t *data, size_t len, bool fin) {
         return false;
     }
 
-    // Append to send buffer
-    send_buffer->append((const char *)data, len);
+    if (!ssl_stream) {
+        swoole_warning("Stream %ld: No SSL stream object", stream_id);
+        return false;
+    }
+
+    // Write data directly using per-stream SSL object
+    if (len > 0) {
+        size_t nwritten = 0;
+        int ret = SSL_write_ex(ssl_stream, data, len, &nwritten);
+        if (ret <= 0) {
+            int ssl_error = SSL_get_error(ssl_stream, ret);
+            if (ssl_error != SSL_ERROR_WANT_READ && ssl_error != SSL_ERROR_WANT_WRITE) {
+                swoole_warning("Stream %ld: SSL_write_ex failed, error=%d", stream_id, ssl_error);
+                return false;
+            }
+        }
+        swoole_trace_log(SW_TRACE_QUIC, "Stream %ld: wrote %zu bytes", stream_id, nwritten);
+    }
 
     if (fin) {
+        // Send FIN by concluding the stream
+        if (SSL_stream_conclude(ssl_stream, 0) != 1) {
+            swoole_warning("Stream %ld: SSL_stream_conclude failed", stream_id);
+        }
         fin_sent = 1;
         state = SW_QUIC_STREAM_HALF_CLOSED_LOCAL;
     }
-
-    swoole_trace_log(SW_TRACE_QUIC, "Stream %ld: queued %zu bytes for send (fin=%d)",
-                    stream_id, len, fin);
 
     return true;
 }
@@ -548,9 +590,25 @@ bool Connection::init_from_ssl(SSL *ssl_conn, SSL_CTX *ctx) {
     state = SW_QUIC_STATE_ESTABLISHED;
     handshake_completed = 1;
 
+    // Configure connection for HTTP/3: no default stream, explicit stream management
+    if (!SSL_set_default_stream_mode(ssl, SSL_DEFAULT_STREAM_MODE_NONE)) {
+        swoole_error_log(SW_ERROR_SSL_BAD_PROTOCOL, SW_ERROR_SYSTEM_CALL_FAIL,
+                        "SSL_set_default_stream_mode failed on connection");
+        ERR_print_errors_fp(stderr);
+        return false;
+    }
+
+    // Accept incoming streams so they're available via SSL_accept_stream()
+    if (!SSL_set_incoming_stream_policy(ssl, SSL_INCOMING_STREAM_POLICY_ACCEPT, 0)) {
+        swoole_error_log(SW_ERROR_SSL_BAD_PROTOCOL, SW_ERROR_SYSTEM_CALL_FAIL,
+                        "SSL_set_incoming_stream_policy failed on connection");
+        ERR_print_errors_fp(stderr);
+        return false;
+    }
+
     // TODO: Get remote address from SSL object if available
 
-    swoole_trace_log(SW_TRACE_QUIC, "Connection initialized from SSL object");
+    swoole_trace_log(SW_TRACE_QUIC, "Connection initialized from SSL object with HTTP/3 configuration");
     return true;
 }
 
@@ -725,6 +783,12 @@ bool Connection::process_events() {
         return false;
     }
 
+    // Pump I/O to process incoming data and make streams available
+    // This is required for OpenSSL QUIC to process incoming packets
+    char pump_buffer[1];
+    size_t pump_bytes;
+    SSL_peek_ex(ssl, pump_buffer, 0, &pump_bytes);  // Pump without reading
+
     // Try to accept new streams
     while (true) {
         SSL *stream_ssl = SSL_accept_stream(ssl, 0);  // Non-blocking
@@ -742,8 +806,32 @@ bool Connection::process_events() {
         bool is_unidirectional = (stream_id & 0x2) != 0;
         bool is_client_initiated = (stream_id & 0x1) == 0;
 
-        swoole_trace_log(SW_TRACE_QUIC, "New stream accepted: ID=%lu (uni=%d, client=%d)",
+        swoole_warning("[DEBUG] SSL_accept_stream: ID=%lu (uni=%d, client=%d)",
                         stream_id, is_unidirectional, is_client_initiated);
+
+        // Get or create stream object
+        Stream *stream = get_stream(stream_id);
+        if (!stream) {
+            // Create new stream object
+            stream = create_stream(stream_id);
+            if (!stream) {
+                swoole_warning("Failed to create stream %lu", stream_id);
+                SSL_free(stream_ssl);
+                break;
+            }
+        }
+
+        // Attach the SSL stream object if not already attached
+        if (!stream->ssl_stream) {
+            stream->ssl_stream = stream_ssl;
+            swoole_warning("[DEBUG] Attached SSL stream to stream %lu", stream_id);
+        } else {
+            // Stream already has an SSL object (server-initiated stream)
+            // Free the duplicate one from SSL_accept_stream
+            swoole_warning("[DEBUG] Stream %lu already has SSL object, freeing duplicate", stream_id);
+            SSL_free(stream_ssl);
+            stream_ssl = stream->ssl_stream;  // Use the existing one
+        }
 
         // Read data from the stream
         uint8_t buffer[8192];
@@ -754,20 +842,6 @@ bool Connection::process_events() {
             total_read += nread;
             swoole_trace_log(SW_TRACE_QUIC, "Read %zu bytes from stream %lu (uni=%d)",
                             nread, stream_id, is_unidirectional);
-
-            // Only process bidirectional streams via callbacks
-            // Unidirectional control streams are handled by HTTP/3 layer internally
-            // Get or create stream object for ALL streams (bidi and uni)
-            // HTTP/3 layer needs to process both request streams and control streams
-            Stream *stream = get_stream(stream_id);
-            if (!stream) {
-                // Create stream object
-                stream = create_stream(stream_id);
-                if (!stream) {
-                    swoole_warning("Failed to create stream %lu", stream_id);
-                    break;
-                }
-            }
 
             // Trigger callback with received data for ALL streams
             // nghttp3 needs to process:
@@ -789,16 +863,14 @@ bool Connection::process_events() {
             swoole_trace_log(SW_TRACE_QUIC, "Total %zu bytes read from stream %lu", total_read, stream_id);
         }
 
-        // Check if stream is finished (for all streams)
-        Stream *stream = get_stream(stream_id);
-        if (stream && SSL_get_stream_read_state(stream_ssl) == SSL_STREAM_STATE_FINISHED) {
+        // Check if stream is finished
+        if (SSL_get_stream_read_state(stream_ssl) == SSL_STREAM_STATE_FINISHED) {
             swoole_trace_log(SW_TRACE_QUIC, "Stream %lu finished (EOF)", stream_id);
             stream->fin_received = 1;
         }
 
-        // For HTTP/3, we might need to keep the stream SSL object
-        // But for now, we'll close it after reading
-        SSL_free(stream_ssl);
+        // Keep the stream SSL object alive - it's stored in stream->ssl_stream
+        // and will be freed when the Stream is destroyed
     }
 
     return true;

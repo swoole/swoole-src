@@ -90,6 +90,9 @@ struct Stream {
     swQuicStreamState state;
     Connection *conn;
 
+    // Per-stream SSL object for OpenSSL 3.5 QUIC
+    SSL *ssl_stream;
+
     // Buffer for received data
     String *recv_buffer;
 

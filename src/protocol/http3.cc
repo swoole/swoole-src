@@ -734,7 +734,7 @@ ssize_t Connection::read_stream(int64_t stream_id, const uint8_t *data, size_t d
     }
 
     int rv = nghttp3_conn_read_stream(conn, stream_id, data, datalen, fin);
-    if (rv != 0) {
+    if (rv < 0) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP3_RECV,
                          "nghttp3_conn_read_stream failed for stream %ld: %s (error code: %d)",
                          stream_id, nghttp3_strerror(rv), rv);
