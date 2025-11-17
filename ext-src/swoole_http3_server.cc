@@ -47,6 +47,7 @@ struct Http3RequestObject {
 struct Http3ResponseObject {
     http3::Stream *stream;
     http3::Connection *conn;
+    std::vector<http3::HeaderField> response_headers;  // Response headers set via header() method
     zend_object std;
 };
 
@@ -627,7 +628,8 @@ static PHP_METHOD(swoole_http3_response, header) {
         RETURN_FALSE;
     }
 
-    hro->stream->add_header(std::string(key, key_len), std::string(value, value_len));
+    // Add header to response headers, not stream headers (which contain request headers)
+    hro->response_headers.emplace_back(std::string(key, key_len), std::string(value, value_len));
 
     RETURN_TRUE;
 }
@@ -691,20 +693,9 @@ static PHP_METHOD(swoole_http3_response, end) {
         RETURN_FALSE;
     }
 
-    // Build response headers
-    std::vector<HeaderField> headers;
-    headers.emplace_back(":status", std::to_string(hro->stream->status_code > 0 ? hro->stream->status_code : 200));
-
-    // Add custom headers
-    for (const auto &hf : hro->stream->headers) {
-        if (hf.name[0] != ':') {  // Skip pseudo-headers
-            headers.push_back(hf);
-        }
-    }
-
-    // Send response
+    // Send response (send_response() will add :status header automatically)
     if (!hro->stream->send_response(hro->stream->status_code > 0 ? hro->stream->status_code : 200,
-                                      headers,
+                                      hro->response_headers,
                                       (const uint8_t *) data,
                                       data_len)) {
         RETURN_FALSE;

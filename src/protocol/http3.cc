@@ -174,7 +174,9 @@ bool Stream::send_headers(const std::vector<HeaderField> &hdrs, bool fin) {
     std::vector<nghttp3_nv> nva;
     nva.reserve(hdrs.size());
 
+    swoole_warning("[DEBUG] send_headers: stream=%ld, fin=%d, header_count=%zu", stream_id, fin, hdrs.size());
     for (const auto &hf : hdrs) {
+        swoole_warning("[DEBUG]   header: %s: %s", hf.name.c_str(), hf.value.c_str());
         nva.push_back(make_nv(hf.name, hf.value, hf.never_index));
     }
 
@@ -559,6 +561,10 @@ void Connection::setup_settings(nghttp3_settings *settings) {
 }
 
 bool Connection::init_server() {
+    static int call_count = 0;
+    call_count++;
+    swoole_warning("[DEBUG] init_server: CALL #%d", call_count);
+
     is_server = 1;
 
     nghttp3_callbacks callbacks = create_callbacks();
@@ -595,6 +601,22 @@ bool Connection::init_client() {
 }
 
 bool Connection::open_control_streams() {
+    static int call_count = 0;
+    call_count++;
+    swoole_warning("[DEBUG] open_control_streams: CALL #%d, this=%p, flags: control=%d qpack=%d",
+                   call_count, this, control_stream_opened, qpack_streams_opened);
+
+    // Guard against calling this function multiple times or recursively
+    if (control_stream_opened || qpack_streams_opened) {
+        swoole_warning("[DEBUG] open_control_streams: Already opened or in progress, skipping");
+        return true;
+    }
+
+    // Set flags immediately to prevent re-entry
+    control_stream_opened = 1;
+    qpack_streams_opened = 1;
+    swoole_warning("[DEBUG] open_control_streams: Flags set, continuing with stream creation");
+
     if (!quic_conn || !conn) {
         return false;
     }
@@ -604,6 +626,7 @@ bool Connection::open_control_streams() {
     // Server must use server-initiated unidirectional streams: 3, 7, 11, 15...
     // Client must use client-initiated unidirectional streams: 2, 6, 10, 14...
     control_stream_id = is_server ? 3 : 2;  // Server uses stream 3, client uses stream 2
+    swoole_warning("[DEBUG] open_control_streams: opening control stream %ld", control_stream_id);
     swoole::quic::Stream *qs = quic_conn->open_stream(control_stream_id);
     if (!qs) {
         return false;
@@ -636,8 +659,7 @@ bool Connection::open_control_streams() {
         return false;
     }
 
-    control_stream_opened = 1;
-    qpack_streams_opened = 1;
+    // Flags are already set at the beginning of this function to prevent re-entry
 
     return send_settings();
 }
@@ -645,6 +667,7 @@ bool Connection::open_control_streams() {
 bool Connection::send_settings() {
     // Settings are prepared by nghttp3 during connection setup (bind_control_stream)
     // But we need to call write_streams() to actually send them via QUIC
+    swoole_warning("[DEBUG] send_settings: calling write_streams()");
     ssize_t rv = write_streams();
     if (rv < 0) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP3_SEND,
@@ -747,6 +770,10 @@ ssize_t Connection::read_stream(int64_t stream_id, const uint8_t *data, size_t d
 }
 
 ssize_t Connection::write_streams() {
+    static int call_count = 0;
+    call_count++;
+    swoole_warning("[DEBUG] write_streams: CALL #%d", call_count);
+
     if (!conn || !quic_conn) {
         return -1;
     }
@@ -768,24 +795,31 @@ ssize_t Connection::write_streams() {
             return sveccnt;
         }
 
+        swoole_warning("[DEBUG] write_streams: stream_id=%ld, vec_count=%zd, fin=%d", stream_id, sveccnt, fin);
+
         swoole::quic::Stream *qs = quic_conn->get_stream(stream_id);
         if (!qs) {
+            swoole_warning("[DEBUG] write_streams: stream %ld not found, skipping", stream_id);
             continue;
         }
 
         size_t total = 0;
         for (ssize_t i = 0; i < sveccnt; i++) {
+            swoole_warning("[DEBUG] write_streams: stream %ld, vec[%zd]: len=%zu", stream_id, i, vec[i].len);
             if (!qs->send_data(vec[i].base, vec[i].len, 0)) {
+                swoole_warning("[DEBUG] write_streams: send_data failed for stream %ld", stream_id);
                 return -1;
             }
             total += vec[i].len;
         }
 
         if (fin) {
+            swoole_warning("[DEBUG] write_streams: sending FIN on stream %ld", stream_id);
             qs->send_data(nullptr, 0, true);
         }
 
         nghttp3_conn_add_write_offset(conn, stream_id, total);
+        swoole_warning("[DEBUG] write_streams: wrote %zu bytes to stream %ld", total, stream_id);
     }
 
     return 0;
@@ -860,6 +894,7 @@ bool swoole::http3::Server::bind(const char *host, int port, SSL_CTX *ssl_ctx) {
         Connection *h3c = (Connection *) qc->user_data;
         if (h3c) {
             bool fin = qs->fin_received;
+            swoole_warning("[DEBUG] on_stream_data: stream=%ld, len=%zu, calling write_streams()", qs->stream_id, len);
             h3c->read_stream(qs->stream_id, data, len, fin);
             h3c->write_streams();
         }
@@ -881,10 +916,22 @@ bool swoole::http3::Server::bind(const char *host, int port, SSL_CTX *ssl_ctx) {
 }
 
 Connection* swoole::http3::Server::accept_connection(swoole::quic::Connection *quic_conn) {
+    static int call_count = 0;
+    call_count++;
+    swoole_warning("[DEBUG] accept_connection: CALL #%d, quic_conn=%p", call_count, quic_conn);
+
     if (!quic_conn) {
         return nullptr;
     }
 
+    // Check if we already have an HTTP/3 Connection for this QUIC connection
+    auto it = connections.find(quic_conn);
+    if (it != connections.end()) {
+        swoole_warning("[DEBUG] accept_connection: Connection already exists for quic_conn=%p, returning existing", quic_conn);
+        return it->second;
+    }
+
+    swoole_warning("[DEBUG] accept_connection: Creating new HTTP/3 Connection for quic_conn=%p", quic_conn);
     Connection *conn = new Connection(quic_conn);
     if (!conn->init_server()) {
         delete conn;

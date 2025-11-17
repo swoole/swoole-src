@@ -132,7 +132,8 @@ Stream::Stream(int64_t id, Connection *c) {
             // Create new outgoing stream
             ssl_stream = SSL_new_stream(conn->ssl, SSL_STREAM_FLAG_UNI);
             if (ssl_stream) {
-                swoole_trace_log(SW_TRACE_QUIC, "Stream %ld: SSL stream created (unidirectional)", stream_id);
+                uint64_t actual_stream_id = SSL_get_stream_id(ssl_stream);
+                swoole_warning("[DEBUG] Stream %ld: SSL stream created, actual SSL stream ID=%lu", stream_id, actual_stream_id);
             } else {
                 swoole_warning("Stream %ld: Failed to create SSL stream", stream_id);
             }
