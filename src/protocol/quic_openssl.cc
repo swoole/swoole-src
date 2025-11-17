@@ -400,17 +400,60 @@ void Listener::run() {
             if (on_stream_open) {
                 conn->on_stream_open = on_stream_open;
             }
-            if (on_stream_close) {
-                conn->on_stream_close = on_stream_close;
-            }
-            if (on_stream_data) {
-                conn->on_stream_data = on_stream_data;
+            swoole_error_log(SW_ERROR_SYSTEM_CALL_FAIL, SW_ERROR_SYSTEM_CALL_FAIL,
+                            "select() failed: %s", strerror(errno));
+            break;
+        }
+
+        if (ret == 0) {
+            // Timeout, continue waiting
+            swoole_trace_log(SW_TRACE_QUIC, "select timeout, waiting for connections...");
+            continue;
+        }
+
+        if (FD_ISSET(udp_fd, &readfds)) {
+            swoole_trace_log(SW_TRACE_QUIC, "Incoming QUIC packet detected");
+
+            // Try to accept new connection
+            Connection *conn = accept_connection();
+            if (conn) {
+                swoole_trace_log(SW_TRACE_QUIC, "Connection accepted");
+
+                // Set up stream callbacks on the connection
+                if (on_stream_open) {
+                    conn->on_stream_open = on_stream_open;
+                }
+                if (on_stream_close) {
+                    conn->on_stream_close = on_stream_close;
+                }
+                if (on_stream_data) {
+                    conn->on_stream_data = on_stream_data;
+                }
+
+                // Add to active connections list
+                active_connections.push_back(conn);
+
+                // Trigger connection callback
+                if (on_connection) {
+                    on_connection(this, conn);
+                }
             }
         }
 
-        // In a real implementation, this would be integrated with Swoole's event loop
-        // For now, break after one iteration to avoid blocking
-        break;
+        // Process events for all active connections
+        for (auto it = active_connections.begin(); it != active_connections.end(); ) {
+            Connection *conn = *it;
+
+            // Process streams and I/O for this connection
+            if (!conn->process_events()) {
+                swoole_trace_log(SW_TRACE_QUIC, "Connection closed, removing from active list");
+                it = active_connections.erase(it);
+                delete conn;
+                continue;
+            }
+
+            ++it;
+        }
     }
 }
 
@@ -652,8 +695,56 @@ bool Connection::close(uint64_t error_code) {
 }
 
 bool Connection::process_events() {
-    // OpenSSL handles event processing internally
-    // This function can be used for future extensions
+    if (!ssl) {
+        return false;
+    }
+
+    // Try to accept new streams
+    while (true) {
+        SSL *stream_ssl = SSL_accept_stream(ssl, 0);  // Non-blocking
+        if (!stream_ssl) {
+            // No more streams available
+            break;
+        }
+
+        // Get stream ID from the SSL object
+        uint64_t stream_id = SSL_get_stream_id(stream_ssl);
+
+        swoole_trace_log(SW_TRACE_QUIC, "New stream accepted: ID=%lu", stream_id);
+
+        // Create Stream object
+        Stream *stream = create_stream(stream_id);
+        if (!stream) {
+            SSL_free(stream_ssl);
+            continue;
+        }
+
+        // Store the SSL object in the stream
+        // For now, we'll read from it immediately
+        uint8_t buffer[8192];
+        size_t nread = 0;
+
+        while (SSL_read_ex(stream_ssl, buffer, sizeof(buffer), &nread) > 0) {
+            swoole_trace_log(SW_TRACE_QUIC, "Read %zu bytes from stream %lu", nread, stream_id);
+
+            // Trigger callback with received data
+            if (on_stream_data && nread > 0) {
+                on_stream_data(this, stream, buffer, nread);
+            }
+
+            nread = 0;
+        }
+
+        // Check if stream is finished
+        if (SSL_get_stream_read_state(stream_ssl) == SSL_STREAM_STATE_FINISHED) {
+            swoole_trace_log(SW_TRACE_QUIC, "Stream %lu finished (EOF)", stream_id);
+        }
+
+        // For HTTP/3, we might need to keep the stream SSL object
+        // But for now, we'll close it after reading
+        SSL_free(stream_ssl);
+    }
+
     return true;
 }
 

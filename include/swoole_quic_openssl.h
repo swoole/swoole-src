@@ -26,6 +26,7 @@
 
 #include <unordered_map>
 #include <memory>
+#include <vector>
 
 // QUIC Constants
 #define SW_QUIC_MAX_PACKET_SIZE 1350
@@ -130,6 +131,9 @@ struct Listener {
     // Configuration
     const char *cert_file;
     const char *key_file;
+
+    // Active connections
+    std::vector<Connection*> active_connections;
 
     // Callbacks
     void (*on_connection)(Listener *listener, Connection *conn);
