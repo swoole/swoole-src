@@ -14,6 +14,8 @@
 #include "swoole_quic_openssl.h"
 #include "swoole_string.h"
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #ifdef SW_USE_QUIC
 
@@ -241,27 +243,71 @@ bool Listener::init(const char *cert, const char *key) {
 bool Listener::listen(const struct sockaddr *addr, socklen_t addrlen) {
     if (!ssl_ctx) {
         swoole_error_log(SW_ERROR_WRONG_OPERATION, SW_ERROR_WRONG_OPERATION,
-                        "SSL_CTX not initialized, call init() first");
+                        "SSL_CTX not initialized. Either call init() first or set ssl_ctx before calling listen()");
         return false;
     }
+
+    swoole_trace_log(SW_TRACE_QUIC, "Using existing SSL_CTX: %p", ssl_ctx);
 
     // Save address
     memcpy(&local_addr, addr, addrlen);
     local_addrlen = addrlen;
 
-    // Create QUIC listener
+    // Step 1: Create UDP socket
+    udp_fd = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (udp_fd < 0) {
+        swoole_error_log(SW_ERROR_SYSTEM_CALL_FAIL, SW_ERROR_SYSTEM_CALL_FAIL,
+                        "Failed to create UDP socket");
+        return false;
+    }
+
+    // Step 2: Bind UDP socket
+    if (::bind(udp_fd, addr, addrlen) < 0) {
+        swoole_error_log(SW_ERROR_SYSTEM_CALL_FAIL, SW_ERROR_SYSTEM_CALL_FAIL,
+                        "Failed to bind UDP socket");
+        ::close(udp_fd);
+        udp_fd = -1;
+        return false;
+    }
+
+    swoole_trace_log(SW_TRACE_QUIC, "UDP socket bound successfully (fd=%d)", udp_fd);
+
+    // Step 3: Create QUIC listener
     ssl_listener = SSL_new_listener(ssl_ctx, 0);
     if (!ssl_listener) {
         swoole_error_log(SW_ERROR_SSL_BAD_PROTOCOL, SW_ERROR_SYSTEM_CALL_FAIL,
                         "SSL_new_listener failed");
         ERR_print_errors_fp(stderr);
+        ::close(udp_fd);
+        udp_fd = -1;
         return false;
     }
 
-    // Note: UDP socket binding should be done externally
-    // The SSL_set_fd will be called with the bound UDP socket
+    // Step 4: Attach UDP socket to SSL listener
+    if (!SSL_set_fd(ssl_listener, udp_fd)) {
+        swoole_error_log(SW_ERROR_SSL_BAD_PROTOCOL, SW_ERROR_SYSTEM_CALL_FAIL,
+                        "SSL_set_fd failed");
+        ERR_print_errors_fp(stderr);
+        SSL_free(ssl_listener);
+        ssl_listener = nullptr;
+        ::close(udp_fd);
+        udp_fd = -1;
+        return false;
+    }
 
-    swoole_trace_log(SW_TRACE_QUIC, "Listener ready (SSL_new_listener created)");
+    // Step 5: Start listening for QUIC connections
+    if (!SSL_listen(ssl_listener)) {
+        swoole_error_log(SW_ERROR_SSL_BAD_PROTOCOL, SW_ERROR_SYSTEM_CALL_FAIL,
+                        "SSL_listen failed");
+        ERR_print_errors_fp(stderr);
+        SSL_free(ssl_listener);
+        ssl_listener = nullptr;
+        ::close(udp_fd);
+        udp_fd = -1;
+        return false;
+    }
+
+    swoole_trace_log(SW_TRACE_QUIC, "QUIC listener ready and listening");
     return true;
 }
 
@@ -318,7 +364,10 @@ bool Listener::close() {
         ssl_ctx = nullptr;
     }
 
-    udp_fd = -1;
+    if (udp_fd >= 0) {
+        ::close(udp_fd);
+        udp_fd = -1;
+    }
 
     swoole_trace_log(SW_TRACE_QUIC, "Listener closed");
     return true;

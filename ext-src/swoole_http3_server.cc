@@ -542,26 +542,12 @@ static PHP_METHOD(swoole_http3_server, start) {
         RETURN_FALSE;
     }
 
-    // Create SSL context
-    SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_method());
+    // Create SSL context using OpenSSL 3.5 native QUIC server method
+    SSL_CTX *ssl_ctx = SSL_CTX_new(OSSL_QUIC_server_method());
     if (!ssl_ctx) {
-        php_swoole_fatal_error(E_ERROR, "failed to create SSL context");
+        php_swoole_fatal_error(E_ERROR, "failed to create QUIC SSL context");
         RETURN_FALSE;
     }
-
-    // Configure SSL_CTX for QUIC (following ngtcp2 examples)
-    // See: https://github.com/ngtcp2/ngtcp2/blob/main/examples/tls_server_context_ossl.cc
-
-    // Set QUIC-specific options
-    SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL | SSL_OP_NO_ANTI_REPLAY);
-    SSL_CTX_set_options(ssl_ctx, SSL_OP_SINGLE_ECDH_USE | SSL_OP_CIPHER_SERVER_PREFERENCE);
-
-    // Enable 0-RTT with max early data
-    SSL_CTX_set_max_early_data(ssl_ctx, UINT32_MAX);
-
-    // Set minimum and maximum TLS protocol version to TLS 1.3 (required for QUIC)
-    SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
-    SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
 
     // Set ALPN callback for HTTP/3 protocol negotiation
     SSL_CTX_set_alpn_select_cb(ssl_ctx, http3_alpn_select_callback, nullptr);
