@@ -48,7 +48,12 @@ check_sudo() {
 install_system_deps() {
     print_info "Installing system dependencies..."
 
-    apt-get update
+    # Try to update and install, but don't fail if apt-get has issues
+    # The tools might already be installed
+    if apt-get update 2>&1 | grep -q "Failed to fetch\|error"; then
+        print_warn "apt-get update encountered errors, continuing anyway..."
+    fi
+
     apt-get install -y \
         build-essential \
         autoconf \
@@ -61,13 +66,22 @@ install_system_deps() {
         php-cli \
         git \
         wget \
-        cmake
+        cmake 2>&1 || print_warn "Some packages may have failed to install, continuing anyway..."
 
-    print_info "System dependencies installed"
+    print_info "System dependencies check completed"
 }
 
 # Step 2: Build and install OpenSSL 3.5 (with native QUIC support)
 build_openssl35() {
+    # Check if OpenSSL 3.5 is already installed
+    if [ -f /usr/local/openssl35/bin/openssl ]; then
+        INSTALLED_VERSION=$(LD_LIBRARY_PATH=/usr/local/openssl35/lib64:/usr/local/openssl35/lib /usr/local/openssl35/bin/openssl version 2>/dev/null | awk '{print $2}')
+        if [[ "$INSTALLED_VERSION" == 3.5.* ]]; then
+            print_info "OpenSSL 3.5 already installed (${INSTALLED_VERSION}), skipping build..."
+            return
+        fi
+    fi
+
     print_info "Building OpenSSL 3.5 with native QUIC support..."
 
     cd /tmp
@@ -96,6 +110,14 @@ build_ngtcp2() {
 
 # Step 4: Build and install nghttp3
 build_nghttp3() {
+    # Check if nghttp3 is already installed
+    export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH
+    if pkg-config --exists libnghttp3 2>/dev/null; then
+        INSTALLED_VERSION=$(pkg-config --modversion libnghttp3 2>/dev/null)
+        print_info "nghttp3 already installed (${INSTALLED_VERSION}), skipping build..."
+        return
+    fi
+
     print_info "Building nghttp3 (HTTP/3 library)..."
 
     cd /tmp
@@ -250,8 +272,14 @@ main() {
     check_sudo
 
     # Execute all steps
-    install_system_deps
-    echo ""
+    # Allow skipping system deps installation via SKIP_SYSTEM_DEPS=1
+    if [ "${SKIP_SYSTEM_DEPS}" != "1" ]; then
+        install_system_deps
+        echo ""
+    else
+        print_info "Skipping system dependencies installation (SKIP_SYSTEM_DEPS=1)"
+        echo ""
+    fi
 
     build_openssl35
     echo ""
