@@ -18,6 +18,8 @@
 
 #ifdef SW_USE_QUIC
 
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
@@ -122,8 +124,8 @@ struct Listener {
     int udp_fd;
 
     // Local address
-    struct sockaddr_storage local_addr;
-    socklen_t local_addrlen;
+    ::sockaddr_storage local_addr;
+    ::socklen_t local_addrlen;
 
     // Configuration
     const char *cert_file;
@@ -131,6 +133,9 @@ struct Listener {
 
     // Callbacks
     void (*on_connection)(Listener *listener, Connection *conn);
+    void (*on_stream_open)(Connection *conn, Stream *stream);
+    void (*on_stream_close)(Connection *conn, Stream *stream);
+    void (*on_stream_data)(Connection *conn, Stream *stream, const uint8_t *data, size_t len);
 
     // User data
     void *user_data;
@@ -141,11 +146,17 @@ struct Listener {
     // Initialize SSL_CTX with OpenSSL QUIC server method
     bool init(const char *cert, const char *key);
 
+    // Bind to UDP socket and start listening (compatibility wrapper)
+    bool bind(const char *host, int port);
+
     // Bind to UDP socket and start listening
-    bool listen(const struct sockaddr *addr, socklen_t addrlen);
+    bool listen(const ::sockaddr *addr, ::socklen_t addrlen);
 
     // Accept incoming QUIC connection
     Connection* accept_connection();
+
+    // Run event loop (compatibility with ngtcp2 API)
+    void run();
 
     // Close listener
     bool close();
@@ -158,10 +169,10 @@ struct Connection {
     SSL_CTX *ssl_ctx;  // Shared with Listener
 
     // Address information
-    struct sockaddr_storage local_addr;
-    socklen_t local_addrlen;
-    struct sockaddr_storage remote_addr;
-    socklen_t remote_addrlen;
+    ::sockaddr_storage local_addr;
+    ::socklen_t local_addrlen;
+    ::sockaddr_storage remote_addr;
+    ::socklen_t remote_addrlen;
 
     // State
     swQuicConnectionState state;

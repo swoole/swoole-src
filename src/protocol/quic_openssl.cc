@@ -12,11 +12,16 @@
 */
 
 #include "swoole_quic_openssl.h"
+#include "swoole_string.h"
+#include <arpa/inet.h>
 
 #ifdef SW_USE_QUIC
 
 namespace swoole {
 namespace quic {
+
+using ::swoole::make_string;
+using ::swoole::microtime;
 
 // ALPN protocol for HTTP/3
 static const unsigned char alpn_h3[] = { 2, 'h', '3' };
@@ -94,8 +99,8 @@ Stream::Stream(int64_t id, Connection *c) {
     conn = c;
     state = SW_QUIC_STREAM_IDLE;
 
-    recv_buffer = swoole::make_string(SW_QUIC_MAX_STREAM_DATA);
-    send_buffer = swoole::make_string(SW_QUIC_MAX_STREAM_DATA);
+    recv_buffer = make_string(SW_QUIC_MAX_STREAM_DATA);
+    send_buffer = make_string(SW_QUIC_MAX_STREAM_DATA);
 
     rx_max_data = SW_QUIC_MAX_STREAM_DATA;
     rx_offset = 0;
@@ -114,10 +119,10 @@ Stream::Stream(int64_t id, Connection *c) {
 
 Stream::~Stream() {
     if (recv_buffer) {
-        swoole_string_free(recv_buffer);
+        delete recv_buffer;
     }
     if (send_buffer) {
-        swoole_string_free(send_buffer);
+        delete send_buffer;
     }
 
     swoole_trace_log(SW_TRACE_QUIC, "Stream %ld destroyed", stream_id);
@@ -130,11 +135,7 @@ bool Stream::send_data(const uint8_t *data, size_t len, bool fin) {
     }
 
     // Append to send buffer
-    if (!swoole_string_append(send_buffer, (const char *)data, len)) {
-        swoole_error_log(SW_ERROR_SYSTEM_CALL_FAIL, SW_ERROR_SYSTEM_CALL_FAIL,
-                        "Failed to append to send buffer");
-        return false;
-    }
+    send_buffer->append((const char *)data, len);
 
     if (fin) {
         fin_sent = 1;
@@ -154,11 +155,7 @@ bool Stream::recv_data(const uint8_t *data, size_t len, bool fin) {
     }
 
     // Append to receive buffer
-    if (!swoole_string_append(recv_buffer, (const char *)data, len)) {
-        swoole_error_log(SW_ERROR_SYSTEM_CALL_FAIL, SW_ERROR_SYSTEM_CALL_FAIL,
-                        "Failed to append to recv buffer");
-        return false;
-    }
+    recv_buffer->append((const char *)data, len);
 
     if (fin) {
         fin_received = 1;
@@ -214,6 +211,9 @@ Listener::Listener() {
     key_file = nullptr;
 
     on_connection = nullptr;
+    on_stream_open = nullptr;
+    on_stream_close = nullptr;
+    on_stream_data = nullptr;
     user_data = nullptr;
 
     swoole_trace_log(SW_TRACE_QUIC, "Listener created");
@@ -277,7 +277,7 @@ Connection* Listener::accept_connection() {
     SSL *conn_ssl = SSL_accept_connection(ssl_listener, 0);
     if (!conn_ssl) {
         unsigned long err = ERR_peek_last_error();
-        if (ERR_GET_REASON(err) == SSL_R_NO_CONNECTION_PENDING) {
+        if (err == 0) {  // No error, just no connection pending
             // No connection available, this is normal
             return nullptr;
         }
@@ -324,6 +324,47 @@ bool Listener::close() {
     return true;
 }
 
+bool Listener::bind(const char *host, int port) {
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+
+    if (inet_pton(AF_INET, host, &addr.sin_addr) <= 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "Invalid host address: %s", host);
+        return false;
+    }
+
+    return listen((struct sockaddr *)&addr, sizeof(addr));
+}
+
+void Listener::run() {
+    swoole_trace_log(SW_TRACE_QUIC, "Starting QUIC listener event loop");
+
+    // Simple event loop for accepting connections
+    // This is a compatibility shim for the ngtcp2 API
+    // In practice, the HTTP/3 server will handle the event loop
+    while (true) {
+        Connection *conn = accept_connection();
+        if (conn) {
+            // Set up stream callbacks on the connection
+            if (on_stream_open) {
+                conn->on_stream_open = on_stream_open;
+            }
+            if (on_stream_close) {
+                conn->on_stream_close = on_stream_close;
+            }
+            if (on_stream_data) {
+                conn->on_stream_data = on_stream_data;
+            }
+        }
+
+        // In a real implementation, this would be integrated with Swoole's event loop
+        // For now, break after one iteration to avoid blocking
+        break;
+    }
+}
+
 // ============================================================================
 // Connection Implementation
 // ============================================================================
@@ -348,7 +389,7 @@ Connection::Connection() {
     recv_buffer_size = SW_QUIC_MAX_PACKET_SIZE * 4;
     recv_buffer = (uint8_t *)sw_malloc(recv_buffer_size);
 
-    last_ts = swoole_microtime();
+    last_ts = swoole::microtime();
 
     on_stream_open = nullptr;
     on_stream_close = nullptr;
