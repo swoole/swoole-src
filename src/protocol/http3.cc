@@ -137,6 +137,34 @@ const char* Stream::get_header(const std::string &name) {
     return nullptr;
 }
 
+// Callback to read response body data for nghttp3
+static nghttp3_ssize stream_read_data_callback(nghttp3_conn *conn, int64_t stream_id,
+                                                nghttp3_vec *vec, size_t veccnt,
+                                                uint32_t *pflags, void *user_data,
+                                                void *stream_user_data) {
+    Stream *stream = (Stream *) stream_user_data;
+    if (!stream || !stream->body) {
+        *pflags |= NGHTTP3_DATA_FLAG_EOF;
+        return 0;
+    }
+
+    size_t body_len = stream->body->length;
+    if (body_len == 0) {
+        *pflags |= NGHTTP3_DATA_FLAG_EOF;
+        return 0;
+    }
+
+    // Provide the body data
+    if (veccnt > 0) {
+        vec[0].base = (uint8_t *) stream->body->str;
+        vec[0].len = body_len;
+        *pflags |= NGHTTP3_DATA_FLAG_EOF;  // All data sent at once
+        return 1;  // Number of vec entries filled
+    }
+
+    return 0;
+}
+
 bool Stream::send_headers(const std::vector<HeaderField> &hdrs, bool fin) {
     if (!conn || !conn->conn || !quic_stream) {
         return false;
@@ -151,7 +179,7 @@ bool Stream::send_headers(const std::vector<HeaderField> &hdrs, bool fin) {
     }
 
     nghttp3_data_reader data_reader;
-    data_reader.read_data = nullptr;  // Will be set if sending body
+    data_reader.read_data = stream_read_data_callback;
 
     int rv = nghttp3_conn_submit_response(conn->conn, stream_id,
                                            nva.data(), nva.size(),
@@ -343,6 +371,21 @@ static int on_recv_header(nghttp3_conn *conn, int64_t stream_id,
                       nghttp3_rcbuf_get_buf(name).len);
         std::string v((const char *) nghttp3_rcbuf_get_buf(value).base,
                       nghttp3_rcbuf_get_buf(value).len);
+
+        // Handle pseudo-headers
+        if (!n.empty() && n[0] == ':') {
+            if (n == ":method") {
+                stream->method = v;
+            } else if (n == ":path") {
+                stream->path = v;
+            } else if (n == ":scheme") {
+                stream->scheme = v;
+            } else if (n == ":authority") {
+                stream->authority = v;
+            } else if (n == ":status") {
+                stream->status_code = std::stoi(v);
+            }
+        }
 
         stream->add_header(n, v, (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) != 0);
     }
@@ -850,6 +893,12 @@ Connection* swoole::http3::Server::accept_connection(swoole::quic::Connection *q
 
     // Set HTTP/3 callbacks
     conn->on_stream_open = [](Connection *c, Stream *s) {
+        // Stream opened - don't call request handler yet
+        // Wait for headers to be complete
+    };
+
+    conn->on_recv_header = [](Connection *c, Stream *s) {
+        // Headers are complete - now call the request handler
         Server *server = (Server *) c->user_data;
         if (server && server->on_request) {
             server->on_request(c, s);
