@@ -15,7 +15,11 @@
 #include "swoole_string.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <cstring>
 
 #ifdef SW_USE_QUIC
 
@@ -390,15 +394,35 @@ bool Listener::bind(const char *host, int port) {
 void Listener::run() {
     swoole_trace_log(SW_TRACE_QUIC, "Starting QUIC listener event loop");
 
+    if (!ssl_listener || udp_fd < 0) {
+        swoole_error_log(SW_ERROR_WRONG_OPERATION, SW_ERROR_WRONG_OPERATION,
+                        "Listener not initialized");
+        return;
+    }
+
+    // Set socket to non-blocking mode
+    int flags = fcntl(udp_fd, F_GETFL, 0);
+    fcntl(udp_fd, F_SETFL, flags | O_NONBLOCK);
+
+    swoole_trace_log(SW_TRACE_QUIC, "Event loop started, UDP fd=%d", udp_fd);
+
     // Simple event loop for accepting connections
-    // This is a compatibility shim for the ngtcp2 API
-    // In practice, the HTTP/3 server will handle the event loop
     while (true) {
-        Connection *conn = accept_connection();
-        if (conn) {
-            // Set up stream callbacks on the connection
-            if (on_stream_open) {
-                conn->on_stream_open = on_stream_open;
+        // Use select to wait for incoming packets
+        fd_set readfds;
+        struct timeval tv;
+
+        FD_ZERO(&readfds);
+        FD_SET(udp_fd, &readfds);
+
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+
+        int ret = select(udp_fd + 1, &readfds, nullptr, nullptr, &tv);
+
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;  // Interrupted by signal, retry
             }
             swoole_error_log(SW_ERROR_SYSTEM_CALL_FAIL, SW_ERROR_SYSTEM_CALL_FAIL,
                             "select() failed: %s", strerror(errno));
@@ -455,6 +479,8 @@ void Listener::run() {
             ++it;
         }
     }
+
+    swoole_trace_log(SW_TRACE_QUIC, "Event loop exited");
 }
 
 // ============================================================================
