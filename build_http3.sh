@@ -88,30 +88,10 @@ build_openssl35() {
     print_info "OpenSSL 3.5 with QUIC installed successfully to /usr/local/openssl35"
 }
 
-# Step 3: Build and install ngtcp2
+# Step 3: ngtcp2 NO LONGER NEEDED
+# OpenSSL 3.5 has native QUIC support, so we don't need ngtcp2 anymore
 build_ngtcp2() {
-    print_info "Building ngtcp2 (QUIC library)..."
-
-    cd /tmp
-    rm -rf ngtcp2
-
-    git clone --depth 1 --branch v1.16.0 https://github.com/ngtcp2/ngtcp2.git
-    cd ngtcp2
-
-    autoreconf -i
-
-    # Configure with OpenSSL 3.5 and CFLAGS to avoid assembler .base64 issues
-    PKG_CONFIG_PATH=/usr/local/openssl35/lib64/pkgconfig:/usr/local/openssl35/lib/pkgconfig:$PKG_CONFIG_PATH \
-    CFLAGS="-O2 -g0 -I/usr/local/openssl35/include" \
-    LDFLAGS="-Wl,-rpath,/usr/local/openssl35/lib64 -Wl,-rpath,/usr/local/openssl35/lib -L/usr/local/openssl35/lib64 -L/usr/local/openssl35/lib" \
-    ./configure --prefix=/usr/local \
-        --with-openssl=/usr/local/openssl35 \
-        --enable-lib-only
-
-    make -j$(nproc)
-    make install
-
-    print_info "ngtcp2 installed successfully"
+    print_info "Skipping ngtcp2 build (using OpenSSL 3.5 native QUIC instead)"
 }
 
 # Step 4: Build and install nghttp3
@@ -152,19 +132,8 @@ verify_libraries() {
 
     export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH
 
-    if pkg-config --exists libngtcp2; then
-        print_success "ngtcp2 $(pkg-config --modversion libngtcp2) found"
-    else
-        print_error "libngtcp2 not found!"
-        exit 1
-    fi
-
-    if pkg-config --exists libngtcp2_crypto_ossl; then
-        print_success "ngtcp2_crypto_ossl $(pkg-config --modversion libngtcp2_crypto_ossl) found"
-    else
-        print_error "libngtcp2_crypto_ossl not found!"
-        exit 1
-    fi
+    # ngtcp2 is no longer needed - skipping check
+    print_info "ngtcp2 not required (using OpenSSL 3.5 native QUIC)"
 
     if pkg-config --exists libnghttp3; then
         print_success "nghttp3 $(pkg-config --modversion libnghttp3) found"
@@ -175,7 +144,7 @@ verify_libraries() {
 
     if [ -f /usr/local/openssl35/bin/openssl ]; then
         OPENSSL_VERSION=$(LD_LIBRARY_PATH=/usr/local/openssl35/lib64:/usr/local/openssl35/lib /usr/local/openssl35/bin/openssl version | awk '{print $2}')
-        print_success "OpenSSL ${OPENSSL_VERSION} with QUIC found"
+        print_success "OpenSSL ${OPENSSL_VERSION} with native QUIC support found"
     else
         print_error "OpenSSL 3.5 not found!"
         exit 1
@@ -216,12 +185,12 @@ build_swoole() {
     autoconf
 
     # Configure
+    # Note: No --with-ngtcp2-dir needed - using OpenSSL 3.5 native QUIC
     ./configure \
         --enable-swoole \
         --enable-openssl \
         --enable-http2 \
         --with-openssl-dir=/usr/local/openssl35 \
-        --with-ngtcp2-dir=/usr/local \
         --with-nghttp3-dir=/usr/local
 
     # Compile
