@@ -39,6 +39,7 @@ static SW_THREAD_LOCAL std::unordered_map<SessionId, std::shared_ptr<Http2Sessio
 
 static bool http2_server_respond(HttpContext *ctx, const String *body);
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler);
+static bool http2_server_send_status_code(HttpContext *ctx, int status_code);
 
 Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
@@ -76,6 +77,7 @@ Http2Session::Session(SessionId _fd) {
     last_stream_id = 0;
     shutting_down = false;
     is_coro = false;
+    max_body_size = 0;
 }
 
 std::shared_ptr<Http2Stream> Http2Session::get_stream(uint32_t stream_id) {
@@ -320,10 +322,6 @@ _destroy:
     zval_ptr_dtor(ctx->response.zobject);
 }
 
-static void http2_server_set_date_header(Http2::HeaderSet *headers) {
-
-}
-
 static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const String *body) {
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
@@ -412,7 +410,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
     }
     if (!(header_flags & HTTP_HEADER_DATE)) {
-    	auto date_str = php_swoole_http_get_date();
+        auto date_str = php_swoole_http_get_date();
         headers.add(ZEND_STRL("date"), ZSTR_VAL(date_str), ZSTR_LEN(date_str));
     }
     if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {
@@ -487,6 +485,13 @@ static bool http2_server_send_setting_ack(HttpContext *ctx) {
     return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE);
 }
 
+static bool http2_server_send_rst_stream(HttpContext *ctx, int error_code) {
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + sizeof(uint32_t)];
+    Http2::set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, 0, SW_HTTP2_FLAG_ACK, 0);
+    *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(error_code);
+    return ctx->send(ctx, frame, sizeof(frame));
+}
+
 bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     char *frame = (char *) ecalloc(1, length);
@@ -529,9 +534,10 @@ bool Http2Stream::send_header(const String *body, bool end_stream) const {
      */
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
 
-    if (end_stream && body && body->length == 0) {
+    if (end_stream && (!body || body->length == 0)) {
         http2::set_frame_header(
             frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
+        ctx->end_ = 1;
     } else {
         http2::set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, id);
     }
@@ -730,6 +736,13 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     }
 
     return !error;
+}
+
+static bool http2_server_send_status_code(HttpContext *ctx, int status_code) {
+    auto client = http2_sessions[ctx->fd];
+    auto stream = client->get_stream(ctx->stream_id);
+    ctx->response.status = status_code;
+    return stream->send_header(nullptr, true);
 }
 
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler) {
@@ -1021,6 +1034,12 @@ static int http2_server_parse_header(
                         (const char *) nv.value,
                         nv.valuelen);
                     continue;
+                } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-length")) {
+                    char *end;
+                    zend_long content_length = std::strtol((char *) nv.value, &end, 10);
+                    if (end != (char *) nv.value + nv.valuelen || content_length > client->max_body_size) {
+                        http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE);
+                    }
                 }
 #ifdef SW_HAVE_COMPRESSION
                 else if (ctx->enable_compression && SW_STRCASEEQ((char *) nv.name, nv.namelen, "accept-encoding")) {
@@ -1152,10 +1171,17 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         }
 
         HttpContext *ctx = stream->ctx;
-        zend::object_set(ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
 
         if (length > 0) {
             auto buffer = ctx->get_http2_data_buffer();
+
+            // Exceeded the max_body_size, or if the stream has ended, sends RST_STREAM frame, stops receiving data
+            if (buffer->length + length > client->max_body_size || ctx->end_) {
+            	http2_server_send_rst_stream(ctx, 0);
+            	client->remove_stream(stream_id);
+				break;
+            }
+
             buffer->append(buf, length);
 
             // flow control
@@ -1262,6 +1288,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client->default_ctx->http2 = true;
         client->default_ctx->keepalive = true;
         client->default_ctx->onBeforeRequest = http2_server_onBeforeRequest;
+        client->max_body_size = serv->get_package_max_length(conn);
         client->handle = http2_server_onRequest;
         http2_sessions.emplace(session_id, client);
     } else {
