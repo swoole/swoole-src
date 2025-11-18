@@ -18,6 +18,7 @@
 
 #include "php_ssh2.h"
 #include "ext/standard/php_string.h"
+#include "php_swoole_ssh2_async_hook.h"
 
 /* *************************
    * Resource Housekeeping *
@@ -94,7 +95,8 @@ static inline int php_ssh2_sftp_attr2ssb(php_stream_statbuf *ssb, LIBSSH2_SFTP_A
 
 typedef struct _php_ssh2_sftp_handle_data {
 	LIBSSH2_SFTP_HANDLE *handle;
-
+	LIBSSH2_SESSION *session;
+	LIBSSH2_SFTP *sftp;
 	zend_resource *sftp_rsrc;
 } php_ssh2_sftp_handle_data;
 
@@ -146,7 +148,8 @@ static ssize_t php_ssh2_sftp_stream_read(php_stream *stream, char *buf, size_t c
  */
 static int php_ssh2_sftp_stream_close(php_stream *stream, int close_handle)
 {
-	php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data*)stream->abstract;
+	php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data *) stream->abstract;
+	auto session = data->session;
 
 	libssh2_sftp_close(data->handle);
 	zend_list_delete(data->sftp_rsrc);
@@ -166,7 +169,7 @@ static int php_ssh2_sftp_stream_seek(php_stream *stream, zend_off_t offset, int 
 		case SEEK_END:
 		{
 			LIBSSH2_SFTP_ATTRIBUTES attrs;
-
+			auto session = data->session;
 			if (libssh2_sftp_fstat(data->handle, &attrs)) {
 				return -1;
 			}
@@ -205,6 +208,7 @@ static int php_ssh2_sftp_stream_fstat(php_stream *stream, php_stream_statbuf *ss
 {
 	php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data*)stream->abstract;
 	LIBSSH2_SFTP_ATTRIBUTES attrs;
+	auto session = data->session;
 
 	if (libssh2_sftp_fstat(data->handle, &attrs)) {
 		return -1;
@@ -249,7 +253,8 @@ static php_stream *php_ssh2_sftp_stream_opener(php_stream_wrapper *wrapper, cons
 
 	flags = php_ssh2_parse_fopen_modes((char *)mode);
 
-	handle = libssh2_sftp_open(sftp, SSH2_URL_STR(resource->path), flags, perms);
+	auto url_str = SSH2_URL_STR(resource->path);
+	handle = libssh2_sftp_open(sftp, url_str, flags, perms);
 	if (!handle) {
 		php_error_docref(NULL, E_WARNING, "Unable to open %s on remote host", filename);
 		php_url_free(resource);
@@ -259,6 +264,8 @@ static php_stream *php_ssh2_sftp_stream_opener(php_stream_wrapper *wrapper, cons
 
 	data = (php_ssh2_sftp_handle_data *)emalloc(sizeof(php_ssh2_sftp_handle_data));
 	data->handle = handle;
+	data->session = session;
+	data->sftp = sftp;
 	data->sftp_rsrc = sftp_rsrc;
 
 	stream = php_stream_alloc(&php_ssh2_sftp_stream_ops, data, 0, mode);
@@ -287,6 +294,7 @@ static ssize_t php_ssh2_sftp_dirstream_read(php_stream *stream, char *buf, size_
 {
 	php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data*)stream->abstract;
 	php_stream_dirent *ent = (php_stream_dirent*)buf;
+	auto session = data->session;
 	int bytesread = libssh2_sftp_readdir(data->handle, ent->d_name, sizeof(ent->d_name) - 1, NULL);
 	zend_string *basename;
 
@@ -314,6 +322,7 @@ static ssize_t php_ssh2_sftp_dirstream_read(php_stream *stream, char *buf, size_
 static int php_ssh2_sftp_dirstream_close(php_stream *stream, int close_handle)
 {
 	php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data*)stream->abstract;
+	auto session = data->session;
 
 	libssh2_sftp_close(data->handle);
 	zend_list_delete(data->sftp_rsrc);
@@ -361,7 +370,7 @@ static php_stream *php_ssh2_sftp_dirstream_opener(php_stream_wrapper *wrapper, c
 		return NULL;
 	}
 
-	data = (php_ssh2_sftp_handle_data *)emalloc(sizeof(php_ssh2_sftp_handle_data));
+	data = (php_ssh2_sftp_handle_data *) emalloc(sizeof(php_ssh2_sftp_handle_data));
 	data->handle = handle;
 	data->sftp_rsrc = sftp_rsrc;
 
@@ -735,6 +744,8 @@ PHP_FUNCTION(ssh2_sftp_chmod)
 	attrs.permissions = mode;
 	attrs.flags = LIBSSH2_SFTP_ATTR_PERMISSIONS;
 
+	auto session = data->session;
+
 	RETURN_BOOL(!libssh2_sftp_stat_ex(data->sftp, filename->val, filename->len, LIBSSH2_SFTP_SETSTAT, &attrs));
 }
 /* }}} */
@@ -758,6 +769,8 @@ static void php_ssh2_sftp_stat_func(INTERNAL_FUNCTION_PARAMETERS, int stat_type)
 	if ((data = (php_ssh2_sftp_data *)zend_fetch_resource(Z_RES_P(zsftp), PHP_SSH2_SFTP_RES_NAME, le_ssh2_sftp)) == NULL) {
 		RETURN_FALSE;
 	}
+
+	auto session = data->session;
 
 	if (libssh2_sftp_stat_ex(data->sftp, path->val, path->len, stat_type, &attrs)) {
 		php_error_docref(NULL, E_WARNING, "Failed to stat remote file");
@@ -823,6 +836,7 @@ PHP_FUNCTION(ssh2_sftp_symlink)
 		RETURN_FALSE;
 	}
 
+	auto session = data->session;
 	RETURN_BOOL(!libssh2_sftp_symlink_ex(data->sftp, targ->val, targ->len, link->val, link->len, LIBSSH2_SFTP_SYMLINK));
 }
 /* }}} */
@@ -844,6 +858,8 @@ PHP_FUNCTION(ssh2_sftp_readlink)
 	if ((data = (php_ssh2_sftp_data *)zend_fetch_resource(Z_RES_P(zsftp), PHP_SSH2_SFTP_RES_NAME, le_ssh2_sftp)) == NULL) {
 		RETURN_FALSE;
 	}
+
+	auto session = data->session;
 
 	if ((targ_len = libssh2_sftp_symlink_ex(data->sftp, link->val, link->len, targ, 8192, LIBSSH2_SFTP_READLINK)) < 0) {
 		php_error_docref(NULL, E_WARNING, "Unable to read link '%s'", ZSTR_VAL(link));
@@ -876,6 +892,8 @@ PHP_FUNCTION(ssh2_sftp_realpath)
 		RETURN_FALSE;
 	}
 
+	auto session = data->session;
+
 	if ((targ_len = libssh2_sftp_symlink_ex(data->sftp, link->val, link->len, targ, 8192, LIBSSH2_SFTP_REALPATH)) < 0) {
 		php_error_docref(NULL, E_WARNING, "Unable to resolve realpath for '%s'", link->val);
 		RETURN_FALSE;
@@ -893,4 +911,3 @@ PHP_FUNCTION(ssh2_sftp_realpath)
  * indent-tabs-mode: t
  * End:
  */
-

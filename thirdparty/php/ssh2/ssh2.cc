@@ -17,6 +17,7 @@
 */
 
 #include "php_ssh2.h"
+#include "php_swoole_ssh2_async_hook.h"
 
 #include "ext/standard/info.h"
 #include "ext/standard/file.h"
@@ -204,7 +205,7 @@ LIBSSH2_DISCONNECT_FUNC(php_ssh2_disconnect_cb)
 /* {{{ php_ssh2_set_callback
  * Try to set a method if it's passed in with the hash table
  */
-static int php_ssh2_set_callback(LIBSSH2_SESSION *session, HashTable *ht, char *callback, int callback_len, int callback_type, php_ssh2_session_data *data)
+static int php_ssh2_set_callback(LIBSSH2_SESSION *session, HashTable *ht, const char *callback, int callback_len, int callback_type, php_ssh2_session_data *data)
 {
 	zval *handler, *copyval;
 	void *internal_handler;
@@ -267,7 +268,7 @@ static int php_ssh2_set_callback(LIBSSH2_SESSION *session, HashTable *ht, char *
 /* {{{ php_ssh2_set_method
  * Try to set a method if it's passed in with the hash table
  */
-static int php_ssh2_set_method(LIBSSH2_SESSION *session, HashTable *ht, char *method, int method_len, int method_type)
+static int php_ssh2_set_method(LIBSSH2_SESSION *session, HashTable *ht, const char *method, int method_len, int method_type)
 {
 	zval *value;
 	zend_string *method_zstring;
@@ -387,11 +388,7 @@ LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, z
 		}
 	}
 
-	auto rv = ssh2_async_call(sock, session, [](swoole::coroutine::Socket *sock, LIBSSH2_SESSION *session){
-		return libssh2_session_handshake(session, sock->get_fd());
-	});
-
-	if (rv) {
+	if (libssh2_session_handshake(session, sock->get_fd())) {
 		int last_error = 0;
 		char *error_msg = NULL;
 

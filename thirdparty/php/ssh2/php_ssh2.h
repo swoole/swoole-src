@@ -130,6 +130,10 @@ extern php_stream_wrapper php_ssh2_sftp_wrapper;
 extern int le_ssh2_session;
 extern int le_ssh2_sftp;
 
+static LIBSSH2_SESSION *ssh2_get_session(php_ssh2_channel_data *abstract) {
+	return (LIBSSH2_SESSION *)zend_fetch_resource(abstract->session_rsrc, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
+}
+
 #if PHP_VERSION_ID < 70300
 #define SSH2_URL_STR(a) (a)
 #define SSH2_URL_LEN(a) strlen(a)

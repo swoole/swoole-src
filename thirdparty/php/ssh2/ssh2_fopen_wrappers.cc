@@ -17,6 +17,7 @@
 */
 
 #include "php_ssh2.h"
+#include "php_swoole_ssh2_async_hook.h"
 
 using swoole::coroutine::Socket;
 
@@ -150,6 +151,7 @@ static int php_ssh2_channel_stream_close(php_stream *stream, int close_handle)
 static int php_ssh2_channel_stream_flush(php_stream *stream)
 {
 	php_ssh2_channel_data *abstract = (php_ssh2_channel_data*)stream->abstract;
+	auto session = ssh2_get_session(abstract);
 
 	return libssh2_channel_flush_ex(abstract->channel, abstract->streamid);
 }
@@ -573,6 +575,7 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session, zend_resource *
 
 					zval_copy_ctor(&copyval);
 					convert_to_string(&copyval);
+
 					if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
 						php_error_docref(NULL, E_WARNING, "Failed setting %s=%s on remote end", ZSTR_VAL(key), Z_STRVAL(copyval));
 					}
@@ -817,8 +820,6 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session, zend_resource
 	php_ssh2_channel_data *channel_data;
 	php_stream *stream;
 
-	libssh2_session_set_blocking(session, 1);
-
 	channel = libssh2_channel_open_session(session);
 	if (!channel) {
 		php_error_docref(NULL, E_WARNING, "Unable to request a channel from remote host");
@@ -842,7 +843,10 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session, zend_resource
 
 					zval_copy_ctor(&copyval);
 					convert_to_string(&copyval);
-					if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
+					auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
+						return libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval));
+					});
+					if (rc) {
 						php_error_docref(NULL, E_WARNING, "Failed setting %s=%s on remote end", ZSTR_VAL(key), Z_STRVAL(copyval));
 					}
 					zval_dtor(&copyval);
@@ -855,13 +859,19 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session, zend_resource
 
 	if (term) {
 		if (type == PHP_SSH2_TERM_UNIT_CHARS) {
-			if (libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, width, height, 0, 0)) {
+			auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
+				return libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, width, height, 0, 0);
+			});
+			if (rc) {
 				php_error_docref(NULL, E_WARNING, "Failed allocating %s pty at %ldx%ld characters", term, width, height);
 				libssh2_channel_free(channel);
 				return NULL;
 			}
 		} else {
-			if (libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, 0, 0, width, height)) {
+			auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
+				return libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, 0, 0, width, height);
+			});
+			if (rc) {
 				php_error_docref(NULL, E_WARNING, "Failed allocating %s pty at %ldx%ld pixels", term, width, height);
 				libssh2_channel_free(channel);
 				return NULL;

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "php_swoole_cxx.h"
 
 #include <libssh2.h>
@@ -57,14 +59,17 @@ typedef struct _php_ssh2_session_data {
 	swoole::coroutine::Socket *socket;
 } php_ssh2_session_data;
 
-static int ssh2_async_call(swoole::coroutine::Socket *socket, LIBSSH2_SESSION *session, const Ssh2Fn &fn) {
+static inline swoole::EventType ssh2_get_event_type(LIBSSH2_SESSION *session) {
 	int dir = libssh2_session_block_directions(session);
-	swoole::EventType event;
     if (dir & LIBSSH2_SESSION_BLOCK_OUTBOUND) {
-    	event = SW_EVENT_WRITE;
+    	return SW_EVENT_WRITE;
     } else {
-    	event = SW_EVENT_READ;
+    	return SW_EVENT_READ;
     }
+}
+
+static inline int ssh2_async_call(swoole::coroutine::Socket *socket, LIBSSH2_SESSION *session, const Ssh2Fn &fn) {
+	auto event = ssh2_get_event_type(session);
 
 	int rc;
 	while (1) {
@@ -83,12 +88,11 @@ static int ssh2_async_call(swoole::coroutine::Socket *socket, LIBSSH2_SESSION *s
 	return 0;
 }
 
-static swoole::coroutine::Socket *ssh2_get_socket(LIBSSH2_SESSION *session) {
+static inline swoole::coroutine::Socket *ssh2_get_socket(LIBSSH2_SESSION *session) {
 	auto session_data = (php_ssh2_session_data **) libssh2_session_abstract(session);
 	return (*session_data)->socket;
 }
 
-static int ssh2_async_call(LIBSSH2_SESSION *session, const Ssh2Fn &fn) {
+static inline int ssh2_async_call(LIBSSH2_SESSION *session, const Ssh2Fn &fn) {
 	return ssh2_async_call(ssh2_get_socket(session), session, fn);
 }
-
