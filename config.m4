@@ -110,7 +110,7 @@ PHP_ARG_WITH([swoole-firebird],
   [whether to enable firebird build flags],
   [AS_HELP_STRING([[--with-swoole-firebird[=DIR]]],
     [PDO: Async Firebird support. DIR is the Firebird base install directory
-    [/opt/firebird]])])
+    [/opt/firebird]])], [no], [no])
 
 PHP_ARG_ENABLE([thread-context],
   [whether to enable thread context],
@@ -955,16 +955,16 @@ EOF
         AC_DEFINE(SW_USE_SQLITE, 1, [do we enable sqlite coro support])
     fi
     dnl sqlite stop
-    
+
     dnl firebird start
 
     if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
         if test "$PHP_PDO" = "no" && test "$ext_shared" = "no"; then
             AC_MSG_ERROR([PDO is not enabled! Add --enable-pdo to your configure line.])
         fi
-    
+
       AC_PATH_PROG([FB_CONFIG], [fb_config], [no])
-    
+
       if test -x "$FB_CONFIG" && test "$PHP_PDO_FIREBIRD" = "yes"; then
         AC_MSG_CHECKING([for libfbconfig])
         FB_CFLAGS=$($FB_CONFIG --cflags)
@@ -985,7 +985,7 @@ EOF
           FIREBIRD_LIBDIR=$PHP_PDO_FIREBIRD/$PHP_LIBDIR
           FIREBIRD_LIBDIR_FLAG=-L$FIREBIRD_LIBDIR
         ])
-    
+
         PHP_CHECK_LIBRARY([fbclient], [fb_get_master_interface],
           [],
           [AC_MSG_FAILURE([libfbclient not found.])],
@@ -995,7 +995,7 @@ EOF
           [SWOOLE_SHARED_LIBADD])
         PHP_ADD_INCLUDE([$FIREBIRD_INCDIR])
       fi
-    
+
       PHP_CHECK_PDO_INCLUDES
       AC_DEFINE(SW_USE_FIREBIRD, 1, [do we enable firebird coro support])
     fi
@@ -1129,7 +1129,7 @@ EOF
         PKG_CHECK_MODULES([URING], [liburing >= 2.0])
 
         AC_SWOOLE_HAVE_IOURING_STATX
-        
+
         KERNEL_MAJOR=`uname -r | awk -F '.' '{print $1}'`
         KERNEL_MINOR=`uname -r | awk -F '.' '{print $2}'`
 
@@ -1137,7 +1137,7 @@ EOF
             dnl IORING_OP_FTRUNCATE is available since 6.9
             AC_SWOOLE_HAVE_IOURING_FTRUNCATE
         fi
-        
+
         if (test $KERNEL_MAJOR -eq 6 && test $KERNEL_MINOR -ge 7); then
             dnl IORING_OP_FUTEX_WAKE/IORING_OP_FUTEX_WAIT is available since 6.7
             AC_SWOOLE_HAVE_IOURING_FUTEX
@@ -1319,7 +1319,7 @@ EOF
                 ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
         fi
     fi
-    
+
     if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
         swoole_source_file="$swoole_source_file \
             thirdparty/php84/pdo_firebird/firebird_driver.c \

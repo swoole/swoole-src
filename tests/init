@@ -3,7 +3,7 @@
 
 function read_sql_file(string $file)
 {
-    $comment_regex = '/(?<!:)\/\/.*|\/\\*(\s|.)*?\*\/|--[^\n]+/';
+    $comment_regex = '#(?<!:)//.*|/\*(\s|.)*?\*/|--[^\n]+#';
     $lines = explode("\n", preg_replace($comment_regex, '', co::readFile($file)));
     $init_sql = [];
     $multi = false;
@@ -35,51 +35,96 @@ function read_sql_file(string $file)
     return $init_sql;
 }
 
-require __DIR__ . '/include/config.php';
-require __DIR__ . '/swoole_pdo_pgsql/pdo_pgsql.inc';
+// 解析命令行参数
+$options = getopt('', ['mysql', 'firebird', 'odbc-mysql', 'help']);
 
-Swoole\Coroutine\run(function () {
-    echo "[DB-init] initialization MySQL database...\n";
-    $mysql = new mysqli();
-    $connected = $mysql->connect(MYSQL_SERVER_HOST,
-            MYSQL_SERVER_USER,
-            MYSQL_SERVER_PWD,
-            MYSQL_SERVER_DB,
-            MYSQL_SERVER_PORT);
-    if (!$connected) {
-        echo "[DB-init] Connect failed! Error#{$mysql->connect_errno}: {$mysql->connect_error}\n";
-        exit(1);
-    }
-    $sql_file = read_sql_file(__DIR__ . '/test.sql');
-    foreach ($sql_file as $line) {
-        if (!$mysql->query($line)) {
-            echo "[DB-init] Failed! Error#{$mysql->errno}: {$mysql->error}\n";
+// 显示帮助信息
+if (isset($options['help'])) {
+    echo "Usage: php init [options]\n";
+    echo "Options:\n";
+    echo "  --mysql      仅初始化MySQL数据库\n";
+    echo "  --firebird   仅初始化Firebird数据库\n";
+    echo "  --odbc-mysql 仅初始化ODBC MySQL配置\n";
+    echo "  --help       显示此帮助信息\n";
+    echo "如果不指定任何参数，将初始化所有数据库\n";
+    exit(0);
+}
+
+require __DIR__ . '/include/config.php';
+
+// 确定需要初始化的组件
+// 默认情况下初始化所有组件
+$has_specific_option = isset($options['mysql']) || isset($options['firebird']) || isset($options['odbc-mysql']);
+$load_mysql = !$has_specific_option || isset($options['mysql']);
+$load_firebird = !$has_specific_option || isset($options['firebird']);
+$load_odbc_mysql = !$has_specific_option || isset($options['odbc-mysql']);
+
+// 根据需要加载相应的依赖文件
+if ($load_firebird) {
+    require __DIR__ . '/swoole_pdo_firebird/pdo_firebird.inc';
+}
+
+Swoole\Coroutine\run(function () use ($load_mysql, $load_firebird, $load_odbc_mysql) {
+    // 初始化MySQL数据库
+    if ($load_mysql) {
+        echo "[DB-init] initialization MySQL database...\n";
+        $mysql = new mysqli();
+        $connected = $mysql->connect(MYSQL_SERVER_HOST,
+                MYSQL_SERVER_USER,
+                MYSQL_SERVER_PWD,
+                MYSQL_SERVER_DB,
+                MYSQL_SERVER_PORT);
+        if (!$connected) {
+            echo "[DB-init] Connect failed! Error#{$mysql->connect_errno}: {$mysql->connect_error}\n";
             exit(1);
         }
+        $sql_file = read_sql_file(__DIR__ . '/test.sql');
+        foreach ($sql_file as $line) {
+            if (!$mysql->query($line)) {
+                echo "[DB-init] Failed! Error#{$mysql->errno}: {$mysql->error}\n";
+                exit(1);
+            }
+        }
+        echo "[DB-init] MySQL Done!\n";
     }
-    echo "[DB-init] MySQL Done!\n";
 
-    echo "[DB-init] initialization ODBC...\n";
-    echo `set -ex`;
+    // 初始化ODBC MySQL配置 - 独立控制
+    if ($load_odbc_mysql) {
+        echo "[DB-init] initialization ODBC...\n";
+        echo `set -ex`;
 
-    file_put_contents('/etc/odbcinst.ini', "[mysql]" . PHP_EOL
-            . "Driver=libmaodbc.so" . PHP_EOL
-            . "Description=MariaDB Connector/ODBC(Unicode)" . PHP_EOL
-            . "UsageCount=1" . PHP_EOL
-    );
-    echo `odbcinst -q -d -n "mysql"`;
+        file_put_contents('/etc/odbcinst.ini', "[mysql]" . PHP_EOL
+                . "Driver=libmaodbc.so" . PHP_EOL
+                . "Description=MariaDB Connector/ODBC(Unicode)" . PHP_EOL
+                . "UsageCount=1" . PHP_EOL
+        );
+        echo `odbcinst -q -d -n "mysql"`;
 
-    file_put_contents('/etc/odbc.ini', "[mysql-test]" . PHP_EOL
-            . "Description = MySQL test database" . PHP_EOL
-            . "Trace = On" . PHP_EOL
-            . "TraceFile = stderr" . PHP_EOL
-            . "Driver = mysql" . PHP_EOL
-            . "SERVER = " . MYSQL_SERVER_HOST . PHP_EOL
-            . "USER = " . MYSQL_SERVER_USER . PHP_EOL
-            . "PASSWORD =" . MYSQL_SERVER_PWD . PHP_EOL
-            . "PORT = " . MYSQL_SERVER_PORT . PHP_EOL
-            . "DATABASE = " . MYSQL_SERVER_DB);
-    echo `odbcinst -i -d -f /etc/odbc.ini`;
+        file_put_contents('/etc/odbc.ini', "[mysql-test]" . PHP_EOL
+                . "Description = MySQL test database" . PHP_EOL
+                . "Trace = On" . PHP_EOL
+                . "TraceFile = stderr" . PHP_EOL
+                . "Driver = mysql" . PHP_EOL
+                . "SERVER = " . MYSQL_SERVER_HOST . PHP_EOL
+                . "USER = " . MYSQL_SERVER_USER . PHP_EOL
+                . "PASSWORD =" . MYSQL_SERVER_PWD . PHP_EOL
+                . "PORT = " . MYSQL_SERVER_PORT . PHP_EOL
+                . "DATABASE = " . MYSQL_SERVER_DB);
+        echo `odbcinst -i -d -f /etc/odbc.ini`;
 
-    echo "[DB-init] ODBC Done!\n";
+        echo "[DB-init] ODBC Done!\n";
+    }
+
+    // 初始化Firebird数据库
+    if ($load_firebird) {
+        echo "[DB-init] initialization Firebird database...\n";
+        try {
+            $firebird = PdoFirebirdTest::create();
+            // 创建一些基础表结构
+            $firebird->exec('CREATE TABLE IF NOT EXISTS swoole_test (id INTEGER PRIMARY KEY, data VARCHAR(255))');
+            echo "[DB-init] Firebird Done!\n";
+        } catch (PDOException $e) {
+            echo "[DB-init] Firebird initialization failed: " . $e->getMessage() . "\n";
+        }
+    }
 });
