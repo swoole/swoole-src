@@ -32,6 +32,9 @@ BEGIN_EXTERN_C()
 #ifdef SW_STDEXT
 #include "stubs/php_swoole_stdext_arginfo.h"
 #endif
+#ifdef HAVE_SSH2LIB
+#include "stubs/php_swoole_ssh2_arginfo.h"
+#endif
 END_EXTERN_C()
 
 #include "swoole_mime_type.h"
@@ -100,6 +103,44 @@ static PHP_FUNCTION(swoole_substr_unserialize);
 static PHP_FUNCTION(swoole_substr_json_decode);
 static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 static PHP_FUNCTION(swoole_implicit_fn);
+#ifdef HAVE_SSH2LIB
+ZEND_FUNCTION(ssh2_connect);
+ZEND_FUNCTION(ssh2_disconnect);
+ZEND_FUNCTION(ssh2_methods_negotiated);
+ZEND_FUNCTION(ssh2_fingerprint);
+ZEND_FUNCTION(ssh2_auth_none);
+ZEND_FUNCTION(ssh2_auth_password);
+ZEND_FUNCTION(ssh2_auth_pubkey_file);
+ZEND_FUNCTION(ssh2_auth_pubkey);
+ZEND_FUNCTION(ssh2_auth_hostbased_file);
+ZEND_FUNCTION(ssh2_forward_listen);
+ZEND_FUNCTION(ssh2_forward_accept);
+ZEND_FUNCTION(ssh2_shell);
+ZEND_FUNCTION(ssh2_shell_resize);
+ZEND_FUNCTION(ssh2_exec);
+ZEND_FUNCTION(ssh2_tunnel);
+ZEND_FUNCTION(ssh2_scp_recv);
+ZEND_FUNCTION(ssh2_scp_send);
+ZEND_FUNCTION(ssh2_fetch_stream);
+ZEND_FUNCTION(ssh2_poll);
+ZEND_FUNCTION(ssh2_send_eof);
+ZEND_FUNCTION(ssh2_sftp);
+ZEND_FUNCTION(ssh2_sftp_rename);
+ZEND_FUNCTION(ssh2_sftp_unlink);
+ZEND_FUNCTION(ssh2_sftp_mkdir);
+ZEND_FUNCTION(ssh2_sftp_rmdir);
+ZEND_FUNCTION(ssh2_sftp_chmod);
+ZEND_FUNCTION(ssh2_sftp_stat);
+ZEND_FUNCTION(ssh2_sftp_lstat);
+ZEND_FUNCTION(ssh2_sftp_symlink);
+ZEND_FUNCTION(ssh2_sftp_readlink);
+ZEND_FUNCTION(ssh2_sftp_realpath);
+ZEND_FUNCTION(ssh2_publickey_init);
+ZEND_FUNCTION(ssh2_publickey_add);
+ZEND_FUNCTION(ssh2_publickey_remove);
+ZEND_FUNCTION(ssh2_publickey_list);
+ZEND_FUNCTION(ssh2_auth_agent);
+#endif
 SW_EXTERN_C_END
 
 #ifdef SW_STDEXT
@@ -177,6 +218,44 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_str_ireplace,         arginfo_swoole_str_ireplace)
     ZEND_FE(swoole_array_replace_str,    arginfo_swoole_array_replace_str)
     ZEND_FE(swoole_array_ireplace_str,   arginfo_swoole_array_ireplace_str)
+#endif
+#ifdef HAVE_SSH2LIB
+	ZEND_FE(ssh2_connect, arginfo_ssh2_connect)
+	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
+	ZEND_FE(ssh2_methods_negotiated, arginfo_ssh2_methods_negotiated)
+	ZEND_FE(ssh2_fingerprint, arginfo_ssh2_fingerprint)
+	ZEND_FE(ssh2_auth_none, arginfo_ssh2_auth_none)
+	ZEND_FE(ssh2_auth_password, arginfo_ssh2_auth_password)
+	ZEND_FE(ssh2_auth_pubkey_file, arginfo_ssh2_auth_pubkey_file)
+	ZEND_FE(ssh2_auth_pubkey, arginfo_ssh2_auth_pubkey)
+	ZEND_FE(ssh2_auth_hostbased_file, arginfo_ssh2_auth_hostbased_file)
+	ZEND_FE(ssh2_forward_listen, arginfo_ssh2_forward_listen)
+	ZEND_FE(ssh2_forward_accept, arginfo_ssh2_forward_accept)
+	ZEND_FE(ssh2_shell, arginfo_ssh2_shell)
+	ZEND_FE(ssh2_shell_resize, arginfo_ssh2_shell_resize)
+	ZEND_FE(ssh2_exec, arginfo_ssh2_exec)
+	ZEND_FE(ssh2_tunnel, arginfo_ssh2_tunnel)
+	ZEND_FE(ssh2_scp_recv, arginfo_ssh2_scp_recv)
+	ZEND_FE(ssh2_scp_send, arginfo_ssh2_scp_send)
+	ZEND_FE(ssh2_fetch_stream, arginfo_ssh2_fetch_stream)
+	ZEND_FE(ssh2_poll, arginfo_ssh2_poll)
+	ZEND_FE(ssh2_send_eof, arginfo_ssh2_send_eof)
+	ZEND_FE(ssh2_sftp, arginfo_ssh2_sftp)
+	ZEND_FE(ssh2_sftp_rename, arginfo_ssh2_sftp_rename)
+	ZEND_FE(ssh2_sftp_unlink, arginfo_ssh2_sftp_unlink)
+	ZEND_FE(ssh2_sftp_mkdir, arginfo_ssh2_sftp_mkdir)
+	ZEND_FE(ssh2_sftp_rmdir, arginfo_ssh2_sftp_rmdir)
+	ZEND_FE(ssh2_sftp_chmod, arginfo_ssh2_sftp_chmod)
+	ZEND_FE(ssh2_sftp_stat, arginfo_ssh2_sftp_stat)
+	ZEND_FE(ssh2_sftp_lstat, arginfo_ssh2_sftp_lstat)
+	ZEND_FE(ssh2_sftp_symlink, arginfo_ssh2_sftp_symlink)
+	ZEND_FE(ssh2_sftp_readlink, arginfo_ssh2_sftp_readlink)
+	ZEND_FE(ssh2_sftp_realpath, arginfo_ssh2_sftp_realpath)
+	ZEND_FE(ssh2_publickey_init, arginfo_ssh2_publickey_init)
+	ZEND_FE(ssh2_publickey_add, arginfo_ssh2_publickey_add)
+	ZEND_FE(ssh2_publickey_remove, arginfo_ssh2_publickey_remove)
+	ZEND_FE(ssh2_publickey_list, arginfo_ssh2_publickey_list)
+	ZEND_FE(ssh2_auth_agent, arginfo_ssh2_auth_agent)
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
