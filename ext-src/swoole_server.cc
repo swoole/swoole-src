@@ -2368,6 +2368,29 @@ static PHP_METHOD(swoole_server, set) {
         }
     }
     /**
+     * [url_rewrite] rules
+     */
+    if (php_swoole_array_get_value(vht, "url_rewrite_rules", ztmp)) {
+        if (ZVAL_IS_ARRAY(ztmp)) {
+            zval *replacement;
+            zend_string *pattern;
+            ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(ztmp), pattern, replacement) {
+                ZVAL_DEREF(replacement);
+                if (Z_TYPE_P(replacement) == IS_STRING) {
+                    serv->add_rewrite_rule(std::string(ZSTR_VAL(pattern), ZSTR_LEN(pattern)),
+                                           std::string(Z_STRVAL_P(replacement), Z_STRLEN_P(replacement)));
+                } else {
+                    php_swoole_fatal_error(E_ERROR, "The `replacement` must be string");
+                    RETURN_FALSE;
+                }
+            }
+            ZEND_HASH_FOREACH_END();
+        } else {
+            php_swoole_fatal_error(E_ERROR, "The `url_rewrite_rules` must be array");
+            RETURN_FALSE;
+        }
+    }
+    /**
      * buffer input size
      */
     if (php_swoole_array_get_value(vht, "input_buffer_size", ztmp) ||

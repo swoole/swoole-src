@@ -17,7 +17,7 @@ if [ ! -z "$cpp_files" ]; then
     echo "Formatting C/C++ files..."
     for file in $cpp_files; do
         # 额外检查确保不处理 _arginfo.h 文件
-        if [[ "$file" != *_arginfo.h ]]; then
+        if [[ "$file" != *_arginfo.h && "$file" != "ext-src/php_swoole_library.h" ]]; then
             echo "  - $file"
             clang-format -i "$file"
         fi

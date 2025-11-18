@@ -49,7 +49,9 @@ namespace swoole {
 
 namespace http_server {
 struct Request;
-}
+struct RewriteRule;
+class StaticHandler;
+}  // namespace http_server
 
 class Server;
 struct Manager;
@@ -1143,7 +1145,9 @@ class Server {
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
     bool select_static_handler(const http_server::Request *request, const Connection *conn);
+    bool apply_rewrite_rules(http_server::StaticHandler *handler);
     void add_http_compression_type(const std::string &type);
+    void add_rewrite_rule(const std::string &pattern, const std::string &replacement);
 
     int create();
     bool create_worker_pipes();
@@ -1663,6 +1667,8 @@ class Server {
      * http static file directory
      */
     std::string document_root;
+
+    std::shared_ptr<std::vector<http_server::RewriteRule>> rewrite_rules;
     std::mutex lock_;
     uint32_t max_connection = 0;
     TimerNode *enable_accept_timer = nullptr;

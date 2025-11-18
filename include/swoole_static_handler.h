@@ -25,10 +25,18 @@
 
 namespace swoole {
 namespace http_server {
+
+struct RewriteRule {
+    std::string pattern;
+    std::string replacement;
+    bool is_regex;
+};
+
 class StaticHandler {
   private:
     Server *serv;
     std::string request_url;
+    std::string original_url;
     std::string dir_path;
     std::set<std::string> dir_files;
     std::string index_file;
@@ -50,7 +58,8 @@ class StaticHandler {
 
   public:
     int status_code = SW_HTTP_OK;
-    StaticHandler(Server *_server, const char *url, size_t url_length) : request_url(url, url_length) {
+    StaticHandler(Server *_server, const char *url, size_t url_length)
+        : request_url(url, url_length), original_url(url, url_length) {
         serv = _server;
     }
 
@@ -58,8 +67,8 @@ class StaticHandler {
      * @return true: continue to execute backwards
      * @return false: break static handler
      */
-    bool hit();
-    bool hit_index_file();
+    bool try_serve();
+    bool try_serve_index_file();
 
     bool is_modified(const std::string &date_if_modified_since) const;
     bool is_modified_range(const std::string &date_range) const;
@@ -100,6 +109,14 @@ class StaticHandler {
         return filename;
     }
 
+    const std::string &get_request_url() const {
+        return request_url;
+    }
+
+    void set_request_url(const std::string &rewritten_url) {
+        request_url = rewritten_url;
+    }
+
     const std::string &get_boundary() {
         if (boundary.empty()) {
             boundary = std::string(SW_HTTP_SERVER_BOUNDARY_PREKEY);
@@ -126,6 +143,10 @@ class StaticHandler {
     }
 
     bool get_absolute_path();
+
+    const std::string &get_original_url() const {
+        return original_url;
+    }
 
     size_t get_filesize() const {
         return file_stat.st_size;

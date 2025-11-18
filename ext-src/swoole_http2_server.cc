@@ -189,7 +189,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     zval *zrequest_uri = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_uri"));
     if (zrequest_uri && Z_TYPE_P(zrequest_uri) == IS_STRING) {
         StaticHandler handler(serv, Z_STRVAL_P(zrequest_uri), Z_STRLEN_P(zrequest_uri));
-        if (!handler.hit()) {
+        if (!handler.try_serve()) {
             return false;
         }
 
@@ -204,7 +204,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
          * if http_index_files is enabled, need to search the index file first.
          * if the index file is found, set filename to index filename.
          */
-        if (!handler.hit_index_file()) {
+        if (!handler.try_serve_index_file()) {
             return false;
         }
 
@@ -1177,9 +1177,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
 
             // Exceeded the max_body_size, or if the stream has ended, sends RST_STREAM frame, stops receiving data
             if (buffer->length + length > client->max_body_size || ctx->end_) {
-            	http2_server_send_rst_stream(ctx, 0);
-            	client->remove_stream(stream_id);
-				break;
+                http2_server_send_rst_stream(ctx, 0);
+                client->remove_stream(stream_id);
+                break;
             }
 
             buffer->append(buf, length);
