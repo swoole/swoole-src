@@ -2,6 +2,7 @@
 #include "swoole_memory.h"
 
 #include <dirent.h>
+#include <system_error>
 
 using namespace swoole;
 using namespace std;
@@ -352,7 +353,7 @@ int recursive_rmdir(const char *path) {
 pid_t spawn_exec(const std::function<void(void)> &fn) {
     pid_t child_pid = fork();
     if (child_pid == -1) {
-        throw std::system_error();
+        throw std::system_error{errno, std::generic_category()};
     } else if (child_pid == 0) {
         fn();
         exit(0);

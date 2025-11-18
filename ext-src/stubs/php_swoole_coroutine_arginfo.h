@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 520d310d763855efa58f219525e2f33cecfbecaa */
+ * Stub hash: 55765106f02b8637d1f8d38e35d87693d6445cfc */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_create, 0, 1, MAY_BE_LONG|MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO(0, func, IS_CALLABLE, 0)
@@ -84,6 +84,10 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Coroutine_disableScheduler arginfo_class_Swoole_Coroutine_yield
 
 #define arginfo_class_Swoole_Coroutine_getExecuteTime arginfo_class_Swoole_Coroutine_getCid
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_setTimeLimit, 0, 1, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, timeout, IS_DOUBLE, 0)
+ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_ExitException_getFlags arginfo_class_Swoole_Coroutine_getCid
 

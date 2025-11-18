@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/file_hook: read file
+swoole_runtime/file_hook: readdir
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -7,49 +7,21 @@ require __DIR__ . '/../../include/skipif.inc';
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
-
-function readfile_co($file)
-{
-    $fp = fopen($file, 'r+');
-    $content = '';
-    while (!feof($fp))
-    {
-        $data = fread($fp, 1024);
-        $content .= $data;
-    }
-    return $content;
-}
-
-$files = array(
-    [
-        'file' => SOURCE_ROOT_PATH . '/README.md',
-        'hash'  => '',
-    ],
-    [
-        'file' => SOURCE_ROOT_PATH . '/package.xml',
-        'hash'  => '',
-    ],
-    [
-        'file' => TEST_IMAGE,
-        'hash'  => '',
-    ],
-);
-
-foreach ($files as &$f)
-{
-    $f['hash'] = md5_file($f['file']);
-}
-
 Swoole\Runtime::enableCoroutine();
 
-foreach ($files as $k => $v)
-{
-    go(function () use ($v, $k) {
-        $content = readfile_co($v['file']);
-        Assert::same(md5($content), $v['hash']);
-    });
-}
+$list0 = scandir('/tmp');
+sort($list0);
 
-Swoole\Event::wait();
+Co\run(function () use ($list0) {
+    $handle = opendir('/tmp');
+    Assert::notEmpty($handle);
+    $list1 = [];
+    while (false !== ($entry = readdir($handle))) {
+        $list1[] = "$entry";
+    }
+    closedir($handle);
+    sort($list1);
+    Assert::eq($list0, $list1);
+});
 ?>
 --EXPECT--

@@ -18,7 +18,6 @@
 #include "php_swoole_websocket.h"
 
 #include <string>
-#include <map>
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_http_server_coro_arginfo.h"
@@ -47,7 +46,8 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
-static void http2_server_onRequest(Http2Session *session, Http2Stream *stream);
+static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
+                                   const std::shared_ptr<Http2Stream> &stream);
 
 namespace swoole {
 namespace coroutine {
@@ -147,7 +147,7 @@ class HttpServer {
         ctx->websocket_settings = websocket_settings;
         ctx->upload_tmp_dir = upload_tmp_dir;
 
-        ctx->bind(conn);
+        ctx->bind(zconn);
 
         llhttp_t *parser = &ctx->parser;
         swoole_llhttp_parser_init(parser, HTTP_REQUEST, (void *) ctx);
@@ -159,7 +159,7 @@ class HttpServer {
     }
 
     void recv_http2_frame(HttpContext *ctx) {
-        auto *sock = static_cast<Socket *>(ctx->private_data);
+        auto *sock = ctx->get_co_socket();
         http2::send_setting_frame(&sock->protocol, sock->get_socket());
 
         sock->open_length_check = true;
@@ -168,11 +168,12 @@ class HttpServer {
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = http2::get_frame_length;
 
-        Http2Session session(ctx->fd);
-        session.default_ctx = ctx;
-        session.handle = http2_server_onRequest;
-        session.private_data = this;
-        session.is_coro = true;
+        auto session = swoole_http2_server_session_new(ctx->fd);
+        session->max_body_size = sock->protocol.package_max_length;
+        session->default_ctx = ctx;
+        session->handle = http2_server_onRequest;
+        session->private_data = this;
+        session->is_coro = true;
 
         while (true) {
             auto buffer = sock->get_read_buffer();
@@ -180,11 +181,12 @@ class HttpServer {
             if (sw_unlikely(retval <= 0)) {
                 break;
             }
-            swoole_http2_server_parse(&session, buffer->str);
+            if (swoole_http2_server_parse(session, buffer->str) == SW_ERR) {
+                break;
+            }
         }
 
-        /* default_ctx does not blong to session object */
-        session.default_ctx = nullptr;
+        swoole_http2_server_session_free(ctx->fd);
 
         ctx->detached = 1;
         zval_dtor(ctx->request.zobject);
@@ -223,7 +225,7 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
 };
 // clang-format on
 
-static zend_object *php_swoole_http_server_coro_create_object(zend_class_entry *ce) {
+static zend_object *http_server_coro_create_object(zend_class_entry *ce) {
     auto *hsc = static_cast<HttpServerObject *>(zend_object_alloc(sizeof(HttpServerObject), ce));
     zend_object_std_init(&hsc->std, ce);
     object_properties_init(&hsc->std, ce);
@@ -231,37 +233,34 @@ static zend_object *php_swoole_http_server_coro_create_object(zend_class_entry *
     return &hsc->std;
 }
 
-static sw_inline HttpServerObject *php_swoole_http_server_coro_fetch_object(zend_object *obj) {
+static HttpServerObject *http_server_coro_fetch_object(zend_object *obj) {
     return reinterpret_cast<HttpServerObject *>(reinterpret_cast<char *>(obj) -
                                                 swoole_http_server_coro_handlers.offset);
 }
 
-static sw_inline HttpServer *http_server_get_object(zend_object *obj) {
-    return php_swoole_http_server_coro_fetch_object(obj)->server;
+static HttpServer *http_server_coro_get_object(zend_object *obj) {
+    return http_server_coro_fetch_object(obj)->server;
 }
 
-static inline void http_server_set_error(const zval *zobject, const Socket *sock) {
+static void http_server_coro_set_error(const zval *zobject, const Socket *sock) {
     zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
     zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
 }
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
-    auto *sock = static_cast<Socket *>(ctx->private_data);
-    return sock->send_all(data, length) == (ssize_t) length;
+    return ctx->get_co_socket()->send_all(data, length) == (ssize_t) length;
 }
 
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    auto *sock = static_cast<Socket *>(ctx->private_data);
-    return sock->sendfile(file, offset, length);
+    return ctx->get_co_socket()->sendfile(file, offset, length);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {
-    auto *sock = static_cast<Socket *>(ctx->private_data);
-    return sock->close();
+    return ctx->get_co_socket()->close();
 }
 
-static void php_swoole_http_server_coro_free_object(zend_object *object) {
-    HttpServerObject *hsc = php_swoole_http_server_coro_fetch_object(object);
+static void http_server_coro_free_object(zend_object *object) {
+    HttpServerObject *hsc = http_server_coro_fetch_object(object);
     if (hsc->server) {
         HttpServer *hs = hsc->server;
         delete hs;
@@ -269,7 +268,7 @@ static void php_swoole_http_server_coro_free_object(zend_object *object) {
     zend_object_std_dtor(&hsc->std);
 }
 
-void HttpContext::init(Socket *sock) {
+void HttpContext::init(zval *zsock) {
     parse_cookie = 1;
     parse_body = 1;
     parse_files = 1;
@@ -281,12 +280,13 @@ void HttpContext::init(Socket *sock) {
     websocket_compression = 0;
 #endif
     upload_tmp_dir = "/tmp";
-    bind(sock);
+    bind(zsock);
 }
 
-void HttpContext::bind(Socket *sock) {
-    private_data = sock;
-    co_socket = 1;
+void HttpContext::bind(zval *zsock) {
+    zsocket = *zsock;
+    Z_TRY_ADDREF(zsocket);
+    private_data = php_swoole_get_socket(zsock);
     send = http_context_send_data;
     sendfile = http_context_sendfile;
     close = http_context_disconnect;
@@ -301,11 +301,8 @@ void php_swoole_http_server_coro_minit(int module_number) {
     SW_SET_CLASS_CLONEABLE(swoole_http_server_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http_server_coro);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_server_coro,
-                               php_swoole_http_server_coro_create_object,
-                               php_swoole_http_server_coro_free_object,
-                               HttpServerObject,
-                               std);
+    SW_SET_CLASS_CUSTOM_OBJECT(
+        swoole_http_server_coro, http_server_coro_create_object, http_server_coro_free_object, HttpServerObject, std);
     swoole_http_server_coro_ce->ce_flags |= ZEND_ACC_FINAL;
 
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
@@ -341,7 +338,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         RETURN_FALSE;
     }
 
-    HttpServerObject *hsc = php_swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+    HttpServerObject *hsc = http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     std::string host_str(host, l_host);
     hsc->server = new HttpServer(swoole::network::Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;
@@ -351,7 +348,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     }
 
     if (!sock->bind(host_str, port)) {
-        http_server_set_error(ZEND_THIS, sock);
+        http_server_coro_set_error(ZEND_THIS, sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "bind(%s:%d) failed", host, (int) port);
         RETURN_FALSE;
     }
@@ -372,7 +369,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
 #endif
     }
     if (!sock->listen()) {
-        http_server_set_error(ZEND_THIS, sock);
+        http_server_coro_set_error(ZEND_THIS, sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "listen() failed");
         RETURN_FALSE;
     }
@@ -386,7 +383,7 @@ static PHP_METHOD(swoole_http_server_coro, handle) {
     size_t pattern_len;
     zval *zfn;
 
-    HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    HttpServer *hs = http_server_coro_get_object(Z_OBJ_P(ZEND_THIS));
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_STRING(pattern, pattern_len)
@@ -415,7 +412,7 @@ static PHP_METHOD(swoole_http_server_coro, set) {
 }
 
 static PHP_METHOD(swoole_http_server_coro, start) {
-    HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    HttpServer *hs = http_server_coro_get_object(Z_OBJ_P(ZEND_THIS));
     Socket *sock = hs->socket;
 
     /* get callback fci cache */
@@ -520,10 +517,10 @@ static PHP_METHOD(swoole_http_server_coro, start) {
             } else if (sock->errCode == ETIMEDOUT || sock->errCode == SW_ERROR_SSL_BAD_CLIENT) {
                 continue;
             } else if (sock->errCode == ECANCELED) {
-                http_server_set_error(ZEND_THIS, sock);
+                http_server_coro_set_error(ZEND_THIS, sock);
                 break;
             } else {
-                http_server_set_error(ZEND_THIS, sock);
+                http_server_coro_set_error(ZEND_THIS, sock);
                 php_swoole_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
                 break;
             }
@@ -534,7 +531,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
 }
 
 static PHP_METHOD(swoole_http_server_coro, onAccept) {
-    HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    HttpServer *hs = http_server_coro_get_object(Z_OBJ_P(ZEND_THIS));
     zval *zconn;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
@@ -690,7 +687,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 }
 
 static PHP_METHOD(swoole_http_server_coro, shutdown) {
-    HttpServer *hs = http_server_get_object(Z_OBJ_P(ZEND_THIS));
+    HttpServer *hs = http_server_coro_get_object(Z_OBJ_P(ZEND_THIS));
     hs->running = false;
     hs->socket->cancel(SW_EVENT_READ);
 
@@ -706,18 +703,19 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
     ZEND_HASH_FOREACH_END();
 }
 
-static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
+static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
+                                   const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
     const auto *hs = static_cast<HttpServer *>(session->private_data);
-    const auto *sock = static_cast<Socket *>(ctx->private_data);
+    const auto *sock = ctx->get_co_socket();
     zval *zserver = ctx->request.zserver;
 
     add_assoc_long(zserver, "request_time", time(nullptr));
     add_assoc_double(zserver, "request_time_float", microtime());
     add_assoc_long(zserver, "server_port", hs->socket->get_port());
     add_assoc_long(zserver, "remote_port", sock->get_port());
-    add_assoc_string(zserver, "remote_addr", (char *) sock->get_addr());
-    add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
+    add_assoc_string(zserver, "remote_addr", sock->get_addr());
+    add_assoc_string(zserver, "server_protocol", "HTTP/2");
 
     zend::Callable *cb = hs->get_handler(ctx);
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};

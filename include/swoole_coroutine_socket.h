@@ -462,6 +462,7 @@ class Socket {
 
     void init_sock_type(SocketType _type);
     bool init_sock();
+    bool reinit_sock(SocketType _type);
     bool init_reactor_socket(int fd);
 
     void check_return_value(ssize_t retval) {

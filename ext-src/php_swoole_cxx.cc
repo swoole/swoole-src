@@ -32,6 +32,22 @@ void known_strings_dtor() {
     sw_zend_known_strings = nullptr;
 }
 
+zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len) {
+    return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
+}
+
+zend_function *get_function(const char *fname, size_t fname_len) {
+    return get_function(EG(function_table), fname, fname_len);
+}
+
+zend_function *get_function(const std::string &fname) {
+    return get_function(fname.c_str(), fname.length());
+}
+
+zend_function *get_function(const zend_string *fname) {
+    return get_function(ZSTR_VAL(fname), ZSTR_LEN(fname));
+}
+
 static zend_always_inline zval *sw_zend_symtable_str_add(
     HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key, zval *pData) {
     if (numeric_key) {

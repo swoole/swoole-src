@@ -5,7 +5,7 @@
     #elif defined(__ppc64__)
         #include "make_ppc64_sysv_elf_gas.S"
         #include "jump_ppc64_sysv_elf_gas.S"
-    #elif defined(__arm64__)
+    #elif defined(__arm64__) || defined(__aarch64__)
         #include "make_arm64_aapcs_elf_gas.S"
         #include "jump_arm64_aapcs_elf_gas.S"
     #elif defined(__loongarch64)

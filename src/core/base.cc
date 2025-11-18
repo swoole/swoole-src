@@ -144,9 +144,7 @@ void swoole_init() {
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
-    if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR)) {
-        exit(4);
-    }
+    SwooleG.task_tmpfile = SW_TASK_TMP_DIR "/" SW_TASK_TMP_FILE;
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
@@ -245,6 +243,10 @@ SW_API void swoole_set_print_backtrace_on_error(bool enable) {
 }
 
 bool swoole_set_task_tmpdir(const std::string &dir) {
+#ifdef SW_THREAD
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
+#endif
+
     if (dir.at(0) != '/') {
         swoole_warning("wrong absolute path '%s'", dir.c_str());
         return false;
@@ -826,7 +828,7 @@ int swoole_get_systemd_listen_fds() {
 void swoole_print_backtrace() {
     std::cout << boost::stacktrace::stacktrace();
 }
-#elif defined(HAVE_EXECINFO)
+#elif defined(HAVE_EXECINFO) && !defined(__ANDROID__)
 #include <execinfo.h>
 void swoole_print_backtrace() {
     int size = 16;

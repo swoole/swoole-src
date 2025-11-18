@@ -1510,7 +1510,7 @@ static void php_swoole_server_onWorkerStart(Server *serv, Worker *worker) {
     zend_update_property_bool(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("taskworker"), serv->is_task_worker());
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("worker_pid"), getpid());
 
-    if (serv->is_task_worker() && !serv->task_enable_coroutine) {
+    if (serv->is_task_worker() && !serv->task_enable_coroutine && !serv->is_thread_mode()) {
         PHPCoroutine::disable_hook();
     }
     serv->get_worker_message_bus()->set_allocator(sw_zend_string_allocator());
@@ -1758,7 +1758,7 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
         }
     }
     if (conn->http2_stream) {
-        swoole_http2_server_session_free(conn);
+        swoole_http2_server_session_free(conn->session_id);
     }
 }
 
@@ -2368,6 +2368,29 @@ static PHP_METHOD(swoole_server, set) {
         }
     }
     /**
+     * [url_rewrite] rules
+     */
+    if (php_swoole_array_get_value(vht, "url_rewrite_rules", ztmp)) {
+        if (ZVAL_IS_ARRAY(ztmp)) {
+            zval *replacement;
+            zend_string *pattern;
+            ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(ztmp), pattern, replacement) {
+                ZVAL_DEREF(replacement);
+                if (Z_TYPE_P(replacement) == IS_STRING) {
+                    serv->add_rewrite_rule(std::string(ZSTR_VAL(pattern), ZSTR_LEN(pattern)),
+                                           std::string(Z_STRVAL_P(replacement), Z_STRLEN_P(replacement)));
+                } else {
+                    php_swoole_fatal_error(E_ERROR, "The `replacement` must be string");
+                    RETURN_FALSE;
+                }
+            }
+            ZEND_HASH_FOREACH_END();
+        } else {
+            php_swoole_fatal_error(E_ERROR, "The `url_rewrite_rules` must be array");
+            RETURN_FALSE;
+        }
+    }
+    /**
      * buffer input size
      */
     if (php_swoole_array_get_value(vht, "input_buffer_size", ztmp) ||
@@ -2403,9 +2426,16 @@ static PHP_METHOD(swoole_server, set) {
     }
 #endif
 
+#ifndef HAVE_MSGQUEUE
+    if (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE) {
+        php_swoole_fatal_error(E_ERROR, "not support `sysvmsg`");
+        RETURN_FALSE;
+    }
+#endif
+
     if (serv->task_enable_coroutine &&
         (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE)) {
-        php_swoole_fatal_error(E_ERROR, "cannot use msgqueue when task_enable_coroutine is enable");
+        php_swoole_fatal_error(E_ERROR, "cannot use msgqueue when `task_enable_coroutine` is enable");
         RETURN_FALSE;
     }
 
@@ -2654,10 +2684,6 @@ static PHP_METHOD(swoole_server, start) {
          */
         php_swoole_set_coroutine_option(ht);
 
-        if (PHPCoroutine::get_hook_flags() > 0) {
-            PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
-        }
-
         worker_thread_fn();
         RETURN_TRUE;
     }
@@ -2665,18 +2691,18 @@ static PHP_METHOD(swoole_server, start) {
 
     if (serv->is_started()) {
         php_swoole_fatal_error(
-            E_WARNING, "server is running, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The server is running, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
     if (serv->is_shutdown()) {
         php_swoole_fatal_error(
-            E_WARNING, "server have been shutdown, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The server have been shutdown, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     if (sw_reactor()) {
         php_swoole_fatal_error(
-            E_WARNING, "eventLoop has already been created, unable to start %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The event-loop has already been created, unable to start %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
@@ -2708,11 +2734,7 @@ static PHP_METHOD(swoole_server, start) {
             php_swoole_thread_start(thread, bootstrap_copy, thread_argv);
         };
 
-        /**
-         *The hook must be enabled before creating child threads.
-         *The stream factory and ops are global variables, not thread-local resources.
-         *These runtime hooks must be modified in a single-threaded environment.
-         */
+        // The runtime hook must be enabled before creating child threads.
         if (PHPCoroutine::get_hook_flags() > 0) {
             PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
         }
@@ -3721,7 +3743,7 @@ static PHP_METHOD(swoole_server, exists) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Connection *conn = serv->get_connection_verify(session_id);
-    if (!conn || conn->closed) {
+    if (!conn || conn->closed || conn->closing) {
         RETURN_FALSE;
     } else {
         RETURN_TRUE;

@@ -16,10 +16,10 @@
 
 #include "swoole_msg_queue.h"
 
+namespace swoole {
+#ifdef HAVE_MSGQUEUE
 #include <sys/ipc.h>
 #include <sys/msg.h>
-
-namespace swoole {
 
 bool MsgQueue::destroy() {
     if (msgctl(msg_id_, IPC_RMID, nullptr) < 0) {
@@ -115,4 +115,34 @@ bool MsgQueue::set_capacity(size_t queue_bytes) const {
     }
     return true;
 }
+#else
+MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
+    swoole_error("current platform does not support `sysvmsg`");
+}
+
+void MsgQueue::set_blocking(bool blocking) {}
+
+bool MsgQueue::set_capacity(size_t queue_bytes) const {
+    return false;
+}
+
+bool MsgQueue::push(const QueueNode *in, size_t mdata_length) const {
+    return false;
+}
+
+ssize_t MsgQueue::pop(QueueNode *out, size_t mdata_size) const {
+    return -1;
+}
+
+bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) const {
+    return false;
+}
+
+bool MsgQueue::destroy() {
+    return false;
+}
+
+MsgQueue::~MsgQueue() {
+}
+#endif
 }  // namespace swoole

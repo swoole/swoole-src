@@ -150,16 +150,16 @@ struct Request {
     uint64_t content_length_;
 
     FormData *form_data_;
-
     String *buffer_;
 
     Request() {
         clean();
+        form_data_ = nullptr;
         buffer_ = nullptr;
     }
     ~Request();
     void clean() {
-        memset(this, 0, offsetof(Request, buffer_));
+        memset(&method, 0, offsetof(Request, form_data_));
     }
     int get_protocol();
     int get_header_length();

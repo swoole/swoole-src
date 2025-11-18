@@ -369,7 +369,11 @@ php_socket *php_swoole_convert_to_socket(int sock) {
     zval zsocket;
     object_init_ex(&zsocket, socket_ce);
     socket_object = Z_SOCKET_P(&zsocket);
-    socket_import_file_descriptor(sock, socket_object);
+    auto new_sock = dup(sock);
+    if (new_sock < 0) {
+        return nullptr;
+    }
+    socket_import_file_descriptor(new_sock, socket_object);
     return socket_object;
 }
 #endif

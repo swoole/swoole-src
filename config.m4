@@ -392,6 +392,22 @@ AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     fi
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_MSGQUEUE],
+[
+    AC_MSG_CHECKING([for sysv message queue])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <sys/ipc.h>
+        #include <sys/msg.h>
+    ]], [[
+        msgget(0x9501, IPC_CREAT);
+    ]])],[
+        AC_DEFINE([HAVE_MSGQUEUE], 1, [have sysv message queue?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -1094,6 +1110,7 @@ EOF
     AC_SWOOLE_HAVE_UCONTEXT
     AC_SWOOLE_HAVE_VALGRIND
     AC_SWOOLE_CHECK_SOCKETS
+    AC_SWOOLE_HAVE_MSGQUEUE
     AC_SWOOLE_HAVE_BOOST_STACKTRACE
 
     AS_CASE([$host_os],

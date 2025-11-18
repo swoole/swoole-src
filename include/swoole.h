@@ -51,6 +51,7 @@
 #include <unistd.h>
 #include <sched.h> /* sched_yield() */
 #include <pthread.h>
+#include <inttypes.h>
 
 #include <sys/uio.h>
 #include <sys/utsname.h>
@@ -63,18 +64,6 @@
 #include <mutex>
 
 typedef unsigned long ulong_t;
-
-#ifndef PRId64
-#define PRId64 "lld"
-#endif
-
-#ifndef PRIu64
-#define PRIu64 "llu"
-#endif
-
-#ifndef PRIx64
-#define PRIx64 "llx"
-#endif
 
 #if defined(__GNUC__)
 #if __GNUC__ >= 3

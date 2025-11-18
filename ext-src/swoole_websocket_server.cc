@@ -315,8 +315,8 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
     Server *serv = nullptr;
     Connection *conn = nullptr;
 
-    if (!ctx->co_socket) {
-        serv = static_cast<Server *>(ctx->private_data);
+    if (!ctx->is_co_socket()) {
+        serv = ctx->get_async_server();
         conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", ctx->fd);
@@ -332,7 +332,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         }
         swoole_websocket_onBeforeHandshakeResponse(serv, conn->server_fd, ctx);
     } else {
-        auto *sock = static_cast<Socket *>(ctx->private_data);
+        auto sock = ctx->get_co_socket();
         sock->open_length_check = true;
         sock->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         sock->protocol.package_length_offset = 0;

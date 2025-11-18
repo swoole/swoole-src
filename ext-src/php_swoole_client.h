@@ -21,6 +21,12 @@
 #include "php_swoole_cxx.h"
 #include "swoole_client.h"
 
+enum ClientFlag {
+    SW_FLAG_KEEP = 1u << 12,
+    SW_FLAG_ASYNC = 1u << 10,
+    SW_FLAG_SYNC = 1u << 11,
+};
+
 struct AsyncClientObject {
     zend::Callable *onConnect;
     zend::Callable *onReceive;
@@ -53,6 +59,10 @@ static inline ClientObject *php_swoole_client_fetch_object(const zval *zobj) {
 
 static inline swoole::network::Client *php_swoole_client_get_cli(const zval *zobject) {
     return php_swoole_client_fetch_object(Z_OBJ_P(zobject))->cli;
+}
+
+static inline enum swSocketType php_swoole_client_get_type(long type) {
+    return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
 }
 
 swoole::network::Client *php_swoole_client_get_cli_safe(const zval *zobject);

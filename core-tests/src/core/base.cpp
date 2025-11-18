@@ -208,7 +208,7 @@ TEST(base, set_task_tmpdir) {
     ASSERT_FALSE(swoole_set_task_tmpdir("aaa"));
 
     size_t length = SW_TASK_TMP_PATH_SIZE + 1;
-    char too_long_dir[length + 1] = {};
+    char too_long_dir[SW_TASK_TMP_PATH_SIZE + 2] = {};
     swoole_random_string(too_long_dir + 1, length - 1);
     too_long_dir[0] = '/';
     ASSERT_FALSE(swoole_set_task_tmpdir(too_long_dir));
@@ -221,6 +221,7 @@ TEST(base, set_task_tmpdir) {
     char buf[128];
     swoole_random_string(buf, sizeof(buf) - 2);
     buf[sizeof(buf) - 2] = '\n';
+    buf[sizeof(buf) - 1] = '\0';
 
     fp.write(buf, sizeof(buf) - 1);
     fp.close();

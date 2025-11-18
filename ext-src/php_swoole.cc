@@ -25,6 +25,7 @@ BEGIN_EXTERN_C()
 
 #include "ext/pcre/php_pcre.h"
 #include "ext/json/php_json.h"
+#include "php_open_temporary_file.h"
 
 #include "stubs/php_swoole_arginfo.h"
 #include "stubs/php_swoole_ex_arginfo.h"
@@ -475,11 +476,19 @@ static void bug_report_message_init() {
     SwooleG.bug_report_message += swoole::std_string::format("PHP_VERSION : %s\n", PHP_VERSION);
 }
 
+static int g_module_number_;
+
+int sw_module_number() {
+    return g_module_number_;
+}
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(swoole) {
     ZEND_INIT_MODULE_GLOBALS(swoole, php_swoole_init_globals, nullptr);
     REGISTER_INI_ENTRIES();
+
+    g_module_number_ = module_number;
 
     // clang-format off
     // MUST be on the same line for the inspection tool to recognize correctly
@@ -536,10 +545,6 @@ PHP_MINIT_FUNCTION(swoole) {
      */
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_SOCK_SYNC", 0);
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_SOCK_ASYNC", 1);
-
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_SYNC", SW_FLAG_SYNC);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_ASYNC", SW_FLAG_ASYNC);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_KEEP", SW_FLAG_KEEP);
 
 #ifdef SW_USE_OPENSSL
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL", SW_SOCK_SSL);
@@ -1211,6 +1216,12 @@ PHP_RINIT_FUNCTION(swoole) {
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
 
+    // Use `sys_get_temp_dir` to obtain the system temporary file directory.
+    // The default temporary directory is `/tmp`, which does not exist on the Android platform.
+    // The system root path is a read-only mapping.
+    // The temporary file directory under termux is `/data/data/com.termux/files/usr/tmp`
+    swoole_set_task_tmpdir(php_get_temporary_directory());
+
     php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
 
     if (SWOOLE_G(enable_library)
@@ -1270,6 +1281,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
 
     php_swoole_server_rshutdown();
     php_swoole_http_server_rshutdown();
+    php_swoole_http_response_rshutdown();
     php_swoole_async_coro_rshutdown();
     php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();
@@ -1484,8 +1496,7 @@ static PHP_FUNCTION(swoole_errno) {
 }
 
 PHP_FUNCTION(swoole_set_process_name) {
-    auto *cli_set_process_title =
-        static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), ZEND_STRL("cli_set_process_title")));
+    auto *cli_set_process_title = zend::get_function(ZEND_STRL("cli_set_process_title"));
     if (!cli_set_process_title) {
         php_swoole_fatal_error(E_WARNING, "swoole_set_process_name only support in CLI mode");
         RETURN_FALSE;
@@ -1703,7 +1714,7 @@ static PHP_FUNCTION(swoole_implicit_fn) {
         RETURN_LONG(zval_refcount_p(zargs));
     } else if (SW_STRCASEEQ(fn, l_fn, "func_handler")) {
         auto fn_str = zval_get_string(zargs);
-        auto *zf = static_cast<zend_function *>(zend_hash_find_ptr(EG(function_table), fn_str));
+        auto *zf = zend::get_function(fn_str);
         zend_string_release(fn_str);
         if (zf == nullptr) {
             RETURN_FALSE;

@@ -24,7 +24,7 @@
 
 #ifdef SW_USE_ODBC
 
-static SW_THREAD_LOCAL bool swoole_odbc_blocking = true;
+static bool swoole_odbc_blocking = true;
 
 #ifdef SQL_ATTR_CONNECTION_POOLING
 zend_ulong pdo_odbc_pool_on = SQL_CP_OFF;

@@ -41,4 +41,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: Swoole\Server::start(): server have been shutdown, unable to execute Swoole\Server->start() in %s on line %d
+Warning: Swoole\Server::start(): The server have been shutdown, unable to execute Swoole\Server->start() in %s on line %d

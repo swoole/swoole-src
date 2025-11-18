@@ -177,8 +177,11 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 
-#ifdef __APPLE__
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #define SOL_TCP IPPROTO_TCP
+#endif
+
+#ifdef __APPLE__
 #define TCP_INFO TCP_CONNECTION_INFO
 using tcp_info = tcp_connection_info;
 #endif
@@ -634,6 +637,11 @@ class ConcurrencyHashMap {
         return value;
     }
 
+    bool exists(const KeyT &key) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        return map_.find(key) != map_.end();
+    }
+
     void del(const KeyT &key) {
         SW_CONCURRENCY_HASHMAP_LOCK(map_.erase(key));
     }
@@ -654,7 +662,7 @@ class ConcurrencyHashMap {
 
 namespace function {
 /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
-bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, bool enable_coroutine);
+bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine);
 Variable call(const std::string &func_name, int argc, zval *argv);
 
 static inline bool call(Callable *cb, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine) {
@@ -675,6 +683,10 @@ void known_strings_init();
 void known_strings_dtor();
 void unserialize(zval *return_value, const char *buf, size_t buf_len, HashTable *options);
 void json_decode(zval *return_value, const char *str, size_t str_len, zend_long options, zend_long zend_long);
+zend_function *get_function(const char *fname, size_t fname_len);
+zend_function *get_function(const std::string &fname);
+zend_function *get_function(const zend_string *fname);
+zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len);
 
 static inline zend_string *fetch_zend_string_by_val(void *val) {
     return (zend_string *) ((char *) val - XtOffsetOf(zend_string, val));
@@ -786,6 +798,14 @@ static inline zval *object_get(zval *obj, const char *name, size_t l_name) {
  */
 static inline void print_error(zend_object *exception, int severity) {
     zend_exception_error(exception, severity);
+}
+
+static inline void add_constant(const char *name, zend_long value) {
+    zend_register_long_constant(name, strlen(name), value, CONST_CS | CONST_PERSISTENT, sw_module_number());
+}
+
+static inline void add_constant(const char *name, const char *value) {
+    zend_register_string_constant(name, strlen(name), value, CONST_CS | CONST_PERSISTENT, sw_module_number());
 }
 
 //-----------------------------------namespace end--------------------------------------------

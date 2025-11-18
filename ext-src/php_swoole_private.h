@@ -138,22 +138,6 @@ BEGIN_EXTERN_C()
 #define SW_MAX_FIND_COUNT 100  // for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE 65535
 #define SW_ASYNC_FILE_PROTOCOL "async.file"
-//--------------------------------------------------------
-enum php_swoole_client_callback_type {
-    SW_CLIENT_CB_onConnect = 1,
-    SW_CLIENT_CB_onReceive,
-    SW_CLIENT_CB_onClose,
-    SW_CLIENT_CB_onError,
-    SW_CLIENT_CB_onBufferFull,
-    SW_CLIENT_CB_onBufferEmpty,
-#ifdef SW_USE_OPENSSL
-    SW_CLIENT_CB_onSSLReady,
-#endif
-};
-//---------------------------------------------------------
-#define SW_FLAG_KEEP (1u << 12)
-#define SW_FLAG_ASYNC (1u << 10)
-#define SW_FLAG_SYNC (1u << 11)
 //---------------------------------------------------------
 enum php_swoole_fd_type {
     PHP_SWOOLE_FD_STREAM_CLIENT = SW_FD_STREAM_CLIENT,
@@ -184,10 +168,6 @@ enum php_swoole_hook_type {
     PHP_SWOOLE_HOOK_AFTER_RESPONSE,
 };
 //---------------------------------------------------------
-
-static sw_inline enum swSocketType php_swoole_get_socket_type(long type) {
-    return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
-}
 
 extern zend_class_entry *swoole_event_ce;
 extern zend_class_entry *swoole_timer_ce;
@@ -323,6 +303,7 @@ void php_swoole_thread_rinit();
  * ==============================================================
  */
 void php_swoole_http_server_rshutdown();
+void php_swoole_http_response_rshutdown();
 void php_swoole_async_coro_rshutdown();
 void php_swoole_redis_server_rshutdown();
 void php_swoole_coroutine_rshutdown();
@@ -506,6 +487,8 @@ static inline bool sw_is_main_thread() {
     return true;
 #endif
 }
+
+int sw_module_number();
 
 #ifdef SW_THREAD
 size_t sw_active_thread_count(void);
@@ -1010,13 +993,6 @@ static sw_inline int php_swoole_check_reactor() {
     } else {
         return 0;
     }
-}
-
-static sw_inline char *php_swoole_format_date(const char *format, size_t format_len, time_t ts, int localtime) {
-    zend_string *time = php_format_date(format, format_len, ts, localtime);
-    char *return_str = estrndup(ZSTR_VAL(time), ZSTR_LEN(time));
-    zend_string_release(time);
-    return return_str;
 }
 
 static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len, size_t *exten) {

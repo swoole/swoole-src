@@ -1,12 +1,12 @@
 --TEST--
-swoole_curl: select twice
+swoole_curl/multi: select twice
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 require_once TESTS_API_PATH.'/curl_multi.php';
 
 use Swoole\Runtime;

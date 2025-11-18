@@ -2016,7 +2016,7 @@ TEST(server, task_sync_multi_task) {
     std::vector<std::string> tasks;
     std::vector<std::string> results;
     int n_task = 16;
-    size_t len_task = SW_IPC_MAX_SIZE * 2;
+    constexpr size_t len_task = SW_IPC_MAX_SIZE * 2;
     SW_LOOP_N(n_task) {
         char data[len_task] = {};
         swoole_random_string(data, len_task - 1);
@@ -3237,7 +3237,7 @@ static void test_clean_worker(Server::Mode mode) {
     ASSERT_EQ(serv.start(), SW_OK);
     ASSERT_EQ(test::counter_get(0), 0);  // Server on_receive
     ASSERT_EQ(test::counter_get(1), 3);  // worker start
-    ASSERT_EQ(test::counter_get(2), 1);  // Server on_close
+    ASSERT_EQ(test::counter_get(2), 0);  // Server on_close
     ASSERT_EQ(test::counter_get(3), 0);  // Client on_receive
 }
 

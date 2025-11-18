@@ -248,6 +248,13 @@ static inline bool starts_with(const char *haystack, size_t l_haystack, const ch
     return memcmp(haystack, needle, l_needle) == 0;
 }
 
+static inline bool starts_with(const std::string &str, const std::string &prefix) {
+    if (prefix.size() > str.size()) {
+        return false;
+    }
+    return std::equal(prefix.begin(), prefix.end(), str.begin());
+}
+
 static inline bool ends_with(const char *haystack, size_t l_haystack, const char *needle, size_t l_needle) {
     if (l_needle > l_haystack) {
         return false;

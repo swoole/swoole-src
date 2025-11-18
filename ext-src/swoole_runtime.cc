@@ -169,21 +169,21 @@ static void hook_func(const char *name,
 static void unhook_func(const char *name, size_t l_name);
 
 static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
-    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
+    auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
         return nullptr;
     }
     return zf->internal_function.arg_info;
 }
 
-static zend_internal_arg_info *copy_arginfo(const zend_function *zf, zend_internal_arg_info *_arg_info) {
-    uint32_t num_args = zf->internal_function.num_args + 1;
+static zend_internal_arg_info *copy_arginfo(const zend_internal_function *function, zend_internal_arg_info *_arg_info) {
+    uint32_t num_args = function->num_args + 1;
     zend_internal_arg_info *arg_info = _arg_info - 1;
 
     auto new_arg_info = static_cast<zend_internal_arg_info *>(pemalloc(sizeof(zend_internal_arg_info) * num_args, 1));
     memcpy(new_arg_info, arg_info, sizeof(zend_internal_arg_info) * num_args);
 
-    if (zf->internal_function.fn_flags & ZEND_ACC_VARIADIC) {
+    if (function->fn_flags & ZEND_ACC_VARIADIC) {
         num_args++;
     }
 
@@ -209,19 +209,16 @@ static zend_internal_arg_info *copy_arginfo(const zend_function *zf, zend_intern
     return new_arg_info + 1;
 }
 
-static void free_arg_info(const zend_internal_function *function) {
-    if ((function->fn_flags & (ZEND_ACC_HAS_RETURN_TYPE | ZEND_ACC_HAS_TYPE_HINTS)) && function->arg_info) {
-        uint32_t num_args = function->num_args + 1;
-        zend_internal_arg_info *arg_info = function->arg_info - 1;
-
-        if (function->fn_flags & ZEND_ACC_VARIADIC) {
-            num_args++;
-        }
-        for (uint32_t i = 0; i < num_args; i++) {
-            zend_type_release(arg_info[i].type, true);
-        }
-        free(arg_info);
+static void free_arg_info(const zend_internal_function *function, zend_internal_arg_info *arg_info_copy) {
+    zend_internal_arg_info *arg_info = arg_info_copy - 1;
+    uint32_t num_args = function->num_args + 1;
+    if (function->fn_flags & ZEND_ACC_VARIADIC) {
+        num_args++;
     }
+    for (uint32_t i = 0; i < num_args; i++) {
+        zend_type_release(arg_info[i].type, true);
+    }
+    pefree(arg_info, 1);
 }
 
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
@@ -233,9 +230,9 @@ static void free_arg_info(const zend_internal_function *function) {
 #define SW_HOOK_LIBRARY_FE(name, arg_info)                                                                             \
     ZEND_RAW_FENTRY("swoole_hook_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
-static SW_THREAD_LOCAL int runtime_hook_flags = 0;
-static SW_THREAD_LOCAL zend_array *tmp_function_table = nullptr;
-static SW_THREAD_LOCAL std::unordered_map<std::string, zend_class_entry *> child_class_entries;
+static int runtime_hook_flags = 0;
+static zend_array *hook_function_table = nullptr;
+static std::unordered_map<std::string, zend_class_entry *> child_class_entries;
 static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(nullptr);
 static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_arg_infos(nullptr);
 
@@ -289,8 +286,8 @@ void php_swoole_runtime_minit(int module_number) {
 
 struct PhpFunc {
     zend_function *function;
-    zif_handler ori_handler;
     zend_internal_arg_info *ori_arg_info;
+    zif_handler ori_handler;
     zend_internal_arg_info *arg_info_copy;
     uint32_t ori_fn_flags;
     uint32_t ori_num_args;
@@ -299,8 +296,36 @@ struct PhpFunc {
 };
 
 void php_swoole_runtime_rinit() {
-    tmp_function_table = static_cast<zend_array *>(emalloc(sizeof(zend_array)));
-    zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
+    if (!sw_is_main_thread()) {
+#if PHP_VERSION_ID < 80300
+        // After creating a thread, the main thread will not modify the runtime hook,
+        // so this `hook_function_table` is read-only and safe for multi-threaded reading
+        zend_string *key = NULL;
+        void *ptr;
+        ZEND_HASH_REVERSE_FOREACH_STR_KEY_PTR(hook_function_table, key, ptr) {
+            PhpFunc *rf = (PhpFunc *) ptr;
+            // The PHP 8.3 and later removed `function_copy_ctor`. The `zend_internal_function` pointer in
+            // `EG(function_table)` and `CG(function_table)` are in shared memory across all threads, so updating the
+            // handler and arginfo once in the main thread takes effect for every thread. In PHP 8.2 and earlier, each
+            // thread called `function_copy_ctor` to copy the `zend_internal_function` memory. As a result,
+            // `EG(function_table)` and `CG(function_table)` were thread-local, and must set the `handler` and
+            // `arginfo` again in the thread `RINIT` function.
+            if (rf->function && rf->function->internal_function.handler != rf->ori_handler) {
+                auto zf = zend::get_function(key);
+                auto ifn = &rf->function->internal_function;
+                zf->internal_function.handler = ifn->handler;
+                if (ifn->arg_info != rf->ori_arg_info && ifn->arg_info) {
+                    zf->internal_function.arg_info = copy_arginfo(ifn, ifn->arg_info);
+                }
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+#endif
+        return;
+    }
+
+    hook_function_table = static_cast<zend_array *>(emalloc(sizeof(zend_array)));
+    zend_hash_init(hook_function_table, 8, nullptr, nullptr, 0);
 
 #if defined(HAVE_PUTENV) && defined(SW_THREAD)
     /**
@@ -309,10 +334,6 @@ void php_swoole_runtime_rinit() {
      */
     SW_HOOK_FUNC(putenv);
 #endif
-
-    if (!sw_is_main_thread()) {
-        return;
-    }
 
 #if PHP_VERSION_ID >= 80400
     SW_HOOK_FUNC(exit);
@@ -331,33 +352,35 @@ void php_swoole_runtime_rinit() {
 }
 
 void php_swoole_runtime_rshutdown() {
-    if (sw_is_main_thread()) {
-        PHPCoroutine::disable_hook();
-        ori_func_handlers.clear();
-        ori_func_arg_infos.clear();
+    if (!sw_is_main_thread()) {
+        return;
     }
 
+    PHPCoroutine::disable_hook();
+    ori_func_handlers.clear();
+    ori_func_arg_infos.clear();
+
     void *ptr;
-    ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
+    ZEND_HASH_FOREACH_PTR(hook_function_table, ptr) {
         auto *rf = static_cast<PhpFunc *>(ptr);
-        /**
-         * php library function
-         */
+        // php library function
         if (rf->fci_cache) {
             zval_dtor(&rf->name);
             sw_callable_free(rf->fci_cache);
         }
-        if (sw_is_main_thread()) {
-            rf->function->internal_function.handler = rf->ori_handler;
-            rf->function->internal_function.arg_info = rf->ori_arg_info;
+        if (rf->arg_info_copy) {
+            free_arg_info(&rf->function->internal_function, rf->arg_info_copy);
+            rf->arg_info_copy = nullptr;
         }
+        rf->function->internal_function.handler = rf->ori_handler;
+        rf->function->internal_function.arg_info = rf->ori_arg_info;
         efree(rf);
     }
     ZEND_HASH_FOREACH_END();
 
-    zend_hash_destroy(tmp_function_table);
-    efree(tmp_function_table);
-    tmp_function_table = nullptr;
+    zend_hash_destroy(hook_function_table);
+    efree(hook_function_table);
+    hook_function_table = nullptr;
 
     clear_class_entries();
 }
@@ -1246,13 +1269,13 @@ static ZEND_FUNCTION(swoole_display_disabled_function) {
 }
 
 static bool disable_func(const char *name, size_t l_name) {
-    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (rf) {
         rf->function->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
         return true;
     }
 
-    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
+    auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
         return false;
     }
@@ -1270,12 +1293,12 @@ static bool disable_func(const char *name, size_t l_name) {
     zf->internal_function.fn_flags &= ~(ZEND_ACC_VARIADIC | ZEND_ACC_HAS_TYPE_HINTS | ZEND_ACC_HAS_RETURN_TYPE);
     zf->internal_function.num_args = 0;
 
-    zend_hash_add_ptr(tmp_function_table, zf->common.function_name, rf);
+    zend_hash_add_ptr(hook_function_table, zf->common.function_name, rf);
     return true;
 }
 
 static bool enable_func(const char *name, size_t l_name) {
-    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (!rf) {
         return false;
     }
@@ -1313,37 +1336,6 @@ void PHPCoroutine::enable_unsafe_function() {
 static void hook_stream_throw_exception(const char *type) {
     zend_throw_exception_ex(
         swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "failed to register `%s` stream transport factory", type);
-}
-
-static void hook_remove_stream_flags(uint32_t *flags_ptr) {
-    uint32_t flags = *flags_ptr;
-    // stream factory
-    if (flags & PHPCoroutine::HOOK_TCP) {
-        flags ^= PHPCoroutine::HOOK_TCP;
-    }
-    if (flags & PHPCoroutine::HOOK_UDP) {
-        flags ^= PHPCoroutine::HOOK_UDP;
-    }
-    if (flags & PHPCoroutine::HOOK_UNIX) {
-        flags ^= PHPCoroutine::HOOK_UNIX;
-    }
-    if (flags & PHPCoroutine::HOOK_UDG) {
-        flags ^= PHPCoroutine::HOOK_UDG;
-    }
-    if (flags & PHPCoroutine::HOOK_SSL) {
-        flags ^= PHPCoroutine::HOOK_SSL;
-    }
-    if (flags & PHPCoroutine::HOOK_TLS) {
-        flags ^= PHPCoroutine::HOOK_TLS;
-    }
-    // stream ops
-    if (flags & PHPCoroutine::HOOK_FILE) {
-        flags ^= PHPCoroutine::HOOK_FILE;
-    }
-    if (flags & PHPCoroutine::HOOK_STDIO) {
-        flags ^= PHPCoroutine::HOOK_STDIO;
-    }
-    *flags_ptr = flags;
 }
 
 static void hook_stream_factory(uint32_t *flags_ptr) {
@@ -1734,19 +1726,9 @@ static void hook_all_func(uint32_t flags) {
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
-    /**
-     * Stream-related settings are global variables, not thread-local resources.
-     * The child threads must not modify stream settings;
-     * the main thread can only make changes when there are no active worker threads.
-     */
-    if (sw_is_main_thread()) {
-        if (sw_active_thread_count() > 1) {
-            swoole_warning(
-                "The stream runtime hook must be enabled or disabled only when there are no active threads.");
-            hook_remove_stream_flags(&flags);
-        }
-    } else {
-        hook_remove_stream_flags(&flags);
+    if (!sw_is_main_thread() || sw_active_thread_count() > 1) {
+        swoole_warning("The runtime hook can only set on the main thread and no child threads have been created");
+        return false;
     }
 
     if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
@@ -2105,7 +2087,7 @@ static PHP_FUNCTION(swoole_stream_select) {
 }
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_internal_arg_info *arg_info) {
-    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     bool use_php_func = false;
     /**
      * use php library function
@@ -2114,6 +2096,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         handler = PHP_FN(swoole_user_func_handler);
         use_php_func = true;
     }
+
     if (rf) {
         rf->function->internal_function.handler = handler;
         if (arg_info) {
@@ -2122,8 +2105,9 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         return;
     }
 
-    auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, l_name));
+    auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
+        swoole_warning("The function named `%s` is not found", name);
         return;
     }
 
@@ -2134,17 +2118,16 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
 
     auto fn_name = std::string(fn_str->val, fn_str->len);
 
-    rf->ori_handler = zf->internal_function.handler;
-    rf->ori_arg_info = zf->internal_function.arg_info;
-
-    if (sw_is_main_thread()) {
-        ori_func_handlers.set(fn_name, rf->ori_handler);
-        ori_func_arg_infos.set(fn_name, rf->ori_arg_info);
+    if (!ori_func_arg_infos.exists(fn_name)) {
+        ori_func_handlers.set(fn_name, zf->internal_function.handler);
+        ori_func_arg_infos.set(fn_name, zf->internal_function.arg_info);
     }
+    rf->ori_handler = ori_func_handlers.get(fn_name);
+    rf->ori_arg_info = ori_func_arg_infos.get(fn_name);
 
     zf->internal_function.handler = handler;
     if (arg_info) {
-        zf->internal_function.arg_info = copy_arginfo(zf, arg_info);
+        zf->internal_function.arg_info = copy_arginfo(&zf->internal_function, arg_info);
         rf->arg_info_copy = zf->internal_function.arg_info;
     }
 
@@ -2161,17 +2144,13 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         rf->fci_cache = fci_cache;
     }
 
-    zend_hash_add_ptr(tmp_function_table, fn_str, rf);
+    zend_hash_add_ptr(hook_function_table, fn_str, rf);
 }
 
 static void unhook_func(const char *name, size_t l_name) {
-    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, l_name));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (rf == nullptr) {
         return;
-    }
-    if (rf->arg_info_copy) {
-        free_arg_info(&rf->function->internal_function);
-        rf->arg_info_copy = nullptr;
     }
     rf->function->internal_function.handler = rf->ori_handler;
     rf->function->internal_function.arg_info = rf->ori_arg_info;
@@ -2211,22 +2190,14 @@ php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
 }
 
 zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
-    if (sw_is_main_thread()) {
-        auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(tmp_function_table, name, len));
-        if (rf) {
-            return rf->ori_handler;
-        }
-    } else {
-        zif_handler handler = ori_func_handlers.get(std::string(name, len));
-        if (handler) {
-            return handler;
-        }
-        auto *zf = static_cast<zend_function *>(zend_hash_str_find_ptr(EG(function_table), name, len));
-        if (zf && zf->type == ZEND_INTERNAL_FUNCTION && zf->internal_function.handler) {
-            return zf->internal_function.handler;
-        }
+    zif_handler handler = ori_func_handlers.get(std::string(name, len));
+    if (handler) {
+        return handler;
     }
-
+    auto *zf = zend::get_function(name, len);
+    if (zf && zf->type == ZEND_INTERNAL_FUNCTION && zf->internal_function.handler) {
+        return zf->internal_function.handler;
+    }
     return nullptr;
 }
 
@@ -2269,7 +2240,7 @@ static PHP_FUNCTION(swoole_user_func_handler) {
         return;
     }
 
-    auto *rf = static_cast<PhpFunc *>(zend_hash_find_ptr(tmp_function_table, fn_str));
+    auto *rf = static_cast<PhpFunc *>(zend_hash_find_ptr(hook_function_table, fn_str));
     if (!rf) {
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_UNDEFINED_BEHAVIOR, "%s func not exists", fn_str->val);
         return;
