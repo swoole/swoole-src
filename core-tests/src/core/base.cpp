@@ -221,6 +221,7 @@ TEST(base, set_task_tmpdir) {
     char buf[128];
     swoole_random_string(buf, sizeof(buf) - 2);
     buf[sizeof(buf) - 2] = '\n';
+    buf[sizeof(buf) - 1] = '\0';
 
     fp.write(buf, sizeof(buf) - 1);
     fp.close();
