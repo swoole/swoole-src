@@ -879,6 +879,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
     php_swoole_http2_client_coro_minit(module_number);
+#ifdef HAVE_SSH2LIB
+    php_swoole_ssh2_minit(module_number);
+#endif
     // server
     php_swoole_server_minit(module_number);
     php_swoole_server_port_minit(module_number);
@@ -950,6 +953,9 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
 #endif
 #ifdef SW_USE_FIREBIRD
     php_swoole_firebird_mshutdown();
+#endif
+#ifdef HAVE_SSH2LIB
+    php_swoole_ssh2_mshutdown();
 #endif
 
     swoole_clean();
@@ -1093,6 +1099,9 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "boost stacktrace", "enabled");
 #elif defined(HAVE_EXECINFO)
     php_info_print_table_row(2, "execinfo", "enabled");
+#endif
+#ifdef HAVE_SSH2LIB
+	 php_swoole_ssh2_minfo();
 #endif
     php_info_print_table_end();
 
