@@ -79,7 +79,7 @@ TEST(coroutine_system, flock) {
 }
 
 TEST(coroutine_system, flock_nb) {
-    coroutine::run([&](void *arg) {
+    swoole::coroutine::run([&](void *arg) {
         DEBUG() << "[thread-1] open" << std::endl;
         int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
         DEBUG() << "[thread-1] LOCK_EX | LOCK_NB" << std::endl;

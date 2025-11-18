@@ -71,6 +71,10 @@
 #define debug_info(...)
 #endif
 
+#ifdef __ANDROID__
+#define sysv_signal signal
+#endif
+
 namespace swoole {
 struct HttpProxy;
 struct Socks5Proxy;

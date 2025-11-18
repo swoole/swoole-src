@@ -401,7 +401,7 @@ TEST(client, sleep_2) {
         swoole_timer_after(10, [cli, server_pid](auto _1, auto _2) {
             cli->sleep();
             DEBUG() << "Client is sleeping...\n";
-            swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
+            swoole_timer_after(15, [cli](auto _1, auto _2) {
                 cli->wakeup();
                 DEBUG() << "Client woke up, closing connection...\n";
             });
@@ -988,7 +988,7 @@ TEST(client, ssl) {
     iovec wr_iov[2];
     wr_iov[0].iov_base = (void *) req.c_str();
     wr_iov[0].iov_len = offset1;
-    wr_iov[1].iov_base = (void *) req.c_str() + offset1;
+    wr_iov[1].iov_base = (char *) req.c_str() + offset1;
     wr_iov[1].iov_len = req.length() - offset1;
 
     swoole::network::IOVector wr_vec(wr_iov, 2);

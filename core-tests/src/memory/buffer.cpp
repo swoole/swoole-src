@@ -28,8 +28,9 @@ TEST(buffer, append_iov) {
     Buffer buf(1024);
     Buffer buf_for_offset(1024);
 
-    int iovcnt = 4;
-    iovec v[iovcnt];
+    constexpr int N = 4;
+    int iovcnt = N;
+    iovec v[N];
     size_t total_len = 0;
 
     SW_LOOP_N(iovcnt) {
