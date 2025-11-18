@@ -275,6 +275,9 @@ void php_swoole_runtime_minit(int module_number) {
 #ifdef SW_USE_SQLITE
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_SQLITE", PHPCoroutine::HOOK_PDO_SQLITE);
 #endif
+#ifdef SW_USE_FIREBIRD
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_FIREBIRD", PHPCoroutine::HOOK_PDO_FIREBIRD);
+#endif
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
     swoole_native_curl_minit(module_number);
@@ -569,7 +572,6 @@ static int socket_cast(php_stream *stream, int castas, void **ret) {
         return FAILURE;
     }
 }
-
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb) {
     const auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract)) {

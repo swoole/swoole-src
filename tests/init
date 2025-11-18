@@ -120,8 +120,25 @@ Swoole\Coroutine\run(function () use ($load_mysql, $load_firebird, $load_odbc_my
         echo "[DB-init] initialization Firebird database...\n";
         try {
             $firebird = PdoFirebirdTest::create();
-            // 创建一些基础表结构
-            $firebird->exec('CREATE TABLE IF NOT EXISTS swoole_test (id INTEGER PRIMARY KEY, data VARCHAR(255))');
+            // 创建一些基础表结构 - 使用Firebird兼容的方式
+            try {
+                // 尝试查询表是否存在 - 使用单引号避免PHP解析$符号
+                $result = $firebird->query('SELECT 1 FROM rdb$relations WHERE rdb$relation_name = "SWOOLE_TEST"');
+                if (!$result || $result->fetchColumn() === false) {
+                    // 表不存在，创建表
+                    $firebird->exec('CREATE TABLE swoole_test (id INTEGER PRIMARY KEY, data VARCHAR(255))');
+                }
+            } catch (PDOException $e) {
+                // 如果查询失败，尝试直接创建表（可能是因为权限问题）
+                try {
+                    $firebird->exec('CREATE TABLE swoole_test (id INTEGER PRIMARY KEY, data VARCHAR(255))');
+                } catch (PDOException $e2) {
+                    // 如果表已存在，忽略此错误
+                    if (!strpos($e2->getMessage(), 'already exists')) {
+                        throw $e2;
+                    }
+                }
+            }
             echo "[DB-init] Firebird Done!\n";
         } catch (PDOException $e) {
             echo "[DB-init] Firebird initialization failed: " . $e->getMessage() . "\n";
