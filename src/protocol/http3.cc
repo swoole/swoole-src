@@ -143,13 +143,19 @@ static nghttp3_ssize stream_read_data_callback(nghttp3_conn *conn, int64_t strea
                                                 uint32_t *pflags, void *user_data,
                                                 void *stream_user_data) {
     Stream *stream = (Stream *) stream_user_data;
+    swoole_warning("[DEBUG] stream_read_data_callback: stream=%ld, veccnt=%zu", stream_id, veccnt);
+
     if (!stream || !stream->body) {
+        swoole_warning("[DEBUG] stream_read_data_callback: no stream or body, sending EOF");
         *pflags |= NGHTTP3_DATA_FLAG_EOF;
         return 0;
     }
 
     size_t body_len = stream->body->length;
+    swoole_warning("[DEBUG] stream_read_data_callback: body_len=%zu", body_len);
+
     if (body_len == 0) {
+        swoole_warning("[DEBUG] stream_read_data_callback: body is empty, sending EOF");
         *pflags |= NGHTTP3_DATA_FLAG_EOF;
         return 0;
     }
@@ -159,9 +165,11 @@ static nghttp3_ssize stream_read_data_callback(nghttp3_conn *conn, int64_t strea
         vec[0].base = (uint8_t *) stream->body->str;
         vec[0].len = body_len;
         *pflags |= NGHTTP3_DATA_FLAG_EOF;  // All data sent at once
+        swoole_warning("[DEBUG] stream_read_data_callback: returning %zu bytes with EOF", body_len);
         return 1;  // Number of vec entries filled
     }
 
+    swoole_warning("[DEBUG] stream_read_data_callback: veccnt is 0, returning 0");
     return 0;
 }
 
@@ -180,12 +188,20 @@ bool Stream::send_headers(const std::vector<HeaderField> &hdrs, bool fin) {
         nva.push_back(make_nv(hf.name, hf.value, hf.never_index));
     }
 
+    // Set stream user data so data reader callback can access this Stream object
+    int rv = nghttp3_conn_set_stream_user_data(conn->conn, stream_id, this);
+    if (rv != 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP3_SEND,
+                         "nghttp3_conn_set_stream_user_data failed: %s", nghttp3_strerror(rv));
+        return false;
+    }
+
     nghttp3_data_reader data_reader;
     data_reader.read_data = stream_read_data_callback;
 
-    int rv = nghttp3_conn_submit_response(conn->conn, stream_id,
-                                           nva.data(), nva.size(),
-                                           fin ? nullptr : &data_reader);
+    rv = nghttp3_conn_submit_response(conn->conn, stream_id,
+                                       nva.data(), nva.size(),
+                                       fin ? nullptr : &data_reader);
 
     if (rv != 0) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP3_SEND,
@@ -221,12 +237,16 @@ bool Stream::send_response(int status, const std::vector<HeaderField> &hdrs,
 
     bool has_body = (body_data != nullptr && body_len > 0);
 
-    if (!send_headers(response_hdrs, !has_body)) {
-        return false;
+    // IMPORTANT: Store body data BEFORE calling send_headers()
+    // because send_headers() will call nghttp3_conn_submit_response() which
+    // will immediately invoke stream_read_data_callback to read the body
+    if (has_body) {
+        swoole_warning("[DEBUG] send_response: storing %zu bytes of body data before send_headers", body_len);
+        body->append((const char *) body_data, body_len);
     }
 
-    if (has_body) {
-        return send_body(body_data, body_len, true);
+    if (!send_headers(response_hdrs, !has_body)) {
+        return false;
     }
 
     return true;
