@@ -21,6 +21,8 @@
 
 #include <libssh2.h>
 #include <libssh2_sftp.h>
+#include <libssh2_publickey.h>
+
 #include "ext/standard/url.h"
 #include "main/php_network.h"
 
@@ -55,9 +57,6 @@
 
 #define PHP_SSH2_DEFAULT_POLL_TIMEOUT	30
 
-extern zend_module_entry ssh2_module_entry;
-#define phpext_ssh2_ptr &ssh2_module_entry
-
 typedef struct _php_ssh2_session_data {
 	/* Userspace callback functions */
 	zval *ignore_cb;
@@ -82,7 +81,7 @@ typedef struct _php_ssh2_listener_data {
 	zend_resource *session_rsrc;
 } php_ssh2_listener_data;
 
-#include "libssh2_publickey.h"
+
 
 typedef struct _php_ssh2_pkey_subsys_data {
 	LIBSSH2_SESSION *session;
@@ -124,30 +123,6 @@ typedef struct _php_ssh2_channel_data {
 	unsigned char *refcount;
 
 } php_ssh2_channel_data;
-
-/* In ssh2_fopen_wrappers.c */
-PHP_FUNCTION(ssh2_shell);
-PHP_FUNCTION(ssh2_exec);
-PHP_FUNCTION(ssh2_tunnel);
-PHP_FUNCTION(ssh2_scp_recv);
-PHP_FUNCTION(ssh2_scp_send);
-PHP_FUNCTION(ssh2_fetch_stream);
-PHP_FUNCTION(ssh2_send_eof);
-PHP_FUNCTION(ssh2_shell_resize);
-
-/* In ssh2_sftp.c */
-PHP_FUNCTION(ssh2_sftp);
-
-PHP_FUNCTION(ssh2_sftp_rename);
-PHP_FUNCTION(ssh2_sftp_unlink);
-PHP_FUNCTION(ssh2_sftp_mkdir);
-PHP_FUNCTION(ssh2_sftp_rmdir);
-PHP_FUNCTION(ssh2_sftp_chmod);
-PHP_FUNCTION(ssh2_sftp_stat);
-PHP_FUNCTION(ssh2_sftp_lstat);
-PHP_FUNCTION(ssh2_sftp_symlink);
-PHP_FUNCTION(ssh2_sftp_readlink);
-PHP_FUNCTION(ssh2_sftp_realpath);
 
 LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, zval *callbacks);
 void php_ssh2_sftp_dtor(zend_resource *rsrc);
