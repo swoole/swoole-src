@@ -16,16 +16,8 @@
    +----------------------------------------------------------------------+
 */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include "php.h"
 #include "php_ssh2.h"
 #include "ext/standard/php_string.h"
-
-#define SW_USE_SSH2_HOOK
-#include "php_swoole_ssh2.h"
 
 /* *************************
    * Resource Housekeeping *
@@ -265,7 +257,7 @@ static php_stream *php_ssh2_sftp_stream_opener(php_stream_wrapper *wrapper, cons
 		return NULL;
 	}
 
-	data = emalloc(sizeof(php_ssh2_sftp_handle_data));
+	data = (php_ssh2_sftp_handle_data *)emalloc(sizeof(php_ssh2_sftp_handle_data));
 	data->handle = handle;
 	data->sftp_rsrc = sftp_rsrc;
 
@@ -369,7 +361,7 @@ static php_stream *php_ssh2_sftp_dirstream_opener(php_stream_wrapper *wrapper, c
 		return NULL;
 	}
 
-	data = emalloc(sizeof(php_ssh2_sftp_handle_data));
+	data = (php_ssh2_sftp_handle_data *)emalloc(sizeof(php_ssh2_sftp_handle_data));
 	data->handle = handle;
 	data->sftp_rsrc = sftp_rsrc;
 
@@ -606,7 +598,7 @@ PHP_FUNCTION(ssh2_sftp)
 		RETURN_FALSE;
 	}
 
-	data = emalloc(sizeof(php_ssh2_sftp_data));
+	data = (php_ssh2_sftp_data *)emalloc(sizeof(php_ssh2_sftp_data));
 	data->session = session;
 	data->sftp = sftp;
 	data->session_rsrc = Z_RES_P(zsession);

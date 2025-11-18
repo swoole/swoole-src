@@ -19,9 +19,7 @@
 #ifndef PHP_SSH2_H
 #define PHP_SSH2_H
 
-#include <libssh2.h>
-#include <libssh2_sftp.h>
-#include <libssh2_publickey.h>
+#include "php_swoole_ssh2.h"
 
 #include "ext/standard/url.h"
 #include "main/php_network.h"
@@ -56,16 +54,6 @@
 #define PHP_SSH2_LISTEN_MAX_QUEUED		16
 
 #define PHP_SSH2_DEFAULT_POLL_TIMEOUT	30
-
-typedef struct _php_ssh2_session_data {
-	/* Userspace callback functions */
-	zval *ignore_cb;
-	zval *debug_cb;
-	zval *macerror_cb;
-	zval *disconnect_cb;
-
-	php_socket_t socket;
-} php_ssh2_session_data;
 
 typedef struct _php_ssh2_sftp_data {
 	LIBSSH2_SESSION *session;

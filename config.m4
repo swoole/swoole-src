@@ -1388,9 +1388,9 @@ EOF
     
     if test "$PHP_SWOOLE_SSH2" != "no"; then
         swoole_source_file="$swoole_source_file \
-            thirdparty/php/ssh2/ssh2.c \
-            thirdparty/php/ssh2/ssh2_fopen_wrappers.c \
-            thirdparty/php/ssh2/ssh2_sftp.c"
+            thirdparty/php/ssh2/ssh2.cc \
+            thirdparty/php/ssh2/ssh2_fopen_wrappers.cc \
+            thirdparty/php/ssh2/ssh2_sftp.cc"
     fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -1577,6 +1577,6 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
     fi
     if test "$PHP_SWOOLE_SSH2" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/ssh2)
     fi
 fi

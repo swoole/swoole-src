@@ -16,15 +16,9 @@
    +----------------------------------------------------------------------+
 */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include "php.h"
 #include "php_ssh2.h"
 
-#define SW_USE_SSH2_HOOK
-#include "php_swoole_ssh2.h"
+using swoole::coroutine::Socket;
 
 void *php_ssh2_zval_from_resource_handle(int handle) {
 	zval *val;
@@ -174,7 +168,7 @@ static int php_ssh2_channel_stream_cast(php_stream *stream, int castas, void **r
 		case PHP_STREAM_AS_FD_FOR_SELECT:
 		case PHP_STREAM_AS_SOCKETD:
 			if (ret) {
-				*(php_socket_t *)ret = (*session_data)->socket;
+				*(php_socket_t *)ret = (*session_data)->socket->get_fd();
 			}
 			return SUCCESS;
 		default:
@@ -198,7 +192,7 @@ static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, in
 			add_assoc_long((zval*)ptrparam, "exit_status", libssh2_channel_get_exit_status(abstract->channel));
 			break;
 
-		case PHP_STREAM_OPTION_READ_TIMEOUT:
+		case PHP_STREAM_OPTION_READ_TIMEOUT: {
 			ret = abstract->timeout;
 #ifdef PHP_SSH2_SESSION_TIMEOUT
 			struct timeval tv = *(struct timeval*)ptrparam;
@@ -208,10 +202,11 @@ static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, in
 #endif
 			return ret;
 			break;
-
-		case PHP_STREAM_OPTION_CHECK_LIVENESS:
+		}
+		case PHP_STREAM_OPTION_CHECK_LIVENESS: {
 			return stream->eof = libssh2_channel_eof(abstract->channel);
 			break;
+		}
 	}
 
 	return -1;
@@ -245,7 +240,8 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path, char *type, php_stre
 	php_url *resource;
 	zval *methods = NULL, *callbacks = NULL, zsession, *tmpzval;
 	zend_long resource_id;
-	char *h, *username = NULL, *password = NULL, *pubkey_file = NULL, *privkey_file = NULL;
+	const char *h;
+	char *username = NULL, *password = NULL, *pubkey_file = NULL, *privkey_file = NULL;
 	int username_len = 0, password_len = 0;
 
 	h = strstr(path, "Resource id #");
@@ -307,7 +303,7 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path, char *type, php_stre
 		php_ssh2_sftp_data *sftp_data;
 		zval *zresource;
 
-		if ((zresource = php_ssh2_zval_from_resource_handle(resource_id)) == NULL) {
+		if ((zresource = (zval *)php_ssh2_zval_from_resource_handle(resource_id)) == NULL) {
 			php_url_free(resource);
 			return NULL;
 		}
@@ -335,7 +331,7 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path, char *type, php_stre
 					php_url_free(resource);
 					return NULL;
 				}
-				sftp_data = emalloc(sizeof(php_ssh2_sftp_data));
+				sftp_data = (php_ssh2_sftp_data *)emalloc(sizeof(php_ssh2_sftp_data));
 				sftp_data->sftp = sftp;
 				sftp_data->session = session;
 				sftp_data->session_rsrc = Z_RES_P(zresource);
@@ -382,7 +378,7 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path, char *type, php_stre
 					php_url_free(resource);
 					return NULL;
 				}
-				sftp_data = emalloc(sizeof(php_ssh2_sftp_data));
+				sftp_data = (php_ssh2_sftp_data *)emalloc(sizeof(php_ssh2_sftp_data));
 				sftp_data->sftp = sftp;
 				sftp_data->session = session;
 				sftp_data->session_rsrc = Z_RES_P(tmpzval);
@@ -481,15 +477,22 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path, char *type, php_stre
 			return NULL;
 		}
 
+		auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
+			return libssh2_userauth_publickey_fromfile(session, username, pubkey_file, privkey_file, password);
+		});
+
 		/* Attempt pubkey authentication */
-		if (!libssh2_userauth_publickey_fromfile(session, username, pubkey_file, privkey_file, password)) {
+		if (!rc) {
 			goto session_authed;
 		}
 	}
 
 	if (password) {
 		/* Attempt password authentication */
-		if (libssh2_userauth_password_ex(session, username, username_len, password, password_len, NULL) == 0) {
+		auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
+			return libssh2_userauth_password_ex(session, username, username_len, password, password_len, NULL);
+		});
+		if (rc == 0) {
 			goto session_authed;
 		}
 	}
@@ -515,7 +518,7 @@ session_authed:
 			return NULL;
 		}
 
-		sftp_data = emalloc(sizeof(php_ssh2_sftp_data));
+		sftp_data = (php_ssh2_sftp_data *)emalloc(sizeof(php_ssh2_sftp_data));
 		sftp_data->session = session;
 		sftp_data->sftp = sftp;
 		sftp_data->session_rsrc = Z_RES(zsession);
@@ -602,7 +605,7 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session, zend_resource *
 	}
 
 	/* Turn it into a stream */
-	channel_data = emalloc(sizeof(php_ssh2_channel_data));
+	channel_data = (php_ssh2_channel_data *)emalloc(sizeof(php_ssh2_channel_data));
 	channel_data->channel = channel;
 	channel_data->streamid = 0;
 	channel_data->is_blocking = 0;
@@ -873,7 +876,7 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session, zend_resource
 	}
 
 	/* Turn it into a stream */
-	channel_data = emalloc(sizeof(php_ssh2_channel_data));
+	channel_data = (php_ssh2_channel_data *)emalloc(sizeof(php_ssh2_channel_data));
 	channel_data->channel = channel;
 	channel_data->streamid = 0;
 	channel_data->is_blocking = 0;
@@ -1054,7 +1057,7 @@ static php_stream *php_ssh2_scp_xfer(LIBSSH2_SESSION *session, zend_resource *rs
 	}
 
 	/* Turn it into a stream */
-	channel_data = emalloc(sizeof(php_ssh2_channel_data));
+	channel_data = (php_ssh2_channel_data *)emalloc(sizeof(php_ssh2_channel_data));
 	channel_data->channel = channel;
 	channel_data->streamid = 0;
 	channel_data->is_blocking = 0;
@@ -1301,7 +1304,7 @@ static php_stream *php_ssh2_direct_tcpip(LIBSSH2_SESSION *session, zend_resource
 	}
 
 	/* Turn it into a stream */
-	channel_data = emalloc(sizeof(php_ssh2_channel_data));
+	channel_data = (php_ssh2_channel_data *)emalloc(sizeof(php_ssh2_channel_data));
 	channel_data->channel = channel;
 	channel_data->streamid = 0;
 	channel_data->is_blocking = 0;
@@ -1450,7 +1453,7 @@ PHP_FUNCTION(ssh2_fetch_stream)
 	data = (php_ssh2_channel_data*)parent->abstract;
 
 	if (!data->refcount) {
-		data->refcount = emalloc(sizeof(unsigned char));
+		data->refcount = (uchar *)emalloc(sizeof(uchar));
 		*(data->refcount) = 1;
 	}
 
@@ -1461,7 +1464,7 @@ PHP_FUNCTION(ssh2_fetch_stream)
 
 	(*(data->refcount))++;
 
-	stream_data = emalloc(sizeof(php_ssh2_channel_data));
+	stream_data = (php_ssh2_channel_data *)emalloc(sizeof(php_ssh2_channel_data));
 	memcpy(stream_data, data, sizeof(php_ssh2_channel_data));
 	stream_data->streamid = streamid;
 

@@ -16,22 +16,12 @@
    +----------------------------------------------------------------------+
 */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include "php_ssh2.h"
 
-#include "php.h"
 #include "ext/standard/info.h"
 #include "ext/standard/file.h"
-#include "php_ssh2.h"
+
 #include "main/php_network.h"
-
-#if (OPENSSL_VERSION_NUMBER >= 0x00908000L)
-#include <openssl/applink.c>
-#endif
-
-#define SW_USE_SSH2_HOOK
-#include "php_swoole_ssh2.h"
 
 /* Internal Constants */
 #ifndef SHA_DIGEST_LENGTH
@@ -41,6 +31,8 @@
 #ifndef MD5_DIGEST_LENGTH
 #define MD5_DIGEST_LENGTH	16
 #endif
+
+using swoole::coroutine::Socket;
 
 /* True global resources - no need for thread safety here */
 int le_ssh2_session;
@@ -229,33 +221,33 @@ static int php_ssh2_set_callback(LIBSSH2_SESSION *session, HashTable *ht, char *
 		return -1;
 	}
 
-	copyval = emalloc(sizeof(zval));
+	copyval = (zval *) emalloc(sizeof(zval));
 	ZVAL_COPY(copyval, handler);
 
 	switch (callback_type) {
 		case LIBSSH2_CALLBACK_IGNORE:
-			internal_handler = php_ssh2_ignore_cb;
+			internal_handler = (void *)php_ssh2_ignore_cb;
 			if (data->ignore_cb) {
 				zval_ptr_dtor(data->ignore_cb);
 			}
 			data->ignore_cb = copyval;
 			break;
 		case LIBSSH2_CALLBACK_DEBUG:
-			internal_handler = php_ssh2_debug_cb;
+			internal_handler = (void *)php_ssh2_debug_cb;
 			if (data->debug_cb) {
 				zval_ptr_dtor(data->debug_cb);
 			}
 			data->debug_cb = copyval;
 			break;
 		case LIBSSH2_CALLBACK_MACERROR:
-			internal_handler = php_ssh2_macerror_cb;
+			internal_handler = (void *)php_ssh2_macerror_cb;
 			if (data->macerror_cb) {
 				zval_ptr_dtor(data->macerror_cb);
 			}
 			data->macerror_cb = copyval;
 			break;
 		case LIBSSH2_CALLBACK_DISCONNECT:
-			internal_handler = php_ssh2_disconnect_cb;
+			internal_handler = (void *)php_ssh2_disconnect_cb;
 			if (data->disconnect_cb) {
 				zval_ptr_dtor(data->disconnect_cb);
 			}
@@ -302,32 +294,30 @@ static int php_ssh2_set_method(LIBSSH2_SESSION *session, HashTable *ht, char *me
 LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, zval *callbacks)
 {
 	LIBSSH2_SESSION *session;
-	int socket;
 	php_ssh2_session_data *data;
-	struct timeval tv;
 	zend_string *hash_lookup_zstring;
 
-	tv.tv_sec = FG(default_socket_timeout);
-	tv.tv_usec = 0;
+	int domain = swoole::network::Address::verify_ip(AF_INET6, host) ? AF_INET6 : AF_INET;
 
-	socket = php_network_connect_socket_to_host(host, port, SOCK_STREAM, 0, &tv, NULL, NULL, NULL, 0, STREAM_SOCKOP_NONE);
-
-	if (socket <= 0) {
+	auto sock = new swoole::coroutine::Socket(domain, SOCK_STREAM, 0);
+	if (sock->get_fd() < 0 || !sock->connect(host, port)) {
 		php_error_docref(NULL, E_WARNING, "Unable to connect to %s on port %d", host, port);
+		delete sock;
 		return NULL;
 	}
 
-	data = ecalloc(1, sizeof(php_ssh2_session_data));
-	data->socket = socket;
+	data = (php_ssh2_session_data *)ecalloc(1, sizeof(php_ssh2_session_data));
+	data->socket = sock;
 
 	session = libssh2_session_init_ex(php_ssh2_alloc_cb, php_ssh2_free_cb, php_ssh2_realloc_cb, data);
 	if (!session) {
 		php_error_docref(NULL, E_WARNING, "Unable to initialize SSH2 session");
 		efree(data);
-		closesocket(socket);
+		delete sock;
 		return NULL;
 	}
 	libssh2_banner_set(session, LIBSSH2_SSH_DEFAULT_BANNER " PHP");
+	libssh2_session_set_blocking(session, 0);
 
 	/* Override method preferences */
 	if (methods) {
@@ -397,15 +387,19 @@ LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, z
 		}
 	}
 
-	if (libssh2_session_startup(session, socket)) {
+	auto rv = ssh2_async_call(sock, session, [](swoole::coroutine::Socket *sock, LIBSSH2_SESSION *session){
+		return libssh2_session_handshake(session, sock->get_fd());
+	});
+
+	if (rv) {
 		int last_error = 0;
 		char *error_msg = NULL;
 
 		last_error = libssh2_session_last_error(session, &error_msg, NULL, 0);
 		php_error_docref(NULL, E_WARNING, "Error starting up SSH connection(%d): %s", last_error, error_msg);
-		closesocket(socket);
 		libssh2_session_free(session);
 		efree(data);
+		delete sock;
 		return NULL;
 	}
 
@@ -543,7 +537,7 @@ PHP_FUNCTION(ssh2_fingerprint)
 	} else {
 		char *hexchars;
 
-		hexchars = emalloc((fingerprint_len * 2) + 1);
+		hexchars = (char *)emalloc((fingerprint_len * 2) + 1);
 		for(i = 0; i < fingerprint_len; i++) {
 			snprintf(hexchars + (2 * i), 3, "%02X", (unsigned char)fingerprint[i]);
 		}
@@ -633,13 +627,21 @@ PHP_FUNCTION(ssh2_auth_password)
 	if (userauthlist != NULL) {
 		password_for_kbd_callback = password->val;
 		if (strstr(userauthlist, "keyboard-interactive") != NULL) {
-			if (libssh2_userauth_keyboard_interactive(session, username->val, &kbd_callback) == 0) {
+			auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
+				return libssh2_userauth_keyboard_interactive(session, username->val, &kbd_callback);
+			});
+
+			if (rc == 0) {
 				RETURN_TRUE;
 			}
 		}
 
+		auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
+			return libssh2_userauth_password_ex(session, username->val, username->len, password->val, password->len, NULL);
+		});
+
 		/* TODO: Support password change callback */
-		if (libssh2_userauth_password_ex(session, username->val, username->len, password->val, password->len, NULL)) {
+		if (rc) {
 			php_error_docref(NULL, E_WARNING, "Authentication failed for %s using password", username->val);
 			RETURN_FALSE;
 		}
@@ -691,8 +693,12 @@ PHP_FUNCTION(ssh2_auth_pubkey_file)
 	}
 #endif
 
+	auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
+		return libssh2_userauth_publickey_fromfile_ex(session, ZSTR_VAL(username), ZSTR_LEN(username), ZSTR_VAL(pubkey), ZSTR_VAL(privkey), ZSTR_VAL(passphrase));
+	});
+
 	/* TODO: Support passphrase callback */
-	if (libssh2_userauth_publickey_fromfile_ex(session, ZSTR_VAL(username), ZSTR_LEN(username), ZSTR_VAL(pubkey), ZSTR_VAL(privkey), ZSTR_VAL(passphrase))) {
+	if (rc) {
 		char *buf;
 		int len;
 		libssh2_session_last_error(session, &buf, &len, 0);
@@ -799,7 +805,7 @@ PHP_FUNCTION(ssh2_forward_listen)
 		RETURN_FALSE;
 	}
 
-	data = emalloc(sizeof(php_ssh2_listener_data));
+	data = (php_ssh2_listener_data *)emalloc(sizeof(php_ssh2_listener_data));
 	data->session = session;
 	data->session_rsrc = Z_RES_P(zsession);
 	Z_ADDREF_P(zsession);
@@ -834,7 +840,7 @@ PHP_FUNCTION(ssh2_forward_accept)
 		RETURN_FALSE;
 	}
 
-	channel_data = emalloc(sizeof(php_ssh2_channel_data));
+	channel_data = (php_ssh2_channel_data *)emalloc(sizeof(php_ssh2_channel_data));
 	channel_data->channel = channel;
 	channel_data->streamid = 0;
 	channel_data->is_blocking = 0;
@@ -887,8 +893,8 @@ PHP_FUNCTION(ssh2_poll)
 	}
 
 	numfds = zend_hash_num_elements(Z_ARRVAL_P(zdesc));
-	pollfds = safe_emalloc(sizeof(LIBSSH2_POLLFD), numfds, 0);
-	pollmap = safe_emalloc(sizeof(zval**), numfds, 0);
+	pollfds = (LIBSSH2_POLLFD *)safe_emalloc(sizeof(LIBSSH2_POLLFD), numfds, 0);
+	pollmap = (zval **)safe_emalloc(sizeof(zval**), numfds, 0);
 
 	for(zend_hash_internal_pointer_reset(Z_ARRVAL_P(zdesc));
 		(subarray = zend_hash_get_current_data(Z_ARRVAL_P(zdesc))) != NULL;
@@ -1000,7 +1006,7 @@ PHP_FUNCTION(ssh2_publickey_init)
 		RETURN_FALSE;
 	}
 
-	data = emalloc(sizeof(php_ssh2_pkey_subsys_data));
+	data = (php_ssh2_pkey_subsys_data *)emalloc(sizeof(php_ssh2_pkey_subsys_data));
 	data->session = session;
 	data->session_rsrc = Z_RES_P(zsession);
 	Z_ADDREF_P(zsession);
@@ -1036,7 +1042,7 @@ PHP_FUNCTION(ssh2_publickey_add)
 		unsigned long current_attr = 0;
 
 		num_attrs = zend_hash_num_elements(Z_ARRVAL_P(zattrs));
-		attrs = safe_emalloc(num_attrs, sizeof(libssh2_publickey_attribute), 0);
+		attrs = (libssh2_publickey_attribute *)safe_emalloc(num_attrs, sizeof(libssh2_publickey_attribute), 0);
 
 		for(zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(zattrs), &pos);
 			(attr_val = zend_hash_get_current_data_ex(Z_ARRVAL_P(zattrs), &pos)) != NULL;
@@ -1275,7 +1281,9 @@ static void php_ssh2_session_dtor(zend_resource *rsrc)
 	LIBSSH2_SESSION *session = (LIBSSH2_SESSION*)rsrc->ptr;
 	php_ssh2_session_data **data = (php_ssh2_session_data**)libssh2_session_abstract(session);
 
-	libssh2_session_disconnect(session, "PECL/ssh2 (http://pecl.php.net/packages/ssh2)");
+	ssh2_async_call((*data)->socket, session, [](Socket *sock, LIBSSH2_SESSION *session) {
+		return libssh2_session_disconnect(session, "PECL/ssh2 (http://pecl.php.net/packages/ssh2)");
+	});
 
 	if (*data) {
 		if ((*data)->ignore_cb) {
@@ -1291,8 +1299,7 @@ static void php_ssh2_session_dtor(zend_resource *rsrc)
 			zval_ptr_dtor((*data)->disconnect_cb);
 		}
 
-		closesocket((*data)->socket);
-
+		delete (*data)->socket;
 		efree(*data);
 		*data = NULL;
 	}
