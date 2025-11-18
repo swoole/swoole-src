@@ -24,6 +24,9 @@
 #include "php_ssh2.h"
 #include "ext/standard/php_string.h"
 
+#define SW_USE_SSH2_HOOK
+#include "php_swoole_ssh2.h"
+
 /* *************************
    * Resource Housekeeping *
    ************************* */

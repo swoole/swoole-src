@@ -23,6 +23,9 @@
 #include "php.h"
 #include "php_ssh2.h"
 
+#define SW_USE_SSH2_HOOK
+#include "php_swoole_ssh2.h"
+
 void *php_ssh2_zval_from_resource_handle(int handle) {
 	zval *val;
 	zend_resource *zr;

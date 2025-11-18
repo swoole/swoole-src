@@ -30,6 +30,9 @@
 #include <openssl/applink.c>
 #endif
 
+#define SW_USE_SSH2_HOOK
+#include "php_swoole_ssh2.h"
+
 /* Internal Constants */
 #ifndef SHA_DIGEST_LENGTH
 #define SHA_DIGEST_LENGTH	20
