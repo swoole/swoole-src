@@ -255,6 +255,7 @@ enum swTraceWhat : long {
     SW_TRACE_CO_ORACLE = 1ul << 34,
     SW_TRACE_CO_SQLITE = 1ul << 35,
     SW_TRACE_CO_FIREBIRD = 1ul << 36,
+	SW_TRACE_CO_SSH2 = 1ul << 37,
     /**
      * Thread
      */
