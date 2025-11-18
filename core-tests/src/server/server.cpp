@@ -2016,7 +2016,7 @@ TEST(server, task_sync_multi_task) {
     std::vector<std::string> tasks;
     std::vector<std::string> results;
     int n_task = 16;
-    size_t len_task = SW_IPC_MAX_SIZE * 2;
+    constexpr size_t len_task = SW_IPC_MAX_SIZE * 2;
     SW_LOOP_N(n_task) {
         char data[len_task] = {};
         swoole_random_string(data, len_task - 1);

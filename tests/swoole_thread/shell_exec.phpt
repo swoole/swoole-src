@@ -17,7 +17,6 @@ use SwooleTest\ThreadManager;
 $tm = new ThreadManager();
 
 $tm->parentFunc = function () {
-    Assert::true(Runtime::enableCoroutine(SWOOLE_HOOK_ALL));
     $lock = new Lock;
     $lock->lock();
     $thread = new Thread(__FILE__, $lock);
@@ -31,7 +30,6 @@ $tm->childFunc = function ($lock) {
     $lock->lock();
     usleep(100_000);
     Co\run(function () {
-        Assert::true(Runtime::enableCoroutine(SWOOLE_HOOK_ALL));
         shell_exec('ls /tmp');
         sleep(1);
         gethostbyname('www.baidu.com');

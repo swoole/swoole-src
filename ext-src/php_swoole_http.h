@@ -350,6 +350,7 @@ class Session {
     uint32_t remote_window_size;
     uint32_t local_window_size;
 
+    uint32_t max_body_size;
     uint32_t last_stream_id;
     bool shutting_down;
     bool is_coro;

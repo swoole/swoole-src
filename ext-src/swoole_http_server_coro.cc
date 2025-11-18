@@ -169,6 +169,7 @@ class HttpServer {
         sock->protocol.get_package_length = http2::get_frame_length;
 
         auto session = swoole_http2_server_session_new(ctx->fd);
+        session->max_body_size = sock->protocol.package_max_length;
         session->default_ctx = ctx;
         session->handle = http2_server_onRequest;
         session->private_data = this;

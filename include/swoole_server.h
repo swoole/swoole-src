@@ -967,6 +967,10 @@ class Server {
         return get_port_by_fd(conn->fd);
     }
 
+    uint32_t get_package_max_length(Connection *conn) {
+        return get_port_by_fd(conn->fd)->protocol.package_max_length;
+    }
+
     network::Socket *get_server_socket(int fd) const {
         return connection_list[fd].socket;
     }

@@ -1341,7 +1341,7 @@ TEST(coroutine_socket, sendmsg_and_recvmsg) {
         socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
 
         std::string text = "Hello World";
-        size_t length = text.length();
+        const size_t length = text.length();
 
         Coroutine::create([&](void *) {
             Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);

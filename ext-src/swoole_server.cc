@@ -1510,7 +1510,7 @@ static void php_swoole_server_onWorkerStart(Server *serv, Worker *worker) {
     zend_update_property_bool(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("taskworker"), serv->is_task_worker());
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("worker_pid"), getpid());
 
-    if (serv->is_task_worker() && !serv->task_enable_coroutine) {
+    if (serv->is_task_worker() && !serv->task_enable_coroutine && !serv->is_thread_mode()) {
         PHPCoroutine::disable_hook();
     }
     serv->get_worker_message_bus()->set_allocator(sw_zend_string_allocator());
@@ -2661,10 +2661,6 @@ static PHP_METHOD(swoole_server, start) {
          */
         php_swoole_set_coroutine_option(ht);
 
-        if (PHPCoroutine::get_hook_flags() > 0) {
-            PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
-        }
-
         worker_thread_fn();
         RETURN_TRUE;
     }
@@ -2672,18 +2668,18 @@ static PHP_METHOD(swoole_server, start) {
 
     if (serv->is_started()) {
         php_swoole_fatal_error(
-            E_WARNING, "server is running, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The server is running, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
     if (serv->is_shutdown()) {
         php_swoole_fatal_error(
-            E_WARNING, "server have been shutdown, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The server have been shutdown, unable to execute %s->start()", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
     if (sw_reactor()) {
         php_swoole_fatal_error(
-            E_WARNING, "eventLoop has already been created, unable to start %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
+            E_WARNING, "The event-loop has already been created, unable to start %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
@@ -2715,11 +2711,7 @@ static PHP_METHOD(swoole_server, start) {
             php_swoole_thread_start(thread, bootstrap_copy, thread_argv);
         };
 
-        /**
-         *The hook must be enabled before creating child threads.
-         *The stream factory and ops are global variables, not thread-local resources.
-         *These runtime hooks must be modified in a single-threaded environment.
-         */
+        // The runtime hook must be enabled before creating child threads.
         if (PHPCoroutine::get_hook_flags() > 0) {
             PHPCoroutine::enable_hook(PHPCoroutine::get_hook_flags());
         }

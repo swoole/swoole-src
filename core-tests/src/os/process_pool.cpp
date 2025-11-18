@@ -126,6 +126,7 @@ TEST(process_pool, tcp_raw) {
     pool.destroy();
 }
 
+#ifdef HAVE_MSGQUEUE
 TEST(process_pool, msgqueue) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
@@ -145,6 +146,7 @@ TEST(process_pool, msgqueue_2) {
         ASSERT_ERREQ(EACCES);
     });
 }
+#endif
 
 TEST(process_pool, message_protocol) {
     ProcessPool pool{};
