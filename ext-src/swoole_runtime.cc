@@ -45,6 +45,10 @@ extern void swoole_oracle_set_blocking(bool blocking);
 #ifdef SW_USE_SQLITE
 extern void swoole_sqlite_set_blocking(bool blocking);
 #endif
+
+#ifdef SW_USE_FIREBIRD
+extern void swoole_firebird_set_blocking(bool blocking);
+#endif
 END_EXTERN_C()
 
 /* openssl */
@@ -270,6 +274,9 @@ void php_swoole_runtime_minit(int module_number) {
 #endif
 #ifdef SW_USE_SQLITE
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_SQLITE", PHPCoroutine::HOOK_PDO_SQLITE);
+#endif
+#ifdef SW_USE_FIREBIRD
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_FIREBIRD", PHPCoroutine::HOOK_PDO_FIREBIRD);
 #endif
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
@@ -565,7 +572,6 @@ static int socket_cast(php_stream *stream, int castas, void **ret) {
         return FAILURE;
     }
 }
-
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb) {
     const auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract)) {
@@ -1485,6 +1491,17 @@ static void hook_pdo_driver(uint32_t flags) {
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_SQLITE) {
             swoole_sqlite_set_blocking(true);
+        }
+    }
+#endif
+#ifdef SW_USE_FIREBIRD
+    if (flags & PHPCoroutine::HOOK_PDO_FIREBIRD) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_PDO_FIREBIRD)) {
+            swoole_firebird_set_blocking(false);
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_FIREBIRD) {
+        	swoole_firebird_set_blocking(true);
         }
     }
 #endif

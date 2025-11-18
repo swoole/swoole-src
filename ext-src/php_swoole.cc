@@ -902,6 +902,9 @@ PHP_MINIT_FUNCTION(swoole) {
 #ifdef SW_USE_SQLITE
     php_swoole_sqlite_minit(module_number);
 #endif
+#ifdef SW_USE_FIREBIRD
+    php_swoole_firebird_minit(module_number);
+#endif
 #ifdef SW_THREAD
     php_swoole_thread_minit(module_number);
     php_swoole_thread_atomic_minit(module_number);
@@ -939,13 +942,14 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
 #ifdef SW_USE_PGSQL
     php_swoole_pgsql_mshutdown();
 #endif
-
 #ifdef SW_USE_ORACLE
     php_swoole_oracle_mshutdown();
 #endif
-
 #ifdef SW_USE_SQLITE
     php_swoole_sqlite_mshutdown();
+#endif
+#ifdef SW_USE_FIREBIRD
+    php_swoole_firebird_mshutdown();
 #endif
 
     swoole_clean();
@@ -1078,6 +1082,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef SW_USE_SQLITE
     php_info_print_table_row(2, "coroutine_sqlite", "enabled");
+#endif
+#ifdef SW_USE_FIREBIRD
+    php_info_print_table_row(2, "coroutine_firebird", "enabled");
 #endif
 #ifdef SW_USE_IOURING
     php_info_print_table_row(2, "io_uring", "enabled");

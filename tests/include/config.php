@@ -106,6 +106,19 @@ if (IS_IN_CI) {
     define('ORACLE_TNS', 'oci:dbname=127.0.0.1:' . ORACLE_PORT . '/' . ORACLE_SERVICE_NAME . ';charset=AL32UTF8');
 }
 
+/* ============== Firebird ============== */
+if (IS_IN_CI) {
+    define('FIREBIRD_HOST', 'firebirdsql');
+} else {
+    define('FIREBIRD_HOST', '127.0.0.1');
+}
+
+define('FIREBIRD_USER', 'test');
+define('FIREBIRD_PASSWORD', 'test');
+define('FIREBIRD_DBNAME', '/var/lib/firebird/data/test.fdb');
+define('FIREBIRD_PORT', '3050');
+define('FIREBIRD_DSN', 'firebird:dbname=' . FIREBIRD_HOST . '/' . FIREBIRD_PORT . ':' . FIREBIRD_DBNAME);
+
 /* ============== Sqlite ============== */
 define('SQLITE_DSN', 'sqlite::memory:');
 

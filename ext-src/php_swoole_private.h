@@ -259,6 +259,9 @@ void php_swoole_oracle_minit(int module_number);
 #ifdef SW_USE_SQLITE
 void php_swoole_sqlite_minit(int module_number);
 #endif
+#ifdef SW_USE_FIREBIRD
+void php_swoole_firebird_minit(int module_number);
+#endif
 // server
 void php_swoole_server_minit(int module_number);
 void php_swoole_server_port_minit(int module_number);
@@ -340,6 +343,9 @@ void php_swoole_oracle_mshutdown();
 #endif
 #ifdef SW_USE_SQLITE
 void php_swoole_sqlite_mshutdown();
+#endif
+#ifdef SW_USE_FIREBIRD
+void php_swoole_firebird_mshutdown();
 #endif
 
 static sw_inline size_t php_swoole_get_send_data(zval *zdata, char **str) {
