@@ -52,19 +52,43 @@ if (isset($options['help'])) {
 
 require __DIR__ . '/include/config.php';
 
-// 确定需要初始化的组件
-// 默认情况下初始化所有组件
 $has_specific_option = isset($options['mysql']) || isset($options['firebird']) || isset($options['odbc-mysql']);
 $load_mysql = !$has_specific_option || isset($options['mysql']);
 $load_firebird = !$has_specific_option || isset($options['firebird']);
 $load_odbc_mysql = !$has_specific_option || isset($options['odbc-mysql']);
 
-// 根据需要加载相应的依赖文件
 if ($load_firebird) {
     require __DIR__ . '/swoole_pdo_firebird/pdo_firebird.inc';
 }
 
 Swoole\Coroutine\run(function () use ($load_mysql, $load_firebird, $load_odbc_mysql) {
+    echo "[SSH2-init] Setting up SSH2 test environment...\n";
+
+    $ssh_user = getenv('TEST_SSH2_USER') ;
+    $ssh_password = getenv('TEST_SSH2_PASS');
+
+    $user_exists = trim(shell_exec("id -u $ssh_user 2>/dev/null"));
+    if (empty($user_exists)) {
+        echo "[SSH2-init] Creating test user: $ssh_user\n";
+        exec("useradd -m $ssh_user");
+        exec("echo '$ssh_user:$ssh_password' | chpasswd");
+
+        exec("mkdir -p /home/$ssh_user/.ssh");
+
+        echo "[SSH2-init] Generating SSH test key pair...\n";
+
+        exec("cat " . __DIR__ . '/swoole_ssh2/testkey_ed25519.pub' . " > /home/$ssh_user/.ssh/authorized_keys");
+
+        exec("chmod 700 /home/$ssh_user/.ssh");
+        exec("chmod 600 /home/$ssh_user/.ssh/authorized_keys");
+        exec("chmod 600 /home/$ssh_user/.ssh/id_rsa");
+        exec("chown -R $ssh_user:$ssh_user /home/$ssh_user/.ssh");
+
+        echo "[SSH2-init] SSH2 test user setup completed\n";
+    } else {
+        echo "[SSH2-init] User $ssh_user already exists, skipping creation\n";
+    }
+
     // 初始化MySQL数据库
     if ($load_mysql) {
         echo "[DB-init] initialization MySQL database...\n";
