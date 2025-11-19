@@ -52,10 +52,6 @@ static ssize_t php_ssh2_channel_stream_write(php_stream *stream, const char *buf
     session =
         (LIBSSH2_SESSION *) zend_fetch_resource(abstract->session_rsrc, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
 
-#ifdef SW_USE_SSH2_ASYNC_HOOK
-    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
-#endif
-
 #ifdef PHP_SSH2_SESSION_TIMEOUT
     if (abstract->is_blocking) {
         libssh2_session_set_timeout(session, abstract->timeout);

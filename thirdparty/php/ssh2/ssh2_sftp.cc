@@ -103,22 +103,15 @@ typedef struct _php_ssh2_sftp_handle_data {
 
 /* {{{ php_ssh2_sftp_stream_write
  */
-#if PHP_VERSION_ID < 70400
-static size_t php_ssh2_sftp_stream_write(php_stream *stream, const char *buf, size_t count)
-#else
 static ssize_t php_ssh2_sftp_stream_write(php_stream *stream, const char *buf, size_t count)
-#endif
 {
     php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data *) stream->abstract;
     ssize_t bytes_written;
-
+    
+    auto session = data->session;
     bytes_written = libssh2_sftp_write(data->handle, buf, count);
 
-#if PHP_VERSION_ID < 70400
-    return (size_t) (bytes_written < 0 ? 0 : bytes_written);
-#else
     return bytes_written;
-#endif
 }
 /* }}} */
 
@@ -128,15 +121,12 @@ static ssize_t php_ssh2_sftp_stream_read(php_stream *stream, char *buf, size_t c
     php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data *) stream->abstract;
     ssize_t bytes_read;
 
+    auto session = data->session;
     bytes_read = libssh2_sftp_read(data->handle, buf, count);
 
     stream->eof = (bytes_read <= 0 && bytes_read != LIBSSH2_ERROR_EAGAIN);
 
-#if PHP_VERSION_ID < 70400
-    return (size_t) (bytes_read < 0 ? 0 : bytes_read);
-#else
     return bytes_read;
-#endif
 }
 /* }}} */
 
@@ -158,11 +148,11 @@ static int php_ssh2_sftp_stream_close(php_stream *stream, int close_handle) {
  */
 static int php_ssh2_sftp_stream_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset) {
     php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data *) stream->abstract;
+    auto session = data->session;
 
     switch (whence) {
     case SEEK_END: {
         LIBSSH2_SFTP_ATTRIBUTES attrs;
-        auto session = data->session;
         if (libssh2_sftp_fstat(data->handle, &attrs)) {
             return -1;
         }
@@ -633,6 +623,8 @@ PHP_FUNCTION(ssh2_sftp_rename) {
         RETURN_FALSE;
     }
 
+    auto session = data->session;
+
     RETURN_BOOL(!libssh2_sftp_rename_ex(
         data->sftp,
         src->val,
@@ -659,6 +651,7 @@ PHP_FUNCTION(ssh2_sftp_unlink) {
         RETURN_FALSE;
     }
 
+    auto session = data->session;
     RETURN_BOOL(!libssh2_sftp_unlink_ex(data->sftp, filename->val, filename->len));
 }
 /* }}} */
@@ -685,6 +678,8 @@ PHP_FUNCTION(ssh2_sftp_mkdir) {
         NULL) {
         RETURN_FALSE;
     }
+
+    auto session = data->session;
 
     if (recursive) {
         /* Just attempt to make every directory, some will fail, but we only care about the last success/failure */
@@ -717,6 +712,7 @@ PHP_FUNCTION(ssh2_sftp_rmdir) {
         RETURN_FALSE;
     }
 
+    auto session = data->session;
     RETURN_BOOL(!libssh2_sftp_rmdir_ex(data->sftp, dirname->val, dirname->len));
 }
 /* }}} */

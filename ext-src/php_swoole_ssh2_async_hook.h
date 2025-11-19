@@ -132,30 +132,58 @@
 #define libssh2_sftp_readdir(handle, buffer, buffer_maxlen, attrs)                                                     \
     SSH2_ASYNC_CALL(session, libssh2_sftp_readdir_ex, (handle), (buffer), (buffer_maxlen), NULL, 0, (attrs))
 
+#undef libssh2_sftp_tell
+#define libssh2_sftp_tell(handle) SSH2_ASYNC_CALL(session, libssh2_sftp_tell, handle)
+
+#undef libssh2_sftp_read
+#define libssh2_sftp_read(handle, buffer, count)                                                                       \
+    SSH2_ASYNC_CALL(session, libssh2_sftp_read, (handle), (buffer), (count))
+
+#undef libssh2_sftp_write
+#define libssh2_sftp_write(handle, buffer, count)                                                                      \
+    SSH2_ASYNC_CALL(session, libssh2_sftp_write, (handle), (buffer), (count))
+
+#define libssh2_sftp_init(session) SSH2_ASYNC_CALL_EX(LIBSSH2_SFTP, session, libssh2_sftp_init, session)
+
 #undef libssh2_sftp_close
 #define libssh2_sftp_close(handle) SSH2_ASYNC_CALL(session, libssh2_sftp_close_handle, handle)
 
+#define libssh2_sftp_unlink_ex(sftp, filename, filename_len)                                                           \
+    SSH2_ASYNC_CALL(session, libssh2_sftp_unlink_ex, (sftp), (filename), filename_len)
+
 #undef libssh2_sftp_unlink
-#define libssh2_sftp_unlink(sftp, filename)                                                                            \
-    SSH2_ASYNC_CALL(session, libssh2_sftp_unlink_ex, (sftp), (filename), strlen(filename))
+#define libssh2_sftp_unlink(sftp, filename) libssh2_sftp_unlink_ex((sftp), (filename), strlen(filename))
+
+#define libssh2_sftp_rename_ex(sftp, source_filename, srouce_filename_len, dest_filename, dest_filename_len, flags)    \
+    SSH2_ASYNC_CALL(session,                                                                                           \
+                    libssh2_sftp_rename_ex,                                                                            \
+                    sftp,                                                                                              \
+                    source_filename,                                                                                   \
+                    srouce_filename_len,                                                                               \
+                    dest_filename,                                                                                     \
+                    dest_filename_len,                                                                                 \
+                    flags)
 
 #undef libssh2_sftp_rename
 #define libssh2_sftp_rename(sftp, sourcefile, destfile)                                                                \
-    SSH2_ASYNC_CALL(session,                                                                                           \
-                    libssh2_sftp_rename_ex,                                                                            \
-                    (sftp),                                                                                            \
-                    (sourcefile),                                                                                      \
-                    strlen(sourcefile),                                                                                \
-                    (destfile),                                                                                        \
-                    strlen(destfile),                                                                                  \
-                    LIBSSH2_SFTP_RENAME_OVERWRITE | LIBSSH2_SFTP_RENAME_ATOMIC | LIBSSH2_SFTP_RENAME_NATIVE)
+    libssh2_sftp_rename_ex((sftp),                                                                                     \
+                           (sourcefile),                                                                               \
+                           strlen(sourcefile),                                                                         \
+                           (destfile),                                                                                 \
+                           strlen(destfile),                                                                           \
+                           LIBSSH2_SFTP_RENAME_OVERWRITE | LIBSSH2_SFTP_RENAME_ATOMIC | LIBSSH2_SFTP_RENAME_NATIVE)
+
+#define libssh2_sftp_mkdir_ex(sftp, path, path_len, mode)                                                              \
+    SSH2_ASYNC_CALL(session, libssh2_sftp_mkdir_ex, (sftp), (path), path_len, (mode))
 
 #undef libssh2_sftp_mkdir
-#define libssh2_sftp_mkdir(sftp, path, mode)                                                                           \
-    SSH2_ASYNC_CALL(session, libssh2_sftp_mkdir_ex, (sftp), (path), strlen(path), (mode))
+#define libssh2_sftp_mkdir(sftp, path, mode) libssh2_sftp_mkdir_ex((sftp), (path), strlen(path), (mode))
+
+#define libssh2_sftp_rmdir_ex(sftp, path, path_len)                                                                    \
+    SSH2_ASYNC_CALL(session, libssh2_sftp_rmdir_ex, (sftp), (path), path_len)
 
 #undef libssh2_sftp_rmdir
-#define libssh2_sftp_rmdir(sftp, path) SSH2_ASYNC_CALL(session, libssh2_sftp_rmdir_ex, (sftp), (path), strlen(path))
+#define libssh2_sftp_rmdir(sftp, path) libssh2_sftp_rmdir_ex((sftp), (path), strlen(path))
 
 /* Agent related functions */
 #undef libssh2_agent_connect
