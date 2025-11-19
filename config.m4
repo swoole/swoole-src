@@ -1389,6 +1389,13 @@ EOF
             thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
     fi
 
+    if test "$PHP_SWOOLE_SSH2" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/php/ssh2/ssh2.cc \
+            thirdparty/php/ssh2/ssh2_fopen_wrappers.cc \
+            thirdparty/php/ssh2/ssh2_sftp.cc"
+    fi
+
     SW_ASM_DIR="thirdparty/boost/asm/"
     SW_USE_ASM_CONTEXT="yes"
 
