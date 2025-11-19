@@ -1544,6 +1544,7 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/ssh2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
 
     if test "$PHP_NGHTTP2_DIR" = "no"; then
@@ -1568,11 +1569,5 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_sqlite)
-    fi
-    if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
-    fi
-    if test "$PHP_SWOOLE_SSH2" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/ssh2)
     fi
 fi
