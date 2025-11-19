@@ -52,6 +52,10 @@ static ssize_t php_ssh2_channel_stream_write(php_stream *stream, const char *buf
     session =
         (LIBSSH2_SESSION *) zend_fetch_resource(abstract->session_rsrc, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
 
+#ifdef SW_USE_SSH2_ASYNC_HOOK
+    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
+#endif
+
 #ifdef PHP_SSH2_SESSION_TIMEOUT
     if (abstract->is_blocking) {
         libssh2_session_set_timeout(session, abstract->timeout);
@@ -93,12 +97,10 @@ static ssize_t php_ssh2_channel_stream_read(php_stream *stream, char *buf, size_
 {
     php_ssh2_channel_data *abstract = (php_ssh2_channel_data *) stream->abstract;
     ssize_t readstate;
-    LIBSSH2_SESSION *session;
+    auto session = ssh2_get_session(abstract);
 
     stream->eof = libssh2_channel_eof(abstract->channel);
     libssh2_channel_set_blocking(abstract->channel, abstract->is_blocking);
-    session =
-        (LIBSSH2_SESSION *) zend_fetch_resource(abstract->session_rsrc, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
 
 #ifdef PHP_SSH2_SESSION_TIMEOUT
     if (abstract->is_blocking) {
@@ -138,6 +140,7 @@ static int php_ssh2_channel_stream_close(php_stream *stream, int close_handle) {
         if (abstract->refcount) {
             efree(abstract->refcount);
         }
+        auto session = ssh2_get_session(abstract);
         libssh2_channel_eof(abstract->channel);
         libssh2_channel_free(abstract->channel);
         zend_list_delete(abstract->session_rsrc);
@@ -178,6 +181,7 @@ static int php_ssh2_channel_stream_cast(php_stream *stream, int castas, void **r
 
 static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, int value, void *ptrparam) {
     php_ssh2_channel_data *abstract = (php_ssh2_channel_data *) stream->abstract;
+    auto session = ssh2_get_session(abstract);
     int ret;
 
     switch (option) {
@@ -187,9 +191,15 @@ static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, in
         return ret;
         break;
 
-    case PHP_STREAM_OPTION_META_DATA_API:
+    case PHP_STREAM_OPTION_META_DATA_API: {
+#ifdef SW_USE_SSH2_ASYNC_HOOK
+        LIBSSH2_SESSION *session =
+            (LIBSSH2_SESSION *) zend_fetch_resource(abstract->session_rsrc, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
+        php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
+#endif
         add_assoc_long((zval *) ptrparam, "exit_status", libssh2_channel_get_exit_status(abstract->channel));
         break;
+    }
 
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
         ret = abstract->timeout;
@@ -790,6 +800,7 @@ PHP_FUNCTION(ssh2_shell_resize) {
     }
 
     data = (php_ssh2_channel_data *) parent->abstract;
+    auto session = ssh2_get_session(data);
 
     libssh2_channel_request_pty_size_ex(data->channel, width, height, width_px, height_px);
 
@@ -1509,6 +1520,8 @@ PHP_FUNCTION(ssh2_send_eof) {
         php_error_docref(NULL, E_WARNING, "Abstract in stream is null");
         RETURN_FALSE;
     }
+
+    auto session = ssh2_get_session(data);
 
     ssh2_ret = libssh2_channel_send_eof(data->channel);
     if (ssh2_ret < 0) {

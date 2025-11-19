@@ -10,6 +10,19 @@
 #define libssh2_session_disconnect(session, description)                                                               \
     SSH2_ASYNC_CALL(session, libssh2_session_disconnect_ex, (session), SSH_DISCONNECT_BY_APPLICATION, (description), "")
 
+#undef libssh2_channel_open_session
+#define libssh2_channel_open_session(session)                                                                          \
+    SSH2_ASYNC_CALL_EX(LIBSSH2_CHANNEL,                                                                                \
+                       session,                                                                                        \
+                       libssh2_channel_open_ex,                                                                        \
+                       (session),                                                                                      \
+                       "session",                                                                                      \
+                       sizeof("session") - 1,                                                                          \
+                       LIBSSH2_CHANNEL_WINDOW_DEFAULT,                                                                 \
+                       LIBSSH2_CHANNEL_PACKET_DEFAULT,                                                                 \
+                       NULL,                                                                                           \
+                       0)
+
 #define libssh2_channel_setenv_ex(channel, name, name_len, value, value_len)                                           \
     SSH2_ASYNC_CALL(session, libssh2_channel_setenv_ex, channel, name, name_len, value, value_len)
 
@@ -42,6 +55,52 @@
 
 #define libssh2_channel_flush_ex(channel, streamid)                                                                    \
     SSH2_ASYNC_CALL(session, libssh2_channel_flush_ex, (channel), (streamid))
+
+#define libssh2_channel_read_ex(channel, streamid, buf, len)                                                           \
+    SSH2_ASYNC_CALL(session, libssh2_channel_read_ex, channel, streamid, buf, len)
+
+#undef libssh2_channel_write_ex
+#define libssh2_channel_write_ex(channel, streamid, buf, len)                                                          \
+    SSH2_ASYNC_CALL(session, libssh2_channel_write_ex, channel, streamid, buf, len)
+
+#undef libssh2_channel_read
+#define libssh2_channel_read(channel, buf, buflen) libssh2_channel_read_ex((channel), 0, (buf), (buflen))
+
+#undef libssh2_channel_write
+#define libssh2_channel_write(channel, buf, buflen) libssh2_channel_write_ex((channel), 0, (buf), (buflen))
+
+#undef libssh2_channel_eof
+#define libssh2_channel_eof(channel) SSH2_ASYNC_CALL(session, libssh2_channel_eof, channel)
+
+#undef libssh2_channel_close
+#define libssh2_channel_close(channel) SSH2_ASYNC_CALL(session, libssh2_channel_close, channel)
+
+#undef libssh2_channel_send_eof
+#define libssh2_channel_send_eof(channel) SSH2_ASYNC_CALL(session, libssh2_channel_send_eof, channel)
+
+#undef libssh2_channel_get_exit_status
+#define libssh2_channel_get_exit_status(channel) SSH2_ASYNC_CALL(session, libssh2_channel_get_exit_status, channel)
+
+#undef libssh2_channel_request_pty_size_ex
+#define libssh2_channel_request_pty_size_ex(channel, width, height, width_px, height_px)                               \
+    SSH2_ASYNC_CALL(session, libssh2_channel_request_pty_size_ex, channel, width, height, width_px, height_px)
+
+#undef libssh2_channel_forward_listen_ex
+#define libssh2_channel_forward_listen_ex(session, host, port, addr, num_connections)                                  \
+    SSH2_ASYNC_CALL_EX(                                                                                                \
+        LIBSSH2_LISTENER, session, libssh2_channel_forward_listen_ex, session, host, port, addr, num_connections)
+
+#undef libssh2_channel_forward_accept
+#define libssh2_channel_forward_accept(listener)                                                                       \
+    SSH2_ASYNC_CALL_EX(LIBSSH2_CHANNEL, session, libssh2_channel_forward_accept, listener)
+
+#undef libssh2_channel_forward_cancel
+#define libssh2_channel_forward_cancel(listener) SSH2_ASYNC_CALL(session, libssh2_channel_forward_cancel, listener)
+
+#undef libssh2_channel_direct_tcpip
+#define libssh2_channel_direct_tcpip(session, host, port)                                                              \
+    SSH2_ASYNC_CALL_EX(                                                                                                \
+        LIBSSH2_CHANNEL, session, libssh2_channel_direct_tcpip_ex, (session), (host), (port), "127.0.0.1", 22)
 
 #undef libssh2_sftp_fstat
 #define libssh2_sftp_fstat(handle, attrs) SSH2_ASYNC_CALL(session, libssh2_sftp_fstat_ex, handle, attrs, 0)

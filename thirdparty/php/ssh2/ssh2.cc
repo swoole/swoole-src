@@ -814,6 +814,10 @@ PHP_FUNCTION(ssh2_forward_listen) {
 
     SSH2_FETCH_AUTHENTICATED_SESSION(session, zsession);
 
+#ifdef SW_USE_SSH2_ASYNC_HOOK
+    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
+#endif
+
     listener = libssh2_channel_forward_listen_ex(session, host, port, NULL, max_connections);
 
     if (!listener) {
@@ -850,6 +854,7 @@ PHP_FUNCTION(ssh2_forward_accept) {
         RETURN_FALSE;
     }
 
+    auto session = data->session;
     channel = libssh2_channel_forward_accept(data->listener);
 
     if (!channel) {
@@ -871,11 +876,7 @@ PHP_FUNCTION(ssh2_forward_accept) {
         RETURN_FALSE;
     }
 
-#if PHP_VERSION_ID < 70300
-    GC_REFCOUNT(channel_data->session_rsrc)++;
-#else
     GC_ADDREF(channel_data->session_rsrc);
-#endif
 
     php_stream_to_zval(stream, return_value);
 }
@@ -1336,6 +1337,7 @@ static void php_ssh2_session_dtor(zend_resource *rsrc) {
 static void php_ssh2_listener_dtor(zend_resource *rsrc) {
     php_ssh2_listener_data *data = (php_ssh2_listener_data *) rsrc->ptr;
     LIBSSH2_LISTENER *listener = data->listener;
+    auto session = data->session;
 
     libssh2_channel_forward_cancel(listener);
     zend_list_delete(data->session_rsrc);
