@@ -252,17 +252,9 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
     }
 
     /*
-            Find resource->path in the path string, then copy the entire string from the original path.
-            This includes ?query#fragment in the path string
-    */
-    // TODO copy seems uneeded
-    {
-        zend_string *tmp;
-
-        tmp = resource->path;
-        resource->path = zend_string_init(ZSTR_VAL(resource->path), ZSTR_LEN(resource->path), 0);
-        zend_string_release(tmp);
-    }
+     * Find resource->path in the path string, then copy the entire string from the original path.
+     * This includes ?query#fragment in the path string
+     */
 
     /* Look for a resource ID to reuse a session */
     if (is_numeric_string(ZSTR_VAL(resource->host), ZSTR_LEN(resource->host), &resource_id, NULL, 0) == IS_LONG) {

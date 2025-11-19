@@ -10,7 +10,7 @@ bash ./install-deps-on-ubuntu.sh
 
 # sshd
 apt install -y openssh-server
-service sshd start
+service ssh start
 
 # MariaDB ODBC Connector
 wget https://github.com/mariadb-corporation/mariadb-connector-odbc/archive/refs/tags/3.1.21.tar.gz
