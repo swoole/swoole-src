@@ -506,7 +506,7 @@ PHP_FUNCTION(ssh2_fingerprint) {
     zval *zsession;
     const char *fingerprint;
     zend_long flags = 0;
-    int i, fingerprint_len;
+    size_t i, fingerprint_len;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|l", &zsession, &flags) == FAILURE) {
         return;
