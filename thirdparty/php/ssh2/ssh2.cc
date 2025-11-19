@@ -733,7 +733,7 @@ PHP_FUNCTION(ssh2_auth_pubkey) {
                                               ZSTR_LEN(pubkey),
                                               ZSTR_VAL(privkey),
                                               ZSTR_LEN(privkey),
-											  passphrase_ptr)) {
+                                              passphrase_ptr)) {
         char *buf;
         int len;
         libssh2_session_last_error(session, &buf, &len, 0);

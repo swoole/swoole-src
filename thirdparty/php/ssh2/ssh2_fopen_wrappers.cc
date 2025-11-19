@@ -542,7 +542,6 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session,
     php_ssh2_channel_data *channel_data;
     php_stream *stream;
 
-
     channel = libssh2_channel_open_session(session);
     if (!channel) {
         php_error_docref(NULL, E_WARNING, "Unable to request a channel from remote host");
