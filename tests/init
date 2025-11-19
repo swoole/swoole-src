@@ -42,11 +42,11 @@ $options = getopt('', ['mysql', 'firebird', 'odbc-mysql', 'help']);
 if (isset($options['help'])) {
     echo "Usage: php init [options]\n";
     echo "Options:\n";
-    echo "  --mysql      仅初始化MySQL数据库\n";
-    echo "  --firebird   仅初始化Firebird数据库\n";
-    echo "  --odbc-mysql 仅初始化ODBC MySQL配置\n";
-    echo "  --help       显示此帮助信息\n";
-    echo "如果不指定任何参数，将初始化所有数据库\n";
+    echo "  --mysql      init MySQL database\n";
+    echo "  --firebird   init Firebird database\n";
+    echo "  --odbc-mysql init ODBC MySQL database\n";
+    echo "  --help       Show help message\n";
+    echo "default: init all databases\n";
     exit(0);
 }
 
@@ -57,6 +57,7 @@ $load_mysql = !$has_specific_option || isset($options['mysql']);
 $load_firebird = !$has_specific_option || isset($options['firebird']);
 $load_odbc_mysql = !$has_specific_option || isset($options['odbc-mysql']);
 
+require __DIR__ . '/swoole_ssh2/ssh2_test.inc';
 if ($load_firebird) {
     require __DIR__ . '/swoole_pdo_firebird/pdo_firebird.inc';
 }
@@ -64,8 +65,8 @@ if ($load_firebird) {
 Swoole\Coroutine\run(function () use ($load_mysql, $load_firebird, $load_odbc_mysql) {
     echo "[SSH2-init] Setting up SSH2 test environment...\n";
 
-    $ssh_user = getenv('TEST_SSH2_USER') ;
-    $ssh_password = getenv('TEST_SSH2_PASS');
+    $ssh_user = TEST_SSH2_USER ;
+    $ssh_password = TEST_SSH2_PASS;
 
     $user_exists = trim(shell_exec("id -u $ssh_user 2>/dev/null"));
     if (empty($user_exists)) {
