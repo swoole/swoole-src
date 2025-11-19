@@ -71,16 +71,22 @@ static inline swoole::coroutine::Socket *ssh2_get_socket(LIBSSH2_SESSION *sessio
     return (*session_data)->socket;
 }
 
+static inline void ssh2_set_socket_timeout(LIBSSH2_SESSION *session, int timeout_ms) {
+    auto sock = ssh2_get_socket(session);
+    sock->set_timeout(timeout_ms / 1000, SW_TIMEOUT_ALL);
+}
+
 class ResourceGuard {
-	zval zres_;
-public:
-	ResourceGuard(zval *zres) {
-		zval_addref_p(zres);
-		zres_ = *zres;
-	}
-	~ResourceGuard() {
-		zval_ptr_dtor(&zres_);
-	}
+    zval zres_;
+
+  public:
+    ResourceGuard(zval *zres) {
+        zval_addref_p(zres);
+        zres_ = *zres;
+    }
+    ~ResourceGuard() {
+        zval_ptr_dtor(&zres_);
+    }
 };
 
 static inline int ssh2_async_call(LIBSSH2_SESSION *session, const std::function<int(void)> &fn) {
@@ -110,7 +116,7 @@ static inline T *ssh2_async_call_ex(LIBSSH2_SESSION *session, const std::functio
     auto socket = ssh2_get_socket(session);
 
     if (socket->has_bound()) {
-    	return nullptr;
+        return nullptr;
     }
 
     T *handle;

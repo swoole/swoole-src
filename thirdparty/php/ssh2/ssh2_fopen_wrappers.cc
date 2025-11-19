@@ -38,23 +38,17 @@ void *php_ssh2_zval_from_resource_handle(int handle) {
  * channel_stream_ops *
  ********************** */
 
-#if PHP_VERSION_ID < 70400
-static size_t php_ssh2_channel_stream_write(php_stream *stream, const char *buf, size_t count)
-#else
-static ssize_t php_ssh2_channel_stream_write(php_stream *stream, const char *buf, size_t count)
-#endif
-{
+static ssize_t php_ssh2_channel_stream_write(php_stream *stream, const char *buf, size_t count) {
     php_ssh2_channel_data *abstract = (php_ssh2_channel_data *) stream->abstract;
     ssize_t writestate;
     LIBSSH2_SESSION *session;
 
-    libssh2_channel_set_blocking(abstract->channel, abstract->is_blocking);
     session =
         (LIBSSH2_SESSION *) zend_fetch_resource(abstract->session_rsrc, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
 
 #ifdef PHP_SSH2_SESSION_TIMEOUT
     if (abstract->is_blocking) {
-        libssh2_session_set_timeout(session, abstract->timeout);
+        ssh2_set_socket_timeout(session, abstract->timeout);
     }
 #endif
 
@@ -62,45 +56,32 @@ static ssize_t php_ssh2_channel_stream_write(php_stream *stream, const char *buf
 
 #ifdef PHP_SSH2_SESSION_TIMEOUT
     if (abstract->is_blocking) {
-        libssh2_session_set_timeout(session, 0);
+        ssh2_set_socket_timeout(session, -1);
     }
 #endif
 
-    if (writestate == LIBSSH2_ERROR_EAGAIN) {
-#if PHP_VERSION_ID < 70400
-        writestate = 0;
-#endif
-    } else if (writestate < 0) {
+    if (writestate < 0) {
         char *error_msg = NULL;
         if (libssh2_session_last_error(session, &error_msg, NULL, 0) == writestate) {
             php_error_docref(NULL, E_WARNING, "Failure '%s' (%ld)", error_msg, writestate);
         }
 
         stream->eof = 1;
-#if PHP_VERSION_ID < 70400
-        writestate = 0;
-#endif
     }
 
     return writestate;
 }
 
-#if PHP_VERSION_ID < 70400
-static size_t php_ssh2_channel_stream_read(php_stream *stream, char *buf, size_t count)
-#else
-static ssize_t php_ssh2_channel_stream_read(php_stream *stream, char *buf, size_t count)
-#endif
-{
+static ssize_t php_ssh2_channel_stream_read(php_stream *stream, char *buf, size_t count) {
     php_ssh2_channel_data *abstract = (php_ssh2_channel_data *) stream->abstract;
     ssize_t readstate;
     auto session = ssh2_get_session(abstract);
 
     stream->eof = libssh2_channel_eof(abstract->channel);
-    libssh2_channel_set_blocking(abstract->channel, abstract->is_blocking);
 
 #ifdef PHP_SSH2_SESSION_TIMEOUT
     if (abstract->is_blocking) {
-        libssh2_session_set_timeout(session, abstract->timeout);
+        ssh2_set_socket_timeout(session, abstract->timeout);
     }
 #endif
 
@@ -108,15 +89,11 @@ static ssize_t php_ssh2_channel_stream_read(php_stream *stream, char *buf, size_
 
 #ifdef PHP_SSH2_SESSION_TIMEOUT
     if (abstract->is_blocking) {
-        libssh2_session_set_timeout(session, 0);
+        ssh2_set_socket_timeout(session, -1);
     }
 #endif
 
-    if (readstate == LIBSSH2_ERROR_EAGAIN) {
-#if PHP_VERSION_ID < 70400
-        readstate = 0;
-#endif
-    } else if (readstate < 0) {
+    if (readstate < 0) {
         char *error_msg = NULL;
         if (libssh2_session_last_error(session, &error_msg, NULL, 0) == readstate) {
             php_error_docref(NULL, E_WARNING, "Failure '%s' (%ld)", error_msg, readstate);
@@ -278,16 +255,7 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
             Find resource->path in the path string, then copy the entire string from the original path.
             This includes ?query#fragment in the path string
     */
-// TODO copy seems uneeded
-#if PHP_VERSION_ID < 70300
-    {
-        char *s;
-
-        s = resource->path;
-        resource->path = estrdup(strstr(path, resource->path));
-        efree(s);
-    }
-#else
+    // TODO copy seems uneeded
     {
         zend_string *tmp;
 
@@ -295,7 +263,6 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
         resource->path = zend_string_init(ZSTR_VAL(resource->path), ZSTR_LEN(resource->path), 0);
         zend_string_release(tmp);
     }
-#endif
 
     /* Look for a resource ID to reuse a session */
     if (is_numeric_string(ZSTR_VAL(resource->host), ZSTR_LEN(resource->host), &resource_id, NULL, 0) == IS_LONG) {
@@ -1047,6 +1014,9 @@ static php_stream *php_ssh2_scp_xfer(LIBSSH2_SESSION *session, zend_resource *rs
     php_ssh2_channel_data *channel_data;
     php_stream *stream;
 
+#ifdef SW_USE_SSH2_ASYNC_HOOK
+    php_ssh2_session_data *session_res = libssh2_session_abstract(session);
+#endif
     channel = libssh2_scp_recv(session, filename, NULL);
     if (!channel) {
         char *error;
@@ -1147,7 +1117,6 @@ PHP_FUNCTION(ssh2_scp_recv) {
         php_error_docref(NULL, E_WARNING, "Unable to receive remote file");
         RETURN_FALSE;
     }
-    libssh2_channel_set_blocking(remote_file, 1);
 
     local_file = php_stream_open_wrapper(local_filename, "wb", REPORT_ERRORS, NULL);
     if (!local_file) {
@@ -1232,7 +1201,6 @@ PHP_FUNCTION(ssh2_scp_send) {
         php_stream_close(local_file);
         RETURN_FALSE;
     }
-    libssh2_channel_set_blocking(remote_file, 1);
 
     while (ssb.sb.st_size) {
         char buffer[8192];
@@ -1299,8 +1267,6 @@ static php_stream *php_ssh2_direct_tcpip(LIBSSH2_SESSION *session, zend_resource
     LIBSSH2_CHANNEL *channel;
     php_ssh2_channel_data *channel_data;
     php_stream *stream;
-
-    libssh2_session_set_blocking(session, 1);
 
     channel = libssh2_channel_direct_tcpip(session, host, port);
     if (!channel) {

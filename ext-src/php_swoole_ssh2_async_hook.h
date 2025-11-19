@@ -145,6 +145,14 @@
 
 #define libssh2_sftp_init(session) SSH2_ASYNC_CALL_EX(LIBSSH2_SFTP, session, libssh2_sftp_init, session)
 
+#undef libssh2_scp_recv
+#define libssh2_scp_recv(session, path, stat)                                                                          \
+    SSH2_ASYNC_CALL_EX(LIBSSH2_CHANNEL, session, libssh2_scp_recv, session, path, stat)
+
+#undef libssh2_scp_send_ex
+#define libssh2_scp_send_ex(session, path, mode, size, atime, mtime)                                                   \
+    SSH2_ASYNC_CALL_EX(LIBSSH2_CHANNEL, session, libssh2_scp_send_ex, session, path, mode, size, atime, mtime)
+
 #undef libssh2_sftp_close
 #define libssh2_sftp_close(handle) SSH2_ASYNC_CALL(session, libssh2_sftp_close_handle, handle)
 

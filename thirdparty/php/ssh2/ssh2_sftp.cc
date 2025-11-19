@@ -270,12 +270,7 @@ static php_stream *php_ssh2_sftp_stream_opener(php_stream_wrapper *wrapper,
 
 /* {{{ php_ssh2_sftp_dirstream_read
  */
-#if PHP_VERSION_ID < 70400
-static size_t php_ssh2_sftp_dirstream_read(php_stream *stream, char *buf, size_t count)
-#else
-static ssize_t php_ssh2_sftp_dirstream_read(php_stream *stream, char *buf, size_t count)
-#endif
-{
+static ssize_t php_ssh2_sftp_dirstream_read(php_stream *stream, char *buf, size_t count) {
     php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data *) stream->abstract;
     php_stream_dirent *ent = (php_stream_dirent *) buf;
     auto session = data->session;
@@ -589,8 +584,7 @@ PHP_FUNCTION(ssh2_sftp) {
 
     sftp = libssh2_sftp_init(session);
     if (!sftp) {
-        char *sess_err = "Unknown";
-
+        char *sess_err;
         libssh2_session_last_error(session, &sess_err, NULL, 0);
         php_error_docref(NULL, E_WARNING, "Unable to startup SFTP subsystem: %s", sess_err);
         RETURN_FALSE;

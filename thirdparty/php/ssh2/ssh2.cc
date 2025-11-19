@@ -283,10 +283,6 @@ static int php_ssh2_set_method(
 }
 /* }}} */
 
-void my_trace_handler(LIBSSH2_SESSION *session, void *context, const char *data, size_t length) {
-    fprintf(stderr, "[TRACE] %.*s\n", (int) length, data);
-}
-
 /* {{{ php_ssh2_session_connect
  * Connect to an SSH server with requested methods
  */
@@ -314,9 +310,6 @@ LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, z
         delete sock;
         return NULL;
     }
-
-    libssh2_trace(session, ~0);
-    libssh2_trace_sethandler(session, NULL, my_trace_handler);
 
     libssh2_banner_set(session, LIBSSH2_SSH_DEFAULT_BANNER "/swoole-" SWOOLE_VERSION);
     libssh2_session_set_blocking(session, 0);
