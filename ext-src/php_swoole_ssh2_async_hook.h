@@ -215,16 +215,21 @@
     SSH2_ASYNC_CALL(                                                                                                   \
         session, libssh2_userauth_password_ex, session, username, username_len, password, password_len, change_cb)
 
-#undef libssh2_userauth_publickey_fromfile
-#define libssh2_userauth_publickey_fromfile(session, username, publickey, privatekey, passphrase)                      \
+#undef libssh2_userauth_publickey_fromfile_ex
+#define libssh2_userauth_publickey_fromfile_ex(session, username, username_len, publickey, privatekey, passphrase)     \
     SSH2_ASYNC_CALL(session,                                                                                           \
                     libssh2_userauth_publickey_fromfile_ex,                                                            \
                     (session),                                                                                         \
                     (username),                                                                                        \
-                    (unsigned int) strlen(username),                                                                   \
+                    (username_len),                                                                                    \
                     (publickey),                                                                                       \
                     (privatekey),                                                                                      \
                     (passphrase))
+
+#undef libssh2_userauth_publickey_fromfile
+#define libssh2_userauth_publickey_fromfile(session, username, publickey, privatekey, passphrase)                      \
+    libssh2_userauth_publickey_fromfile_ex(                                                                            \
+        (session), (username), (unsigned int) strlen(username), (publickey), (privatekey), (passphrase))
 
 #undef libssh2_userauth_publickey_frommemory
 #define libssh2_userauth_publickey_frommemory(                                                                         \

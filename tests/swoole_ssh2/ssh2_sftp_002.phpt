@@ -16,16 +16,13 @@ Co\run(function () {
     $filename = ssh2t_tempnam();
 
     $fp = fopen("ssh2.sftp://{$sftp}/{$filename}", 'w');
-    echo "write 1\n";
     fwrite($fp, "Hello World\n");
-    echo "write 2\n";
     fwrite($fp, "Goodbye Planet\n");
-    echo "close \n";
     fclose($fp);
 
     readfile("ssh2.sftp://{$sftp}/{$filename}");
 
-//    var_dump(ssh2_sftp_unlink($sftp, $filename));
+    var_dump(ssh2_sftp_unlink($sftp, $filename));
 });
 ?>
 --EXPECT--

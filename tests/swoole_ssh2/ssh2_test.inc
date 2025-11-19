@@ -15,8 +15,8 @@ ssh2t_defenv('TEST_SSH2_USER');
 ssh2t_defenv('TEST_SSH2_PASS');
 ssh2t_defenv('TEST_SSH2_TEMPDIR', '/tmp');
 ssh2t_defenv('TEST_SSH2_AUTH', TEST_SSH2_PASS ? 'password' : 'none');
-ssh2t_defenv('TEST_SSH2_PUB_KEY', dirname(__FILE__) . "/testkey_rsa.pub");
-ssh2t_defenv('TEST_SSH2_PRIV_KEY', dirname(__FILE__) . "/testkey_rsa");
+ssh2t_defenv('TEST_SSH2_PUB_KEY', __DIR__ . '/testkey_rsa.pub');
+ssh2t_defenv('TEST_SSH2_PRIV_KEY', __DIR__ . '/testkey_rsa');
 
 function ssh2t_auth($ssh) {
   if (!TEST_SSH2_USER) {

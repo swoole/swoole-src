@@ -103,11 +103,10 @@ typedef struct _php_ssh2_sftp_handle_data {
 
 /* {{{ php_ssh2_sftp_stream_write
  */
-static ssize_t php_ssh2_sftp_stream_write(php_stream *stream, const char *buf, size_t count)
-{
+static ssize_t php_ssh2_sftp_stream_write(php_stream *stream, const char *buf, size_t count) {
     php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data *) stream->abstract;
     ssize_t bytes_written;
-    
+
     auto session = data->session;
     bytes_written = libssh2_sftp_write(data->handle, buf, count);
 
@@ -172,6 +171,8 @@ static int php_ssh2_sftp_stream_seek(php_stream *stream, zend_off_t offset, int 
         offset += current_offset;
         break;
     }
+    default:
+        return -1;
     }
 
     libssh2_sftp_seek(data->handle, offset);
