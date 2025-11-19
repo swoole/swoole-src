@@ -93,6 +93,9 @@ static inline int php_ssh2_sftp_attr2ssb(php_stream_statbuf *ssb, LIBSSH2_SFTP_A
 
 typedef struct _php_ssh2_sftp_handle_data {
     LIBSSH2_SFTP_HANDLE *handle;
+    // The sftp_rsrc resource holds a reference to session_rsrc,
+    // so you can store the pointer directly without worrying about its lifetime.
+    // In the destructor, the session reference is dropped only after the sftp_rsrc resource has been freed.
     LIBSSH2_SESSION *session;
     LIBSSH2_SFTP *sftp;
     zend_resource *sftp_rsrc;
@@ -121,12 +124,7 @@ static ssize_t php_ssh2_sftp_stream_write(php_stream *stream, const char *buf, s
 
 /* {{{ php_ssh2_sftp_stream_read
  */
-#if PHP_VERSION_ID < 70400
-static size_t php_ssh2_sftp_stream_read(php_stream *stream, char *buf, size_t count)
-#else
-static ssize_t php_ssh2_sftp_stream_read(php_stream *stream, char *buf, size_t count)
-#endif
-{
+static ssize_t php_ssh2_sftp_stream_read(php_stream *stream, char *buf, size_t count) {
     php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data *) stream->abstract;
     ssize_t bytes_read;
 
@@ -674,7 +672,7 @@ PHP_FUNCTION(ssh2_sftp_mkdir) {
     zend_string *dirname;
     zend_long mode = 0777;
     zend_bool recursive = 0;
-    char *p;
+    const char *p;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "rS|lb", &zsftp, &dirname, &mode, &recursive) == FAILURE) {
         return;
@@ -693,7 +691,7 @@ PHP_FUNCTION(ssh2_sftp_mkdir) {
         /* Just attempt to make every directory, some will fail, but we only care about the last success/failure */
         p = dirname->val;
         while ((p = strchr(p + 1, '/'))) {
-            if ((p - dirname->val) + 1 == dirname->len) {
+            if ((p - dirname->val) + 1 == (long) dirname->len) {
                 break;
             }
             libssh2_sftp_mkdir_ex(data->sftp, dirname->val, p - dirname->val, mode);

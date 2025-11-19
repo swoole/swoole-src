@@ -474,22 +474,15 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
             return NULL;
         }
 
-        auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
-            return libssh2_userauth_publickey_fromfile(session, username, pubkey_file, privkey_file, password);
-        });
-
         /* Attempt pubkey authentication */
-        if (!rc) {
+        if (!libssh2_userauth_publickey_fromfile(session, username, pubkey_file, privkey_file, password)) {
             goto session_authed;
         }
     }
 
     if (password) {
         /* Attempt password authentication */
-        auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
-            return libssh2_userauth_password_ex(session, username, username_len, password, password_len, NULL);
-        });
-        if (rc == 0) {
+        if (libssh2_userauth_password_ex(session, username, username_len, password, password_len, NULL) == 0) {
             goto session_authed;
         }
     }
@@ -846,11 +839,7 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
 
                     zval_copy_ctor(&copyval);
                     convert_to_string(&copyval);
-                    auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
-                        return libssh2_channel_setenv_ex(
-                            channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval));
-                    });
-                    if (rc) {
+                    if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
                         php_error_docref(
                             NULL, E_WARNING, "Failed setting %s=%s on remote end", ZSTR_VAL(key), Z_STRVAL(copyval));
                     }
@@ -864,20 +853,14 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
 
     if (term) {
         if (type == PHP_SSH2_TERM_UNIT_CHARS) {
-            auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
-                return libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, width, height, 0, 0);
-            });
-            if (rc) {
+            if (libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, width, height, 0, 0)) {
                 php_error_docref(
                     NULL, E_WARNING, "Failed allocating %s pty at %ldx%ld characters", term, width, height);
                 libssh2_channel_free(channel);
                 return NULL;
             }
         } else {
-            auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
-                return libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, 0, 0, width, height);
-            });
-            if (rc) {
+            if (libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, 0, 0, width, height)) {
                 php_error_docref(NULL, E_WARNING, "Failed allocating %s pty at %ldx%ld pixels", term, width, height);
                 libssh2_channel_free(channel);
                 return NULL;

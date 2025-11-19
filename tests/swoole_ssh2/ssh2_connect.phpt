@@ -1,11 +1,13 @@
 --TEST--
 ssh2_connect() Basic connection and pre-authentication
 --SKIPIF--
-<?php require_once('ssh2_skip.inc'); ?>
+<?php require_once 'ssh2_skip.inc'; ?>
 --FILE--
-<?php require_once('ssh2_test.inc');
+<?php
+require_once 'ssh2_test.inc';
+require_once __DIR__ . '/../include/bootstrap.php';
 
-Co\run(function (){
+Co\run(function () {
     echo "**Connect\n";
     $ssh = ssh2_connect(TEST_SSH2_HOSTNAME, TEST_SSH2_PORT);
     var_dump(is_resource($ssh));
@@ -23,20 +25,23 @@ Co\run(function (){
     var_dump(strlen($sha1));
     var_dump(ctype_xdigit($sha1));
 
-    function ssh2t_strset($v) {
-      return is_string($v) && (strlen($v) > 0);
+    function ssh2t_strset($v)
+    {
+        return is_string($v) && (strlen($v) > 0);
     }
 
     echo "**Negotiation\n";
     $mn = ssh2_methods_negotiated($ssh);
     var_dump(ssh2t_strset($mn['kex']));
     var_dump(ssh2t_strset($mn['hostkey']));
-    foreach(array('client_to_server', 'server_to_client') as $direction) {
-      $mnd = $mn[$direction];
-      var_dump(ssh2t_strset($mnd['crypt']));
-      var_dump(ssh2t_strset($mnd['comp']));
-      var_dump(ssh2t_strset($mnd['mac']));
+    foreach (['client_to_server', 'server_to_client'] as $direction) {
+        $mnd = $mn[$direction];
+        var_dump(ssh2t_strset($mnd['crypt']));
+        var_dump(ssh2t_strset($mnd['comp']));
+        var_dump(ssh2t_strset($mnd['mac']));
     }
+
+    Assert::true(ssh2_disconnect($ssh));
 });
 ?>
 --EXPECT--

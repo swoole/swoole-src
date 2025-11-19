@@ -310,7 +310,7 @@ LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, z
         delete sock;
         return NULL;
     }
-    libssh2_banner_set(session, LIBSSH2_SSH_DEFAULT_BANNER " PHP");
+    libssh2_banner_set(session, LIBSSH2_SSH_DEFAULT_BANNER "/swoole-" SWOOLE_VERSION);
     libssh2_session_set_blocking(session, 0);
 
     /* Override method preferences */
@@ -622,27 +622,22 @@ PHP_FUNCTION(ssh2_auth_password) {
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
 
+#ifdef SW_USE_SSH2_ASYNC_HOOK
+    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
+#endif
+
     userauthlist = libssh2_userauth_list(session, username->val, username->len);
 
     if (userauthlist != NULL) {
         password_for_kbd_callback = password->val;
         if (strstr(userauthlist, "keyboard-interactive") != NULL) {
-            auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
-                return libssh2_userauth_keyboard_interactive(session, username->val, &kbd_callback);
-            });
-
-            if (rc == 0) {
+            if (libssh2_userauth_keyboard_interactive(session, username->val, &kbd_callback) == 0) {
                 RETURN_TRUE;
             }
         }
 
-        auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
-            return libssh2_userauth_password_ex(
-                session, username->val, username->len, password->val, password->len, NULL);
-        });
-
         /* TODO: Support password change callback */
-        if (rc) {
+        if (libssh2_userauth_password_ex(session, username->val, username->len, password->val, password->len, NULL)) {
             php_error_docref(NULL, E_WARNING, "Authentication failed for %s using password", username->val);
             RETURN_FALSE;
         }
@@ -674,6 +669,11 @@ PHP_FUNCTION(ssh2_auth_pubkey_file) {
     }
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
+
+#ifdef SW_USE_SSH2_ASYNC_HOOK
+    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
+#endif
+
 #ifndef PHP_WIN32
     /* Explode '~/paths' stopgap fix because libssh2 does not accept tilde for homedir
       This should be ifdef'ed when a fix is available to support older libssh2 versions*/
@@ -694,10 +694,8 @@ PHP_FUNCTION(ssh2_auth_pubkey_file) {
     }
 #endif
 
-    auto rc = ssh2_async_call(session, [&](Socket *sock, LIBSSH2_SESSION *session) {
-        return libssh2_userauth_publickey_fromfile_ex(
-            session, ZSTR_VAL(username), ZSTR_LEN(username), ZSTR_VAL(pubkey), ZSTR_VAL(privkey), ZSTR_VAL(passphrase));
-    });
+    auto rc = libssh2_userauth_publickey_fromfile_ex(
+        session, ZSTR_VAL(username), ZSTR_LEN(username), ZSTR_VAL(pubkey), ZSTR_VAL(privkey), ZSTR_VAL(passphrase));
 
     /* TODO: Support passphrase callback */
     if (rc) {
@@ -726,6 +724,10 @@ PHP_FUNCTION(ssh2_auth_pubkey) {
     }
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
+
+#ifdef SW_USE_SSH2_ASYNC_HOOK
+    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
+#endif
 
     if (libssh2_userauth_publickey_frommemory(session,
                                               ZSTR_VAL(username),
@@ -778,6 +780,10 @@ PHP_FUNCTION(ssh2_auth_hostbased_file) {
     }
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
+
+#ifdef SW_USE_SSH2_ASYNC_HOOK
+    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
+#endif
 
     if (!local_username) {
         local_username = username;
@@ -1318,9 +1324,7 @@ static void php_ssh2_session_dtor(zend_resource *rsrc) {
     LIBSSH2_SESSION *session = (LIBSSH2_SESSION *) rsrc->ptr;
     php_ssh2_session_data **data = (php_ssh2_session_data **) libssh2_session_abstract(session);
 
-    ssh2_async_call((*data)->socket, session, [](Socket *sock, LIBSSH2_SESSION *session) {
-        return libssh2_session_disconnect(session, "PECL/ssh2 (http://pecl.php.net/packages/ssh2)");
-    });
+    libssh2_session_disconnect(session, "PECL/ssh2 (http://pecl.php.net/packages/ssh2)");
 
     if (*data) {
         if ((*data)->ignore_cb) {

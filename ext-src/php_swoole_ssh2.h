@@ -47,52 +47,62 @@ ZEND_FUNCTION(ssh2_auth_agent);
 #endif
 SW_EXTERN_C_END
 
-typedef std::function<int(swoole::coroutine::Socket *, LIBSSH2_SESSION *session)> Ssh2Fn;
-
 typedef struct _php_ssh2_session_data {
-	/* Userspace callback functions */
-	zval *ignore_cb;
-	zval *debug_cb;
-	zval *macerror_cb;
-	zval *disconnect_cb;
+    /* Userspace callback functions */
+    zval *ignore_cb;
+    zval *debug_cb;
+    zval *macerror_cb;
+    zval *disconnect_cb;
 
-	swoole::coroutine::Socket *socket;
+    swoole::coroutine::Socket *socket;
 } php_ssh2_session_data;
 
 static inline swoole::EventType ssh2_get_event_type(LIBSSH2_SESSION *session) {
-	int dir = libssh2_session_block_directions(session);
+    int dir = libssh2_session_block_directions(session);
     if (dir & LIBSSH2_SESSION_BLOCK_OUTBOUND) {
-    	return SW_EVENT_WRITE;
+        return SW_EVENT_WRITE;
     } else {
-    	return SW_EVENT_READ;
+        return SW_EVENT_READ;
     }
 }
 
-static inline int ssh2_async_call(swoole::coroutine::Socket *socket, LIBSSH2_SESSION *session, const Ssh2Fn &fn) {
-	auto event = ssh2_get_event_type(session);
-
-	int rc;
-	while (1) {
-		rc = fn(socket, session);
-		if (rc == LIBSSH2_ERROR_EAGAIN) {
-			if (!socket->poll(event)) {
-				return -1;
-			}
-			continue;
-		}
-		if (rc) {
-			return rc;
-		}
-		break;
-	}
-	return 0;
-}
-
 static inline swoole::coroutine::Socket *ssh2_get_socket(LIBSSH2_SESSION *session) {
-	auto session_data = (php_ssh2_session_data **) libssh2_session_abstract(session);
-	return (*session_data)->socket;
+    auto session_data = (php_ssh2_session_data **) libssh2_session_abstract(session);
+    return (*session_data)->socket;
 }
 
-static inline int ssh2_async_call(LIBSSH2_SESSION *session, const Ssh2Fn &fn) {
-	return ssh2_async_call(ssh2_get_socket(session), session, fn);
+static inline int ssh2_async_call(LIBSSH2_SESSION *session, const std::function<int(void)> &fn) {
+    auto event = ssh2_get_event_type(session);
+    auto socket = ssh2_get_socket(session);
+    int rc = 0;
+    while (1) {
+        rc = fn();
+        if (rc == LIBSSH2_ERROR_EAGAIN) {
+            if (!socket->poll(event)) {
+                return LIBSSH2_ERROR_SOCKET_NONE;
+            }
+            continue;
+        }
+        break;
+    }
+    return rc;
+}
+
+template <typename T>
+static inline T *ssh2_async_call_ex(LIBSSH2_SESSION *session, const std::function<T *(void)> &fn) {
+    auto event = ssh2_get_event_type(session);
+    auto socket = ssh2_get_socket(session);
+
+    T *handle;
+    while (1) {
+        handle = fn();
+        if (handle) {
+            return handle;
+        }
+        if (libssh2_session_last_errno(session) == LIBSSH2_ERROR_EAGAIN && socket->poll(event)) {
+            continue;
+        }
+        break;
+    }
+    return nullptr;
 }

@@ -112,10 +112,10 @@ typedef struct _php_ssh2_channel_data {
 
 } php_ssh2_channel_data;
 
-LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, zval *callbacks);
+LIBSSH2_SESSION *php_ssh2_session_connect(const char *host, int port, zval *methods, zval *callbacks);
 void php_ssh2_sftp_dtor(zend_resource *rsrc);
 php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
-                                          char *type,
+                                          const char *type,
                                           php_stream_context *context,
                                           LIBSSH2_SESSION **psession,
                                           zend_resource **presource,
