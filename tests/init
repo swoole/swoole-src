@@ -86,6 +86,8 @@ Swoole\Coroutine\run(function () use ($load_mysql, $load_firebird, $load_odbc_my
         exec("chown -R $ssh_user:$ssh_user /home/$ssh_user/.ssh");
         exec("ssh -vvv -i " . __DIR__ . '/swoole_ssh2/testkey_ed25519' . " $ssh_user@localhost");
 
+        readfile('/var/log/auth.log');
+
         echo "[SSH2-init] SSH2 test user setup completed\n";
     } else {
         echo "[SSH2-init] User $ssh_user already exists, skipping creation\n";
