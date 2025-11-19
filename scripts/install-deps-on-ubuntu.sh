@@ -1,4 +1,4 @@
-sudo apt install cmake make gcc \
+sudo apt install cmake make gcc sqlite3 \
     libssl-dev \
     libmariadb-dev \
     libaio-dev libaio1  \
