@@ -1382,6 +1382,13 @@ EOF
         fi
     fi
 
+    if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/php84/pdo_firebird/firebird_driver.c \
+            thirdparty/php84/pdo_firebird/firebird_statement.c \
+            thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
+    fi
+
     SW_ASM_DIR="thirdparty/boost/asm/"
     SW_USE_ASM_CONTEXT="yes"
 
