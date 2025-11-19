@@ -1,4 +1,4 @@
-sudo apt install -y cmake make gcc \
+apt install -y cmake make gcc \
     libc-ares-dev \
     libssl-dev \
     libcurl4-openssl-dev \
