@@ -1100,6 +1100,7 @@ static PHP_METHOD(swoole_http_response, disconnect) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     String *http_buffer = ctx->get_write_buffer();
+    http_buffer->clear();
 
     zval zdata = {};
     ZVAL_STR(&zdata, reason);
@@ -1255,6 +1256,7 @@ static PHP_METHOD(swoole_http_response, push) {
     }
 
     String *http_buffer = ctx->get_write_buffer();
+    http_buffer->clear();
 
     FrameObject frame(zdata, opcode, flags);
     sw_unset_bit(frame.flags, WebSocket::FLAG_MASK);
@@ -1292,6 +1294,7 @@ ssize_t WebSocket::send_frame(const swoole::WebSocketSettings &settings,
         sw_set_bit(flags, WebSocket::FLAG_MASK);
     }
     auto wbuf = sock->get_write_buffer();
+    wbuf->clear();
     WebSocket::encode(wbuf, payload, payload_length, opcode, flags);
     return sock->send(wbuf->str, wbuf->length);
 }
