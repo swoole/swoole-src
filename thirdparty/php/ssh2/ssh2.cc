@@ -311,7 +311,7 @@ LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, z
         return NULL;
     }
 
-    libssh2_banner_set(session, LIBSSH2_SSH_DEFAULT_BANNER "/swoole-" SWOOLE_VERSION);
+    libssh2_banner_set(session, LIBSSH2_SSH_DEFAULT_BANNER " swoole-" SWOOLE_VERSION);
     libssh2_session_set_blocking(session, 0);
 
     /* Override method preferences */
@@ -1307,7 +1307,7 @@ static void php_ssh2_session_dtor(zend_resource *rsrc) {
     LIBSSH2_SESSION *session = (LIBSSH2_SESSION *) rsrc->ptr;
     php_ssh2_session_data **data = (php_ssh2_session_data **) libssh2_session_abstract(session);
 
-    libssh2_session_disconnect(session, "PECL/ssh2 (http://pecl.php.net/packages/ssh2)");
+    libssh2_session_disconnect(session, "swoole_ssh2 (https://github.com/swoole/swoole-src)");
 
     if (*data) {
         if ((*data)->ignore_cb) {
