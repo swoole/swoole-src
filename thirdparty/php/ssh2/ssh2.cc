@@ -622,10 +622,6 @@ PHP_FUNCTION(ssh2_auth_password) {
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
 
-#ifdef SW_USE_SSH2_ASYNC_HOOK
-    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
-#endif
-
     userauthlist = libssh2_userauth_list(session, username->val, username->len);
 
     if (userauthlist != NULL) {
@@ -669,11 +665,6 @@ PHP_FUNCTION(ssh2_auth_pubkey_file) {
     }
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
-
-#ifdef SW_USE_SSH2_ASYNC_HOOK
-    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
-#endif
-
 #ifndef PHP_WIN32
     /* Explode '~/paths' stopgap fix because libssh2 does not accept tilde for homedir
       This should be ifdef'ed when a fix is available to support older libssh2 versions*/
@@ -694,11 +685,13 @@ PHP_FUNCTION(ssh2_auth_pubkey_file) {
     }
 #endif
 
-    auto rc = libssh2_userauth_publickey_fromfile_ex(
-        session, ZSTR_VAL(username), ZSTR_LEN(username), ZSTR_VAL(pubkey), ZSTR_VAL(privkey), ZSTR_VAL(passphrase));
-
     /* TODO: Support passphrase callback */
-    if (rc) {
+    if (libssh2_userauth_publickey_fromfile_ex(session,
+                                               ZSTR_VAL(username),
+                                               ZSTR_LEN(username),
+                                               ZSTR_VAL(pubkey),
+                                               ZSTR_VAL(privkey),
+                                               ZSTR_VAL(passphrase))) {
         char *buf;
         int len;
         libssh2_session_last_error(session, &buf, &len, 0);
@@ -724,10 +717,6 @@ PHP_FUNCTION(ssh2_auth_pubkey) {
     }
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
-
-#ifdef SW_USE_SSH2_ASYNC_HOOK
-    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
-#endif
 
     if (libssh2_userauth_publickey_frommemory(session,
                                               ZSTR_VAL(username),
@@ -780,10 +769,6 @@ PHP_FUNCTION(ssh2_auth_hostbased_file) {
     }
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
-
-#ifdef SW_USE_SSH2_ASYNC_HOOK
-    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
-#endif
 
     if (!local_username) {
         local_username = username;

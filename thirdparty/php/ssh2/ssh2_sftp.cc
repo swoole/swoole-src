@@ -247,8 +247,7 @@ static php_stream *php_ssh2_sftp_stream_opener(php_stream_wrapper *wrapper,
 
     flags = php_ssh2_parse_fopen_modes((char *) mode);
 
-    auto url_str = ZSTR_VAL(resource->path);
-    handle = libssh2_sftp_open(sftp, url_str, flags, perms);
+    handle = libssh2_sftp_open(sftp, ZSTR_VAL(resource->path), flags, perms);
     if (!handle) {
         php_error_docref(NULL, E_WARNING, "Unable to open %s on remote host", filename);
         php_url_free(resource);
