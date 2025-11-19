@@ -7,10 +7,7 @@ require_once 'ssh2_skip.inc'; ?>
 <?php
 require_once 'ssh2_test.inc';
 Co\run(function () {
-    $ssh = ssh2_connect(TEST_SSH2_HOSTNAME, TEST_SSH2_PORT, null, ['debug' => function () {
-    var_dump(func_get_arg());
-}]);
-
+    $ssh = ssh2_connect(TEST_SSH2_HOSTNAME, TEST_SSH2_PORT);
     var_dump(ssh2_auth_pubkey($ssh, TEST_SSH2_USER, file_get_contents(TEST_SSH2_PUB_KEY), file_get_contents(TEST_SSH2_PRIV_KEY)));
 
     $cmd = ssh2_exec($ssh, 'echo "testing echo with key auth"' . PHP_EOL);

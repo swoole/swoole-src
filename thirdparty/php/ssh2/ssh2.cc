@@ -283,6 +283,10 @@ static int php_ssh2_set_method(
 }
 /* }}} */
 
+void my_trace_handler(LIBSSH2_SESSION *session, void *context, const char *data, size_t length) {
+    fprintf(stderr, "[TRACE] %.*s\n", (int) length, data);
+}
+
 /* {{{ php_ssh2_session_connect
  * Connect to an SSH server with requested methods
  */
@@ -293,7 +297,7 @@ LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, z
 
     int domain = swoole::network::Address::verify_ip(AF_INET6, host) ? AF_INET6 : AF_INET;
 
-    auto sock = new swoole::coroutine::Socket(domain, SOCK_STREAM, 0);
+    auto sock = new Socket(domain, SOCK_STREAM, 0);
     if (sock->get_fd() < 0 || !sock->connect(host, port)) {
         php_error_docref(NULL, E_WARNING, "Unable to connect to %s on port %d", host, port);
         delete sock;
@@ -310,6 +314,10 @@ LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, z
         delete sock;
         return NULL;
     }
+
+    libssh2_trace(session, ~0);
+    libssh2_trace_sethandler(session, NULL, my_trace_handler);
+
     libssh2_banner_set(session, LIBSSH2_SSH_DEFAULT_BANNER "/swoole-" SWOOLE_VERSION);
     libssh2_session_set_blocking(session, 0);
 
@@ -649,7 +657,7 @@ PHP_FUNCTION(ssh2_auth_password) {
 PHP_FUNCTION(ssh2_auth_pubkey_file) {
     LIBSSH2_SESSION *session;
     zval *zsession;
-    zend_string *username, *pubkey, *privkey, *passphrase;
+    zend_string *username, *pubkey, *privkey, *passphrase = nullptr;
 #ifndef PHP_WIN32
     zend_string *newpath;
     struct passwd *pws;
@@ -685,13 +693,11 @@ PHP_FUNCTION(ssh2_auth_pubkey_file) {
     }
 #endif
 
+    auto passphrase_ptr = passphrase ? ZSTR_VAL(passphrase) : nullptr;
+
     /* TODO: Support passphrase callback */
-    if (libssh2_userauth_publickey_fromfile_ex(session,
-                                               ZSTR_VAL(username),
-                                               ZSTR_LEN(username),
-                                               ZSTR_VAL(pubkey),
-                                               ZSTR_VAL(privkey),
-                                               ZSTR_VAL(passphrase))) {
+    if (libssh2_userauth_publickey_fromfile_ex(
+            session, ZSTR_VAL(username), ZSTR_LEN(username), ZSTR_VAL(pubkey), ZSTR_VAL(privkey), passphrase_ptr)) {
         char *buf;
         int len;
         libssh2_session_last_error(session, &buf, &len, 0);
@@ -709,12 +715,14 @@ PHP_FUNCTION(ssh2_auth_pubkey_file) {
 PHP_FUNCTION(ssh2_auth_pubkey) {
     LIBSSH2_SESSION *session;
     zval *zsession;
-    zend_string *username, *pubkey, *privkey, *passphrase;
+    zend_string *username, *pubkey, *privkey, *passphrase = nullptr;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "rSSS|S", &zsession, &username, &pubkey, &privkey, &passphrase) ==
         FAILURE) {
         return;
     }
+
+    auto passphrase_ptr = passphrase ? ZSTR_VAL(passphrase) : nullptr;
 
     SSH2_FETCH_NONAUTHENTICATED_SESSION(session, zsession);
 
@@ -725,7 +733,7 @@ PHP_FUNCTION(ssh2_auth_pubkey) {
                                               ZSTR_LEN(pubkey),
                                               ZSTR_VAL(privkey),
                                               ZSTR_LEN(privkey),
-                                              ZSTR_VAL(passphrase))) {
+											  passphrase_ptr)) {
         char *buf;
         int len;
         libssh2_session_last_error(session, &buf, &len, 0);
@@ -813,10 +821,6 @@ PHP_FUNCTION(ssh2_forward_listen) {
     }
 
     SSH2_FETCH_AUTHENTICATED_SESSION(session, zsession);
-
-#ifdef SW_USE_SSH2_ASYNC_HOOK
-    php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
-#endif
 
     listener = libssh2_channel_forward_listen_ex(session, host, port, NULL, max_connections);
 

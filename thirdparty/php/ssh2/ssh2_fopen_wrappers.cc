@@ -181,22 +181,15 @@ static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, in
     int ret;
 
     switch (option) {
-    case PHP_STREAM_OPTION_BLOCKING:
+    case PHP_STREAM_OPTION_BLOCKING: {
         ret = abstract->is_blocking;
         abstract->is_blocking = value;
         return ret;
-        break;
-
+    }
     case PHP_STREAM_OPTION_META_DATA_API: {
-#ifdef SW_USE_SSH2_ASYNC_HOOK
-        LIBSSH2_SESSION *session =
-            (LIBSSH2_SESSION *) zend_fetch_resource(abstract->session_rsrc, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
-        php_ssh2_session_data *session_res = (php_ssh2_session_data *) libssh2_session_abstract(session);
-#endif
         add_assoc_long((zval *) ptrparam, "exit_status", libssh2_channel_get_exit_status(abstract->channel));
         break;
     }
-
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
         ret = abstract->timeout;
 #ifdef PHP_SSH2_SESSION_TIMEOUT
@@ -206,11 +199,9 @@ static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, in
         php_error_docref(NULL, E_WARNING, "No support for ssh2 stream timeout. Please recompile with libssh2 >= 1.2.9");
 #endif
         return ret;
-        break;
     }
     case PHP_STREAM_OPTION_CHECK_LIVENESS: {
         return stream->eof = libssh2_channel_eof(abstract->channel);
-        break;
     }
     }
 

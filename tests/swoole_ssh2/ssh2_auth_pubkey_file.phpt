@@ -5,10 +5,7 @@ ssh2_auth_pubkey_file() - Tests authentication with a key
 --FILE--
 <?php require_once 'ssh2_test.inc';
 Co\run(function () {
-
-$ssh = ssh2_connect(TEST_SSH2_HOSTNAME, TEST_SSH2_PORT, null, ['debug' => function () {
-                        var_dump(func_get_arg());
-                    }]);
+    $ssh = ssh2_connect(TEST_SSH2_HOSTNAME, TEST_SSH2_PORT);
 
     var_dump(ssh2_auth_pubkey_file($ssh, TEST_SSH2_USER, TEST_SSH2_PUB_KEY, TEST_SSH2_PRIV_KEY));
 
