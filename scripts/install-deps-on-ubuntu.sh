@@ -9,6 +9,7 @@ apt install -y cmake make gcc \
     libbrotli-dev \
     libpq-dev \
     unixodbc-dev \
+    firebird-dev \
     libzstd-dev \
     liburing-dev \
     libssh2-1-dev

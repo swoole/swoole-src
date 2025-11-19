@@ -21,6 +21,7 @@ option="--enable-brotli \
        --enable-swoole-stdext \
        --enable-cares \
        --enable-swoole-pgsql \
+       --with-swoole-firebird \
        --with-swoole-odbc=unixODBC,/usr \
        --with-swoole-oracle=instantclient,/usr/local/instantclient \
        --with-swoole-ssh2 \
