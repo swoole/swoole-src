@@ -1196,10 +1196,10 @@ PHP_FUNCTION(ssh2_scp_send) {
 
     while (ssb.sb.st_size) {
         char buffer[8192];
-        size_t toread = MIN(8192, ssb.sb.st_size);
-        size_t bytesread = php_stream_read(local_file, buffer, toread);
-        size_t sent = 0;
-        size_t justsent = 0;
+        ssize_t toread = MIN(8192, ssb.sb.st_size);
+        ssize_t bytesread = php_stream_read(local_file, buffer, toread);
+        ssize_t sent = 0;
+        ssize_t justsent = 0;
 
         if (bytesread <= 0 || bytesread > toread) {
             php_error_docref(NULL, E_WARNING, "Failed copying file 2");

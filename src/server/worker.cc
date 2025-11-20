@@ -474,9 +474,9 @@ void Server::clean_worker_connections(Worker *worker) {
     swoole_trace_log(SW_TRACE_WORKER, "clean connections");
     sw_reactor()->destroyed = true;
     if (sw_likely(is_base_mode())) {
-        foreach_connection([this](Connection *conn) { close_connection(sw_reactor(), conn->socket); });
+        foreach_connection([](Connection *conn) { close_connection(sw_reactor(), conn->socket); });
     } else if (is_thread_mode()) {
-        foreach_connection([this, worker](Connection *conn) {
+        foreach_connection([worker](Connection *conn) {
             if (conn->reactor_id == worker->id) {
                 close_connection(sw_reactor(), conn->socket);
             }

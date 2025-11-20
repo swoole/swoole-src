@@ -210,8 +210,6 @@ void swoole_curl_verify_handlers(php_curl *ch, bool reporterror) /* {{{ */
 /* }}} */
 
 /* CurlHandle class */
-static const zend_function_entry swoole_coroutine_curl_handle_methods[] = {ZEND_FE_END};
-
 zend_class_entry *swoole_coroutine_curl_handle_ce;
 static zend_object_handlers swoole_coroutine_curl_handle_handlers;
 
