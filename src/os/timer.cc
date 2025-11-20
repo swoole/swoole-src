@@ -18,6 +18,7 @@
 #include "swoole_signal.h"
 
 #include <csignal>
+#include <sys/time.h>
 
 namespace swoole {
 static int SystemTimer_set(Timer *timer, long next_msec);
@@ -29,34 +30,12 @@ void Timer::init_with_system_timer() {
 }
 
 static int SystemTimer_set(Timer *timer, long next_msec) {
-    itimerval timer_set;
-    timeval now;
-    if (gettimeofday(&now, nullptr) < 0) {
-        swoole_sys_warning("gettimeofday() failed");
-        return SW_ERR;
-    }
-
+    itimerval timer_set{};
     if (next_msec > 0) {
-        int sec = next_msec / 1000;
-        int msec = next_msec % 1000;
-        timer_set.it_interval.tv_sec = sec;
-        timer_set.it_interval.tv_usec = msec * 1000;
-        timer_set.it_value.tv_sec = sec;
-        timer_set.it_value.tv_usec = timer_set.it_interval.tv_usec;
-
-        if (timer_set.it_value.tv_usec > 1e6) {
-            timer_set.it_value.tv_usec = timer_set.it_value.tv_usec - 1e6;
-            timer_set.it_value.tv_sec += 1;
-        }
-    } else {
-        timer_set = {};
+        timer_set.it_interval = {next_msec / 1000, (next_msec % 1000) * 1000};
+        timer_set.it_value = timer_set.it_interval;
     }
-
-    if (setitimer(ITIMER_REAL, &timer_set, nullptr) < 0) {
-        swoole_sys_warning("setitimer() failed");
-        return SW_ERR;
-    }
-    return SW_OK;
+    return setitimer(ITIMER_REAL, &timer_set, nullptr) < 0 ? SW_ERR : SW_OK;
 }
 
 void realtime_get(timespec *time) {

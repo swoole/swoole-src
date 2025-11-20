@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <cassert>
+#include <ctime>
 
 #include <string>
 #include <memory>
@@ -72,14 +73,11 @@ static inline long time(bool steady = false) {
 }
 
 static inline long get_timezone() {
-#ifdef __linux__
-    return timezone;
-#else
-    struct timezone tz;
-    struct timeval tv;
-    gettimeofday(&tv, &tz);
-    return tz.tz_minuteswest * 60;
-#endif
+    using namespace std::chrono;
+    auto now_time_t = system_clock::to_time_t(system_clock::now());
+    std::tm local_tm{};
+    localtime_r(&now_time_t, &local_tm);
+    return local_tm.tm_gmtoff;
 }
 
 class DeferTask {

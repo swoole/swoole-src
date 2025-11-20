@@ -18,6 +18,8 @@
 #include "swoole_hash.h"
 #include "swoole_util.h"
 
+#include <thread>
+
 namespace swoole {
 
 Table *Table::make(uint32_t rows_size, float conflict_proportion) {
@@ -263,7 +265,7 @@ void TableRow::lock() {
             swoole_warning("timeout, force unlock");
             goto _success;
         }
-        sw_yield();
+        std::this_thread::yield();
     }
 }
 

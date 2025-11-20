@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 
+#include <thread>
+
 void sw_spinlock(sw_atomic_t *lock) {
     uint32_t i, n;
     while (true) {
@@ -33,7 +35,7 @@ void sw_spinlock(sw_atomic_t *lock) {
                 }
             }
         }
-        sw_yield();
+        std::this_thread::yield();
     }
 }
 

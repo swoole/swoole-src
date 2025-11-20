@@ -29,6 +29,7 @@
 
 #include <list>
 #include <set>
+#include <chrono>
 #include <random>
 
 #include "swoole_string.h"
@@ -956,8 +957,7 @@ std::string intersection(const std::vector<std::string> &vec1, std::set<std::str
 }
 
 double microtime() {
-    timeval t;
-    gettimeofday(&t, nullptr);
-    return (double) t.tv_sec + ((double) t.tv_usec / 1000000);
+    using namespace std::chrono;
+    return duration_cast<duration<double>>(system_clock::now().time_since_epoch()).count();
 }
 };  // namespace swoole

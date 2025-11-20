@@ -31,7 +31,11 @@
 #define SW_EXTERN_C_END
 #endif
 
-#ifndef _GNU_SOURCE
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
+#if defined(__linux__) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif
 
@@ -49,13 +53,11 @@
 #include <cstring>
 #include <climits>
 #include <unistd.h>
-#include <sched.h> /* sched_yield() */
 #include <pthread.h>
 #include <inttypes.h>
 
 #include <sys/uio.h>
 #include <sys/utsname.h>
-#include <sys/time.h>
 
 #include <string>
 #include <memory>
@@ -491,9 +493,6 @@ enum swTraverseOperation {
     SW_TRAVERSE_REMOVE = 1,
     SW_TRAVERSE_STOP = 2,
 };
-
-//-------------------------------------------------------------------------------
-#define sw_yield() sched_yield()
 
 //------------------------------Base--------------------------------
 #ifndef uchar

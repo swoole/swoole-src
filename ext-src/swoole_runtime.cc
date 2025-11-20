@@ -1501,7 +1501,7 @@ static void hook_pdo_driver(uint32_t flags) {
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_PDO_FIREBIRD) {
-        	swoole_firebird_set_blocking(true);
+            swoole_firebird_set_blocking(true);
         }
     }
 #endif
@@ -1809,9 +1809,11 @@ static PHP_FUNCTION(swoole_sleep) {
 
 static PHP_FUNCTION(swoole_usleep) {
     zend_long num;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &num) == FAILURE) {
-        RETURN_FALSE;
-    }
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(num)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     if (num < 0) {
         php_error_docref(nullptr, E_WARNING, "Number of seconds must be greater than or equal to 0");
         RETURN_FALSE;
@@ -1826,9 +1828,11 @@ static PHP_FUNCTION(swoole_usleep) {
 
 static PHP_FUNCTION(swoole_time_nanosleep) {
     zend_long tv_sec, tv_nsec;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "ll", &tv_sec, &tv_nsec) == FAILURE) {
-        RETURN_FALSE;
-    }
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_LONG(tv_sec)
+    Z_PARAM_LONG(tv_nsec)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (tv_sec < 0) {
         php_error_docref(nullptr, E_WARNING, "The seconds value must be greater than 0");
@@ -1861,41 +1865,34 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
 
 static PHP_FUNCTION(swoole_time_sleep_until) {
     double d_ts;
-    timeval tm;
-    timespec php_req, php_rem;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "d", &d_ts) == FAILURE) {
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_DOUBLE(d_ts)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (!std::isfinite(d_ts) || d_ts < 0) {
+        php_error_docref(nullptr, E_WARNING, "Invalid timestamp: must be a positive finite number");
         RETURN_FALSE;
     }
 
-    if (gettimeofday(&tm, nullptr) != 0) {
+    using namespace std::chrono;
+    using dseconds = duration<double>;
+
+    const auto now = system_clock::now();
+    const auto target_duration = duration_cast<system_clock::duration>(dseconds(d_ts));
+    const auto target_time = system_clock::time_point(target_duration);
+
+    if (target_time <= now) {
+        php_error_docref(NULL, E_WARNING, "Argument #1 ($timestamp) must be greater than or equal to the current time");
         RETURN_FALSE;
     }
 
-    double c_ts = d_ts - tm.tv_sec - tm.tv_usec / 1000000.00;
-    if (c_ts < 0) {
-        php_error_docref(nullptr, E_WARNING, "Sleep until to time is less than current time");
-        RETURN_FALSE;
-    }
-
-    php_req.tv_sec = (time_t) c_ts;
-    if (php_req.tv_sec > c_ts) {
-        php_req.tv_sec--;
-    }
-    php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
-
-    double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
+    const auto sleep_duration = target_time - now;
     if (Coroutine::get_current()) {
-        System::sleep(_time);
+        const double sleep_seconds = duration_cast<dseconds>(sleep_duration).count();
+        System::sleep(sleep_seconds);
     } else {
-        while (nanosleep(&php_req, &php_rem)) {
-            if (errno == EINTR) {
-                php_req.tv_sec = php_rem.tv_sec;
-                php_req.tv_nsec = php_rem.tv_nsec;
-            } else {
-                RETURN_FALSE;
-            }
-        }
+        std::this_thread::sleep_until(target_time);
     }
     RETURN_TRUE;
 }
