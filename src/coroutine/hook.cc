@@ -63,6 +63,7 @@ static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     auto socket_iterator = socket_map.find(sockfd);
     if (socket_iterator == socket_map.end()) {
+    	errno = ENOTSOCK;
         return nullptr;
     }
     return socket_iterator->second;
@@ -70,7 +71,8 @@ static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
 
 static sw_inline std::shared_ptr<Socket> get_socket_ex(int sockfd) {
     if (sw_unlikely(is_no_coro())) {
-        return nullptr;
+    	errno = EWOULDBLOCK;
+    	return nullptr;
     }
     return get_socket(sockfd);
 }
