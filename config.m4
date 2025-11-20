@@ -112,6 +112,12 @@ PHP_ARG_WITH([swoole-firebird],
     [PDO: Async Firebird support. DIR is the Firebird base install directory
     [/opt/firebird]])], [no], [no])
 
+PHP_ARG_WITH([swoole-ssh2],
+  [whether to enable ssh2 support],
+  [AS_HELP_STRING([[--with-swoole-ssh2[=DIR]]],
+    [Enable Async ssh2 support. DIR is the libssh2 base install directory
+    [/usr]])], [no], [no])
+
 PHP_ARG_ENABLE([thread-context],
   [whether to enable thread context],
   [AS_HELP_STRING([--enable-thread-context],
@@ -125,7 +131,8 @@ PHP_ARG_ENABLE([swoole-thread],
 PHP_ARG_ENABLE([swoole-stdext],
   [whether to enable swoole stdext support],
   [AS_HELP_STRING([--enable-swoole-stdext],
-    [Enable swoole stdext support([Experimental] This module is only used for swoole-cli. If you are unsure which feature you need, keep it disabled)])], [no], [no])
+    [Enable swoole stdext support("[Experimental] This module is only used for swoole-cli.
+     If you are unsure which feature you need, keep it disabled")])], [no], [no])
 
 PHP_ARG_ENABLE([swoole-coro-time],
   [whether to enable coroutine execution time ],
@@ -1002,6 +1009,61 @@ EOF
 
     dnl firebird stop
 
+
+
+    dnl ssh2 start
+
+    if test "$PHP_SWOOLE_SSH2" != "no"; then
+        SEARCH_PATH="/usr/local /usr"
+        SEARCH_FOR="/include/libssh2.h"
+        if test -r $PHP_SWOOLE_SSH2/$SEARCH_FOR; then # path given as parameter
+            SSH2_DIR=$PHP_SWOOLE_SSH2
+        else
+            AC_MSG_CHECKING([for ssh2 files in default path])
+            for i in $SEARCH_PATH ; do
+                if test -r $i/$SEARCH_FOR; then
+                    SSH2_DIR=$i
+                    AC_MSG_RESULT(found in $i)
+                fi
+            done
+        fi
+
+        if test -z "$SSH2_DIR"; then
+            AC_MSG_RESULT([not found])
+            AC_MSG_ERROR([The required libssh2 library was not found.
+                You can obtain that package from http://sourceforge.net/projects/libssh2/])
+        fi
+
+        PHP_ADD_INCLUDE($SSH2_DIR/include)
+
+        PHP_CHECK_LIBRARY(ssh2, libssh2_session_hostkey, [
+            PHP_ADD_LIBRARY_WITH_PATH(ssh2, $SSH2_DIR/lib, SWOOLE_SHARED_LIBADD)
+            AC_DEFINE(HAVE_SSH2LIB, 1, [Have libssh2])
+        ],[
+            AC_MSG_ERROR([libssh2 version >= 1.2 not found])
+        ],[
+            -L$SSH2_DIR/lib -lm
+        ])
+
+        PHP_CHECK_LIBRARY(ssh2, libssh2_agent_init, [
+            AC_DEFINE(PHP_SSH2_AGENT_AUTH, 1, [Have libssh2 with ssh-agent support])
+        ],[
+            AC_MSG_WARN([libssh2 <= 1.2.3, ssh-agent subsystem support not enabled])
+        ],[
+            -L$SSH2_DIR/lib -lm
+        ])
+
+        PHP_CHECK_LIBRARY(ssh2, libssh2_session_set_timeout, [
+            AC_DEFINE(PHP_SSH2_SESSION_TIMEOUT, 1, [Have libssh2 with session timeout support])
+        ],[
+            AC_MSG_WARN([libssh2 < 1.2.9, session timeout support not enabled])
+        ],[
+            -L$SSH2_DIR/lib -lm
+        ])
+    fi
+
+    dnl ssh2 stop
+
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
@@ -1327,6 +1389,13 @@ EOF
             thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
     fi
 
+    if test "$PHP_SWOOLE_SSH2" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/php/ssh2/ssh2.cc \
+            thirdparty/php/ssh2/ssh2_fopen_wrappers.cc \
+            thirdparty/php/ssh2/ssh2_sftp.cc"
+    fi
+
     SW_ASM_DIR="thirdparty/boost/asm/"
     SW_USE_ASM_CONTEXT="yes"
 
@@ -1480,8 +1549,11 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/ssh2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
+
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     fi
@@ -1504,8 +1576,5 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_sqlite)
-    fi
-    if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
     fi
 fi

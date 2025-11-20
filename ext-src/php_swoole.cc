@@ -32,6 +32,9 @@ BEGIN_EXTERN_C()
 #ifdef SW_STDEXT
 #include "stubs/php_swoole_stdext_arginfo.h"
 #endif
+#ifdef HAVE_SSH2LIB
+#include "stubs/php_swoole_ssh2_arginfo.h"
+#endif
 END_EXTERN_C()
 
 #include "swoole_mime_type.h"
@@ -106,6 +109,10 @@ SW_EXTERN_C_END
 #include "php_swoole_stdext.h"
 #endif
 
+#ifdef HAVE_SSH2LIB
+#include "php_swoole_ssh2_def.h"
+#endif
+
 // clang-format off
 const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_version,    arginfo_swoole_version)
@@ -177,6 +184,43 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_str_ireplace,         arginfo_swoole_str_ireplace)
     ZEND_FE(swoole_array_replace_str,    arginfo_swoole_array_replace_str)
     ZEND_FE(swoole_array_ireplace_str,   arginfo_swoole_array_ireplace_str)
+#endif
+#ifdef HAVE_SSH2LIB
+	ZEND_FE(ssh2_connect, arginfo_ssh2_connect)
+	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
+	ZEND_FE(ssh2_methods_negotiated, arginfo_ssh2_methods_negotiated)
+	ZEND_FE(ssh2_fingerprint, arginfo_ssh2_fingerprint)
+	ZEND_FE(ssh2_auth_none, arginfo_ssh2_auth_none)
+	ZEND_FE(ssh2_auth_password, arginfo_ssh2_auth_password)
+	ZEND_FE(ssh2_auth_pubkey_file, arginfo_ssh2_auth_pubkey_file)
+	ZEND_FE(ssh2_auth_pubkey, arginfo_ssh2_auth_pubkey)
+	ZEND_FE(ssh2_auth_hostbased_file, arginfo_ssh2_auth_hostbased_file)
+	ZEND_FE(ssh2_forward_listen, arginfo_ssh2_forward_listen)
+	ZEND_FE(ssh2_forward_accept, arginfo_ssh2_forward_accept)
+	ZEND_FE(ssh2_shell, arginfo_ssh2_shell)
+	ZEND_FE(ssh2_shell_resize, arginfo_ssh2_shell_resize)
+	ZEND_FE(ssh2_exec, arginfo_ssh2_exec)
+	ZEND_FE(ssh2_tunnel, arginfo_ssh2_tunnel)
+	ZEND_FE(ssh2_scp_recv, arginfo_ssh2_scp_recv)
+	ZEND_FE(ssh2_scp_send, arginfo_ssh2_scp_send)
+	ZEND_FE(ssh2_fetch_stream, arginfo_ssh2_fetch_stream)
+	ZEND_FE(ssh2_send_eof, arginfo_ssh2_send_eof)
+	ZEND_FE(ssh2_sftp, arginfo_ssh2_sftp)
+	ZEND_FE(ssh2_sftp_rename, arginfo_ssh2_sftp_rename)
+	ZEND_FE(ssh2_sftp_unlink, arginfo_ssh2_sftp_unlink)
+	ZEND_FE(ssh2_sftp_mkdir, arginfo_ssh2_sftp_mkdir)
+	ZEND_FE(ssh2_sftp_rmdir, arginfo_ssh2_sftp_rmdir)
+	ZEND_FE(ssh2_sftp_chmod, arginfo_ssh2_sftp_chmod)
+	ZEND_FE(ssh2_sftp_stat, arginfo_ssh2_sftp_stat)
+	ZEND_FE(ssh2_sftp_lstat, arginfo_ssh2_sftp_lstat)
+	ZEND_FE(ssh2_sftp_symlink, arginfo_ssh2_sftp_symlink)
+	ZEND_FE(ssh2_sftp_readlink, arginfo_ssh2_sftp_readlink)
+	ZEND_FE(ssh2_sftp_realpath, arginfo_ssh2_sftp_realpath)
+	ZEND_FE(ssh2_publickey_init, arginfo_ssh2_publickey_init)
+	ZEND_FE(ssh2_publickey_add, arginfo_ssh2_publickey_add)
+	ZEND_FE(ssh2_publickey_remove, arginfo_ssh2_publickey_remove)
+	ZEND_FE(ssh2_publickey_list, arginfo_ssh2_publickey_list)
+	ZEND_FE(ssh2_auth_agent, arginfo_ssh2_auth_agent)
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
@@ -879,6 +923,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
     php_swoole_http2_client_coro_minit(module_number);
+#ifdef HAVE_SSH2LIB
+    php_swoole_ssh2_minit(module_number);
+#endif
     // server
     php_swoole_server_minit(module_number);
     php_swoole_server_port_minit(module_number);
@@ -950,6 +997,9 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
 #endif
 #ifdef SW_USE_FIREBIRD
     php_swoole_firebird_mshutdown();
+#endif
+#ifdef HAVE_SSH2LIB
+    php_swoole_ssh2_mshutdown();
 #endif
 
     swoole_clean();
@@ -1093,6 +1143,9 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "boost stacktrace", "enabled");
 #elif defined(HAVE_EXECINFO)
     php_info_print_table_row(2, "execinfo", "enabled");
+#endif
+#ifdef HAVE_SSH2LIB
+	 php_swoole_ssh2_minfo();
 #endif
     php_info_print_table_end();
 

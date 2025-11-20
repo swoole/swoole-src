@@ -12,6 +12,7 @@ COMPILE_PARAMS="--enable-openssl \
 --enable-swoole-pgsql \
 --enable-swoole-stdext \
 --with-swoole-firebird \
+--with-swoole-ssh2 \
 --with-swoole-odbc=unixODBC,/usr \
 --enable-swoole-sqlite"
 

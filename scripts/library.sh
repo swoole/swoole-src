@@ -6,7 +6,13 @@ else
 fi
 
 apt update
-apt install -y cmake make gcc libssl-dev libmariadb-dev unixodbc-dev libaio-dev libaio1 sqlite3 libsqlite3-dev libzstd-dev zlib1g-dev
+bash ./install-deps-on-ubuntu.sh
+
+# sshd
+apt install -y openssh-server
+service ssh start
+
+# MariaDB ODBC Connector
 wget https://github.com/mariadb-corporation/mariadb-connector-odbc/archive/refs/tags/3.1.21.tar.gz
 tar zxf 3.1.21.tar.gz
 mkdir build
