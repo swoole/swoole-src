@@ -81,6 +81,11 @@ PHP_ARG_WITH([nghttp2_dir],
   [AS_HELP_STRING([[--with-nghttp2-dir[=DIR]]],
     [Include nghttp2 support])], [no], [no])
 
+PHP_ARG_WITH([nghttp3_dir],
+  [dir of nghttp3],
+  [AS_HELP_STRING([[--with-nghttp3-dir[=DIR]]],
+    [Include nghttp3 HTTP/3 support (requires nghttp3 >= 1.12.0)])], [no], [no])
+
 PHP_ARG_ENABLE([asan],
   [enable asan],
   [AS_HELP_STRING([--enable-asan],
@@ -1273,6 +1278,14 @@ EOF
         PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
         PHP_ADD_LIBRARY(nghttp2, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
+    if test "$PHP_NGHTTP3_DIR" != "no"; then
+        PHP_ADD_INCLUDE("${PHP_NGHTTP3_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(nghttp3, "${PHP_NGHTTP3_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY(nghttp3, 1, SWOOLE_SHARED_LIBADD)
+        AC_DEFINE(SW_USE_HTTP3, 1, [enable HTTP/3 support])
+        AC_DEFINE(SW_USE_QUIC, 1, [enable QUIC support via OpenSSL 3.5 native QUIC])
     fi
 
     PHP_ADD_LIBRARY(pthread, 1, SWOOLE_SHARED_LIBADD)

@@ -212,6 +212,31 @@ enum swErrorCode {
     // need to wait for the bound coroutine to return from the socket wait_event operation
     SW_ERROR_CO_SOCKET_CLOSE_WAIT,
 
+    /**
+     * QUIC protocol error
+     */
+    SW_ERROR_QUIC_INIT = 11001,
+    SW_ERROR_QUIC_PARSE,
+    SW_ERROR_QUIC_STREAM_CLOSED,
+    SW_ERROR_QUIC_FLOW_CONTROL,
+    SW_ERROR_QUIC_SEND,
+    SW_ERROR_QUIC_RECV,
+    SW_ERROR_QUIC_TIMEOUT,
+    SW_ERROR_QUIC_HANDSHAKE,
+
+    /**
+     * HTTP/3 protocol error
+     */
+    SW_ERROR_HTTP3_INIT = 12001,
+    SW_ERROR_HTTP3_SEND,
+    SW_ERROR_HTTP3_RECV,
+    SW_ERROR_HTTP3_STREAM,
+
+    /**
+     * SSL/TLS error extensions
+     */
+    SW_ERROR_SSL_CTX_INIT = 13001,
+
     SW_ERROR_END
 };
 
