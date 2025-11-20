@@ -305,15 +305,9 @@ class Socket {
     const char *get_event_str(EventType event) const;
 
     void check_bound_co(const EventType event) const {
-        long cid = get_bound_cid(event);
-        if (sw_unlikely(cid)) {
-            swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
-                               "Socket#%d has already been bound to another coroutine#%ld, "
-                               "%s of the same socket in coroutine#%ld at the same time is not allowed",
-                               sock_fd,
-                               cid,
-                               get_event_str(event),
-                               Coroutine::get_current_cid());
+        auto bound_cid = get_bound_cid(event);
+        if (sw_unlikely(bound_cid)) {
+            Coroutine::print_socket_bound_error(sock_fd, get_event_str(event), bound_cid);
         }
     }
 

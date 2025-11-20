@@ -508,6 +508,14 @@ static void fatal_error(int code, const char *format, ...) {
 
     zend::print_error(exception, E_ERROR);
 
+    if (code == SW_ERROR_CO_HAS_BEEN_BOUND) {
+        fprintf(stderr, "\n [Coroutine-%ld] Stack trace:"
+               "\n -------------------------------------------------------------------"
+               "\n",
+               Coroutine::get_socket_bound_cid());
+        sw_php_print_backtrace(Coroutine::get_socket_bound_cid());
+    }
+
 #ifdef SW_THREAD
     if (!tsrm_is_main_thread()) {
         php_swoole_thread_bailout();
@@ -1145,7 +1153,7 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "execinfo", "enabled");
 #endif
 #ifdef HAVE_SSH2LIB
-	 php_swoole_ssh2_minfo();
+    php_swoole_ssh2_minfo();
 #endif
     php_info_print_table_end();
 

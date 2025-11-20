@@ -144,7 +144,7 @@ class Coroutine {
     static void set_on_close(SwapCallback func);
     static void bailout(const BailoutCallback &func);
 
-    static inline long create(const CoroutineFunc &fn, void *args = nullptr) {
+    static long create(const CoroutineFunc &fn, void *args = nullptr) {
 #ifdef SW_USE_THREAD_CONTEXT
         try {
             return (new Coroutine(fn, args))->run();
@@ -161,61 +161,65 @@ class Coroutine {
     static void activate();
     static void deactivate();
 
-    static inline Coroutine *get_current() {
+    static Coroutine *get_current() {
         return current;
     }
 
-    static inline Coroutine *get_current_safe() {
+    static Coroutine *get_current_safe() {
         if (sw_unlikely(!current)) {
             swoole_fatal_error(SW_ERROR_CO_OUT_OF_COROUTINE, "API must be called in the coroutine");
         }
         return current;
     }
 
-    static inline void *get_current_task() {
+    static void *get_current_task() {
         return sw_likely(current) ? current->get_task() : nullptr;
     }
 
-    static inline long get_current_cid() {
+    static long get_current_cid() {
         return sw_likely(current) ? current->get_cid() : -1;
     }
 
-    static inline Coroutine *get_by_cid(long cid) {
+    static Coroutine *get_by_cid(long cid) {
         auto i = coroutines.find(cid);
         return sw_likely(i != coroutines.end()) ? i->second : nullptr;
     }
 
-    static inline void *get_task_by_cid(long cid) {
+    static void *get_task_by_cid(long cid) {
         Coroutine *co = get_by_cid(cid);
         return sw_likely(co) ? co->get_task() : nullptr;
     }
 
-    static inline size_t get_stack_size() {
+    static size_t get_stack_size() {
         return stack_size;
     }
 
-    static inline void set_stack_size(size_t size) {
+    static void set_stack_size(size_t size) {
         stack_size = SW_MEM_ALIGNED_SIZE_EX(SW_MAX(MIN_STACK_SIZE, SW_MIN(size, MAX_STACK_SIZE)), STACK_ALIGNED_SIZE);
     }
 
-    static inline long get_last_cid() {
+    static long get_last_cid() {
         return last_cid;
     }
 
-    static inline size_t count() {
+    static long get_socket_bound_cid() {
+        return socket_bound_cid;
+    }
+
+    static size_t count() {
         return coroutines.size();
     }
 
-    static inline uint64_t get_peak_num() {
+    static uint64_t get_peak_num() {
         return peak_num;
     }
 
-    static inline long get_elapsed(long cid) {
+    static long get_elapsed(long cid) {
         Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
         return sw_likely(co) ? Timer::get_absolute_msec() - co->get_init_msec() : -1;
     }
 
-    static inline long get_execute_time(long cid) {
+    static long get_execute_time(long cid) {
         Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
         return sw_likely(co) ? co->get_execute_usec() : -1;
     }
@@ -224,10 +228,12 @@ class Coroutine {
     static void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine);
 #endif
     static void print_list();
+    static void print_socket_bound_error(int sock_fd, const char *event_str, long bound_cid);
 
   protected:
     static SW_THREAD_LOCAL Coroutine *current;
     static SW_THREAD_LOCAL long last_cid;
+    static SW_THREAD_LOCAL long socket_bound_cid;
     static SW_THREAD_LOCAL uint64_t peak_num;
     static SW_THREAD_LOCAL size_t stack_size;
     static SW_THREAD_LOCAL SwapCallback on_yield;      /* before yield */

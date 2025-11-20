@@ -21,6 +21,7 @@ namespace swoole {
 
 SW_THREAD_LOCAL Coroutine *Coroutine::current = nullptr;
 SW_THREAD_LOCAL long Coroutine::last_cid = 0;
+SW_THREAD_LOCAL long Coroutine::socket_bound_cid = 0;
 SW_THREAD_LOCAL std::unordered_map<long, Coroutine *> Coroutine::coroutines;
 SW_THREAD_LOCAL uint64_t Coroutine::peak_num = 0;
 SW_THREAD_LOCAL bool Coroutine::activated = false;
@@ -219,6 +220,17 @@ void Coroutine::print_list() {
         }
         sw_printf("Coroutine\t%ld\t%s\n", coroutine.first, state);
     }
+}
+
+void Coroutine::print_socket_bound_error(int sock_fd, const char *event_str, long bound_cid) {
+    socket_bound_cid = bound_cid;
+    swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
+                       "Socket#%d has already been bound to another coroutine#%ld, "
+                       "%s of the same socket in coroutine#%ld at the same time is not allowed",
+                       sock_fd,
+                       socket_bound_cid,
+                       event_str,
+					   get_current_cid());
 }
 
 void Coroutine::set_on_yield(const SwapCallback func) {
