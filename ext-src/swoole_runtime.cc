@@ -1815,12 +1815,14 @@ static PHP_METHOD(swoole_runtime, setHookFlags) {
 
 static PHP_FUNCTION(swoole_sleep) {
     zend_long num;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &num) == FAILURE) {
-        RETURN_FALSE;
-    }
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(num)
+	ZEND_PARSE_PARAMETERS_END();
+
     if (num < 0) {
-        php_error_docref(nullptr, E_WARNING, "Number of seconds must be greater than or equal to 0");
-        RETURN_FALSE;
+		zend_argument_value_error(1, "must be greater than or equal to 0");
+		RETURN_THROWS();
     }
 
     if (Coroutine::get_current()) {
@@ -1838,9 +1840,10 @@ static PHP_FUNCTION(swoole_usleep) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (num < 0) {
-        php_error_docref(nullptr, E_WARNING, "Number of seconds must be greater than or equal to 0");
-        RETURN_FALSE;
+		zend_argument_value_error(1, "must be greater than or equal to 0");
+		RETURN_THROWS();
     }
+
     double sec = (double) num / 1000000;
     if (Coroutine::get_current()) {
         System::sleep(sec);
@@ -1857,14 +1860,15 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
     Z_PARAM_LONG(tv_nsec)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (tv_sec < 0) {
-        php_error_docref(nullptr, E_WARNING, "The seconds value must be greater than 0");
-        RETURN_FALSE;
-    }
-    if (tv_nsec < 0) {
-        php_error_docref(nullptr, E_WARNING, "The nanoseconds value must be greater than 0");
-        RETURN_FALSE;
-    }
+	if (tv_sec < 0) {
+		zend_argument_value_error(1, "must be greater than or equal to 0");
+		RETURN_THROWS();
+	}
+	if (tv_nsec < 0) {
+		zend_argument_value_error(2, "must be greater than or equal to 0");
+		RETURN_THROWS();
+	}
+
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
     if (Coroutine::get_current()) {
         System::sleep(_time);
@@ -1887,27 +1891,29 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
 }
 
 static PHP_FUNCTION(swoole_time_sleep_until) {
-    double d_ts;
+	double target_secs;
+	const uint64_t ns_per_sec = 1000000000;
+	const double top_target_sec = (double)(UINT64_MAX / ns_per_sec);
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_DOUBLE(d_ts)
+    Z_PARAM_DOUBLE(target_secs)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (!std::isfinite(d_ts) || d_ts < 0) {
-        php_error_docref(nullptr, E_WARNING, "Invalid timestamp: must be a positive finite number");
-        RETURN_FALSE;
-    }
+	if (UNEXPECTED(!(target_secs >= 0 && target_secs <= top_target_sec))) {
+		zend_argument_value_error(1, "must be between 0 and %" PRIu64, (uint64_t)top_target_sec);
+		RETURN_THROWS();
+	}
 
     using namespace std::chrono;
     using dseconds = duration<double>;
 
     const auto now = system_clock::now();
-    const auto target_duration = duration_cast<system_clock::duration>(dseconds(d_ts));
+    const auto target_duration = duration_cast<system_clock::duration>(dseconds(target_secs));
     const auto target_time = system_clock::time_point(target_duration);
 
     if (target_time <= now) {
-        php_error_docref(NULL, E_WARNING, "Argument #1 ($timestamp) must be greater than or equal to the current time");
-        RETURN_FALSE;
+    	php_error_docref(NULL, E_WARNING, "Argument #1 ($timestamp) must be greater than or equal to the current time");
+		RETURN_FALSE;
     }
 
     const auto sleep_duration = target_time - now;
