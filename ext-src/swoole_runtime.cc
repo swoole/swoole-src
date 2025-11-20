@@ -101,6 +101,17 @@ static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
 static bool socket_ssl_set_options(Socket *sock, php_stream_context *context);
+
+static php_stream *socket_create(const char *proto,
+                                 size_t protolen,
+                                 const char *resourcename,
+                                 size_t resourcenamelen,
+                                 const char *persistent_id,
+                                 int options,
+                                 int flags,
+                                 struct timeval *timeout,
+                                 php_stream_context *context STREAMS_DC);
+
 // clang-format off
 static zend_class_entry *swoole_runtime_ce;
 
@@ -283,6 +294,13 @@ void php_swoole_runtime_minit(int module_number) {
     swoole_native_curl_minit(module_number);
 #endif
     swoole_proc_open_init(module_number);
+
+    php_stream_xport_register("async.tcp", socket_create);
+    php_stream_xport_register("async.udp", socket_create);
+    php_stream_xport_register("async.unix", socket_create);
+    php_stream_xport_register("async.udg", socket_create);
+    php_stream_xport_register("async.ssl", socket_create);
+    php_stream_xport_register("async.tls", socket_create);
 
     php_register_url_stream_wrapper(SW_ASYNC_FILE_PROTOCOL, &sw_php_plain_files_wrapper);
 }
@@ -1212,6 +1230,11 @@ static php_stream *socket_create(const char *proto,
     if (sw_unlikely(co == nullptr)) {
         return socket_create_original(
             proto, protolen, resourcename, resourcenamelen, persistent_id, options, flags, timeout, context STREAMS_CC);
+    }
+
+    if (SW_STR_STARTS_WITH(proto, protolen, "async.")) {
+        proto += sizeof("async.") - 1;
+        protolen -= sizeof("async.") - 1;
     }
 
     if (SW_STREQ(proto, protolen, "tcp")) {
