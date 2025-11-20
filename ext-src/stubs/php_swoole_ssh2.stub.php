@@ -177,11 +177,6 @@ function ssh2_scp_send($session, string $local_file, string $remote_file, int $c
 function ssh2_fetch_stream($channel, int $streamid) {}
 
 /**
- * Poll on a set of streams
- */
-function ssh2_poll(array &$polldes, int $timeout = 0): int {}
-
-/**
  * Send EOF to a channel
  * @param resource $channel The channel resource
  * @return bool Returns true on success or false on failure

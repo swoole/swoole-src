@@ -1,51 +1,13 @@
 #pragma once
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_ssh2_def.h"
 
 #include <libssh2.h>
 #include <libssh2_sftp.h>
 #include <libssh2_publickey.h>
 
-SW_EXTERN_C_BEGIN
-#ifdef HAVE_SSH2LIB
-ZEND_FUNCTION(ssh2_connect);
-ZEND_FUNCTION(ssh2_disconnect);
-ZEND_FUNCTION(ssh2_methods_negotiated);
-ZEND_FUNCTION(ssh2_fingerprint);
-ZEND_FUNCTION(ssh2_auth_none);
-ZEND_FUNCTION(ssh2_auth_password);
-ZEND_FUNCTION(ssh2_auth_pubkey_file);
-ZEND_FUNCTION(ssh2_auth_pubkey);
-ZEND_FUNCTION(ssh2_auth_hostbased_file);
-ZEND_FUNCTION(ssh2_forward_listen);
-ZEND_FUNCTION(ssh2_forward_accept);
-ZEND_FUNCTION(ssh2_shell);
-ZEND_FUNCTION(ssh2_shell_resize);
-ZEND_FUNCTION(ssh2_exec);
-ZEND_FUNCTION(ssh2_tunnel);
-ZEND_FUNCTION(ssh2_scp_recv);
-ZEND_FUNCTION(ssh2_scp_send);
-ZEND_FUNCTION(ssh2_fetch_stream);
-ZEND_FUNCTION(ssh2_poll);
-ZEND_FUNCTION(ssh2_send_eof);
-ZEND_FUNCTION(ssh2_sftp);
-ZEND_FUNCTION(ssh2_sftp_rename);
-ZEND_FUNCTION(ssh2_sftp_unlink);
-ZEND_FUNCTION(ssh2_sftp_mkdir);
-ZEND_FUNCTION(ssh2_sftp_rmdir);
-ZEND_FUNCTION(ssh2_sftp_chmod);
-ZEND_FUNCTION(ssh2_sftp_stat);
-ZEND_FUNCTION(ssh2_sftp_lstat);
-ZEND_FUNCTION(ssh2_sftp_symlink);
-ZEND_FUNCTION(ssh2_sftp_readlink);
-ZEND_FUNCTION(ssh2_sftp_realpath);
-ZEND_FUNCTION(ssh2_publickey_init);
-ZEND_FUNCTION(ssh2_publickey_add);
-ZEND_FUNCTION(ssh2_publickey_remove);
-ZEND_FUNCTION(ssh2_publickey_list);
-ZEND_FUNCTION(ssh2_auth_agent);
-#endif
-SW_EXTERN_C_END
+using CoSocket = swoole::coroutine::Socket;
 
 typedef struct _php_ssh2_session_data {
     /* Userspace callback functions */
@@ -54,7 +16,7 @@ typedef struct _php_ssh2_session_data {
     zval *macerror_cb;
     zval *disconnect_cb;
 
-    swoole::coroutine::Socket *socket;
+    CoSocket *socket;
 } php_ssh2_session_data;
 
 static inline swoole::EventType ssh2_get_event_type(LIBSSH2_SESSION *session) {
@@ -66,7 +28,7 @@ static inline swoole::EventType ssh2_get_event_type(LIBSSH2_SESSION *session) {
     }
 }
 
-static inline swoole::coroutine::Socket *ssh2_get_socket(LIBSSH2_SESSION *session) {
+static inline CoSocket *ssh2_get_socket(LIBSSH2_SESSION *session) {
     auto session_data = (php_ssh2_session_data **) libssh2_session_abstract(session);
     return (*session_data)->socket;
 }
@@ -115,9 +77,8 @@ static inline T *ssh2_async_call_ex(LIBSSH2_SESSION *session, const std::functio
     auto event = ssh2_get_event_type(session);
     auto socket = ssh2_get_socket(session);
 
-    if (socket->has_bound()) {
-        return nullptr;
-    }
+    socket->check_bound_co(SW_EVENT_READ);
+    socket->check_bound_co(SW_EVENT_WRITE);
 
     T *handle;
     while (1) {

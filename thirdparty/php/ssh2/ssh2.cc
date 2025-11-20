@@ -17,7 +17,7 @@
 */
 
 #include "php_ssh2.h"
-#include "php_swoole_ssh2_async_hook.h"
+#include "php_swoole_ssh2_hook.h"
 
 #include "ext/standard/info.h"
 #include "ext/standard/file.h"
@@ -32,8 +32,6 @@
 #ifndef MD5_DIGEST_LENGTH
 #define MD5_DIGEST_LENGTH 16
 #endif
-
-using swoole::coroutine::Socket;
 
 /* True global resources - no need for thread safety here */
 int le_ssh2_session;
@@ -293,7 +291,7 @@ LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, z
 
     int domain = swoole::network::Address::verify_ip(AF_INET6, host) ? AF_INET6 : AF_INET;
 
-    auto sock = new Socket(domain, SOCK_STREAM, 0);
+    auto sock = new CoSocket(domain, SOCK_STREAM, 0);
     if (sock->get_fd() < 0 || !sock->connect(host, port)) {
         php_error_docref(NULL, E_WARNING, "Unable to connect to %s on port %d", host, port);
         delete sock;
@@ -876,120 +874,6 @@ PHP_FUNCTION(ssh2_forward_accept) {
     GC_ADDREF(channel_data->session_rsrc);
 
     php_stream_to_zval(stream, return_value);
-}
-/* }}} */
-
-/* {{{ proto int ssh2_poll(array &polldes[, int timeout])
- * Poll the channels/listeners/streams for events
- * Returns number of descriptors which returned non-zero revents
- * Input array should be of the form:
- * array(
- *   0 => array(
- *     [resource] => $channel,$listener, or $stream
- *     [events] => SSH2_POLL* flags bitwise ORed together
- *   ),
- *   1 => ...
- * )
- * Each subarray will be populated with an revents element on return
- */
-PHP_FUNCTION(ssh2_poll) {
-    zval *zdesc, *subarray, **pollmap;
-    zend_long timeout = PHP_SSH2_DEFAULT_POLL_TIMEOUT;
-    LIBSSH2_POLLFD *pollfds;
-    int numfds, i = 0, fds_ready;
-    int le_stream = php_file_le_stream();
-    int le_pstream = php_file_le_pstream();
-    zend_string *hash_key_zstring;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a|l", &zdesc, &timeout) == FAILURE) {
-        return;
-    }
-
-    numfds = zend_hash_num_elements(Z_ARRVAL_P(zdesc));
-    pollfds = (LIBSSH2_POLLFD *) safe_emalloc(sizeof(LIBSSH2_POLLFD), numfds, 0);
-    pollmap = (zval **) safe_emalloc(sizeof(zval **), numfds, 0);
-
-    for (zend_hash_internal_pointer_reset(Z_ARRVAL_P(zdesc));
-         (subarray = zend_hash_get_current_data(Z_ARRVAL_P(zdesc))) != NULL;
-         zend_hash_move_forward(Z_ARRVAL_P(zdesc))) {
-        zval *tmpzval;
-        int res_type = 0;
-        void *res;
-
-        if (Z_TYPE_P(subarray) != IS_ARRAY) {
-            php_error_docref(NULL, E_WARNING, "Invalid element in poll array, not a sub array");
-            numfds--;
-            continue;
-        }
-
-        hash_key_zstring = zend_string_init("events", sizeof("events") - 1, 0);
-        if ((tmpzval = zend_hash_find(Z_ARRVAL_P(subarray), hash_key_zstring)) == NULL ||
-            Z_TYPE_P(tmpzval) != IS_LONG) {
-            php_error_docref(NULL, E_WARNING, "Invalid data in subarray, no events element, or not a bitmask");
-            numfds--;
-            zend_string_release(hash_key_zstring);
-            continue;
-        }
-        zend_string_release(hash_key_zstring);
-
-        pollfds[i].events = Z_LVAL_P(tmpzval);
-        hash_key_zstring = zend_string_init("resource", sizeof("resource") - 1, 0);
-        if ((tmpzval = zend_hash_find(Z_ARRVAL_P(subarray), hash_key_zstring)) == NULL ||
-            Z_TYPE_P(tmpzval) != IS_REFERENCE || (tmpzval = Z_REFVAL_P(tmpzval)) == NULL ||
-            Z_TYPE_P(tmpzval) != IS_RESOURCE) {
-            php_error_docref(NULL, E_WARNING, "Invalid data in subarray, no resource element, or not of type resource");
-            numfds--;
-            zend_string_release(hash_key_zstring);
-            continue;
-        }
-        zend_string_release(hash_key_zstring);
-
-        res_type = Z_RES_P(tmpzval)->type;
-        res = zend_fetch_resource_ex(tmpzval, "Poll Resource", res_type);
-        if (res_type == le_ssh2_listener) {
-            pollfds[i].type = LIBSSH2_POLLFD_LISTENER;
-            pollfds[i].fd.listener = ((php_ssh2_listener_data *) res)->listener;
-        } else if ((res_type == le_stream || res_type == le_pstream) &&
-                   ((php_stream *) res)->ops == &php_ssh2_channel_stream_ops) {
-            pollfds[i].type = LIBSSH2_POLLFD_CHANNEL;
-            pollfds[i].fd.channel = ((php_ssh2_channel_data *) (((php_stream *) res)->abstract))->channel;
-            /* TODO: Add the ability to select against other stream types */
-        } else {
-            php_error_docref(NULL,
-                             E_WARNING,
-                             "Invalid resource type in subarray: %s",
-                             zend_rsrc_list_get_rsrc_type(Z_RES_P(tmpzval)));
-            numfds--;
-            continue;
-        }
-        pollmap[i] = subarray;
-        i++;
-    }
-
-    fds_ready = libssh2_poll(pollfds, numfds, timeout * 1000);
-
-    for (i = 0; i < numfds; i++) {
-        zval *subarray = pollmap[i];
-
-        if (Z_REFCOUNT_P(subarray) > 1) {
-            /* Make a new copy of the subarray zval* */
-            zval new_subarray;
-            ZVAL_DUP(&new_subarray, subarray);
-
-            /* Decrement refcount prior to swapping in new allocation */
-            Z_DELREF_P(subarray);
-            *pollmap[i] = new_subarray;
-        }
-        hash_key_zstring = zend_string_init("revents", sizeof("revents") - 1, 0);
-        zend_hash_del(Z_ARRVAL_P(subarray), hash_key_zstring);
-        zend_string_release(hash_key_zstring);
-
-        add_assoc_long(subarray, "revents", pollfds[i].revents);
-    }
-    efree(pollmap);
-    efree(pollfds);
-
-    RETURN_LONG(fds_ready);
 }
 /* }}} */
 

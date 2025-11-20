@@ -24,7 +24,6 @@
 #include "ext/standard/url.h"
 #include "main/php_network.h"
 
-#define PHP_SSH2_VERSION "1.4.1"
 #define PHP_SSH2_DEFAULT_PORT 22
 
 /* Exported Constants */
@@ -51,9 +50,7 @@
 #define PHP_SSH2_SFTP_DIRSTREAM_NAME "SSH2 SFTP Directory"
 #define PHP_SSH2_SFTP_WRAPPER_NAME "SSH2 SFTP"
 
-#define PHP_SSH2_LISTEN_MAX_QUEUED 16
-
-#define PHP_SSH2_DEFAULT_POLL_TIMEOUT 30
+#define PHP_SSH2_LISTEN_MAX_QUEUED 128
 
 typedef struct _php_ssh2_sftp_data {
     LIBSSH2_SESSION *session;

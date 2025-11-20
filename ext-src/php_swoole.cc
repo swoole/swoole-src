@@ -110,7 +110,7 @@ SW_EXTERN_C_END
 #endif
 
 #ifdef HAVE_SSH2LIB
-#include "php_swoole_ssh2.h"
+#include "php_swoole_ssh2_def.h"
 #endif
 
 // clang-format off
@@ -204,7 +204,6 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ssh2_scp_recv, arginfo_ssh2_scp_recv)
 	ZEND_FE(ssh2_scp_send, arginfo_ssh2_scp_send)
 	ZEND_FE(ssh2_fetch_stream, arginfo_ssh2_fetch_stream)
-	ZEND_FE(ssh2_poll, arginfo_ssh2_poll)
 	ZEND_FE(ssh2_send_eof, arginfo_ssh2_send_eof)
 	ZEND_FE(ssh2_sftp, arginfo_ssh2_sftp)
 	ZEND_FE(ssh2_sftp_rename, arginfo_ssh2_sftp_rename)

@@ -17,8 +17,9 @@
 */
 
 #include "php_ssh2.h"
+#include "php_swoole_ssh2_hook.h"
+
 #include "ext/standard/php_string.h"
-#include "php_swoole_ssh2_async_hook.h"
 
 /* *************************
  * Resource Housekeeping *
