@@ -142,6 +142,25 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
     return socket->connect(addr, addrlen) ? 0 : -1;
 }
 
+int swoole_coroutine_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
+        return ::accept(sockfd, addr, addrlen);
+    }
+
+    auto conn = socket->accept(0);
+    if (!conn) {
+    	return -1;
+    }
+
+    *addrlen = conn->get_socket()->info.len;
+    memcpy(addr, &conn->get_socket()->info.addr.ss, *addrlen);
+
+    std::unique_lock<std::mutex> _lock(socket_map_lock);
+    socket_map.emplace(conn->get_fd(), std::shared_ptr<Socket>(conn));
+    return conn->get_fd();
+}
+
 int swoole_coroutine_poll_fake(struct pollfd *fds, nfds_t nfds, int timeout) {
     if (nfds != 1) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
