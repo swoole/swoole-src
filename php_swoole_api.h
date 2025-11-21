@@ -24,11 +24,18 @@ extern "C" {
 #include "php.h"
 #include "php_network.h"
 
-int php_async_socket_connect_to_host(const char *host, unsigned short port,
-		int socktype, int asynchronous, struct timeval *timeout, zend_string **error_string,
-		int *error_code, const char *bindto, unsigned short bindport, long sockopts);
+int php_async_socket_connect_to_host(const char *host,
+                                     unsigned short port,
+                                     int socktype,
+                                     int asynchronous,
+                                     struct timeval *timeout,
+                                     zend_string **error_string,
+                                     int *error_code,
+                                     const char *bindto,
+                                     unsigned short bindport,
+                                     long sockopts);
 
-int php_async_pollfd_for_ms(php_socket_t fd, int events, int timeout);
+int php_async_socket_poll(php_socket_t fd, int events, int timeout);
 
 #ifdef __cplusplus
 }

@@ -1489,7 +1489,7 @@ static int my_poll(php_socket_t fd, int events, int timeout) {
 
 	while (true) {
 		zend_hrtime_t start_ns = zend_hrtime();
-		n = php_async_pollfd_for_ms(fd, events, (int) (timeout_hr / 1000000));
+		n = php_async_socket_poll(fd, events, (int) (timeout_hr / 1000000));
 
 		if (n == -1 && php_socket_errno() == EINTR) {
 			zend_hrtime_t delta_ns = zend_hrtime() - start_ns;

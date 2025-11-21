@@ -2206,6 +2206,11 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
     return stream;
 }
 
+zend_string *php_async_socket_error_str(long err) {
+    const char *errstr = swoole_strerror(err);
+    return zend_string_init(errstr, strlen(errstr), 0);
+}
+
 int php_async_socket_connect_to_host(const char *host,
                                      unsigned short port,
                                      int socktype,
@@ -2216,11 +2221,10 @@ int php_async_socket_connect_to_host(const char *host,
                                      const char *bindto,
                                      unsigned short bindport,
                                      long sockopts) {
-
-	if (!swoole_coroutine_is_in()) {
-		php_swoole_fatal_error(E_WARNING, "This API must be called in coroutine");
-		return -1;
-	}
+    if (!swoole_coroutine_is_in()) {
+        php_swoole_fatal_error(E_WARNING, "This API must be called in coroutine");
+        return -1;
+    }
 
     auto domain = swoole::network::Address::verify_ip(AF_INET6, host) ? AF_INET6 : AF_INET;
     auto sock = swoole_coroutine_socket(domain, SOCK_STREAM, 0);
@@ -2231,12 +2235,11 @@ int php_async_socket_connect_to_host(const char *host,
     auto sockobj = swoole_coroutine_get_socket_object(sock);
     if (bindto) {
         if (!sockobj->bind(bindto, bindport)) {
-            php_error_docref(NULL,
-                             E_WARNING,
-                             "Failed to bind to '%s:%d', system said: %s",
-                             bindto,
-                             bindport,
-                             swoole_strerror(sockobj->errCode));
+            php_swoole_fatal_error(E_WARNING,
+                                   "Failed to bind to '%s:%d', system said: %s",
+                                   bindto,
+                                   bindport,
+                                   swoole_strerror(sockobj->errCode));
         }
     }
 
@@ -2261,7 +2264,10 @@ int php_async_socket_connect_to_host(const char *host,
             *error_code = sockobj->errCode;
         }
         if (error_string) {
-            *error_string = php_socket_error_str(sockobj->errCode);
+            *error_string = php_async_socket_error_str(sockobj->errCode);
+        }
+        if (sockobj->errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED) {
+            php_swoole_fatal_error(E_WARNING, "getaddrinfo for '%s' failed, error: %s", host, sockobj->get_err());
         }
         swoole_coroutine_close(sock);
         return -1;
@@ -2270,7 +2276,7 @@ int php_async_socket_connect_to_host(const char *host,
     return sock;
 }
 
-int php_async_pollfd_for_ms(php_socket_t fd, int events, int timeout) {
+int php_async_socket_poll(php_socket_t fd, int events, int timeout) {
     auto sockobj = swoole_coroutine_get_socket_object(fd);
     if (!sockobj) {
         return -1;
