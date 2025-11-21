@@ -9,7 +9,7 @@
 
 BEGIN_EXTERN_C()
 ZEND_FUNCTION(ftp_connect);
-#if defined(HAVE_FTP_SSL)
+#if defined(SW_HAVE_FTP_SSL)
 ZEND_FUNCTION(ftp_ssl_connect);
 #endif
 ZEND_FUNCTION(ftp_login);

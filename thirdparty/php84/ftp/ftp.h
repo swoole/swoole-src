@@ -50,7 +50,7 @@ typedef struct databuf
 	php_socket_t		fd;			/* data connection */
 	ftptype_t	type;			/* transfer type */
 	char		buf[FTP_BUFSIZE];	/* data buffer */
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	SSL		*ssl_handle;	/* ssl handle */
 	int		ssl_active;		/* flag if ssl is active or not */
 #endif
@@ -80,7 +80,7 @@ typedef struct ftpbuf
 	char			lastch;		/* last char of previous call */
 	bool			direction;	/* recv = 0 / send = 1 */
 	bool			closestream;/* close or not close stream */
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	bool			use_ssl; /* enable(1) or disable(0) ssl */
 	bool			use_ssl_for_data; /* en/disable ssl for the dataconnection */
 	bool			old_ssl;	/* old mode = forced data encryption */

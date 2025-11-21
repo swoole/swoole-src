@@ -53,7 +53,7 @@
 #include <sys/select.h>
 #endif
 
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #endif
@@ -102,7 +102,7 @@ static void		data_close(ftpbuf_t *ftp);
 /* generic file lister */
 static char**		ftp_genlist(ftpbuf_t *ftp, const char *cmd, const size_t cmd_len, const char *path, const size_t path_len);
 
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 /* shuts down a TLS/SSL connection */
 static void		ftp_ssl_shutdown(ftpbuf_t *ftp, php_socket_t fd, SSL *ssl_handle);
 #endif
@@ -169,7 +169,7 @@ ftp_close(ftpbuf_t *ftp)
 	if (ftp == NULL) {
 		return NULL;
 	}
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	if (ftp->last_ssl_session) {
 		SSL_SESSION_free(ftp->last_ssl_session);
 	}
@@ -179,7 +179,7 @@ ftp_close(ftpbuf_t *ftp)
 			php_stream_close(ftp->stream);
 	}
 	if (ftp->fd != -1) {
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 		if (ftp->ssl_active) {
 			ftp_ssl_shutdown(ftp, ftp->fd, ftp->ssl_handle);
 		}
@@ -234,7 +234,7 @@ ftp_quit(ftpbuf_t *ftp)
 }
 /* }}} */
 
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 static int ftp_ssl_new_session_cb(SSL *ssl, SSL_SESSION *sess)
 {
 	ftpbuf_t *ftp = SSL_get_app_data(ssl);
@@ -254,7 +254,7 @@ static int ftp_ssl_new_session_cb(SSL *ssl, SSL_SESSION *sess)
 int
 ftp_login(ftpbuf_t *ftp, const char *user, const size_t user_len, const char *pass, const size_t pass_len)
 {
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	SSL_CTX	*ctx = NULL;
 	long ssl_ctx_options = SSL_OP_ALL;
 	int err, res;
@@ -264,7 +264,7 @@ ftp_login(ftpbuf_t *ftp, const char *user, const size_t user_len, const char *pa
 		return 0;
 	}
 
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	if (ftp->use_ssl && !ftp->ssl_active) {
 		if (!ftp_putcmd(ftp, "AUTH", sizeof("AUTH")-1, "TLS", sizeof("TLS")-1)) {
 			return 0;
@@ -1426,7 +1426,7 @@ static ssize_t my_recv_wrapper_with_restart(php_socket_t fd, void *buf, size_t s
 }
 
 int single_send(ftpbuf_t *ftp, php_socket_t s, void *buf, size_t size) {
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	int err;
 	bool retry = 0;
 	SSL *handle = NULL;
@@ -1564,7 +1564,7 @@ int
 my_recv(ftpbuf_t *ftp, php_socket_t s, void *buf, size_t len)
 {
 	int		n, nr_bytes;
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	int err;
 	bool retry = 0;
 	SSL *handle = NULL;
@@ -1584,7 +1584,7 @@ my_recv(ftpbuf_t *ftp, php_socket_t s, void *buf, size_t len)
 		return -1;
 	}
 
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	if (ftp->use_ssl && ftp->fd == s && ftp->ssl_active) {
 		handle = ftp->ssl_handle;
 		fd = ftp->fd;
@@ -1627,7 +1627,7 @@ my_recv(ftpbuf_t *ftp, php_socket_t s, void *buf, size_t len)
 	} else {
 #endif
 		nr_bytes = my_recv_wrapper_with_restart(s, buf, len, 0);
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	}
 #endif
 	return (nr_bytes);
@@ -1845,7 +1845,7 @@ data_accept(databuf_t *data, ftpbuf_t *ftp)
 	php_sockaddr_storage addr;
 	socklen_t			size;
 
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	SSL_CTX		*ctx;
 	SSL_SESSION *session;
 	int err, res;
@@ -1866,7 +1866,7 @@ data_accept(databuf_t *data, ftpbuf_t *ftp)
 	}
 
 data_accepted:
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 
 	/* now enable ssl if we need to */
 	if (ftp->use_ssl && ftp->use_ssl_for_data) {
@@ -1952,7 +1952,7 @@ data_accepted:
 /* }}} */
 
 /* {{{ ftp_ssl_shutdown */
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 static void ftp_ssl_shutdown(ftpbuf_t *ftp, php_socket_t fd, SSL *ssl_handle) {
 	/* In TLS 1.3 it's common to receive session tickets after the handshake has completed. We need to train
 	   the socket (read the tickets until EOF/close_notify alert) before closing the socket. Otherwise the
@@ -2023,7 +2023,7 @@ void data_close(ftpbuf_t *ftp)
 		return;
 	}
 	if (data->listener != -1) {
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 		if (data->ssl_active) {
 			/* don't free the data context, it's the same as the control */
 			ftp_ssl_shutdown(ftp, data->listener, data->ssl_handle);
@@ -2033,7 +2033,7 @@ void data_close(ftpbuf_t *ftp)
 		closesocket(data->listener);
 	}
 	if (data->fd != -1) {
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 		if (data->ssl_active) {
 			/* don't free the data context, it's the same as the control */
 			ftp_ssl_shutdown(ftp, data->fd, data->ssl_handle);

@@ -21,11 +21,11 @@
 
 #include "php.h"
 
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 # include <openssl/ssl.h>
 #endif
 
-#ifdef HAVE_FTP
+#ifdef SW_HAVE_FTP
 
 #include "ext/standard/info.h"
 #include "ext/standard/file.h"
@@ -138,7 +138,7 @@ PHP_MINIT_FUNCTION(ftp)
 PHP_MINFO_FUNCTION(ftp)
 {
 	php_info_print_table_row(2, "FTP support", "enabled");
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	php_info_print_table_row(2, "FTPS support", "enabled");
 #else
 	php_info_print_table_row(2, "FTPS support", "disabled");
@@ -180,7 +180,7 @@ PHP_FUNCTION(ftp_connect)
 	/* autoseek for resuming */
 	ftp->autoseek = FTP_DEFAULT_AUTOSEEK;
 	ftp->usepasvaddress = FTP_DEFAULT_USEPASVADDRESS;
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 	/* disable ssl */
 	ftp->use_ssl = 0;
 #endif
@@ -190,7 +190,7 @@ PHP_FUNCTION(ftp_connect)
 }
 /* }}} */
 
-#ifdef HAVE_FTP_SSL
+#ifdef SW_HAVE_FTP_SSL
 /* {{{ Opens a FTP-SSL stream */
 PHP_FUNCTION(ftp_ssl_connect)
 {
@@ -1340,4 +1340,4 @@ PHP_FUNCTION(ftp_get_option)
 }
 /* }}} */
 
-#endif /* HAVE_FTP */
+#endif /* SW_HAVE_FTP */

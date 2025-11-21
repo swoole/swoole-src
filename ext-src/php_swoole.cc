@@ -32,10 +32,10 @@ BEGIN_EXTERN_C()
 #ifdef SW_STDEXT
 #include "stubs/php_swoole_stdext_arginfo.h"
 #endif
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
 #include "stubs/php_swoole_ssh2_arginfo.h"
 #endif
-#ifdef HAVE_FTP
+#ifdef SW_HAVE_FTP
 #include "stubs/php_swoole_ftp_arginfo.h"
 #endif
 END_EXTERN_C()
@@ -113,11 +113,11 @@ SW_EXTERN_C_END
 #include "php_swoole_stdext.h"
 #endif
 
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
 #include "php_swoole_ssh2_def.h"
 #endif
 
-#ifdef HAVE_FTP
+#ifdef SW_HAVE_FTP
 #include "php_swoole_ftp_def.h"
 #endif
 
@@ -193,7 +193,7 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_array_replace_str,    arginfo_swoole_array_replace_str)
     ZEND_FE(swoole_array_ireplace_str,   arginfo_swoole_array_ireplace_str)
 #endif
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
 	ZEND_FE(ssh2_connect, arginfo_ssh2_connect)
 	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
 	ZEND_FE(ssh2_methods_negotiated, arginfo_ssh2_methods_negotiated)
@@ -230,9 +230,9 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ssh2_publickey_list, arginfo_ssh2_publickey_list)
 	ZEND_FE(ssh2_auth_agent, arginfo_ssh2_auth_agent)
 #endif
-#ifdef HAVE_FTP
+#ifdef SW_HAVE_FTP
 	ZEND_FE(ftp_connect, arginfo_ftp_connect)
-#if defined(HAVE_FTP_SSL)
+#if defined(SW_HAVE_FTP_SSL)
 	ZEND_FE(ftp_ssl_connect, arginfo_ftp_ssl_connect)
 #endif
 	ZEND_FE(ftp_login, arginfo_ftp_login)
@@ -984,10 +984,10 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
     php_swoole_http2_client_coro_minit(module_number);
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
     php_swoole_ssh2_minit(module_number);
 #endif
-#ifdef HAVE_FTP
+#ifdef SW_HAVE_FTP
     PHP_MINIT(ftp)(type, module_number);
 #endif
     // server
@@ -1062,7 +1062,7 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
 #ifdef SW_USE_FIREBIRD
     php_swoole_firebird_mshutdown();
 #endif
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
     php_swoole_ssh2_mshutdown();
 #endif
 
@@ -1208,10 +1208,10 @@ PHP_MINFO_FUNCTION(swoole) {
 #elif defined(HAVE_EXECINFO)
     php_info_print_table_row(2, "execinfo", "enabled");
 #endif
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
     php_swoole_ssh2_minfo();
 #endif
-#ifdef HAVE_FTP
+#ifdef SW_HAVE_FTP
     PHP_MINFO(ftp)(zend_module);
 #endif
     php_info_print_table_end();
