@@ -1483,6 +1483,19 @@ int single_send(ftpbuf_t *ftp, php_socket_t s, void *buf, size_t size) {
 #endif
 }
 
+#if PHP_VERSION_ID < 80300
+typedef uint64_t zend_hrtime_t;
+#define ZEND_NANO_IN_SEC UINT64_C(1000000000)
+
+static zend_always_inline zend_hrtime_t zend_hrtime(void) {
+	struct timespec ts = { .tv_sec = 0, .tv_nsec = 0 };
+	if (EXPECTED(0 == clock_gettime(CLOCK_MONOTONIC, &ts))) {
+		return ((zend_hrtime_t) ts.tv_sec * (zend_hrtime_t)ZEND_NANO_IN_SEC) + ts.tv_nsec;
+	}
+	return 0;
+}
+#endif
+
 static int my_poll(php_socket_t fd, int events, int timeout) {
 	int n;
 	zend_hrtime_t timeout_hr = (zend_hrtime_t) timeout * 1000000;
