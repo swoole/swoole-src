@@ -221,7 +221,6 @@ class Client {
         if (buffer == nullptr) {
             RETURN_FALSE;
         }
-        buffer->clear();
 
         off_t offset = swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n"));
         if (offset <= 0) {
@@ -1571,7 +1570,6 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
     }
 
     String *buffer = socket->get_write_buffer();
-    buffer->clear();
     FrameObject frame(zdata, opcode, flags, code);
 
     if (websocket_settings.mask) {
