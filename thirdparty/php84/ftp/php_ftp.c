@@ -52,7 +52,9 @@ static void register_ftp_symbols(int module_number)
 	REGISTER_LONG_CONSTANT("FTP_FINISHED", PHP_FTP_FINISHED, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("FTP_MOREDATA", PHP_FTP_MOREDATA, CONST_PERSISTENT);
 
+#if PHP_VERSION_ID >= 80300
 	zend_add_parameter_attribute(zend_hash_str_find_ptr(CG(function_table), "ftp_login", sizeof("ftp_login") - 1), 2, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+#endif
 }
 
 static zend_class_entry *register_class_FTP_Connection(void)
@@ -1239,6 +1241,26 @@ PHP_FUNCTION(ftp_close)
 	RETURN_BOOL(success);
 }
 /* }}} */
+
+#if PHP_VERSION_ID < 80300
+static const char *zend_zval_value_name(const zval *arg) {
+	ZVAL_DEREF(arg);
+
+	if (Z_ISUNDEF_P(arg)) {
+		return "null";
+	}
+
+	if (Z_TYPE_P(arg) == IS_OBJECT) {
+		return ZSTR_VAL(Z_OBJCE_P(arg)->name);
+	} else if (Z_TYPE_P(arg) == IS_FALSE) {
+		return "false";
+	} else if  (Z_TYPE_P(arg) == IS_TRUE) {
+		return "true";
+	}
+
+	return zend_get_type_by_const(Z_TYPE_P(arg));
+}
+#endif
 
 /* {{{ Sets an FTP option */
 PHP_FUNCTION(ftp_set_option)

@@ -21,7 +21,7 @@ run(function () {
     Swoole\Event::defer(function () use ($cid_list) {
         go(function () use ($cid_list) {
             Assert::false(Coroutine::join($cid_list));
-            Assert::eq(swoole_last_error(), SWOOLE_ERROR_CO_HAS_BEEN_BOUND);
+            Assert::eq(swoole_last_error(), SWOOLE_ERROR_WRONG_OPERATION);
             echo "DONE 2\n";
         });
     });

@@ -2,14 +2,15 @@
 swoole_socket_coro: bound error
 --SKIPIF--
 <?php
-use Co\Socket;
-use Swoole\Coroutine\Client;
-use Swoole\Event;
-
 require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\Coroutine\Socket;
+use Swoole\Coroutine\Client;
+use Swoole\Event;
+
 $port = get_one_free_port();
 go(function () use ($port) {
     $server = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
