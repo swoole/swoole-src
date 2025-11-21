@@ -59,8 +59,17 @@ static zend_class_entry *register_class_FTP_Connection(void)
 {
 	zend_class_entry ce, *class_entry;
 
+#if PHP_VERSION_ID >= 80400
 	INIT_NS_CLASS_ENTRY(ce, "FTP", "Connection", NULL);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE);
+#else
+	static const zend_function_entry class_FTP_Connection_methods[] = {
+		ZEND_FE_END
+	};
+	INIT_NS_CLASS_ENTRY(ce, "FTP", "Connection", class_FTP_Connection_methods);
+	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry->ce_flags |= ZEND_ACC_FINAL|ZEND_ACC_NO_DYNAMIC_PROPERTIES|ZEND_ACC_NOT_SERIALIZABLE;
+#endif
 
 	return class_entry;
 }

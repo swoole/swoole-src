@@ -266,7 +266,11 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ftp_delete, arginfo_ftp_delete)
 	ZEND_FE(ftp_site, arginfo_ftp_site)
 	ZEND_FE(ftp_close, arginfo_ftp_close)
+#if PHP_VERSION_ID >= 80400
+	ZEND_RAW_FENTRY("ftp_quit", zif_ftp_close, arginfo_ftp_quit, 0, NULL, NULL)
+#else
 	ZEND_RAW_FENTRY("ftp_quit", zif_ftp_close, arginfo_ftp_quit, 0)
+#endif
 	ZEND_FE(ftp_set_option, arginfo_ftp_set_option)
 	ZEND_FE(ftp_get_option, arginfo_ftp_get_option)
 #endif
@@ -903,7 +907,7 @@ PHP_MINIT_FUNCTION(swoole) {
      * log level
      */
     SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_DEBUG", SW_LOG_DEBUG);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_LPHP_MINITOG_TRACE", SW_LOG_TRACE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_TRACE", SW_LOG_TRACE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_INFO", SW_LOG_INFO);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_NOTICE", SW_LOG_NOTICE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_WARNING", SW_LOG_WARNING);
