@@ -266,7 +266,7 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ftp_delete, arginfo_ftp_delete)
 	ZEND_FE(ftp_site, arginfo_ftp_site)
 	ZEND_FE(ftp_close, arginfo_ftp_close)
-	ZEND_RAW_FENTRY("ftp_quit", zif_ftp_close, arginfo_ftp_quit, 0, NULL, NULL)
+	ZEND_RAW_FENTRY("ftp_quit", zif_ftp_close, arginfo_ftp_quit, 0)
 	ZEND_FE(ftp_set_option, arginfo_ftp_set_option)
 	ZEND_FE(ftp_get_option, arginfo_ftp_get_option)
 #endif
