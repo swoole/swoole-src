@@ -32,7 +32,7 @@ void Timer::init_with_system_timer() {
 static int SystemTimer_set(Timer *timer, long next_msec) {
     itimerval timer_set{};
     if (next_msec > 0) {
-        timer_set.it_interval = {next_msec / 1000, (next_msec % 1000) * 1000};
+        timer_set.it_interval = {next_msec / 1000, static_cast<int>((next_msec % 1000) * 1000)};
         timer_set.it_value = timer_set.it_interval;
     }
     return setitimer(ITIMER_REAL, &timer_set, nullptr) < 0 ? SW_ERR : SW_OK;

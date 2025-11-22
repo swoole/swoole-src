@@ -37,3 +37,7 @@ ZEND_FUNCTION(ssh2_publickey_remove);
 ZEND_FUNCTION(ssh2_publickey_list);
 ZEND_FUNCTION(ssh2_auth_agent);
 END_EXTERN_C()
+
+int php_swoole_ssh2_mshutdown();
+int php_swoole_ssh2_minit(int module_number);
+void php_swoole_ssh2_minfo();

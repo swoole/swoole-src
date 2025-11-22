@@ -335,6 +335,10 @@ class Socket {
         errMsg = errString.c_str();
     }
 
+    const char *get_err() {
+        return swoole_strerror(errCode);
+    }
+
     /* set connect read write timeout */
     void set_timeout(double timeout, int _type = SW_TIMEOUT_ALL) const;
 

@@ -63,6 +63,7 @@ static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     auto socket_iterator = socket_map.find(sockfd);
     if (socket_iterator == socket_map.end()) {
+    	errno = ENOTSOCK;
         return nullptr;
     }
     return socket_iterator->second;
@@ -70,7 +71,8 @@ static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
 
 static sw_inline std::shared_ptr<Socket> get_socket_ex(int sockfd) {
     if (sw_unlikely(is_no_coro())) {
-        return nullptr;
+    	errno = EWOULDBLOCK;
+    	return nullptr;
     }
     return get_socket(sockfd);
 }
@@ -138,6 +140,25 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
         return ::connect(sockfd, addr, addrlen);
     }
     return socket->connect(addr, addrlen) ? 0 : -1;
+}
+
+int swoole_coroutine_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
+    auto socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == nullptr)) {
+        return ::accept(sockfd, addr, addrlen);
+    }
+
+    auto conn = socket->accept(0);
+    if (!conn) {
+    	return -1;
+    }
+
+    *addrlen = conn->get_socket()->info.len;
+    memcpy(addr, &conn->get_socket()->info.addr.ss, *addrlen);
+
+    std::unique_lock<std::mutex> _lock(socket_map_lock);
+    socket_map.emplace(conn->get_fd(), std::shared_ptr<Socket>(conn));
+    return conn->get_fd();
 }
 
 int swoole_coroutine_poll_fake(struct pollfd *fds, nfds_t nfds, int timeout) {

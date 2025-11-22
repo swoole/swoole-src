@@ -13,6 +13,7 @@ COMPILE_PARAMS="--enable-openssl \
 --enable-swoole-stdext \
 --with-swoole-firebird \
 --with-swoole-ssh2 \
+--enable-swoole-ftp \
 --with-swoole-odbc=unixODBC,/usr \
 --enable-swoole-sqlite"
 

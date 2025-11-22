@@ -165,7 +165,10 @@ class Multi {
 
     Coroutine *check_bound_co() {
         if (co) {
-            swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is executing, cannot be operated");
+            Coroutine::set_socket_bound_cid(co->get_cid());
+            swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
+                               "This cURL handle is currently executing in coroutine#%ld, cannot be operated",
+                               co->get_cid());
             return nullptr;
         }
         return Coroutine::get_current_safe();

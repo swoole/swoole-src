@@ -1,0 +1,30 @@
+/*
+   +----------------------------------------------------------------------+
+   | Copyright (c) The PHP Group                                          |
+   +----------------------------------------------------------------------+
+   | This source file is subject to version 3.01 of the PHP license,      |
+   | that is bundled with this package in the file LICENSE, and is        |
+   | available through the world-wide-web at the following url:           |
+   | https://www.php.net/license/3_01.txt                                 |
+   | If you did not receive a copy of the PHP license and are unable to   |
+   | obtain it through the world-wide-web, please send a note to          |
+   | license@php.net so we can mail you a copy immediately.               |
+   +----------------------------------------------------------------------+
+   | Authors: Andrew Skalski <askalski@chek.com>                          |
+   |          Stefan Esser <sesser@php.net> (resume functions)            |
+   +----------------------------------------------------------------------+
+ */
+
+#ifndef	_INCLUDED_FTP_H
+#define	_INCLUDED_FTP_H
+
+#include "php_version.h"
+#define PHP_FTP_VERSION PHP_VERSION
+
+#define PHP_FTP_OPT_TIMEOUT_SEC	0
+#define PHP_FTP_OPT_AUTOSEEK	1
+#define PHP_FTP_OPT_USEPASVADDRESS	2
+#define PHP_FTP_AUTORESUME		-1
+
+
+#endif

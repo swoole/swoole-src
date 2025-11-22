@@ -1330,7 +1330,7 @@ static PHP_METHOD(swoole_coroutine, join) {
             continue;
         }
         if (ctx->on_close) {
-            swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
+            swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
             RETURN_FALSE;
         }
         ctx->on_close = &join_fn;

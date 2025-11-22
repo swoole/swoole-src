@@ -198,6 +198,10 @@ class Coroutine {
         stack_size = SW_MEM_ALIGNED_SIZE_EX(SW_MAX(MIN_STACK_SIZE, SW_MIN(size, MAX_STACK_SIZE)), STACK_ALIGNED_SIZE);
     }
 
+    static void set_socket_bound_cid(long cid) {
+        socket_bound_cid = cid;
+    }
+
     static long get_last_cid() {
         return last_cid;
     }
