@@ -248,9 +248,15 @@ int swoole_isc_version(isc_db_handle *_0, ISC_VERSION_CALLBACK _1, void *_2) {
 
 void php_swoole_firebird_minit(int module_id) {
     if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("FB_ATTR_DATE_FORMAT")) == nullptr) {
+#if PHP_VERSION_ID >= 80500
+        REGISTER_PDO_CLASS_CONST_LONG_DEPRECATED_85("FB_ATTR_DATE_FORMAT", (zend_long) PDO_FB_ATTR_DATE_FORMAT);
+        REGISTER_PDO_CLASS_CONST_LONG_DEPRECATED_85("FB_ATTR_TIME_FORMAT", (zend_long) PDO_FB_ATTR_TIME_FORMAT);
+        REGISTER_PDO_CLASS_CONST_LONG_DEPRECATED_85("FB_ATTR_TIMESTAMP_FORMAT", (zend_long) PDO_FB_ATTR_TIMESTAMP_FORMAT);
+#else
         REGISTER_PDO_CLASS_CONST_LONG("FB_ATTR_DATE_FORMAT", (zend_long) PDO_FB_ATTR_DATE_FORMAT);
         REGISTER_PDO_CLASS_CONST_LONG("FB_ATTR_TIME_FORMAT", (zend_long) PDO_FB_ATTR_TIME_FORMAT);
         REGISTER_PDO_CLASS_CONST_LONG("FB_ATTR_TIMESTAMP_FORMAT", (zend_long) PDO_FB_ATTR_TIMESTAMP_FORMAT);
+#endif
     }
 
     php_pdo_unregister_driver(&swoole_pdo_firebird_driver);

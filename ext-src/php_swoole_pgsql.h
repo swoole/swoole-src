@@ -31,8 +31,10 @@ BEGIN_EXTERN_C()
 #include "thirdparty/php81/pdo_pgsql/php_pdo_pgsql_int.h"
 #elif PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
 #include "thirdparty/php83/pdo_pgsql/php_pdo_pgsql_int.h"
-#else
+#elif PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
 #include "thirdparty/php84/pdo_pgsql/php_pdo_pgsql_int.h"
+#else
+#include "thirdparty/php85/pdo_pgsql/php_pdo_pgsql_int.h"
 #endif
 
 

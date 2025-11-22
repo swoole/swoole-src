@@ -17,7 +17,7 @@
 #define SW_USE_FIREBIRD_HOOK
 #include "php_swoole_firebird.h"
 
-#if PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
+#if PHP_VERSION_ID >= 80500
 
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
@@ -29,6 +29,7 @@
 #include "ext/standard/info.h"
 #include "ext/pdo/php_pdo.h"
 #include "ext/pdo/php_pdo_driver.h"
+#include "php_pdo_firebird.h"
 #include "php_pdo_firebird_int.h"
 #include "pdo_firebird_utils.h"
 
@@ -297,7 +298,7 @@ static FbTokenType php_firebird_get_token(const char** begin, const char* end)
 
 static int php_firebird_preprocess(const zend_string* sql, char* sql_out, HashTable* named_params)
 {
-	bool passAsIs = 1, execBlock = 0;
+	bool passAsIs = true, execBlock = false;
 	zend_long pindex = -1;
 	char pname[254], ident[253], ident2[253];
 	unsigned int l;
@@ -354,7 +355,7 @@ static int php_firebird_preprocess(const zend_string* sql, char* sql_out, HashTa
 		strncpy(ident2, i2, l);
 		ident2[l] = '\0';
 		execBlock = !strcasecmp(ident2, "BLOCK");
-		passAsIs = 0;
+		passAsIs = false;
 	}
 	else
 	{
@@ -535,7 +536,7 @@ void php_firebird_set_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *state,
 		einfo->errmsg_length = 0;
 	}
 
-	if (H->isc_status && (H->isc_status[0] == 1 && H->isc_status[1] > 0)) {
+	if (H->isc_status[0] == 1 && H->isc_status[1] > 0) {
 		char buf[512];
 		size_t buf_size = sizeof(buf), read_len = 0;
 		ssize_t tmp_len;
@@ -557,7 +558,7 @@ void php_firebird_set_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *state,
 
 		char sqlstate[sizeof(pdo_error_type)];
 		fb_sqlstate(sqlstate, H->isc_status);
-		if (sqlstate != NULL && strlen(sqlstate) < sizeof(pdo_error_type)) {
+		if (strlen(sqlstate) < sizeof(pdo_error_type)) {
 			strcpy(*error_code, sqlstate);
 			goto end;
 		}
@@ -592,7 +593,7 @@ static void firebird_handle_closer(pdo_dbh_t *dbh) /* {{{ */
 			php_firebird_rollback_transaction(dbh);
 		}
 	}
-	H->in_manually_txn = 0;
+	H->in_manually_txn = false;
 
 	/* isc_detach_database returns 0 on success, 1 on failure. */
 	if (H->db && isc_detach_database(H->isc_status, &H->db)) {
@@ -693,7 +694,7 @@ static bool firebird_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, /* {{{ */
 		}
 
 		stmt->driver_data = S;
-		stmt->methods = &firebird_stmt_methods;
+		stmt->methods = &swoole_firebird_stmt_methods;
 		stmt->supports_placeholders = PDO_PLACEHOLDER_POSITIONAL;
 
 		return true;
@@ -904,7 +905,7 @@ static bool firebird_handle_manually_begin(pdo_dbh_t *dbh) /* {{{ */
 	if (!php_firebird_begin_transaction(dbh, /* auto commit mode */ false)) {
 		return false;
 	}
-	H->in_manually_txn = 1;
+	H->in_manually_txn = true;
 	return true;
 }
 /* }}} */
@@ -954,7 +955,7 @@ static bool firebird_handle_manually_commit(pdo_dbh_t *dbh) /* {{{ */
 			return false;
 		}
 	}
-	H->in_manually_txn = 0;
+	H->in_manually_txn = false;
 	return true;
 }
 /* }}} */
@@ -990,7 +991,7 @@ static bool firebird_handle_manually_rollback(pdo_dbh_t *dbh) /* {{{ */
 			return false;
 		}
 	}
-	H->in_manually_txn = 0;
+	H->in_manually_txn = false;
 	return true;
 }
 /* }}} */
@@ -1227,10 +1228,9 @@ static int pdo_firebird_get_attribute(pdo_dbh_t *dbh, zend_long attr, zval *val)
 			ZVAL_BOOL(val, !isc_version(&H->db, php_firebird_info_cb, NULL));
 			return 1;
 
-		case PDO_ATTR_CLIENT_VERSION: {
-				isc_get_client_version(tmp);
-				ZVAL_STRING(val, tmp);
-			}
+		case PDO_ATTR_CLIENT_VERSION:
+			isc_get_client_version(tmp);
+			ZVAL_STRING(val, tmp);
 			return 1;
 
 		case PDO_ATTR_SERVER_VERSION:
@@ -1354,7 +1354,7 @@ static int pdo_firebird_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* 
 		dbh->password = pestrdup(vars[5].optval, dbh->is_persistent);
 	}
 
-	H->in_manually_txn = 0;
+	H->in_manually_txn = false;
 	H->is_writable_txn = pdo_attr_lval(driver_options, PDO_FB_WRITABLE_TRANSACTION, 1);
 	zend_long txn_isolation_level = pdo_attr_lval(driver_options, PDO_FB_TRANSACTION_ISOLATION_LEVEL, PDO_FB_REPEATABLE_READ);
 	if (txn_isolation_level == PDO_FB_READ_COMMITTED ||
@@ -1414,7 +1414,7 @@ static int pdo_firebird_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* 
 		char errmsg[512];
 		const ISC_STATUS *s = H->isc_status;
 		fb_interpret(errmsg, sizeof(errmsg),&s);
-		zend_throw_exception_ex(php_pdo_get_exception(), H->isc_status[1], "SQLSTATE[%s] [%ld] %s",
+		zend_throw_exception_ex(php_pdo_get_exception(), H->isc_status[1], "SQLSTATE[%s] [%" PRIiPTR "] %s",
 				"HY000", H->isc_status[1], errmsg);
 	}
 
