@@ -423,7 +423,7 @@ static int do_callback(zend_fcall_info_cache *fcc, int argc, sqlite3_value **arg
 		}
 	}
 
-	zend_call_known_fcc(fcc, &retval, fake_argc, zargs, /* named_params */ NULL);
+        HOOK_PHP_CALL_STACK(zend_call_known_fcc(fcc, &retval, fake_argc, zargs, /* named_params */ NULL););
 
 	/* clean up the params */
 	if (zargs) {
@@ -513,7 +513,7 @@ static int php_sqlite3_collation_callback(void *context, int string1_len, const 
 	ZVAL_STRINGL(&zargs[0], (char *) string1, string1_len);
 	ZVAL_STRINGL(&zargs[1], (char *) string2, string2_len);
 
-	zend_call_known_fcc(&collation->callback, &retval, /* argc */ 2, zargs, /* named_params */ NULL);
+        HOOK_PHP_CALL_STACK(zend_call_known_fcc(&collation->callback, &retval, /* argc */ 2, zargs, /* named_params */ NULL););
 
 	zval_ptr_dtor(&zargs[0]);
 	zval_ptr_dtor(&zargs[1]);
@@ -866,7 +866,7 @@ static int authorizer(void *autharg, int access_type, const char *arg1, const ch
 
 	int authreturn = SQLITE_DENY;
 
-	zend_call_known_fcc(&db_obj->authorizer_fcc, &retval, /* argc */ 5, argv, /* named_params */ NULL);
+        HOOK_PHP_CALL_STACK(zend_call_known_fcc(&db_obj->authorizer_fcc, &retval, /* argc */ 5, argv, /* named_params */ NULL););
 	if (Z_ISUNDEF(retval)) {
 		ZEND_ASSERT(EG(exception));
 	} else {
