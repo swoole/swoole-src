@@ -198,7 +198,7 @@ static bool odbc_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *s
 		zend_string_release(nsql);
 	}
 
-	stmt->methods = &odbc_stmt_methods;
+	stmt->methods = &swoole_odbc_stmt_methods;
 
 	if (rc != SQL_SUCCESS) {
 		pdo_odbc_stmt_error("SQLPrepare");

@@ -335,7 +335,6 @@ static int pdo_sqlite_stmt_col_meta(pdo_stmt_t *stmt, zend_long colno, zval *ret
 
 		case SQLITE_BLOB:
 			add_next_index_string(&flags, "blob");
-			/* TODO Check this is correct */
 			ZEND_FALLTHROUGH;
 		case SQLITE_TEXT:
 			add_assoc_str(return_value, "native_type", ZSTR_KNOWN(ZEND_STR_STRING));
@@ -456,7 +455,7 @@ static int pdo_sqlite_stmt_set_attribute(pdo_stmt_t *stmt, zend_long attr, zval 
 	return 1;
 }
 
-const struct pdo_stmt_methods sqlite_stmt_methods = {
+const struct pdo_stmt_methods swoole_sqlite_stmt_methods = {
 	pdo_sqlite_stmt_dtor,
 	pdo_sqlite_stmt_execute,
 	pdo_sqlite_stmt_fetch,

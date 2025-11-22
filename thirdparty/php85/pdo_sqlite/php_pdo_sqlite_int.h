@@ -17,6 +17,7 @@
 #ifndef PHP_PDO_SQLITE_INT_H
 #define PHP_PDO_SQLITE_INT_H
 
+#include "php_pdo_sqlite.h"
 #include <sqlite3.h>
 
 typedef struct {
@@ -51,6 +52,7 @@ typedef struct {
 	struct pdo_sqlite_func *funcs;
 	struct pdo_sqlite_collation *collations;
 	zend_fcall_info_cache authorizer_fcc;
+	enum pdo_sqlite_transaction_mode transaction_mode;
 } pdo_sqlite_db_handle;
 
 typedef struct {
@@ -68,14 +70,15 @@ extern int _pdo_sqlite_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file,
 #define pdo_sqlite_error(s) _pdo_sqlite_error(s, NULL, __FILE__, __LINE__)
 #define pdo_sqlite_error_stmt(s) _pdo_sqlite_error(stmt->dbh, stmt, __FILE__, __LINE__)
 
-extern const struct pdo_stmt_methods sqlite_stmt_methods;
+extern const struct pdo_stmt_methods swoole_sqlite_stmt_methods;
 
 enum {
 	PDO_SQLITE_ATTR_OPEN_FLAGS = PDO_ATTR_DRIVER_SPECIFIC,
 	PDO_SQLITE_ATTR_READONLY_STATEMENT,
 	PDO_SQLITE_ATTR_EXTENDED_RESULT_CODES,
 	PDO_SQLITE_ATTR_BUSY_STATEMENT,
-	PDO_SQLITE_ATTR_EXPLAIN_STATEMENT
+	PDO_SQLITE_ATTR_EXPLAIN_STATEMENT,
+	PDO_SQLITE_ATTR_TRANSACTION_MODE
 };
 
 typedef int pdo_sqlite_create_collation_callback(void*, int, const void*, int, const void*);

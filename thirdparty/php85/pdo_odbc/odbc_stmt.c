@@ -803,7 +803,7 @@ static int odbc_stmt_set_param(pdo_stmt_t *stmt, zend_long attr, zval *val)
 			return 0;
 
 		case PDO_ODBC_ATTR_ASSUME_UTF8:
-			S->assume_utf8 = zval_is_true(val);
+			S->assume_utf8 = zend_is_true(val);
 			return 0;
 		default:
 			strcpy(S->einfo.last_err_msg, "Unknown Attribute");
@@ -882,7 +882,7 @@ static int odbc_stmt_close_cursor(pdo_stmt_t *stmt)
 	return 1;
 }
 
-const struct pdo_stmt_methods odbc_stmt_methods = {
+const struct pdo_stmt_methods swoole_odbc_stmt_methods = {
 	odbc_stmt_dtor,
 	odbc_stmt_execute,
 	odbc_stmt_fetch,
