@@ -47,7 +47,7 @@ static PHP_METHOD(swoole_redis_server, format);
 SW_EXTERN_C_END
 
 // clang-format off
-const zend_function_entry swoole_redis_server_methods[] =
+static constexpr zend_function_entry swoole_redis_server_methods[] =
 {
     PHP_ME(swoole_redis_server, setHandler, arginfo_class_Swoole_Redis_Server_setHandler, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_server, getHandler, arginfo_class_Swoole_Redis_Server_getHandler, ZEND_ACC_PUBLIC)
@@ -58,7 +58,7 @@ const zend_function_entry swoole_redis_server_methods[] =
 
 void php_swoole_redis_server_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_EX(
-        swoole_redis_server, "Swoole\\Redis\\Server", nullptr, swoole_redis_server_methods, swoole_server);
+        swoole_redis_server, R"(Swoole\Redis\Server)", nullptr, swoole_redis_server_methods, swoole_server);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_redis_server);
     SW_SET_CLASS_CLONEABLE(swoole_redis_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_server, sw_zend_class_unset_property_deny);
@@ -73,17 +73,17 @@ void php_swoole_redis_server_minit(int module_number) {
 }
 
 void php_swoole_redis_server_rshutdown() {
-    for (auto i = redis_handlers.begin(); i != redis_handlers.end(); i++) {
-        sw_callable_free(i->second);
+    for (const auto &redis_handler : redis_handlers) {
+        sw_callable_free(redis_handler.second);
     }
     redis_handlers.clear();
 }
 
 int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
-    int fd = req->info.fd;
+    auto fd = req->info.fd;
     Connection *conn = serv->get_connection_by_session_id(fd);
     if (!conn) {
-        swoole_warning("connection[%d] is closed", fd);
+        swoole_warning("connection[%ld] is closed", fd);
         return SW_ERR;
     }
 

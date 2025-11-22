@@ -19,6 +19,8 @@
 
 #include <cstdio>
 #include <cstdarg>
+#include <cassert>
+#include <ctime>
 
 #include <string>
 #include <memory>
@@ -28,11 +30,15 @@
 #include <stack>
 #include <thread>
 #include <type_traits>
+#include <algorithm>
 
-#define __SCOPEGUARD_CONCATENATE_IMPL(s1, s2) s1##s2
-#define __SCOPEGUARD_CONCATENATE(s1, s2) __SCOPEGUARD_CONCATENATE_IMPL(s1, s2)
+#define SW_STRUCT_MEMBER_SIZE(_s, _m) sizeof(std::declval<struct _s>()._m)
 
 namespace swoole {
+template <typename T>
+bool in_range(T value, std::initializer_list<T> allowed_values) {
+    return std::find(allowed_values.begin(), allowed_values.end(), value) != allowed_values.end();
+}
 
 namespace std_string {
 template <typename... Args>
@@ -67,22 +73,18 @@ static inline long time(bool steady = false) {
 }
 
 static inline long get_timezone() {
-#ifdef __linux__
-    return timezone;
-#else
-    struct timezone tz;
-    struct timeval tv;
-    gettimeofday(&tv, &tz);
-    return tz.tz_minuteswest * 60;
-#endif
+    using namespace std::chrono;
+    auto now_time_t = system_clock::to_time_t(system_clock::now());
+    std::tm local_tm{};
+    localtime_r(&now_time_t, &local_tm);
+    return local_tm.tm_gmtoff;
 }
 
 class DeferTask {
-  private:
     std::stack<Callback> list_;
 
   public:
-    void add(Callback fn) {
+    void add(const Callback &fn) {
         list_.push(fn);
     }
 
@@ -181,9 +183,16 @@ inline ScopeGuard<Fun> operator+(ScopeGuardOnExit, Fun &&fn) {
 }
 }  // namespace detail
 
-// Helper macro
+#define __SCOPE_GUARD_CONCATENATE_IMPL(s1, s2) s1##s2
+#define __SCOPE_GUARD_CONCATENATE(s1, s2) __SCOPE_GUARD_CONCATENATE_IMPL(s1, s2)
+
+/**
+ * Call the specified function when exiting the scope, similar to Golang's defer function.
+ * After using this helper macro,
+ * it is not necessary to manually release resources before the return statement of the failed branch.
+ */
 #define ON_SCOPE_EXIT                                                                                                  \
-    auto __SCOPEGUARD_CONCATENATE(ext_exitBlock_, __LINE__) = swoole::detail::ScopeGuardOnExit() + [&]()
+    auto __SCOPE_GUARD_CONCATENATE(ext_exitBlock_, __LINE__) = swoole::detail::ScopeGuardOnExit() + [&]()
 
 std::string intersection(const std::vector<std::string> &vec1, std::set<std::string> &vec2);
 
@@ -223,7 +232,7 @@ static inline size_t rtrim(const char *str, size_t len) {
 }
 
 static inline ssize_t substr_len(const char *str, size_t len, char separator, bool before = false) {
-    const char *substr = (const char *) memchr(str, separator, len);
+    const auto substr = static_cast<const char *>(memchr(str, separator, len));
     if (substr == nullptr) {
         return -1;
     }
@@ -235,6 +244,13 @@ static inline bool starts_with(const char *haystack, size_t l_haystack, const ch
         return false;
     }
     return memcmp(haystack, needle, l_needle) == 0;
+}
+
+static inline bool starts_with(const std::string &str, const std::string &prefix) {
+    if (prefix.size() > str.size()) {
+        return false;
+    }
+    return std::equal(prefix.begin(), prefix.end(), str.begin());
 }
 
 static inline bool ends_with(const char *haystack, size_t l_haystack, const char *needle, size_t l_needle) {

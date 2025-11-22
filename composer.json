@@ -4,7 +4,8 @@
   "license": "Apache-2.0",
   "description": "Swoole is an event-driven, asynchronous, coroutine-based concurrency library with high performance for PHP.",
   "require": {
-    "php": ">= 8.1"
+    "php": ">=8.1 <8.5",
+    "ext-pdo": "*"
   },
   "php-ext": {
     "extension-name": "swoole",

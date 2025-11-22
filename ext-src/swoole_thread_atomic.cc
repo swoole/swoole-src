@@ -29,14 +29,14 @@ static zend_object_handlers swoole_thread_atomic_handlers;
 zend_class_entry *swoole_thread_atomic_long_ce;
 static zend_object_handlers swoole_thread_atomic_long_handlers;
 
-struct AtomicResource : public ThreadResource {
+struct AtomicResource : ThreadResource {
     sw_atomic_t value;
 
-    AtomicResource(zend_long _value) : ThreadResource() {
+    explicit AtomicResource(zend_long _value) {
         value = _value;
     }
 
-    ~AtomicResource() override {}
+    ~AtomicResource() override = default;
 };
 
 struct AtomicObject {
@@ -70,14 +70,14 @@ static zend_object *atomic_create_object(zend_class_entry *ce) {
     return &atomic->std;
 }
 
-struct AtomicLongResource : public ThreadResource {
+struct AtomicLongResource : ThreadResource {
     sw_atomic_long_t value;
 
-    AtomicLongResource(zend_long _value) : ThreadResource() {
+    explicit AtomicLongResource(zend_long _value) {
         value = _value;
     }
 
-    ~AtomicLongResource() override {}
+    ~AtomicLongResource() override = default;
 };
 
 struct AtomicLongObject {
@@ -121,15 +121,15 @@ ThreadResource *php_swoole_thread_atomic_long_cast(const zval *zobject) {
 
 void php_swoole_thread_atomic_create(zval *return_value, ThreadResource *resource) {
     auto obj = atomic_create_object(swoole_thread_atomic_ce);
-    auto ao = (AtomicObject *) atomic_fetch_object(obj);
-    ao->atomic = static_cast<AtomicResource *>(resource);
+    auto ao = atomic_fetch_object(obj);
+    ao->atomic = dynamic_cast<AtomicResource *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 
 void php_swoole_thread_atomic_long_create(zval *return_value, ThreadResource *resource) {
     auto obj = atomic_long_create_object(swoole_thread_atomic_long_ce);
-    auto ao = (AtomicLongObject *) atomic_long_fetch_object(obj);
-    ao->atomic = static_cast<AtomicLongResource *>(resource);
+    auto ao = atomic_long_fetch_object(obj);
+    ao->atomic = dynamic_cast<AtomicLongResource *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 

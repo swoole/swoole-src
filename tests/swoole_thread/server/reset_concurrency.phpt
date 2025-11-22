@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: reset concurrency [SWOOLE_THREAD]
+swoole_thread/server: reset concurrency [SWOOLE_THREAD]
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
 skip_if_nts();

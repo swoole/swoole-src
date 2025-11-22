@@ -49,7 +49,9 @@ namespace swoole {
 
 namespace http_server {
 struct Request;
-}
+struct RewriteRule;
+class StaticHandler;
+}  // namespace http_server
 
 class Server;
 struct Manager;
@@ -84,9 +86,7 @@ struct Connection {
     uint8_t high_watermark;
     uint8_t http_upgrade;
     uint8_t http2_stream;
-#ifdef SW_HAVE_ZLIB
     uint8_t websocket_compression;
-#endif
     // If it is equal to 1, it means server actively closed the connection
     uint8_t close_actively;
     uint8_t closed;
@@ -228,17 +228,9 @@ struct ListenPort {
      */
     bool open_websocket_protocol = false;
     /**
-     * open websocket close frame
+     * Relevant settings of websocket server
      */
-    bool open_websocket_close_frame = false;
-    /**
-     * open websocket ping frame
-     */
-    bool open_websocket_ping_frame = false;
-    /**
-     * open websocket pong frame
-     */
-    bool open_websocket_pong_frame = false;
+    WebSocketSettings websocket_settings = {};
     /**
      *  one package: length check
      */
@@ -263,10 +255,6 @@ struct ListenPort {
      * open tcp keepalive
      */
     bool open_tcp_keepalive = false;
-    /**
-     * Sec-WebSocket-Protocol
-     */
-    std::string websocket_subprotocol;
     /**
      * set socket option
      */
@@ -930,8 +918,8 @@ class Server {
     void *private_data_3 = nullptr;
     void *private_data_4 = nullptr;
 
-    Factory *factory = nullptr;
-    Manager *manager = nullptr;
+    Factory *factory_ = nullptr;
+    Manager *manager_ = nullptr;
 
     std::vector<ListenPort *> ports;
     std::vector<std::shared_ptr<UnixSocket>> worker_pipes;
@@ -979,6 +967,10 @@ class Server {
             return nullptr;
         }
         return get_port_by_fd(conn->fd);
+    }
+
+    uint32_t get_package_max_length(Connection *conn) {
+        return get_port_by_fd(conn->fd)->protocol.package_max_length;
     }
 
     network::Socket *get_server_socket(int fd) const {
@@ -1086,7 +1078,6 @@ class Server {
      */
     std::string pid_file;
 
-    EventData *last_task = nullptr;
     std::queue<String *> *buffer_pool = nullptr;
 
     const Allocator *recv_buffer_allocator = &SwooleG.std_allocator;
@@ -1153,8 +1144,10 @@ class Server {
     bool set_document_root(const std::string &path);
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
-    bool select_static_handler(http_server::Request *request, Connection *conn);
+    bool select_static_handler(const http_server::Request *request, const Connection *conn);
+    bool apply_rewrite_rules(http_server::StaticHandler *handler);
     void add_http_compression_type(const std::string &type);
+    void add_rewrite_rule(const std::string &pattern, const std::string &replacement);
 
     int create();
     bool create_worker_pipes();
@@ -1167,7 +1160,7 @@ class Server {
     int add_worker(Worker *worker);
     ListenPort *add_port(SocketType type, const char *host, int port);
     int add_systemd_socket();
-    int add_hook(enum HookType type, const Callback &func, int push_back);
+    void add_hook(enum HookType type, const Callback &func, int push_back);
     bool add_command(const std::string &command, int accepted_process_types, const Command::Handler &func);
     Connection *add_connection(const ListenPort *ls, network::Socket *_socket, int server_fd);
     void abort_connection(Reactor *reactor, const ListenPort *ls, network::Socket *_socket) const;
@@ -1300,7 +1293,7 @@ class Server {
         return is_hash_dispatch_mode();
     }
 
-    bool if_require_packet_callback(ListenPort *port, bool isset) {
+    bool if_require_packet_callback(const ListenPort *port, bool isset) const {
 #ifdef SW_USE_OPENSSL
         return (port->is_dgram() && !port->ssl && !isset);
 #else
@@ -1308,7 +1301,7 @@ class Server {
 #endif
     }
 
-    bool if_require_receive_callback(ListenPort *port, bool isset) {
+    bool if_require_receive_callback(const ListenPort *port, bool isset) const {
 #ifdef SW_USE_OPENSSL
         return (((port->is_dgram() && port->ssl) || port->is_stream()) && !isset);
 #else
@@ -1316,7 +1309,7 @@ class Server {
 #endif
     }
 
-    bool if_forward_message(const Session *session) {
+    bool if_forward_message(const Session *session) const {
         return session->reactor_id != swoole_get_worker_id();
     }
 
@@ -1349,7 +1342,7 @@ class Server {
     }
 
     bool is_created() const {
-        return factory != nullptr;
+        return factory_ != nullptr;
     }
 
     bool is_running() const {
@@ -1389,7 +1382,7 @@ class Server {
     }
 
     bool is_reactor_thread() {
-        return swoole_get_thread_type() == Server::THREAD_REACTOR;
+        return swoole_get_thread_type() == THREAD_REACTOR;
     }
 
     bool is_single_worker() const {
@@ -1422,16 +1415,11 @@ class Server {
 
     bool is_healthy_connection(double now, const Connection *conn) const;
 
-    static int is_dgram_event(uint8_t type) {
-        switch (type) {
-        case SW_SERVER_EVENT_RECV_DGRAM:
-            return true;
-        default:
-            return false;
-        }
+    static bool is_dgram_event(uint8_t type) {
+        return type == SW_SERVER_EVENT_RECV_DGRAM;
     }
 
-    static int is_stream_event(uint8_t type) {
+    static bool is_stream_event(uint8_t type) {
         switch (type) {
         case SW_SERVER_EVENT_RECV_DATA:
         case SW_SERVER_EVENT_SEND_DATA:
@@ -1475,8 +1463,8 @@ class Server {
         return conn;
     }
 
-    Connection *get_connection(int fd) const {
-        if ((uint32_t) fd > max_connection) {
+    Connection *get_connection(const int fd) const {
+        if (static_cast<uint32_t>(fd) > max_connection) {
             return nullptr;
         }
         return &connection_list[fd];
@@ -1506,7 +1494,9 @@ class Server {
     void clear_timer();
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
-    int create_user_workers();
+    bool create_event_workers();
+    bool create_task_workers();
+    bool create_user_workers();
     int start_manager_process();
 
     void call_hook(enum HookType type, void *arg);
@@ -1527,13 +1517,13 @@ class Server {
 
     int send_to_connection(const SendData *) const;
     ssize_t send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags);
-    bool has_kernel_nobufs_error(SessionId session_id);
+    bool has_kernel_nobufs_error(SessionId session_id) const;
 
     ssize_t send_to_worker_from_worker(WorkerId id, const EventData *data, int flags) {
         return send_to_worker_from_worker(get_worker(id), data, data->size(), flags);
     }
 
-    ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
+    ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id) const;
 
     /**
      * Send data to session.
@@ -1633,7 +1623,7 @@ class Server {
     static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
-    void drain_worker_pipe();
+    void drain_worker_pipe() const;
     void clean_worker_connections(Worker *worker);
 
     /**
@@ -1651,7 +1641,7 @@ class Server {
      */
     bool signal_handler_shutdown();
     bool signal_handler_child_exit() const;
-    bool signal_handler_reload(bool reload_all_workers);
+    bool signal_handler_reload(bool reload_all_workers) const;
     bool signal_handler_read_message() const;
     bool signal_handler_reopen_logger() const;
 
@@ -1666,7 +1656,7 @@ class Server {
 
     int start_event_worker(Worker *worker);
 
-    const char *get_startup_error_message();
+    const char *get_startup_error_message() const;
 
   private:
     enum Mode mode_;
@@ -1677,6 +1667,8 @@ class Server {
      * http static file directory
      */
     std::string document_root;
+
+    std::shared_ptr<std::vector<http_server::RewriteRule>> rewrite_rules;
     std::mutex lock_;
     uint32_t max_connection = 0;
     TimerNode *enable_accept_timer = nullptr;
@@ -1691,7 +1683,6 @@ class Server {
      */
     std::vector<Worker *> user_worker_list;
 
-    int create_task_workers();
     int create_pipe_buffers();
     void release_pipe_buffers();
     void create_worker(Worker *worker);
@@ -1772,8 +1763,6 @@ class Server {
 }  // namespace swoole
 
 typedef swoole::Server swServer;
-typedef swoole::ListenPort swListenPort;
-typedef swoole::RecvData swRecvData;
 
 static inline swoole::Server *sw_server() {
     return SwooleG.server;

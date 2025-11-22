@@ -21,10 +21,7 @@
 #include "php_swoole_server.h"
 #include "php_swoole_http.h"
 
-#include "swoole_http.h"
-#include "swoole_websocket.h"
 #include "swoole_mime_type.h"
-#include "swoole_http2.h"
 
 bool swoole_http_server_onBeforeRequest(swoole::http::Context *ctx);
 void swoole_http_server_onAfterResponse(swoole::http::Context *ctx);
@@ -36,14 +33,21 @@ void swoole_websocket_onOpen(swoole::http::Context *ctx);
 void swoole_websocket_onRequest(swoole::http::Context *ctx);
 bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
-int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
+int swoole_http2_server_parse(const std::shared_ptr<swoole::http2::Session> &client, const char *buf);
 int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);
-void swoole_http2_server_session_free(swoole::Connection *conn);
-int swoole_http2_server_ping(swoole::http::Context *ctx);
-int swoole_http2_server_goaway(swoole::http::Context *ctx,
-                               zend_long error_code,
-                               const char *debug_data,
-                               size_t debug_data_len);
+
+std::shared_ptr<swoole::http2::Session> swoole_http2_server_session_new(swoole::SessionId fd);
+void swoole_http2_server_session_free(swoole::SessionId fd);
+
+bool swoole_http2_server_end(swoole::http::Context *ctx, zval *zdata);
+bool swoole_http2_server_write(swoole::http::Context *ctx, zval *zdata);
+bool swoole_http2_server_send_file(
+    swoole::http::Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+bool swoole_http2_server_ping(swoole::http::Context *ctx);
+bool swoole_http2_server_goaway(swoole::http::Context *ctx,
+                                zend_long error_code,
+                                const char *debug_data,
+                                size_t debug_data_len);
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
     zval tmp;
@@ -79,9 +83,9 @@ static inline void http_server_add_server_array(HashTable *ht, zend_string *key,
     zend_hash_add_new(ht, key, value);
 }
 
-static inline void http_server_set_object_fd_property(zend_object *object, zend_class_entry *ce, long fd) {
-    zval *zv = zend_hash_find(&ce->properties_info, SW_ZSTR_KNOWN(SW_ZEND_STR_FD));
-    zend_property_info *property_info = (zend_property_info *) Z_PTR_P(zv);
-    zval *property = OBJ_PROP(object, property_info->offset);
+static inline void http_server_set_object_fd_property(zend_object *object, const zend_class_entry *ce, long fd) {
+    auto *zv = zend_hash_find(&ce->properties_info, SW_ZSTR_KNOWN(SW_ZEND_STR_FD));
+    auto *property_info = static_cast<zend_property_info *>(Z_PTR_P(zv));
+    auto property = OBJ_PROP(object, property_info->offset);
     ZVAL_LONG(property, fd);
 }

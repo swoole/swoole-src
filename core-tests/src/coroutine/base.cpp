@@ -138,7 +138,7 @@ TEST(coroutine_base, get_current_cid) {
         auto co = Coroutine::get_current();
         auto actual = co->get_cid();
         ASSERT_EQ(actual, Coroutine::get_current_cid());
-        ASSERT_EQ(actual, swoole_coroutine_get_current_id());
+        ASSERT_EQ(actual, swoole_coroutine_get_id());
     });
 }
 
@@ -347,4 +347,16 @@ TEST(coroutine_base, undefined_behavior) {
     ASSERT_EQ(1, WEXITSTATUS(status));
 
     ASSERT_EQ(0, swoole_fork(SW_FORK_PRECHECK));
+}
+
+TEST(coroutine_base, c_api) {
+    int code = 0x9501;
+    auto c1 = swoole_coroutine_create(
+        [](void *_arg) {
+            ASSERT_EQ(*(int *) _arg, 0x9501);
+            swoole_coroutine_create([](void *_arg) { swoole_coroutine_usleep(100000); }, nullptr);
+        },
+        &code);
+
+    ASSERT_GE(c1, 1);
 }

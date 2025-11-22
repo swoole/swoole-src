@@ -16,14 +16,14 @@ env:
 
 jobs:
   coverity-scan:
-    if: github.repository_owner == 'swoole'
+    if: "github.repository_owner == 'swoole' && (!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[coverity]'))"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.0"
+          php-version: "8.3"
 
       - name: Download and install Coverity Build Tool
         run: |
@@ -36,13 +36,13 @@ jobs:
 
       - name: Run build steps
         run: |
-          sudo phpize && ./configure
+          sudo phpize && ./configure --enable-openssl --enable-mysqlnd --enable-sockets --enable-swoole-curl
 
       - name: Run Coverity Scan Analysis Tool
         run: |
           export PATH=${COV_TOOLS_DIR}/bin:$PATH
           cd ${COV_BUILD_DIR}
-          cov-build --dir ${COV_RESULTS_DIR} make -j 4
+          cov-build --dir ${COV_RESULTS_DIR} make -j $(nproc)
 
       - name: Upload Coverity Scan Analysis results
         run: |

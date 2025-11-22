@@ -106,6 +106,18 @@ PHP_ARG_ENABLE([swoole-pgsql],
   [AS_HELP_STRING([--enable-swoole-pgsql],
     [Enable postgresql support])], [no], [no])
 
+PHP_ARG_WITH([swoole-firebird],
+  [whether to enable firebird build flags],
+  [AS_HELP_STRING([[--with-swoole-firebird[=DIR]]],
+    [PDO: Async Firebird support. DIR is the Firebird base install directory
+    [/opt/firebird]])], [no], [no])
+
+PHP_ARG_WITH([swoole-ssh2],
+  [whether to enable ssh2 support],
+  [AS_HELP_STRING([[--with-swoole-ssh2[=DIR]]],
+    [Enable Async ssh2 support. DIR is the libssh2 base install directory
+    [/usr]])], [no], [no])
+
 PHP_ARG_ENABLE([thread-context],
   [whether to enable thread context],
   [AS_HELP_STRING([--enable-thread-context],
@@ -119,7 +131,8 @@ PHP_ARG_ENABLE([swoole-thread],
 PHP_ARG_ENABLE([swoole-stdext],
   [whether to enable swoole stdext support],
   [AS_HELP_STRING([--enable-swoole-stdext],
-    [Enable swoole stdext support([Experimental] This module is only used for swoole-cli. If you are unsure which feature you need, keep it disabled)])], [no], [no])
+    [Enable swoole stdext support("[Experimental] This module is only used for swoole-cli.
+     If you are unsure which feature you need, keep it disabled")])], [no], [no])
 
 PHP_ARG_ENABLE([swoole-coro-time],
   [whether to enable coroutine execution time ],
@@ -227,8 +240,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_FUTEX],
         #include <unistd.h>
     ]], [[
         int futex_addr;
-        int val1;
-        syscall(SYS_futex, &futex_addr, val1, NULL, NULL, 0);
+        syscall(SYS_futex, &futex_addr, FUTEX_WAIT, NULL, NULL, 0);
     ]])],[
         AC_DEFINE([HAVE_FUTEX], 1, [have FUTEX?])
         AC_MSG_RESULT([yes])
@@ -387,6 +399,22 @@ AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     fi
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_MSGQUEUE],
+[
+    AC_MSG_CHECKING([for sysv message queue])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <sys/ipc.h>
+        #include <sys/msg.h>
+    ]], [[
+        msgget(0x9501, IPC_CREAT);
+    ]])],[
+        AC_DEFINE([HAVE_MSGQUEUE], 1, [have sysv message queue?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_MSG_CHECKING([if compiling with clang])
 AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([], [[
@@ -425,6 +453,8 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
+    AC_CHECK_LIB(pthread, pthread_rwlock_timedrdlock, AC_DEFINE(HAVE_RWLOCK_TIMEDRDLOCK, 1, [have pthread_rwlock_timedrdlock]))
+    AC_CHECK_LIB(pthread, pthread_rwlock_timedwrlock, AC_DEFINE(HAVE_RWLOCK_TIMEDWRLOCK, 1, [have pthread_rwlock_timedwrlock]))
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
     AC_CHECK_LIB(pthread, pthread_mutexattr_setpshared, AC_DEFINE(HAVE_PTHREAD_MUTEXATTR_SETPSHARED, 1, [have pthread_mutexattr_setpshared]))
     AC_CHECK_LIB(pthread, pthread_mutexattr_setrobust, AC_DEFINE(HAVE_PTHREAD_MUTEXATTR_SETROBUST, 1, [have pthread_mutexattr_setrobust]))
@@ -933,6 +963,107 @@ EOF
     fi
     dnl sqlite stop
 
+    dnl firebird start
+
+    if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
+        if test "$PHP_PDO" = "no" && test "$ext_shared" = "no"; then
+            AC_MSG_ERROR([PDO is not enabled! Add --enable-pdo to your configure line.])
+        fi
+
+      AC_PATH_PROG([FB_CONFIG], [fb_config], [no])
+
+      if test -x "$FB_CONFIG" && test "$PHP_PDO_FIREBIRD" = "yes"; then
+        AC_MSG_CHECKING([for libfbconfig])
+        FB_CFLAGS=$($FB_CONFIG --cflags)
+        FB_LIBDIR=$($FB_CONFIG --libs)
+        FB_VERSION=$($FB_CONFIG --version)
+        AC_MSG_RESULT([version $FB_VERSION])
+        AS_VERSION_COMPARE([$FB_VERSION], [3.0],
+          [AC_MSG_ERROR([Firebird required version is at least 3.0])])
+        PHP_EVAL_LIBLINE([$FB_LIBDIR], [SWOOLE_SHARED_LIBADD])
+        PHP_EVAL_INCLINE([$FB_CFLAGS])
+      else
+        AS_VAR_IF([PHP_PDO_FIREBIRD], [yes], [
+          FIREBIRD_INCDIR=
+          FIREBIRD_LIBDIR=
+          FIREBIRD_LIBDIR_FLAG=
+        ], [
+          FIREBIRD_INCDIR=$PHP_PDO_FIREBIRD/include
+          FIREBIRD_LIBDIR=$PHP_PDO_FIREBIRD/$PHP_LIBDIR
+          FIREBIRD_LIBDIR_FLAG=-L$FIREBIRD_LIBDIR
+        ])
+
+        PHP_CHECK_LIBRARY([fbclient], [fb_get_master_interface],
+          [],
+          [AC_MSG_FAILURE([libfbclient not found.])],
+          [$FIREBIRD_LIBDIR_FLAG])
+        PHP_ADD_LIBRARY_WITH_PATH([fbclient],
+          [$FIREBIRD_LIBDIR],
+          [SWOOLE_SHARED_LIBADD])
+        PHP_ADD_INCLUDE([$FIREBIRD_INCDIR])
+      fi
+
+      PHP_CHECK_PDO_INCLUDES
+      AC_DEFINE(SW_USE_FIREBIRD, 1, [do we enable firebird coro support])
+    fi
+
+    dnl firebird stop
+
+
+
+    dnl ssh2 start
+
+    if test "$PHP_SWOOLE_SSH2" != "no"; then
+        SEARCH_PATH="/usr/local /usr"
+        SEARCH_FOR="/include/libssh2.h"
+        if test -r $PHP_SWOOLE_SSH2/$SEARCH_FOR; then # path given as parameter
+            SSH2_DIR=$PHP_SWOOLE_SSH2
+        else
+            AC_MSG_CHECKING([for ssh2 files in default path])
+            for i in $SEARCH_PATH ; do
+                if test -r $i/$SEARCH_FOR; then
+                    SSH2_DIR=$i
+                    AC_MSG_RESULT(found in $i)
+                fi
+            done
+        fi
+
+        if test -z "$SSH2_DIR"; then
+            AC_MSG_RESULT([not found])
+            AC_MSG_ERROR([The required libssh2 library was not found.
+                You can obtain that package from http://sourceforge.net/projects/libssh2/])
+        fi
+
+        PHP_ADD_INCLUDE($SSH2_DIR/include)
+
+        PHP_CHECK_LIBRARY(ssh2, libssh2_session_hostkey, [
+            PHP_ADD_LIBRARY_WITH_PATH(ssh2, $SSH2_DIR/lib, SWOOLE_SHARED_LIBADD)
+            AC_DEFINE(HAVE_SSH2LIB, 1, [Have libssh2])
+        ],[
+            AC_MSG_ERROR([libssh2 version >= 1.2 not found])
+        ],[
+            -L$SSH2_DIR/lib -lm
+        ])
+
+        PHP_CHECK_LIBRARY(ssh2, libssh2_agent_init, [
+            AC_DEFINE(PHP_SSH2_AGENT_AUTH, 1, [Have libssh2 with ssh-agent support])
+        ],[
+            AC_MSG_WARN([libssh2 <= 1.2.3, ssh-agent subsystem support not enabled])
+        ],[
+            -L$SSH2_DIR/lib -lm
+        ])
+
+        PHP_CHECK_LIBRARY(ssh2, libssh2_session_set_timeout, [
+            AC_DEFINE(PHP_SSH2_SESSION_TIMEOUT, 1, [Have libssh2 with session timeout support])
+        ],[
+            AC_MSG_WARN([libssh2 < 1.2.9, session timeout support not enabled])
+        ],[
+            -L$SSH2_DIR/lib -lm
+        ])
+    fi
+
+    dnl ssh2 stop
+
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
         PHP_ADD_LIBRARY(z, 1, SWOOLE_SHARED_LIBADD)
@@ -1041,6 +1172,7 @@ EOF
     AC_SWOOLE_HAVE_UCONTEXT
     AC_SWOOLE_HAVE_VALGRIND
     AC_SWOOLE_CHECK_SOCKETS
+    AC_SWOOLE_HAVE_MSGQUEUE
     AC_SWOOLE_HAVE_BOOST_STACKTRACE
 
     AS_CASE([$host_os],
@@ -1059,8 +1191,19 @@ EOF
         PKG_CHECK_MODULES([URING], [liburing >= 2.0])
 
         AC_SWOOLE_HAVE_IOURING_STATX
-        AC_SWOOLE_HAVE_IOURING_FUTEX
-        AC_SWOOLE_HAVE_IOURING_FTRUNCATE
+
+        KERNEL_MAJOR=`uname -r | awk -F '.' '{print $1}'`
+        KERNEL_MINOR=`uname -r | awk -F '.' '{print $2}'`
+
+        if (test $KERNEL_MAJOR -eq 6 && test $KERNEL_MINOR -ge 9); then
+            dnl IORING_OP_FTRUNCATE is available since 6.9
+            AC_SWOOLE_HAVE_IOURING_FTRUNCATE
+        fi
+
+        if (test $KERNEL_MAJOR -eq 6 && test $KERNEL_MINOR -ge 7); then
+            dnl IORING_OP_FUTEX_WAKE/IORING_OP_FUTEX_WAIT is available since 6.7
+            AC_SWOOLE_HAVE_IOURING_FUTEX
+        fi
 
         PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($URING_CFLAGS)
@@ -1239,6 +1382,20 @@ EOF
         fi
     fi
 
+    if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/php84/pdo_firebird/firebird_driver.c \
+            thirdparty/php84/pdo_firebird/firebird_statement.c \
+            thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
+    fi
+
+    if test "$PHP_SWOOLE_SSH2" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/php/ssh2/ssh2.cc \
+            thirdparty/php/ssh2/ssh2_fopen_wrappers.cc \
+            thirdparty/php/ssh2/ssh2_sftp.cc"
+    fi
+
     SW_ASM_DIR="thirdparty/boost/asm/"
     SW_USE_ASM_CONTEXT="yes"
 
@@ -1392,8 +1549,11 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/ssh2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
+
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     fi

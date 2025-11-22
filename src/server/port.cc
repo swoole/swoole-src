@@ -21,6 +21,7 @@
 #include "swoole_client.h"
 #include "swoole_mqtt.h"
 #include "swoole_redis.h"
+#include "swoole_ssl.h"
 
 using swoole::http_server::Request;
 using swoole::network::Address;
@@ -270,7 +271,7 @@ void ListenPort::init_protocol() {
             protocol.get_package_length = http2::get_frame_length;
             protocol.onPackage = Server::dispatch_task;
         } else if (open_websocket_protocol) {
-            protocol.package_length_size = SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
+            protocol.package_length_size = SW_WEBSOCKET_FRAME_HEADER_SIZE;
             protocol.get_package_length = websocket::get_package_length;
             protocol.onPackage = websocket::dispatch_frame;
         }
@@ -653,8 +654,8 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _too_large;
             }
-            if (buffer->length == buffer->size && !buffer->extend(request_length)) {
-                goto _unavailable;
+            if (buffer->length == buffer->size) {
+                buffer->extend(request_length);
             }
             goto _recv_data;
         } else {
@@ -677,12 +678,11 @@ _parse:
             goto _too_large;
         }
 
-        if (request_length > buffer->size && !buffer->extend(request_length)) {
-            goto _unavailable;
+        if (request_length > buffer->size) {
+            buffer->extend(request_length);
         }
 
         if (buffer->length < request_length) {
-#ifdef SW_HTTP_100_CONTINUE
             // Expect: 100-continue
             if (request->has_expect_header()) {
                 _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
@@ -690,11 +690,10 @@ _parse:
                 swoole_trace_log(
                     SW_TRACE_SERVER,
                     "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
-                    request->content_length,
-                    buffer_->length,
-                    request->header_length);
+                    request->content_length_,
+                    buffer->length,
+                    request->header_length_);
             }
-#endif
             goto _recv_data;
         }
     }
@@ -904,7 +903,7 @@ void ListenPort::close_socket() {
 }
 
 void ListenPort::destroy_http_request(Connection *conn) {
-    auto request = static_cast<Request *>(conn->object);
+    const auto request = static_cast<Request *>(conn->object);
     if (!request) {
         return;
     }

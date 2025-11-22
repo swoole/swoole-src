@@ -83,3 +83,7 @@ TEST(os, thread_id) {
     DEBUG() << "current thread id: " << tid << "\n";
     ASSERT_FALSE(tid.empty());
 }
+
+TEST(os, set_isolation) {
+    swoole_set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
+}

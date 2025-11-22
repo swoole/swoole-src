@@ -16,7 +16,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_http2.h"
 #include "swoole_protocol.h"

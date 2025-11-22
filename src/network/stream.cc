@@ -14,8 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
-#include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_protocol.h"
@@ -131,9 +129,7 @@ int Stream::send(const char *data, size_t length) {
         buffer = new String(swoole_size_align(length + 4, swoole_pagesize()));
         buffer->length = 4;
     }
-    if (buffer->append(data, length) < 0) {
-        return SW_ERR;
-    }
+    buffer->append(data, length);
     return SW_OK;
 }
 

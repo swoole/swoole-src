@@ -154,7 +154,7 @@ class Client {
     int sleep();
     int wakeup();
     int sendto(const std::string &host, int port, const char *data, size_t len) const;
-    int get_peer_name(Address *addr);
+    int get_peer_name(Address *addr) const;
     int shutdown(int _how = SHUT_RDWR);
     int close();
     bool socks5_handshake(const char *recv_data, size_t length);
@@ -168,8 +168,8 @@ class Client {
 #ifdef SW_SUPPORT_DTLS
     void enable_dtls();
 #endif
-    int ssl_handshake();
-    int ssl_verify(int allow_self_signed);
+    int ssl_handshake() const;
+    int ssl_verify(int allow_self_signed) const;
 
     bool set_ssl_key_file(const std::string &file) const {
         return ssl_context->set_key_file(file);

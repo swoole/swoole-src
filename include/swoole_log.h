@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <unistd.h>
 
@@ -56,7 +56,7 @@ class Logger {
     int log_level = SW_LOG_INFO;
     bool date_with_microseconds = false;
     std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
-    std::string log_file = "";
+    std::string log_file;
     std::string log_real_file;
     std::mutex lock;
     int log_rotation = SW_LOG_ROTATION_SINGLE;
@@ -72,18 +72,18 @@ class Logger {
      * other functions must be used in a single-threaded environment.
      */
     void put(int level, const char *content, size_t length);
-    void close(void);
+    void close();
     void reset();
     void set_level(int lv);
-    int get_level();
+    int get_level() const;
     bool set_date_format(const char *format);
     void set_rotation(int rotation);
     const char *get_real_file();
-    const char *get_file();
+    const char *get_file() const;
     bool is_opened() const;
     bool redirect_stdout_and_stderr(bool enable);
     void set_date_with_microseconds(bool enable);
-    std::string gen_real_file(const std::string &file);
+    std::string gen_real_file(const std::string &file) const;
     static std::string get_pretty_name(const std::string &prettyFunction, bool strip = true);
 
     void display_backtrace() {
@@ -254,10 +254,12 @@ enum swTraceWhat : long {
     SW_TRACE_CO_ODBC = 1ul << 33,
     SW_TRACE_CO_ORACLE = 1ul << 34,
     SW_TRACE_CO_SQLITE = 1ul << 35,
+    SW_TRACE_CO_FIREBIRD = 1ul << 36,
+    SW_TRACE_CO_SSH2 = 1ul << 37,
     /**
      * Thread
      */
-    SW_TRACE_THREAD = 1ul << 36,
+    SW_TRACE_THREAD = 1ul << 40,
 
     SW_TRACE_ALL = 0x7fffffffffffffff
 };

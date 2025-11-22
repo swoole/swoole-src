@@ -24,6 +24,8 @@ SW_EXTERN_C_BEGIN
 #include <curl/curl.h>
 #include <curl/multi.h>
 
+#define curl_easy_reset swoole_curl_easy_reset
+
 void swoole_native_curl_minit(int module_number);
 void swoole_native_curl_mshutdown();
 
@@ -50,12 +52,8 @@ PHP_FUNCTION(swoole_native_curl_multi_setopt);
 PHP_FUNCTION(swoole_native_curl_multi_getcontent);
 PHP_FUNCTION(swoole_native_curl_multi_info_read);
 PHP_FUNCTION(swoole_native_curl_multi_init);
-
-#if PHP_VERSION_ID >= 80400
+#if LIBCURL_VERSION_NUM >= 0x073E00 && PHP_VERSION_ID >= 80200
 PHP_FUNCTION(swoole_native_curl_upkeep);
-PHP_FUNCTION(swoole_native_curl_version);
-PHP_FUNCTION(swoole_native_curl_strerror);
-PHP_FUNCTION(swoole_native_curl_multi_strerror);
 #endif
 
 SW_EXTERN_C_END

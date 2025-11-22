@@ -39,7 +39,7 @@ Context::Context(size_t stack_size, CoroutineFunc fn, void *private_data)
     int mapflags = MAP_PRIVATE | MAP_ANONYMOUS;
 #ifdef __OpenBSD__
     // no-op for Linux and NetBSD, not to enable on FreeBSD as the semantic differs.
-    // However necessary on OpenBSD.
+    // However, necessary on OpenBSD.
     mapflags |= MAP_STACK;
 #endif
     stack_ = (char *) ::mmap(0, stack_size_, PROT_READ | PROT_WRITE, mapflags, -1, 0);

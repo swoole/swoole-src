@@ -8,10 +8,51 @@ COMPILE_PARAMS="--enable-openssl \
 --enable-mysqlnd \
 --enable-swoole-curl \
 --enable-cares \
+--enable-zstd \
 --enable-swoole-pgsql \
 --enable-swoole-stdext \
+--with-swoole-firebird \
+--with-swoole-ssh2 \
 --with-swoole-odbc=unixODBC,/usr \
 --enable-swoole-sqlite"
+
+TEMP=$(getopt -o ad --long asan,debug: -n "$0" -- "$@")
+
+if [ $? != 0 ]; then
+  echo "Parameter parsing failed!" >&2
+  exit 1
+fi
+
+eval set -- "$TEMP"
+
+while true; do
+  case "$1" in
+    -a|--asan)
+      ASAN=true
+      shift
+      ;;
+    -d|--debug)
+      DEBUG=true
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo "Unsupported parameters!"
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$ASAN" = true ]; then
+      COMPILE_PARAMS="$COMPILE_PARAMS --enable-asan"
+fi
+
+if [ "$DEBUG" = true ]; then
+      COMPILE_PARAMS="$COMPILE_PARAMS --enable-debug"
+fi
 
 if [ -n "$__HAVE_ZTS__" ]; then
     COMPILE_PARAMS="$COMPILE_PARAMS --enable-swoole-thread"

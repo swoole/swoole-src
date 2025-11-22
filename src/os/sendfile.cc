@@ -14,9 +14,15 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
+#include "swoole_socket.h"
 
-#if defined(HAVE_SENDFILE) && defined(HAVE_KQUEUE)
+#if defined(__linux__)
+#include <sys/sendfile.h>
+
+ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
+	return sendfile(out_fd, in_fd, offset, size);
+}
+#elif defined(HAVE_SENDFILE) && defined(HAVE_KQUEUE)
 #include <sys/socket.h>
 #include <sys/uio.h>
 

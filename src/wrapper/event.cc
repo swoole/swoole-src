@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_api.h"
 #include "swoole_reactor.h"
 #include "swoole_client.h"
 #include "swoole_coroutine_socket.h"
@@ -86,8 +85,8 @@ int swoole_event_free() {
     return SW_OK;
 }
 
-void swoole_event_defer(Callback cb, void *private_data) {
-    SwooleTG.reactor->defer(std::move(cb), private_data);
+void swoole_event_defer(const Callback &cb, void *private_data) {
+    SwooleTG.reactor->defer(cb, private_data);
 }
 
 ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {

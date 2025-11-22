@@ -62,9 +62,9 @@ struct HttpProxy {
     std::string target_host;
     int target_port;
 
-    std::string get_auth_str();
-    size_t pack(String *send_buffer, const std::string &host_name);
-    bool handshake(String *recv_buffer);
+    std::string get_auth_str() const;
+    size_t pack(const String *send_buffer, const std::string &host_name) const;
+    static bool handshake(const String *recv_buffer);
 
     static HttpProxy *create(const std::string &host, int port, const std::string &user, const std::string &pwd);
 };

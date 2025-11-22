@@ -71,7 +71,7 @@ static void test_sync_client_dgram(const char *host, int port, enum swSocketType
     char buf[128];
     pid_t pid;
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     Process proc([&](Process *proc) {
@@ -401,7 +401,7 @@ TEST(client, sleep_2) {
         swoole_timer_after(10, [cli, server_pid](auto _1, auto _2) {
             cli->sleep();
             DEBUG() << "Client is sleeping...\n";
-            swoole_timer_after(15, [cli, server_pid](auto _1, auto _2) {
+            swoole_timer_after(15, [cli](auto _1, auto _2) {
                 cli->wakeup();
                 DEBUG() << "Client woke up, closing connection...\n";
             });
@@ -626,7 +626,7 @@ TEST(client, async_connect_timeout) {
 static void test_async_client_dgram(const char *host, int port, enum swSocketType type) {
     pid_t pid;
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     Process proc([&](Process *proc) {
@@ -988,7 +988,7 @@ TEST(client, ssl) {
     iovec wr_iov[2];
     wr_iov[0].iov_base = (void *) req.c_str();
     wr_iov[0].iov_len = offset1;
-    wr_iov[1].iov_base = (void *) req.c_str() + offset1;
+    wr_iov[1].iov_base = (char *) req.c_str() + offset1;
     wr_iov[1].iov_len = req.length() - offset1;
 
     swoole::network::IOVector wr_vec(wr_iov, 2);

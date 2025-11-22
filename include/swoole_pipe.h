@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_socket.h"
 
 enum swPipe_close_which {
@@ -43,7 +42,7 @@ class SocketPair {
     network::Socket *master_socket = nullptr;
     network::Socket *worker_socket = nullptr;
 
-    bool init_socket(int master_fd, int worker_fd);
+    void init_socket(int master_fd, int worker_fd);
 
   public:
     explicit SocketPair(bool _blocking) {
@@ -52,9 +51,9 @@ class SocketPair {
     }
     ~SocketPair();
 
-    ssize_t read(void *_buf, size_t length);
-    ssize_t write(const void *_buf, size_t length);
-    void clean();
+    ssize_t read(void *_buf, size_t length) const;
+    ssize_t write(const void *_buf, size_t length) const;
+    void clean() const;
     bool close(int which = 0);
 
     network::Socket *get_socket(bool _master) const {
@@ -71,7 +70,7 @@ class SocketPair {
         worker_socket->set_timeout(timeout);
     }
 
-    void set_blocking(bool blocking) const;
+    void set_blocking(bool _blocking);
 };
 
 class Pipe : public SocketPair {

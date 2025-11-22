@@ -18,6 +18,8 @@
 #include "swoole_hash.h"
 #include "swoole_util.h"
 
+#include <thread>
+
 namespace swoole {
 
 Table *Table::make(uint32_t rows_size, float conflict_proportion) {
@@ -41,7 +43,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
     if (table == nullptr) {
         return nullptr;
     }
-    table->mutex = new Mutex(Mutex::PROCESS_SHARED);
+    table->mutex = new Mutex(true);
     table->iterator = nullptr;
     table->column_map = new std::unordered_map<std::string, TableColumn *>;
     table->column_list = new std::vector<TableColumn *>;
@@ -72,7 +74,7 @@ bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, s
     return true;
 }
 
-TableColumn *Table::get_column(const std::string &key) {
+TableColumn *Table::get_column(const std::string &key) const {
     auto i = column_map->find(key);
     if (i == column_map->end()) {
         return nullptr;
@@ -81,7 +83,7 @@ TableColumn *Table::get_column(const std::string &key) {
     }
 }
 
-bool Table::exists(const char *key, uint16_t keylen) {
+bool Table::exists(const char *key, uint16_t keylen) const {
     TableRow *_rowlock = nullptr;
     const TableRow *row = get(key, keylen, &_rowlock);
     _rowlock->unlock();
@@ -93,7 +95,7 @@ TableIterator::TableIterator(size_t row_size) {
     if (!current_) {
         throw std::bad_alloc();
     }
-    mutex_ = new Mutex(Mutex::PROCESS_SHARED);
+    mutex_ = new Mutex(true);
     row_memory_size_ = row_size;
     reset();
 }
@@ -146,14 +148,14 @@ size_t Table::get_memory_size() const {
     return memory_size;
 }
 
-uint32_t Table::get_available_slice_num() {
+uint32_t Table::get_available_slice_num() const {
     lock();
     uint32_t num = pool->get_number_of_spare_slice();
     unlock();
     return num;
 }
 
-uint32_t Table::get_total_slice_num() {
+uint32_t Table::get_total_slice_num() const {
     return pool->get_number_of_total_slice();
 }
 
@@ -263,11 +265,11 @@ void TableRow::lock() {
             swoole_warning("timeout, force unlock");
             goto _success;
         }
-        sw_yield();
+        std::this_thread::yield();
     }
 }
 
-void Table::forward() {
+void Table::forward() const {
     iterator->lock();
     for (; iterator->absolute_index < size; iterator->absolute_index++) {
         TableRow *row = get_by_index(iterator->absolute_index);
@@ -305,7 +307,7 @@ void Table::forward() {
     iterator->unlock();
 }
 
-TableRow *Table::get(const char *key, uint16_t keylen, TableRow **rowlock) {
+TableRow *Table::get(const char *key, uint16_t keylen, TableRow **rowlock) const {
     check_key_length(&keylen);
 
     TableRow *row = hash(key, keylen);
@@ -455,7 +457,7 @@ TableColumn::TableColumn(const std::string &_name, Type _type, size_t _size) {
     }
 }
 
-void TableColumn::clear(TableRow *row) {
+void TableColumn::clear(TableRow *row) const {
     if (type == TYPE_STRING) {
         row->set_value(this, nullptr, 0);
     } else if (type == TYPE_FLOAT) {
@@ -467,7 +469,7 @@ void TableColumn::clear(TableRow *row) {
     }
 }
 
-void TableRow::set_value(TableColumn *col, void *value, size_t vlen) {
+void TableRow::set_value(const TableColumn *col, const void *value, size_t vlen) {
     switch (col->type) {
     case TableColumn::TYPE_INT:
         memcpy(data + col->index, value, sizeof(long));
@@ -491,15 +493,15 @@ void TableRow::set_value(TableColumn *col, void *value, size_t vlen) {
     }
 }
 
-void TableRow::get_value(TableColumn *col, double *dval) {
+void TableRow::get_value(const TableColumn *col, double *dval) const {
     memcpy(dval, data + col->index, sizeof(*dval));
 }
 
-void TableRow::get_value(TableColumn *col, long *lval) {
+void TableRow::get_value(const TableColumn *col, long *lval) const {
     memcpy(lval, data + col->index, sizeof(*lval));
 }
 
-void TableRow::get_value(TableColumn *col, char **value, TableStringLength *len) {
+void TableRow::get_value(const TableColumn *col, char **value, TableStringLength *len) {
     memcpy(len, data + col->index, sizeof(*len));
     *value = data + col->index + sizeof(*len);
 }

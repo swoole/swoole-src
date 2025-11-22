@@ -21,6 +21,8 @@
 #include "swoole_memory.h"
 #include "swoole_coroutine.h"
 
+#include "swoole_api.h"
+
 namespace swoole {
 using namespace network;
 
@@ -146,7 +148,7 @@ void Server::worker_accept_event(DataHead *info) {
             conn->ssl_client_cert = nullptr;
         }
 #endif
-        factory->end(info->fd, false);
+        factory_->end(info->fd, false);
         break;
     }
     case SW_SERVER_EVENT_CONNECT: {
@@ -213,13 +215,9 @@ void Server::worker_accept_event(DataHead *info) {
     }
 }
 
-static bool is_root_user() {
-    return geteuid() == 0;
-}
-
 void Server::worker_start_callback(Worker *worker) {
-    if (is_root_user()) {
-        Worker::set_isolation(group_, user_, chroot_);
+    if (swoole_is_root_user()) {
+        swoole_set_isolation(group_, user_, chroot_);
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
@@ -458,7 +456,7 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
     }
 }
 
-void Server::drain_worker_pipe() {
+void Server::drain_worker_pipe() const {
     for (uint32_t i = 0; i < worker_num + task_worker_num; i++) {
         Worker *worker = get_worker(i);
         if (sw_reactor()) {
@@ -476,11 +474,11 @@ void Server::clean_worker_connections(Worker *worker) {
     swoole_trace_log(SW_TRACE_WORKER, "clean connections");
     sw_reactor()->destroyed = true;
     if (sw_likely(is_base_mode())) {
-        foreach_connection([this](Connection *conn) { close(conn->session_id, true); });
+        foreach_connection([](Connection *conn) { close_connection(sw_reactor(), conn->socket); });
     } else if (is_thread_mode()) {
-        foreach_connection([this, worker](Connection *conn) {
+        foreach_connection([worker](Connection *conn) {
             if (conn->reactor_id == worker->id) {
-                close(conn->session_id, true);
+                close_connection(sw_reactor(), conn->socket);
             }
         });
     }
@@ -545,7 +543,7 @@ int Server::start_event_worker(Worker *worker) {
 /**
  * [Worker/TaskWorker/Master] Send data to ReactorThread
  */
-ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id) {
+ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id) const {
     Socket *pipe_sock = get_reactor_pipe_socket(session_id, ev_data->info.reactor_id);
     if (swoole_event_is_available()) {
         return swoole_event_write(pipe_sock, ev_data, sendn);

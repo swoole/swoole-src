@@ -1,10 +1,11 @@
 --TEST--
-swoole_client_sync: http client with http_proxy
+swoole_client_sync: http client with socks5 proxy
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_no_http_proxy();
+skip_if_no_socks5_proxy();
 skip_if_offline();
+skip_if_in_ci();
 ?>
 --FILE--
 <?php
@@ -17,6 +18,6 @@ $cli->set([
     'socks5_host' => SOCKS5_PROXY_HOST,
     'socks5_port' => SOCKS5_PROXY_PORT
 ]);
-client_http_v10_get($cli)
+client_http_v10_get($cli);
 ?>
 --EXPECT--

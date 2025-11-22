@@ -31,7 +31,11 @@
 #define SW_EXTERN_C_END
 #endif
 
-#ifndef _GNU_SOURCE
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
+#if defined(__linux__) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif
 
@@ -49,11 +53,11 @@
 #include <cstring>
 #include <climits>
 #include <unistd.h>
-#include <sched.h> /* sched_yield() */
 #include <pthread.h>
+#include <inttypes.h>
 
+#include <sys/uio.h>
 #include <sys/utsname.h>
-#include <sys/time.h>
 
 #include <string>
 #include <memory>
@@ -62,18 +66,6 @@
 #include <mutex>
 
 typedef unsigned long ulong_t;
-
-#ifndef PRId64
-#define PRId64 "lld"
-#endif
-
-#ifndef PRIu64
-#define PRIu64 "llu"
-#endif
-
-#ifndef PRIx64
-#define PRIx64 "llx"
-#endif
 
 #if defined(__GNUC__)
 #if __GNUC__ >= 3
@@ -263,8 +255,22 @@ typedef swoole::DataHead swDataHead;
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...) __attribute__((format(printf, 3, 4)));
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 int sw_printf(const char *format, ...);
+bool sw_wait_for(const std::function<bool()> &fn, int timeout_ms);
 
-#define sw_memset_zero(s, n) memset(s, '\0', n)
+static inline long sw_atol(const char *str) {
+    return std::strtol(str, nullptr, 10);
+}
+
+static inline int sw_atoi(const char *str) {
+    return static_cast<int>(sw_atol(str));
+}
+
+static inline void sw_memset_zero(void *s, size_t n) {
+    memset(s, '\0', n);
+}
+
+#define sw_unset_bit(val, bit) val &= ~bit
+#define sw_set_bit(val, bit) val |= bit
 
 static inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2) {
     return s1 == s2 && memcmp(v1, v2, s2) == 0;
@@ -488,9 +494,6 @@ enum swTraverseOperation {
     SW_TRAVERSE_STOP = 2,
 };
 
-//-------------------------------------------------------------------------------
-#define sw_yield() sched_yield()
-
 //------------------------------Base--------------------------------
 #ifndef uchar
 typedef unsigned char uchar;
@@ -565,6 +568,7 @@ uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 int swoole_itoa(char *buf, long value);
 bool swoole_mkdir_recursive(const std::string &dir);
 
+int swoole_rand();
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 
@@ -587,7 +591,10 @@ void swoole_redirect_stdout(int new_fd);
 void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
+bool swoole_is_root_user();
+void swoole_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
 bool swoole_set_task_tmpdir(const std::string &dir);
+void swoole_set_process_death_signal(int signal);
 const std::string &swoole_get_task_tmpdir();
 int swoole_tmpfile(char *filename);
 
@@ -774,7 +781,7 @@ struct Global {
 };
 
 std::string dirname(const std::string &file);
-int hook_add(void **hooks, int type, const Callback &func, int push_back);
+void hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 double microtime();
 void realtime_get(timespec *time);
@@ -841,6 +848,52 @@ SW_API void swoole_name_resolver_each(
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
 SW_API int swoole_get_log_level();
 SW_API FILE *swoole_get_stdout_stream();
+
+enum swEventInitFlag {
+    SW_EVENTLOOP_WAIT_EXIT = 1,
+};
+
+/**
+ * manually_trigger:
+ * Once enabled, the timer will no longer be triggered by event polling or the operating system's timer;
+ * instead, it will be managed directly at the user space.
+ */
+SW_API swoole::Timer *swoole_timer_create(bool manually_trigger = false);
+SW_API long swoole_timer_after(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
+SW_API long swoole_timer_tick(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
+SW_API swoole::TimerNode *swoole_timer_add(double ms,
+                                           bool persistent,
+                                           const swoole::TimerCallback &callback,
+                                           void *private_data = nullptr);
+SW_API swoole::TimerNode *swoole_timer_add(long ms,
+                                           bool persistent,
+                                           const swoole::TimerCallback &callback,
+                                           void *private_data = nullptr);
+SW_API bool swoole_timer_del(swoole::TimerNode *tnode);
+SW_API bool swoole_timer_exists(long timer_id);
+SW_API void swoole_timer_delay(swoole::TimerNode *tnode, long delay_ms);
+SW_API swoole::TimerNode *swoole_timer_get(long timer_id);
+SW_API bool swoole_timer_clear(long timer_id);
+SW_API void swoole_timer_free();
+SW_API void swoole_timer_select();
+SW_API int64_t swoole_timer_get_next_msec();
+SW_API bool swoole_timer_is_available();
+
+SW_API int swoole_event_init(int flags);
+SW_API int swoole_event_add(swoole::network::Socket *socket, int events);
+SW_API int swoole_event_set(swoole::network::Socket *socket, int events);
+SW_API int swoole_event_add_or_update(swoole::network::Socket *socket, int event);
+SW_API int swoole_event_del(swoole::network::Socket *socket);
+SW_API void swoole_event_defer(const swoole::Callback &cb, void *private_data);
+SW_API ssize_t swoole_event_write(swoole::network::Socket *socket, const void *data, size_t len);
+SW_API ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec *iov, size_t iovcnt);
+SW_API swoole::network::Socket *swoole_event_get_socket(int fd);
+SW_API int swoole_event_wait();
+SW_API int swoole_event_free();
+SW_API void swoole_event_set_handler(int fd_type, int event, swoole::ReactorHandler handler);
+SW_API bool swoole_event_isset_handler(int fd_type, int event);
+SW_API bool swoole_event_is_available();
+SW_API bool swoole_event_is_running();
 
 static sw_inline swoole::String *sw_tg_buffer() {
     return SwooleTG.buffer_stack;

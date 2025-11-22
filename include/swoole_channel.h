@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_lock.h"
 
 namespace swoole {
@@ -61,11 +60,11 @@ struct Channel {
     int push(const void *in_data, int data_length);
     int out(void *out_buf, int buffer_length);
     int in(const void *in_data, int data_length);
-    int peek(void *out, int buffer_length);
-    int wait();
-    int notify();
+    int peek(void *out, int buffer_length) const;
+    int wait() const;
+    int notify() const;
     void destroy();
-    void print();
+    void print() const;
     int count() const {
         return num;
     }

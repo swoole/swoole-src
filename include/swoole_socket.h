@@ -17,13 +17,18 @@
 
 #pragma once
 
+#include "swoole.h"
+#include "swoole_ssl.h"
+#include "swoole_buffer.h"
+#include "swoole_file.h"
+
+#include <poll.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/uio.h>
+
 #include <netinet/in.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-#include <sys/types.h>
-#endif
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
@@ -31,11 +36,6 @@
 
 #include <string>
 #include <vector>
-
-#include "swoole.h"
-#include "swoole_ssl.h"
-#include "swoole_buffer.h"
-#include "swoole_file.h"
 
 #ifndef SOCK_NONBLOCK
 #define SOCK_NONBLOCK O_NONBLOCK
@@ -47,12 +47,7 @@
 #define s6_addr32 _S6_un._S6_u32
 #endif
 
-#ifdef __linux__
-#include <sys/sendfile.h>
-#define swoole_sendfile(out_fd, in_fd, offset, limit) sendfile(out_fd, in_fd, offset, limit)
-#else
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
-#endif
 
 enum {
     SW_BAD_SOCKET = -1,
@@ -464,7 +459,7 @@ struct Socket {
         return events & SW_EVENT_WRITE;
     }
 
-    int wait_event(int timeout_ms, int events) const;
+    int wait_event(int timeout_ms, int _events) const;
     bool wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec = -1);
     int what_event_want(int default_event) const;
     void free();

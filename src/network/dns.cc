@@ -14,9 +14,9 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_coroutine_api.h"
 #include "swoole_util.h"
 
 #include <string>
@@ -68,7 +68,7 @@ SW_API void swoole_set_dns_server(const std::string &server) {
     char dns_server_host[32];
     strcpy(dns_server_host, server.c_str());
     if ((_port = strchr(const_cast<char *>(server.c_str()), ':'))) {
-        dns_server_port = atoi(_port + 1);
+        dns_server_port = sw_atoi(_port + 1);
         if (!Address::verify_port(dns_server_port, true)) {
             dns_server_port = SW_DNS_SERVER_PORT;
         }
@@ -99,7 +99,7 @@ SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) 
 
 SW_API void swoole_name_resolver_each(
     const std::function<swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
-    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
+    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); ++iter) {
         const swTraverseOperation op = fn(iter);
         if (op == SW_TRAVERSE_REMOVE) {
             SwooleG.name_resolvers.erase(iter++);
@@ -321,7 +321,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     steps = 0;
 
     char name[10][254];
-    int i, j;
+    int i;
 
     auto ret = _sock.recv(packet, sizeof(packet) - 1);
     if (ret <= 0) {
@@ -350,7 +350,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         type[i] = 0;
         /* Parsing the NAME portion of the RR */
         char *temp = &packet[steps];
-        j = 0;
+        int j = 0;
         while (*temp != 0) {
             if ((uchar) (*temp) == 0xc0) {
                 ++temp;
@@ -425,7 +425,6 @@ static int domain_encode(const char *src, int n, char *dest) {
     }
 
     int pos = 0;
-    int i;
     int len = 0;
     memcpy(dest + 1, src, n + 1);
     dest[n + 1] = '.';
@@ -433,7 +432,7 @@ static int domain_encode(const char *src, int n, char *dest) {
     src = dest + 1;
     n++;
 
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         if (src[i] == '.') {
             len = i - pos;
             dest[pos] = len;
@@ -449,10 +448,10 @@ static int domain_encode(const char *src, int n, char *dest) {
  * (i.e. 3www5apple3com0 into www.apple.com)
  */
 static void domain_decode(char *str) {
-    size_t i, j;
+    size_t i;
     for (i = 0; i < strlen(str); i++) {
         uint32_t len = str[i];
-        for (j = 0; j < len; j++) {
+        for (size_t j = 0; j < len; j++) {
             str[i] = str[i + 1];
             i++;
         }
@@ -834,9 +833,9 @@ void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) const {
     for (auto &addr : results) {
         const char *addr_str;
         if (family == AF_INET6) {
-            addr_str = network::Address::addr_str(family, &addr.sin6_addr);
+            addr_str = Address::addr_str(family, &addr.sin6_addr);
         } else {
-            addr_str = network::Address::addr_str(family, &((sockaddr_in *) &addr)->sin_addr);
+            addr_str = Address::addr_str(family, &((sockaddr_in *) &addr)->sin_addr);
         }
         if (addr_str) {
             retval.emplace_back(addr_str);

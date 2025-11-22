@@ -134,10 +134,6 @@ static PHP_FUNCTION(swoole_array_push);
 static PHP_FUNCTION(swoole_array_unshift);
 static PHP_FUNCTION(swoole_array_splice);
 
-static zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len) {
-    return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
-}
-
 static bool is_typed_array(const zval *zval) {
     return HT_FLAGS(Z_ARRVAL_P(zval)) & HASH_FLAG_TYPED_ARRAY;
 }
@@ -347,7 +343,7 @@ static void call_method(const std::unordered_map<std::string, std::string> &meth
         return;
     }
     const auto real_fn = iter->second;
-    const auto fn = get_function(EG(function_table), real_fn.c_str(), real_fn.length());
+    const auto fn = zend::get_function(real_fn.c_str(), real_fn.length());
     if (!fn) {
         zend_throw_error(nullptr, "The function `%s` is undefined", real_fn.c_str());
         return;
@@ -424,13 +420,13 @@ void php_swoole_stdext_minit(int module_number) {
     zend_set_user_opcode_handler(ZEND_UNSET_DIM, opcode_handler_array_unset);
     zend_set_user_opcode_handler(ZEND_FE_RESET_RW, opcode_handler_foreach_begin);
 
-    fn_swoole_call_array_method = get_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
-    fn_swoole_call_string_method = get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
-    fn_swoole_call_stream_method = get_function(CG(function_table), ZEND_STRL("swoole_call_stream_method"));
+    fn_swoole_call_array_method = zend::get_function(CG(function_table), ZEND_STRL("swoole_call_array_method"));
+    fn_swoole_call_string_method = zend::get_function(CG(function_table), ZEND_STRL("swoole_call_string_method"));
+    fn_swoole_call_stream_method = zend::get_function(CG(function_table), ZEND_STRL("swoole_call_stream_method"));
 
-    fn_array_push = get_function(CG(function_table), ZEND_STRL("array_push"));
-    fn_array_unshift = get_function(CG(function_table), ZEND_STRL("array_unshift"));
-    fn_array_splice = get_function(CG(function_table), ZEND_STRL("array_splice"));
+    fn_array_push = zend::get_function(CG(function_table), ZEND_STRL("array_push"));
+    fn_array_unshift = zend::get_function(CG(function_table), ZEND_STRL("array_unshift"));
+    fn_array_splice = zend::get_function(CG(function_table), ZEND_STRL("array_splice"));
 
     ori_handler_array_push = fn_array_push->internal_function.handler;
     fn_array_push->internal_function.handler = ZEND_FN(swoole_array_push);
@@ -444,7 +440,7 @@ void php_swoole_stdext_minit(int module_number) {
     PHP_FUNCTION(swoole_func_name) {                                                                                   \
         static zend_function *fn_##swoole_func_name = nullptr;                                                         \
         if (!fn_##swoole_func_name) {                                                                                  \
-            fn_##swoole_func_name = get_function(CG(function_table), ZEND_STRL(#php_func_name));                       \
+            fn_##swoole_func_name = zend::get_function(CG(function_table), ZEND_STRL(#php_func_name));                 \
         }                                                                                                              \
         call_func_move_first_arg(fn_##swoole_func_name, execute_data, return_value, position);                         \
     }
@@ -633,6 +629,14 @@ static void debug_val(const char *tag, int op_type, zval *value) {
 #else
 #define debug_val(tag, op_type, value)
 #endif
+
+// In a release version, this function suddenly changes from static to ZEND_API.
+// We don't know which version it is. In principle, the ZEND_API should not be changed in the release version,
+// but PHP still does so, which is against the R&D specification. We have to copy the code of this function once.
+#define zend_cannot_add_element sw_zend_cannot_add_element
+static zend_never_inline ZEND_COLD void ZEND_FASTCALL sw_zend_cannot_add_element(void) {
+    zend_throw_error(NULL, "Cannot add element to the array as the next element is already occupied");
+}
 
 static void array_add_or_update(const zend_op *opline, zval *container, const zval *key, zval *value EXECUTE_DATA_DC) {
     zval *var_ptr;

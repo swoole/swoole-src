@@ -30,6 +30,11 @@ using swoole::TimerNode;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
+enum FileOperateFlag {
+    SW_FILE_LOCK = LOCK_EX,
+    SW_FILE_APPEND = PHP_FILE_APPEND,
+};
+
 static zend_class_entry *swoole_coroutine_system_ce;
 
 // clang-format off
@@ -56,6 +61,8 @@ void php_swoole_coroutine_system_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_BASE(
         swoole_coroutine_system, "Swoole\\Coroutine\\System", "Co\\System", swoole_coroutine_system_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_system, sw_zend_create_object_deny);
+
+    zend::add_constant("FILE_LOCK", SW_FILE_LOCK);
 }
 
 PHP_METHOD(swoole_coroutine_system, sleep) {
@@ -83,7 +90,7 @@ PHP_METHOD(swoole_coroutine_system, readFile) {
     Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    auto result = System::read_file(filename, flags & LOCK_EX);
+    auto result = System::read_file(filename, flags & SW_FILE_LOCK);
     if (result == nullptr) {
         RETURN_FALSE;
     } else {
@@ -106,13 +113,13 @@ PHP_METHOD(swoole_coroutine_system, writeFile) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int _flags = 0;
-    if (flags & PHP_FILE_APPEND) {
+    if (flags & SW_FILE_APPEND) {
         _flags |= O_APPEND;
     } else {
         _flags |= O_TRUNC;
     }
 
-    ssize_t retval = System::write_file(filename, data, l_data, flags & LOCK_EX, _flags);
+    ssize_t retval = System::write_file(filename, data, l_data, flags & SW_FILE_LOCK, _flags);
     if (retval < 0) {
         RETURN_FALSE;
     } else {
@@ -195,8 +202,8 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo) {
     }
 
     array_init(return_value);
-    for (auto i = result.begin(); i != result.end(); i++) {
-        add_next_index_stringl(return_value, i->c_str(), i->length());
+    for (auto &i : result) {
+        add_next_index_stringl(return_value, i.c_str(), i.length());
     }
 }
 
@@ -228,7 +235,7 @@ PHP_METHOD(swoole_coroutine_system, statvfs) {
 PHP_METHOD(swoole_coroutine_system, exec) {
     char *command;
     size_t command_len;
-    zend_bool get_error_stream = 0;
+    zend_bool get_error_stream = false;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_STRING(command, command_len)

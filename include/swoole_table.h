@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_memory.h"
 #include "swoole_lock.h"
 
@@ -64,10 +63,10 @@ struct TableRow {
         sw_memset_zero((char *) &lock_pid, sizeof(TableRow) - offsetof(TableRow, lock_pid));
     }
 
-    void set_value(TableColumn *col, void *value, size_t vlen);
-    void get_value(TableColumn *col, double *dval);
-    void get_value(TableColumn *col, long *lval);
-    void get_value(TableColumn *col, char **strval, TableStringLength *strlen);
+    void set_value(const TableColumn *col, const void *value, size_t vlen);
+    void get_value(const TableColumn *col, double *dval) const;
+    void get_value(const TableColumn *col, long *lval) const;
+    void get_value(const TableColumn *col, char **strval, TableStringLength *strlen);
 };
 
 struct TableIterator {
@@ -110,7 +109,7 @@ struct TableColumn {
 
     TableColumn(const std::string &_name, Type _type, size_t _size);
 
-    void clear(TableRow *row);
+    void clear(TableRow *row) const;
 };
 
 class Table {
@@ -151,16 +150,16 @@ class Table {
     static Table *make(uint32_t rows_size, float conflict_proportion);
     size_t calc_memory_size() const;
     size_t get_memory_size() const;
-    uint32_t get_available_slice_num();
-    uint32_t get_total_slice_num();
+    uint32_t get_available_slice_num() const;
+    uint32_t get_total_slice_num() const;
     bool create();
     bool add_column(const std::string &name, enum TableColumn::Type type, size_t size);
-    TableColumn *get_column(const std::string &key);
+    TableColumn *get_column(const std::string &key) const;
     TableRow *set(const char *key, uint16_t keylen, TableRow **rowlock, int *out_flags);
-    TableRow *get(const char *key, uint16_t keylen, TableRow **rowlock);
-    bool exists(const char *key, uint16_t keylen);
+    TableRow *get(const char *key, uint16_t keylen, TableRow **rowlock) const;
+    bool exists(const char *key, uint16_t keylen) const;
     bool del(const char *key, uint16_t keylen);
-    void forward();
+    void forward() const;
     // release shared memory
     void destroy();
 
@@ -197,7 +196,7 @@ class Table {
         return row_num;
     }
 
-    bool exists(const std::string &key) {
+    bool exists(const std::string &key) const {
         return exists(key.c_str(), key.length());
     }
 
@@ -232,7 +231,7 @@ class Table {
         return new_row;
     }
 
-    void free_row(TableRow *tmp) {
+    void free_row(TableRow *tmp) const {
         lock();
         tmp->clear();
         pool->free(tmp);

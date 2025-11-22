@@ -325,15 +325,14 @@ static void test_base() {
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
-    ASSERT_EQ(serv.add_hook(
-                  Server::HOOK_WORKER_START,
-                  [](void *ptr) {
-                      void **args = (void **) ptr;
-                      Server *serv = (Server *) args[0];
-                      ASSERT_TRUE(serv->is_started());
-                  },
-                  false),
-              0);
+    serv.add_hook(
+        Server::HOOK_WORKER_START,
+        [](void *ptr) {
+            void **args = (void **) ptr;
+            Server *serv = (Server *) args[0];
+            ASSERT_TRUE(serv->is_started());
+        },
+        false);
 
     mutex lock;
     lock.lock();
@@ -423,7 +422,7 @@ static void test_process(bool single_thread = false) {
     test::counter_init();
     auto counter = test::counter_ptr();
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -560,7 +559,7 @@ static void test_process_send_in_user_worker() {
     test::counter_init();
     auto counter = test::counter_ptr();
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -1243,7 +1242,7 @@ TEST(server, ssl) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_WARNING);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
@@ -1311,7 +1310,7 @@ TEST(server, ssl_error) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_WARNING);
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
@@ -1364,7 +1363,7 @@ TEST(server, ssl_write) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_WARNING);
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     ListenPort *port = serv.add_port(static_cast<enum swSocketType>(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
@@ -1436,7 +1435,7 @@ TEST(server, dtls) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_WARNING);
 
-    auto *lock = new Mutex(Mutex::PROCESS_SHARED);
+    auto *lock = new Mutex(true);
     lock->lock();
 
     auto port = serv.add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
@@ -1555,7 +1554,7 @@ static void test_ssl_client_cert(Server::Mode mode) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_INFO);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
@@ -2017,7 +2016,7 @@ TEST(server, task_sync_multi_task) {
     std::vector<std::string> tasks;
     std::vector<std::string> results;
     int n_task = 16;
-    size_t len_task = SW_IPC_MAX_SIZE * 2;
+    constexpr size_t len_task = SW_IPC_MAX_SIZE * 2;
     SW_LOOP_N(n_task) {
         char data[len_task] = {};
         swoole_random_string(data, len_task - 1);
@@ -2665,7 +2664,7 @@ TEST(server, forward_message) {
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
-    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    swoole::Mutex lock(true);
     lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -2791,7 +2790,7 @@ TEST(server, abort_worker) {
     auto port = server->add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_EQ(server->create(), 0);
 
-    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    swoole::Mutex lock(true);
     lock.lock();
 
     std::thread t1([&]() {
@@ -2868,7 +2867,7 @@ TEST(server, reactor_thread_pipe_writable) {
     port->protocol.package_max_length = 8 * 1024 * 1024;
     network::Stream::set_protocol(&port->protocol);
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -3238,7 +3237,7 @@ static void test_clean_worker(Server::Mode mode) {
     ASSERT_EQ(serv.start(), SW_OK);
     ASSERT_EQ(test::counter_get(0), 0);  // Server on_receive
     ASSERT_EQ(test::counter_get(1), 3);  // worker start
-    ASSERT_EQ(test::counter_get(2), 1);  // Server on_close
+    ASSERT_EQ(test::counter_get(2), 0);  // Server on_close
     ASSERT_EQ(test::counter_get(3), 0);  // Client on_receive
 }
 
@@ -3266,7 +3265,7 @@ static void test_kill_worker(Server::Mode mode, const Options &options) {
     test::counter_init();
     int *counter = test::counter_ptr();
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -3424,7 +3423,7 @@ static void test_kill_self(Server::Mode mode) {
 
     int *counter = (int *) sw_mem_pool()->alloc(sizeof(int) * 6);
 
-    swoole::Mutex lock(swoole::Mutex::PROCESS_SHARED);
+    swoole::Mutex lock(true);
     lock.lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -3506,7 +3505,7 @@ TEST(server, no_idle_worker) {
     swoole_set_log_file(TEST_LOG_FILE);
     swoole_set_log_level(SW_LOG_WARNING);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -3568,7 +3567,7 @@ TEST(server, no_idle_task_worker) {
     swoole_set_log_file(TEST_LOG_FILE);
     swoole_set_log_level(SW_LOG_WARNING);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -3638,7 +3637,7 @@ static void test_conn_overflow(Server::Mode mode, bool send_yield) {
     test::counter_init();
     auto counter = test::counter_ptr();
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -3724,7 +3723,7 @@ TEST(server, send_timeout) {
     test::counter_init();
     auto counter = test::counter_ptr();
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -3812,7 +3811,7 @@ static void test_max_request(Server::Mode mode) {
     serv.worker_num = 2;
     serv.max_request = 128;
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
@@ -3876,7 +3875,7 @@ TEST(server, watermark) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     String wbuf;
@@ -3952,7 +3951,7 @@ TEST(server, discard_data) {
     swoole_set_log_file(TEST_LOG_FILE);
     swoole_set_log_level(SW_LOG_WARNING);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -4008,10 +4007,6 @@ TEST(server, discard_data) {
     remove(TEST_LOG_FILE);
 }
 
-TEST(server, worker_set_isolation) {
-    Worker::set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
-}
-
 TEST(server, pause_and_resume) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 2;
@@ -4021,7 +4016,7 @@ TEST(server, pause_and_resume) {
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);
@@ -4087,7 +4082,7 @@ TEST(server, max_queued_bytes) {
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);

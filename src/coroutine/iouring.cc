@@ -19,6 +19,8 @@
 
 #include "swoole_iouring.h"
 
+#ifdef SW_USE_IOURING
+
 #ifdef HAVE_IOURING_FUTEX
 #ifndef FUTEX2_SIZE_U32
 #define FUTEX2_SIZE_U32 0x02
@@ -26,7 +28,6 @@
 #include <linux/futex.h>
 #endif
 
-#ifdef SW_USE_IOURING
 using swoole::Coroutine;
 
 namespace swoole {
@@ -79,6 +80,17 @@ struct IouringEvent {
     };
 };
 
+static void parse_kernel_version(const char *release, int *major, int *minor) {
+    char copy[SW_STRUCT_MEMBER_SIZE(utsname, release)];
+    strcpy(copy, release);
+
+    char *token = strtok(copy, ".-");
+    *major = token ? sw_atoi(token) : 0;
+
+    token = strtok(nullptr, ".-");
+    *minor = token ? sw_atoi(token) : 0;
+}
+
 Iouring::Iouring(Reactor *_reactor) {
     reactor = _reactor;
     if (SwooleG.iouring_entries > 0) {
@@ -109,6 +121,25 @@ Iouring::Iouring(Reactor *_reactor) {
             return;
         }
     }
+
+    int major, minor;
+    parse_kernel_version(SwooleG.uname.release, &major, &minor);
+
+#ifdef HAVE_IOURING_FUTEX
+    if (!(major >= 6 && minor >= 7)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_OPERATION_NOT_SUPPORT,
+                         "The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
+    }
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    if (!(major >= 6 && minor >= 9)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_OPERATION_NOT_SUPPORT,
+                         "The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
+    }
+#endif
 
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
     ring_socket->object = this;

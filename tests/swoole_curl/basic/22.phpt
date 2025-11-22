@@ -3,14 +3,16 @@ swoole_curl/basic: Test curl_setopt() function with CURLOPT_FOLLOWLOCATION param
 --CREDITS--
 Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+use SwooleTest\CurlManager;
 
-$cm = new \SwooleTest\CurlManager();
+$cm = new CurlManager();
 $cm->run(function ($host) {
-
+    // co::set(['log_level' => 0, 'trace_flags' => SWOOLE_TRACE_ALL]);
     // CURLOPT_FOLLOWLOCATION = true
     $urls = [
         "{$host}/get.php?test=redirect_301",
@@ -18,7 +20,7 @@ $cm->run(function ($host) {
         "{$host}/get.php?test=redirect_307",
         "{$host}/get.php?test=redirect_308",
     ];
-    foreach($urls as $url) {
+    foreach ($urls as $url) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -27,8 +29,8 @@ $cm->run(function ($host) {
         curl_exec($ch);
         $info = curl_getinfo($ch);
 
-        Assert::assert(1 === $info['redirect_count']);
-        
+        Assert::eq($info['redirect_count'], 1);
+
         curl_close($ch);
     }
 
@@ -39,13 +41,11 @@ $cm->run(function ($host) {
     curl_exec($ch);
     $info = curl_getinfo($ch);
 
-    Assert::assert(0 === $info['redirect_count']);
+    Assert::eq($info['redirect_count'], 0);
     Assert::assert("http://{$host}/get.php?test=getpost" === $info['redirect_url']);
 
     curl_close($ch);
-
 });
-
 ?>
 ===DONE===
 --EXPECTF--

@@ -30,6 +30,7 @@
 
 using swoole::AsyncEvent;
 using swoole::Coroutine;
+using swoole::EventType;
 using swoole::translate_events_from_poll;
 using swoole::translate_events_to_poll;
 using swoole::async::dispatch;
@@ -47,6 +48,12 @@ using swoole::Iouring;
 
 static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
 static std::mutex socket_map_lock;
+
+#if defined(__APPLE__) || defined(__MACH__)
+static int fdatasync(int fd) {
+    return fcntl(fd, F_FULLFSYNC);
+}
+#endif
 
 static sw_inline bool is_no_coro() {
     return SwooleTG.reactor == nullptr || !Coroutine::get_current();
@@ -389,7 +396,7 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     }
     double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? SW_TIMEOUT_READ : SW_TIMEOUT_WRITE);
     socket->set_timeout(timeout);
-    bool retval = socket->poll((enum swEventType) event);
+    bool retval = socket->poll(static_cast<EventType>(event));
     socket->set_timeout(ori_timeout);
     return retval ? SW_OK : SW_ERR;
 }

@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+
 namespace swoole {
 
 struct HeapNode {
@@ -40,13 +43,13 @@ class Heap {
 
     HeapNode *push(uint64_t priority, void *data);
     void *pop();
-    void change_priority(uint64_t new_priority, HeapNode *ptr);
+    void change_priority(uint64_t new_priority, HeapNode *ptr) const;
     void remove(HeapNode *node);
-    void *peek();
-    void print();
-    int compare(uint64_t a, uint64_t b);
+    void *peek() const;
+    void print() const;
+    int compare(uint64_t a, uint64_t b) const;
 
-    HeapNode *top() {
+    HeapNode *top() const {
         if (num == 1) {
             return nullptr;
         }
@@ -59,8 +62,8 @@ class Heap {
     enum Type type;
     HeapNode **nodes;
 
-    void bubble_up(uint32_t i);
-    uint32_t maxchild(uint32_t i);
-    void percolate_down(uint32_t i);
+    void bubble_up(uint32_t i) const;
+    uint32_t maxchild(uint32_t i) const;
+    void percolate_down(uint32_t i) const;
 };
 }  // namespace swoole

@@ -1,3 +1,21 @@
+/*
+ +----------------------------------------------------------------------+
+ | Swoole                                                               |
+ +----------------------------------------------------------------------+
+ | Copyright (c) 2012-2015 The Swoole Group                             |
+ +----------------------------------------------------------------------+
+ | This source file is subject to version 2.0 of the Apache license,    |
+ | that is bundled with this package in the file LICENSE, and is        |
+ | available through the world-wide-web at the following url:           |
+ | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+ | If you did not receive a copy of the Apache2.0 license and are unable|
+ | to obtain it through the world-wide-web, please send a note to       |
+ | license@swoole.com so we can mail you a copy immediately.            |
+ +----------------------------------------------------------------------+
+ | Author: Tianfeng Han  <rango@swoole.com>                             |
+ +----------------------------------------------------------------------+
+ */
+
 #include "swoole_message_bus.h"
 #include "swoole_process_pool.h"
 
@@ -36,7 +54,7 @@ bool MessageBus::alloc_buffer() {
     }
 }
 
-void MessageBus::pass(SendData *task) {
+void MessageBus::pass(const SendData *task) const {
     memcpy(&buffer_->info, &task->info, sizeof(buffer_->info));
     if (task->info.len > 0) {
         buffer_->info.flags = SW_EVENT_DATA_PTR;
@@ -183,7 +201,7 @@ _read_from_pipe:
 /**
  * Notice: only supports dgram type socket
  */
-ssize_t MessageBus::read_with_buffer(network::Socket *sock) {
+ssize_t MessageBus::read_with_buffer(Socket *sock) {
     ssize_t recv_n;
     uint16_t recv_chunk_count = 0;
 
@@ -230,7 +248,7 @@ _read_from_pipe:
     }
 }
 
-bool MessageBus::write(Socket *sock, SendData *resp) {
+bool MessageBus::write(Socket *sock, SendData *resp) const {
     const char *payload = resp->data;
     uint32_t l_payload = resp->info.len;
     off_t offset = 0;
@@ -269,8 +287,8 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         if (send_fn(sock, iov, 2) == (ssize_t) (sizeof(resp->info) + l_payload)) {
             return true;
         }
-        if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_BUFFER_SIZE) {
-            max_length = SW_IPC_BUFFER_SIZE;
+        if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_MSG_MIN) {
+            max_length = SW_IPC_MSG_MIN;
         } else {
             return false;
         }
@@ -295,8 +313,8 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
 
         if (send_fn(sock, iov, 2) < 0) {
-            if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_BUFFER_SIZE) {
-                max_length = SW_IPC_BUFFER_SIZE;
+            if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_MSG_MIN) {
+                max_length = SW_IPC_MSG_MIN;
                 if (resp->info.flags & SW_EVENT_DATA_END) {
                     resp->info.flags &= ~SW_EVENT_DATA_END;
                 }
@@ -316,7 +334,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
     return true;
 }
 
-size_t MessageBus::get_memory_size() {
+size_t MessageBus::get_memory_size() const {
     size_t size = buffer_size_;
     for (auto &p : packet_pool_) {
         size += p.second->size;
@@ -324,7 +342,7 @@ size_t MessageBus::get_memory_size() {
     return size;
 }
 
-void MessageBus::init_pipe_socket(network::Socket *sock) {
+void MessageBus::init_pipe_socket(const Socket *sock) {
     int pipe_fd = sock->get_fd();
     if ((size_t) pipe_fd >= pipe_sockets_.size()) {
         pipe_sockets_.resize(pipe_fd + 1);

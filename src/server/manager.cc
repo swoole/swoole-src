@@ -20,17 +20,11 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(__linux__)
-#include <sys/prctl.h>
-#elif defined(__FreeBSD__)
-#include <sys/procctl.h>
-#endif
-
 namespace swoole {
 /**
  * The functionality of the Manager class is similar to that of the ProcessPool,
  * but due to the more complex management requirements for processes in the Server module, the ProcessPool falls short.
- * Therefore, we ad an new class, and the Manager class should reuse the ProcessPool code as much as possible.
+ * Therefore, we add a new class, and the Manager class should reuse the ProcessPool code as much as possible.
  */
 struct Manager {
     bool reload_all_worker;
@@ -56,15 +50,15 @@ void Manager::timer_callback(Timer *timer, TimerNode *tnode) {
 }
 
 int Server::start_manager_process() {
-    SW_LOOP_N(worker_num) {
-        create_worker(get_worker(i));
+    if (!create_event_workers()) {
+        return SW_ERR;
     }
 
     if (get_event_worker_pool()->create_message_box(SW_MESSAGE_BOX_SIZE) == SW_ERR) {
         return SW_ERR;
     }
 
-    if (get_user_worker_num() > 0 && create_user_workers() < 0) {
+    if (get_user_worker_num() > 0 && !create_user_workers()) {
         return SW_ERR;
     }
 
@@ -87,7 +81,7 @@ int Server::start_manager_process() {
 
         SW_LOOP_N(worker_num) {
             Worker *worker = get_worker(i);
-            if (factory->spawn_event_worker(worker) < 0) {
+            if (factory_->spawn_event_worker(worker) < 0) {
                 swoole_sys_error("failed to fork event worker");
                 return;
             }
@@ -95,7 +89,7 @@ int Server::start_manager_process() {
 
         if (!user_worker_list.empty()) {
             for (auto worker : user_worker_list) {
-                if (factory->spawn_user_worker(worker) < 0) {
+                if (factory_->spawn_user_worker(worker) < 0) {
                     swoole_sys_error("failed to fork user worker");
                     return;
                 }
@@ -119,7 +113,7 @@ int Server::start_manager_process() {
 
 void Manager::wait(Server *_server) {
     server_ = _server;
-    server_->manager = this;
+    server_->manager_ = this;
 
     ProcessPool *pool = server_->get_event_worker_pool();
     ProcessPool *task_pool = server_->get_task_worker_pool();
@@ -142,13 +136,13 @@ void Manager::wait(Server *_server) {
 #endif
 
     if (_server->is_process_mode()) {
-#if defined(__linux__)
-        prctl(PR_SET_PDEATHSIG, SIGTERM);
-#elif defined(__FreeBSD__)
-        int sigid = SIGTERM;
-        procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
-#endif
+        swoole_set_process_death_signal(SIGTERM);
+
         _server->gs->manager_barrier.wait();
+
+        if (_server->reload_async && swoole_is_root_user() && !_server->user_.empty()) {
+            swoole_set_isolation(_server->group_, _server->user_, _server->chroot_);
+        }
     }
 
     if (_server->isset_hook(Server::HOOK_MANAGER_START)) {
@@ -182,10 +176,10 @@ void Manager::wait(Server *_server) {
                 WorkerStopMessage worker_stop_msg;
                 memcpy(&worker_stop_msg, msg.data, sizeof(worker_stop_msg));
                 if (worker_stop_msg.worker_id >= _server->worker_num) {
-                    _server->factory->spawn_task_worker(_server->get_worker(worker_stop_msg.worker_id));
+                    _server->factory_->spawn_task_worker(_server->get_worker(worker_stop_msg.worker_id));
                 } else {
                     Worker *worker = _server->get_worker(worker_stop_msg.worker_id);
-                    _server->factory->spawn_event_worker(worker);
+                    _server->factory_->spawn_event_worker(worker);
                 }
             }
             pool->read_message = false;
@@ -216,14 +210,20 @@ void Manager::wait(Server *_server) {
                 if (_server->task_worker_num > 0) {
                     reload_task->add_workers(_server->get_task_worker_pool()->workers, _server->task_worker_num);
                 }
+                /**
+                 * When the `reload_async` option is enabled, the SIGTERM signal will be sent to all work processes
+                 * immediately. When the work process receives the signal, it will remove the event listening of the
+                 * work process pipeline, no longer receive data, and then send a process exit message to the management
+                 * process. When the management process receives the message, it will immediately create a new worker
+                 * process. At this time, there will be two processes at the same time. The old process will exit by
+                 * itself after completing the legacy tasks, and the new client request data and tasks will be processed
+                 * by the new worker process.
+                 */
                 if (_server->reload_async) {
-                    for (auto elem : reload_task->workers) {
-                        if (swoole_kill(elem.first, SIGTERM) < 0) {
-                            swoole_sys_warning("failed to kill(%d, SIGTERM) worker#[%d]", elem.first, elem.second->id);
-                        }
-                    }
+                    reload_task->kill_all(SIGTERM);
+                } else {
+                    goto _kill_worker;
                 }
-                goto _kill_worker;
             } else if (reload_task_worker) {  // only reload task workers
                 pool->reload_init = reload_task_worker = false;
                 if (_server->task_worker_num == 0) {
@@ -250,10 +250,10 @@ void Manager::wait(Server *_server) {
                 }
 
                 // check the process return code and signal
-                _server->factory->check_worker_exit_status(worker, exit_status);
+                _server->factory_->check_worker_exit_status(worker, exit_status);
 
                 do {
-                    if (_server->factory->spawn_event_worker(worker) < 0) {
+                    if (_server->factory_->spawn_event_worker(worker) < 0) {
                         SW_START_SLEEP;
                         continue;
                     }
@@ -265,8 +265,8 @@ void Manager::wait(Server *_server) {
             if (task_pool->map_) {
                 auto iter = task_pool->map_->find(exit_status.get_pid());
                 if (iter != task_pool->map_->end()) {
-                    _server->factory->check_worker_exit_status(iter->second, exit_status);
-                    _server->factory->spawn_task_worker(iter->second);
+                    _server->factory_->check_worker_exit_status(iter->second, exit_status);
+                    _server->factory_->spawn_task_worker(iter->second);
                 }
             }
             // user process
@@ -324,9 +324,9 @@ void Manager::wait(Server *_server) {
          */
         alarm(_server->max_wait_time * 2);
     }
-    _server->factory->kill_event_workers();
-    _server->factory->kill_task_workers();
-    _server->factory->kill_user_workers();
+    _server->factory_->kill_event_workers();
+    _server->factory_->kill_task_workers();
+    _server->factory_->kill_user_workers();
     // force kill
     if (_server->max_wait_time) {
         alarm(0);
@@ -357,10 +357,10 @@ void Manager::reopen_logger() const {
 
 void Manager::signal_handler(int signo) {
     Server *_server = sw_server();
-    if (!_server || !_server->manager) {
+    if (!_server || !_server->manager_) {
         return;
     }
-    Manager *manager = _server->manager;
+    Manager *manager = _server->manager_;
     ProcessPool *pool = _server->get_event_worker_pool();
 
     switch (signo) {
@@ -420,16 +420,16 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
         return SW_ERR;
     } while (false);
 
-    serv->factory->check_worker_exit_status(exit_worker, exit_status);
+    serv->factory_->check_worker_exit_status(exit_worker, exit_status);
 
     pid_t new_process_pid = -1;
 
     switch (worker_type) {
     case SW_TASK_WORKER:
-        new_process_pid = serv->factory->spawn_task_worker(exit_worker);
+        new_process_pid = serv->factory_->spawn_task_worker(exit_worker);
         break;
     case SW_USER_WORKER:
-        new_process_pid = serv->factory->spawn_user_worker(exit_worker);
+        new_process_pid = serv->factory_->spawn_user_worker(exit_worker);
         break;
     default:
         /* never here */
@@ -489,9 +489,9 @@ bool Server::reload(bool reload_all_workers) const {
     }
 
     if (reload_all_workers) {
-        manager->reload_all_worker = true;
+        manager_->reload_all_worker = true;
     } else {
-        manager->reload_task_worker = true;
+        manager_->reload_task_worker = true;
     }
     return true;
 }

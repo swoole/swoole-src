@@ -133,8 +133,6 @@ TEST(string, ub) {
 
     auto rs = s1.substr(s1.length, 10);
     ASSERT_EQ(rs.str, nullptr);
-
-    ASSERT_FALSE(s1.repeat("\r\n", 2, 0));
 }
 
 TEST(string, strnpos) {

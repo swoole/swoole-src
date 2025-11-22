@@ -21,10 +21,11 @@
 #include <dirent.h>
 #include <algorithm>
 #include <sstream>
+#include <regex>
 
 namespace swoole {
 namespace http_server {
-bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
+bool StaticHandler::is_modified(const std::string &date_if_modified_since) const {
     char date_tmp[64];
     if (date_if_modified_since.empty() || date_if_modified_since.length() > sizeof(date_tmp) - 1) {
         return false;
@@ -48,7 +49,7 @@ bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     return date_format && mktime(&tm3) - (time_t) serv->timezone_ >= get_file_mtime();
 }
 
-bool StaticHandler::is_modified_range(const std::string &date_range) {
+bool StaticHandler::is_modified_range(const std::string &date_range) const {
     if (date_range.empty()) {
         return false;
     }
@@ -78,7 +79,7 @@ std::string StaticHandler::get_date() {
     return date_;
 }
 
-std::string StaticHandler::get_date_last_modified() {
+std::string StaticHandler::get_date_last_modified() const {
     char date_last_modified[64];
     time_t file_mtime = get_file_mtime();
     tm *tm2 = gmtime(&file_mtime);
@@ -91,12 +92,19 @@ bool StaticHandler::get_absolute_path() {
     if (!realpath(filename, abs_path)) {
         return false;
     }
-    strncpy(filename, abs_path, sizeof(abs_path));
-    l_filename = strlen(filename);
+
+    size_t abs_path_len = strlen(abs_path);
+    if (abs_path_len >= PATH_MAX) {
+        return false;
+    }
+    memcpy(filename, abs_path, abs_path_len + 1);
+    l_filename = abs_path_len;
     return true;
 }
 
-bool StaticHandler::hit() {
+bool StaticHandler::try_serve() {
+    serv->apply_rewrite_rules(this);
+
     char *p = filename;
     const char *url = request_url.c_str();
     size_t url_length = request_url.length();
@@ -184,7 +192,7 @@ bool StaticHandler::hit() {
     return true;
 }
 
-bool StaticHandler::hit_index_file() {
+bool StaticHandler::try_serve_index_file() {
     if (serv->http_index_files && !serv->http_index_files->empty() && is_dir()) {
         if (!get_dir_files()) {
             return false;
@@ -436,6 +444,25 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
     }
 }
 }  // namespace http_server
+
+void Server::add_rewrite_rule(const std::string &pattern, const std::string &replacement) {
+    if (rewrite_rules == nullptr) {
+        rewrite_rules = std::make_shared<std::vector<http_server::RewriteRule>>();
+    }
+
+    http_server::RewriteRule rule;
+    rule.replacement = replacement;
+
+    if (pattern.length() >= 2 && pattern.at(0) == '~' && pattern.at(pattern.length() - 1) == '~') {
+        rule.pattern = pattern.substr(1, pattern.length() - 2);
+        rule.is_regex = true;
+    } else {
+        rule.pattern = pattern;
+        rule.is_regex = false;
+    }
+    rewrite_rules->emplace_back(rule);
+}
+
 void Server::add_static_handler_location(const std::string &location) {
     if (locations == nullptr) {
         locations = std::make_shared<std::unordered_set<std::string>>();
@@ -454,12 +481,12 @@ void Server::add_static_handler_index_files(const std::string &file) {
     }
 }
 
-bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
+bool Server::select_static_handler(const http_server::Request *request, const Connection *conn) {
     const char *url = request->buffer_->str + request->url_offset_;
     size_t url_length = request->url_length_;
 
     http_server::StaticHandler handler(this, url, url_length);
-    if (!handler.hit()) {
+    if (!handler.try_serve()) {
         return false;
     }
 
@@ -510,7 +537,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
      * if http_index_files is enabled, need to search the index file first.
      * if the index file is found, set filename to index filename.
      */
-    if (!handler.hit_index_file()) {
+    if (!handler.try_serve_index_file()) {
         return false;
     }
 
@@ -632,5 +659,43 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     }
 
     return true;
+}
+
+bool Server::apply_rewrite_rules(http_server::StaticHandler *handler) {
+    if (!rewrite_rules || rewrite_rules->empty()) {
+        return false;
+    }
+
+    bool rewritten = false;
+    auto current_url = handler->get_request_url();
+
+    for (const auto &rule : *rewrite_rules) {
+        if (rule.is_regex) {
+            try {
+                std::regex pattern(rule.pattern);
+                std::string rewritten_url;
+
+                if (std::regex_search(current_url, pattern)) {
+                    rewritten_url = std::regex_replace(current_url, pattern, rule.replacement);
+                    if (rewritten_url != current_url) {
+                        handler->set_request_url(rewritten_url);
+                        rewritten = true;
+                        break;
+                    }
+                }
+            } catch (const std::regex_error &e) {
+                continue;
+            }
+        } else {
+            if (starts_with(current_url, rule.pattern)) {
+                std::string rewritten_url = rule.replacement + current_url.substr(rule.pattern.length());
+                handler->set_request_url(rewritten_url);
+                rewritten = true;
+                break;
+            }
+        }
+    }
+
+    return rewritten;
 }
 }  // namespace swoole

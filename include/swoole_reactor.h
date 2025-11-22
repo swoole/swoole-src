@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_socket.h"
 
 #include <list>
@@ -179,9 +178,9 @@ class Reactor {
     ~Reactor();
     bool if_exit();
     void defer(const Callback &cb, void *data = nullptr);
-    void set_end_callback(EndCallback id, const std::function<void(Reactor *)> &fn);
-    void erase_end_callback(EndCallback id);
-    void set_exit_condition(ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn);
+    void set_end_callback(EndCallback _id, const std::function<void(Reactor *)> &fn);
+    void erase_end_callback(EndCallback _id);
+    void set_exit_condition(ExitCondition _id, const std::function<bool(Reactor *, size_t &)> &fn);
     void set_handler(int fd_type, int event, ReactorHandler handler);
     bool isset_handler(int fd_type, int event) const;
     void add_destroy_callback(const Callback &cb, void *data = nullptr);
@@ -193,12 +192,12 @@ class Reactor {
         return running;
     }
 
-    size_t remove_exit_condition(const ExitCondition id) {
-        return exit_conditions.erase(id);
+    size_t remove_exit_condition(const ExitCondition _id) {
+        return exit_conditions.erase(_id);
     }
 
-    bool isset_exit_condition(const ExitCondition id) {
-        return exit_conditions.find(id) != exit_conditions.end();
+    bool isset_exit_condition(const ExitCondition _id) {
+        return exit_conditions.find(_id) != exit_conditions.end();
     }
 
     int add_event(network::Socket *_socket, EventType event_type) const {

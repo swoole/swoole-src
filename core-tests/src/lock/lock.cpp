@@ -23,19 +23,16 @@
 
 #include <thread>
 
-using swLock = swoole::Lock;
-
+using swoole::Lock;
 using swoole::RWLock;
-#ifdef HAVE_SPINLOCK
 using swoole::SpinLock;
-#endif
 using swoole::Coroutine;
 using swoole::CoroutineLock;
 using swoole::Mutex;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
 
-static void test_func(swLock &lock) {
+static void test_func(Lock &lock) {
     int count = 0;
     const int N = 100000;
 
@@ -56,23 +53,23 @@ static void test_func(swLock &lock) {
     ASSERT_EQ(count, N * 2);
 }
 
-static void test_lock_rd_func(swLock &lock) {
+static void test_lock_rd_func(Lock &lock) {
     std::thread t1([&lock]() {
-        ASSERT_EQ(lock.lock_rd(), 0);
+        ASSERT_EQ(lock.lock(LOCK_SH), 0);
         usleep(2000);  // wait
         lock.unlock();
     });
 
     std::thread t2([&lock]() {
         usleep(1000);
-        ASSERT_GE(lock.trylock_rd(), 0);
+        ASSERT_GE(lock.lock(LOCK_SH | LOCK_NB), 0);
     });
 
     t1.join();
     t2.join();
 }
 
-static void test_share_lock_fun(swLock &lock) {
+static void test_share_lock_fun(Lock &lock) {
     lock.lock();
     const int sleep_us = 10000;
     int magic_num = swoole_rand(100000, 9999999);
@@ -100,7 +97,7 @@ static void test_share_lock_fun(swLock &lock) {
 
 TEST(lock, mutex) {
     Mutex lock(0);
-    test_func(reinterpret_cast<swLock &>(lock));
+    test_func(reinterpret_cast<Lock &>(lock));
 }
 
 TEST(lock, lockwait) {
@@ -111,13 +108,13 @@ TEST(lock, lockwait) {
     std::thread t1([&lock]() {
         long ms1 = swoole::time<std::chrono::milliseconds>();
         const int TIMEOUT_1 = 2;
-        ASSERT_EQ(lock.lock_wait(TIMEOUT_1), ETIMEDOUT);
+        ASSERT_EQ(lock.lock(LOCK_EX, TIMEOUT_1), ETIMEDOUT);
         long ms2 = swoole::time<std::chrono::milliseconds>();
 
         ASSERT_GE(ms2 - ms1, TIMEOUT_1);
 
         const int TIMEOUT_2 = 10;
-        ASSERT_EQ(lock.lock_wait(TIMEOUT_2), 0);
+        ASSERT_EQ(lock.lock(LOCK_EX, TIMEOUT_2), 0);
         long ms3 = swoole::time<std::chrono::milliseconds>();
 
         ASSERT_LE(ms3 - ms2, TIMEOUT_2);
@@ -130,7 +127,7 @@ TEST(lock, lockwait) {
 }
 
 TEST(lock, shared) {
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     test_share_lock_fun(lock);
 }
 
@@ -160,7 +157,7 @@ TEST(lock, coroutine_lock) {
             ASSERT_EQ(lock->unlock(), 0);
         });
 
-        Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock(), EBUSY); });
+        Coroutine::create([lock](void *) { ASSERT_EQ(lock->lock(LOCK_NB), EBUSY); });
     });
 
     delete lock;
@@ -185,23 +182,23 @@ TEST(lock, coroutine_lock_cancel) {
 
 TEST(lock, coroutine_lock_rd) {
     auto *lock = new CoroutineLock(false);
-    ASSERT_EQ(lock->lock_rd(), SW_ERROR_CO_OUT_OF_COROUTINE);
+    ASSERT_EQ(lock->lock(LOCK_SH), SW_ERROR_CO_OUT_OF_COROUTINE);
 
     coroutine::run([lock](void *arg) {
         Coroutine::create([lock](void *) {
-            ASSERT_EQ(lock->lock_rd(), 0);
-            ASSERT_EQ(lock->lock_rd(), 0);
+            ASSERT_EQ(lock->lock(LOCK_SH), 0);
+            ASSERT_EQ(lock->lock(LOCK_SH), 0);
             System::sleep(0.3);
             ASSERT_EQ(lock->unlock(), 0);
         });
 
         Coroutine::create([lock](void *) {
-            ASSERT_EQ(lock->lock_rd(), 0);
+            ASSERT_EQ(lock->lock(LOCK_SH), 0);
             System::sleep(0.3);
             ASSERT_EQ(lock->unlock(), 0);
         });
 
-        Coroutine::create([lock](void *) { ASSERT_EQ(lock->trylock_rd(), EBUSY); });
+        Coroutine::create([lock](void *) { ASSERT_EQ(lock->lock(LOCK_SH | LOCK_NB), EBUSY); });
     });
 
     delete lock;
@@ -209,7 +206,7 @@ TEST(lock, coroutine_lock_rd) {
 
 #ifdef HAVE_RWLOCK
 TEST(lock, rwlock_shared) {
-    RWLock lock(Mutex::PROCESS_SHARED);
+    RWLock lock(true);
     test_share_lock_fun(lock);
 }
 
@@ -233,7 +230,7 @@ TEST(lock, rw_try_wr) {
 
     std::thread t2([&lock]() {
         usleep(1000);
-        ASSERT_GT(lock.trylock(), 0);
+        ASSERT_GT(lock.lock(LOCK_NB), 0);
     });
     t1.join();
     t2.join();
@@ -242,7 +239,7 @@ TEST(lock, rw_try_wr) {
 
 #ifdef HAVE_SPINLOCK
 TEST(lock, spinlock_shared) {
-    SpinLock lock(Mutex::PROCESS_SHARED);
+    SpinLock lock(true);
     test_share_lock_fun(lock);
 }
 

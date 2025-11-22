@@ -14,12 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_HASH_H_
-#define SW_HASH_H_
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
 
 uint64_t swoole_hash_jenkins(const char *key, size_t keylen);
 uint64_t swoole_hash_php(const char *key, size_t len);
 uint64_t swoole_hash_austin(const char *key, size_t keylen);
 uint32_t swoole_crc32(const char *data, size_t size);
-
-#endif /* SW_HASH_H_ */

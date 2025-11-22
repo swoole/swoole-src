@@ -15,15 +15,13 @@
  */
 
 #include "swoole_socket.h"
-
-#include <utility>
-#include <memory>
-
-#include "swoole_api.h"
 #include "swoole_signal.h"
 #include "swoole_util.h"
 #include "swoole_string.h"
 #include "swoole_timer.h"
+
+#include <utility>
+#include <memory>
 
 namespace swoole {
 namespace network {
@@ -177,6 +175,7 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
                 usleep(10 * 1000);
                 continue;
             }
+            break;
         default:
             break;
         }
@@ -299,10 +298,10 @@ void Socket::clean() const {
 /**
  * Wait socket can read or write.
  */
-int Socket::wait_event(int timeout_ms, int events) const {
+int Socket::wait_event(int timeout_ms, int _events) const {
     pollfd event;
     event.fd = fd;
-    event.events = translate_events_to_poll(events);
+    event.events = translate_events_to_poll(_events);
 
     if (timeout_ms < 0) {
         timeout_ms = -1;
@@ -537,29 +536,15 @@ int Socket::listen(int backlog) {
 }
 
 bool Socket::set_buffer_size(uint32_t _buffer_size) const {
-    if (!set_send_buffer_size(_buffer_size)) {
-        return false;
-    }
-    if (!set_recv_buffer_size(_buffer_size)) {
-        return false;
-    }
-    return true;
+    return set_send_buffer_size(_buffer_size) && set_recv_buffer_size(_buffer_size);
 }
 
 bool Socket::set_recv_buffer_size(uint32_t _buffer_size) const {
-    if (set_option(SOL_SOCKET, SO_RCVBUF, _buffer_size) != 0) {
-        swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
-        return false;
-    }
-    return true;
+    return set_option(SOL_SOCKET, SO_RCVBUF, _buffer_size) == 0;
 }
 
 bool Socket::set_send_buffer_size(uint32_t _buffer_size) const {
-    if (set_option(SOL_SOCKET, SO_SNDBUF, _buffer_size) != 0) {
-        swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
-        return false;
-    }
-    return true;
+    return set_option(SOL_SOCKET, SO_SNDBUF, _buffer_size) == 0;
 }
 
 bool Socket::check_liveness() {
@@ -868,7 +853,7 @@ ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
     } else
 #endif
     {
-        return ::swoole_sendfile(fd, fp.get_fd(), offset, length);
+        return swoole_sendfile(fd, fp.get_fd(), offset, length);
     }
 }
 

@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: duplicate header
+swoole_http_client_coro: duplicate header
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

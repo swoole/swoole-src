@@ -75,3 +75,17 @@ services:
       FTP_USER_PASS: admin
       FTP_USER_HOME: /home/swoole
 
+  firebirdsql:
+    container_name: "firebirdsql"
+    image: "firebirdsql/firebird"
+    environment:
+      - FIREBIRD_ROOT_PASSWORD=root
+      - FIREBIRD_USER=test
+      - FIREBIRD_PASSWORD=test
+      - FIREBIRD_DATABASE=test.fdb
+      - FIREBIRD_DATABASE_DEFAULT_CHARSET=UTF8
+    volumes:
+      - ./data:/var/lib/firebird/data
+    ports:
+      - "3050:3050"
+

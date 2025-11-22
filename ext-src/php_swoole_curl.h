@@ -35,37 +35,41 @@ SW_EXTERN_C_END
 #error "require cURL version 7.56.0 or later"
 #endif
 
+#include <unordered_set>
+
 CURLcode swoole_curl_easy_perform(CURL *cp);
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
+void swoole_curl_easy_reset(CURL *curl);
 
 namespace swoole {
 namespace curl {
 
 class Multi;
 
-struct HandleSocket {
+struct Socket {
+    Multi *multi;
     network::Socket *socket;
-    int event_bitmask;
-    int event_fd;
+    int bitmask;
+    int sockfd;
     int action;
+    bool deleted;
 };
 
 struct Handle {
     CURL *cp;
     Multi *multi;
-    // This is only for the swoole_curl_easy_perform function, and it has a one-to-one relationship with the curl
-    // handle. It must be destroyed when the curl handle is released.
+    /**
+     * This is only for the swoole_curl_easy_perform function,
+     * and it has a one-to-one relationship with the curl handle.
+     * It must be destroyed when the curl handle is released.
+     */
     Multi *easy_multi;
-    std::unordered_map<int, HandleSocket *> sockets;
 
-    Handle(CURL *_cp) {
+    explicit Handle(CURL *_cp) {
         cp = _cp;
         multi = nullptr;
         easy_multi = nullptr;
     }
-
-    HandleSocket *create_socket(curl_socket_t sockfd);
-    void destroy_socket(curl_socket_t sockfd);
 };
 
 Handle *get_handle(CURL *cp);
@@ -74,7 +78,9 @@ void destroy_handle(CURL *ch);
 
 struct Selector {
     bool timer_callback = false;
-    std::set<Handle *> active_handles;
+    bool executing = false;
+    std::unordered_set<Socket *> active_sockets;
+    std::unordered_set<Socket *> release_sockets;
 };
 
 class Multi {
@@ -83,25 +89,28 @@ class Multi {
     long timeout_ms_ = 0;
     Coroutine *co = nullptr;
     int running_handles_ = 0;
-    int event_count_ = 0;
     bool defer_callback = false;
     Selector selector;
+    std::unordered_map<curl_socket_t, Socket *> sockets;
 
-    CURLcode read_info();
+    CURLcode read_info() const;
 
-    HandleSocket *create_socket(Handle *handle, curl_socket_t sockfd);
-
-    void set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int action);
-    void del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd);
+    int set_event(void *socket_ptr, curl_socket_t sockfd, int action);
+    int del_event(void *socket_ptr, curl_socket_t sockfd);
     void selector_finish();
+    void selector_prepare();
+
+    bool wait_event() const {
+        return timer || !sockets.empty();
+    }
 
     void add_timer(long timeout_ms) {
         if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
         }
         timeout_ms_ = timeout_ms;
-        timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
-            this->timer = nullptr;
+        timer = swoole_timer_add(timeout_ms, false, [this](Timer *_timer, TimerNode *tnode) {
+            timer = nullptr;
             callback(nullptr, 0);
         });
     }
@@ -135,16 +144,16 @@ class Multi {
         curl_multi_cleanup(multi_handle_);
     }
 
-    CURLM *get_multi_handle() {
+    CURLM *get_multi_handle() const {
         return multi_handle_;
     }
 
-    int get_running_handles() {
+    int get_running_handles() const {
         return running_handles_;
     }
 
     CURLMcode add_handle(Handle *handle);
-    CURLMcode remove_handle(Handle *handle);
+    CURLMcode remove_handle(Handle *handle) const;
 
     CURLMcode perform() {
         return curl_multi_perform(multi_handle_, &running_handles_);
@@ -164,7 +173,7 @@ class Multi {
 
     CURLcode exec(Handle *handle);
     long select(php_curlm *mh, double timeout = -1);
-    void callback(Handle *handle, int event_bitmask, int sockfd = -1);
+    void callback(Socket *curl_socket, int bitmask, int sockfd = -1);
 
     static int cb_readable(Reactor *reactor, Event *event);
     static int cb_writable(Reactor *reactor, Event *event);

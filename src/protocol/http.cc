@@ -50,7 +50,7 @@ HttpProxy *HttpProxy::create(const std::string &host, int port, const std::strin
     return http_proxy;
 }
 
-std::string HttpProxy::get_auth_str() {
+std::string HttpProxy::get_auth_str() const {
     char auth_buf[256];
     char encode_buf[512];
     size_t n = sw_snprintf(auth_buf,
@@ -64,7 +64,7 @@ std::string HttpProxy::get_auth_str() {
     return {encode_buf};
 }
 
-size_t HttpProxy::pack(String *send_buffer, const std::string &host_name) {
+size_t HttpProxy::pack(const String *send_buffer, const std::string &host_name) const {
     if (!password.empty()) {
         auto auth_str = get_auth_str();
         return sw_snprintf(send_buffer->str,
@@ -91,7 +91,7 @@ size_t HttpProxy::pack(String *send_buffer, const std::string &host_name) {
     }
 }
 
-bool HttpProxy::handshake(String *recv_buffer) {
+bool HttpProxy::handshake(const String *recv_buffer) {
     bool ret = false;
     char *buf = recv_buffer->str;
     size_t len = recv_buffer->length;
@@ -150,7 +150,7 @@ namespace http_server {
 //-----------------------------------------------------------------
 
 static int multipart_on_header_field(multipart_parser *p, const char *at, size_t length) {
-    Request *request = (Request *) p->data;
+    auto *request = static_cast<Request *>(p->data);
     request->form_data_->current_header_name = at;
     request->form_data_->current_header_name_len = length;
 
@@ -161,8 +161,8 @@ static int multipart_on_header_field(multipart_parser *p, const char *at, size_t
 static int multipart_on_header_value(multipart_parser *p, const char *at, size_t length) {
     swoole_trace("header_value: at=%.*s, length=%lu", (int) length, at, length);
 
-    Request *request = (Request *) p->data;
-    FormData *form_data = request->form_data_;
+    auto *request = static_cast<Request *>(p->data);
+    auto *form_data = request->form_data_;
 
     form_data->multipart_buffer_->append(form_data->current_header_name, form_data->current_header_name_len);
     form_data->multipart_buffer_->append(SW_STRL(": "));
@@ -237,8 +237,8 @@ static int multipart_on_data(multipart_parser *p, const char *at, size_t length)
 
 static int multipart_on_header_complete(multipart_parser *p) {
     swoole_trace("on_header_complete");
-    Request *request = (Request *) p->data;
-    FormData *form_data = request->form_data_;
+    auto *request = static_cast<Request *>(p->data);
+    auto *form_data = request->form_data_;
     if (p->fp) {
         form_data->multipart_buffer_->append(SW_STRL(SW_HTTP_UPLOAD_FILE ": "));
         form_data->multipart_buffer_->append(form_data->upload_tmpfile->str, strlen(form_data->upload_tmpfile->str));
@@ -250,8 +250,8 @@ static int multipart_on_header_complete(multipart_parser *p) {
 
 static int multipart_on_data_end(multipart_parser *p) {
     swoole_trace("on_data_end\n");
-    Request *request = (Request *) p->data;
-    FormData *form_data = request->form_data_;
+    auto *request = static_cast<Request *>(p->data);
+    auto *form_data = request->form_data_;
     request->multipart_header_parsed = 0;
     if (p->fp) {
         form_data->multipart_buffer_->append(SW_STRL("\r\n" SW_HTTP_UPLOAD_FILE));
@@ -265,16 +265,16 @@ static int multipart_on_data_end(multipart_parser *p) {
 
 static int multipart_on_part_begin(multipart_parser *p) {
     swoole_trace("on_part_begin");
-    Request *request = (Request *) p->data;
-    FormData *form_data = request->form_data_;
+    auto *request = static_cast<Request *>(p->data);
+    auto *form_data = request->form_data_;
     form_data->multipart_buffer_->append(p->boundary, p->boundary_length);
     form_data->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
 }
 
 static int multipart_on_body_end(multipart_parser *p) {
-    Request *request = (Request *) p->data;
-    FormData *form_data = request->form_data_;
+    auto *request = static_cast<Request *>(p->data);
+    auto *form_data = request->form_data_;
     form_data->multipart_buffer_->append(p->boundary, p->boundary_length);
     form_data->multipart_buffer_->append(SW_STRL("--"));
 
@@ -318,7 +318,7 @@ static int multipart_on_body_end(multipart_parser *p) {
     return 0;
 }
 
-static const multipart_parser_settings mt_parser_settings = {
+static constexpr multipart_parser_settings mt_parser_settings = {
     multipart_on_header_field,
     multipart_on_header_value,
     multipart_on_data,
@@ -479,7 +479,7 @@ const char *get_status_message(int code) {
 }
 
 void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb) {
-    char *key, *value;
+    char *value;
     const char *separator = ";\0";
     size_t key_len = 0;
     char *strtok_buf = nullptr;
@@ -488,7 +488,7 @@ void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb) 
     memcpy(_c, at, length);
     _c[length] = '\0';
 
-    key = strtok_r(_c, separator, &strtok_buf);
+    char *key = strtok_r(_c, separator, &strtok_buf);
     while (key) {
         size_t value_len;
         value = strchr(key, '=');
@@ -514,7 +514,7 @@ void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb) 
             break;
         }
     next_cookie:
-        key = strtok_r(NULL, separator, &strtok_buf);
+        key = strtok_r(nullptr, separator, &strtok_buf);
     }
 }
 
@@ -571,15 +571,12 @@ bool parse_multipart_boundary(
     return true;
 }
 
-static int url_htoi(char *s) {
-    int value;
-    int c;
-
-    c = ((unsigned char *) s)[0];
+static int url_htoi(const char *s) {
+    int c = ((unsigned char *) s)[0];
     if (isupper(c)) {
         c = tolower(c);
     }
-    value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
+    int value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
 
     c = ((unsigned char *) s)[1];
     if (isupper(c)) {
@@ -783,7 +780,7 @@ void Request::parse_header_info() {
     }
 }
 
-bool Request::init_multipart_parser(Server *server) {
+bool Request::init_multipart_parser(const Server *server) {
     char *boundary_str;
     int boundary_len;
     if (!parse_multipart_boundary(
@@ -858,16 +855,13 @@ Request::~Request() {
     }
 }
 
-bool Request::has_expect_header() {
-    // char *buf = buffer->str + buffer->offset;
+bool Request::has_expect_header() const {
     char *buf = buffer_->str;
-    // int len = buffer->length - buffer->offset;
     size_t len = buffer_->length;
 
     char *pe = buf + len;
-    char *p;
 
-    for (p = buf; p < pe; p++) {
+    for (char *p = buf; p < pe; p++) {
         if (*p == '\r' && (size_t) (pe - p) > sizeof("\r\nExpect")) {
             p += 2;
             if (SW_STR_ISTARTS_WITH(p, pe - p, "Expect: ")) {
@@ -950,7 +944,7 @@ int Request::get_chunked_body_length() {
     return SW_ERR;
 }
 
-std::string Request::get_header(const char *name) {
+std::string Request::get_header(const char *name) const {
     size_t name_len = strlen(name);
     char *p = buffer_->str + url_offset_ + url_length_ + 10;
     char *pe = buffer_->str + header_length_;
@@ -1030,7 +1024,7 @@ int dispatch_request(Server *serv, const Protocol *proto, Socket *_socket, const
 }
 
 //-----------------------------------------------------------------
-static void protocol_status_error(Socket *socket, Connection *conn) {
+static void protocol_status_error(Socket *socket, const Connection *conn) {
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_PROTOCOL_ERROR,
                      "unexpected protocol status of session#%ld<%s:%d>",
@@ -1040,7 +1034,7 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
 }
 
 ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLength *pl) {
-    auto *conn = (Connection *) socket->object;
+    auto *conn = static_cast<Connection *>(socket->object);
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return websocket::get_package_length(protocol, socket, pl);
     } else if (conn->http2_stream) {
@@ -1054,7 +1048,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLengt
 uint8_t get_package_length_size(Socket *socket) {
     auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
-        return SW_WEBSOCKET_MESSAGE_HEADER_SIZE;
+        return SW_WEBSOCKET_FRAME_HEADER_SIZE;
     } else if (conn->http2_stream) {
         return SW_HTTP2_FRAME_HEADER_SIZE;
     } else {

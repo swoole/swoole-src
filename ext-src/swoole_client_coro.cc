@@ -14,7 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole_cxx.h"
+#include "php_swoole_client.h"
+
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_protocol.h"
@@ -143,7 +144,7 @@ static void client_coro_socket_dtor(ClientCoroObject *client) {
 }
 
 static Socket *client_coro_create_socket(zval *zobject, zend_long type) {
-    auto socket_type = php_swoole_get_socket_type(type);
+    auto socket_type = php_swoole_client_get_type(type);
     auto object = php_swoole_create_socket(socket_type);
     if (UNEXPECTED(!object)) {
         php_swoole_socket_set_error_properties(zobject, errno);
@@ -202,7 +203,7 @@ static sw_inline Socket *client_coro_get_socket_for_connect(zval *zobject, int p
     }
 
     zval *ztype = sw_zend_read_property(swoole_client_coro_ce, zobject, ZEND_STRL("type"), 1);
-    auto socket_type = php_swoole_get_socket_type(zval_get_long(ztype));
+    auto socket_type = php_swoole_client_get_type(zval_get_long(ztype));
     if (NetSocket::is_tcp(socket_type) && !Address::verify_port(port, true)) {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
         return nullptr;
@@ -227,7 +228,7 @@ static PHP_METHOD(swoole_client_coro, __construct) {
     Z_PARAM_LONG(type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    auto socket_type = php_swoole_get_socket_type(type);
+    auto socket_type = php_swoole_client_get_type(type);
     if (socket_type < SW_SOCK_TCP || socket_type > SW_SOCK_UNIX_DGRAM) {
         const char *space, *class_name = get_active_class_name(&space);
         zend_type_error("%s%s%s() expects parameter %d to be client type, unknown type " ZEND_LONG_FMT " given",

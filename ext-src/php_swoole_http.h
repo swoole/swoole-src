@@ -21,6 +21,8 @@
 #include "swoole_http.h"
 #include "swoole_http2.h"
 #include "swoole_llhttp.h"
+#include "swoole_websocket.h"
+
 #include "thirdparty/multipart_parser.h"
 
 #include <unordered_map>
@@ -42,6 +44,8 @@
 #ifdef SW_HAVE_ZSTD
 #include <zstd.h>
 #endif
+
+#define HTTP_API
 
 #include <nghttp2/nghttp2.h>
 
@@ -74,13 +78,13 @@ enum swHttpErrorStatusCode {
 namespace swoole {
 class Server;
 class Coroutine;
+
 namespace http2 {
 class Stream;
 class Session;
 }  // namespace http2
 
 namespace http {
-
 struct Request {
     int version;
     char *path;
@@ -146,18 +150,16 @@ struct Context {
     uchar send_trailer_ : 1;
     uchar keepalive : 1;
     uchar websocket : 1;
-#ifdef SW_HAVE_ZLIB
     uchar websocket_compression : 1;
-#endif
     uchar upgrade : 1;
     uchar detached : 1;
     uchar parse_cookie : 1;
     uchar parse_body : 1;
     uchar parse_files : 1;
-    uchar co_socket : 1;
     uchar http2 : 1;
 
-    http2::Stream *stream;
+    zval zsocket;
+    uint32_t stream_id;
     String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION
@@ -167,6 +169,9 @@ struct Context {
     std::shared_ptr<std::unordered_set<std::string>> compression_types;
     std::shared_ptr<String> zlib_buffer;
 #endif
+
+    std::shared_ptr<String> frame_buffer;
+    WebSocketSettings websocket_settings;
 
     Request request;
     Response response;
@@ -188,7 +193,9 @@ struct Context {
 
     std::string upload_tmp_dir;
 
+    // The `private_data` pointer is used to store Server or CoSocket object
     void *private_data;
+    // The `private_data_2` pointer is used to save callback function
     void *private_data_2;
     bool (*send)(Context *ctx, const char *data, size_t length);
     bool (*sendfile)(Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -197,48 +204,76 @@ struct Context {
     void (*onAfterResponse)(Context *ctx);
 
     void init(Server *server);
-    void init(coroutine::Socket *socket);
+    void init(zval *zsock);
     void bind(Server *server);
-    void bind(coroutine::Socket *socket);
-    void copy(Context *ctx);
+    void bind(zval *zsock);
+    void copy(const Context *ctx);
     bool init_multipart_parser(const char *boundary_str, int boundary_len);
     bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
-    bool parse_multipart_data(const char *at, size_t length);
-    bool set_header(const char *, size_t, zval *, bool);
-    bool set_header(const char *, size_t, const char *, size_t, bool);
-    bool set_header(const char *, size_t, const std::string &, bool);
-    void end(zval *zdata, zval *return_value);
-    void write(zval *zdata, zval *return_value);
-    bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
-    void send_trailer(zval *return_value);
-    String *get_write_buffer();
-    void build_header(String *http_buffer, const char *body, size_t length);
-    ssize_t build_trailer(String *http_buffer);
+    bool parse_multipart_data(const char *at, size_t length) const;
 
-    size_t get_content_length() {
+    HTTP_API bool set_header(const char *, size_t, zval *, bool);
+    HTTP_API bool set_header(const char *, size_t, const char *, size_t, bool);
+    HTTP_API bool set_header(const char *, size_t, const std::string &, bool);
+    HTTP_API void end(zval *zdata, zval *return_value);
+    HTTP_API void write(zval *zdata, zval *return_value);
+    HTTP_API bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
+
+    String *get_write_buffer();
+
+    String *get_http2_data_buffer() {
+        String *buffer = request.h2_data_buffer;
+        if (!buffer) {
+            buffer = new String(SW_HTTP2_DATA_BUFFER_SIZE);
+            request.h2_data_buffer = buffer;
+        }
+        return buffer;
+    }
+
+    size_t get_http2_data_length() {
+        if (request.h2_data_buffer) {
+            return request.h2_data_buffer->length;
+        } else {
+            return 0;
+        }
+    }
+
+    size_t get_content_length() const {
         return parser.content_length;
+    }
+
+    bool is_co_socket() const {
+        return !ZVAL_IS_NULL(&zsocket);
+    }
+
+    Server *get_async_server() const {
+        return static_cast<Server *>(private_data);
+    }
+
+    coroutine::Socket *get_co_socket() const {
+        return static_cast<coroutine::Socket *>(private_data);
     }
 
 #ifdef SW_HAVE_COMPRESSION
     void set_compression_method(const char *accept_encoding, size_t length);
-    const char *get_content_encoding();
+    const char *get_content_encoding() const;
     bool compress(const char *data, size_t length);
 #endif
 
-    void http2_end(zval *zdata, zval *return_value);
-    void http2_write(zval *zdata, zval *return_value);
-    bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
-
-    bool is_available();
+    bool is_available() const;
     void free();
+
+  private:
+    void build_header(String *http_buffer, const char *body, size_t length);
+    ssize_t build_trailer(String *http_buffer) const;
+    void send_trailer(zval *return_value);
 };
 
 class Cookie {
-  private:
     bool encode_;
-    smart_str buffer_ = {0};
+    smart_str buffer_ = {};
 
   protected:
     zend_string *name = nullptr;
@@ -253,7 +288,7 @@ class Cookie {
     zend_bool partitioned = false;
 
   public:
-    Cookie(bool _encode = true) {
+    explicit Cookie(bool _encode = true) {
         encode_ = _encode;
     }
     Cookie *withName(zend_string *);
@@ -267,7 +302,7 @@ class Cookie {
     Cookie *withSameSite(zend_string *);
     Cookie *withPriority(zend_string *);
     void reset();
-    void toArray(zval *return_value);
+    void toArray(zval *return_value) const;
     zend_string *toString();
     ~Cookie();
 };
@@ -285,32 +320,37 @@ class Stream {
     uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
 
-    Stream(Session *client, uint32_t _id);
+    Stream(const Session *client, uint32_t _id);
     ~Stream();
 
-    bool send_header(const String *body, bool end_stream);
-    bool send_body(const String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
-    bool send_end_stream_data_frame();
-    bool send_trailer();
+    bool send_header(const String *body, bool end_stream) const;
+    bool send_body(const String *body,
+                   bool end_stream,
+                   const std::shared_ptr<Session> &session,
+                   off_t offset = 0,
+                   size_t length = 0);
+    bool send_end_stream_data_frame() const;
+    bool send_trailer() const;
 
-    void reset(uint32_t error_code);
+    void reset(uint32_t error_code) const;
 };
 
 class Session {
   public:
-    int fd;
-    std::unordered_map<uint32_t, Stream *> streams;
+    SessionId fd;
+    std::unordered_map<uint32_t, std::shared_ptr<Stream>> streams;
 
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
 
-    http2::Settings local_settings = {};
-    http2::Settings remote_settings = {};
+    Settings local_settings = {};
+    Settings remote_settings = {};
 
     // flow control
     uint32_t remote_window_size;
     uint32_t local_window_size;
 
+    uint32_t max_body_size;
     uint32_t last_stream_id;
     bool shutting_down;
     bool is_coro;
@@ -318,34 +358,36 @@ class Session {
     http::Context *default_ctx = nullptr;
     void *private_data = nullptr;
 
-    void (*handle)(Session *, Stream *) = nullptr;
+    void (*handle)(const std::shared_ptr<Session> &, const std::shared_ptr<Stream> &) = nullptr;
 
-    Session(SessionId _fd);
+    explicit Session(SessionId _fd);
     ~Session();
+    std::shared_ptr<Stream> create_stream(uint32_t stream_id);
+    std::shared_ptr<Stream> get_stream(uint32_t stream_id);
+    bool remove_stream(uint32_t stream_id);
 };
 }  // namespace http2
-
 }  // namespace swoole
 
-extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 extern zend_class_entry *swoole_http_cookie_ce;
 
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
-swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
-swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
-swoole::http::Cookie *php_swoole_http_get_cooke_safety(zval *zobject);
+swoole::http::Cookie *php_swoole_http_get_cooke_safety(const zval *zobject);
 
 /**
  *  These class properties cannot be modified by the user before assignment, such as Swoole\\Http\\Request.
  *  So we can use this function to init property.
  */
-static sw_inline zval *swoole_http_init_and_read_property(
-    zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, zend_string *name, int size = HT_MIN_SIZE) {
+static sw_inline zval *swoole_http_init_and_read_property(const zend_class_entry *ce,
+                                                          const zval *zobject,
+                                                          zval **zproperty_store_pp,
+                                                          zend_string *name,
+                                                          int size = HT_MIN_SIZE) {
     if (UNEXPECTED(!*zproperty_store_pp)) {
         zval *zv = zend_hash_find(&ce->properties_info, name);
-        zend_property_info *property_info = (zend_property_info *) Z_PTR_P(zv);
+        auto *property_info = (zend_property_info *) Z_PTR_P(zv);
         zval *property = OBJ_PROP(SW_Z8_OBJ_P(zobject), property_info->offset);
         array_init_size(property, size);
         *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
@@ -355,10 +397,10 @@ static sw_inline zval *swoole_http_init_and_read_property(
 }
 
 static sw_inline zval *swoole_http_init_and_read_property(
-    zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {
+    zend_class_entry *ce, const zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {
     if (UNEXPECTED(!*zproperty_store_pp)) {
         // Notice: swoole http server properties can not be unset anymore, so we can read it without checking
-        zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(zobject), name, name_len, 0, &rv);
+        zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(zobject), name, name_len, false, &rv);
         array_init(property);
         *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
         **zproperty_store_pp = *property;
@@ -386,10 +428,11 @@ static sw_inline bool swoole_http_has_crlf(const char *value, size_t length) {
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value);
 
-swoole::http::Context *php_swoole_http_request_get_context(zval *zobject);
-void php_swoole_http_request_set_context(zval *zobject, swoole::http::Context *context);
-swoole::http::Context *php_swoole_http_response_get_context(zval *zobject);
-void php_swoole_http_response_set_context(zval *zobject, swoole::http::Context *context);
+swoole::http::Context *php_swoole_http_request_get_context(const zval *zobject);
+void php_swoole_http_request_set_context(const zval *zobject, swoole::http::Context *ctx);
+swoole::http::Context *php_swoole_http_response_get_context(const zval *zobject);
+void php_swoole_http_response_set_context(const zval *zobject, swoole::http::Context *ctx);
+zend_string *php_swoole_http_get_date();
 
 #ifdef SW_HAVE_ZLIB
 voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size);
@@ -415,15 +458,15 @@ namespace http2 {
 //-----------------------------------namespace begin--------------------------------------------
 class HeaderSet {
   public:
-    HeaderSet(size_t size) : size(size), index(0) {
+    explicit HeaderSet(size_t size) : size(size), index(0) {
         nvs = (nghttp2_nv *) ecalloc(size, sizeof(nghttp2_nv));
     }
 
-    inline nghttp2_nv *get() {
+    nghttp2_nv *get() const {
         return nvs;
     }
 
-    inline size_t len() {
+    size_t len() const {
         return index;
     }
 
@@ -431,12 +474,12 @@ class HeaderSet {
         index++;
     }
 
-    inline void add(size_t index,
-                    const char *name,
-                    size_t name_len,
-                    const char *value,
-                    size_t value_len,
-                    const uint8_t flags = NGHTTP2_NV_FLAG_NONE) {
+    void add(size_t index,
+             const char *name,
+             size_t name_len,
+             const char *value,
+             size_t value_len,
+             const uint8_t flags = NGHTTP2_NV_FLAG_NONE) const {
         if (sw_likely(index < size || nvs[index].name == nullptr)) {
             nghttp2_nv *nv = &nvs[index];
             name = zend_str_tolower_dup(name, name_len);  // auto to lower
@@ -460,11 +503,11 @@ class HeaderSet {
         }
     }
 
-    inline void add(const char *name,
-                    size_t name_len,
-                    const char *value,
-                    size_t value_len,
-                    const uint8_t flags = NGHTTP2_NV_FLAG_NONE) {
+    void add(const char *name,
+             size_t name_len,
+             const char *value,
+             size_t value_len,
+             const uint8_t flags = NGHTTP2_NV_FLAG_NONE) {
         add(index++, name, name_len, value, value_len, flags);
     }
 

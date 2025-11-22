@@ -14,9 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_api.h"
-#include "swoole_async.h"
 #include "swoole_signal.h"
+#include "swoole_async.h"
 #include "swoole_coroutine_context.h"
 
 #ifdef SW_USE_THREAD_CONTEXT

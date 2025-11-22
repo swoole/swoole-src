@@ -164,27 +164,27 @@ static sw_inline void init_settings(Settings *settings) {
     settings->max_header_list_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
 }
 
-static inline const std::string get_flag_string(int __flags) {
+static inline std::string get_flag_string(int _flags) {
     std::string str;
-    if (__flags & SW_HTTP2_FLAG_ACK) {
+    if (_flags & SW_HTTP2_FLAG_ACK) {
         str.append("ACK|");
     }
-    if (__flags & SW_HTTP2_FLAG_END_STREAM) {
+    if (_flags & SW_HTTP2_FLAG_END_STREAM) {
         str.append("END_STREAM|");
     }
-    if (__flags & SW_HTTP2_FLAG_END_HEADERS) {
+    if (_flags & SW_HTTP2_FLAG_END_HEADERS) {
         str.append("END_HEADERS|");
     }
-    if (__flags & SW_HTTP2_FLAG_PADDED) {
+    if (_flags & SW_HTTP2_FLAG_PADDED) {
         str.append("PADDED|");
     }
-    if (__flags & SW_HTTP2_FLAG_PRIORITY) {
+    if (_flags & SW_HTTP2_FLAG_PRIORITY) {
         str.append("PRIORITY|");
     }
     if (str.back() == '|') {
         return str.substr(0, str.length() - 1);
     } else {
-        return "none";
+        return {"none"};
     }
 }
 

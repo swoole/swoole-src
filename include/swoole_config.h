@@ -37,16 +37,10 @@
 #endif
 #define SW_MALLOC_TRIM_INTERVAL 60
 #define SW_MALLOC_TRIM_PAD 0
-#define SW_USE_MONOTONIC_TIME 1
 
 #define SW_MAX_SOCKETS_DEFAULT 1024
 
-#define SW_SOCKET_OVERFLOW_WAIT 100
-#if defined(__MACH__) || defined(__FreeBSD__)
-#define SW_SOCKET_BUFFER_SIZE 262144
-#else
 #define SW_SOCKET_BUFFER_SIZE 8388608
-#endif
 #define SW_SOCKET_RETRY_COUNT 10
 
 #define SW_SOCKET_DEFAULT_DNS_TIMEOUT 60
@@ -63,7 +57,7 @@
 #define SW_MAX_WORKER_NCPU 1000  // n * cpu_num
 
 #define SW_HOST_MAXSIZE                                                                                                \
-    sizeof(((struct sockaddr_un *) NULL)->sun_path)  // Linux has 108 UNIX_PATH_MAX, but BSD/MacOS limit is only 104
+    sizeof(((struct sockaddr_un *) NULL)->sun_path)  // Linux has 108 UNIX_PATH_MAX, but BSD/macOS limit is only 104
 
 #define SW_CLIENT_BUFFER_SIZE 65536
 #define SW_CLIENT_CONNECT_TIMEOUT 0.5
@@ -76,6 +70,7 @@
 #endif
 #define SW_IPC_BUFFER_MAX_SIZE (64 * 1024)
 #define SW_IPC_BUFFER_SIZE (SW_IPC_MAX_SIZE - sizeof(swoole::DataHead))
+#define SW_IPC_MSG_MIN (2048 - sizeof(swoole::DataHead))
 // !!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_STD 8192
@@ -94,8 +89,6 @@
 #define SW_AIO_TASK_MAX_WAIT_TIME 0.001
 #define SW_AIO_EVENT_NUM 128
 
-#define SW_WORKER_WAIT_TIMEOUT 1000
-
 #define SW_WORKER_MAX_WAIT_TIME 3
 #define SW_WORKER_MIN_REQUEST 10
 #define SW_WORKER_MAX_RECV_CHUNK_COUNT 32
@@ -106,8 +99,6 @@
 
 #define SW_MSGMAX 65536
 #define SW_MESSAGE_BOX_SIZE 65536
-
-#define SW_DGRAM_HEADER_SIZE 32
 
 /**
  * The maximum number of Reactor threads
@@ -188,7 +179,6 @@
 #define SW_HTTP_DEFAULT_CONTENT_TYPE "text/html"
 #define SW_HTTP_MAX_APPEND_DATA 16384
 
-// #define SW_HTTP_100_CONTINUE
 #define SW_HTTP_100_CONTINUE_PACKET "HTTP/1.1 100 Continue\r\n\r\n"
 #define SW_HTTP_BAD_REQUEST_PACKET "HTTP/1.1 400 Bad Request\r\n\r\n"
 #define SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET "HTTP/1.1 413 Request Entity Too Large\r\n\r\n"

@@ -12,7 +12,11 @@ go(function () {
     Assert::eq(sleep(1), 0);
     time_approximate(1, microtime(true) - $s);
     Assert::eq(sleep(0), 0);
-    Assert::false(sleep(-1), -1);
+    try {
+        sleep(-1);
+    } catch (Throwable $e) {
+        Assert::contains($e->getMessage(), 'must be greater than or equal to 0');
+    }
 
     // usleep
     $s = microtime(true);
@@ -20,10 +24,19 @@ go(function () {
     usleep($t * 1000 * 1000);
     time_approximate($t, microtime(true) - $s);
     usleep(0);
-    usleep(-1);
+    try {
+         usleep(-1);
+    } catch (Throwable $e) {
+        Assert::contains($e->getMessage(), 'must be greater than or equal to 0');
+    }
 
     // time_nanosleep
-    Assert::false(time_nanosleep(-1, 1));
+    try {
+        time_nanosleep(-1, 1);
+    } catch (Throwable $e) {
+        Assert::contains($e->getMessage(), 'must be greater than or equal to 0');
+    }
+
     Assert::true(time_nanosleep(0, 1));
     Assert::true(time_nanosleep(0, 1000 * 1000));
 
@@ -40,12 +53,6 @@ echo "\nDONE\n";
 --EXPECTF--
 NON-BLOCKED
 
-Warning: sleep(): Number of seconds must be greater than or equal to 0 in %s on line %d
-
-Warning: usleep(): Number of seconds must be greater than or equal to 0 in %s on line %d
-
-Warning: time_nanosleep(): The seconds value must be greater than 0 in %s on line %d
-
-Warning: time_sleep_until(): Sleep until to time is less than current time in %s on line %d
+Warning: time_sleep_until(): Argument #1 ($timestamp) must be greater than or equal to the current time in %s on line %d
 
 DONE

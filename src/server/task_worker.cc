@@ -26,6 +26,8 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker);
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker);
 static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task);
 
+static SW_THREAD_LOCAL EventData *latest_task = nullptr;
+
 /**
  * after pool->create, before pool->start
  */
@@ -86,7 +88,7 @@ static int TaskWorker_call_command_handler(const ProcessPool *pool, const Worker
 static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task) {
     int ret = SW_OK;
     auto *serv = static_cast<Server *>(pool->ptr);
-    serv->last_task = task;
+    latest_task = task;
 
     worker->set_status_to_busy();
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
@@ -119,7 +121,7 @@ void Server::task_dump(EventData *task) {
 
     if (task->info.ext_flags & SW_TASK_TMPFILE) {
         auto pkg = reinterpret_cast<PacketTask *>(task->data);
-        sw_printf("Task[tmpfile]=%.*s\n", pkg->length, pkg->tmpfile);
+        sw_printf("Task[tmpfile]=%.*s\n", (int) pkg->length, pkg->tmpfile);
     }
 }
 
@@ -320,8 +322,8 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
         swoole_sys_warning("open(%s) failed", _pkg.tmpfile);
         return false;
     }
-    if (buffer->size < _pkg.length && !buffer->extend(_pkg.length)) {
-        return false;
+    if (buffer->size < _pkg.length) {
+        buffer->extend(_pkg.length);
     }
     if (fp.read_all(buffer->str, _pkg.length) != _pkg.length) {
         return false;
@@ -436,7 +438,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
         return false;
     }
     if (current_task == nullptr) {
-        current_task = last_task;
+        current_task = latest_task;
     }
     if (current_task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         swoole_warning("Server::task()/Server::finish() is not supported in onPipeMessage callback");

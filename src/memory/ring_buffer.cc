@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "swoole_memory.h"
 
 namespace swoole {

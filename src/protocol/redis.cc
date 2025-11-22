@@ -16,7 +16,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_protocol.h"
@@ -98,9 +97,7 @@ _recv_data:
                 if (extend_size > protocol->package_max_length) {
                     extend_size = protocol->package_max_length;
                 }
-                if (!buffer->extend(extend_size)) {
-                    return SW_ERR;
-                }
+                buffer->extend(extend_size);
             } else if (buffer->length == buffer->size) {
             _package_too_big:
                 swoole_warning("Package is too big. package_length=%ld", buffer->length);
@@ -186,40 +183,34 @@ _failed:
     return SW_ERR;
 }
 
-bool format_nil(String *buf) {
-    return buf->append(SW_STRL(SW_REDIS_RETURN_NIL)) == SW_OK;
+void format_nil(String *buf) {
+    buf->append(SW_STRL(SW_REDIS_RETURN_NIL));
 }
 
-bool format(String *buf, enum ReplyType type, const std::string &value) {
+void format(String *buf, ReplyType type, const std::string &value) {
     if (type == REPLY_STATUS) {
         if (value.empty()) {
-            return buf->append(SW_STRL("+OK\r\n")) == SW_OK;
+            buf->append(SW_STRL("+OK\r\n"));
         } else {
-            return buf->format("+%.*s\r\n", value.length(), value.c_str()) > 0;
+            buf->format("+%.*s\r\n", value.length(), value.c_str());
         }
     } else if (type == REPLY_ERROR) {
         if (value.empty()) {
-            return buf->append(SW_STRL("-ERR\r\n")) == SW_OK;
+            buf->append(SW_STRL("-ERR\r\n"));
         } else {
-            return buf->format("-%.*s\r\n", value.length(), value.c_str()) > 0;
+            buf->format("-%.*s\r\n", value.length(), value.c_str());
         }
     } else if (type == REPLY_STRING) {
-        if (value.empty() or value.length() > SW_REDIS_MAX_STRING_SIZE) {
-            return false;
-        } else {
-            if (buf->format("$%zu\r\n", value.length()) == 0) {
-                return false;
-            }
+        if (!value.empty()) {
+            buf->format("$%zu\r\n", value.length());
             buf->append(value);
             buf->append(SW_CRLF, SW_CRLF_LEN);
-            return true;
         }
     }
-    return false;
 }
 
-bool format(String *buf, enum ReplyType type, long value) {
-    return buf->format(":%" PRId64 "\r\n", value) > 0;
+void format(String *buf, ReplyType type, long value) {
+    buf->format(":%" PRId64 "\r\n", value);
 }
 
 std::vector<std::string> parse(const char *data, size_t len) {

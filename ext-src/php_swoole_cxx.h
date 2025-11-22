@@ -131,16 +131,16 @@ SW_API zend_object *php_swoole_create_socket_from_fd(int fd, int _domain, int _t
 SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_socket);
 SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type);
 SW_API void php_swoole_init_socket_object(zval *zobject, swoole::coroutine::Socket *socket);
-SW_API swoole::coroutine::Socket *php_swoole_get_socket(zval *zobject);
-SW_API bool php_swoole_socket_is_closed(zval *zobject);
+SW_API swoole::coroutine::Socket *php_swoole_get_socket(const zval *zobject);
+SW_API bool php_swoole_socket_is_closed(const zval *zobject);
 #ifdef SW_USE_OPENSSL
-SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, zval *zset);
+SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, const zval *zset);
 #endif
-SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval *zset);
-SW_API bool php_swoole_socket_set(swoole::coroutine::Socket *cli, zval *zset);
-SW_API void php_swoole_socket_set_error_properties(zval *zobject, int code);
-SW_API void php_swoole_socket_set_error_properties(zval *zobject, int code, const char *msg);
-SW_API void php_swoole_socket_set_error_properties(zval *zobject, swoole::coroutine::Socket *socket);
+SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, const zval *zset);
+SW_API bool php_swoole_socket_set(swoole::coroutine::Socket *cli, const zval *zset);
+SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code);
+SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code, const char *msg);
+SW_API void php_swoole_socket_set_error_properties(const zval *zobject, const swoole::coroutine::Socket *socket);
 #define php_swoole_client_set php_swoole_socket_set
 SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
                                                         int domain,
@@ -148,7 +148,6 @@ SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
                                                         int protocol STREAMS_DC);
 SW_API php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
-SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data);
 SW_API zif_handler php_swoole_get_original_handler(const char *name, size_t len);
 SW_API bool php_swoole_call_original_handler(const char *name, size_t len, INTERNAL_FUNCTION_PARAMETERS);
 
@@ -163,25 +162,7 @@ static inline bool php_swoole_is_fatal_error() {
 ssize_t php_swoole_length_func(const swoole::Protocol *, swoole::network::Socket *, swoole::PacketLength *);
 SW_API zend_long php_swoole_parse_to_size(zval *zv);
 SW_API zend_string *php_swoole_serialize(zval *zdata);
-SW_API bool php_swoole_unserialize(zend_string *data, zval *zv);
-
-#ifdef SW_HAVE_ZLIB
-#define php_swoole_websocket_frame_pack php_swoole_websocket_frame_pack_ex
-#define php_swoole_websocket_frame_object_pack php_swoole_websocket_frame_object_pack_ex
-#else
-#define php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, mask, allow_compress)                            \
-    php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, flags, mask, 0)
-#define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress)                                    \
-    php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
-#endif
-int php_swoole_websocket_frame_pack_ex(
-    swoole::String *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
-int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer,
-                                              zval *zdata,
-                                              zend_bool mask,
-                                              zend_bool allow_compress);
-void php_swoole_websocket_frame_unpack(swoole::String *data, zval *zframe);
-void php_swoole_websocket_frame_unpack_ex(swoole::String *data, zval *zframe, uchar allow_uncompress);
+SW_API bool php_swoole_unserialize(const zend_string *data, zval *zv);
 
 #ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
@@ -196,8 +177,11 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 
-#ifdef __APPLE__
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #define SOL_TCP IPPROTO_TCP
+#endif
+
+#ifdef __APPLE__
 #define TCP_INFO TCP_CONNECTION_INFO
 using tcp_info = tcp_connection_info;
 #endif
@@ -224,11 +208,11 @@ class String {
     }
 
     String(const char *_str, size_t len) {
-        str = zend_string_init(_str, len, 0);
+        str = zend_string_init(_str, len, false);
     }
 
     String(const std::string &_str) {
-        str = zend_string_init(_str.c_str(), _str.length(), 0);
+        str = zend_string_init(_str.c_str(), _str.length(), false);
     }
 
     String(zval *v) {
@@ -247,17 +231,18 @@ class String {
         str = zend_string_copy(o.str);
     }
 
-    String(String &&o) {
+    String(String &&o) noexcept {
         str = o.str;
         o.str = nullptr;
     }
 
-    void operator=(zval *v) {
+    String &operator=(zval *v) {
         release();
         str = zval_get_string(v);
+        return *this;
     }
 
-    String &operator=(String &&o) {
+    String &operator=(String &&o) noexcept {
         release();
         str = o.str;
         o.str = nullptr;
@@ -265,36 +250,39 @@ class String {
     }
 
     String &operator=(const String &o) {
+        if (&o == this) {
+            return *this;
+        }
         release();
         str = zend_string_copy(o.str);
         return *this;
     }
 
-    char *val() {
+    char *val() const {
         return ZSTR_VAL(str);
     }
 
-    size_t len() {
+    size_t len() const {
         return ZSTR_LEN(str);
     }
 
-    zend_string *get() {
+    zend_string *get() const {
         return str;
     }
 
-    void rtrim() {
+    void rtrim() const {
         ZSTR_LEN(str) = swoole::rtrim(val(), len());
     }
 
-    const std::string to_std_string() {
-        return std::string(val(), len());
+    std::string to_std_string() const {
+        return {val(), len()};
     }
 
-    char *dup() {
+    char *dup() const {
         return sw_likely(len() > 0) ? sw_strndup(val(), len()) : nullptr;
     }
 
-    char *edup() {
+    char *edup() const {
         return sw_likely(len() > 0) ? estrndup(val(), len()) : nullptr;
     }
 
@@ -343,7 +331,7 @@ class KeyValue {
 
 class ArrayIterator {
   public:
-    ArrayIterator(Bucket *p) {
+    explicit ArrayIterator(Bucket *p) {
         _ptr = p;
         _key = _ptr->key;
         _val = &_ptr->val;
@@ -365,23 +353,23 @@ class ArrayIterator {
         skipUndefBucket();
     }
 
-    bool operator!=(ArrayIterator b) {
+    bool operator!=(ArrayIterator b) const {
         return b.ptr() != _ptr;
     }
 
-    std::string key() {
-        return std::string(_key->val, _key->len);
+    std::string key() const {
+        return {_key->val, _key->len};
     }
 
-    zend_ulong index() {
+    zend_ulong index() const {
         return _index;
     }
 
-    zval *value() {
+    zval *value() const {
         return _val;
     }
 
-    Bucket *ptr() {
+    Bucket *ptr() const {
         return _ptr;
     }
 
@@ -423,29 +411,29 @@ class Array {
         arr = _arr;
     }
 
-    size_t count() {
+    size_t count() const {
         return zend_hash_num_elements(Z_ARRVAL_P(arr));
     }
 
-    bool set(zend_ulong index, zval *value) {
+    bool set(zend_ulong index, zval *value) const {
         return add_index_zval(arr, index, value) == SUCCESS;
     }
 
-    bool append(zval *value) {
+    bool append(zval *value) const {
         return add_next_index_zval(arr, value) == SUCCESS;
     }
 
-    bool set(zend_ulong index, zend_resource *res) {
+    bool set(zend_ulong index, zend_resource *res) const {
         zval tmp;
         ZVAL_RES(&tmp, res);
         return set(index, &tmp);
     }
 
-    ArrayIterator begin() {
-        return ArrayIterator(Z_ARRVAL_P(arr)->arData, Z_ARRVAL_P(arr)->arData + Z_ARRVAL_P(arr)->nNumUsed);
+    ArrayIterator begin() const {
+        return {Z_ARRVAL_P(arr)->arData, Z_ARRVAL_P(arr)->arData + Z_ARRVAL_P(arr)->nNumUsed};
     }
 
-    ArrayIterator end() {
+    ArrayIterator end() const {
         return ArrayIterator(Z_ARRVAL_P(arr)->arData + Z_ARRVAL_P(arr)->nNumUsed);
     }
 };
@@ -474,23 +462,25 @@ class Variable {
         ZVAL_STRINGL(&value, str.c_str(), str.length());
     }
 
-    Variable(const Variable &&src) {
+    Variable(const Variable &&src) noexcept {
         value = src.value;
         add_ref();
     }
 
-    Variable(Variable &&src) {
+    Variable(Variable &&src) noexcept {
         value = src.value;
         src.reset();
     }
 
-    void operator=(zval *zvalue) {
+    Variable &operator=(zval *zvalue) {
         assign(zvalue);
+        return *this;
     }
 
-    void operator=(const Variable &src) {
+    Variable &operator=(const Variable &src) {
         value = src.value;
         add_ref();
+        return *this;
     }
 
     void assign(zval *zvalue) {
@@ -528,16 +518,17 @@ class CharPtr {
         str_ = nullptr;
     }
 
-    CharPtr(char *str) {
+    CharPtr(const char *str) {
         str_ = estrndup(str, strlen(str));
     }
 
-    CharPtr(char *str, size_t len) {
+    CharPtr(const char *str, size_t len) {
         str_ = estrndup(str, len);
     }
 
-    void operator=(char *str) {
+    CharPtr &operator=(const char *str) {
         assign(str, strlen(str));
+        return *this;
     }
 
     void release() {
@@ -547,7 +538,7 @@ class CharPtr {
         }
     }
 
-    void assign(char *str, size_t len) {
+    void assign(const char *str, size_t len) {
         release();
         str_ = estrndup(str, len);
     }
@@ -561,7 +552,7 @@ class CharPtr {
         release();
     }
 
-    char *get() {
+    char *get() const {
         return str_;
     }
 };
@@ -577,7 +568,7 @@ class Callable {
   public:
     Callable(zval *_zfn);
     ~Callable();
-    uint32_t refcount();
+    uint32_t refcount() const;
 
     zend_refcounted *refcount_ptr() {
         return sw_get_refcount_ptr(&zfn);
@@ -587,11 +578,11 @@ class Callable {
         return &fcc;
     }
 
-    bool ready() {
+    bool ready() const {
         return !ZVAL_IS_UNDEF(&zfn);
     }
 
-    Callable *dup() {
+    Callable *dup() const {
         auto copy = new Callable();
         copy->fcc = fcc;
         copy->zfn = zfn;
@@ -607,7 +598,7 @@ class Callable {
     }
 };
 
-#define _CONCURRENCY_HASHMAP_LOCK_(code)                                                                               \
+#define SW_CONCURRENCY_HASHMAP_LOCK(code)                                                                              \
     if (locked_) {                                                                                                     \
         code;                                                                                                          \
     } else {                                                                                                           \
@@ -618,7 +609,6 @@ class Callable {
 
 template <typename KeyT, typename ValueT>
 class ConcurrencyHashMap {
-  private:
     std::unordered_map<KeyT, ValueT> map_;
     std::mutex lock_;
     bool locked_;
@@ -631,7 +621,7 @@ class ConcurrencyHashMap {
     }
 
     void set(const KeyT &key, const ValueT &value) {
-        _CONCURRENCY_HASHMAP_LOCK_(map_[key] = value);
+        SW_CONCURRENCY_HASHMAP_LOCK(map_[key] = value);
     }
 
     ValueT get(const KeyT &key) {
@@ -643,16 +633,21 @@ class ConcurrencyHashMap {
             }
             return iter->second;
         };
-        _CONCURRENCY_HASHMAP_LOCK_(value = fn());
+        SW_CONCURRENCY_HASHMAP_LOCK(value = fn());
         return value;
     }
 
+    bool exists(const KeyT &key) {
+        std::unique_lock<std::mutex> _lock(lock_);
+        return map_.find(key) != map_.end();
+    }
+
     void del(const KeyT &key) {
-        _CONCURRENCY_HASHMAP_LOCK_(map_.erase(key));
+        SW_CONCURRENCY_HASHMAP_LOCK(map_.erase(key));
     }
 
     void clear() {
-        _CONCURRENCY_HASHMAP_LOCK_(map_.clear());
+        SW_CONCURRENCY_HASHMAP_LOCK(map_.clear());
     }
 
     void each(const std::function<void(KeyT key, ValueT value)> &cb) {
@@ -684,10 +679,14 @@ struct Function {
     }
 };
 
-void known_strings_init(void);
-void known_strings_dtor(void);
+void known_strings_init();
+void known_strings_dtor();
 void unserialize(zval *return_value, const char *buf, size_t buf_len, HashTable *options);
 void json_decode(zval *return_value, const char *str, size_t str_len, zend_long options, zend_long zend_long);
+zend_function *get_function(const char *fname, size_t fname_len);
+zend_function *get_function(const std::string &fname);
+zend_function *get_function(const zend_string *fname);
+zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len);
 
 static inline zend_string *fetch_zend_string_by_val(void *val) {
     return (zend_string *) ((char *) val - XtOffsetOf(zend_string, val));
@@ -709,6 +708,11 @@ static inline void array_set(zval *arg, const char *key, size_t l_key, const cha
     zval ztmp;
     ZVAL_STRINGL(&ztmp, value, l_value);
     add_assoc_zval_ex(arg, key, l_key, &ztmp);
+}
+
+static inline void array_set(zval *arg, zend_ulong index, zval *zvalue) {
+    Z_TRY_ADDREF_P(zvalue);
+    zend_hash_index_add(Z_ARRVAL_P(arg), index, zvalue);
 }
 
 static inline void array_add(zval *arg, zval *zvalue) {
@@ -740,19 +744,19 @@ void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new
 
 static inline zend_long object_get_long(zval *obj, zend_string *key) {
     static zval rv;
-    zval *property = zend_read_property_ex(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, 1, &rv);
+    zval *property = zend_read_property_ex(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, true, &rv);
     return property ? zval_get_long(property) : 0;
 }
 
 static inline zend_long object_get_long(zval *obj, const char *key, size_t l_key) {
     static zval rv;
-    zval *property = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, l_key, 1, &rv);
+    zval *property = zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), key, l_key, true, &rv);
     return property ? zval_get_long(property) : 0;
 }
 
 static inline zend_long object_get_long(zend_object *obj, const char *key, size_t l_key) {
     static zval rv;
-    zval *property = zend_read_property(obj->ce, obj, key, l_key, 1, &rv);
+    zval *property = zend_read_property(obj->ce, obj, key, l_key, true, &rv);
     return property ? zval_get_long(property) : 0;
 }
 
@@ -768,9 +772,25 @@ static inline void object_set(zval *obj, const char *name, size_t l_name, zend_l
     zend_update_property_long(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, value);
 }
 
+static inline void object_set(zend_object *obj, zend_string *name, zval *zvalue) {
+    zend_update_property_ex(obj->ce, obj, name, zvalue);
+}
+
+static inline void object_set(zend_object *obj, zend_string *name, zend_string *value) {
+    zval tmp;
+    ZVAL_STR(&tmp, value);
+    zend_update_property_ex(obj->ce, obj, name, &tmp);
+}
+
+static inline void object_set(zend_object *obj, zend_string *name, zend_long value) {
+    zval tmp;
+    ZVAL_LONG(&tmp, value);
+    zend_update_property_ex(obj->ce, obj, name, &tmp);
+}
+
 static inline zval *object_get(zval *obj, const char *name, size_t l_name) {
     static zval rv;
-    return zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, 1, &rv);
+    return zend_read_property(Z_OBJCE_P(obj), Z_OBJ_P(obj), name, l_name, true, &rv);
 }
 
 /**
@@ -778,6 +798,14 @@ static inline zval *object_get(zval *obj, const char *name, size_t l_name) {
  */
 static inline void print_error(zend_object *exception, int severity) {
     zend_exception_error(exception, severity);
+}
+
+static inline void add_constant(const char *name, zend_long value) {
+    zend_register_long_constant(name, strlen(name), value, CONST_CS | CONST_PERSISTENT, sw_module_number());
+}
+
+static inline void add_constant(const char *name, const char *value) {
+    zend_register_string_constant(name, strlen(name), value, CONST_CS | CONST_PERSISTENT, sw_module_number());
 }
 
 //-----------------------------------namespace end--------------------------------------------

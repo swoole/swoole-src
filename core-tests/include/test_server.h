@@ -5,10 +5,10 @@
 
 #define SERVER_THIS ((swoole::test::Server *) serv->private_data_2)
 
-#define ON_START_PARAMS swServer *serv
-#define ON_WORKER_START_PARAMS swServer *serv, swoole::Worker *worker
-#define ON_PACKET_PARAMS swServer *serv, swRecvData *req
-#define ON_RECEIVE_PARAMS swServer *serv, swRecvData *req
+#define ON_START_PARAMS swoole::Server *serv
+#define ON_WORKER_START_PARAMS swoole::Server *serv, swoole::Worker *worker
+#define ON_PACKET_PARAMS swoole::Server *serv, swoole::RecvData *req
+#define ON_RECEIVE_PARAMS swoole::Server *serv, swoole::RecvData *req
 
 namespace swoole {
 namespace test {

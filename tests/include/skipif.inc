@@ -318,3 +318,8 @@ function skip_if_not_root()
 function skip_if_no_iouring() {
     skip('no io-uring supports', !defined('SWOOLE_IOURING_DEFAULT'));
 }
+
+function skip_if_not_defined(string $name)
+{
+    skip("`$name` is not defined", !defined($name));
+}

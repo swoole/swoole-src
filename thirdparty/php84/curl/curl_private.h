@@ -151,6 +151,8 @@ void swoole_curl_multi_cleanup_list(void *data);
 void swoole_curl_verify_handlers(php_curl *ch, bool reporterror);
 void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source);
 
+zend_long swoole_curl_get_long(zval *zv);
+
 static inline php_curl *curl_from_obj(zend_object *obj) {
     return (php_curl *) ((char *) (obj) -XtOffsetOf(php_curl, std));
 }

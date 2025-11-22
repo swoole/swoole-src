@@ -14,13 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "swoole_msg_queue.h"
 
+namespace swoole {
+#ifdef HAVE_MSGQUEUE
 #include <sys/ipc.h>
 #include <sys/msg.h>
-
-namespace swoole {
 
 bool MsgQueue::destroy() {
     if (msgctl(msg_id_, IPC_RMID, nullptr) < 0) {
@@ -73,7 +72,7 @@ ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) const {
     return ret;
 }
 
-bool MsgQueue::push(QueueNode *in, size_t mdata_length) {
+bool MsgQueue::push(const QueueNode *in, size_t mdata_length) const {
     while (true) {
         if (msgsnd(msg_id_, in, mdata_length, flags_) == 0) {
             return true;
@@ -104,7 +103,7 @@ bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) const {
     return false;
 }
 
-bool MsgQueue::set_capacity(size_t queue_bytes) {
+bool MsgQueue::set_capacity(size_t queue_bytes) const {
     msqid_ds _stat;
     if (msgctl(msg_id_, IPC_STAT, &_stat) != 0) {
         return false;
@@ -116,4 +115,34 @@ bool MsgQueue::set_capacity(size_t queue_bytes) {
     }
     return true;
 }
+#else
+MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
+    swoole_error("current platform does not support `sysvmsg`");
+}
+
+void MsgQueue::set_blocking(bool blocking) {}
+
+bool MsgQueue::set_capacity(size_t queue_bytes) const {
+    return false;
+}
+
+bool MsgQueue::push(const QueueNode *in, size_t mdata_length) const {
+    return false;
+}
+
+ssize_t MsgQueue::pop(QueueNode *out, size_t mdata_size) const {
+    return -1;
+}
+
+bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) const {
+    return false;
+}
+
+bool MsgQueue::destroy() {
+    return false;
+}
+
+MsgQueue::~MsgQueue() {
+}
+#endif
 }  // namespace swoole

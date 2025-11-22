@@ -23,7 +23,7 @@
 #ifdef SW_USE_SQLITE
 using swoole::Coroutine;
 
-static SW_THREAD_LOCAL bool swoole_sqlite_blocking = true;
+static bool swoole_sqlite_blocking = true;
 
 void swoole_sqlite_set_blocking(bool blocking) {
     if (blocking) {
@@ -112,7 +112,7 @@ void php_swoole_sqlite_minit(int module_id) {
     php_pdo_register_driver(&swoole_pdo_sqlite_driver);
 }
 
-void php_swoole_sqlite_mshutdown(void) {
+void php_swoole_sqlite_mshutdown() {
     php_pdo_unregister_driver(&swoole_pdo_sqlite_driver);
 }
 #endif

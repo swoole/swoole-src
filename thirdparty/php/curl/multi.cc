@@ -5,7 +5,7 @@
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
    | available through the world-wide-web at the following url:           |
-   | http://www.php.net/license/3_01.txt                                  |
+   | https://www.php.net/license/3_01.txt                                 |
    | If you did not receive a copy of the PHP license and are unable to   |
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
@@ -46,6 +46,7 @@ bool swoole_curl_multi_is_in_coroutine(php_curlm *mh) {
 }
 
 /* CurlMultiHandle class */
+
 zend_class_entry *swoole_coroutine_curl_multi_handle_ce;
 
 static inline php_curlm *curl_multi_from_obj(zend_object *obj) {
@@ -61,9 +62,7 @@ SW_EXTERN_C_END
 PHP_FUNCTION(swoole_native_curl_multi_init) {
     php_curlm *mh;
 
-#ifdef ZEND_PARSE_PARAMETERS_NONE
     ZEND_PARSE_PARAMETERS_NONE();
-#endif
 
     object_init_ex(return_value, swoole_coroutine_curl_multi_handle_ce);
     mh = Z_CURL_MULTI_P(return_value);
@@ -96,17 +95,24 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
         RETURN_FALSE;
     }
 
-    swoole_curl_verify_handlers(ch, 1);
+    swoole_curl_verify_handlers(ch, /* reporterror */ true);
     swoole_curl_cleanup_handle(ch);
-
-    Z_ADDREF_P(z_ch);
-    zend_llist_add_element(&mh->easyh, z_ch);
 
     auto handle = swoole::curl::get_handle(ch->cp);
     error = mh->multi->add_handle(handle);
+    SAVE_CURLM_ERROR(mh, error);
+
+#if PHP_VERSION_ID >= 80200
+    if (error == CURLM_OK) {
+        Z_ADDREF_P(z_ch);
+        zend_llist_add_element(&mh->easyh, z_ch);
+    }
+#else
+    Z_ADDREF_P(z_ch);
+    zend_llist_add_element(&mh->easyh, z_ch);
+#endif
 
     swoole_trace_log(SW_TRACE_CO_CURL, "multi=%p, cp=%p, handle=%p, error=%d", mh->multi, ch->cp, handle, error);
-    SAVE_CURLM_ERROR(mh, error);
     RETURN_LONG((zend_long) error);
 }
 /* }}} */
@@ -174,8 +180,14 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle) {
 
     swoole_trace_log(SW_TRACE_CO_CURL, "multi=%p, cp=%p, handle=%p, error=%d", mh->multi, ch->cp, handle, error);
     SAVE_CURLM_ERROR(mh, error);
-    RETVAL_LONG((zend_long) error);
+#if PHP_VERSION_ID >= 80200
+    if (error == CURLM_OK) {
+        zend_llist_del_element(&mh->easyh, z_ch, (int (*)(void *, void *)) curl_compare_objects);
+    }
+#else
     zend_llist_del_element(&mh->easyh, z_ch, (int (*)(void *, void *)) curl_compare_objects);
+#endif
+    RETVAL_LONG((zend_long) error);
 }
 /* }}} */
 
@@ -197,6 +209,18 @@ PHP_FUNCTION(swoole_native_curl_multi_select) {
                            "The given object is not a valid coroutine CurlMultiHandle object");
         RETURN_FALSE;
     }
+
+#if PHP_VERSION_ID >= 80200
+    if (!(timeout >= 0.0 && timeout <= ((double) INT_MAX / 1000.0))) {
+        swoole_fatal_error(
+            SW_ERROR_WRONG_OPERATION, "timeout must be between 0 and %d", (int) ceilf((double) INT_MAX / 1000));
+#ifdef CURLM_BAD_FUNCTION_ARGUMENT
+        SAVE_CURLM_ERROR(mh, CURLM_BAD_FUNCTION_ARGUMENT);
+#endif
+        RETURN_FALSE;
+    }
+#endif
+
     RETURN_LONG(mh->multi->select(mh, timeout));
 }
 /* }}} */
@@ -206,7 +230,7 @@ PHP_FUNCTION(swoole_native_curl_multi_exec) {
     zval *z_mh;
     zval *z_still_running;
     php_curlm *mh;
-    int still_running = 0;
+    int still_running;
     CURLMcode error = CURLM_OK;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
@@ -229,7 +253,8 @@ PHP_FUNCTION(swoole_native_curl_multi_exec) {
         for (pz_ch = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch;
              pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
             ch = Z_CURL_P(pz_ch);
-            swoole_curl_verify_handlers(ch, 1);
+
+            swoole_curl_verify_handlers(ch, /* reporterror */ true);
         }
     }
 
@@ -253,12 +278,12 @@ PHP_FUNCTION(swoole_native_curl_multi_getcontent) {
 
     ch = Z_CURL_P(z_ch);
 
-    if (curl_handlers(ch)->write->method == PHP_CURL_RETURN) {
-        if (!curl_handlers(ch)->write->buf.s) {
+    if (ch->handlers.write->method == PHP_CURL_RETURN) {
+        if (!ch->handlers.write->buf.s) {
             RETURN_EMPTY_STRING();
         }
-        smart_str_0(&curl_handlers(ch)->write->buf);
-        RETURN_STR_COPY(curl_handlers(ch)->write->buf.s);
+        smart_str_0(&ch->handlers.write->buf);
+        RETURN_STR_COPY(ch->handlers.write->buf.s);
     }
 
     RETURN_NULL();
@@ -336,7 +361,7 @@ PHP_FUNCTION(swoole_native_curl_multi_close) {
         if (!ch) {
             continue;
         }
-        swoole_curl_verify_handlers(ch, 0);
+        swoole_curl_verify_handlers(ch, /* reporterror */ false);
         auto handle = swoole::curl::get_handle(ch->cp);
         if (handle) {
             mh->multi->remove_handle(handle);
@@ -388,21 +413,23 @@ static int _php_server_push_callback(
     php_curl *parent;
     php_curlm *mh = (php_curlm *) userp;
     size_t rval = CURL_PUSH_DENY;
-#if PHP_VERSION_ID < 80100
-    php_curlm_server_push *t = mh->handlers->server_push;
-#else
-    php_curlm_server_push *t = mh->handlers.server_push;
-#endif
+    php_curl_callback *t = mh->handlers.server_push;
     zval *pz_parent_ch = NULL;
     zval pz_ch;
     zval headers;
     zval retval;
     char *header;
-    int error;
+    zend_result error;
+
     zend_fcall_info fci = empty_fcall_info;
 
     pz_parent_ch = _php_curl_multi_find_easy_handle(mh, parent_ch);
     if (pz_parent_ch == NULL) {
+        return rval;
+    }
+
+    if (UNEXPECTED(zend_fcall_info_init(&t->func_name, 0, &fci, &t->fci_cache, NULL, NULL) == FAILURE)) {
+        php_error_docref(NULL, E_WARNING, "Cannot call the CURLMOPT_PUSHFUNCTION");
         return rval;
     }
 
@@ -425,20 +452,33 @@ static int _php_server_push_callback(
         add_next_index_string(&headers, header);
     }
 
-    zend_fcall_info_init(&t->func_name, 0, &fci, &t->fci_cache, NULL, NULL);
+#if PHP_VERSION_ID >= 80300
+    ZEND_ASSERT(pz_parent_ch);
+    zval call_args[3] = {*pz_parent_ch, pz_ch, headers};
 
+    fci.param_count = 3;
+    fci.params = call_args;
+    fci.retval = &retval;
+#else
     zend_fcall_info_argn(&fci, 3, pz_parent_ch, &pz_ch, &headers);
 
     fci.retval = &retval;
+#endif
 
     error = zend_call_function(&fci, &t->fci_cache);
+#if PHP_VERSION_ID < 80300
     zend_fcall_info_args_clear(&fci, 1);
+#endif
     zval_ptr_dtor_nogc(&headers);
 
     if (error == FAILURE) {
         php_error_docref(NULL, E_WARNING, "Cannot call the CURLMOPT_PUSHFUNCTION");
     } else if (!Z_ISUNDEF(retval)) {
+#if PHP_VERSION_ID >= 80300
+        if (CURL_PUSH_DENY != php_curl_get_long(&retval)) {
+#else
         if (CURL_PUSH_DENY != zval_get_long(&retval)) {
+#endif
             rval = CURL_PUSH_OK;
             zend_llist_add_element(&mh->easyh, &pz_ch);
         } else {
@@ -451,7 +491,7 @@ static int _php_server_push_callback(
 }
 /* }}} */
 
-static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue, zval *return_value) /* {{{ */
+static bool _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue, zval *return_value) /* {{{ */
 {
     CURLMcode error = CURLM_OK;
 
@@ -462,41 +502,39 @@ static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue,
     case CURLMOPT_CONTENT_LENGTH_PENALTY_SIZE:
     case CURLMOPT_MAX_HOST_CONNECTIONS:
     case CURLMOPT_MAX_PIPELINE_LENGTH:
-    case CURLMOPT_MAX_TOTAL_CONNECTIONS: {
+    case CURLMOPT_MAX_TOTAL_CONNECTIONS:
+#if LIBCURL_VERSION_NUM >= 0x074300 && PHP_VERSION_ID >= 80200
+    case CURLMOPT_MAX_CONCURRENT_STREAMS:
+#endif
+    {
         zend_long lval = zval_get_long(zvalue);
 
         if (option == CURLMOPT_PIPELINING && (lval & 1)) {
+#if LIBCURL_VERSION_NUM >= 0x073e00 /* 7.62.0 */
             php_error_docref(NULL, E_WARNING, "CURLPIPE_HTTP1 is no longer supported");
+#else
+            php_error_docref(NULL, E_DEPRECATED, "CURLPIPE_HTTP1 is deprecated");
+#endif
         }
         error = curl_multi_setopt(mh->multi->get_multi_handle(), (CURLMoption) option, lval);
         break;
     }
     case CURLMOPT_PUSHFUNCTION: {
-#if PHP_VERSION_ID < 80100
-        if (mh->handlers->server_push == NULL) {
-            mh->handlers->server_push = (php_curlm_server_push *) ecalloc(1, sizeof(php_curlm_server_push));
-        } else if (!Z_ISUNDEF(mh->handlers->server_push->func_name)) {
-            zval_ptr_dtor(&mh->handlers->server_push->func_name);
-            mh->handlers->server_push->fci_cache = empty_fcall_info_cache;
-        }
-
-        ZVAL_COPY(&mh->handlers->server_push->func_name, zvalue);
-        mh->handlers->server_push->method = PHP_CURL_USER;
-#else
         if (mh->handlers.server_push == NULL) {
-            mh->handlers.server_push = (php_curlm_server_push *) ecalloc(1, sizeof(php_curlm_server_push));
+            mh->handlers.server_push = (php_curl_callback *) ecalloc(1, sizeof(php_curl_callback));
         } else if (!Z_ISUNDEF(mh->handlers.server_push->func_name)) {
             zval_ptr_dtor(&mh->handlers.server_push->func_name);
             mh->handlers.server_push->fci_cache = empty_fcall_info_cache;
         }
 
         ZVAL_COPY(&mh->handlers.server_push->func_name, zvalue);
-        mh->handlers.server_push->method = PHP_CURL_USER;
-#endif
-
+#if PHP_VERSION_ID >= 80200
+        error = curl_multi_setopt(mh->multi->get_multi_handle(), CURLMOPT_PUSHFUNCTION, _php_server_push_callback);
+#else
         error = curl_multi_setopt(mh->multi->get_multi_handle(), (CURLMoption) option, _php_server_push_callback);
+#endif
         if (error != CURLM_OK) {
-            return 0;
+            return false;
         }
         error = curl_multi_setopt(mh->multi->get_multi_handle(), CURLMOPT_PUSHDATA, mh);
         break;
@@ -509,7 +547,7 @@ static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue,
 
     SAVE_CURLM_ERROR(mh, error);
 
-    return error != CURLM_OK;
+    return error == CURLM_OK;
 }
 /* }}} */
 
@@ -531,7 +569,7 @@ PHP_FUNCTION(swoole_native_curl_multi_setopt) {
                            "The given object is not a valid coroutine CurlMultiHandle object");
         RETURN_FALSE;
     }
-    if (!_php_curl_multi_setopt(mh, options, zvalue, return_value)) {
+    if (_php_curl_multi_setopt(mh, (CURLMoption) options, zvalue, return_value)) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -548,9 +586,16 @@ static zend_object *swoole_curl_multi_create_object(zend_class_entry *class_type
 
     zend_object_std_init(&intern->std, class_type);
     object_properties_init(&intern->std, class_type);
+#if PHP_VERSION_ID < 80300
     intern->std.handlers = &swoole_coroutine_curl_multi_handle_handlers;
+#endif
 
     return &intern->std;
+}
+
+static zend_function *swoole_curl_multi_get_constructor(zend_object *object) {
+    zend_throw_error(NULL, "Cannot directly construct CurlMultiHandle, use curl_multi_init() instead");
+    return NULL;
 }
 
 static void swoole_curl_multi_free_obj(zend_object *object) {
@@ -564,27 +609,14 @@ static void swoole_curl_multi_free_obj(zend_object *object) {
     zend_object_std_dtor(&mh->std);
 }
 
-static zend_function *swoole_curl_multi_get_constructor(zend_object *object) {
-    zend_throw_error(NULL, "Cannot directly construct CurlMultiHandle, use curl_multi_init() instead");
-    return NULL;
-}
-
 static HashTable *swoole_curl_multi_get_gc(zend_object *object, zval **table, int *n) {
     php_curlm *curl_multi = curl_multi_from_obj(object);
 
     zend_get_gc_buffer *gc_buffer = zend_get_gc_buffer_create();
 
-#if PHP_VERSION_ID >= 80100
     if (curl_multi->handlers.server_push) {
         zend_get_gc_buffer_add_zval(gc_buffer, &curl_multi->handlers.server_push->func_name);
     }
-#else
-    if (curl_multi->handlers) {
-        if (curl_multi->handlers->server_push) {
-            zend_get_gc_buffer_add_zval(gc_buffer, &curl_multi->handlers->server_push->func_name);
-        }
-    }
-#endif
 
     zend_llist_position pos;
     for (zval *pz_ch = (zval *) zend_llist_get_first_ex(&curl_multi->easyh, &pos); pz_ch;
@@ -622,7 +654,7 @@ static void _php_curl_multi_free(php_curlm *mh) {
             continue;
         }
         if ((ch = swoole_curl_get_handle(z_ch, true, false))) {
-            swoole_curl_verify_handlers(ch, 0);
+            swoole_curl_verify_handlers(ch, /* reporterror */ false);
             auto handle = swoole::curl::get_handle(ch->cp);
             if (is_in_coroutine && handle) {
                 mh->multi->remove_handle(handle);

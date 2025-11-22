@@ -33,7 +33,7 @@ struct CoLockObject {
     zend_object std;
 };
 
-static sw_inline CoLockObject *co_lock_fetch_object(zend_object *obj) {
+static CoLockObject *co_lock_fetch_object(zend_object *obj) {
     return (CoLockObject *) ((char *) obj - swoole_coroutine_lock_handlers.offset);
 }
 
@@ -49,7 +49,7 @@ static CoroutineLock *co_lock_get_and_check_ptr(zval *zobject) {
     return lock;
 }
 
-void co_lock_set_ptr(zval *zobject, CoroutineLock *ptr) {
+static void co_lock_set_ptr(zval *zobject, CoroutineLock *ptr) {
     co_lock_fetch_object(Z_OBJ_P(zobject))->lock = ptr;
 }
 
@@ -62,7 +62,7 @@ static void co_lock_free_object(zend_object *object) {
 }
 
 static zend_object *co_lock_create_object(zend_class_entry *ce) {
-    CoLockObject *lock = (CoLockObject *) zend_object_alloc(sizeof(CoLockObject), ce);
+    auto *lock = static_cast<CoLockObject *>(zend_object_alloc(sizeof(CoLockObject), ce));
     zend_object_std_init(&lock->std, ce);
     object_properties_init(&lock->std, ce);
     lock->std.handlers = &swoole_coroutine_lock_handlers;
@@ -71,19 +71,15 @@ static zend_object *co_lock_create_object(zend_class_entry *ce) {
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine_lock, __construct);
-static PHP_METHOD(swoole_coroutine_lock, __destruct);
 static PHP_METHOD(swoole_coroutine_lock, lock);
-static PHP_METHOD(swoole_coroutine_lock, trylock);
 static PHP_METHOD(swoole_coroutine_lock, unlock);
 SW_EXTERN_C_END
 
 // clang-format off
-static const zend_function_entry swoole_coroutine_lock_methods[] =
+static constexpr zend_function_entry swoole_coroutine_lock_methods[] =
 {
     PHP_ME(swoole_coroutine_lock, __construct,  arginfo_class_Swoole_Coroutine_Lock___construct,  ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_lock, __destruct,   arginfo_class_Swoole_Coroutine_Lock___destruct,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_lock, lock,         arginfo_class_Swoole_Coroutine_Lock_lock,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_lock, trylock,      arginfo_class_Swoole_Coroutine_Lock_trylock,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_coroutine_lock, unlock,       arginfo_class_Swoole_Coroutine_Lock_unlock,       ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -94,15 +90,14 @@ void php_swoole_coroutine_lock_minit(int module_number) {
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_coroutine_lock);
     SW_SET_CLASS_CLONEABLE(swoole_coroutine_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_lock, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_coroutine_lock, co_lock_create_object, co_lock_free_object, CoLockObject, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_coroutine_lock, co_lock_create_object, co_lock_free_object, CoLockObject, std);
     zend_declare_property_long(swoole_coroutine_lock_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 }
 
 static PHP_METHOD(swoole_coroutine_lock, __construct) {
     CoroutineLock *lock = co_lock_get_ptr(ZEND_THIS);
     if (lock != nullptr) {
-        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
@@ -118,19 +113,19 @@ static PHP_METHOD(swoole_coroutine_lock, __construct) {
     RETURN_TRUE;
 }
 
-static PHP_METHOD(swoole_coroutine_lock, __destruct) {}
-
 static PHP_METHOD(swoole_coroutine_lock, lock) {
+    zend_long operation = LOCK_EX;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(operation)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->lock());
+    SW_LOCK_CHECK_RETURN(lock->lock(operation));
 }
 
 static PHP_METHOD(swoole_coroutine_lock, unlock) {
     CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
     SW_LOCK_CHECK_RETURN(lock->unlock());
-}
-
-static PHP_METHOD(swoole_coroutine_lock, trylock) {
-    CoroutineLock *lock = co_lock_get_and_check_ptr(ZEND_THIS);
-    SW_LOCK_CHECK_RETURN(lock->trylock());
 }

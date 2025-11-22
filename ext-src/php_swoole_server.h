@@ -95,38 +95,38 @@ struct ServerObject {
     zval init_arguments;
     zend_object std;
 
-    zend_class_entry *get_ce() {
+    zend_class_entry *get_ce() const {
         return Z_OBJCE_P(php_swoole_server_zval_ptr(serv));
     }
 
-    bool isset_callback(ListenPort *port, int event_type) {
+    bool isset_callback(ListenPort *port, int event_type) const {
         return (php_swoole_server_get_port_property(port)->callbacks[event_type] ||
                 php_swoole_server_get_port_property(serv->get_primary_port())->callbacks[event_type]);
     }
 
-    bool isset_callback(int event_type) {
+    bool isset_callback(int event_type) const {
         return property->callbacks[event_type] != nullptr;
     }
 
-    zend::Callable *get_callback(int event_type) {
+    zend::Callable *get_callback(int event_type) const {
         return property->callbacks[event_type];
     }
 
-    zend_bool is_websocket_server() {
+    zend_bool is_websocket_server() const {
         return instanceof_function(get_ce(), swoole_websocket_server_ce);
     }
 
-    zend_bool is_http_server() {
+    zend_bool is_http_server() const {
         return instanceof_function(get_ce(), swoole_http_server_ce);
     }
 
-    zend_bool is_redis_server() {
+    zend_bool is_redis_server() const {
         return instanceof_function(get_ce(), swoole_redis_server_ce);
     }
 
-    void register_callback();
+    void register_callback() const;
     void on_before_start();
-    void copy_setting(zval *zsetting);
+    void copy_setting(zval *zsetting) const;
 };
 
 struct TaskCo {
@@ -142,20 +142,20 @@ void php_swoole_server_register_callbacks(swServer *serv);
 zend::Callable *php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
 int php_swoole_create_dir(const char *path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
-bool php_swoole_server_isset_callback(swServer *serv, swListenPort *port, int event_type);
+bool php_swoole_server_isset_callback(swServer *serv, swoole::ListenPort *port, int event_type);
 void php_swoole_server_send_yield(swServer *serv, swoole::SessionId sesion_id, zval *zdata, zval *return_value);
-void php_swoole_get_recv_data(swServer *serv, zval *zdata, swRecvData *req);
-void php_swoole_server_onConnect(swServer *, swDataHead *);
-int php_swoole_server_onReceive(swServer *, swRecvData *);
-int php_swoole_http_server_onReceive(swServer *, swRecvData *);
-void php_swoole_http_server_onClose(swServer *serv, swDataHead *info);
-int php_swoole_redis_server_onReceive(swServer *serv, swRecvData *req);
-int php_swoole_server_onPacket(swServer *, swRecvData *);
-void php_swoole_server_onClose(swServer *, swDataHead *);
-void php_swoole_server_onBufferFull(swServer *, swDataHead *);
-void php_swoole_server_onBufferEmpty(swServer *, swDataHead *);
+void php_swoole_get_recv_data(swServer *serv, zval *zdata, swoole::RecvData *req);
+void php_swoole_server_onConnect(swServer *, swoole::DataHead *);
+int php_swoole_server_onReceive(swServer *, swoole::RecvData *);
+int php_swoole_http_server_onReceive(swServer *, swoole::RecvData *);
+void php_swoole_http_server_onClose(swServer *serv, swoole::DataHead *info);
+int php_swoole_redis_server_onReceive(swServer *serv, swoole::RecvData *req);
+int php_swoole_server_onPacket(swServer *, swoole::RecvData *);
+void php_swoole_server_onClose(swServer *, swoole::DataHead *);
+void php_swoole_server_onBufferFull(swServer *, swoole::DataHead *);
+void php_swoole_server_onBufferEmpty(swServer *, swoole::DataHead *);
 
 swServer *php_swoole_server_get_and_check_server(zval *zobject);
 void php_swoole_server_port_deref(zend_object *object);
+void php_swoole_server_set_websocket_option(swoole::ListenPort *port, zend_array *vht);
 swoole::ServerObject *php_swoole_server_get_zend_object(swoole::Server *serv);
-

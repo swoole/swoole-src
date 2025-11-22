@@ -1,0 +1,204 @@
+/* This is a generated file, edit the .stub.php file instead.
+ * Stub hash: dfaf05276c29a8606b576793221837fe7170806d */
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_connect, 0, 0, 1)
+	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, port, IS_LONG, 0, "22")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, methods, IS_ARRAY, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, callbacks, IS_ARRAY, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_disconnect, 0, 1, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_methods_negotiated, 0, 1, IS_ARRAY, 0)
+	ZEND_ARG_INFO(0, session)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_fingerprint, 0, 0, 1)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_auth_none, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, username, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_auth_password, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, username, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, password, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_auth_pubkey_file, 0, 4, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, username, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, pubkeyfile, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, privkeyfile, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, passphrase, IS_STRING, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_auth_pubkey, 0, 4, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, username, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, pubkey, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, privkey, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, passphrase, IS_STRING, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_auth_hostbased_file, 0, 5, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, username, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, hostname, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, pubkeyfile, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, privkeyfile, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, passphrase, IS_STRING, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, local_username, IS_STRING, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_ssh2_forward_listen, 0, 2, resource, MAY_BE_FALSE)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, port, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'127.0.0.1\'")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, max_connections, IS_LONG, 0, "1")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_ssh2_forward_accept, 0, 1, resource, MAY_BE_FALSE)
+	ZEND_ARG_OBJ_INFO(0, listener, resource, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(1, host, IS_STRING, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(1, port, IS_LONG, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_shell, 0, 0, 1)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, termtype, IS_STRING, 0, "\'vanilla\'")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, env, IS_ARRAY, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, width, IS_LONG, 0, "80")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, height, IS_LONG, 0, "25")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, width_height_type, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_shell_resize, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, width, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, height, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_exec, 0, 0, 2)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, command, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, pty, _IS_BOOL, 0, "false")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, env, IS_ARRAY, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, width, IS_LONG, 0, "80")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, height, IS_LONG, 0, "25")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, width_height_type, IS_LONG, 0, "0")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_tunnel, 0, 0, 3)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, port, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_scp_recv, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, remote_file, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, local_file, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_scp_send, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, local_file, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, remote_file, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, create_mode, IS_LONG, 0, "0644")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_fetch_stream, 0, 0, 2)
+	ZEND_ARG_INFO(0, channel)
+	ZEND_ARG_TYPE_INFO(0, streamid, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_send_eof, 0, 1, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, channel)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_sftp, 0, 0, 1)
+	ZEND_ARG_INFO(0, session)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_sftp_rename, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, from, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, to, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_sftp_unlink, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_sftp_mkdir, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, dirname, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, mode, IS_LONG, 0, "0777")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, recursive, _IS_BOOL, 0, "false")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_sftp_rmdir, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, dirname, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_sftp_chmod, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, mode, IS_LONG, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_sftp_stat, 0, 0, 2)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, path, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_ssh2_sftp_lstat arginfo_ssh2_sftp_stat
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_sftp_symlink, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, target, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, link, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_sftp_readlink, 0, 0, 2)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, link, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_sftp_realpath, 0, 0, 2)
+	ZEND_ARG_INFO(0, sftp)
+	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_ssh2_publickey_init arginfo_ssh2_sftp
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_publickey_add, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, pkey)
+	ZEND_ARG_TYPE_INFO(0, algoname, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, blob, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, overwrite, _IS_BOOL, 0, "false")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, attributes, IS_ARRAY, 1, "null")
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_publickey_remove, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, pkey)
+	ZEND_ARG_TYPE_INFO(0, algoname, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, blob, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_publickey_list, 0, 0, 1)
+	ZEND_ARG_INFO(0, pkey)
+ZEND_END_ARG_INFO()
+
+#define arginfo_ssh2_auth_agent arginfo_ssh2_auth_none
+

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "swoole_api.h"
 #include "swoole_client.h"
 
 #include <gtest/gtest.h>
@@ -70,6 +69,10 @@
 #else
 #define DEBUG() swoole::test::null_stream
 #define debug_info(...)
+#endif
+
+#ifdef __ANDROID__
+#define sysv_signal signal
 #endif
 
 namespace swoole {

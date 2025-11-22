@@ -15,12 +15,13 @@
 */
 
 #include "swoole_coroutine.h"
-#include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_api.h"
 
 namespace swoole {
 
 SW_THREAD_LOCAL Coroutine *Coroutine::current = nullptr;
 SW_THREAD_LOCAL long Coroutine::last_cid = 0;
+SW_THREAD_LOCAL long Coroutine::socket_bound_cid = 0;
 SW_THREAD_LOCAL std::unordered_map<long, Coroutine *> Coroutine::coroutines;
 SW_THREAD_LOCAL uint64_t Coroutine::peak_num = 0;
 SW_THREAD_LOCAL bool Coroutine::activated = false;
@@ -93,14 +94,14 @@ void Coroutine::check_end() {
 }
 
 long Coroutine::run() {
-    long cid = this->cid;
+    const long _cid = cid;
     origin = current;
     current = this;
     CALC_EXECUTE_USEC(origin, nullptr);
     state = STATE_RUNNING;
     ctx.swap_in();
     check_end();
-    return cid;
+    return _cid;
 }
 
 void Coroutine::yield() {
@@ -221,6 +222,17 @@ void Coroutine::print_list() {
     }
 }
 
+void Coroutine::print_socket_bound_error(int sock_fd, const char *event_str, long bound_cid) {
+    socket_bound_cid = bound_cid;
+    swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
+                       "Socket#%d has already been bound to another coroutine#%ld, "
+                       "%s of the same socket in coroutine#%ld at the same time is not allowed",
+                       sock_fd,
+                       socket_bound_cid,
+                       event_str,
+					   get_current_cid());
+}
+
 void Coroutine::set_on_yield(const SwapCallback func) {
     on_yield = func;
 }
@@ -276,7 +288,22 @@ uint8_t swoole_coroutine_is_in() {
     return !!swoole::Coroutine::get_current();
 }
 
-long swoole_coroutine_get_current_id() {
+long swoole_coroutine_create(void (*routine)(void *), void *arg) {
+    if (sw_likely(swoole_event_is_available())) {
+        return swoole::Coroutine::create(routine, arg);
+    } else {
+        if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
+            return -1;
+        }
+        swoole::Coroutine::activate();
+        long cid = swoole::Coroutine::create(routine, arg);
+        swoole_event_wait();
+        swoole::Coroutine::deactivate();
+        return cid;
+    }
+}
+
+long swoole_coroutine_get_id() {
     return swoole::Coroutine::get_current_cid();
 }
 

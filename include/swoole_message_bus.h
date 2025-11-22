@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_protocol.h"
@@ -111,7 +110,7 @@ class MessageBus {
         return buffer_size_;
     }
 
-    size_t get_memory_size();
+    size_t get_memory_size() const;
     bool alloc_buffer();
 
     /**
@@ -123,7 +122,7 @@ class MessageBus {
         buffer_ = nullptr;
     }
 
-    void pass(SendData *task);
+    void pass(const SendData *task) const;
 
     /**
      * Send data to socket. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
@@ -131,7 +130,7 @@ class MessageBus {
      * When sending data in multi-thread environment, must use get_pipe_socket() to separate socket memory.
      * @return: send success returns true, send failure returns false.
      */
-    bool write(network::Socket *sock, SendData *packet);
+    bool write(network::Socket *sock, SendData *packet) const;
     /**
      * Receive data from socket, if only one chunk is received, packet will be saved in packet_pool.
      * Then continue to listen to readable events, waiting for more chunks.
@@ -169,6 +168,6 @@ class MessageBus {
     network::Socket *get_pipe_socket(const network::Socket *sock) const {
         return pipe_sockets_[sock->get_fd()];
     }
-    void init_pipe_socket(network::Socket *sock);
+    void init_pipe_socket(const network::Socket *sock);
 };
 }  // namespace swoole

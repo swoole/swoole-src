@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_string.h"
 
 #include <sys/file.h>
@@ -72,24 +71,24 @@ class File {
         return fd_ != -1;
     }
 
-    ssize_t write(const void *__buf, size_t __n) const {
-        return ::write(fd_, __buf, __n);
+    ssize_t write(const void *_buf, size_t _n) const {
+        return ::write(fd_, _buf, _n);
     }
 
     ssize_t write(const std::string &str) const {
         return ::write(fd_, str.c_str(), str.length());
     }
 
-    ssize_t read(void *__buf, size_t __n) const {
-        return ::read(fd_, __buf, __n);
+    ssize_t read(void *_buf, const size_t _n) const {
+        return ::read(fd_, _buf, _n);
     }
 
-    ssize_t pwrite(const void *__buf, size_t __n, off_t __offset) const {
-        return ::pwrite(fd_, __buf, __n, __offset);
+    ssize_t pwrite(const void *_buf, size_t _n, off_t _offset) const {
+        return ::pwrite(fd_, _buf, _n, _offset);
     }
 
-    ssize_t pread(void *__buf, size_t __n, off_t __offset) const {
-        return ::pread(fd_, __buf, __n, __offset);
+    ssize_t pread(void *_buf, const size_t _n, off_t _offset) const {
+        return ::pread(fd_, _buf, _n, _offset);
     }
 
     size_t write_all(const void *data, size_t len) const;
@@ -101,7 +100,7 @@ class File {
      * Returns length of line on success, -1 otherwise.
      * NOTE: `buf` must be ended with zero.
      */
-    ssize_t read_line(void *__buf, size_t __n) const;
+    ssize_t read_line(void *_buf, size_t _n) const;
 
     std::shared_ptr<String> read_content() const;
 
@@ -109,8 +108,8 @@ class File {
         return ::fsync(fd_) == 0;
     }
 
-    bool truncate(size_t size) const {
-        return ::ftruncate(fd_, size) == 0;
+    bool truncate(off_t length) const {
+        return ::ftruncate(fd_, length) == 0;
     }
 
     off_t set_offset(off_t offset) const {
@@ -160,15 +159,15 @@ class AsyncFile {
   private:
     int fd = -1;
     int flags_ = 0;
-    int mode_ = 0;
-    std::string path_ = "";
+    mode_t mode_ = 0;
+    std::string path_;
 
   public:
     AsyncFile(const std::string &path, int flags, int mode);
     ~AsyncFile();
 
     bool open(const std::string &path, int flags, mode_t mode);
-    bool close();
+    bool close() const;
 
     ssize_t read(void *buf, size_t count) const;
     ssize_t write(const void *buf, size_t count) const;

@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_api.h"
 #include "swoole_memory.h"
 #include "swoole_socket.h"
 #include "swoole_string.h"
@@ -24,9 +23,6 @@
 #include "swoole_util.h"
 #include "swoole_process_pool.h"
 #include "swoole_client.h"
-
-#include <pwd.h>
-#include <grp.h>
 
 SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG = {};
 
@@ -55,6 +51,12 @@ static inline void worker_end_callback() {
  * Process manager
  */
 int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ipc_mode) {
+#ifndef HAVE_MSGQUEUE
+    if (_ipc_mode == SW_IPC_MSGQUEUE) {
+        swoole_warning("current platform does not support `sysvmsg`");
+        return SW_ERR;
+    }
+#endif
     worker_num = _worker_num;
     /**
      * Shared memory is used here
@@ -151,7 +153,7 @@ int ProcessPool::create_message_bus() {
     if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize) != 0) {
         bufsize = SW_IPC_MAX_SIZE;
     }
-    ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE) - SW_DGRAM_HEADER_SIZE;
+    ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE);
 #endif
     message_bus->set_buffer_size(ipc_max_size);
     if (!message_bus->alloc_buffer()) {
@@ -290,7 +292,8 @@ int ProcessPool::response(const char *data, uint32_t length) const {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return SW_ERR;
     }
-    return stream_info_->response_buffer->append(data, length);
+    stream_info_->response_buffer->append(data, length);
+    return SW_OK;
 }
 
 bool ProcessPool::send_message(WorkerId worker_id, const char *message, size_t l_message) const {
@@ -313,7 +316,7 @@ int ProcessPool::push_message(const EventData *msg) const {
     return swoole_kill(master_pid, SIGIO);
 }
 
-int ProcessPool::push_message(uint8_t type, const void *data, size_t length) const {
+int ProcessPool::push_message(uint8_t _type, const void *data, size_t length) const {
     if (!message_box) {
         return SW_ERR;
     }
@@ -322,14 +325,14 @@ int ProcessPool::push_message(uint8_t type, const void *data, size_t length) con
     assert(length < sizeof(msg.data));
 
     msg.info = {};
-    msg.info.type = type;
+    msg.info.type = _type;
     msg.info.len = length;
     memcpy(msg.data, data, length);
 
     return push_message(&msg);
 }
 
-int ProcessPool::pop_message(void *data, size_t size) {
+int ProcessPool::pop_message(void *data, size_t size) const {
     if (!message_box) {
         return SW_ERR;
     }
@@ -366,7 +369,7 @@ swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     return SW_OK;
 }
 
-swResultCode ProcessPool::dispatch_sync(const char *data, uint32_t len) {
+swResultCode ProcessPool::dispatch_sync(const char *data, uint32_t len) const {
     assert(use_socket);
 
     network::Client client(stream_info_->socket->socket_type, false);
@@ -520,11 +523,11 @@ void ProcessPool::set_max_request(uint32_t _max_request, uint32_t _max_request_g
     max_request_grace = _max_request_grace;
 }
 
-bool ProcessPool::is_worker_running(Worker *worker) {
+bool ProcessPool::is_worker_running(Worker *worker) const {
     return running && !worker->is_shutdown() && !worker->has_exceeded_max_request();
 }
 
-void ProcessPool::at_worker_enter(Worker *worker) {
+void ProcessPool::at_worker_enter(Worker *worker) const {
     if (worker->pipe_worker) {
         worker->pipe_worker->dont_restart = 1;
     }
@@ -840,17 +843,15 @@ Worker *ProcessPool::get_worker_by_pid(pid_t pid) const {
 }
 
 void ProcessPool::set_type(int _type) {
-    uint32_t i;
     type = _type;
-    for (i = 0; i < worker_num; i++) {
+    for (uint32_t i = 0; i < worker_num; i++) {
         workers[i].type = type;
     }
 }
 
 void ProcessPool::set_start_id(int _start_id) {
-    uint32_t i;
     start_id = _start_id;
-    for (i = 0; i < worker_num; i++) {
+    for (uint32_t i = 0; i < worker_num; i++) {
         workers[i].id = start_id + i;
     }
 }
@@ -1038,15 +1039,13 @@ void ProcessPool::destroy() {
     if (stream_info_) {
         if (stream_info_->socket) {
             unlink(stream_info_->socket_file);
-            sw_free((void *) stream_info_->socket_file);
+            sw_free(stream_info_->socket_file);
         }
         if (stream_info_->socket) {
             stream_info_->socket->free();
             stream_info_->socket = nullptr;
         }
-        if (stream_info_->response_buffer) {
-            delete stream_info_->response_buffer;
-        }
+        delete stream_info_->response_buffer;
         delete stream_info_;
         stream_info_ = nullptr;
     }
@@ -1087,43 +1086,6 @@ void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
         max_request += swoole_system_random(1, max_request_grace);
     }
     SwooleWG.max_request = max_request;
-}
-
-void Worker::set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_) {
-    group *_group = nullptr;
-    passwd *_passwd = nullptr;
-    // get group info
-    if (!group_.empty()) {
-        _group = getgrnam(group_.c_str());
-        if (!_group) {
-            swoole_warning("get group [%s] info failed", group_.c_str());
-        }
-    }
-    // get user info
-    if (!user_.empty()) {
-        _passwd = getpwnam(user_.c_str());
-        if (!_passwd) {
-            swoole_warning("get user [%s] info failed", user_.c_str());
-        }
-    }
-    // set process group
-    if (_group && setgid(_group->gr_gid) < 0) {
-        swoole_sys_warning("setgid to [%s] failed", group_.c_str());
-    }
-    // set process user
-    if (_passwd && setuid(_passwd->pw_uid) < 0) {
-        swoole_sys_warning("setuid to [%s] failed", user_.c_str());
-    }
-    // chroot
-    if (!chroot_.empty()) {
-        if (::chroot(chroot_.c_str()) == 0) {
-            if (chdir("/") < 0) {
-                swoole_sys_warning("chdir('/') failed");
-            }
-        } else {
-            swoole_sys_warning("chroot('%s') failed", chroot_.c_str());
-        }
-    }
 }
 
 bool Worker::has_exceeded_max_request() const {
@@ -1174,7 +1136,7 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) const {
     }
 }
 
-void Worker::report_error(const ExitStatus &exit_status) {
+void Worker::report_error(const ExitStatus &exit_status) const {
     swoole_warning("worker(pid=%d, id=%d) abnormal exit, status=%d, signal=%d"
                    "%s",
                    exit_status.get_pid(),
@@ -1221,15 +1183,13 @@ void ReloadTask::kill_all(int signal_number) {
             if (errno == ECHILD || errno == ESRCH) {
                 continue;
             }
-            swoole_sys_warning("kill(%d, SIGTERM) [%d] failed", kv.first, kv.second->id);
-        } else {
+            swoole_sys_warning("failed to kill(%d, SIGTERM) worker#[%d]", kv.first, kv.second->id);
+        } else if (signal_number == SIGKILL) {
             swoole_warning("force kill worker process(pid=%d, id=%d)", kv.first, kv.second->id);
         }
     }
 
-    while (!kill_queue.empty()) {
-        kill_queue.pop();
-    }
+    clear_queue();
 }
 
 void ReloadTask::kill_one(int signal_number) {
@@ -1248,6 +1208,12 @@ void ReloadTask::kill_one(int signal_number) {
             swoole_sys_warning("kill(%d, SIGTERM) [%d] failed", pid, iter->second->id);
         }
         break;
+    }
+}
+
+void ReloadTask::clear_queue() {
+    while (!kill_queue.empty()) {
+        kill_queue.pop();
     }
 }
 }  // namespace swoole

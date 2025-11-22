@@ -9,6 +9,7 @@ $http->set([
     'open_http2_protocol' => 1,
     'enable_static_handler' => TRUE,
     'document_root' => dirname(__DIR__),
+    'package_max_length' => 1024 * 1024,
     'ssl_cert_file' => $key_dir . '/ssl.crt',
     'ssl_key_file' => $key_dir . '/ssl.key',
 ]);

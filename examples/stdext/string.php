@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 $str = 'hello world';
-var_dump($str->toUpper());
+var_dump($str->upper());
 
 var_dump($str->split(' ')->search('world'));
 var_dump($str->length());

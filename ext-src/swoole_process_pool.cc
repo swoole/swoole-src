@@ -263,7 +263,7 @@ static void process_pool_onWorkerExit(ProcessPool *pool, Worker *worker) {
 }
 
 static void process_pool_onStart(ProcessPool *pool) {
-    zval *zobject = (zval *) pool->ptr;
+    zval *zobject = static_cast<zval *>(pool->ptr);
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[1];
 
@@ -284,7 +284,7 @@ static void process_pool_onStart(ProcessPool *pool) {
 }
 
 static void process_pool_onShutdown(ProcessPool *pool) {
-    zval *zobject = (zval *) pool->ptr;
+    zval *zobject = static_cast<zval *>(pool->ptr);
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[1];
 
@@ -318,7 +318,7 @@ static void process_pool_signal_handler(int signo) {
         current_pool->reload();
         break;
     case SIGIO:
-        current_pool->rigger_read_message_event();
+        current_pool->trigger_read_message_event();
         break;
     case SIGWINCH:
         current_pool->reopen_logger();

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_memory.h"
 
+#include <sys/file.h>
 #include <system_error>
 
 namespace swoole {
@@ -27,7 +27,6 @@ namespace swoole {
 class Lock {
   public:
     enum Type {
-        NONE,
         RW_LOCK = 1,
         MUTEX = 3,
         SPIN_LOCK = 5,
@@ -37,16 +36,13 @@ class Lock {
         return type_;
     }
     virtual ~Lock() = default;
-    virtual int lock_rd() = 0;
-    virtual int lock() = 0;
+    virtual int lock(int operation = LOCK_EX, int timeout_msec = -1) = 0;
     virtual int unlock() = 0;
-    virtual int trylock_rd() = 0;
-    virtual int trylock() = 0;
 
   protected:
-    Lock() {
-        type_ = NONE;
-        shared_ = false;
+    Lock(Type type, bool shared) {
+        type_ = type;
+        shared_ = shared;
     }
     Type type_;
     bool shared_;
@@ -56,22 +52,12 @@ struct MutexImpl;
 
 class Mutex final : public Lock {
     MutexImpl *impl;
-    int flags_;
 
   public:
-    enum Flag {
-        PROCESS_SHARED = 1,
-        ROBUST = 2,
-    };
-
-    explicit Mutex(int flags);
+    explicit Mutex(bool shared);
     ~Mutex() override;
-    int lock_rd() override;
-    int lock() override;
+    int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
-    int trylock_rd() override;
-    int trylock() override;
-    int lock_wait(int timeout_msec);
 };
 
 #ifdef HAVE_RWLOCK
@@ -81,13 +67,16 @@ class RWLock final : public Lock {
     RWLockImpl *impl;
 
   public:
-    explicit RWLock(int use_in_process);
+    explicit RWLock(bool shared);
     ~RWLock() override;
-    int lock_rd() override;
-    int lock() override;
+    int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
-    int trylock_rd() override;
-    int trylock() override;
+    int lock_rd() {
+    	return lock(LOCK_SH);
+    }
+    int lock_wr() {
+    	return lock(LOCK_EX);
+    }
 };
 #endif
 
@@ -96,13 +85,10 @@ class SpinLock final : public Lock {
     pthread_spinlock_t *impl;
 
   public:
-    explicit SpinLock(int use_in_process);
+    explicit SpinLock(bool shared);
     ~SpinLock() override;
-    int lock_rd() override;
-    int lock() override;
+    int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
-    int trylock_rd() override;
-    int trylock() override;
 };
 #endif
 
@@ -116,11 +102,8 @@ class CoroutineLock final : public Lock {
   public:
     explicit CoroutineLock(bool shared);
     ~CoroutineLock() override;
-    int lock_rd() override;
-    int lock() override;
+    int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
-    int trylock_rd() override;
-    int trylock() override;
 };
 
 #if defined(HAVE_PTHREAD_BARRIER) && !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__))

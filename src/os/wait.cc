@@ -13,10 +13,10 @@
   | Author: Tianfeng Han  <rango@swoole.com>                             |
   +----------------------------------------------------------------------+
 */
-#include "swoole.h"
-#include "swoole_api.h"
+
 #include "swoole_process_pool.h"
 #include "swoole_coroutine.h"
+#include "swoole_coroutine_api.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_signal.h"
 
@@ -97,13 +97,13 @@ pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
         return ::waitpid(_pid, _stat_loc, _options);
     }
 
-    pid_t retval;
-    auto success = wait_for([_pid, &retval, _stat_loc]() -> bool {
+    pid_t retval = -1;
+    wait_for([_pid, &retval, _stat_loc]() -> bool {
         retval = ::waitpid(_pid, _stat_loc, WNOHANG);
         return retval != 0;
     });
 
-    return success ? retval : -1;
+    return retval;
 }
 
 /**

@@ -178,7 +178,7 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     auto result_list = dns_lookup_impl_with_cares(hostname.c_str(), domain, timeout);
     if (!result_list.empty()) {
         if (SwooleG.dns_lookup_random) {
-            result = result_list[rand() % result_list.size()];
+            result = result_list[swoole_rand() % result_list.size()];
         } else {
             result = result_list[0];
         }
@@ -300,26 +300,26 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
 }
 
 struct CoroPollTask {
-    std::unordered_map<int, coroutine::PollSocket> *fds;
+    std::unordered_map<int, PollSocket> *fds = nullptr;
     Coroutine *co = nullptr;
     TimerNode *timer = nullptr;
     bool success = false;
     bool wait = true;
 };
 
-static inline void socket_poll_clean(CoroPollTask *task) {
-    for (auto i = task->fds->begin(); i != task->fds->end(); i++) {
-        network::Socket *socket = i->second.socket;
+static inline void socket_poll_clean(const CoroPollTask *task) {
+    for (auto &fd : *task->fds) {
+        network::Socket *socket = fd.second.socket;
         if (!socket) {
             continue;
         }
-        int retval = swoole_event_del(i->second.socket);
+        int retval = swoole_event_del(fd.second.socket);
         /**
          * Temporary socket, fd marked -1, skip close
          */
         socket->fd = -1;
         socket->free();
-        i->second.socket = nullptr;
+        fd.second.socket = nullptr;
         if (retval < 0) {
             continue;
         }
@@ -327,7 +327,7 @@ static inline void socket_poll_clean(CoroPollTask *task) {
 }
 
 static void socket_poll_timeout(Timer *timer, TimerNode *tnode) {
-    CoroPollTask *task = (CoroPollTask *) tnode->data;
+    auto *task = static_cast<CoroPollTask *>(tnode->data);
     task->timer = nullptr;
     task->success = false;
     task->wait = false;
@@ -336,7 +336,7 @@ static void socket_poll_timeout(Timer *timer, TimerNode *tnode) {
 }
 
 static void socket_poll_completed(void *data) {
-    CoroPollTask *task = (CoroPollTask *) data;
+    auto *task = static_cast<CoroPollTask *>(data);
     socket_poll_clean(task);
     task->co->resume();
 }
@@ -381,22 +381,22 @@ static int socket_poll_error_callback(Reactor *reactor, Event *event) {
 
 bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout) {
     if (timeout == 0) {
-        struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
+        auto *event_list = static_cast<struct pollfd *>(sw_calloc(fds.size(), sizeof(struct pollfd)));
         if (!event_list) {
             swoole_warning("calloc() failed");
             return false;
         }
         int n = 0;
-        for (auto i = fds.begin(); i != fds.end(); i++, n++) {
+        for (auto i = fds.begin(); i != fds.end(); ++i, n++) {
             event_list[n].fd = i->first;
             event_list[n].events = translate_events_to_poll(i->second.events);
             event_list[n].revents = 0;
         }
         int retval = ::poll(event_list, n, 0);
         if (retval > 0) {
-            int n = 0;
-            for (auto i = fds.begin(); i != fds.end(); i++, n++) {
-                i->second.revents = translate_events_from_poll(event_list[n].revents);
+            int _n = 0;
+            for (auto i = fds.begin(); i != fds.end(); ++i, _n++) {
+                i->second.revents = translate_events_from_poll(event_list[_n].revents);
             }
         }
         sw_free(event_list);
@@ -408,13 +408,13 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
     task.fds = &fds;
     task.co = Coroutine::get_current_safe();
 
-    for (auto i = fds.begin(); i != fds.end(); i++) {
-        i->second.socket = swoole::make_socket(i->first, SW_FD_CO_POLL);
-        if (swoole_event_add(i->second.socket, i->second.events) < 0) {
-            i->second.socket->free();
+    for (auto &fd : fds) {
+        fd.second.socket = make_socket(fd.first, SW_FD_CO_POLL);
+        if (swoole_event_add(fd.second.socket, fd.second.events) < 0) {
+            fd.second.socket->free();
             continue;
         }
-        i->second.socket->object = &task;
+        fd.second.socket->object = &task;
         tasked_num++;
     }
 
@@ -540,14 +540,12 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
     }
 
     Socket socket(fd, SW_SOCK_UNIX_STREAM);
-    while (1) {
+    while (true) {
         ssize_t retval = socket.read(buffer->str + buffer->length, buffer->size - buffer->length);
         if (retval > 0) {
             buffer->length += retval;
             if (buffer->length == buffer->size) {
-                if (!buffer->extend()) {
-                    break;
-                }
+                buffer->extend();
             }
         } else {
             break;
@@ -555,7 +553,7 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
     }
     socket.close();
 
-    return System::waitpid_safe(pid, status, 0) == pid;
+    return waitpid_safe(pid, status, 0) == pid;
 }
 
 void System::init_reactor(Reactor *reactor) {
@@ -611,22 +609,22 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
 
 struct AsyncLambdaTask {
     Coroutine *co;
-    std::function<void(void)> fn;
+    std::function<void()> fn;
 };
 
 static void async_lambda_handler(AsyncEvent *event) {
-    AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
+    auto *task = static_cast<AsyncLambdaTask *>(event->object);
     task->fn();
     event->error = errno;
     event->retval = 0;
 }
 
 static void async_lambda_callback(AsyncEvent *event) {
-    AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
+    auto *task = static_cast<AsyncLambdaTask *>(event->object);
     task->co->resume();
 }
 
-bool async(const std::function<void(void)> &fn) {
+bool async(const std::function<void()> &fn) {
     AsyncEvent event{};
     AsyncLambdaTask task{Coroutine::get_current_safe(), fn};
 

@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "swoole.h"
 #include "swoole_heap.h"
 #include "swoole_reactor.h"
 #include "swoole_util.h"
@@ -97,10 +96,10 @@ class Timer {
 
     TimerNode *add(long _msec, bool persistent, void *data, const TimerCallback &callback);
     bool remove(TimerNode *tnode);
-    void update(TimerNode *tnode) {
+    void update(const TimerNode *tnode) const {
         heap.change_priority(tnode->exec_msec, tnode->heap_node);
     }
-    void delay(TimerNode *tnode, long delay_ms) {
+    void delay(TimerNode *tnode, long delay_ms) const {
         long now_ms = get_relative_msec();
         tnode->exec_msec = (now_ms < 0 ? tnode->exec_msec : now_ms) + delay_ms;
         update(tnode);
@@ -109,7 +108,7 @@ class Timer {
     void select();
 
     TimerNode *get(long id) {
-        auto it = map.find(id);
+        const auto it = map.find(id);
         if (it == map.end()) {
             return nullptr;
         }

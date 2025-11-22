@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_lock.h"
 
 #ifdef HAVE_IOURING_FUTEX
 #include "swoole_iouring.h"
@@ -23,12 +23,8 @@
 using swoole::coroutine::System;
 #endif
 
-#include "swoole_lock.h"
-
 namespace swoole {
-CoroutineLock::CoroutineLock(bool shared) : Lock() {
-    type_ = COROUTINE_LOCK;
-    shared_ = shared;
+CoroutineLock::CoroutineLock(bool shared) : Lock(COROUTINE_LOCK, shared) {
     if (shared) {
         value = (sw_atomic_t *) sw_mem_pool()->alloc(sizeof(sw_atomic_t));
     } else {
@@ -46,20 +42,12 @@ CoroutineLock::~CoroutineLock() {
     value = nullptr;
 }
 
-int CoroutineLock::lock() {
-    return lock_impl(true);
-}
-
-int CoroutineLock::trylock() {
-    return lock_impl(false);
-}
-
-int CoroutineLock::lock_rd() {
-    return lock_impl(true);
-}
-
-int CoroutineLock::trylock_rd() {
-    return lock_impl(false);
+int CoroutineLock::lock(int operation, int _) {
+    if (operation & LOCK_NB) {
+        return lock_impl(false);
+    } else {
+        return lock_impl(true);
+    }
 }
 
 int CoroutineLock::unlock() {

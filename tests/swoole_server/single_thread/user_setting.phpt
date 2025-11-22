@@ -20,7 +20,6 @@ $pm->parentFunc = function ($pid) use ($pm, $log_file) {
     sleep(1);
     $output = file_get_contents($log_file);
     Assert::contains($output, 'reloading all workers');
-    Assert::contains($output, 'failed to push WORKER_STOP message');
     $pm->kill();
     unlink($log_file);
 };

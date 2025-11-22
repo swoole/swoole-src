@@ -1,11 +1,12 @@
+#include "swoole_coroutine.h"
+#include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
+#include "swoole_signal.h"
+
 #include <iostream>
 #include <list>
 #include <algorithm>
 #include <vector>
-
-#include "swoole_coroutine.h"
-#include "swoole_coroutine_socket.h"
-#include "swoole_coroutine_system.h"
 
 using swoole::Coroutine;
 using swoole::coroutine::Socket;

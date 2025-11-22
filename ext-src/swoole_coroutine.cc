@@ -18,13 +18,14 @@
  */
 
 #include "php_swoole_cxx.h"
-#include "php_swoole_thread.h"
 #include "php_swoole_coroutine_system.h"
 
 #include "swoole_server.h"
 #include "swoole_signal.h"
+#include "swoole_async.h"
 
 #include "zend_builtin_functions.h"
+#include "ext/standard/basic_functions.h"
 #include "ext/spl/spl_array.h"
 
 #include "zend_observer.h"
@@ -35,6 +36,15 @@
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_coroutine_arginfo.h"
 END_EXTERN_C()
+
+/**
+ * The coroutine canceled exception must be explicitly caught in the php code.
+ * If the underlying layer implicitly catches this exception, `Co::cancel()` may be abused,
+ * resulting in transactional problems and serious bugs.
+ */
+#define SW_RECOVER_CANCELED_EXCEPTION 0
+
+#define INVALID_PTR -1
 
 using std::unordered_map;
 using swoole::Coroutine;
@@ -77,12 +87,18 @@ static zend_object_handlers swoole_exit_exception_handlers;
 static zend_class_entry *swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_context_ce;
 
+static zend_class_entry *swoole_coroutine_canceled_exception_ce;
+static zend_object_handlers swoole_coroutine_canceled_exception_handlers;
+static zend_class_entry *swoole_coroutine_timeout_exception_ce;
+static zend_object_handlers swoole_coroutine_timeout_exception_handlers;
+
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine, exists);
 static PHP_METHOD(swoole_coroutine, yield);
 static PHP_METHOD(swoole_coroutine, resume);
 static PHP_METHOD(swoole_coroutine, join);
 static PHP_METHOD(swoole_coroutine, cancel);
+static PHP_METHOD(swoole_coroutine, setTimeLimit);
 static PHP_METHOD(swoole_coroutine, isCanceled);
 static PHP_METHOD(swoole_coroutine, stats);
 static PHP_METHOD(swoole_coroutine, getCid);
@@ -115,6 +131,7 @@ static const zend_function_entry swoole_coroutine_methods[] =
     PHP_ME(swoole_coroutine, cancel,                      arginfo_class_Swoole_Coroutine_cancel,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, join,                        arginfo_class_Swoole_Coroutine_join,             ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, isCanceled,                  arginfo_class_Swoole_Coroutine_isCanceled,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, setTimeLimit,                arginfo_class_Swoole_Coroutine_setTimeLimit,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine, suspend, yield,          arginfo_class_Swoole_Coroutine_suspend,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, resume,                      arginfo_class_Swoole_Coroutine_resume,           ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, stats,                       arginfo_class_Swoole_Coroutine_stats,            ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -159,7 +176,7 @@ static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
 // clang-format off
-static const zend_function_entry swoole_exit_exception_methods[] = {
+static constexpr zend_function_entry swoole_exit_exception_methods[] = {
     PHP_ME(swoole_exit_exception, getFlags,  arginfo_class_Swoole_ExitException_getFlags,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_exit_exception, getStatus, arginfo_class_Swoole_ExitException_getStatus, ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -169,7 +186,6 @@ static const zend_function_entry swoole_exit_exception_methods[] = {
 #if PHP_VERSION_ID < 80400
 static int coro_exit_handler(zend_execute_data *execute_data) {
     zval ex;
-    zend_object *obj;
     zend_long flags = 0;
     if (Coroutine::get_current()) {
         flags |= SW_EXIT_IN_COROUTINE;
@@ -202,7 +218,7 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
             exit_status = &_exit_status;
             ZVAL_NULL(exit_status);
         }
-        obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
+        zend_object *obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
@@ -268,7 +284,7 @@ static int coro_end_silence_handler(zend_execute_data *execute_data) {
 }
 
 static void coro_interrupt_resume(void *data) {
-    Coroutine *co = (Coroutine *) data;
+    auto *co = static_cast<Coroutine *>(data);
     if (co && !co->is_end()) {
         swoole_trace_log(SW_TRACE_COROUTINE, "interrupt_callback cid=%ld ", co->get_cid());
         co->resume();
@@ -286,9 +302,12 @@ static void coro_interrupt_function(zend_execute_data *execute_data) {
     }
 }
 
-PHPContext *PHPCoroutine::create_context(Args *args) {
-    PHPContext *ctx = (PHPContext *) emalloc(sizeof(PHPContext));
+PHPContext *PHPCoroutine::create_context(const Args *args) {
+    auto *ctx = static_cast<PHPContext *>(emalloc(sizeof(PHPContext)));
     ctx->output_ptr = nullptr;
+    ctx->serialize_lock = 0;
+    ctx->serialize = {};
+    ctx->unserialize = {};
     ctx->in_silence = false;
 
     ctx->co = Coroutine::get_current();
@@ -310,7 +329,7 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
     EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
 
     zend_function *func = EG(current_execute_data)->func;
-    zend_execute_data *call = (zend_execute_data *) (EG(vm_stack_top));
+    auto *call = reinterpret_cast<zend_execute_data *>((EG(vm_stack_top)));
     EG(current_execute_data) = call;
     memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
 
@@ -332,10 +351,10 @@ PHPContext *PHPCoroutine::create_context(Args *args) {
 
     ctx->fci_cache = *args->fci_cache;
     ctx->fci.size = sizeof(ctx->fci);
-    ctx->fci.object = NULL;
+    ctx->fci.object = nullptr;
     ctx->fci.param_count = args->argc;
     ctx->fci.params = args->argv;
-    ctx->fci.named_params = NULL;
+    ctx->fci.named_params = nullptr;
     ctx->return_value = {};
     ctx->fci.retval = &ctx->return_value;
 
@@ -362,9 +381,18 @@ void PHPCoroutine::bailout() {
 
 bool PHPCoroutine::catch_exception() {
     if (UNEXPECTED(EG(exception))) {
-        // the exception error messages MUST be output on the current coroutine stack
-        zend_exception_error(EG(exception), E_ERROR);
-        return true;
+#if SW_RECOVER_CANCELED_EXCEPTION
+        if (EG(exception)->ce == swoole_coroutine_canceled_exception_ce) {
+            OBJ_RELEASE(EG(exception));
+            EG(exception) = nullptr;
+        } else {
+#endif
+            // the exception error messages MUST be output on the current coroutine stack
+            zend_exception_error(EG(exception), E_ERROR);
+            return true;
+#if SW_RECOVER_CANCELED_EXCEPTION
+        }
+#endif
     }
     return false;
 }
@@ -375,7 +403,7 @@ void PHPCoroutine::activate() {
     }
 
     zval *enable_library = zend_get_constant_str(ZEND_STRL("SWOOLE_LIBRARY"));
-    if (enable_library == NULL || !zval_is_true(enable_library)) {
+    if (enable_library == nullptr || !zval_is_true(enable_library)) {
         php_swoole_load_library();
     }
 
@@ -391,11 +419,12 @@ void PHPCoroutine::activate() {
         interrupt_thread_start();
     }
 
-    if (config.hook_flags) {
-        enable_hook(config.hook_flags);
+    if (sw_is_main_thread()) {
+        if (config.hook_flags) {
+            enable_hook(config.hook_flags);
+        }
+        disable_unsafe_function();
     }
-
-    disable_unsafe_function();
 
     /* deactivate when reactor free */
     sw_reactor()->add_destroy_callback(deactivate, nullptr);
@@ -414,10 +443,11 @@ void PHPCoroutine::deactivate(void *ptr) {
     }
     activated = false;
     interrupt_thread_stop();
-    /**
-     * reset runtime hook
-     */
-    disable_hook();
+
+    if (sw_is_main_thread()) {
+        disable_hook();
+        enable_unsafe_function();
+    }
 
     Coroutine::set_on_yield(nullptr);
     Coroutine::set_on_resume(nullptr);
@@ -429,7 +459,6 @@ void PHPCoroutine::deactivate(void *ptr) {
         deadlock_check();
     }
 
-    enable_unsafe_function();
     Coroutine::deactivate();
 }
 
@@ -444,6 +473,9 @@ void PHPCoroutine::shutdown() {
     free_main_context();
 }
 
+// !!! [Danger Warning]
+// The deadlock_check function can only print information and cannot execute any async functions
+// This function can only execute internal code and cannot provide any callbacks, allowing the execution of user code
 void PHPCoroutine::deadlock_check() {
     if (Coroutine::count() == 0) {
         return;
@@ -452,11 +484,12 @@ void PHPCoroutine::deadlock_check() {
         return;
     }
     if (SWOOLE_G(enable_library)) {
-        zend::function::call("\\Swoole\\Coroutine\\deadlock_check", 0, nullptr);
+        zend::function::call(R"(\Swoole\Coroutine\deadlock_check)", 0, nullptr);
     } else {
-        printf("\n==================================================================="
-               "\n [FATAL ERROR]: all coroutines (count: %lu) are asleep - deadlock!"
-               "\n===================================================================\n",
+        printf("\n ==================================================================="
+               "\n  [FATAL ERROR]: all coroutines (count: %lu) are asleep - deadlock! "
+               "\n ==================================================================="
+               "\n",
                Coroutine::count());
     }
 }
@@ -552,16 +585,43 @@ inline void PHPCoroutine::restore_og(PHPContext *ctx) {
     }
 }
 
-void PHPCoroutine::set_hook_flags(uint32_t flags) {
-    zval options;
-    array_init(&options);
-    add_assoc_long(&options, "hook_flags", flags);
+void PHPCoroutine::save_bg(PHPContext *ctx) {
+    if (BG(serialize_lock)) {
+        ctx->serialize_lock = BG(serialize_lock);
+    }
+    if (BG(serialize).data) {
+        memcpy(&ctx->serialize, &BG(serialize), sizeof(BG(serialize)));
+    }
+    if (BG(unserialize).data) {
+        memcpy(&ctx->unserialize, &BG(unserialize), sizeof(BG(unserialize)));
+    }
+}
 
-    if (PHPCoroutine::options) {
-        zend_hash_merge(PHPCoroutine::options, Z_ARRVAL(options), nullptr, true);
-        zval_ptr_dtor(&options);
+void PHPCoroutine::restore_bg(PHPContext *ctx) {
+    if (ctx->serialize_lock) {
+        BG(serialize_lock) = ctx->serialize_lock;
+        ctx->serialize_lock = 0;
+    }
+    if (ctx->serialize.data) {
+        memcpy(&BG(serialize), &ctx->serialize, sizeof(BG(serialize)));
+        ctx->serialize = {};
+    }
+    if (ctx->unserialize.data) {
+        memcpy(&BG(unserialize), &ctx->unserialize, sizeof(BG(unserialize)));
+        ctx->unserialize = {};
+    }
+}
+
+void PHPCoroutine::set_hook_flags(uint32_t flags) {
+    zval zoptions;
+    array_init(&zoptions);
+    add_assoc_long(&zoptions, "hook_flags", flags);
+
+    if (options) {
+        zend_hash_merge(options, Z_ARRVAL(zoptions), nullptr, true);
+        zval_ptr_dtor(&zoptions);
     } else {
-        PHPCoroutine::options = Z_ARRVAL(options);
+        options = Z_ARRVAL(zoptions);
     }
 
     config.hook_flags = flags;
@@ -570,16 +630,18 @@ void PHPCoroutine::set_hook_flags(uint32_t flags) {
 void PHPCoroutine::save_context(PHPContext *ctx) {
     save_vm_stack(ctx);
     save_og(ctx);
+    save_bg(ctx);
 }
 
 void PHPCoroutine::restore_context(PHPContext *ctx) {
     restore_vm_stack(ctx);
     restore_og(ctx);
+    restore_bg(ctx);
 }
 
 void PHPCoroutine::on_yield(void *arg) {
-    PHPContext *ctx = (PHPContext *) arg;
-    PHPContext *origin_ctx = get_origin_context(ctx);
+    auto *ctx = static_cast<PHPContext *>(arg);
+    auto *origin_ctx = get_origin_context(ctx);
 
     fiber_context_switch_try_notify(ctx, origin_ctx);
     save_context(ctx);
@@ -593,8 +655,8 @@ void PHPCoroutine::on_yield(void *arg) {
 }
 
 void PHPCoroutine::on_resume(void *arg) {
-    PHPContext *ctx = (PHPContext *) arg;
-    PHPContext *current_ctx = get_context();
+    auto *ctx = static_cast<PHPContext *>(arg);
+    auto *current_ctx = get_context();
 
     fiber_context_switch_try_notify(current_ctx, ctx);
     save_context(current_ctx);
@@ -609,7 +671,7 @@ void PHPCoroutine::on_resume(void *arg) {
 }
 
 void PHPCoroutine::on_close(void *arg) {
-    PHPContext *ctx = (PHPContext *) arg;
+    auto *ctx = static_cast<PHPContext *>(arg);
     if (ctx->on_close) {
         (*ctx->on_close)(ctx);
     }
@@ -631,7 +693,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
     if (OG(handlers).elements) {
         zend_bool no_headers = SG(request_info).no_headers;
         /* Do not send headers by SAPI */
-        SG(request_info).no_headers = 1;
+        SG(request_info).no_headers = true;
         if (OG(active)) {
             php_output_end_all();
         }
@@ -654,7 +716,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
     // Release resources
     if (ctx->context) {
         zend_object *context = ctx->context;
-        ctx->context = (zend_object *) ~0;
+        ctx->context = reinterpret_cast<zend_object *>(INVALID_PTR);
         OBJ_RELEASE(context);
     }
 
@@ -681,7 +743,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
 
 void PHPCoroutine::main_func(void *_args) {
     bool exception_caught = false;
-    Args *args = (Args *) _args;
+    const auto args = static_cast<Args *>(_args);
     PHPContext *ctx = create_context(args);
 
     zend_first_try {
@@ -784,11 +846,11 @@ void PHPCoroutine::defer(zend::Function *fci) {
 }
 
 void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
-    zend_fiber_context *fiber_context = (zend_fiber_context *) emalloc(sizeof(*fiber_context));
-    fiber_context->handle = (void *) -1;
-    fiber_context->kind = (void *) -1;
-    fiber_context->function = (zend_fiber_coroutine) -1;
-    fiber_context->stack = (zend_fiber_stack *) -1;
+    auto *fiber_context = static_cast<zend_fiber_context *>(emalloc(sizeof(zend_fiber_context)));
+    fiber_context->handle = reinterpret_cast<void *>(INVALID_PTR);
+    fiber_context->kind = reinterpret_cast<void *>(INVALID_PTR);
+    fiber_context->function = reinterpret_cast<zend_fiber_coroutine>(INVALID_PTR);
+    fiber_context->stack = reinterpret_cast<zend_fiber_stack *>(INVALID_PTR);
     ctx->fiber_context = fiber_context;
 
     zend_observer_fiber_init_notify(fiber_context);
@@ -801,22 +863,22 @@ void PHPCoroutine::fiber_context_try_init(PHPContext *ctx) {
     fiber_context_init(ctx);
 }
 
-void PHPCoroutine::fiber_context_destroy(PHPContext *ctx) {
+void PHPCoroutine::fiber_context_destroy(const PHPContext *ctx) {
     zend_observer_fiber_destroy_notify(ctx->fiber_context);
 
-    if (ctx->fiber_context != NULL) {
+    if (ctx->fiber_context != nullptr) {
         efree(ctx->fiber_context);
     }
 }
 
-void PHPCoroutine::fiber_context_try_destroy(PHPContext *ctx) {
+void PHPCoroutine::fiber_context_try_destroy(const PHPContext *ctx) {
     if (EXPECTED(!SWOOLE_G(enable_fiber_mock))) {
         return;
     }
     fiber_context_destroy(ctx);
 }
 
-zend_fiber_status PHPCoroutine::get_fiber_status(PHPContext *ctx) {
+zend_fiber_status PHPCoroutine::get_fiber_status(const PHPContext *ctx) {
     // main_context
     if (ctx->fiber_context == EG(main_fiber_context)) {
         return ZEND_FIBER_STATUS_RUNNING;
@@ -837,7 +899,7 @@ zend_fiber_status PHPCoroutine::get_fiber_status(PHPContext *ctx) {
     }
 }
 
-void PHPCoroutine::fiber_context_switch_notify(PHPContext *from, PHPContext *to) {
+void PHPCoroutine::fiber_context_switch_notify(const PHPContext *from, PHPContext *to) {
     zend_fiber_context *from_context = from->fiber_context;
     zend_fiber_context *to_context = to->fiber_context;
 
@@ -854,7 +916,7 @@ void PHPCoroutine::fiber_context_switch_notify(PHPContext *from, PHPContext *to)
     }
 }
 
-void PHPCoroutine::fiber_context_switch_try_notify(PHPContext *from, PHPContext *to) {
+void PHPCoroutine::fiber_context_switch_try_notify(const PHPContext *from, PHPContext *to) {
     if (EXPECTED(!SWOOLE_G(enable_fiber_mock))) {
         return;
     }
@@ -979,16 +1041,25 @@ void php_swoole_coroutine_minit(int module_number) {
     zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("flags"), 0, ZEND_ACC_PRIVATE);
     zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("status"), 0, ZEND_ACC_PRIVATE);
 
+    SW_INIT_CLASS_ENTRY_EX2(swoole_coroutine_canceled_exception,
+                            "Swoole\\Coroutine\\CanceledException",
+                            nullptr,
+                            nullptr,
+                            zend_ce_exception,
+                            zend_get_std_object_handlers());
+    swoole_coroutine_canceled_exception_ce->ce_flags |= ZEND_ACC_FINAL;
+
+    SW_INIT_CLASS_ENTRY_EX2(swoole_coroutine_timeout_exception,
+                                "Swoole\\Coroutine\\TimeoutException",
+                                nullptr,
+                                nullptr,
+                                zend_ce_exception,
+                                zend_get_std_object_handlers());
+    swoole_coroutine_timeout_exception_ce->ce_flags |= ZEND_ACC_FINAL;
+
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_SERVER", SW_EXIT_IN_SERVER);
 
-    /* hook autoload */
-    original_zend_autoload = zend_autoload;
-    zend_autoload = swoole_coroutine_autoload;
-    SWOOLE_G(in_autoload) = nullptr;
-}
-
-void php_swoole_coroutine_rinit() {
     if (SWOOLE_G(cli)) {
 #if PHP_VERSION_ID < 80400
         ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
@@ -1002,6 +1073,13 @@ void php_swoole_coroutine_rinit() {
         zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
     }
 
+    /* hook autoload */
+    original_zend_autoload = zend_autoload;
+    zend_autoload = swoole_coroutine_autoload;
+    SWOOLE_G(in_autoload) = nullptr;
+}
+
+void php_swoole_coroutine_rinit() {
     PHPCoroutine::init_main_context();
 }
 
@@ -1033,7 +1111,7 @@ PHP_FUNCTION(swoole_coroutine_create) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (sw_unlikely(SWOOLE_G(req_status) == PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN)) {
-        zend_function *func = (zend_function *) EG(current_execute_data)->prev_execute_data->func;
+        auto *func = EG(current_execute_data)->prev_execute_data->func;
         if (func->common.function_name &&
             sw_unlikely(memcmp(ZSTR_VAL(func->common.function_name), ZEND_STRS("__destruct")) == 0)) {
             php_swoole_fatal_error(E_ERROR, "can not use coroutine in __destruct after php_request_shutdown");
@@ -1052,14 +1130,13 @@ PHP_FUNCTION(swoole_coroutine_create) {
 PHP_FUNCTION(swoole_coroutine_defer) {
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
-    zend::Function *defer_fci;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_FUNC(fci, fci_cache)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Coroutine::get_current_safe();
-    defer_fci = (zend::Function *) emalloc(sizeof(zend::Function));
+    auto *defer_fci = static_cast<zend::Function *>(emalloc(sizeof(zend::Function)));
     defer_fci->fci = fci;
     defer_fci->fci_cache = fci_cache;
     sw_zend_fci_cache_persist(&defer_fci->fci_cache);
@@ -1094,18 +1171,16 @@ PHP_METHOD(swoole_coroutine, getCid) {
 
 PHP_METHOD(swoole_coroutine, getPcid) {
     zend_long cid = 0;
-    zend_long ret;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(cid)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    ret = PHPCoroutine::get_pcid(cid);
+    zend_long ret = PHPCoroutine::get_pcid(cid);
     if (ret == 0) {
         RETURN_FALSE;
     }
-
     RETURN_LONG(ret);
 }
 
@@ -1117,15 +1192,15 @@ static PHP_METHOD(swoole_coroutine, getContext) {
     Z_PARAM_LONG(cid)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    PHPContext *ctx =
-        (PHPContext *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
+    auto *ctx = static_cast<PHPContext *>(
+        (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid)));
     if (UNEXPECTED(!ctx)) {
         swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
         RETURN_NULL();
     }
-    if (UNEXPECTED(ctx->context == (zend_object *) ~0)) {
+    if (UNEXPECTED(ctx->context == reinterpret_cast<zend_object *>(INVALID_PTR))) {
         /* bad context (has been destroyed), see: https://github.com/swoole/swoole-src/issues/2991 */
-        php_swoole_fatal_error(E_WARNING, "Context of this coroutine has been destroyed");
+        php_swoole_fatal_error(E_WARNING, "The context of coroutine has been destroyed");
         RETURN_NULL();
     }
     if (UNEXPECTED(!ctx->context)) {
@@ -1138,15 +1213,13 @@ static PHP_METHOD(swoole_coroutine, getContext) {
 
 static PHP_METHOD(swoole_coroutine, getElapsed) {
     zend_long cid = 0;
-    zend_long ret;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(cid)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    ret = PHPCoroutine::get_elapsed(cid);
-    RETURN_LONG(ret);
+    RETURN_LONG(PHPCoroutine::get_elapsed(cid));
 }
 
 static PHP_METHOD(swoole_coroutine, getStackUsage) {
@@ -1229,7 +1302,7 @@ static PHP_METHOD(swoole_coroutine, join) {
     }
 
     std::set<PHPContext *> co_set;
-    bool *canceled = new bool(false);
+    std::shared_ptr<bool> canceled = std::make_shared<bool>(false);
 
     PHPContext::SwapCallback join_fn = [&co_set, canceled, co](PHPContext *task) {
         co_set.erase(task);
@@ -1241,7 +1314,6 @@ static PHP_METHOD(swoole_coroutine, join) {
                 if (*canceled == false) {
                     co->resume();
                 }
-                delete canceled;
             },
             nullptr);
     };
@@ -1251,7 +1323,6 @@ static PHP_METHOD(swoole_coroutine, join) {
         long cid = zval_get_long(zcid);
         if (co->get_cid() == cid) {
             php_swoole_error_ex(E_WARNING, SW_ERROR_WRONG_OPERATION, "can not join self");
-            delete canceled;
             RETURN_FALSE;
         }
         auto ctx = PHPCoroutine::get_context_by_cid(cid);
@@ -1260,7 +1331,6 @@ static PHP_METHOD(swoole_coroutine, join) {
         }
         if (ctx->on_close) {
             swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
-            delete canceled;
             RETURN_FALSE;
         }
         ctx->on_close = &join_fn;
@@ -1270,7 +1340,6 @@ static PHP_METHOD(swoole_coroutine, join) {
 
     if (co_set.empty()) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
-        delete canceled;
         RETURN_FALSE;
     }
 
@@ -1279,29 +1348,90 @@ static PHP_METHOD(swoole_coroutine, join) {
             for (auto ctx : co_set) {
                 ctx->on_close = nullptr;
             }
-            delete canceled;
-        } else {
-            *canceled = true;
         }
+        *canceled = true;
         RETURN_FALSE;
     }
 
     RETURN_TRUE;
 }
 
+static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception, zend_class_entry *ce) {
+    if (throw_exception) {
+        auto *task = PHPCoroutine::get_context_by_cid(cid);
+        // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
+        if (!task) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+            return false;
+        }
+
+        if (task->exception && task->exception_class == ce) {
+            swoole_set_last_error(SW_ERROR_CO_CANCELED);
+            return false;
+        }
+
+        zend_object *previous = task->exception;
+        task->exception_class = ce;
+        task->exception = zend_objects_new(task->exception_class);
+        object_properties_init(task->exception, task->exception_class);
+        if (previous) {
+            zend_exception_set_previous(task->exception, previous);
+        }
+
+        zend_execute_data *ex_backup = EG(current_execute_data);
+        EG(current_execute_data) = task->execute_data;
+        zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_FILE), zend_get_executed_filename_ex());
+        zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+        EG(current_execute_data) = ex_backup;
+
+        // Ignore the result of Co::cancel(). Even if the coroutine is in an irrevocable state,
+        // it will directly throw an exception and terminate the coroutine
+        task->co->cancel();
+        return true;
+    } else {
+        Coroutine *co = swoole_coroutine_get(cid);
+        if (!co) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+            return false;
+        }
+        return co->cancel();
+    }
+}
+
 static PHP_METHOD(swoole_coroutine, cancel) {
     zend_long cid;
+    bool throw_exception = false;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_LONG(cid)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_BOOL(throw_exception)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Coroutine *co = swoole_coroutine_get(cid);
-    if (!co) {
-        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+    RETURN_BOOL(php_swoole_coroutine_throw_exception(cid, throw_exception, swoole_coroutine_canceled_exception_ce));
+}
+
+static PHP_METHOD(swoole_coroutine, setTimeLimit) {
+    double timeout = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    Coroutine *co = Coroutine::get_current_safe();
+    if (timeout == 0 || co == nullptr) {
         RETURN_FALSE;
     }
-    RETURN_BOOL(co->cancel());
+
+    long cid = co->get_cid();
+    swoole_timer_add((long) timeout * 1000, false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
+        swoole_timer_del(tnode);
+        if (PHPCoroutine::get_context_by_cid(cid) != nullptr) {
+            php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
+        }
+    });
+
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_coroutine, isCanceled) {
@@ -1345,7 +1475,7 @@ static PHP_METHOD(swoole_coroutine, getBackTrace) {
     if (!cid || cid == PHPCoroutine::get_cid()) {
         zend_fetch_debug_backtrace(return_value, 0, options, limit);
     } else {
-        PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        auto *task = PHPCoroutine::get_context_by_cid(cid);
         if (UNEXPECTED(!task)) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             RETURN_FALSE;
@@ -1365,7 +1495,7 @@ void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, z
     if (!cid || cid == PHPCoroutine::get_cid()) {
         zend::function::call("debug_print_backtrace", 2, argv);
     } else {
-        PHPContext *ctx = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        PHPContext *ctx = PHPCoroutine::get_context_by_cid(cid);
         if (UNEXPECTED(!ctx)) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             if (return_value) {
@@ -1381,7 +1511,7 @@ void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, z
 }
 
 static PHP_METHOD(swoole_coroutine, printBackTrace) {
-    zend_long cid;
+    zend_long cid = 0;
     zend_long options = 0;
     zend_long limit = 0;
 

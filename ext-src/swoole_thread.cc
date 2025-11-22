@@ -184,7 +184,7 @@ static PHP_METHOD(swoole_thread, __construct) {
     char *script_file;
     size_t l_script_file;
     zval *args;
-    int argc;
+    int argc = 0;
     ZendArray *argv = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
@@ -470,11 +470,11 @@ _startup_error:
     thread_num.fetch_sub(1);
 }
 
-size_t sw_active_thread_count(void) {
+size_t sw_active_thread_count() {
     return thread_num.load();
 }
 
-void php_swoole_thread_bailout(void) {
+void php_swoole_thread_bailout() {
     if (thread_bailout) {
         EG(bailout) = thread_bailout;
     }
@@ -917,7 +917,7 @@ void ZendArray::strkey_incr(zval *zkey, zval *zvalue, zval *return_value) {
     zend::String skey(zkey);
 
     lock_.lock();
-    ArrayItem *item = static_cast<ArrayItem *>(zend_hash_find_ptr(&ht, skey.get()));
+    auto *item = static_cast<ArrayItem *>(zend_hash_find_ptr(&ht, skey.get()));
     if (item) {
         incr_update(item, zvalue, return_value);
     } else {
@@ -1185,7 +1185,7 @@ ZendArray *ZendArray::from(zend_array *src) {
     zend_string *key;
     zend_ulong index;
     zval *tmp;
-    ZendArray *result = new ZendArray();
+    auto *result = new ZendArray();
     ZEND_HASH_FOREACH_KEY_VAL(src, index, key, tmp) {
         ZVAL_DEREF(tmp);
         if (key) {

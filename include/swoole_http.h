@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include "swoole.h"
 #include "swoole_protocol.h"
 
 #include <unordered_map>
@@ -127,7 +126,6 @@ struct FormData {
 };
 
 struct Request {
-  public:
     uint8_t method;
     uint8_t version;
     uchar excepted : 1;
@@ -152,27 +150,26 @@ struct Request {
     uint64_t content_length_;
 
     FormData *form_data_;
-
     String *buffer_;
 
-  public:
     Request() {
         clean();
+        form_data_ = nullptr;
         buffer_ = nullptr;
     }
     ~Request();
     void clean() {
-        memset(this, 0, offsetof(Request, buffer_));
+        memset(&method, 0, offsetof(Request, form_data_));
     }
     int get_protocol();
     int get_header_length();
     int get_chunked_body_length();
     void parse_header_info();
     bool parse_multipart_data(String *buffer);
-    bool init_multipart_parser(Server *server);
+    bool init_multipart_parser(const Server *server);
     void destroy_multipart_parser();
-    std::string get_header(const char *name);
-    bool has_expect_header();
+    std::string get_header(const char *name) const;
+    bool has_expect_header() const;
 };
 
 typedef std::function<bool(char *key, size_t key_len, char *value, size_t value_len)> ParseCookieCallback;

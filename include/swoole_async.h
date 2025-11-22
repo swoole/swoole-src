@@ -18,8 +18,9 @@
 
 #pragma once
 
+#include "swoole_socket.h"
+
 #include <vector>
-#include <string>
 
 #ifndef O_DIRECT
 #define O_DIRECT 040000
@@ -57,7 +58,7 @@ struct AsyncEvent {
     void (*handler)(AsyncEvent *event);
     void (*callback)(AsyncEvent *event);
 
-    bool catch_error() {
+    bool catch_error() const {
         return (error == SW_ERROR_AIO_TIMEOUT || error == SW_ERROR_AIO_CANCELED);
     }
 };
@@ -98,7 +99,7 @@ class AsyncThreads {
     AsyncThreads();
     ~AsyncThreads();
 
-    size_t get_task_num() {
+    size_t get_task_num() const {
         return task_num;
     }
 

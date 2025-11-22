@@ -60,7 +60,7 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
                 task.info.reactor_id = reactor->id;
                 task.info.len = sw_tg_buffer()->length;
                 task.data = sw_tg_buffer()->str;
-                serv->factory->dispatch(&task);
+                serv->factory_->dispatch(&task);
                 goto _delay_receive;
             } else {
                 return SW_ERROR;
@@ -159,7 +159,7 @@ _do_recvfrom:
     task.info.len = sizeof(*pkt) + ret;
     task.data = reinterpret_cast<char *>(pkt);
 
-    if (!serv->factory->dispatch(&task)) {
+    if (!serv->factory_->dispatch(&task)) {
         return SW_ERR;
     } else {
         goto _do_recvfrom;
@@ -292,7 +292,7 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
              * and the connection is no longer available.
              */
             conn->peer_closed = 1;
-            return serv->factory->notify(&notify_ev);
+            return serv->factory_->notify(&notify_ev);
         }
     } else {
         return SW_ERR;
@@ -419,7 +419,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
             thread->close_connection(reactor, resp->info.fd);
         } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORWARD) {
-            serv->factory->end(resp->info.fd, Server::CLOSE_ACTIVELY);
+            serv->factory_->end(resp->info.fd, Server::CLOSE_ACTIVELY);
         } else {
             PacketPtr packet = thread->message_bus.get_packet();
             _send.info = resp->info;
@@ -913,7 +913,7 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
                          conn->recv_queued_bytes);
     }
 
-    if (!serv->factory->dispatch(&task)) {
+    if (!serv->factory_->dispatch(&task)) {
         if (rdata->info.len > 0) {
             sw_atomic_fetch_sub(&conn->recv_queued_bytes, rdata->info.len);
         }
@@ -935,10 +935,6 @@ void Server::join_heartbeat_thread() {
      */
     if (heartbeat_thread.joinable()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate heartbeat thread");
-        if (pthread_cancel(heartbeat_thread.native_handle()) > 0) {
-            swoole_sys_warning("pthread_cancel(%ld) failed", (long) heartbeat_thread.native_handle());
-        }
-        // wait thread
         heartbeat_thread.join();
     }
 }
@@ -960,14 +956,7 @@ void Server::join_reactor_thread() {
         if (thread->notify_pipe) {
             DataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;
-            if (thread->notify_pipe->send_sync((void *) &ev, sizeof(ev)) < 0) {
-                goto _cancel;
-            }
-        } else {
-        _cancel:
-            if (pthread_cancel(thread->thread.native_handle()) > 0) {
-                swoole_sys_warning("pthread_cancel(%ld) failed", (long) thread->thread.native_handle());
-            }
+            thread->notify_pipe->send_sync((void *) &ev, sizeof(ev));
         }
         thread->thread.join();
     }

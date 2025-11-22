@@ -1434,7 +1434,7 @@ TEST(http_server, abort_connection) {
 
     serv.create();
 
-    Mutex lock(Mutex::PROCESS_SHARED);
+    Mutex lock(true);
     lock.lock();
 
     thread th([&serv, port, &lock]() {
@@ -1847,7 +1847,7 @@ TEST(http_server, get_package_length) {
     // websocket
     sw_tg_buffer()->clear();
     conn.websocket_status = websocket::STATUS_HANDSHAKE;
-    ASSERT_EQ(http_server::get_package_length_size(&fake_sock), SW_WEBSOCKET_MESSAGE_HEADER_SIZE);
+    ASSERT_EQ(http_server::get_package_length_size(&fake_sock), SW_WEBSOCKET_FRAME_HEADER_SIZE);
     ASSERT_TRUE(websocket::encode(sw_tg_buffer(), SW_STRL(TEST_STR), websocket::OPCODE_TEXT, websocket::FLAG_FIN));
     pl.buf = sw_tg_buffer()->str;
     pl.buf_size = sw_tg_buffer()->length;
@@ -1884,7 +1884,7 @@ static void test_ssl_http(Server::Mode mode) {
     serv.worker_num = 1;
     swoole_set_log_level(SW_LOG_INFO);
 
-    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    Mutex *lock = new Mutex(true);
     lock->lock();
 
     const int server_port = __LINE__ + TEST_PORT;

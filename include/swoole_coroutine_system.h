@@ -45,7 +45,7 @@ class System {
     static int sleep(double sec);
     /* file */
     static std::shared_ptr<String> read_file(const char *file, bool lock = false);
-    static ssize_t write_file(const char *file, const char *buf, size_t length, bool lock = 0, int flags = 0);
+    static ssize_t write_file(const char *file, const char *buf, size_t length, bool lock = false, int flags = 0);
     /* dns */
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
     static std::vector<std::string> getaddrinfo(const std::string &hostname,
@@ -61,13 +61,13 @@ class System {
     /* multiplexing */
     static bool socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout);
     /* wait */
-    static pid_t wait(int *__stat_loc, double timeout = -1);
-    static pid_t waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout = -1);
+    static pid_t wait(int *_stat_loc, double timeout = -1);
+    static pid_t waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout = -1);
     /**
      * waitpid_safe() does not deps on the signal
-     * and can be safely used in a multi-threaded environment.
+     * and can be safely used in a multithreaded environment.
      */
-    static pid_t waitpid_safe(pid_t __pid, int *__stat_loc, int __options);
+    static pid_t waitpid_safe(pid_t _pid, int *_stat_loc, int _options);
     /* signal */
     static int wait_signal(int signal, double timeout = -1);
     static int wait_signal(const std::vector<int> &signals, double timeout = -1);

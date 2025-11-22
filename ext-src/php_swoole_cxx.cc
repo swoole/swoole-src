@@ -18,22 +18,34 @@ zend_refcounted *sw_get_refcount_ptr(zval *value) {
 
 //----------------------------------known string------------------------------------
 namespace zend {
-void known_strings_init(void) {
-    zend_string *str;
-    sw_zend_known_strings = nullptr;
-
-    /* known strings */
-    sw_zend_known_strings = (zend_string **) pemalloc(
-        sizeof(zend_string *) * ((sizeof(sw_known_strings) / sizeof(sw_known_strings[0]) - 1)), 1);
+void known_strings_init() {
+    sw_zend_known_strings = static_cast<zend_string **>(
+        pemalloc(sizeof(zend_string *) * ((sizeof(sw_known_strings) / sizeof(sw_known_strings[0]) - 1)), 1));
     for (unsigned int i = 0; i < (sizeof(sw_known_strings) / sizeof(sw_known_strings[0])) - 1; i++) {
-        str = zend_string_init(sw_known_strings[i], strlen(sw_known_strings[i]), 1);
+        zend_string *str = zend_string_init(sw_known_strings[i], strlen(sw_known_strings[i]), true);
         sw_zend_known_strings[i] = zend_new_interned_string(str);
     }
 }
 
-void known_strings_dtor(void) {
+void known_strings_dtor() {
     pefree(sw_zend_known_strings, 1);
     sw_zend_known_strings = nullptr;
+}
+
+zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len) {
+    return static_cast<zend_function *>(zend_hash_str_find_ptr(function_table, name, name_len));
+}
+
+zend_function *get_function(const char *fname, size_t fname_len) {
+    return get_function(EG(function_table), fname, fname_len);
+}
+
+zend_function *get_function(const std::string &fname) {
+    return get_function(fname.c_str(), fname.length());
+}
+
+zend_function *get_function(const zend_string *fname) {
+    return get_function(ZSTR_VAL(fname), ZSTR_LEN(fname));
 }
 
 static zend_always_inline zval *sw_zend_symtable_str_add(
@@ -109,7 +121,7 @@ Variable call(const std::string &func_name, int argc, zval *argv) {
     zval function_name;
     ZVAL_STRINGL(&function_name, func_name.c_str(), func_name.length());
     Variable retval;
-    if (call_user_function(EG(function_table), NULL, &function_name, &retval.value, argc, argv) != SUCCESS) {
+    if (call_user_function(EG(function_table), nullptr, &function_name, &retval.value, argc, argv) != SUCCESS) {
         ZVAL_NULL(&retval.value);
     }
     zval_dtor(&function_name);
@@ -145,7 +157,7 @@ Callable::~Callable() {
     }
 }
 
-uint32_t Callable::refcount() {
+uint32_t Callable::refcount() const {
     return zval_refcount_p(&zfn);
 }
 }  // namespace zend

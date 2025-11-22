@@ -14,9 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include <poll.h>
-
-#include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 

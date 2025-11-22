@@ -102,7 +102,7 @@ static PHP_METHOD(swoole_client, getSocket);
 #endif
 SW_EXTERN_C_END
 
-static uint32_t client_poll_add(zval *sock_array, uint32_t index, pollfd *fds, int maxevents, int event);
+static uint32_t client_poll_add(const zval *sock_array, uint32_t index, pollfd *fds, int maxevents, int event);
 static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, int n_event, int revent);
 
 Client *php_swoole_client_get_cli_safe(const zval *zobject) {
@@ -182,6 +182,10 @@ void php_swoole_client_minit(int module_number) {
     zend_declare_class_constant_long(swoole_client_ce, ZEND_STRL("SHUT_RDWR"), SHUT_RDWR);
     zend_declare_class_constant_long(swoole_client_ce, ZEND_STRL("SHUT_RD"), SHUT_RD);
     zend_declare_class_constant_long(swoole_client_ce, ZEND_STRL("SHUT_WR"), SHUT_WR);
+
+    zend::add_constant("SWOOLE_SYNC", SW_FLAG_SYNC);
+    zend::add_constant("SWOOLE_ASYNC", SW_FLAG_ASYNC);
+    zend::add_constant("SWOOLE_KEEP", SW_FLAG_KEEP);
 }
 
 #ifdef SW_USE_OPENSSL
@@ -301,7 +305,7 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
 
         if (cli->protocol.package_length_size == 0) {
             php_swoole_fatal_error(E_ERROR,
-                                   "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack",
+                                   "Unknown package_length_type name '%c', see pack(). Link: https://php.net/pack",
                                    cli->protocol.package_length_type);
             return false;
         }
@@ -509,7 +513,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
     }
 
     long type = Z_LVAL_P(ztype);
-    int socket_type = php_swoole_get_socket_type(type);
+    int socket_type = php_swoole_client_get_type(type);
     if (Socket::is_tcp(static_cast<SocketType>(socket_type)) && !Address::verify_port(port)) {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
@@ -548,7 +552,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
         }
     } else {
     _create_socket:
-        cli = new Client(php_swoole_get_socket_type(type), false);
+        cli = new Client(php_swoole_client_get_type(type), false);
         if (cli->socket == nullptr) {
             php_swoole_sys_error(E_WARNING, "Client_create() failed");
             zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), errno);
@@ -590,7 +594,7 @@ static PHP_METHOD(swoole_client, __construct) {
         RETURN_FALSE;
     }
 
-    int client_type = php_swoole_get_socket_type(type);
+    int client_type = php_swoole_client_get_type(type);
     if (client_type < SW_SOCK_TCP || client_type > SW_SOCK_UNIX_DGRAM) {
         const char *space, *class_name = get_active_class_name(&space);
         zend_type_error("%s%s%s() expects parameter %d to be client type, unknown type " ZEND_LONG_FMT " given",
@@ -903,10 +907,7 @@ static PHP_METHOD(swoole_client, recv) {
                         if (new_size > protocol->package_max_length) {
                             new_size = protocol->package_max_length;
                         }
-                        if (!buffer->extend(new_size)) {
-                            buffer->length = 0;
-                            RETURN_FALSE;
-                        }
+                        buffer->extend(new_size);
                     }
                 }
             }
@@ -1313,7 +1314,7 @@ static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, 
     return num;
 }
 
-static uint32_t client_poll_add(zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event) {
+static uint32_t client_poll_add(const zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event) {
     zval *element = nullptr;
     if (!ZVAL_IS_ARRAY(sock_array)) {
         return 0;
