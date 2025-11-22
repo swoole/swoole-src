@@ -37,6 +37,7 @@ BEGIN_EXTERN_C()
 #endif
 END_EXTERN_C()
 
+#include "swoole_coroutine.h"
 #include "swoole_mime_type.h"
 #include "swoole_server.h"
 #include "swoole_util.h"
@@ -74,6 +75,7 @@ END_EXTERN_C()
 #endif
 
 using swoole::Server;
+using swoole::Coroutine;
 using swoole::network::Socket;
 #ifdef SW_USE_IOURING
 using swoole::Iouring;

@@ -88,7 +88,7 @@ extern int _pdo_pgsql_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, int errcode, const
 #define pdo_pgsql_error_stmt_msg(stmt, e, sqlstate, msg) \
 	_pdo_pgsql_error(stmt->dbh, stmt, e, sqlstate, msg, __FILE__, __LINE__)
 
-extern const struct pdo_stmt_methods pgsql_stmt_methods;
+extern const struct pdo_stmt_methods swoole_pgsql_stmt_methods;
 
 #define pdo_pgsql_sqlstate(r) PQresultErrorField(r, PG_DIAG_SQLSTATE)
 

@@ -205,12 +205,13 @@ static zend_internal_arg_info *copy_arginfo(const zend_internal_function *functi
             memcpy(new_list, old_list, ZEND_TYPE_LIST_SIZE(old_list->num_types));
             ZEND_TYPE_SET_PTR(new_arg_info[i].type, new_list);
 
-            zend_type *list_type;
+            const zend_type *list_type;
             ZEND_TYPE_LIST_FOREACH(new_list, list_type) {
                 zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), true);
-                ZEND_TYPE_SET_PTR(*list_type, name);
-            }
-            ZEND_TYPE_LIST_FOREACH_END();
+
+                zend_type *mutable_type = const_cast<zend_type *>(list_type);
+                ZEND_TYPE_SET_PTR(*mutable_type, name);
+            } ZEND_TYPE_LIST_FOREACH_END();
         } else if (ZEND_TYPE_HAS_NAME(arg_info[i].type)) {
             zend_string *name = zend_string_dup(ZEND_TYPE_NAME(arg_info[i].type), true);
             ZEND_TYPE_SET_PTR(new_arg_info[i].type, name);
