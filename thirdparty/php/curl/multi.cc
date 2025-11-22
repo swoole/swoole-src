@@ -475,7 +475,7 @@ static int _php_server_push_callback(
         php_error_docref(NULL, E_WARNING, "Cannot call the CURLMOPT_PUSHFUNCTION");
     } else if (!Z_ISUNDEF(retval)) {
 #if PHP_VERSION_ID >= 80300
-        if (CURL_PUSH_DENY != php_curl_get_long(&retval)) {
+        if (CURL_PUSH_DENY != swoole_curl_get_long(&retval)) {
 #else
         if (CURL_PUSH_DENY != zval_get_long(&retval)) {
 #endif
