@@ -1349,12 +1349,7 @@ EOF
     fi
 
     SW_PHP_VERSION_ID=`echo "${SW_PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
-
-    if test "$SW_PHP_VERSION_ID" = "82"; then
-        SW_PHP_THIRDPARTY_DIR="thirdparty/php81"
-    else
-        SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
-    fi
+    SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
 
     AC_MSG_NOTICE([php version: $SW_PHP_VERSION, version_id: $SW_PHP_VERSION_ID, thirdparty_dir: $SW_PHP_THIRDPARTY_DIR])
 
@@ -1581,28 +1576,16 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     fi
     if test "$PHP_SWOOLE_PGSQL" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_pgsql)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_pgsql)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_pgsql)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php85/pdo_pgsql)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql)
     fi
     if test "$PHP_SWOOLE_ODBC" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_odbc)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_odbc)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_odbc)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php85/pdo_odbc)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/${SW_PHP_THIRDPARTY_DIR}/pdo_odbc)
     fi
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_oci)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_oci)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_oci)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php85/pdo_oci)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/${SW_PHP_THIRDPARTY_DIR}/pdo_oci)
     fi
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_sqlite)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php85/pdo_sqlite)
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite)
     fi
     if test "$PHP_SWOOLE_FTP" != "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/ftp)
