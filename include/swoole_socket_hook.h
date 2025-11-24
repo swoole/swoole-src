@@ -35,6 +35,7 @@ extern "C" {
 #define recv(sockfd, buf, len, flags) swoole_coroutine_recv(sockfd, buf, len, flags)
 #define close(fd) swoole_coroutine_close(fd)
 #define connect(sockfd, addr, addrlen) swoole_coroutine_connect(sockfd, addr, addrlen)
+#define accept(sockfd, addr, addrlen) swoole_coroutine_accept(sockfd, addr, addrlen)
 #ifdef SW_HOOK_POLL_FAKE
 #define poll(fds, nfds, timeout) swoole_coroutine_poll_fake(fds, nfds, timeout)
 #else

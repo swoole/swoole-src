@@ -1894,6 +1894,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     check_port_type(ls);
     ptr.release();
     ports.push_back(ls);
+    ls->object_id = ports.size();
     return ls;
 }
 

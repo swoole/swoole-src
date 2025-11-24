@@ -32,8 +32,11 @@ BEGIN_EXTERN_C()
 #ifdef SW_STDEXT
 #include "stubs/php_swoole_stdext_arginfo.h"
 #endif
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
 #include "stubs/php_swoole_ssh2_arginfo.h"
+#endif
+#ifdef SW_HAVE_FTP
+#include "stubs/php_swoole_ftp_arginfo.h"
 #endif
 END_EXTERN_C()
 
@@ -73,6 +76,7 @@ END_EXTERN_C()
 #include <ares.h>
 #endif
 
+using swoole::Coroutine;
 using swoole::Server;
 using swoole::network::Socket;
 #ifdef SW_USE_IOURING
@@ -109,8 +113,12 @@ SW_EXTERN_C_END
 #include "php_swoole_stdext.h"
 #endif
 
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
 #include "php_swoole_ssh2_def.h"
+#endif
+
+#ifdef SW_HAVE_FTP
+#include "php_swoole_ftp_def.h"
 #endif
 
 // clang-format off
@@ -185,7 +193,7 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_array_replace_str,    arginfo_swoole_array_replace_str)
     ZEND_FE(swoole_array_ireplace_str,   arginfo_swoole_array_ireplace_str)
 #endif
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
 	ZEND_FE(ssh2_connect, arginfo_ssh2_connect)
 	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
 	ZEND_FE(ssh2_methods_negotiated, arginfo_ssh2_methods_negotiated)
@@ -221,6 +229,50 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ssh2_publickey_remove, arginfo_ssh2_publickey_remove)
 	ZEND_FE(ssh2_publickey_list, arginfo_ssh2_publickey_list)
 	ZEND_FE(ssh2_auth_agent, arginfo_ssh2_auth_agent)
+#endif
+#ifdef SW_HAVE_FTP
+	ZEND_FE(ftp_connect, arginfo_ftp_connect)
+#if defined(SW_HAVE_FTP_SSL)
+	ZEND_FE(ftp_ssl_connect, arginfo_ftp_ssl_connect)
+#endif
+	ZEND_FE(ftp_login, arginfo_ftp_login)
+	ZEND_FE(ftp_pwd, arginfo_ftp_pwd)
+	ZEND_FE(ftp_cdup, arginfo_ftp_cdup)
+	ZEND_FE(ftp_chdir, arginfo_ftp_chdir)
+	ZEND_FE(ftp_exec, arginfo_ftp_exec)
+	ZEND_FE(ftp_raw, arginfo_ftp_raw)
+	ZEND_FE(ftp_mkdir, arginfo_ftp_mkdir)
+	ZEND_FE(ftp_rmdir, arginfo_ftp_rmdir)
+	ZEND_FE(ftp_chmod, arginfo_ftp_chmod)
+	ZEND_FE(ftp_alloc, arginfo_ftp_alloc)
+	ZEND_FE(ftp_nlist, arginfo_ftp_nlist)
+	ZEND_FE(ftp_rawlist, arginfo_ftp_rawlist)
+	ZEND_FE(ftp_mlsd, arginfo_ftp_mlsd)
+	ZEND_FE(ftp_systype, arginfo_ftp_systype)
+	ZEND_FE(ftp_fget, arginfo_ftp_fget)
+	ZEND_FE(ftp_nb_fget, arginfo_ftp_nb_fget)
+	ZEND_FE(ftp_pasv, arginfo_ftp_pasv)
+	ZEND_FE(ftp_get, arginfo_ftp_get)
+	ZEND_FE(ftp_nb_get, arginfo_ftp_nb_get)
+	ZEND_FE(ftp_nb_continue, arginfo_ftp_nb_continue)
+	ZEND_FE(ftp_fput, arginfo_ftp_fput)
+	ZEND_FE(ftp_nb_fput, arginfo_ftp_nb_fput)
+	ZEND_FE(ftp_put, arginfo_ftp_put)
+	ZEND_FE(ftp_append, arginfo_ftp_append)
+	ZEND_FE(ftp_nb_put, arginfo_ftp_nb_put)
+	ZEND_FE(ftp_size, arginfo_ftp_size)
+	ZEND_FE(ftp_mdtm, arginfo_ftp_mdtm)
+	ZEND_FE(ftp_rename, arginfo_ftp_rename)
+	ZEND_FE(ftp_delete, arginfo_ftp_delete)
+	ZEND_FE(ftp_site, arginfo_ftp_site)
+	ZEND_FE(ftp_close, arginfo_ftp_close)
+#if PHP_VERSION_ID >= 80400
+	ZEND_RAW_FENTRY("ftp_quit", zif_ftp_close, arginfo_ftp_quit, 0, NULL, NULL)
+#else
+	ZEND_RAW_FENTRY("ftp_quit", zif_ftp_close, arginfo_ftp_quit, 0)
+#endif
+	ZEND_FE(ftp_set_option, arginfo_ftp_set_option)
+	ZEND_FE(ftp_get_option, arginfo_ftp_get_option)
 #endif
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
@@ -509,10 +561,11 @@ static void fatal_error(int code, const char *format, ...) {
     zend::print_error(exception, E_ERROR);
 
     if (code == SW_ERROR_CO_HAS_BEEN_BOUND) {
-        fprintf(stderr, "\n [Coroutine-%ld] Stack trace:"
-               "\n -------------------------------------------------------------------"
-               "\n",
-               Coroutine::get_socket_bound_cid());
+        fprintf(stderr,
+                "\n [Coroutine-%ld] Stack trace:"
+                "\n -------------------------------------------------------------------"
+                "\n",
+                Coroutine::get_socket_bound_cid());
         sw_php_print_backtrace(Coroutine::get_socket_bound_cid());
     }
 
@@ -931,8 +984,11 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
     php_swoole_http2_client_coro_minit(module_number);
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
     php_swoole_ssh2_minit(module_number);
+#endif
+#ifdef SW_HAVE_FTP
+    PHP_MINIT(ftp)(type, module_number);
 #endif
     // server
     php_swoole_server_minit(module_number);
@@ -1006,7 +1062,7 @@ PHP_MSHUTDOWN_FUNCTION(swoole) {
 #ifdef SW_USE_FIREBIRD
     php_swoole_firebird_mshutdown();
 #endif
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
     php_swoole_ssh2_mshutdown();
 #endif
 
@@ -1152,8 +1208,11 @@ PHP_MINFO_FUNCTION(swoole) {
 #elif defined(HAVE_EXECINFO)
     php_info_print_table_row(2, "execinfo", "enabled");
 #endif
-#ifdef HAVE_SSH2LIB
+#ifdef SW_HAVE_SSH2LIB
     php_swoole_ssh2_minfo();
+#endif
+#ifdef SW_HAVE_FTP
+    PHP_MINFO(ftp)(zend_module);
 #endif
     php_info_print_table_end();
 

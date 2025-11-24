@@ -290,15 +290,15 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
         const char *default_message = type == Redis::REPLY_ERROR ? "ERR" : "OK";
         if (value) {
             zend::String str_value(value);
-            SW_STRING_FORMAT(buf, "%c%.*s\r\n", flag, (int) str_value.len(), str_value.val());
+            buf->append_format("%c%.*s\r\n", flag, (int) str_value.len(), str_value.val());
         } else {
-            SW_STRING_FORMAT(buf, "%c%s\r\n", flag, default_message);
+            buf->append_format("%c%s\r\n", flag, default_message);
         }
     } else if (type == Redis::REPLY_INT) {
         if (!value) {
             goto _no_value;
         }
-        SW_STRING_FORMAT(buf, ":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
+        buf->append_format(":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
     } else if (type == Redis::REPLY_STRING) {
         if (!value) {
         _no_value:
@@ -314,7 +314,7 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
         } else if (sw_unlikely(str_value.len() == 0)) {
             buf->append("$0\r\n\r\n");
         } else {
-            SW_STRING_FORMAT(buf, "$%zu\r\n", str_value.len());
+            buf->append_format("$%zu\r\n", str_value.len());
             buf->append(str_value.val(), str_value.len());
             buf->append(SW_CRLF, SW_CRLF_LEN);
         }
@@ -326,7 +326,7 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
             zend_throw_exception(
                 swoole_exception_ce, "the second parameter should be an array", SW_ERROR_INVALID_PARAMS);
         }
-        SW_STRING_FORMAT(buf, "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
+        buf->append_format("*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
 
         zval *item;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(value), item) {
@@ -341,17 +341,17 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
             zend_throw_exception(
                 swoole_exception_ce, "the second parameter should be an array", SW_ERROR_INVALID_PARAMS);
         }
-        SW_STRING_FORMAT(buf, "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
+        buf->append_format("*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
 
         zend_string *key;
         zend_ulong num_key;
         zval *item;
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(value), num_key, key, item) {
             if (key) {
-                SW_STRING_FORMAT(buf, "$%zu\r\n%.*s\r\n", ZSTR_LEN(key), (int) ZSTR_LEN(key), ZSTR_VAL(key));
+                buf->append_format("$%zu\r\n%.*s\r\n", ZSTR_LEN(key), (int) ZSTR_LEN(key), ZSTR_VAL(key));
             } else {
                 std::string _key = std::to_string(num_key);
-                SW_STRING_FORMAT(buf, "$%zu\r\n%.*s\r\n", _key.length(), (int) _key.length(), _key.c_str());
+                buf->append_format("$%zu\r\n%.*s\r\n", _key.length(), (int) _key.length(), _key.c_str());
             }
             redis_response_format_array_item(buf, item);
         }

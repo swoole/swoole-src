@@ -118,6 +118,11 @@ PHP_ARG_WITH([swoole-ssh2],
     [Enable Async ssh2 support. DIR is the libssh2 base install directory
     [/usr]])], [no], [no])
 
+PHP_ARG_ENABLE([swoole-ftp],
+  [whether to enable Async FTP support],
+  [AS_HELP_STRING([--enable-swoole-ftp],
+    [Enable Async FTP support])], [no], [no])
+
 PHP_ARG_ENABLE([thread-context],
   [whether to enable thread context],
   [AS_HELP_STRING([--enable-thread-context],
@@ -1038,7 +1043,7 @@ EOF
 
         PHP_CHECK_LIBRARY(ssh2, libssh2_session_hostkey, [
             PHP_ADD_LIBRARY_WITH_PATH(ssh2, $SSH2_DIR/lib, SWOOLE_SHARED_LIBADD)
-            AC_DEFINE(HAVE_SSH2LIB, 1, [Have libssh2])
+            AC_DEFINE(SW_HAVE_SSH2LIB, 1, [Have libssh2])
         ],[
             AC_MSG_ERROR([libssh2 version >= 1.2 not found])
         ],[
@@ -1267,6 +1272,10 @@ EOF
         fi
 
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
+
+        if test "$PHP_SWOOLE_FTP" != "no"; then
+            AC_DEFINE(SW_HAVE_FTP_SSL, 1, [have swoole-ftp with SSL])
+        fi
     fi
 
     if test "$PHP_NGHTTP2_DIR" != "no"; then
@@ -1394,6 +1403,13 @@ EOF
             thirdparty/php/ssh2/ssh2.cc \
             thirdparty/php/ssh2/ssh2_fopen_wrappers.cc \
             thirdparty/php/ssh2/ssh2_sftp.cc"
+    fi
+
+    if test "$PHP_SWOOLE_FTP" != "no"; then
+        swoole_source_file="$swoole_source_file \
+            thirdparty/php84/ftp/ftp.c \
+            thirdparty/php84/ftp/php_ftp.c"
+        AC_DEFINE(SW_HAVE_FTP, 1, [have swoole-ftp])
     fi
 
     SW_ASM_DIR="thirdparty/boost/asm/"
@@ -1576,5 +1592,8 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_sqlite)
+    fi
+    if test "$PHP_SWOOLE_FTP" != "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/ftp)
     fi
 fi
