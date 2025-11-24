@@ -1015,7 +1015,6 @@ EOF
     dnl firebird stop
 
 
-
     dnl ssh2 start
 
     if test "$PHP_SWOOLE_SSH2" != "no"; then
@@ -1392,10 +1391,17 @@ EOF
     fi
 
     if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
-        swoole_source_file="$swoole_source_file \
-            thirdparty/php84/pdo_firebird/firebird_driver.c \
-            thirdparty/php84/pdo_firebird/firebird_statement.c \
-            thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
+        if test "$SW_PHP_VERSION_ID" -ge "84"; then
+            swoole_source_file="$swoole_source_file \
+                thirdparty/php84/pdo_firebird/firebird_driver.c \
+                thirdparty/php84/pdo_firebird/firebird_statement.c \
+                thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
+        else
+            swoole_source_file="$swoole_source_file \
+                thirdparty/php85/pdo_firebird/firebird_driver.c \
+                thirdparty/php85/pdo_firebird/firebird_statement.c \
+                thirdparty/php85/pdo_firebird/pdo_firebird_utils.cpp"
+        fi
     fi
 
     if test "$PHP_SWOOLE_SSH2" != "no"; then
