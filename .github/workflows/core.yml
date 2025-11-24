@@ -37,7 +37,7 @@ jobs:
           PROXY_SERVER: 0.0.0.0:1080
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: install dependencies
         run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client liburing-dev
