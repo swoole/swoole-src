@@ -121,7 +121,6 @@ Http2Session::~Session() {
         nghttp2_hd_deflate_del(deflater);
     }
     delete default_ctx;
-    http2_sessions.erase(fd);
 }
 
 static void http2_server_send_window_update(HttpContext *ctx, uint32_t stream_id, uint32_t size) {
