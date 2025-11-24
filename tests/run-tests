@@ -89,7 +89,7 @@ Options:
 
     --temp-source <sdir>  --temp-target <tdir> [--temp-urlbase <url>]
                 Write temporary files to <tdir> by replacing <sdir> from the
-                filenames to generate with <tdir>. In general you want to make
+                filenames to generate with <tdir>. In general, you want to make
                 <sdir> the path to your source files and <tdir> some patch in
                 your web page hierarchy with <url> pointing to <tdir>.
 
@@ -203,7 +203,6 @@ NO_PROC_OPEN_ERROR;
 
     // delete as much output buffers as possible
     while (@ob_end_clean()) {
-        ;
     }
     if (ob_get_level()) {
         echo "Not all buffers were deleted.\n";
@@ -243,10 +242,10 @@ NO_PROC_OPEN_ERROR;
     // swoole patch (persistent config)
     {
         $environment['PHPT'] = $environment['PHPT'] ?? getenv('PHPT');
-        $environment['HAS_NETSTAT'] = getenv('HAS_NETSTAT') ?? (stripos(`netstat --help 2>&1`, 'usage') ? '1' : '0');
+        $environment['HAS_NETSTAT'] = getenv('HAS_NETSTAT') ?? (stripos(shell_exec("netstat --help 2>&1"), 'usage') ? '1' : '0');
         if ($environment['HAS_NETSTAT']) {
-            $environment['MYSQL_SERVER_PATH'] = getenv('MYSQL_SERVER_PATH') ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'`) ?: null);
-            $environment['REDIS_SERVER_PATH'] = getenv('REDIS_SERVER_PATH') ?? (trim(`netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'`) ?: null);
+            $environment['MYSQL_SERVER_PATH'] = getenv('MYSQL_SERVER_PATH') ?? (trim(shell_exec("netstat -ln | grep -o -m 1 -E '\S*mysqld?\.sock'")) ?: null);
+            $environment['REDIS_SERVER_PATH'] = getenv('REDIS_SERVER_PATH') ?? (trim(shell_exec("netstat -ln | grep -o -m 1 -E '\S*redis.*\.sock'")) ?: null);
         }
     }
 
@@ -382,8 +381,8 @@ NO_PROC_OPEN_ERROR;
     $no_file_cache = '-d opcache.file_cache= -d opcache.file_cache_only=0';
 
     define('PHP_QA_EMAIL', 'qa-reports@lists.php.net');
-    define('QA_SUBMISSION_PAGE', 'http://qa.php.net/buildtest-process.php');
-    define('QA_REPORTS_PAGE', 'http://qa.php.net/reports');
+    define('QA_SUBMISSION_PAGE', 'https://qa.php.net/buildtest-process.php');
+    define('QA_REPORTS_PAGE', 'https://qa.php.net/reports');
     define('TRAVIS_CI', (bool) getenv('TRAVIS'));
 
     // Determine the tests to be run.
@@ -454,7 +453,7 @@ NO_PROC_OPEN_ERROR;
     for ($i = 1; $i < $argc; $i++) {
         $is_switch = false;
         $switch = substr($argv[$i], 1, 1);
-        $repeat = substr($argv[$i], 0, 1) == '-';
+        $repeat = str_starts_with($argv[$i], '-');
 
         while ($repeat) {
             if (!$is_switch) {
@@ -465,7 +464,7 @@ NO_PROC_OPEN_ERROR;
 
             if ($repeat) {
                 foreach ($cfgtypes as $type) {
-                    if (strpos($switch, '--' . $type) === 0) {
+                    if (str_starts_with($switch, '--' . $type)) {
                         foreach ($cfgfiles as $file) {
                             if ($switch == '--' . $type . '-' . $file) {
                                 $cfg[$type][$file] = true;
@@ -658,9 +657,9 @@ NO_PROC_OPEN_ERROR;
         if (!$is_switch) {
             $testfile = realpath($argv[$i]);
 
-            if (!$testfile && strpos($argv[$i], '*') !== false && function_exists('glob')) {
+            if (!$testfile && str_contains($argv[$i], '*') && function_exists('glob')) {
 
-                if (substr($argv[$i], -5) == '.phpt') {
+                if (str_ends_with($argv[$i], '.phpt')) {
                     $pattern_match = glob($argv[$i]);
                 } else {
                     if (preg_match("/\*$/", $argv[$i])) {
@@ -678,7 +677,7 @@ NO_PROC_OPEN_ERROR;
                 if (is_dir($testfile)) {
                     find_files($testfile);
                 } else {
-                    if (substr($testfile, -5) == '.phpt') {
+                    if (str_ends_with($testfile, '.phpt')) {
                         $test_files[] = $testfile;
                     } else {
                         die('Cannot find test file "' . $argv[$i] . '".' . PHP_EOL);
@@ -889,11 +888,11 @@ More .INIs  : " , (function_exists(\'php_ini_scanned_files\') ? str_replace("\n"
     $info_params = array();
     settings2array($ini_overwrites, $info_params);
     $info_params = settings2params($info_params);
-    $php_info = `$php $pass_options $info_params $no_file_cache "$info_file"`;
-    define('TESTED_PHP_VERSION', `$php -n -r "echo PHP_VERSION;"`);
+    $php_info = `$php $pass_options $info_params $no_file_cache \"$info_file\"`;
+    define('TESTED_PHP_VERSION', shell_exec("$php -n -r \"echo PHP_VERSION;\""));
 
     if ($php_cgi && $php != $php_cgi) {
-        $php_info_cgi = `$php_cgi $pass_options $info_params $no_file_cache -q "$info_file"`;
+        $php_info_cgi = shell_exec("$php_cgi $pass_options $info_params $no_file_cache -q \"$info_file\"");
         $php_info_sep = "\n---------------------------------------------------------------------";
         $php_cgi_info = "$php_info_sep\nPHP         : $php_cgi $php_info_cgi$php_info_sep";
     } else {
@@ -901,7 +900,7 @@ More .INIs  : " , (function_exists(\'php_ini_scanned_files\') ? str_replace("\n"
     }
 
     if ($phpdbg) {
-        $phpdbg_info = `$phpdbg $pass_options $info_params $no_file_cache -qrr "$info_file"`;
+        $phpdbg_info = shell_exec("$phpdbg $pass_options $info_params $no_file_cache -qrr \"$info_file\"");
         $php_info_sep = "\n---------------------------------------------------------------------";
         $phpdbg_info = "$php_info_sep\nPHP         : $phpdbg $phpdbg_info$php_info_sep";
     } else {
@@ -916,7 +915,7 @@ More .INIs  : " , (function_exists(\'php_ini_scanned_files\') ? str_replace("\n"
     // load list of enabled extensions
     save_text($info_file,
         '<?php echo str_replace("Zend OPcache", "opcache", implode(",", get_loaded_extensions())); ?>');
-    $exts_to_test = explode(',', `$php $pass_options $info_params $no_file_cache "$info_file"`);
+    $exts_to_test = explode(',', shell_exec("$php $pass_options $info_params $no_file_cache \"$info_file\""));
     // check for extensions that need special handling and regenerate
     $info_params_ex = array(
         'session' => array('session.auto_start=0'),
@@ -964,7 +963,7 @@ function save_or_mail_results()
             echo "\nYou may have found a problem in PHP.";
         }
         echo "\nThis report can be automatically sent to the PHP QA team at\n";
-        echo QA_REPORTS_PAGE . " and http://news.php.net/php.qa.reports\n";
+        echo QA_REPORTS_PAGE . " and https://news.php.net/php.qa.reports\n";
         echo "This gives us a better understanding of PHP's behavior.\n";
         echo "If you don't want to send the report immediately you can choose\n";
         echo "option \"s\" to save it.	You can then email it to " . PHP_QA_EMAIL . " later.\n";
@@ -1099,13 +1098,13 @@ function find_files($dir, $is_ext_dir = false, $ignore = false)
         }
 
         // Cleanup any left-over tmp files from last run.
-        if (substr($name, -4) == '.tmp') {
+        if (str_ends_with($name, '.tmp')) {
             @unlink("$dir/$name");
             continue;
         }
 
         // Otherwise we're only interested in *.phpt files.
-        if (substr($name, -5) == '.phpt') {
+        if (str_ends_with($name, '.phpt')) {
             if ($ignore) {
                 $ignored_by_ext++;
             } else {
@@ -1132,10 +1131,8 @@ function test_sort($a, $b)
     $a = test_name($a);
     $b = test_name($b);
 
-    $ta = strpos($a, TEST_PHP_SRCDIR . "/tests") === 0 ? 1 + (strpos($a,
-            TEST_PHP_SRCDIR . "/tests/run-test") === 0 ? 1 : 0) : 0;
-    $tb = strpos($b, TEST_PHP_SRCDIR . "/tests") === 0 ? 1 + (strpos($b,
-            TEST_PHP_SRCDIR . "/tests/run-test") === 0 ? 1 : 0) : 0;
+    $ta = str_starts_with($a, TEST_PHP_SRCDIR . "/tests") ? 1 + (str_starts_with($a, TEST_PHP_SRCDIR . "/tests/run-test") ? 1 : 0) : 0;
+    $tb = str_starts_with($b, TEST_PHP_SRCDIR . "/tests") ? 1 + (str_starts_with($b, TEST_PHP_SRCDIR . "/tests/run-test") ? 1 : 0) : 0;
 
     if ($ta == $tb) {
         return strcmp($a, $b);
@@ -1475,7 +1472,7 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
     // PHP is terrible and returns IPv6 addresses not enclosed by []
     $portPos = strrpos($sockName, ":");
     $sockHost = substr($sockName, 0, $portPos);
-    if (FALSE !== strpos($sockHost, ":")) {
+    if (str_contains($sockHost, ":")) {
         $sockHost = "[$sockHost]";
     }
     $sockPort = substr($sockName, $portPos + 1);
@@ -1931,8 +1928,8 @@ TEST $file
         }
     }
 
-    // the redirect section allows a set of tests to be reused outside of
-    // a given test dir
+    // the redirect section allows a set of tests to be reused outside
+    // a given test directory.
     if ($bork_info === null) {
         if (isset($section_text['REDIRECTTEST'])) {
 
@@ -2166,9 +2163,9 @@ TEST $file
         $ext_params = array();
         settings2array($ini_overwrites, $ext_params);
         $ext_params = settings2params($ext_params);
-        $ext_dir = `$php $pass_options $extra_options $ext_params -d display_errors=0 -r "echo ini_get('extension_dir');"`;
+        $ext_dir = shell_exec("$php $pass_options $extra_options $ext_params -d display_errors=0 -r \"echo ini_get('extension_dir');\"");
         $extensions = preg_split("/[\n\r]+/", trim($section_text['EXTENSIONS']));
-        $loaded = explode(",", `$php $pass_options $extra_options $ext_params -d display_errors=0 -r "echo implode(',', get_loaded_extensions());"`);
+        $loaded = explode(",", shell_exec("$php $pass_options $extra_options $ext_params -d display_errors=0 -r \"echo implode(',', get_loaded_extensions());\""));
         $ext_prefix = IS_WINDOWS ? "php_" : "";
         foreach ($extensions as $req_ext) {
             if (!in_array($req_ext, $loaded)) {
@@ -2521,7 +2518,7 @@ TEST $file
         $env['USE_ZEND_ALLOC'] = '0';
         $env['ZEND_DONT_UNLOAD_MODULES'] = 1;
 
-        $cmd = $valgrind->wrapCommand($cmd, $memcheck_filename, strpos($test_file, "pcre") !== false);
+        $cmd = $valgrind->wrapCommand($cmd, $memcheck_filename, str_contains($test_file, "pcre"));
     }
 
     if ($DETAILED) echo "
@@ -2602,7 +2599,7 @@ COMMAND $cmd
         $rh = preg_split("/[\n\r]+/", $match[1]);
 
         foreach ($rh as $line) {
-            if (strpos($line, ':') !== false) {
+            if (str_contains($line, ':')) {
                 $line = explode(':', $line, 2);
                 $headers[trim($line[0])] = trim($line[1]);
             }
@@ -2617,7 +2614,7 @@ COMMAND $cmd
         $lines = preg_split("/[\n\r]+/", $section_text['EXPECTHEADERS']);
 
         foreach ($lines as $line) {
-            if (strpos($line, ':') !== false) {
+            if (str_contains($line, ':')) {
                 $line = explode(':', $line, 2);
                 $want[trim($line[0])] = trim($line[1]);
                 $wanted_headers[] = trim($line[0]) . ': ' . trim($line[1]);
@@ -2799,12 +2796,12 @@ COMMAND $cmd
     if (!$passed) {
 
         // write .exp
-        if (strpos($log_format, 'E') !== false && file_put_contents($exp_filename, $wanted) === false) {
+        if (str_contains($log_format, 'E') && file_put_contents($exp_filename, $wanted) === false) {
             error("Cannot create expected test output - $exp_filename");
         }
 
         // write .out
-        if (strpos($log_format, 'O') !== false && file_put_contents($output_filename, $output) === false) {
+        if (str_contains($log_format, 'O') && file_put_contents($output_filename, $output) === false) {
             error("Cannot create test output - $output_filename");
         }
 
@@ -2819,15 +2816,15 @@ COMMAND $cmd
         // swoole patch: clear port
         if (preg_match('/bind\([^:]+?:(?<port>\d+?)\)/', $diff, $matches)) {
             $port = $matches['port'];
-            @`lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9 > /dev/null 2>&1`;
+            @shell_exec("lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9 > /dev/null 2>&1");
         }
 
-        if (strpos($log_format, 'D') !== false && file_put_contents($diff_filename, $diff) === false) {
+        if (str_contains($log_format, 'D') && file_put_contents($diff_filename, $diff) === false) {
             error("Cannot create test diff - $diff_filename");
         }
 
         // write .sh
-        if (strpos($log_format, 'S') !== false && file_put_contents($sh_filename, "#!/bin/sh
+        if (str_contains($log_format, 'S') && file_put_contents($sh_filename, "#!/bin/sh
 
 {$cmd}
 ") === false) {
@@ -2836,7 +2833,7 @@ COMMAND $cmd
         chmod($sh_filename, 0755);
 
         // write .log
-        if (strpos($log_format, 'L') !== false && file_put_contents($log_filename, "
+        if (str_contains($log_format, 'L') && file_put_contents($log_filename, "
 ---- EXPECTED OUTPUT
 $wanted
 ---- ACTUAL OUTPUT
@@ -3013,7 +3010,7 @@ function settings2array($settings, &$ini_settings)
 {
     foreach ($settings as $setting) {
 
-        if (strpos($setting, '=') !== false) {
+        if (str_contains($setting, '=')) {
             $setting = explode("=", $setting, 2);
             $name = trim($setting[0]);
             $value = trim($setting[1]);
@@ -3791,6 +3788,6 @@ define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
 define('SWOOLE_TEST_OUTPUT_MAX_SIZE', 64 * 1024 * 1024);
 // swoole patch: libc check
-define('SWOOLE_IS_MUSL_LIBC', !empty(`ldd 2>&1 | grep -i musl`));
+define('SWOOLE_IS_MUSL_LIBC', !empty(shell_exec("ldd 2>&1 | grep -i musl")));
 
 main();

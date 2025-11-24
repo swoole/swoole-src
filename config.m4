@@ -1386,7 +1386,7 @@ EOF
     fi
 
     if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
-        if test "$SW_PHP_VERSION_ID" -ge "84"; then
+        if test "$SW_PHP_VERSION_ID" -ge "85"; then
             swoole_source_file="$swoole_source_file \
                 thirdparty/php85/pdo_firebird/firebird_driver.c \
                 thirdparty/php85/pdo_firebird/firebird_statement.c \
