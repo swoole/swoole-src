@@ -206,12 +206,24 @@ static zend_internal_arg_info *copy_arginfo(const zend_internal_function *functi
             memcpy(new_list, old_list, ZEND_TYPE_LIST_SIZE(old_list->num_types));
             ZEND_TYPE_SET_PTR(new_arg_info[i].type, new_list);
 
+#if PHP_VERSION_ID >= 80500
+            // For PHP 8.5+, ZEND_TYPE_LIST_FOREACH gives a const pointer, which we can't modify.
+            // We must use a manual loop over the list we allocated ourselves.
+            for (uint32_t j = 0; j < new_list->num_types; j++) {
+                zend_type *list_type = &new_list->types[j];
+                if (ZEND_TYPE_HAS_NAME(*list_type)) {
+                    zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), 1);
+                    ZEND_TYPE_SET_PTR(*list_type, name);
+                }
+            }
+#else
             zend_type *list_type;
             ZEND_TYPE_LIST_FOREACH(new_list, list_type) {
                 zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), true);
                 ZEND_TYPE_SET_PTR(*list_type, name);
             }
             ZEND_TYPE_LIST_FOREACH_END();
+#endif
         } else if (ZEND_TYPE_HAS_NAME(arg_info[i].type)) {
             zend_string *name = zend_string_dup(ZEND_TYPE_NAME(arg_info[i].type), true);
             ZEND_TYPE_SET_PTR(new_arg_info[i].type, name);
