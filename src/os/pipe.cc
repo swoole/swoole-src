@@ -31,6 +31,8 @@ Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
         swoole_sys_warning("pipe() failed");
         return;
     }
+    // socks[0]: (read end)
+    // socks[1]: (write end)
     init_socket(socks[1], socks[0]);
 }
 

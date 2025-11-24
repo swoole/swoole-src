@@ -1060,3 +1060,12 @@ TEST(client, ssl_recv_timeout) {
     ASSERT_EQ(c.connect(TEST_HTTP_DOMAIN, 443, 1.0), SW_OK);
     test_recv_timeout(c);
 }
+
+TEST(client, sync_nonblock) {
+	Client cli(SW_SOCK_TCP, false);
+	ASSERT_NE(cli.socket, nullptr);
+	auto rv = cli.connect(TEST_HTTP_DOMAIN, 80, -1, 1);
+	ASSERT_EQ(rv, -1);
+	ASSERT_EQ(errno, EINPROGRESS);
+	ASSERT_TRUE(cli.async_connect);
+}

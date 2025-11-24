@@ -63,7 +63,7 @@ static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     auto socket_iterator = socket_map.find(sockfd);
     if (socket_iterator == socket_map.end()) {
-    	errno = ENOTSOCK;
+        errno = ENOTSOCK;
         return nullptr;
     }
     return socket_iterator->second;
@@ -71,14 +71,18 @@ static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
 
 static sw_inline std::shared_ptr<Socket> get_socket_ex(int sockfd) {
     if (sw_unlikely(is_no_coro())) {
-    	errno = EWOULDBLOCK;
-    	return nullptr;
+        errno = EWOULDBLOCK;
+        return nullptr;
     }
     return get_socket(sockfd);
 }
 
 std::shared_ptr<Socket> swoole_coroutine_get_socket_object(int sockfd) {
     return get_socket(sockfd);
+}
+
+std::shared_ptr<Socket> swoole_coroutine_get_socket_object_ex(int sockfd) {
+    return get_socket_ex(sockfd);
 }
 
 SW_EXTERN_C_BEGIN
@@ -150,7 +154,7 @@ int swoole_coroutine_accept(int sockfd, struct sockaddr *addr, socklen_t *addrle
 
     auto conn = socket->accept(0);
     if (!conn) {
-    	return -1;
+        return -1;
     }
 
     *addrlen = conn->get_socket()->info.len;

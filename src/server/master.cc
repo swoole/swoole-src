@@ -1839,6 +1839,7 @@ int Server::add_systemd_socket() {
         ptr.release();
         check_port_type(ls);
         ports.push_back(ls);
+        ls->object_id = ports.size();
         count++;
     }
 
