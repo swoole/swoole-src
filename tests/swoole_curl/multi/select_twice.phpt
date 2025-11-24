@@ -25,8 +25,15 @@ run(function () {
 });
 ?>
 --EXPECTF--
-Fatal error: Uncaught Swoole\Error: cURL is executing, cannot be operated in %s:%d
+Fatal error: Uncaught Swoole\Error: This cURL handle is currently executing in coroutine#%d, cannot be operated in %s:%d
 Stack trace:
 #0 %s(%d): curl_multi_select(%s)
 %A
   thrown in %s on line %d
+
+ [Coroutine-%d] Stack trace:
+ -------------------------------------------------------------------
+#0 %s(%d): curl_multi_select(Object(CurlMultiHandle))
+#1 %s(%d): swoole_test_curl_multi_ex(Object(CurlMultiHandle), Array)
+#2 %s(%d): swoole_test_curl_multi(Array)
+#3 [internal function]: {%s}()

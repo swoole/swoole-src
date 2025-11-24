@@ -247,10 +247,6 @@ void php_swoole_client_async_minit(int module_number);
 void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
 void php_swoole_http2_client_coro_minit(int module_number);
-#ifdef HAVE_SSH2LIB
-int php_swoole_ssh2_minit(int module_number);
-void php_swoole_ssh2_minfo();
-#endif
 #ifdef SW_USE_PGSQL
 void php_swoole_pgsql_minit(int module_number);
 #endif
@@ -350,9 +346,6 @@ void php_swoole_sqlite_mshutdown();
 #endif
 #ifdef SW_USE_FIREBIRD
 void php_swoole_firebird_mshutdown();
-#endif
-#ifdef HAVE_SSH2LIB
-int php_swoole_ssh2_mshutdown();
 #endif
 
 static sw_inline size_t php_swoole_get_send_data(zval *zdata, char **str) {

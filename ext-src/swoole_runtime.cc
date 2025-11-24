@@ -15,6 +15,7 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_api.h"
 
 #include "swoole_socket.h"
 #include "swoole_util.h"
@@ -1819,11 +1820,11 @@ static PHP_FUNCTION(swoole_sleep) {
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_LONG(num)
-	ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END();
 
     if (num < 0) {
-		zend_argument_value_error(1, "must be greater than or equal to 0");
-		RETURN_THROWS();
+        zend_argument_value_error(1, "must be greater than or equal to 0");
+        RETURN_THROWS();
     }
 
     if (Coroutine::get_current()) {
@@ -1841,8 +1842,8 @@ static PHP_FUNCTION(swoole_usleep) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (num < 0) {
-		zend_argument_value_error(1, "must be greater than or equal to 0");
-		RETURN_THROWS();
+        zend_argument_value_error(1, "must be greater than or equal to 0");
+        RETURN_THROWS();
     }
 
     double sec = (double) num / 1000000;
@@ -1861,14 +1862,14 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
     Z_PARAM_LONG(tv_nsec)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-	if (tv_sec < 0) {
-		zend_argument_value_error(1, "must be greater than or equal to 0");
-		RETURN_THROWS();
-	}
-	if (tv_nsec < 0) {
-		zend_argument_value_error(2, "must be greater than or equal to 0");
-		RETURN_THROWS();
-	}
+    if (tv_sec < 0) {
+        zend_argument_value_error(1, "must be greater than or equal to 0");
+        RETURN_THROWS();
+    }
+    if (tv_nsec < 0) {
+        zend_argument_value_error(2, "must be greater than or equal to 0");
+        RETURN_THROWS();
+    }
 
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
     if (Coroutine::get_current()) {
@@ -1892,18 +1893,18 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
 }
 
 static PHP_FUNCTION(swoole_time_sleep_until) {
-	double target_secs;
-	const uint64_t ns_per_sec = 1000000000;
-	const double top_target_sec = (double)(UINT64_MAX / ns_per_sec);
+    double target_secs;
+    const uint64_t ns_per_sec = 1000000000;
+    const double top_target_sec = (double) (UINT64_MAX / ns_per_sec);
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_DOUBLE(target_secs)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-	if (UNEXPECTED(!(target_secs >= 0 && target_secs <= top_target_sec))) {
-		zend_argument_value_error(1, "must be between 0 and %" PRIu64, (uint64_t)top_target_sec);
-		RETURN_THROWS();
-	}
+    if (UNEXPECTED(!(target_secs >= 0 && target_secs <= top_target_sec))) {
+        zend_argument_value_error(1, "must be between 0 and %" PRIu64, (uint64_t) top_target_sec);
+        RETURN_THROWS();
+    }
 
     using namespace std::chrono;
     using dseconds = duration<double>;
@@ -1913,8 +1914,8 @@ static PHP_FUNCTION(swoole_time_sleep_until) {
     const auto target_time = system_clock::time_point(target_duration);
 
     if (target_time <= now) {
-    	php_error_docref(NULL, E_WARNING, "Argument #1 ($timestamp) must be greater than or equal to the current time");
-		RETURN_FALSE;
+        php_error_docref(NULL, E_WARNING, "Argument #1 ($timestamp) must be greater than or equal to the current time");
+        RETURN_FALSE;
     }
 
     const auto sleep_duration = target_time - now;
@@ -2204,6 +2205,84 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
     }
 
     return stream;
+}
+
+zend_string *php_async_socket_error_str(long err) {
+    const char *errstr = swoole_strerror(err);
+    return zend_string_init(errstr, strlen(errstr), 0);
+}
+
+int php_async_socket_connect_to_host(const char *host,
+                                     unsigned short port,
+                                     int socktype,
+                                     int asynchronous,
+                                     struct timeval *timeout,
+                                     zend_string **error_string,
+                                     int *error_code,
+                                     const char *bindto,
+                                     unsigned short bindport,
+                                     long sockopts) {
+    if (!swoole_coroutine_is_in()) {
+        php_swoole_fatal_error(E_WARNING, "This API must be called in coroutine");
+        return -1;
+    }
+
+    auto domain = swoole::network::Address::verify_ip(AF_INET6, host) ? AF_INET6 : AF_INET;
+    auto sock = swoole_coroutine_socket(domain, SOCK_STREAM, 0);
+    if (sock < 0) {
+        return -1;
+    }
+
+    auto sockobj = swoole_coroutine_get_socket_object(sock);
+    if (bindto) {
+        if (!sockobj->bind(bindto, bindport)) {
+            php_swoole_fatal_error(E_WARNING,
+                                   "Failed to bind to '%s:%d', system said: %s",
+                                   bindto,
+                                   bindport,
+                                   swoole_strerror(sockobj->errCode));
+        }
+    }
+
+#ifdef SO_BROADCAST
+    if (sockopts & STREAM_SOCKOP_SO_BROADCAST) {
+        sockobj->set_option(SOL_SOCKET, SO_BROADCAST, 1);
+    }
+#endif
+
+#ifdef TCP_NODELAY
+    if (sockopts & STREAM_SOCKOP_TCP_NODELAY) {
+        sockobj->set_option(IPPROTO_TCP, TCP_NODELAY, 1);
+    }
+#endif
+
+    if (timeout) {
+        sockobj->set_timeout(timeout, SW_TIMEOUT_ALL);
+    }
+
+    if (!sockobj->connect(host, port)) {
+        if (error_code) {
+            *error_code = sockobj->errCode;
+        }
+        if (error_string) {
+            *error_string = php_async_socket_error_str(sockobj->errCode);
+        }
+        if (sockobj->errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED) {
+            php_swoole_fatal_error(E_WARNING, "getaddrinfo for '%s' failed, error: %s", host, sockobj->get_err());
+        }
+        swoole_coroutine_close(sock);
+        return -1;
+    }
+
+    return sock;
+}
+
+int php_async_socket_poll(php_socket_t fd, int events, int timeout) {
+    auto sockobj = swoole_coroutine_get_socket_object(fd);
+    if (!sockobj) {
+        return -1;
+    }
+    return sockobj->poll(events & POLLOUT ? SW_EVENT_WRITE : SW_EVENT_READ, timeout / 1000.0);
 }
 
 php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC) {

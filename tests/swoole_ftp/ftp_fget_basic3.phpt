@@ -1,0 +1,30 @@
+--TEST--
+Testing ftp_fget resume parameter
+--CREDITS--
+Rodrigo Moyle <eu [at] rodrigorm [dot] com [dot] br>
+#testfest PHPSP on 2009-06-20
+--FILE--
+<?php
+$fn = require 'server.inc';
+
+Co\run(function () use ($fn) {
+    $ftp = ftp_connect('127.0.0.1', $fn());
+    ftp_login($ftp, 'user', 'pass');
+    if (!$ftp) die("Couldn't connect to the server");
+
+    $local_file = __DIR__ . DIRECTORY_SEPARATOR . "ftp_fget_basic3.txt";
+    file_put_contents($local_file, 'ASCIIFoo');
+    $handle = fopen($local_file, 'a');
+
+    var_dump(ftp_fget($ftp, $handle, 'fgetresume.txt', FTP_ASCII, 8));
+    var_dump(file_get_contents($local_file));
+});
+?>
+--CLEAN--
+<?php
+@unlink(__DIR__ . DIRECTORY_SEPARATOR . "ftp_fget_basic3.txt");
+?>
+--EXPECT--
+bool(true)
+string(12) "ASCIIFooBar
+"

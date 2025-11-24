@@ -25,6 +25,7 @@ option="--enable-brotli \
        --with-swoole-odbc=unixODBC,/usr \
        --with-swoole-oracle=instantclient,/usr/local/instantclient \
        --with-swoole-ssh2 \
+       --enable-swoole-ftp \
        --enable-swoole-sqlite"
 
 if [ "$SWOOLE_THREAD" = 1 ]; then
