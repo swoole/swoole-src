@@ -172,6 +172,7 @@ struct ServerPortGS {
 };
 
 struct ListenPort {
+    uint16_t object_id;
     /**
      * tcp socket listen backlog
      */

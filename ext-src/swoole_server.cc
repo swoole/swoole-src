@@ -168,7 +168,7 @@ zval *php_swoole_server_zval_ptr(Server *serv) {
 
 ServerPortProperty *php_swoole_server_get_port_property(ListenPort *port) {
 #ifdef SW_THREAD
-    return swoole_server_port_properties.at(port->socket->get_fd());
+    return swoole_server_port_properties.at(port->object_id);
 #else
     return (ServerPortProperty *) port->ptr;
 #endif
@@ -176,10 +176,10 @@ ServerPortProperty *php_swoole_server_get_port_property(ListenPort *port) {
 
 void php_swoole_server_set_port_property(ListenPort *port, ServerPortProperty *property) {
 #ifdef SW_THREAD
-    if (swoole_server_port_properties.size() < (size_t) port->socket->get_fd() + 1) {
-        swoole_server_port_properties.resize((size_t) port->socket->get_fd() + 1);
+    if (swoole_server_port_properties.size() < (size_t) port->object_id + 1) {
+        swoole_server_port_properties.resize((size_t) port->object_id + 1);
     }
-    swoole_server_port_properties[port->socket->get_fd()] = property;
+    swoole_server_port_properties[port->object_id] = property;
 #else
     port->ptr = property;
 #endif
