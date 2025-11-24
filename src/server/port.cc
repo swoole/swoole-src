@@ -30,6 +30,7 @@ using swoole::network::Socket;
 namespace swoole {
 
 ListenPort::ListenPort(Server *server) {
+	object_id = 0;
     protocol.package_length_type = 'N';
     protocol.package_length_size = 4;
     protocol.package_body_offset = 4;
