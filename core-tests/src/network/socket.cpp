@@ -801,3 +801,53 @@ TEST(socket, catch_error) {
 
     ASSERT_EQ(fake_sock.catch_write_error(ENOBUFS), SW_WAIT);
 }
+
+TEST(socket, misc) {
+    auto sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_TRUE(sock->set_nonblock());
+    ASSERT_EQ(sock->get_out_buffer_length(), 0);
+    ASSERT_TRUE(sock->set_block());
+    ASSERT_GT(sock->get_fd(), 0);
+    ASSERT_EQ(sock->connect(TEST_HTTP_DOMAIN, 80), 0);
+    ASSERT_EQ(sock->get_name(), 0);
+    ASSERT_GT(sock->get_port(), 1024);
+
+    auto fd = sock->get_fd();
+    auto sock_fd = sock->move_fd();
+    ASSERT_EQ(fd, sock_fd);
+    ASSERT_EQ(sock->get_fd(), -1);
+
+    ASSERT_EQ(sock->catch_write_pipe_error(EMSGSIZE), SW_REDUCE_SIZE);
+    ASSERT_FALSE(sock->kernel_nobufs);
+
+    ASSERT_EQ(sock->catch_write_pipe_error(ENOBUFS), SW_REDUCE_SIZE);
+    ASSERT_TRUE(sock->kernel_nobufs);
+
+    ASSERT_EQ(sock->catch_write_error(EAGAIN), sock->catch_write_pipe_error(EAGAIN));
+
+    delete sock;
+
+    ASSERT_TRUE(network::Socket::is_dgram(SW_SOCK_UDP));
+    ASSERT_FALSE(network::Socket::is_dgram(SW_SOCK_TCP6));
+
+    ASSERT_TRUE(network::Socket::is_stream(SW_SOCK_TCP));
+    ASSERT_FALSE(network::Socket::is_stream(SW_SOCK_UDP));
+
+    ASSERT_TRUE(network::Socket::is_inet6(SW_SOCK_UDP6));
+    ASSERT_FALSE(network::Socket::is_inet6(SW_SOCK_UDP));
+
+    int fds[2];
+    ASSERT_EQ(pipe(fds), 0);
+
+    network::Socket sock1{};
+    sock1.fd = fds[1];
+
+    network::Socket sock2{};
+    sock2.fd = fds[0];
+
+    ASSERT_EQ(sock1.write(test_data, strlen(test_data)), strlen(test_data));
+
+    char rbuf[128];
+    ASSERT_EQ(sock2.read(rbuf, sizeof(rbuf)), strlen(test_data));
+    ASSERT_MEMEQ(test_data, rbuf, strlen(test_data));
+}

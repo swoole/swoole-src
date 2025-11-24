@@ -1564,3 +1564,13 @@ TEST(coroutine_socket, set_error) {
     ASSERT_EQ(sock.errCode, 1000);
     ASSERT_STREQ(sock.errMsg, TEST_STR);
 }
+
+TEST(coroutine_socket, reinit) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP6);
+        ASSERT_EQ(sock.get_sock_domain(), AF_INET6);
+        proxy_set_socks5_proxy(sock, TEST_SOCKS5_PROXY_PORT, true);
+        sock.connect("::1", 80);
+        ASSERT_EQ(sock.get_sock_domain(), AF_INET);
+    });
+}

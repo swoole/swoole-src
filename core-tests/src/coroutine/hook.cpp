@@ -749,3 +749,32 @@ TEST(coroutine_hook, ftruncate) {
         swoole_coroutine_close(fd);
     });
 }
+
+TEST(coroutine_hook, get_socket_fail) {
+    {
+        auto rs = swoole_coroutine_get_socket_object(999);
+        ASSERT_EQ(errno, ENOTSOCK);
+        ASSERT_EQ(rs, nullptr);
+    }
+
+    {
+        int fd;
+        coroutine::run([&](void *arg) {
+            fd = swoole_coroutine_socket(AF_INET, SOCK_STREAM, 0);
+            ASSERT_GT(errno, 0);
+        });
+
+        auto rs = swoole_coroutine_get_socket_object_ex(fd);
+        ASSERT_EQ(errno, EWOULDBLOCK);
+        ASSERT_EQ(rs, nullptr);
+        swoole_coroutine_close(fd);
+    }
+}
+
+TEST(coroutine_hook, create_socket_fail) {
+    coroutine::run([&](void *arg) {
+        int fd = swoole_coroutine_socket(AF_INET + 99, SOCK_CLOEXEC, 0);
+        ASSERT_EQ(fd, -1);
+        ASSERT_EQ(errno, EAFNOSUPPORT);
+    });
+}

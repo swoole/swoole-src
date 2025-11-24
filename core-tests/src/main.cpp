@@ -127,6 +127,10 @@ int get_random_port() {
     return TEST_PORT + swoole_random_int() % 10000;
 }
 
+bool is_valid_fd(int fd) {
+	return fcntl(fd, F_GETFD) != -1;
+}
+
 int wait_all_child_processes(bool verbose) {
     pid_t pid;
     int status;

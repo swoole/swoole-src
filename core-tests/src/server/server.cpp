@@ -1440,9 +1440,15 @@ TEST(server, dtls) {
 
     auto port = serv.add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
     ASSERT_NE(port, nullptr);
+    ASSERT_TRUE(port->is_dgram());
+    ASSERT_EQ(port->object_id, 1);
+    ASSERT_TRUE(test::is_valid_fd(port->get_fd()));
 
     auto port6 = serv.add_port((enum swSocketType)(SW_SOCK_UDP6 | SW_SOCK_SSL), TEST_HOST6, 0);
     ASSERT_NE(port6, nullptr);
+    ASSERT_TRUE(port->is_dgram());
+    ASSERT_EQ(port6->object_id, 2);
+    ASSERT_TRUE(test::is_valid_fd(port6->get_fd()));
 
     port->set_ssl_cert_file(test::get_ssl_dir() + "/server.crt");
     port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
@@ -3107,6 +3113,8 @@ TEST(server, eof_check) {
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
+    ASSERT_TRUE(port->is_stream());
+
     port->set_eof_protocol("\r\n", true);
     ASSERT_EQ(serv.create(), SW_OK);
 

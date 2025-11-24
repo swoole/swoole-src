@@ -96,6 +96,7 @@ int get_random_port();
 int has_threads();
 int has_child_processes();
 int wait_all_child_processes(bool verbose = false);
+bool is_valid_fd(int fd);
 
 pid_t spawn_exec(const std::function<void(void)> &fn);
 int spawn_exec_and_wait(const std::function<void(void)> &fn);

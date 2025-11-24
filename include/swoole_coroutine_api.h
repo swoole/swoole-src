@@ -86,7 +86,9 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp);
 int swoole_coroutine_closedir(DIR *dirp);
 
 /**
- * socket
+ * socket API
+ * The `bind()` and `listen()` functions do not block IO waiting,
+ * so the original functions can be used directly without the need for hooks.
  */
 int swoole_coroutine_socket(int domain, int type, int protocol);
 int swoole_coroutine_socket_create(int fd);
