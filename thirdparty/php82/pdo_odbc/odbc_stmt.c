@@ -17,7 +17,7 @@
 #define SW_USE_ODBC_HOOK
 #include "php_swoole_odbc.h"
 
-#if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80300
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -26,7 +26,7 @@
 
 enum pdo_odbc_conv_result { PDO_ODBC_CONV_NOT_REQUIRED, PDO_ODBC_CONV_OK, PDO_ODBC_CONV_FAIL };
 
-static int pdo_odbc_sqltype_is_unicode(pdo_odbc_stmt *S, SWORD sqltype) {
+static int pdo_odbc_sqltype_is_unicode(pdo_odbc_stmt *S, SQLSMALLINT sqltype) {
     if (!S->assume_utf8) return 0;
     switch (sqltype) {
 #ifdef SQL_WCHAR
@@ -277,7 +277,7 @@ static int odbc_stmt_execute(pdo_stmt_t *stmt) {
 static int odbc_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_data *param, enum pdo_param_event event_type) {
     pdo_odbc_stmt *S = (pdo_odbc_stmt *) stmt->driver_data;
     RETCODE rc;
-    SWORD sqltype = 0, ctype = 0, scale = 0, nullable = 0;
+    SQLSMALLINT sqltype = 0, ctype = 0, scale = 0, nullable = 0;
     SQLULEN precision = 0;
     pdo_odbc_param *P;
     zval *parameter;
@@ -559,7 +559,7 @@ static int odbc_stmt_describe(pdo_stmt_t *stmt, int colno) {
     pdo_odbc_stmt *S = (pdo_odbc_stmt *) stmt->driver_data;
     struct pdo_column_data *col = &stmt->columns[colno];
     RETCODE rc;
-    SWORD colnamelen;
+    SQLSMALLINT colnamelen;
     SQLULEN colsize;
     SQLLEN displaysize = 0;
 
@@ -686,11 +686,12 @@ static int odbc_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, enum pdo
                 rc = SQLGetData(
                     S->stmt, colno + 1, C->is_unicode ? SQL_C_BINARY : SQL_C_CHAR, buf2, 256, &C->fetched_len);
 
-                /* adjust `used` in case we have length info from the driver */
+                /* adjust `used` in case we have proper length info from the driver */
                 if (orig_fetched_len >= 0 && C->fetched_len >= 0) {
                     SQLLEN fixed_used = orig_fetched_len - C->fetched_len;
-                    ZEND_ASSERT(fixed_used <= used + 1);
-                    used = fixed_used;
+                    if (fixed_used <= used + 1) {
+                        used = fixed_used;
+                    }
                 }
 
                 /* resize output buffer and reassemble block */

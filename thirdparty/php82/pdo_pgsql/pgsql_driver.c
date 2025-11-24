@@ -19,7 +19,7 @@
 #define SW_USE_PGSQL_HOOK
 #include "php_swoole_pgsql.h"
 
-#if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80300
 
 #include "php.h"
 #include "php_ini.h"
@@ -353,11 +353,15 @@ static zend_string* pgsql_handle_quoter(pdo_dbh_t *dbh, const zend_string *unquo
 	zend_string *quoted_str;
 	pdo_pgsql_db_handle *H = (pdo_pgsql_db_handle *)dbh->driver_data;
 	size_t tmp_len;
+	int err;
 
 	switch (paramtype) {
 		case PDO_PARAM_LOB:
 			/* escapedlen returned by PQescapeBytea() accounts for trailing 0 */
 			escaped = PQescapeByteaConn(H->server, (unsigned char *)ZSTR_VAL(unquoted), ZSTR_LEN(unquoted), &tmp_len);
+			if (escaped == NULL) {
+				return NULL;
+			}
 			quotedlen = tmp_len + 1;
 			quoted = emalloc(quotedlen + 1);
 			memcpy(quoted+1, escaped, quotedlen-2);
@@ -369,7 +373,11 @@ static zend_string* pgsql_handle_quoter(pdo_dbh_t *dbh, const zend_string *unquo
 		default:
 			quoted = safe_emalloc(2, ZSTR_LEN(unquoted), 3);
 			quoted[0] = '\'';
-			quotedlen = PQescapeStringConn(H->server, quoted + 1, ZSTR_VAL(unquoted), ZSTR_LEN(unquoted), NULL);
+			quotedlen = PQescapeStringConn(H->server, quoted + 1, ZSTR_VAL(unquoted), ZSTR_LEN(unquoted), &err);
+			if (err) {
+				efree(quoted);
+				return NULL;
+			}
 			quoted[quotedlen + 1] = '\'';
 			quoted[quotedlen + 2] = '\0';
 			quotedlen += 2;
@@ -463,53 +471,33 @@ static int pdo_pgsql_get_attribute(pdo_dbh_t *dbh, zend_long attr, zval *return_
 		case PDO_ATTR_CONNECTION_STATUS:
 			switch (PQstatus(H->server)) {
 				case CONNECTION_STARTED:
-					ZVAL_STRINGL(return_value, "Waiting for connection to be made.", strlen("Waiting for connection to be made."));
+					ZVAL_STRINGL(return_value, "Waiting for connection to be made.", sizeof("Waiting for connection to be made.")-1);
 					break;
 
 				case CONNECTION_MADE:
 				case CONNECTION_OK:
-					ZVAL_STRINGL(return_value, "Connection OK; waiting to send.", strlen("Connection OK; waiting to send."));
+					ZVAL_STRINGL(return_value, "Connection OK; waiting to send.", sizeof("Connection OK; waiting to send.")-1);
 					break;
 
 				case CONNECTION_AWAITING_RESPONSE:
-					ZVAL_STRINGL(return_value, "Waiting for a response from the server.", strlen("Waiting for a response from the server."));
+					ZVAL_STRINGL(return_value, "Waiting for a response from the server.", sizeof("Waiting for a response from the server.")-1);
 					break;
 
 				case CONNECTION_AUTH_OK:
-					ZVAL_STRINGL(return_value, "Received authentication; waiting for backend start-up to finish.", strlen("Received authentication; waiting for backend start-up to finish."));
+					ZVAL_STRINGL(return_value, "Received authentication; waiting for backend start-up to finish.", sizeof("Received authentication; waiting for backend start-up to finish.")-1);
 					break;
 #ifdef CONNECTION_SSL_STARTUP
 				case CONNECTION_SSL_STARTUP:
-					ZVAL_STRINGL(return_value, "Negotiating SSL encryption.", strlen("Negotiating SSL encryption."));
+					ZVAL_STRINGL(return_value, "Negotiating SSL encryption.", sizeof("Negotiating SSL encryption.")-1);
 					break;
 #endif
 				case CONNECTION_SETENV:
-					ZVAL_STRINGL(return_value, "Negotiating environment-driven parameter settings.", strlen("Negotiating environment-driven parameter settings."));
+					ZVAL_STRINGL(return_value, "Negotiating environment-driven parameter settings.", sizeof("Negotiating environment-driven parameter settings.")-1);
 					break;
 
-#ifdef CONNECTION_CONSUME
-				case CONNECTION_CONSUME:
-					ZVAL_STRINGL(return_value, "Flushing send queue/consuming extra data.", strlen("Flushing send queue/consuming extra data."));
-					break;
-#endif
-#ifdef CONNECTION_GSS_STARTUP
-				case CONNECTION_SSL_STARTUP:
-					ZVAL_STRINGL(return_value, "Negotiating GSSAPI.", strlen("Negotiating GSSAPI."));
-					break;
-#endif
-#ifdef CONNECTION_CHECK_TARGET
-				case CONNECTION_CHECK_TARGET:
-					ZVAL_STRINGL(return_value, "Connection OK; checking target server properties.", strlen("Connection OK; checking target server properties."));
-					break;
-#endif
-#ifdef CONNECTION_CHECK_STANDBY
-				case CONNECTION_CHECK_STANDBY:
-					ZVAL_STRINGL(return_value, "Connection OK; checking if server in standby.", strlen("Connection OK; checking if server in standby."));
-					break;
-#endif
 				case CONNECTION_BAD:
 				default:
-					ZVAL_STRINGL(return_value, "Bad connection.", strlen("Bad connection."));
+					ZVAL_STRINGL(return_value, "Bad connection.", sizeof("Bad connection.")-1);
 					break;
 			}
 			break;

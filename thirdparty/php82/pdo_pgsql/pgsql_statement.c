@@ -19,7 +19,7 @@
 #define SW_USE_PGSQL_HOOK
 #include "php_swoole_pgsql.h"
 
-#if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80300
 
 #include "php.h"
 #include "php_ini.h"

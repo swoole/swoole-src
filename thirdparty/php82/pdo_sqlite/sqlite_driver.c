@@ -16,7 +16,7 @@
 #define SW_USE_SQLITE_HOOK
 #include "php_swoole_sqlite.h"
 
-#if PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80300
+#if PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80300
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -711,7 +711,7 @@ static char *make_filename_safe(const char *filename) {
         }
         return estrdup(filename);
     }
-    if (*filename && memcmp(filename, ":memory:", sizeof(":memory:"))) {
+    if (*filename && strcmp(filename, ":memory:")) {
         char *fullpath = expand_filepath(filename, NULL);
 
         if (!fullpath) {
@@ -731,15 +731,6 @@ static int authorizer(
     void *autharg, int access_type, const char *arg3, const char *arg4, const char *arg5, const char *arg6) {
     char *filename;
     switch (access_type) {
-    case SQLITE_COPY: {
-        filename = make_filename_safe(arg4);
-        if (!filename) {
-            return SQLITE_DENY;
-        }
-        efree(filename);
-        return SQLITE_OK;
-    }
-
     case SQLITE_ATTACH: {
         filename = make_filename_safe(arg3);
         if (!filename) {
