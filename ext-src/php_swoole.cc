@@ -382,6 +382,8 @@ void php_swoole_register_shutdown_function(const char *function) {
 #else
     php_shutdown_function_entry shutdown_function_entry;
     zval function_name;
+    // In the user_shutdown_function_dtor function, the memory for the function name will be released,
+    // so must not free it manually here.
     ZVAL_STRING(&function_name, function);
     zend_fcall_info_init(
         &function_name, 0, &shutdown_function_entry.fci, &shutdown_function_entry.fci_cache, nullptr, nullptr);
