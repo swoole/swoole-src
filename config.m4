@@ -1568,6 +1568,7 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/ssh2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php85/pdo_firebird)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
 
     if test "$PHP_NGHTTP2_DIR" = "no"; then

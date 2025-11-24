@@ -40,7 +40,7 @@ jobs:
           php --ri swoole
 
       - name: Laravel Octane Tests
-        if: matrix.framework == 'Laravel Octane' && matrix.php-version != '8.1'
+        if: matrix.framework == 'Laravel Octane'
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
           cd octane/
@@ -86,7 +86,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: [ '8.1', '8.2', '8.3' ]
+        php-version: [ '8.2', '8.3', '8.4', '8.5' ]
         framework: [ 'Simps' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }} - macOS
     steps:

@@ -39,9 +39,9 @@ static void swoole_php_treat_data(int arg, char *str, zval *destArray) {
     switch (arg) {
     case PARSE_STRING:
 #if PHP_VERSION_ID >= 80500
-    	separator = ZSTR_VAL(PG(arg_separator).input);
+        separator = ZSTR_VAL(PG(arg_separator).input);
 #else
-    	separator = PG(arg_separator).input;
+        separator = PG(arg_separator).input;
 #endif
         break;
     case PARSE_COOKIE:
