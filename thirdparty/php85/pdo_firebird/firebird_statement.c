@@ -24,7 +24,6 @@
 #include "ext/standard/info.h"
 #include "ext/pdo/php_pdo.h"
 #include "ext/pdo/php_pdo_driver.h"
-#include "php_pdo_firebird.h"
 #include "php_pdo_firebird_int.h"
 #include "pdo_firebird_utils.h"
 

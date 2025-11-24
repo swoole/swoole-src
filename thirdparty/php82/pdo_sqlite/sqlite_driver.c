@@ -21,8 +21,8 @@
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "pdo/php_pdo.h"
-#include "zend_exceptions.h"
 #include "sqlite_driver_arginfo.h"
+#include "zend_exceptions.h"
 
 int _pdo_sqlite_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int line) /* {{{ */
 {

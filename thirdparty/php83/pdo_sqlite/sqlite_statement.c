@@ -21,6 +21,7 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
+#include "php_pdo_sqlite_int.h"
 #include "pdo/php_pdo.h"
 
 static int pdo_sqlite_stmt_dtor(pdo_stmt_t *stmt) {
