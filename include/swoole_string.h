@@ -27,15 +27,8 @@
 #define SW_STRINGCVL(s) s->str + s->offset, s->length - s->offset
 // append value
 #define SW_STRINGAVL(s) s->str + s->length, s->size - s->length
-/**
- * This function does not automatically expand memory;
- * ensure that the value to be written is less than the actual remaining capacity (size-length).
- * If the size of the value cannot be determined, should use the String::format() function.
- */
-#define SW_STRING_FORMAT(s, format, ...) s->length += sw_snprintf(SW_STRINGAVL(s), format, ##__VA_ARGS__)
 
 namespace swoole {
-
 typedef std::function<bool(const char *, size_t)> StringExplodeHandler;
 
 class String {
@@ -251,9 +244,15 @@ class String {
         return n;
     }
 
+    // This function replaces the entire string instead of appending content.
     template <typename... Args>
     size_t format(const char *format, Args... args) {
         return format_impl(0, format, args...);
+    }
+
+    template <typename... Args>
+    size_t append_format(const char *format, Args... args) {
+        return format_impl(FORMAT_APPEND, format, args...);
     }
 
     char *pop(size_t init_size);
