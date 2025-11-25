@@ -35,7 +35,7 @@ function switch_process(): void
 
 function clear_php()
 {
-    `ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
+    shell_exec("ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1");
 }
 
 function puts($msg)
@@ -91,7 +91,7 @@ function get_one_free_port(): int
 {
     /**
      * The Swoole coroutine socket delays releasing file descriptors (fd),
-     * which prevents ports from being released immediately. 
+     * which prevents ports from being released immediately.
      * Therefore, it is essential to disable runtime hooks.
      */
     $flags = Runtime::getHookFlags();

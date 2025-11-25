@@ -888,7 +888,7 @@ More .INIs  : " , (function_exists(\'php_ini_scanned_files\') ? str_replace("\n"
     $info_params = array();
     settings2array($ini_overwrites, $info_params);
     $info_params = settings2params($info_params);
-    $php_info = `$php $pass_options $info_params $no_file_cache \"$info_file\"`;
+    $php_info = shell_exec("$php $pass_options $info_params $no_file_cache \"$info_file\"");
     define('TESTED_PHP_VERSION', shell_exec("$php -n -r \"echo PHP_VERSION;\""));
 
     if ($php_cgi && $php != $php_cgi) {

@@ -9,7 +9,7 @@ define('SWOOLE_COLOR_WHITE', 7);
 
 skip(
     'Linux only',
-    substr(PHP_OS, 0, 3) === 'WIN',
+    str_starts_with(PHP_OS, 'WIN'),
     SWOOLE_COLOR_RED
 );
 skip(
@@ -26,8 +26,8 @@ skip(
 (function () {
     global $argv;
     skip_if_php_version_lower_than('7.0');
-    if (!getenv('PHPT') && substr($argv[0], -4) === '.php') {
-        skip('please read ' . dirname(dirname(__FILE__)) . '/README.md and try again');
+    if (!getenv('PHPT') && str_ends_with($argv[0], '.php')) {
+        skip('please read ' . dirname(__FILE__, 2) . '/README.md and try again');
     }
     if (preg_match('#/(swoole_[^/]+)/#', $_SERVER['SCRIPT_FILENAME'], $dir)) {
         $dir = $dir[1];
@@ -85,7 +85,7 @@ function skip_if_ini_bool_equal_to(string $name, bool $value)
 
 function skip_if_no_nghttp(): void
 {
-    if (!str_contains(`nghttp --version 2>&1`, 'nghttp2')) {
+    if (!str_contains(shell_exec("nghttp --version 2>&1"), 'nghttp2')) {
         skip('no nghttp');
     }
 }
@@ -118,7 +118,7 @@ function skip_if_file_not_exist(string $filename)
 
 function skip_if_command_not_found(string $command)
 {
-    skip("command {$command} not found", empty(`{$command} --help 2>&1 | grep -i usage`));
+    skip("command {$command} not found", empty(shell_exec("{$command} --help 2>&1 | grep -i usage")));
 }
 
 function skip_if_no_ssl()
@@ -131,7 +131,7 @@ function skip_if_no_ssl()
 function skip_if_openssl_version_lower_than($version = '1.0.0')
 {
     skip_if_no_ssl();
-    $exist = preg_match('/openssl => openssl ([\d\.]+)/i', `php --ri swoole`, $match);
+    $exist = preg_match('/openssl => openssl ([\d\.]+)/i', shell_exec("php --ri swoole"), $match);
     assert($exist);
     if (version_compare($match[1], $version, '<')) {
         skip("openssl version {$match[1]} is lower than {$version}");
@@ -152,8 +152,8 @@ function skip_if_no_ipv6()
 function skip_if_no_top()
 {
     skip_if_darwin();
-    skip('top provided by busybox (not support)', !empty(`top --help 2>&1 | grep -i busybox`));
-    skip('no top', empty(`top help 2>&1 | grep -i usage`));
+    skip('top provided by busybox (not support)', !empty(shell_exec("top --help 2>&1 | grep -i busybox")));
+    skip('no top', empty(shell_exec("top help 2>&1 | grep -i usage")));
 }
 
 function skip_if_darwin()
@@ -183,7 +183,7 @@ function skip_if_not_linux()
 
 function skip_if_musl_libc()
 {
-    skip('not support when use musl libc', !empty(`ldd 2>&1 | grep -i musl`));
+    skip('not support when use musl libc', !empty(shell_exec("ldd 2>&1 | grep -i musl")));
 }
 
 function skip_if_no_process_affinity()

@@ -376,7 +376,8 @@ void php_swoole_register_shutdown_function(const char *function) {
         .param_count = 0,
     };
     auto fn_len = strlen(function);
-    auto fn_entry = (zend_function *) zend_hash_str_find_ptr(CG(function_table), function, fn_len);
+    auto fn_entry = (zend_function *) zend_hash_str_find_ptr(EG(function_table), function, fn_len);
+    assert(fn_entry);
     shutdown_function_entry.fci_cache.function_handler = fn_entry;
     register_user_shutdown_function(function, fn_len, &shutdown_function_entry);
 #else
