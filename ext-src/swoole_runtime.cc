@@ -157,6 +157,12 @@ static std::vector<std::string> unsafe_functions {
     "pcntl_waitpid",
     "pcntl_sigtimedwait",
     "pcntl_sigwaitinfo",
+	"mail",
+	"dns_check_record",
+	"dns_get_mx",
+	"dns_get_record",
+	"gethostbyaddr",
+	"gethostbynamel",
 };
 
 #if defined(HAVE_PUTENV) && defined(SW_THREAD)
@@ -324,7 +330,6 @@ struct PhpFunc {
     zif_handler ori_handler;
     zend_internal_arg_info *arg_info_copy;
     uint32_t ori_fn_flags;
-    uint32_t ori_num_args;
     zend::Callable *fci_cache;
     zval name;
 };
@@ -1324,12 +1329,9 @@ static bool disable_func(const char *name, size_t l_name) {
     rf->ori_handler = zf->internal_function.handler;
     rf->ori_arg_info = zf->internal_function.arg_info;
     rf->ori_fn_flags = zf->internal_function.fn_flags;
-    rf->ori_num_args = zf->internal_function.num_args;
 
     zf->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
-    zf->internal_function.arg_info = nullptr;
-    zf->internal_function.fn_flags &= ~(ZEND_ACC_VARIADIC | ZEND_ACC_HAS_TYPE_HINTS | ZEND_ACC_HAS_RETURN_TYPE);
-    zf->internal_function.num_args = 0;
+    zf->internal_function.fn_flags = ZEND_ACC_FAKE_CLOSURE;
 
     zend_hash_add_ptr(hook_function_table, zf->common.function_name, rf);
     return true;
@@ -1342,9 +1344,7 @@ static bool enable_func(const char *name, size_t l_name) {
     }
 
     rf->function->internal_function.handler = rf->ori_handler;
-    rf->function->internal_function.arg_info = rf->ori_arg_info;
     rf->function->internal_function.fn_flags = rf->ori_fn_flags;
-    rf->function->internal_function.num_args = rf->ori_num_args;
 
     return true;
 }
@@ -1592,14 +1592,10 @@ static void hook_all_func(uint32_t flags) {
     if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
-            SW_HOOK_WITH_PHP_FUNC(exec);
-            SW_HOOK_WITH_PHP_FUNC(shell_exec);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
             SW_UNHOOK_FUNC(gethostbyname);
-            SW_UNHOOK_FUNC(exec);
-            SW_UNHOOK_FUNC(shell_exec);
         }
     }
     // ext-sockets
