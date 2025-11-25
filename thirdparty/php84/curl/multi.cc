@@ -382,7 +382,7 @@ static int _php_server_push_callback(
     php_curl *ch;
     php_curl *parent;
     php_curlm *mh = (php_curlm *) userp;
-    size_t rval = CURL_PUSH_DENY;
+    int rval = CURL_PUSH_DENY;
     zval *pz_parent_ch = NULL;
     zval pz_ch;
     zval headers;
@@ -406,6 +406,10 @@ static int _php_server_push_callback(
     }
 
     array_init(&headers);
+#if PHP_VERSION_ID >= 80500
+	zend_hash_real_init_packed(Z_ARRVAL(headers));
+#endif
+
     for (size_t i = 0; i < num_headers; i++) {
         char *header = curl_pushheader_bynum(push_headers, i);
         add_next_index_string(&headers, header);

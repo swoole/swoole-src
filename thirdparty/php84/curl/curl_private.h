@@ -93,7 +93,11 @@ struct _php_curl_send_headers {
 struct _php_curl_free {
     zend_llist post;
     zend_llist stream;
+#if PHP_VERSION_ID >= 80500
+    HashTable slist;
+#else
     HashTable *slist;
+#endif
 };
 
 typedef struct {
@@ -151,6 +155,7 @@ void swoole_curl_multi_cleanup_list(void *data);
 void swoole_curl_verify_handlers(php_curl *ch, bool reporterror);
 void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source);
 
+/* Consumes `zv` */
 zend_long swoole_curl_get_long(zval *zv);
 
 static inline php_curl *curl_from_obj(zend_object *obj) {

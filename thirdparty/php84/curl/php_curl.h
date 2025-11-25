@@ -40,6 +40,9 @@
 PHP_CURL_API extern zend_class_entry *curl_ce;
 PHP_CURL_API extern zend_class_entry *curl_share_ce;
 PHP_CURL_API extern zend_class_entry *curl_multi_ce;
+#if PHP_VERSION_ID >= 80500
+PHP_CURL_API extern zend_class_entry *curl_share_persistent_ce;
+#endif
 PHP_CURL_API extern zend_class_entry *swoole_coroutine_curl_handle_ce;
 PHP_CURL_API extern zend_class_entry *swoole_coroutine_curl_multi_handle_ce;
 PHP_CURL_API extern zend_class_entry *curl_CURLFile_class;
