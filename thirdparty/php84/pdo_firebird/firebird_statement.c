@@ -17,6 +17,8 @@
 #define SW_USE_FIREBIRD_HOOK
 #include "php_swoole_firebird.h"
 
+#if PHP_VERSION_ID < 80500
+
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -956,3 +958,5 @@ const struct pdo_stmt_methods firebird_stmt_methods = { /* {{{ */
 	pdo_firebird_stmt_cursor_closer
 };
 /* }}} */
+
+#endif

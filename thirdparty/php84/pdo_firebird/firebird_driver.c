@@ -17,6 +17,8 @@
 #define SW_USE_FIREBIRD_HOOK
 #include "php_swoole_firebird.h"
 
+#if PHP_VERSION_ID < 80500
+
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
 #endif
@@ -1434,3 +1436,5 @@ const pdo_driver_t swoole_pdo_firebird_driver = { /* {{{ */
 	pdo_firebird_handle_factory
 };
 /* }}} */
+
+#endif

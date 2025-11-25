@@ -115,7 +115,7 @@ function swoole_execute_and_check(array $commands): void
     echo "===========  Execute  ==============" . PHP_EOL;
     $command = implode(' ', $commands);
     exec($command, $output, $return_var);
-    if (substr($output[0] ?? '', 0, 2) === '#!') {
+    if (str_starts_with($output[0] ?? '', '#!')) {
         array_shift($output);
     }
     echo '> ' . implode("\n> ", $output) . "" . PHP_EOL;
@@ -161,7 +161,7 @@ function file_size(string $filename, int $decimals = 2): string
 function swoole_git_files(): array
 {
     $root = SWOOLE_SOURCE_ROOT;
-    return explode(PHP_EOL, `cd {$root} && git ls-files`);
+    return explode(PHP_EOL, shell_exec("cd {$root} && git ls-files"));
 }
 
 function swoole_source_list(array $ext_list = [], array $excepts = []): array

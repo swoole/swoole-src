@@ -40,6 +40,7 @@ BEGIN_EXTERN_C()
 #endif
 END_EXTERN_C()
 
+#include "swoole_coroutine.h"
 #include "swoole_mime_type.h"
 #include "swoole_server.h"
 #include "swoole_util.h"
@@ -368,17 +369,22 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
 }
 
 void php_swoole_register_shutdown_function(const char *function) {
-    php_shutdown_function_entry shutdown_function_entry;
 #if PHP_VERSION_ID >= 80500
-    zval function_name;
-    memset(&shutdown_function_entry, 0, sizeof(php_shutdown_function_entry));
-    ZVAL_STRING(&function_name, function);
-    shutdown_function_entry.params = NULL;
-    shutdown_function_entry.param_count = 0;
-    register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
-    zval_ptr_dtor(&function_name);
+    php_shutdown_function_entry shutdown_function_entry = {
+        .fci_cache = empty_fcall_info_cache,
+        .params = NULL,
+        .param_count = 0,
+    };
+    auto fn_len = strlen(function);
+    auto fn_entry = (zend_function *) zend_hash_str_find_ptr(EG(function_table), function, fn_len);
+    assert(fn_entry);
+    shutdown_function_entry.fci_cache.function_handler = fn_entry;
+    register_user_shutdown_function(function, fn_len, &shutdown_function_entry);
 #else
+    php_shutdown_function_entry shutdown_function_entry;
     zval function_name;
+    // In the user_shutdown_function_dtor function, the memory for the function name will be released,
+    // so must not free it manually here.
     ZVAL_STRING(&function_name, function);
     zend_fcall_info_init(
         &function_name, 0, &shutdown_function_entry.fci, &shutdown_function_entry.fci_cache, nullptr, nullptr);

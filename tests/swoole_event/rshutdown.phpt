@@ -20,5 +20,5 @@ Swoole\Timer::after(100, function () {
 
 ?>
 --EXPECTF--
-Deprecated: Swoole\Event::rshutdown(): Event::wait() in shutdown function is deprecated in Unknown on line 0
+Deprecated: swoole_event_rshutdown(): Event::wait() in shutdown function is deprecated in Unknown on line 0
 string(0) ""

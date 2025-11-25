@@ -1015,7 +1015,6 @@ EOF
     dnl firebird stop
 
 
-
     dnl ssh2 start
 
     if test "$PHP_SWOOLE_SSH2" != "no"; then
@@ -1307,10 +1306,6 @@ EOF
     swoole_source_file="${ext_src_files} ${lib_src_files}"
 
     swoole_source_file="$swoole_source_file \
-        thirdparty/php/curl/interface.cc \
-        thirdparty/php/curl/multi.cc \
-        thirdparty/php84/curl/interface.cc \
-        thirdparty/php84/curl/multi.cc \
         thirdparty/php/sockets/multicast.cc \
         thirdparty/php/sockets/sendrecvmsg.cc \
         thirdparty/php/sockets/conversions.cc \
@@ -1350,14 +1345,21 @@ EOF
     fi
 
     SW_PHP_VERSION_ID=`echo "${SW_PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
-
-    if test "$SW_PHP_VERSION_ID" = "82"; then
-        SW_PHP_THIRDPARTY_DIR="thirdparty/php81"
-    else
-        SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
-    fi
+    SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
 
     AC_MSG_NOTICE([php version: $SW_PHP_VERSION, version_id: $SW_PHP_VERSION_ID, thirdparty_dir: $SW_PHP_THIRDPARTY_DIR])
+    
+    if test "$PHP_SWOOLE_CURL" != "no"; then
+        if test "$SW_PHP_VERSION_ID" -ge "84"; then
+            swoole_source_file="$swoole_source_file \
+                thirdparty/php84/curl/interface.cc \
+                thirdparty/php84/curl/multi.cc"
+        else
+            swoole_source_file="$swoole_source_file \
+                thirdparty/php/curl/interface.cc \
+                thirdparty/php/curl/multi.cc"
+        fi
+    fi
 
     if test "$PHP_SWOOLE_PGSQL" != "no"; then
         swoole_source_file="$swoole_source_file \
@@ -1371,10 +1373,10 @@ EOF
 
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_driver.c \
-            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_statement.c"
+            thirdparty/pdo_oci/oci_driver.c \
+            thirdparty/pdo_oci/oci_statement.c"
     fi
-
+    
     if test "$PHP_SWOOLE_ODBC" != "no"; then
         swoole_source_file="$swoole_source_file \
             ${SW_PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_driver.c \
@@ -1392,10 +1394,17 @@ EOF
     fi
 
     if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
-        swoole_source_file="$swoole_source_file \
-            thirdparty/php84/pdo_firebird/firebird_driver.c \
-            thirdparty/php84/pdo_firebird/firebird_statement.c \
-            thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
+        if test "$SW_PHP_VERSION_ID" -ge "85"; then
+            swoole_source_file="$swoole_source_file \
+                thirdparty/php85/pdo_firebird/firebird_driver.c \
+                thirdparty/php85/pdo_firebird/firebird_statement.c \
+                thirdparty/php85/pdo_firebird/pdo_firebird_utils.cpp"
+        else
+            swoole_source_file="$swoole_source_file \
+                thirdparty/php84/pdo_firebird/firebird_driver.c \
+                thirdparty/php84/pdo_firebird/firebird_statement.c \
+                thirdparty/php84/pdo_firebird/pdo_firebird_utils.cpp"
+        fi
     fi
 
     if test "$PHP_SWOOLE_SSH2" != "no"; then
@@ -1566,32 +1575,23 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/ssh2)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/pdo_oci)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php85/pdo_firebird)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
 
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     fi
     if test "$PHP_SWOOLE_PGSQL" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_pgsql)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_pgsql)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_pgsql)
+        PHP_ADD_BUILD_DIR($ext_builddir/${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql)
     fi
     if test "$PHP_SWOOLE_ODBC" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_odbc)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_odbc)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_odbc)
-    fi
-    if test "$PHP_SWOOLE_ORACLE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_oci)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_oci)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_oci)
+        PHP_ADD_BUILD_DIR($ext_builddir/${SW_PHP_THIRDPARTY_DIR}/pdo_odbc)
     fi
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_sqlite)
+        PHP_ADD_BUILD_DIR($ext_builddir/${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite)
     fi
     if test "$PHP_SWOOLE_FTP" != "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/ftp)

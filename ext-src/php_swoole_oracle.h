@@ -18,6 +18,7 @@
 
 #ifndef PHP_SWOOLE_ORACLE_H
 #define PHP_SWOOLE_ORACLE_H
+
 #include "php_swoole.h"
 
 #ifdef SW_USE_ORACLE
@@ -26,17 +27,7 @@ BEGIN_EXTERN_C()
 
 #include "ext/pdo/php_pdo_driver.h"
 
-#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
-#include "thirdparty/php80/pdo_oci/php_pdo_oci_int.h"
-#elif PHP_VERSION_ID >= 80100 && PHP_VERSION_ID < 80200
-#include "thirdparty/php81/pdo_oci/php_pdo_oci_int.h"
-#elif PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80300
-#include "thirdparty/php81/pdo_oci/php_pdo_oci_int.h"
-#elif PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
-#include "thirdparty/php83/pdo_oci/php_pdo_oci_int.h"
-#else
-#include "thirdparty/php84/pdo_oci/php_pdo_oci_int.h"
-#endif
+#include "thirdparty/pdo_oci/php_pdo_oci_int.h"
 
 extern const pdo_driver_t swoole_pdo_oci_driver;
 

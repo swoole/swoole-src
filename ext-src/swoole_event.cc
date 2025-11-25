@@ -118,6 +118,11 @@ void php_swoole_event_minit(int module_number) {
                       "exit",
                       CG(function_table),
                       "swoole_event_exit",
+                      arginfo_swoole_event_exit);
+    SW_FUNCTION_ALIAS(&swoole_event_ce->function_table,
+                      "rshutdown",
+                      CG(function_table),
+                      "swoole_event_rshutdown",
                       arginfo_swoole_event_rshutdown);
 }
 
@@ -236,7 +241,7 @@ int php_swoole_reactor_init() {
             return SW_ERR;
         }
 
-        php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
+        php_swoole_register_shutdown_function("swoole_event_rshutdown");
     }
 
     if (sw_reactor() && SwooleG.user_exit_condition &&

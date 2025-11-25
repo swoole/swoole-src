@@ -26,7 +26,11 @@ BEGIN_EXTERN_C()
 
 #include "ext/pdo/php_pdo_driver.h"
 
+#if PHP_VERSION_ID < 80500
 #include "thirdparty/php84/pdo_firebird/php_pdo_firebird_int.h"
+#else
+#include "thirdparty/php85/pdo_firebird/php_pdo_firebird_int.h"
+#endif
 
 extern const pdo_driver_t swoole_pdo_firebird_driver;
 void swoole_firebird_set_blocking(bool blocking);

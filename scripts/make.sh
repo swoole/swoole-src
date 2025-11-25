@@ -17,7 +17,7 @@ COMPILE_PARAMS="--enable-openssl \
 --with-swoole-odbc=unixODBC,/usr \
 --enable-swoole-sqlite"
 
-TEMP=$(getopt -o ad --long asan,debug: -n "$0" -- "$@")
+TEMP=$(getopt -o ad --long asan,debug:,oci -n "$0" -- "$@")
 
 if [ $? != 0 ]; then
   echo "Parameter parsing failed!" >&2
@@ -34,6 +34,10 @@ while true; do
       ;;
     -d|--debug)
       DEBUG=true
+      shift
+      ;;
+    --oci)
+      OCI=true
       shift
       ;;
     --)
@@ -53,6 +57,10 @@ fi
 
 if [ "$DEBUG" = true ]; then
       COMPILE_PARAMS="$COMPILE_PARAMS --enable-debug"
+fi
+
+if [ "$OCI" = true ]; then
+      COMPILE_PARAMS="$COMPILE_PARAMS --with-swoole-oracle=instantclient,/usr/local/instantclient"
 fi
 
 if [ -n "$__HAVE_ZTS__" ]; then
