@@ -1,15 +1,15 @@
 --TEST--
 swoole_curl/multi: Bug #76675 (Segfault with H2 server push write/writeheader handlers)
 --SKIPIF--
-<?php 
+<?php
 require __DIR__ . '/../../include/skipif.inc';
 skip_if_no_database();
-if (getenv("SKIP_ONLINE_TESTS")) {
-    die("skip online test");
+if (getenv('SKIP_ONLINE_TESTS')) {
+    exit('skip online test');
 }
 $curl_version = curl_version();
-if ($curl_version['version_number'] < 0x073d00) {
-    exit("skip: test may crash with curl < 7.61.0");
+if ($curl_version['version_number'] < 0x073D00) {
+    exit('skip: test may crash with curl < 7.61.0');
 }
 ?>
 --FILE--
@@ -19,11 +19,11 @@ use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;
 
-$fn = function() {
+$fn = function () {
     $transfers = 1;
-    $callback = function($parent, $passed) use (&$transfers) {
+    $callback = function ($parent, $passed) use (&$transfers) {
         curl_setopt($passed, CURLOPT_WRITEFUNCTION, function ($ch, $data) {
-            echo "Received ".strlen($data);
+            echo 'Received ' . strlen($data);
             return strlen($data);
         });
         $transfers++;
@@ -42,11 +42,11 @@ $fn = function() {
     $active = null;
     do {
         $status = curl_multi_exec($mh, $active);
-        phpt_echo("active=$active, status=$status\n");
+        phpt_echo("active={$active}, status={$status}\n");
         do {
             $info = curl_multi_info_read($mh);
             phpt_echo($info);
-            if (false !== $info && $info['msg'] == CURLMSG_DONE) {
+            if ($info !== false && $info['msg'] == CURLMSG_DONE) {
                 $handle = $info['handle'];
                 if ($handle !== null) {
                     $transfers--;
