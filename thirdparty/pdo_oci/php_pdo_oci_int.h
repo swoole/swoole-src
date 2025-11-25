@@ -14,6 +14,11 @@
   +----------------------------------------------------------------------+
 */
 
+#ifndef PHP_PDO_OCI_INT_H
+#define PHP_PDO_OCI_INT_H
+
+#include "zend_portability.h"
+
 #include <oci.h>
 
 typedef struct {
@@ -107,3 +112,5 @@ enum {
     PDO_OCI_ATTR_MODULE,
     PDO_OCI_ATTR_CALL_TIMEOUT
 };
+
+#endif /* PHP_PDO_OCI_INT_H */

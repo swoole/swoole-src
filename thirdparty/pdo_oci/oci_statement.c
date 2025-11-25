@@ -16,9 +16,6 @@
 
 #define SW_USE_ORACLE_HOOK
 #include "php_swoole_oracle.h"
-
-#if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
-
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -45,7 +42,7 @@
         }                                                                                                              \
     } while (0)
 
-static php_stream *oci_create_lob_stream(zval *dbh, pdo_stmt_t *stmt, OCILobLocator *lob);
+static php_stream *oci_create_lob_stream(pdo_stmt_t *stmt, OCILobLocator *lob);
 
 #define OCI_TEMPLOB_CLOSE(envhp, svchp, errhp, lob)                                                                    \
     do {                                                                                                               \
@@ -94,13 +91,24 @@ static int oci_stmt_dtor(pdo_stmt_t *stmt) /* {{{ */
         S->einfo.errmsg = NULL;
     }
 
+#if PHP_API_VERSION < 20240925
+    bool server_obj_usable =
+        !Z_ISUNDEF(stmt->database_object_handle) &&
+        IS_OBJ_VALID(EG(objects_store).object_buckets[Z_OBJ_HANDLE(stmt->database_object_handle)]) &&
+        !(OBJ_FLAGS(Z_OBJ(stmt->database_object_handle)) & IS_OBJ_FREE_CALLED);
+#else
+    bool server_obj_usable = php_pdo_stmt_valid_db_obj_handle(stmt);
+#endif
+
     if (S->cols) {
         for (i = 0; i < stmt->column_count; i++) {
             if (S->cols[i].data) {
                 switch (S->cols[i].dtype) {
                 case SQLT_BLOB:
                 case SQLT_CLOB:
-                    OCI_TEMPLOB_CLOSE(S->H->env, S->H->svc, S->H->err, (OCILobLocator *) S->cols[i].data);
+                    if (server_obj_usable) {
+                        OCI_TEMPLOB_CLOSE(S->H->env, S->H->svc, S->H->err, (OCILobLocator *) S->cols[i].data);
+                    }
                     OCIDescriptorFree(S->cols[i].data, OCI_DTYPE_LOB);
                     break;
                 default:
@@ -405,7 +413,7 @@ static int oci_stmt_param_hook(pdo_stmt_t *stmt,
                      * wanted to bind a lob locator into it from the query
                      * */
 
-                    stm = oci_create_lob_stream(&stmt->database_object_handle, stmt, (OCILobLocator *) P->thing);
+                    stm = oci_create_lob_stream(stmt, (OCILobLocator *) P->thing);
                     if (stm) {
                         OCILobOpen(S->H->svc, S->err, (OCILobLocator *) P->thing, OCI_LOB_READWRITE);
                         php_stream_to_zval(stm, parameter);
@@ -792,11 +800,15 @@ static const php_stream_ops oci_blob_stream_ops = {oci_blob_write,
                                                    NULL,
                                                    NULL};
 
-static php_stream *oci_create_lob_stream(zval *dbh, pdo_stmt_t *stmt, OCILobLocator *lob) {
+static php_stream *oci_create_lob_stream(pdo_stmt_t *stmt, OCILobLocator *lob) {
     php_stream *stm;
     struct oci_lob_self *self = ecalloc(1, sizeof(*self));
 
-    ZVAL_COPY_VALUE(&self->dbh, dbh);
+#if PHP_API_VERSION < 20240925
+    ZVAL_COPY_VALUE(&self->dbh, &stmt->database_object_handle);
+#else
+    ZVAL_OBJ(&self->dbh, stmt->database_object_handle);
+#endif
     self->lob = lob;
     self->offset = 1; /* 1-based */
     self->stmt = stmt;
@@ -836,8 +848,7 @@ static int oci_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, enum pdo_
 
         if (C->dtype == SQLT_BLOB || C->dtype == SQLT_CLOB) {
             if (C->data) {
-                php_stream *stream =
-                    oci_create_lob_stream(&stmt->database_object_handle, stmt, (OCILobLocator *) C->data);
+                php_stream *stream = oci_create_lob_stream(stmt, (OCILobLocator *) C->data);
                 OCILobOpen(S->H->svc, S->err, (OCILobLocator *) C->data, OCI_LOB_READONLY);
                 php_stream_to_zval(stream, result);
                 return 1;
@@ -1064,4 +1075,4 @@ const struct pdo_stmt_methods swoole_oci_stmt_methods = {oci_stmt_dtor,
                                                          oci_stmt_col_meta,
                                                          NULL,
                                                          NULL};
-#endif
+
