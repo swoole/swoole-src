@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         php-version: [ '8.1', '8.2', '8.3', '8.4' ]
-        framework: [ 'Laravel Octane', 'Hyperf', 'Simps' ]
+        framework: [ 'Laravel Octane', 'Hyperf', 'Hyperf Engine', 'Simps' ]
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
       - name: Checkout code
@@ -71,6 +71,18 @@ jobs:
           else
             .travis/run.test.sh
           fi
+
+      - name: Hyperf Engine Tests
+        if: matrix.framework == 'Hyperf Engine'
+        run: |
+          git clone https://github.com/hyperf/engine.git --depth=1
+          cd engine/
+          composer update -o
+          nohup php examples/http_server.php &
+          nohup php examples/tcp_packet_server.php &
+          nohup php examples/websocket_server.php &
+          nohup php examples/http_server_v2.php &
+          composer test
 
       - name: Simps Tests
         if: matrix.framework == 'Simps'
