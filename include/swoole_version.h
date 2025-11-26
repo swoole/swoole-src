@@ -19,11 +19,11 @@
 #define SWOOLE_VERSION_H_
 
 #define SWOOLE_MAJOR_VERSION 6
-#define SWOOLE_MINOR_VERSION 1
-#define SWOOLE_RELEASE_VERSION 2
-#define SWOOLE_EXTRA_VERSION ""
-#define SWOOLE_VERSION "6.1.2"
-#define SWOOLE_VERSION_ID 60102
+#define SWOOLE_MINOR_VERSION 2
+#define SWOOLE_RELEASE_VERSION 0
+#define SWOOLE_EXTRA_VERSION "dev"
+#define SWOOLE_VERSION "6.2.0-dev"
+#define SWOOLE_VERSION_ID 60200
 #define SWOOLE_API_VERSION_ID 0x202208a
 
 #define SWOOLE_BUG_REPORT                                                                                              \
