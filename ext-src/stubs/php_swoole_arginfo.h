@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 307a0b7aeb56b4678af07d88a7e0d3e83f05f987 */
+ * Stub hash: a27c7f31d40af4404abd6b7f055e7d52ace42cbc */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_version, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -51,9 +51,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_set_process_name, 0, 1, _
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_get_local_ip, 0, 0, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, family, IS_LONG, 0, "2")
 ZEND_END_ARG_INFO()
 
-#define arginfo_swoole_get_local_mac arginfo_swoole_get_local_ip
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_get_local_mac, 0, 0, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_strerror, 0, 1, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, errno, IS_LONG, 0)
@@ -107,7 +109,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_mime_type_exists, 0, 1, _
 	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_swoole_mime_type_list arginfo_swoole_get_local_ip
+#define arginfo_swoole_mime_type_list arginfo_swoole_get_local_mac
 
 #define arginfo_swoole_clear_dns_cache arginfo_swoole_clear_error
 

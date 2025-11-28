@@ -44,7 +44,7 @@ function swoole_set_process_name(string $process_name): bool
 {
 }
 
-function swoole_get_local_ip(): array
+function swoole_get_local_ip(int $family = 2): array
 {
 }
 

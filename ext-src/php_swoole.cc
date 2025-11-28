@@ -1331,7 +1331,7 @@ again:
 
 static void sw_after_fork(void *args) {
 #if PHP_VERSION_ID >= 80500
-	refresh_memory_manager();
+    refresh_memory_manager();
 #endif
 #ifdef ZEND_MAX_EXECUTION_TIMERS
     zend_max_execution_timer_init();
@@ -1634,42 +1634,45 @@ PHP_FUNCTION(swoole_set_process_name) {
 }
 
 static PHP_FUNCTION(swoole_get_local_ip) {
-    struct sockaddr_in *s4;
     struct ifaddrs *ipaddrs;
-    void *in_addr;
-    char ip[64];
 
     if (getifaddrs(&ipaddrs) != 0) {
         php_swoole_sys_error(E_WARNING, "getifaddrs() failed");
         RETURN_FALSE;
     }
+
+    zend_long family = AF_INET;
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(family)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
     array_init(return_value);
     for (struct ifaddrs *ifa = ipaddrs; ifa != nullptr; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == nullptr || !(ifa->ifa_flags & IFF_UP)) {
             continue;
         }
 
+        if (ifa->ifa_addr->sa_family != family) {
+            continue;
+        }
+
+        swoole::network::Address addr{};
         switch (ifa->ifa_addr->sa_family) {
         case AF_INET:
-            s4 = (struct sockaddr_in *) ifa->ifa_addr;
-            in_addr = &s4->sin_addr;
+            addr.type = SW_SOCK_TCP;
+            memcpy(&addr.addr.inet_v4, ifa->ifa_addr, sizeof(addr.addr.inet_v4));
             break;
         case AF_INET6:
-            // struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-            // in_addr = &s6->sin6_addr;
-            continue;
+            addr.type = SW_SOCK_TCP6;
+            memcpy(&addr.addr.inet_v6, ifa->ifa_addr, sizeof(addr.addr.inet_v6));
+            break;
         default:
             continue;
         }
-        if (!inet_ntop(ifa->ifa_addr->sa_family, in_addr, ip, sizeof(ip))) {
-            php_error_docref(nullptr, E_WARNING, "%s: inet_ntop failed", ifa->ifa_name);
-        } else {
-            // if (ifa->ifa_addr->sa_family == AF_INET && ntohl(((struct in_addr *) in_addr)->s_addr) ==
-            // INADDR_LOOPBACK)
-            if (strcmp(ip, "127.0.0.1") == 0) {
-                continue;
-            }
-            add_assoc_string(return_value, ifa->ifa_name, ip);
+
+        if (!addr.is_loopback_addr()) {
+            add_assoc_string(return_value, ifa->ifa_name, addr.get_addr());
         }
     }
     freeifaddrs(ipaddrs);
@@ -1682,46 +1685,74 @@ static PHP_FUNCTION(swoole_get_local_mac) {
             SW_STRS(buf), "%02X:%02X:%02X:%02X:%02X:%02X", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
         add_assoc_string(zv, name, buf);
     };
+
 #ifdef SIOCGIFHWADDR
+    char buffer[4096];
     struct ifconf ifc;
-    struct ifreq buf[16];
-
+    struct ifreq *ifr;
     int sock;
-    int i = 0, num = 0;
+    int num_interfaces;
 
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        php_swoole_sys_error(E_WARNING, "new socket failed");
+    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        php_swoole_sys_error(E_WARNING, "socket creation failed");
         RETURN_FALSE;
     }
+
+    ifc.ifc_len = sizeof(buffer);
+    ifc.ifc_buf = buffer;
+
+    if (ioctl(sock, SIOCGIFCONF, &ifc) < 0) {
+        php_swoole_sys_error(E_WARNING, "ioctl SIOCGIFCONF failed");
+        close(sock);
+        RETURN_FALSE;
+    }
+
     array_init(return_value);
 
-    ifc.ifc_len = sizeof(buf);
-    ifc.ifc_buf = (caddr_t) buf;
-    if (!ioctl(sock, SIOCGIFCONF, (char *) &ifc)) {
-        num = ifc.ifc_len / sizeof(struct ifreq);
-        while (i < num) {
-            if (!(ioctl(sock, SIOCGIFHWADDR, (char *) &buf[i]))) {
-                add_assoc_address(return_value, buf[i].ifr_name, (unsigned char *) buf[i].ifr_hwaddr.sa_data);
-            }
-            i++;
+    ifr = ifc.ifc_req;
+    num_interfaces = ifc.ifc_len / sizeof(struct ifreq);
+
+    for (int i = 0; i < num_interfaces; i++) {
+        struct ifreq temp_ifr;
+        strncpy(temp_ifr.ifr_name, ifr[i].ifr_name, IFNAMSIZ - 1);
+        temp_ifr.ifr_name[IFNAMSIZ - 1] = '\0';
+
+        if (ioctl(sock, SIOCGIFFLAGS, &temp_ifr) < 0) {
+            continue;
+        }
+
+        if (temp_ifr.ifr_flags & IFF_LOOPBACK) {
+            continue;
+        }
+
+        if (ioctl(sock, SIOCGIFHWADDR, &temp_ifr) == 0) {
+            add_assoc_address(return_value, temp_ifr.ifr_name, (unsigned char *) temp_ifr.ifr_hwaddr.sa_data);
         }
     }
     close(sock);
 #else
 #ifdef LLADDR
     ifaddrs *ifas, *ifa;
-    if (getifaddrs(&ifas) == 0) {
-        array_init(return_value);
-        for (ifa = ifas; ifa; ifa = ifa->ifa_next) {
-            if ((ifa->ifa_addr->sa_family == AF_LINK) && ifa->ifa_addr) {
-                add_assoc_address(
-                    return_value, ifa->ifa_name, (unsigned char *) (LLADDR((struct sockaddr_dl *) ifa->ifa_addr)));
+
+    if (getifaddrs(&ifas) != 0) {
+        php_swoole_sys_error(E_WARNING, "getifaddrs failed");
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+
+    for (ifa = ifas; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr && (!ifa->ifa_flags & IFF_LOOPBACK) && ifa->ifa_addr->sa_family == AF_LINK) {
+            struct sockaddr_dl *sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+            if (sdl->sdl_alen == 6) {
+                add_assoc_address(return_value, ifa->ifa_name, (unsigned char *) LLADDR(sdl));
             }
         }
-        freeifaddrs(ifas);
     }
+
+    freeifaddrs(ifas);
 #else
-    php_error_docref(nullptr, E_WARNING, "swoole_get_local_mac is not supported");
+    php_error_docref(nullptr, E_WARNING, "swoole_get_local_mac is not supported on this platform");
     RETURN_FALSE;
 #endif
 #endif
