@@ -1742,7 +1742,7 @@ static PHP_FUNCTION(swoole_get_local_mac) {
     array_init(return_value);
 
     for (ifa = ifas; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr && (!ifa->ifa_flags & IFF_LOOPBACK) && ifa->ifa_addr->sa_family == AF_LINK) {
+        if (ifa->ifa_addr && !(ifa->ifa_flags & IFF_LOOPBACK) && ifa->ifa_addr->sa_family == AF_LINK) {
             struct sockaddr_dl *sdl = (struct sockaddr_dl *) ifa->ifa_addr;
             if (sdl->sdl_alen == 6) {
                 add_assoc_address(return_value, ifa->ifa_name, (unsigned char *) LLADDR(sdl));
