@@ -1784,14 +1784,13 @@ void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
     }
 }
 
-void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdata, zval *return_value) {
+bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     Coroutine *co = Coroutine::get_current_safe();
-    char *data;
-    size_t length = php_swoole_get_send_data(zdata, &data);
+    size_t length = ZSTR_LEN(sdata);
 
     if (length == 0) {
-        RETURN_FALSE;
+        return false;
     }
 
     SW_LOOP {
@@ -1807,15 +1806,16 @@ void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdat
         auto iter = std::prev(co_list->end());
         if (!co->yield_ex(serv->send_timeout)) {
             co_list->erase(iter);
-            RETURN_FALSE;
+            return false;
         }
-        bool ret = serv->send(session_id, data, length);
-        if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield) {
+        bool rv = serv->send(session_id, ZSTR_VAL(sdata), length);
+        if (!rv && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield) {
             continue;
-        } else {
-            RETURN_BOOL(ret);
         }
+        return rv;
     }
+
+    return false;
 }
 
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data) {
@@ -2768,12 +2768,12 @@ static PHP_METHOD(swoole_server, send) {
     }
 
     zval *zfd;
-    zval *zdata;
+    zend_string *sdata;
     zend_long server_socket = -1;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_ZVAL(zfd)
-    Z_PARAM_ZVAL(zdata)
+    Z_PARAM_STR(sdata)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -2783,8 +2783,8 @@ static PHP_METHOD(swoole_server, send) {
         RETURN_FALSE;
     }
 
-    char *data;
-    size_t length = php_swoole_get_send_data(zdata, &data);
+    auto data = ZSTR_VAL(sdata);
+    size_t length = ZSTR_LEN(sdata);
 
     if (length == 0) {
         php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
@@ -2805,13 +2805,13 @@ static PHP_METHOD(swoole_server, send) {
         php_swoole_fatal_error(E_WARNING, "invalid fd[" ZEND_LONG_FMT "]", fd);
         RETURN_FALSE;
     }
-    bool ret = serv->send(fd, data, length);
-    if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
-        php_swoole_server_send_yield(serv, fd, zdata, return_value);
+    bool rv = serv->send(fd, data, length);
+    if (!rv && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
+        rv = php_swoole_server_send_yield(serv, fd, sdata);
     } else {
         php_swoole_server_check_kernel_nobufs(serv, fd);
-        RETURN_BOOL(ret);
     }
+    RETURN_BOOL(rv);
 }
 
 static PHP_METHOD(swoole_server, sendto) {
@@ -3706,15 +3706,13 @@ static PHP_METHOD(swoole_server, sendwait) {
     }
 
     zend_long fd;
-    zval *zdata;
+    char *data;
+    size_t length;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_LONG(fd)
-    Z_PARAM_ZVAL(zdata)
+    Z_PARAM_STRING(data, length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    char *data;
-    size_t length = php_swoole_get_send_data(zdata, &data);
 
     if (length == 0) {
         php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");

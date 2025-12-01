@@ -904,12 +904,13 @@ static PHP_METHOD(swoole_process, exec) {
     exec_args[0] = sw_strdup(execfile);
     int i = 1;
 
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(args), value)
-    convert_to_string(value);
-    Z_TRY_ADDREF_P(value);
-    exec_args[i] = Z_STRVAL_P(value);
-    i++;
-    SW_HASHTABLE_FOREACH_END();
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args), value) {
+        auto arg_str = zval_get_string(value);
+        exec_args[i] = ZSTR_VAL(arg_str);
+        i++;
+    }
+    ZEND_HASH_FOREACH_END();
+
     exec_args[i] = nullptr;
 
     if (execv(execfile, exec_args) < 0) {

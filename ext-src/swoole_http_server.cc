@@ -37,7 +37,7 @@ static SW_THREAD_LOCAL std::queue<HttpContext *> queued_http_contexts;
 static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
-static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
 static void http_server_process_request(const Server *serv, zend::Callable *cb, HttpContext *ctx) {
@@ -349,18 +349,17 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     auto *serv = ctx->get_async_server();
     bool retval = serv->send(ctx->fd, data, length);
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
-        zval yield_data, return_value;
-        ZVAL_STRINGL(&yield_data, data, length);
-        php_swoole_server_send_yield(serv, ctx->fd, &yield_data, &return_value);
-        zval_ptr_dtor(&yield_data);
-        return Z_BVAL_P(&return_value);
+        auto sdata = zend_string_init(data, length, false);
+        auto rv = php_swoole_server_send_yield(serv, ctx->fd, sdata);
+        zend_string_release(sdata);
+        return rv;
     }
     return retval;
 }
 
-static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
     auto *serv = ctx->get_async_server();
-    return serv->sendfile(ctx->fd, file, l_file, offset, length);
+    return serv->sendfile(ctx->fd, file->val, file->len, offset, length);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {

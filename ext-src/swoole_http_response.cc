@@ -215,10 +215,10 @@ void php_swoole_http_response_rshutdown() {
 }
 
 static PHP_METHOD(swoole_http_response, write) {
-    zval *zdata;
+    zend_string *sdata;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_ZVAL(zdata)
+    Z_PARAM_STR(sdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
@@ -236,7 +236,7 @@ static PHP_METHOD(swoole_http_response, write) {
     ctx->accept_compression = 0;
 #endif
 
-    ctx->write(zdata, return_value);
+    ctx->write(sdata, return_value);
 }
 
 static int http_response_parse_header_name(const char *key, size_t keylen) {
@@ -271,7 +271,7 @@ zend_string *php_swoole_http_get_date() {
 }
 
 static void http_response_set_date_header(String *response) {
-	auto date_str = php_swoole_http_get_date();
+    auto date_str = php_swoole_http_get_date();
     response->append(ZEND_STRL("Date: "));
     response->append(ZSTR_VAL(date_str), ZSTR_LEN(date_str));
     response->append(ZEND_STRL("\r\n"));
@@ -668,11 +668,11 @@ static PHP_METHOD(swoole_http_response, end) {
         RETURN_FALSE;
     }
 
-    zval *zdata = nullptr;
+    zend_string *sdata = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
-    Z_PARAM_ZVAL_EX(zdata, 1, 0)
+    Z_PARAM_STR_OR_NULL(sdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (ctx->onAfterResponse) {
@@ -683,7 +683,7 @@ static PHP_METHOD(swoole_http_response, end) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
 
-    ctx->end(zdata, return_value);
+    ctx->end(sdata, return_value);
 }
 
 void HttpContext::send_trailer(zval *return_value) {
@@ -700,15 +700,16 @@ void HttpContext::send_trailer(zval *return_value) {
     }
 }
 
-bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, size_t length) {
+bool HttpContext::send_file(zend_string *file, off_t offset, size_t length) {
     if (http2) {
-        return swoole_http2_server_send_file(this, file, l_file, offset, length);
+        return swoole_http2_server_send_file(this, file, offset, length);
     }
 
     zval *zheader =
         sw_zend_read_and_convert_property_array(swoole_http_response_ce, response.zobject, ZEND_STRL("header"), 0);
     if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("Content-Type"))) {
-        add_assoc_string(zheader, "Content-Type", (char *) swoole::mime_type::get(file).c_str());
+        auto mime_type = swoole::mime_type::get({file->val, file->len});
+        add_assoc_stringl(zheader, "Content-Type", mime_type.c_str(), mime_type.length());
     }
 
     if (!send_header_) {
@@ -726,7 +727,7 @@ bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, siz
         }
     }
 
-    if (length > 0 && !sendfile(this, file, l_file, offset, length)) {
+    if (length > 0 && !sendfile(this, file, offset, length)) {
         close(this);
         return false;
     }
@@ -739,9 +740,9 @@ bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, siz
     return true;
 }
 
-void HttpContext::write(zval *zdata, zval *return_value) {
+void HttpContext::write(zend_string *sdata, zval *return_value) {
     if (http2) {
-        RETURN_BOOL(swoole_http2_server_write(this, zdata));
+        RETURN_BOOL(swoole_http2_server_write(this, sdata));
     }
 
     String *http_buffer = get_write_buffer();
@@ -756,8 +757,8 @@ void HttpContext::write(zval *zdata, zval *return_value) {
         }
     }
 
-    char *data = nullptr;
-    size_t length = php_swoole_get_send_data(zdata, &data);
+    auto data = ZSTR_VAL(sdata);
+    size_t length = ZSTR_LEN(sdata);
 
     if (length == 0) {
         php_swoole_error_ex(E_WARNING, SW_ERROR_NO_PAYLOAD, "the data sent must not be empty");
@@ -777,15 +778,15 @@ void HttpContext::write(zval *zdata, zval *return_value) {
     RETURN_BOOL(send(this, http_buffer->str, http_buffer->length));
 }
 
-void HttpContext::end(zval *zdata, zval *return_value) {
+void HttpContext::end(zend_string *sdata, zval *return_value) {
     if (http2) {
-        RETURN_BOOL(swoole_http2_server_end(this, zdata));
+        RETURN_BOOL(swoole_http2_server_end(this, sdata));
     }
 
     if (send_chunked) {
-        if (zdata && Z_STRLEN_P(zdata) > 0) {
+        if (sdata && ZSTR_LEN(sdata) > 0) {
             zval retval;
-            write(zdata, &retval);
+            write(sdata, &retval);
             if (ZVAL_IS_FALSE(&retval)) {
                 RETURN_FALSE;
             }
@@ -803,8 +804,8 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
         send_chunked = 0;
     } else {
-        char *data = nullptr;
-        size_t length = zdata ? php_swoole_get_send_data(zdata, &data) : 0;
+        const char *data = sdata ? ZSTR_VAL(sdata) : nullptr;
+        size_t length = sdata ? ZSTR_LEN(sdata) : 0;
 
         String *http_buffer = get_write_buffer();
         http_buffer->clear();
@@ -938,30 +939,29 @@ static PHP_METHOD(swoole_http_response, sendfile) {
         RETURN_FALSE;
     }
 
-    char *file;
-    size_t l_file;
+    zend_string *file;
     zend_long offset = 0;
     zend_long length = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
-    Z_PARAM_STRING(file, l_file)
+    Z_PARAM_STR(file)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(offset)
     Z_PARAM_LONG(length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (l_file == 0) {
+    if (ZSTR_LEN(file) == 0) {
         php_swoole_error(E_WARNING, "file name is empty");
         RETURN_FALSE;
     }
 
     struct stat file_stat;
-    if (stat(file, &file_stat) < 0) {
-        php_swoole_sys_error(E_WARNING, "stat(%s) failed", file);
+    if (stat(file->val, &file_stat) < 0) {
+        php_swoole_sys_error(E_WARNING, "stat(%s) failed", file->val);
         RETURN_FALSE;
     }
     if (!S_ISREG(file_stat.st_mode)) {
-        php_swoole_error(E_WARNING, "parameter $file[%s] given is not a regular file", file);
+        php_swoole_error(E_WARNING, "parameter $file[%s] given is not a regular file", file->val);
         swoole_set_last_error(SW_ERROR_SERVER_IS_NOT_REGULAR_FILE);
         RETURN_FALSE;
     }
@@ -983,7 +983,7 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
-    RETURN_BOOL(ctx->send_file(file, l_file, offset, length));
+    RETURN_BOOL(ctx->send_file(file, offset, length));
 }
 
 static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
@@ -1203,16 +1203,15 @@ static PHP_METHOD(swoole_http_response, goaway) {
     }
 
     zend_long error_code = SW_HTTP2_ERROR_NO_ERROR;
-    char *debug_data = nullptr;
-    size_t debug_data_len = 0;
+    zend_string *debug_data = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(error_code)
-    Z_PARAM_STRING(debug_data, debug_data_len)
+    Z_PARAM_STR_OR_NULL(debug_data)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(swoole_http2_server_goaway(ctx, error_code, debug_data, debug_data_len));
+    RETURN_BOOL(swoole_http2_server_goaway(ctx, error_code, debug_data));
 }
 
 static PHP_METHOD(swoole_http_response, upgrade) {

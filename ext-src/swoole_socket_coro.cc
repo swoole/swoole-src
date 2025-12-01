@@ -1985,14 +1985,11 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
 
 static PHP_METHOD(swoole_socket_coro, setOption) {
     zval *arg4;
-    struct linger lv;
-    int ov, optlen, retval;
+    int optlen, retval;
     struct timeval tv;
     zend_long level, optname;
     char *opt_ptr;
     HashTable *opt_ht;
-    zval *l_onoff, *l_linger;
-    zval *sec, *usec;
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
     Z_PARAM_LONG(level)
@@ -2026,11 +2023,22 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
 
     switch (optname) {
     case SO_LINGER: {
+        zval *l_onoff, *l_linger;
         const char l_onoff_key[] = "l_onoff";
         const char l_linger_key[] = "l_linger";
 
-        convert_to_array_ex(arg4);
-        opt_ht = Z_ARRVAL_P(arg4);
+        if (Z_TYPE_P(arg4) != IS_ARRAY) {
+            if (UNEXPECTED(Z_TYPE_P(arg4) != IS_OBJECT)) {
+                zend_argument_type_error(4,
+                                         "must be of type array when argument $option is SO_LINGER, %s given",
+                                         zend_zval_value_name(arg4));
+                RETURN_THROWS();
+            } else {
+                opt_ht = Z_OBJPROP_P(arg4);
+            }
+        } else {
+            opt_ht = Z_ARRVAL_P(arg4);
+        }
 
         if ((l_onoff = zend_hash_str_find(opt_ht, l_onoff_key, sizeof(l_onoff_key) - 1)) == nullptr) {
             php_error_docref(nullptr, E_WARNING, "no key \"%s\" passed in optval", l_onoff_key);
@@ -2041,11 +2049,22 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
             RETURN_FALSE;
         }
 
-        convert_to_long_ex(l_onoff);
-        convert_to_long_ex(l_linger);
+        zend_long val_lonoff = zval_get_long(l_onoff);
+        zend_long val_linger = zval_get_long(l_linger);
 
-        lv.l_onoff = (unsigned short) Z_LVAL_P(l_onoff);
-        lv.l_linger = (unsigned short) Z_LVAL_P(l_linger);
+        if (val_lonoff < 0 || val_lonoff > USHRT_MAX) {
+            zend_argument_value_error(4, "\"%s\" must be between 0 and %u", l_onoff_key, USHRT_MAX);
+            RETURN_THROWS();
+        }
+
+        if (val_linger < 0 || val_linger > USHRT_MAX) {
+            zend_argument_value_error(4, "\"%s\" must be between 0 and %d", l_linger, USHRT_MAX);
+            RETURN_THROWS();
+        }
+
+        struct linger lv;
+        lv.l_onoff = (unsigned short) val_lonoff;
+        lv.l_linger = (unsigned short) val_linger;
 
         optlen = sizeof(lv);
         opt_ptr = (char *) &lv;
@@ -2056,8 +2075,22 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
     case SO_SNDTIMEO: {
         constexpr char sec_key[] = "sec";
         constexpr char usec_key[] = "usec";
+        zval *sec, *usec;
 
-        convert_to_array_ex(arg4);
+        if (Z_TYPE_P(arg4) != IS_ARRAY) {
+            if (UNEXPECTED(Z_TYPE_P(arg4) != IS_OBJECT)) {
+                zend_argument_type_error(4,
+                                         "must be of type array when argument $option is %s, %s given",
+                                         optname == SO_RCVTIMEO ? "SO_RCVTIMEO" : "SO_SNDTIMEO",
+                                         zend_zval_value_name(arg4));
+                RETURN_THROWS();
+            } else {
+                opt_ht = Z_OBJPROP_P(arg4);
+            }
+        } else {
+            opt_ht = Z_ARRVAL_P(arg4);
+        }
+
         opt_ht = Z_ARRVAL_P(arg4);
 
         if ((sec = zend_hash_str_find(opt_ht, sec_key, sizeof(sec_key) - 1)) == nullptr) {
@@ -2069,10 +2102,11 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
             RETURN_FALSE;
         }
 
-        convert_to_long_ex(sec);
-        convert_to_long_ex(usec);
-        tv.tv_sec = Z_LVAL_P(sec);
-        tv.tv_usec = Z_LVAL_P(usec);
+        zend_long valsec = zval_get_long(sec);
+        zend_long valusec = zval_get_long(usec);
+
+        tv.tv_sec = valsec;
+        tv.tv_usec = valusec;
         sock->socket->set_timeout(&tv,
                                   optname == SO_RCVTIMEO ? SW_TIMEOUT_READ : SW_TIMEOUT_CONNECT | SW_TIMEOUT_WRITE);
         RETURN_TRUE;
@@ -2091,14 +2125,14 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
     }
 #endif
 
-    default:
+    default: {
     default_case:
-        convert_to_long_ex(arg4);
-        ov = Z_LVAL_P(arg4);
+        auto ov = zval_get_long(arg4);
 
         optlen = sizeof(ov);
         opt_ptr = (char *) &ov;
         break;
+    }
     }
 
     retval = sock->socket->get_socket()->set_option(level, optname, opt_ptr, optlen);

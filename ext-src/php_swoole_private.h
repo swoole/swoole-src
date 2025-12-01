@@ -348,12 +348,6 @@ void php_swoole_sqlite_mshutdown();
 void php_swoole_firebird_mshutdown();
 #endif
 
-static sw_inline size_t php_swoole_get_send_data(zval *zdata, char **str) {
-    convert_to_string(zdata);
-    *str = Z_STRVAL_P(zdata);
-    return Z_STRLEN_P(zdata);
-}
-
 int php_swoole_convert_to_fd(zval *zsocket);
 int php_swoole_convert_to_fd_ex(zval *zsocket, int *async);
 

@@ -677,18 +677,13 @@ static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, S
         return false;
     }
 
-    bool ret = serv->send(fd, buffer->str, buffer->length);
-    if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
-        zval _return_value;
-        zval *return_value = &_return_value;
-        zval _yield_data;
-        ZVAL_STRINGL(&_yield_data, buffer->str, buffer->length);
-        ZVAL_FALSE(return_value);
-        php_swoole_server_send_yield(serv, fd, &_yield_data, return_value);
-        ret = Z_BVAL_P(return_value);
-        zval_ptr_dtor(&_yield_data);
+    bool rv = serv->send(fd, buffer->str, buffer->length);
+    if (!rv && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
+        auto sdata = zend_string_init(buffer->str, buffer->length, false);
+        rv = php_swoole_server_send_yield(serv, fd, sdata);
+        zend_string_release(sdata);
     }
-    return ret;
+    return rv;
 }
 
 static sw_inline bool swoole_websocket_server_close(Server *serv, SessionId fd, String *buffer, bool real_close) {

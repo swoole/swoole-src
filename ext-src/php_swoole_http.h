@@ -198,7 +198,7 @@ struct Context {
     // The `private_data_2` pointer is used to save callback function
     void *private_data_2;
     bool (*send)(Context *ctx, const char *data, size_t length);
-    bool (*sendfile)(Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+    bool (*sendfile)(Context *ctx, zend_string *file, off_t offset, size_t length);
     bool (*close)(Context *ctx);
     bool (*onBeforeRequest)(Context *ctx);
     void (*onAfterResponse)(Context *ctx);
@@ -217,9 +217,9 @@ struct Context {
     HTTP_API bool set_header(const char *, size_t, zval *, bool);
     HTTP_API bool set_header(const char *, size_t, const char *, size_t, bool);
     HTTP_API bool set_header(const char *, size_t, const std::string &, bool);
-    HTTP_API void end(zval *zdata, zval *return_value);
-    HTTP_API void write(zval *zdata, zval *return_value);
-    HTTP_API bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
+    HTTP_API void end(zend_string *sdata, zval *return_value);
+    HTTP_API void write(zend_string *sdata, zval *return_value);
+    HTTP_API bool send_file(zend_string *file, off_t offset, size_t length);
 
     String *get_write_buffer();
 

@@ -39,15 +39,11 @@ int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn
 std::shared_ptr<swoole::http2::Session> swoole_http2_server_session_new(swoole::SessionId fd);
 void swoole_http2_server_session_free(swoole::SessionId fd);
 
-bool swoole_http2_server_end(swoole::http::Context *ctx, zval *zdata);
-bool swoole_http2_server_write(swoole::http::Context *ctx, zval *zdata);
-bool swoole_http2_server_send_file(
-    swoole::http::Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+bool swoole_http2_server_end(swoole::http::Context *ctx, zend_string *sdata);
+bool swoole_http2_server_write(swoole::http::Context *ctx, zend_string *sdata);
+bool swoole_http2_server_send_file(swoole::http::Context *ctx, zend_string *file, off_t offset, size_t length);
 bool swoole_http2_server_ping(swoole::http::Context *ctx);
-bool swoole_http2_server_goaway(swoole::http::Context *ctx,
-                                zend_long error_code,
-                                const char *debug_data,
-                                size_t debug_data_len);
+bool swoole_http2_server_goaway(swoole::http::Context *ctx, zend_long error_code, zend_string *sdata);
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
     zval tmp;

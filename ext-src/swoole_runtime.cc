@@ -819,20 +819,6 @@ static inline int socket_sendto(
 
 #ifdef SW_USE_OPENSSL
 
-#define GET_VER_OPT(name)                                                                                              \
-    (PHP_STREAM_CONTEXT(stream) &&                                                                                     \
-     (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", name)) != nullptr)
-#define GET_VER_OPT_STRING(name, str)                                                                                  \
-    if (GET_VER_OPT(name)) {                                                                                           \
-        convert_to_string_ex(val);                                                                                     \
-        str = Z_STRVAL_P(val);                                                                                         \
-    }
-#define GET_VER_OPT_LONG(name, num)                                                                                    \
-    if (GET_VER_OPT(name)) {                                                                                           \
-        convert_to_long_ex(val);                                                                                       \
-        num = Z_LVAL_P(val);                                                                                           \
-    }
-
 static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
     return 0;
 }

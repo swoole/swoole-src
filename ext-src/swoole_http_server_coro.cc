@@ -43,7 +43,7 @@ static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
-static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
@@ -251,8 +251,8 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
     return ctx->get_co_socket()->send_all(data, length) == (ssize_t) length;
 }
 
-static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    return ctx->get_co_socket()->sendfile(file, offset, length);
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
+    return ctx->get_co_socket()->sendfile(file->val, offset, length);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {

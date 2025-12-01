@@ -1337,10 +1337,10 @@ bool Client::send_request() {
                 add_content_length(buffer, 0);
             }
         } else {
-            char *_body;
-            size_t body_length = php_swoole_get_send_data(zbody, &_body);
-            add_content_length(buffer, body_length);
-            buffer->append(_body, body_length);
+            auto sdata = zval_get_string(zbody);
+            add_content_length(buffer, ZSTR_LEN(sdata));
+            buffer->append(ZSTR_VAL(sdata), ZSTR_LEN(sdata));
+            zend_string_release(sdata);
         }
     }
     // ============ no body ============
