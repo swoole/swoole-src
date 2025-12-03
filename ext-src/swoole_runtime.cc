@@ -162,7 +162,6 @@ static std::vector<std::string> unsafe_functions {
 	"dns_get_mx",
 	"dns_get_record",
 	"gethostbyaddr",
-	"gethostbynamel",
 };
 
 #if defined(HAVE_PUTENV) && defined(SW_THREAD)
@@ -1578,10 +1577,12 @@ static void hook_all_func(uint32_t flags) {
     if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
+            SW_HOOK_WITH_PHP_FUNC(gethostbynamel);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
             SW_UNHOOK_FUNC(gethostbyname);
+            SW_UNHOOK_FUNC(gethostbynamel);
         }
     }
     // ext-sockets
