@@ -2871,6 +2871,10 @@ static void swoole_curl_free_obj(zend_object *object) {
         swoole::curl::destroy_handle(ch->cp);
     }
 
+    if (ch->cp) {
+        curl_easy_cleanup(ch->cp);
+    }
+
     smart_str_free(&ch->handlers.write->buf);
     zval_ptr_dtor(&ch->handlers.write->func_name);
     zval_ptr_dtor(&ch->handlers.read->func_name);
