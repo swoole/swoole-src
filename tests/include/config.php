@@ -236,3 +236,4 @@ define('FTP_HOST', IS_IN_CI ? 'ftp' : '127.0.0.1');
 define('FTP_PORT', 21);
 define('FTP_USER', 'admin');
 define('FTP_PASS', 'admin');
+define('FTP_TEST_FILE', IS_IN_CI ? 'test.txt' : 'work/test.txt');

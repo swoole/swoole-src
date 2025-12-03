@@ -37,6 +37,26 @@ int php_async_socket_connect_to_host(const char *host,
 
 int php_async_socket_poll(php_socket_t fd, int events, int timeout);
 
+#if PHP_VERSION_ID < 80300
+static inline const char *zend_zval_value_name(const zval *arg) {
+	ZVAL_DEREF(arg);
+
+	if (Z_ISUNDEF_P(arg)) {
+		return "null";
+	}
+
+	if (Z_TYPE_P(arg) == IS_OBJECT) {
+		return ZSTR_VAL(Z_OBJCE_P(arg)->name);
+	} else if (Z_TYPE_P(arg) == IS_FALSE) {
+		return "false";
+	} else if  (Z_TYPE_P(arg) == IS_TRUE) {
+		return "true";
+	}
+
+	return zend_get_type_by_const(Z_TYPE_P(arg));
+}
+#endif
+
 #ifdef __cplusplus
 }
 #endif

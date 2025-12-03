@@ -20,6 +20,7 @@
 #endif
 
 #include "php.h"
+#include "php_swoole_api.h"
 
 #ifdef SW_HAVE_FTP_SSL
 # include <openssl/ssl.h>
@@ -1241,26 +1242,6 @@ PHP_FUNCTION(ftp_close)
 	RETURN_BOOL(success);
 }
 /* }}} */
-
-#if PHP_VERSION_ID < 80300
-static const char *zend_zval_value_name(const zval *arg) {
-	ZVAL_DEREF(arg);
-
-	if (Z_ISUNDEF_P(arg)) {
-		return "null";
-	}
-
-	if (Z_TYPE_P(arg) == IS_OBJECT) {
-		return ZSTR_VAL(Z_OBJCE_P(arg)->name);
-	} else if (Z_TYPE_P(arg) == IS_FALSE) {
-		return "false";
-	} else if  (Z_TYPE_P(arg) == IS_TRUE) {
-		return "true";
-	}
-
-	return zend_get_type_by_const(Z_TYPE_P(arg));
-}
-#endif
 
 /* {{{ Sets an FTP option */
 PHP_FUNCTION(ftp_set_option)

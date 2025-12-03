@@ -18,6 +18,7 @@
 #define PHP_SWOOLE_PRIVATE_H
 
 #include "php_swoole.h"
+#include "php_swoole_api.h"
 #include "swoole.h"
 #include "swoole_api.h"
 #include "swoole_coroutine_api.h"

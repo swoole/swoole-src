@@ -307,7 +307,7 @@ function skip_if_no_coroutine_get_execute_time()
 function skip_if_no_ftp()
 {
     require_once __DIR__ . '/config.php';
-    skip('no available proxy', !check_tcp_port(FTP_HOST, FTP_PORT));
+    skip('no available ftp server', !check_tcp_port(FTP_HOST, FTP_PORT));
 }
 
 function skip_if_not_root()

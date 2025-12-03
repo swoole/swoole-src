@@ -1,4 +1,5 @@
-apt install -y cmake make gcc \
+apt install -y cmake make gcc g++ \
+    iputils-ping \
     libc-ares-dev \
     libssl-dev \
     libcurl4-openssl-dev \

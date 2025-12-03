@@ -69,11 +69,10 @@ services:
       - "1080:1080"
   ftp:
     container_name: "ftp"
-    image: "crazymax/pure-ftpd"
+    image: "teezily/ftpd"
     environment:
-      FTP_USER_NAME: admin
-      FTP_USER_PASS: admin
-      FTP_USER_HOME: /home/swoole
+      FTP_USER: admin
+      FTP_PASSWORD: admin
 
   firebirdsql:
     container_name: "firebirdsql"
