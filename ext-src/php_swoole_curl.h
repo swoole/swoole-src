@@ -130,19 +130,8 @@ class Multi {
     }
 
   public:
-    Multi() {
-        multi_handle_ = curl_multi_init();
-        co = nullptr;
-        curl_multi_setopt(multi_handle_, CURLMOPT_SOCKETFUNCTION, handle_socket);
-        curl_multi_setopt(multi_handle_, CURLMOPT_TIMERFUNCTION, handle_timeout);
-        curl_multi_setopt(multi_handle_, CURLMOPT_SOCKETDATA, this);
-        curl_multi_setopt(multi_handle_, CURLMOPT_TIMERDATA, this);
-    }
-
-    ~Multi() {
-        del_timer();
-        curl_multi_cleanup(multi_handle_);
-    }
+    Multi();
+    ~Multi();
 
     CURLM *get_multi_handle() const {
         return multi_handle_;

@@ -56,6 +56,20 @@ static int execute_callback(Event *event, int bitmask) {
     return 0;
 }
 
+Multi::Multi() {
+	multi_handle_ = curl_multi_init();
+	co = nullptr;
+	curl_multi_setopt(multi_handle_, CURLMOPT_SOCKETFUNCTION, handle_socket);
+	curl_multi_setopt(multi_handle_, CURLMOPT_TIMERFUNCTION, handle_timeout);
+	curl_multi_setopt(multi_handle_, CURLMOPT_SOCKETDATA, this);
+	curl_multi_setopt(multi_handle_, CURLMOPT_TIMERDATA, this);
+}
+
+Multi::~Multi() {
+    del_timer();
+    curl_multi_cleanup(multi_handle_);
+}
+
 int Multi::cb_readable(Reactor *reactor, Event *event) {
     return execute_callback(event, CURL_CSELECT_IN);
 }
