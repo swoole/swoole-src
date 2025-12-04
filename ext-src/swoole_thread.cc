@@ -1066,11 +1066,7 @@ void ZendArray::index_offsetUnset(zend_long index) {
     auto item = static_cast<ArrayItem *>(zend_hash_index_find_ptr(&ht, index));
     delete item;
     while (i < n - 1) {
-#if PHP_VERSION_ID >= 80200
         Z_PTR(ht.arPacked[i]) = Z_PTR(ht.arPacked[i + 1]);
-#else
-        Z_PTR(ht.arData[i].val) = Z_PTR(ht.arData[i + 1].val);
-#endif
         i++;
     }
     ht.nNumUsed--;

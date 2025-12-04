@@ -52,7 +52,7 @@ PHP_FUNCTION(swoole_native_curl_multi_setopt);
 PHP_FUNCTION(swoole_native_curl_multi_getcontent);
 PHP_FUNCTION(swoole_native_curl_multi_info_read);
 PHP_FUNCTION(swoole_native_curl_multi_init);
-#if LIBCURL_VERSION_NUM >= 0x073E00 && PHP_VERSION_ID >= 80200
+#if LIBCURL_VERSION_NUM >= 0x073E00
 PHP_FUNCTION(swoole_native_curl_upkeep);
 #endif
 

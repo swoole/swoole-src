@@ -508,7 +508,6 @@ SW_API bool php_swoole_is_enable_coroutine() {
 
 SW_API zend_long php_swoole_parse_to_size(zval *zv) {
     if (ZVAL_IS_STRING(zv)) {
-#if PHP_VERSION_ID >= 80200
         zend_string *errstr;
         auto size = zend_ini_parse_quantity(Z_STR_P(zv), &errstr);
         if (errstr) {
@@ -517,9 +516,6 @@ SW_API zend_long php_swoole_parse_to_size(zval *zv) {
             zend_string_release(errstr);
         }
         return size;
-#else
-        return zend_atol(Z_STRVAL_P(zv), Z_STRLEN_P(zv));
-#endif
     } else {
         return zval_get_long(zv);
     }

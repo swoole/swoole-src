@@ -1720,13 +1720,11 @@ void php_swoole_http_client_coro_minit(int module_number) {
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_http_client_coro, http_client_coro_create_object, http_client_coro_free_object, HttpClientObject, std);
-#if PHP_VERSION_ID >= 80200
     zend_add_parameter_attribute(
         (zend_function *) zend_hash_str_find_ptr(&swoole_http_client_coro_ce->function_table, SW_STRL("setbasicauth")),
         1,
         ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER),
         0);
-#endif
 
     zend_declare_property_null(swoole_http_client_coro_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
 

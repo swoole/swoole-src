@@ -46,28 +46,14 @@
 
 #include "swoole_file_hook.h"
 
-#if PHP_VERSION_ID >= 80200
 #define sw_php_stream_fopen_from_fd_rel(fd, mode, persistent_id, zero_position)                                         \
     _sw_php_stream_fopen_from_fd((fd), (mode), (persistent_id), (zero_position) STREAMS_REL_CC)
-#else
-#define sw_php_stream_fopen_from_fd_rel(fd, mode, persistent_id)                                                        \
-    _sw_php_stream_fopen_from_fd((fd), (mode), (persistent_id) STREAMS_REL_CC)
-#endif
 
 #define sw_php_stream_fopen_from_fd_int_rel(fd, mode, persistent_id)                                                    \
     _sw_php_stream_fopen_from_fd_int((fd), (mode), (persistent_id) STREAMS_REL_CC)
 
 #define sw_php_stream_fopen_rel(path, mode, opened_path, options)                                                       \
     _sw_php_stream_fopen(path, mode, opened_path, options STREAMS_REL_CC)
-
-#if PHP_VERSION_ID < 80100
-/* This is a workaround for GCC bug 69602: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69602 */
-#if EAGAIN != EWOULDBLOCK
-# define PHP_IS_TRANSIENT_ERROR(err) (err == EAGAIN || err == EWOULDBLOCK)
-#else
-# define PHP_IS_TRANSIENT_ERROR(err) (err == EAGAIN)
-#endif
-#endif
 
 #ifndef PHP_WIN32
 extern int php_get_uid_by_name(const char *name, uid_t *uid);
@@ -279,11 +265,7 @@ static void _sw_detect_is_seekable(php_stdio_stream_data *self) {
 #endif
 }
 
-#if PHP_VERSION_ID >= 80200
 static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id, bool zero_position STREAMS_DC) {
-#else
-static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC) {
-#endif
     php_stream *stream = sw_php_stream_fopen_from_fd_int_rel(fd, mode, persistent_id);
 
     if (stream) {
@@ -293,13 +275,10 @@ static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const 
         if (!self->is_seekable) {
             stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
             stream->position = -1;
-        }
-#if PHP_VERSION_ID >= 80200
-        else if (zero_position) {
+        } else if (zero_position) {
             ZEND_ASSERT(lseek(self->fd, 0, SEEK_CUR) == 0);
             stream->position = 0;
         }
-#endif
         else {
             stream->position = lseek(self->fd, 0, SEEK_CUR);
 #ifdef ESPIPE
@@ -1104,11 +1083,7 @@ static php_stream *_sw_php_stream_fopen(const char *filename,
     fd = open(_realpath, open_flags, 0666);
 #endif
     if (fd != -1) {
-#if PHP_VERSION_ID >= 80200
         ret = sw_php_stream_fopen_from_fd_rel(fd, mode, persistent_id, (open_flags & O_APPEND) == 0);
-#else
-        ret = sw_php_stream_fopen_from_fd_rel(fd, mode, persistent_id);
-#endif
         if (ret) {
             if (opened_path) {
                 *opened_path = zend_string_init(_realpath, strlen(_realpath), 0);

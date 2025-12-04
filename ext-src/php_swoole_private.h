@@ -115,12 +115,12 @@ BEGIN_EXTERN_C()
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_VERSION_ID < 80100
-#error "require PHP version 8.1 or later"
+#if PHP_VERSION_ID < 80200
+#error "require PHP version 8.2 or later"
 #endif
 
 #if PHP_VERSION_ID > 80500
-#error "require PHP version 8.4 or earlier"
+#error "require PHP version 8.5 or earlier"
 #endif
 
 #if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)
@@ -371,11 +371,6 @@ void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set);
 #endif
 
 zend_bool php_swoole_signal_isset_handler(int signo);
-
-#if PHP_VERSION_ID < 80200
-#define zend_atomic_bool zend_bool
-#define zend_atomic_bool_store(atomic, desired) (*atomic = desired)
-#endif
 
 #define sw_zend7_object zend_object
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)

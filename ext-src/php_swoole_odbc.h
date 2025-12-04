@@ -24,7 +24,7 @@ BEGIN_EXTERN_C()
 
 #include "ext/pdo/php_pdo_driver.h"
 
-#if PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80300
+#if PHP_VERSION_ID < 80300
 #include "thirdparty/php82/pdo_odbc/php_pdo_odbc_int.h"
 #elif PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
 #include "thirdparty/php83/pdo_odbc/php_pdo_odbc_int.h"
