@@ -446,7 +446,7 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
         } else if (!Z_ISUNDEF(retval)) {
             swoole_curl_verify_handlers(ch, /* reporterror */ true);
 #if PHP_VERSION_ID >= 80300
-            length = php_curl_get_long(&retval);
+            length = swoole_curl_get_long(&retval);
 #else
             length = zval_get_long(&retval);
 #endif
@@ -494,7 +494,7 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string) {
     } else if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
 #if PHP_VERSION_ID >= 80300
-        rval = php_curl_get_long(&retval);
+        rval = swoole_curl_get_long(&retval);
 #else
         rval = zval_get_long(&retval);
 #endif
@@ -552,7 +552,7 @@ static int fn_progress(void *clientp, double dltotal, double dlnow, double ultot
     } else if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
 #if PHP_VERSION_ID >= 80300
-        if (0 != php_curl_get_long(&retval)) {
+        if (0 != swoole_curl_get_long(&retval)) {
 #else
         if (0 != zval_get_long(&retval)) {
 #endif
@@ -610,7 +610,7 @@ static size_t fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, c
     } else if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
 #if PHP_VERSION_ID >= 80300
-        if (0 != php_curl_get_long(&retval)) {
+        if (0 != swoole_curl_get_long(&retval)) {
 #else
         if (0 != zval_get_long(&retval)) {
 #endif
@@ -795,7 +795,7 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx) 
         } else if (!Z_ISUNDEF(retval)) {
             swoole_curl_verify_handlers(ch, /* reporterror */ true);
 #if PHP_VERSION_ID >= 80300
-            length = php_curl_get_long(&retval);
+            length = swoole_curl_get_long(&retval);
 #else
             length = zval_get_long(&retval);
 #endif
@@ -1110,7 +1110,7 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
 }
 
 #if PHP_VERSION_ID >= 80300
-zend_long php_curl_get_long(zval *zv) {
+zend_long swoole_curl_get_long(zval *zv) {
     if (EXPECTED(Z_TYPE_P(zv) == IS_LONG)) {
         return Z_LVAL_P(zv);
     } else {
@@ -2869,6 +2869,10 @@ static void swoole_curl_free_obj(zend_object *object) {
         efree(ch->clone);
 
         swoole::curl::destroy_handle(ch->cp);
+    }
+
+    if (ch->cp) {
+        curl_easy_cleanup(ch->cp);
     }
 
     smart_str_free(&ch->handlers.write->buf);
