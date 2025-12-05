@@ -31,7 +31,8 @@ run(function() {
 
 
     echo "Creating new PDO with Extended Result Codes turned on" . PHP_EOL;
-    $db = new PDO('sqlite::memory:', '', '', [PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES => TRUE]);
+    $const = PHP_VERSION_ID >= 80500 ? PDO\SQLITE::ATTR_EXTENDED_RESULT_CODES : PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES;
+    $db = new PDO('sqlite::memory:', '', '', [$const => TRUE]);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 
     $db->exec("CREATE TABLE dog ( id INTEGER PRIMARY KEY, name TEXT, annoying INTEGER )");

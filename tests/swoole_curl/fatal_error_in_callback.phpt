@@ -51,3 +51,13 @@ echo "Done\n";
 Fatal error: test in %s on line %d
 
 Warning: curl_close(): Attempt to close cURL handle from a callback in %s on line %d
+--EXPECTF_85--
+Fatal error: test in %s on line %d
+Stack trace:
+#0 %s(%d): trigger_error('test', %d)
+#1 [internal function]: {closure:{closure:%s:%d}:%d}(Object(CurlHandle), '<html>\r\n<head>\r...')
+#2 %s(%d): curl_exec(Object(CurlHandle))
+#3 [internal function]: {closure:%s:%d}()
+#4 {main}
+
+Warning: curl_close(): Attempt to close cURL handle from a callback in %s on line %d

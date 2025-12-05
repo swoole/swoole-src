@@ -25,15 +25,7 @@ BEGIN_EXTERN_C()
 
 #include "ext/pdo/php_pdo_driver.h"
 
-#if PHP_VERSION_ID < 80300
-#include "thirdparty/php82/pdo_sqlite/php_pdo_sqlite_int.h"
-#elif PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
-#include "thirdparty/php83/pdo_sqlite/php_pdo_sqlite_int.h"
-#elif PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500
-#include "thirdparty/php84/pdo_sqlite/php_pdo_sqlite_int.h"
-#else
-#include "thirdparty/php85/pdo_sqlite/php_pdo_sqlite_int.h"
-#endif
+#include "thirdparty/pdo_sqlite/php_pdo_sqlite_int.h"
 
 extern const pdo_driver_t swoole_pdo_sqlite_driver;
 void swoole_sqlite_set_blocking(bool blocking);
@@ -54,6 +46,7 @@ int swoole_sqlite3_step(sqlite3_stmt *stmt);
 #define sqlite3_close_v2 swoole_sqlite3_close_v2
 #define sqlite3_step swoole_sqlite3_step
 #endif
+
 END_EXTERN_C()
 #endif
 #endif

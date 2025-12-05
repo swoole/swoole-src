@@ -37,3 +37,12 @@ call function
 end
 
 Fatal error: go(): can not use coroutine in __destruct after php_request_shutdown %s
+--EXPECTF_85--
+call function
+end
+
+Fatal error: go(): can not use coroutine in __destruct after php_request_shutdown %s
+Stack trace:
+#0 %s(%d): go(Object(Closure))
+#1 [internal function]: T2->__destruct()
+#2 {main}

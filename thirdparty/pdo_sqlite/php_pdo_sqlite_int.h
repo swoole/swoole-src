@@ -42,7 +42,7 @@ typedef struct {
 
 extern const pdo_driver_t pdo_sqlite_driver;
 
-#if PHP_VERSION_ID >= 80500
+#if PHP_VERSION_ID >= 80400
 extern int pdo_sqlite_scanner(pdo_scanner_t *s);
 #endif
 

@@ -36,3 +36,9 @@ $pm->run();
 ?>
 --EXPECTF--
 Fatal error: Swoole\Server::finish(): please use Swoole\Server\Task->finish instead when task_enable_coroutine is enable in %s/task/enable_coroutine_with_wrong_usage.php on line %d
+--EXPECTF_85--
+Fatal error: Swoole\Server::finish(): please use Swoole\Server\Task->finish instead when task_enable_coroutine is enable in %s/task/enable_coroutine_with_wrong_usage.php on line %d
+Stack trace:
+#0 %s(%d): Swoole\Server->finish('bar')
+#1 [internal function]: {closure:{closure:%s:%d}:%d}(Object(Swoole\Http\Server), Object(Swoole\Server\Task))
+#2 {main}

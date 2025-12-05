@@ -23,3 +23,8 @@ $server->set([
 ?>
 --EXPECTF--
 Fatal error: Swoole\Server::set(): failed to parse 'xxx--2M' to size, Error: Invalid quantity "xxx--2M": no valid leading digits, interpreting as "0" for backwards compatibility in %s on line %d
+--EXPECTF_85--
+Fatal error: Swoole\Server::set(): failed to parse 'xxx--2M' to size, Error: Invalid quantity "xxx--2M": no valid leading digits, interpreting as "0" for backwards compatibility in %s on line %d
+Stack trace:
+#0 %s(%d): Swoole\Server->set(Array)
+#1 {main}

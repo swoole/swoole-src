@@ -17,8 +17,8 @@ open_basedir=.
 <?php
 use function Swoole\Coroutine\run;
 
-Co::set(['hook_flags'=> SWOOLE_HOOK_PDO_SQLITE]);
-run(function() {
+co::set(['hook_flags'=> SWOOLE_HOOK_PDO_SQLITE]);
+run(function () {
     chdir(__DIR__);
 
     try {

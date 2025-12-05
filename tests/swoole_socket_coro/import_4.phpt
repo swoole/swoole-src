@@ -102,3 +102,33 @@ socket_set_block 0
 socket_get_option 0
 
 Done.
+--EXPECTF_85--
+normal
+stream_set_blocking 1
+socket_set_block 1
+socket_get_option 2
+
+
+unset stream
+socket_set_block 1
+socket_get_option 2
+
+
+unset socket
+stream_set_blocking 1
+
+
+close stream
+stream_set_blocking TypeError: stream_set_blocking(): Argument #1 ($stream) must be an open stream resource
+
+socket_set_block 1
+socket_get_option 2
+
+
+close socket
+stream_set_blocking TypeError: stream_set_blocking(): Argument #1 ($stream) must be an open stream resource
+
+socket_set_block 0
+socket_get_option 0
+
+Done.

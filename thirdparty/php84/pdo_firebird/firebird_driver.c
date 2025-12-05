@@ -1324,7 +1324,9 @@ static const struct pdo_dbh_methods firebird_methods = { /* {{{ */
 	NULL, /* request shutdown */
 	pdo_firebird_in_manually_transaction,
 	NULL, /* get gc */
+#if PHP_VERSION_ID >= 80400
 	NULL /* scanner */
+#endif
 };
 /* }}} */
 

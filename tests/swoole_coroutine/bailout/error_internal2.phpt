@@ -16,3 +16,9 @@ go(function () {
 ?>
 --EXPECTF--
 Fatal error: Allowed memory size of %d bytes exhausted %s
+--EXPECTF_85--
+Fatal error: Allowed memory size of %d bytes exhausted %s
+Stack trace:
+#0 %s(%d): str_repeat('A', %d)
+#1 [internal function]: {closure:{closure:%s:%d}:%d}()
+#2 {main}

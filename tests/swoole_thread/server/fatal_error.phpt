@@ -67,3 +67,14 @@ begin
 Fatal error: user fatal error in %s on line %d
 done
 shutdown
+
+--EXPECTF_85--
+begin
+
+Fatal error: user fatal error in %s on line %d
+Stack trace:
+#0 %s(%d): trigger_error('%s', %d)
+#1 [internal function]: {closure:%s:%d}(Object(Swoole\Http\Request), Object(Swoole\Http\Response))
+#2 {main}
+done
+shutdown

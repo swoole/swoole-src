@@ -34,11 +34,10 @@ $pm = ProcessManager::exec(function ($pm) {
 $output = $pm->getChildOutput();
 Assert::contains($output, "READ\nCLOSE\nCLOSED\n");
 
-if (PHP_VERSION_ID < 80000) {
-    Assert::contains($output, "fclose(): supplied resource is not a valid stream resource");
-} else {
+if (PHP_VERSION_ID < 80500) {
     Assert::contains($output, "Fatal error: Uncaught TypeError: fclose(): supplied resource is not a valid stream resource");
+} else {
+    Assert::contains($output, 'Fatal error: Uncaught TypeError: fclose(): Argument #1 ($stream) must be an open stream resource');
 }
-
 ?>
 --EXPECT--

@@ -1,0 +1,2 @@
+#/bin/bash
+./tests/include/lib/vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --using-cache=no --verbose $1

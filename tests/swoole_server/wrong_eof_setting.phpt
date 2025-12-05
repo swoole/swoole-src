@@ -52,3 +52,23 @@ $pm->run();
 Fatal error: %s: package_eof cannot be an empty string in %s on line %d
 
 Fatal error: %s: package_eof cannot be an empty string in %s on line %d
+
+--EXPECTF_85--
+Fatal error: %s: package_eof cannot be an empty string in %s on line %d
+Stack trace:
+#0 [internal function]: Swoole\Server\Port->set(Array)
+#1 %s(%d): Swoole\Server->set(Array)
+#2 [internal function]: {closure:%s:%d}()
+#3 %s/tests/include/lib/src/ProcessManager.php(%d): call_user_func(Object(Closure))
+#4 %s/tests/include/lib/src/ProcessManager.php(%d): SwooleTest\ProcessManager->runChildFunc()
+#5 [internal function]: SwooleTest\ProcessManager->{closure:SwooleTest\ProcessManager::run():298}(Object(Swoole\Process))
+#6 %s/tests/include/lib/src/ProcessManager.php(%d): Swoole\Process->start()
+#7 %s(%d): SwooleTest\ProcessManager->run()
+#8 {main}
+
+Fatal error: %s: package_eof cannot be an empty string in %s on line %d
+Stack trace:
+#0 %s(%d): Swoole\Coroutine\Client->connect('127.0.0.1', %d)
+#1 [internal function]: {closure:{closure:%s:%d}:%d}()
+#2 {main}
+

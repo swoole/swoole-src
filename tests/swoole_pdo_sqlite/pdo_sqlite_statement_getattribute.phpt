@@ -17,11 +17,13 @@ run(function() {
 
     $st = $db->prepare('SELECT 1;');
 
-    var_dump($st->getAttribute(PDO::SQLITE_ATTR_READONLY_STATEMENT));
+    $const = PHP_VERSION_ID >= 80500 ? PDO\SQLITE::ATTR_READONLY_STATEMENT: PDO::SQLITE_ATTR_READONLY_STATEMENT;
+
+    var_dump($st->getAttribute($const));
 
     $st = $db->prepare('CREATE TABLE test (a TEXT);');
 
-    var_dump($st->getAttribute(PDO::SQLITE_ATTR_READONLY_STATEMENT));
+    var_dump($st->getAttribute($const));
 });
 ?>
 --EXPECT--

@@ -28,7 +28,7 @@
 /* Let there be no top-level code beyond this point:
  * Only functions and classes, thanks!
  *
- * Minimum required PHP version: 7.0.0
+ * Minimum required PHP version: 8.2.0
  */
 
 function show_usage(): void
@@ -838,21 +838,7 @@ NO_PROC_OPEN_ERROR;
     exit(0);
 }
 
-if (!function_exists("hrtime")) {
-    function hrtime(bool $as_num = false)
-    {
-        $t = microtime(true);
-
-        if ($as_num) {
-            return $t * 1000000000;
-        }
-
-        $s = floor($t);
-        return array(0 => $s, 1 => ($t - $s) * 1000000000);
-    }
-}
-
-function get_shortname($file)
+function get_shortname($file): array|string
 {
     return str_replace(TEST_PHP_SRCDIR . '/', '', $file);
 }
@@ -1891,7 +1877,7 @@ TEST $file
         }
 
         // Match the beginning of a section.
-        if (preg_match('/^--([_A-Z]+)--/', $line, $r)) {
+        if (preg_match('/^--([_A-Z0-9]+)--/', $line, $r)) {
             $section = (string)$r[1];
 
             if (isset($section_text[$section]) && $section_text[$section]) {
@@ -1901,6 +1887,7 @@ TEST $file
             // check for unknown sections
             if (!in_array($section, array(
                 'EXPECT', 'EXPECTF', 'EXPECTREGEX', 'EXPECTREGEX_EXTERNAL', 'EXPECT_EXTERNAL', 'EXPECTF_EXTERNAL', 'EXPECTHEADERS',
+                'EXPECT_85', 'EXPECTF_85', 'EXPECTREGEX_85', // PHP 8.5+
                 'POST', 'POST_RAW', 'GZIP_POST', 'DEFLATE_POST', 'PUT', 'GET', 'COOKIE', 'ARGS',
                 'FILE', 'FILEEOF', 'FILE_EXTERNAL', 'REDIRECTTEST',
                 'CAPTURE_STDIO', 'STDIN', 'CGI', 'PHPDBG',
@@ -1946,6 +1933,21 @@ TEST $file
             if (isset($section_text['FILEEOF'])) {
                 $section_text['FILE'] = preg_replace("/[\r\n]+$/", '', $section_text['FILEEOF']);
                 unset($section_text['FILEEOF']);
+            }
+
+            if (PHP_VERSION_ID >= 80500) {
+                if (isset($section_text['EXPECT_85'])) {
+                    $section_text['EXPECT'] = $section_text['EXPECT_85'];
+                    unset($section_text['EXPECT_85']);
+                }
+                if (isset($section_text['EXPECTF_85'])) {
+                    $section_text['EXPECTF'] = $section_text['EXPECTF_85'];
+                    unset($section_text['EXPECTF_85']);
+                }
+                if (isset($section_text['EXPECTREGEX_85'])) {
+                    $section_text['EXPECTREGEX'] = $section_text['EXPECTREGEX_85'];
+                    unset($section_text['EXPECTREGEX_85']);
+                }
             }
 
             foreach (array('FILE', 'EXPECT', 'EXPECTF', 'EXPECTREGEX') as $prefix) {

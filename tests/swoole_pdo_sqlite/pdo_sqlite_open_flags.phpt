@@ -11,16 +11,22 @@ PdoSqliteTest::skip();
 <?php
 use function Swoole\Coroutine\run;
 
-Co::set(['hook_flags'=> SWOOLE_HOOK_PDO_SQLITE]);
-run(function() {
-    $filename = __DIR__ . DIRECTORY_SEPARATOR . "pdo_sqlite_open_flags.db";
+co::set(['hook_flags'=> SWOOLE_HOOK_PDO_SQLITE]);
+run(function () {
+    $filename = __DIR__ . DIRECTORY_SEPARATOR . 'pdo_sqlite_open_flags.db';
 
     // Default open flag is read-write|create
     $db = new PDO('sqlite:' . $filename, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
     var_dump($db->exec('CREATE TABLE test1 (id INT);'));
-
-    $db = new PDO('sqlite:' . $filename, null, null, [PDO::SQLITE_ATTR_OPEN_FLAGS => PDO::SQLITE_OPEN_READONLY, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    if (PHP_VERSION_ID >= 80500) {
+        $key   = Pdo\Sqlite::ATTR_OPEN_FLAGS;
+        $value = Pdo\SQLITE::OPEN_READONLY;
+    } else {
+        $key   = PDO::SQLITE_ATTR_OPEN_FLAGS;
+        $value = PDO::SQLITE_OPEN_READONLY;
+    }
+    $db = new PDO('sqlite:' . $filename, null, null, [$key => $value, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
     var_dump($db->exec('CREATE TABLE test2 (id INT);'));
 
@@ -30,7 +36,7 @@ run(function() {
 ?>
 --CLEAN--
 <?php
-$filename = __DIR__ . DIRECTORY_SEPARATOR . "pdo_sqlite_open_flags.db";
+$filename = __DIR__ . DIRECTORY_SEPARATOR . 'pdo_sqlite_open_flags.db';
 if (file_exists($filename)) {
     unlink($filename);
 }

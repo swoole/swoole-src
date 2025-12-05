@@ -50,17 +50,54 @@ $pm->run();
 --EXPECTF--
 sleep start then sleep end
 
-Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line 31
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
 sleep start then sleep end
 
-Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line 31
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
 sleep start then sleep end
 
-Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line 31
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
 sleep start then sleep end
 
-Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line 31
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
 sleep start then sleep end
 
-Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line 31
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
+DONE
+--EXPECTF_85--
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
+Stack trace:
+#0 %s(%d): trigger_error('ERROR', 256)
+#1 [internal function]: Process4->{closure:Process4::run():%d}()
+#2 {main}
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
+Stack trace:
+#0 %s(%d): trigger_error('ERROR', 256)
+#1 [internal function]: Process4->{closure:Process4::run():%d}()
+#2 {main}
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
+Stack trace:
+#0 %s(%d): trigger_error('ERROR', 256)
+#1 [internal function]: Process4->{closure:Process4::run():%d}()
+#2 {main}
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
+Stack trace:
+#0 %s(%d): trigger_error('ERROR', 256)
+#1 [internal function]: Process4->{closure:Process4::run():%d}()
+#2 {main}
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_error.php on line %d
+Stack trace:
+#0 %s(%d): trigger_error('ERROR', 256)
+#1 [internal function]: Process4->{closure:Process4::run():%d}()
+#2 {main}
 DONE
