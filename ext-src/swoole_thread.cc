@@ -437,6 +437,10 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
     SG(request_info).path_translated = request_info.path_translated;
     SG(request_info).argc = request_info.argc;
 
+#if PHP_VERSION_ID >= 80500
+    refresh_memory_manager();
+#endif
+
     zend_stream_init_filename(&file_handle, ZSTR_VAL(file));
     file_handle.primary_script = true;
 
