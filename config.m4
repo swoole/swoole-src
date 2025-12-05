@@ -1348,7 +1348,7 @@ EOF
     SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
 
     AC_MSG_NOTICE([php version: $SW_PHP_VERSION, version_id: $SW_PHP_VERSION_ID, thirdparty_dir: $SW_PHP_THIRDPARTY_DIR])
-    
+
     if test "$PHP_SWOOLE_CURL" != "no"; then
         if test "$SW_PHP_VERSION_ID" -ge "84"; then
             swoole_source_file="$swoole_source_file \
@@ -1376,7 +1376,7 @@ EOF
             thirdparty/pdo_oci/oci_driver.c \
             thirdparty/pdo_oci/oci_statement.c"
     fi
-    
+
     if test "$PHP_SWOOLE_ODBC" != "no"; then
         swoole_source_file="$swoole_source_file \
             ${SW_PHP_THIRDPARTY_DIR}/pdo_odbc/odbc_driver.c \
@@ -1385,11 +1385,11 @@ EOF
 
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
-            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
+            thirdparty/pdo_sqlite/sqlite_driver.c \
+            thirdparty/pdo_sqlite/sqlite_statement.c"
         if test "$SW_PHP_VERSION_ID" -ge "84"; then
             swoole_source_file="$swoole_source_file \
-                ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
+                thirdparty/pdo_sqlite/sqlite_sql_parser.c"
         fi
     fi
 
@@ -1576,6 +1576,7 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/ssh2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/pdo_oci)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/pdo_sqlite)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php85/pdo_firebird)
@@ -1589,9 +1590,6 @@ EOF
     fi
     if test "$PHP_SWOOLE_ODBC" != "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/${SW_PHP_THIRDPARTY_DIR}/pdo_odbc)
-    fi
-    if test "$PHP_SWOOLE_SQLITE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite)
     fi
     if test "$PHP_SWOOLE_FTP" != "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/ftp)

@@ -17,7 +17,6 @@
 #define SW_USE_SQLITE_HOOK
 #include "php_swoole_sqlite.h"
 
-#if PHP_VERSION_ID >= 80500
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -468,4 +467,3 @@ const struct pdo_stmt_methods swoole_sqlite_stmt_methods = {
 	NULL, /* next_rowset */
 	pdo_sqlite_stmt_cursor_closer
 };
-#endif

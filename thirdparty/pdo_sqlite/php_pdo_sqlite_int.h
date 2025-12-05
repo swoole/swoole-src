@@ -27,31 +27,9 @@ typedef struct {
 	char *errmsg;
 } pdo_sqlite_error_info;
 
-struct pdo_sqlite_func {
-	struct pdo_sqlite_func *next;
-
-	int argc;
-	zend_string *funcname;
-
-	/* accelerated callback references */
-	zend_fcall_info_cache func;
-	zend_fcall_info_cache step;
-	zend_fcall_info_cache fini;
-};
-
-struct pdo_sqlite_collation {
-	struct pdo_sqlite_collation *next;
-
-	zend_string *name;
-	zend_fcall_info_cache callback;
-};
-
 typedef struct {
 	sqlite3 *db;
 	pdo_sqlite_error_info einfo;
-	struct pdo_sqlite_func *funcs;
-	struct pdo_sqlite_collation *collations;
-	zend_fcall_info_cache authorizer_fcc;
 	enum pdo_sqlite_transaction_mode transaction_mode;
 } pdo_sqlite_db_handle;
 
@@ -64,7 +42,9 @@ typedef struct {
 
 extern const pdo_driver_t pdo_sqlite_driver;
 
+#if PHP_VERSION_ID >= 80500
 extern int pdo_sqlite_scanner(pdo_scanner_t *s);
+#endif
 
 extern int _pdo_sqlite_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int line);
 #define pdo_sqlite_error(s) _pdo_sqlite_error(s, NULL, __FILE__, __LINE__)
