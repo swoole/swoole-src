@@ -62,6 +62,9 @@ if ($load_firebird) {
     require __DIR__ . '/swoole_pdo_firebird/pdo_firebird.inc';
 }
 
+swoole_library_set_option('default_remote_object_server_worker_num', 8);
+swoole_init_default_remote_object_server();
+
 Swoole\Coroutine\run(function () use ($load_mysql, $load_firebird, $load_odbc_mysql) {
     echo "[SSH2-init] Setting up SSH2 test environment...\n";
 

@@ -23,6 +23,11 @@ swoole_async_set([
     'disable_dns_cache' => true,
     'dns_lookup_random' => true,
 ]);
+
+// Run default remote object server
+swoole_library_set_option('default_remote_object_server_worker_num', 8);
+swoole_init_default_remote_object_server();
+
 Co::set([
     'socket_timeout' => 5
 ]);

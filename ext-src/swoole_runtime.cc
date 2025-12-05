@@ -157,11 +157,6 @@ static std::vector<std::string> unsafe_functions {
     "pcntl_waitpid",
     "pcntl_sigtimedwait",
     "pcntl_sigwaitinfo",
-	"mail",
-	"dns_check_record",
-	"dns_get_mx",
-	"dns_get_record",
-	"gethostbyaddr",
 };
 
 #if defined(HAVE_PUTENV) && defined(SW_THREAD)
@@ -1746,6 +1741,46 @@ static void hook_all_func(uint32_t flags) {
     }
 }
 
+static void hook_remote_object_func(uint32_t flags) {
+    if (flags & PHPCoroutine::HOOK_REMOTE_OBJECT) {
+        if (SWOOLE_G(enable_library)) {
+            zend::function::call(R"(swoole_init_default_remote_object_server)", 0, nullptr);
+        } else {
+            swoole_warning("The `swoole/library` must be loaded, otherwise the `SWOOLE_HOOK_REMOTE_OBJECT` option will be "
+                           "unavailable");
+            return;
+        }
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_REMOTE_OBJECT)) {
+            SW_HOOK_WITH_PHP_FUNC(mail);
+	        SW_HOOK_WITH_PHP_FUNC(dns_check_record);
+            SW_HOOK_WITH_PHP_FUNC(checkdnsrr);
+            SW_HOOK_WITH_PHP_FUNC(dns_get_mx);
+            SW_HOOK_WITH_PHP_FUNC(getmxrr);
+            SW_HOOK_WITH_PHP_FUNC(dns_get_record);
+            SW_HOOK_WITH_PHP_FUNC(gethostbyaddr);
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_REMOTE_OBJECT) {
+            SW_UNHOOK_FUNC(mail);
+            SW_UNHOOK_FUNC(dns_check_record);
+            SW_UNHOOK_FUNC(checkdnsrr);
+            SW_UNHOOK_FUNC(dns_get_mx);
+            SW_UNHOOK_FUNC(getmxrr);
+            SW_UNHOOK_FUNC(dns_get_record);
+            SW_UNHOOK_FUNC(gethostbyaddr);
+        }
+    }
+}
+
+static bool extension_loaded(const char *name) {
+    zend_string *extension_name = zend_string_init(name, strlen(name), false);
+    zend_string *lcname = zend_string_tolower(extension_name);
+    bool rv = zend_hash_exists(&module_registry, lcname);
+    zend_string_release(lcname);
+    zend_string_release(extension_name);
+    return rv;
+}
+
 bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (!sw_is_main_thread() || sw_active_thread_count() > 1) {
         swoole_warning("The runtime hook can only set on the main thread and no child threads have been created");
@@ -1756,10 +1791,15 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
     }
 
+    if (flags == HOOK_ALL && (flags & HOOK_SOCKETS) && !extension_loaded("sockets")) {
+        sw_unset_bit(flags, HOOK_SOCKETS);
+    }
+
     hook_stream_factory(&flags);
     hook_stream_ops(flags);
     hook_pdo_driver(flags);
     hook_all_func(flags);
+    hook_remote_object_func(flags);
 
     if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
         swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
