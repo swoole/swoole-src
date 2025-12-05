@@ -204,6 +204,7 @@ static sb4 oci_bind_input_cb(
 
     *indpp = &P->indicator;
 
+    // TODO Duplicate dereferencing operation
     if (Z_ISREF(param->parameter))
         parameter = Z_REFVAL(param->parameter);
     else
@@ -219,17 +220,23 @@ static sb4 oci_bind_input_cb(
         *alenp = -1;
     } else if (!P->thing) {
         /* regular string bind */
-        if (!try_convert_to_string(parameter)) {
+    	// safe: use preconverted C buffer (no Zend API here `try_convert_to_string`)
+        if (!P->preconv_buf) {
             return OCI_ERROR;
         }
-        *bufpp = Z_STRVAL_P(parameter);
-        *alenp = (ub4) Z_STRLEN_P(parameter);
+        *bufpp = P->preconv_buf;
+        *alenp = P->preconv_len;
     }
 
     *piecep = OCI_ONE_PIECE;
     return OCI_CONTINUE;
 } /* }}} */
 
+/**
+ * This function will be called during the execution of OCIStmtExecute,
+ * while the OCIStmtExecute function is executed in an AIO asynchronous thread within asynchronous IO.
+ *
+ */
 static sb4 oci_bind_output_cb(dvoid *ctx,
                               OCIBind *bindp,
                               ub4 iter,
@@ -266,8 +273,11 @@ static sb4 oci_bind_output_cb(dvoid *ctx,
         return OCI_CONTINUE;
     }
 
+    // It can be safely released in an aio thread, this is a persistent string,
+    // allocated with malloc instead of ZendMM emalloc.
     zval_ptr_dtor(parameter);
 
+    // Must use malloc for persistent strings
     Z_STR_P(parameter) = zend_string_alloc(param->max_value_len, 1);
     P->used_for_output = 1;
 
@@ -309,6 +319,11 @@ static int oci_stmt_param_hook(pdo_stmt_t *stmt,
 
         case PDO_PARAM_EVT_FREE:
             P = param->driver_data;
+            if (P && P->preconv_buf) {
+				efree(P->preconv_buf);
+				P->preconv_buf = NULL;
+				P->preconv_len = 0;
+			}
             if (P && P->thing) {
                 OCI_TEMPLOB_CLOSE(S->H->env, S->H->svc, S->H->err, P->thing);
                 OCIDescriptorFree(P->thing, OCI_DTYPE_LOB);
@@ -376,6 +391,7 @@ static int oci_stmt_param_hook(pdo_stmt_t *stmt,
                            OCI_DATA_AT_EXEC));
             }
 
+
             STMT_CALL(OCIBindDynamic, (P->bind, S->err, param, oci_bind_input_cb, param, oci_bind_output_cb));
 
             return 1;
@@ -389,6 +405,17 @@ static int oci_stmt_param_hook(pdo_stmt_t *stmt,
                 STMT_CALL(OCIAttrSet, (P->thing, OCI_DTYPE_LOB, &empty, 0, OCI_ATTR_LOBEMPTY, S->err));
                 S->have_blobs = 1;
             }
+
+            /* in PDO_PARAM_EVT_EXEC_PRE, executed in PHP-context (main thread) */
+            if (PDO_PARAM_TYPE(param->param_type) != PDO_PARAM_LOB && Z_TYPE_P(parameter) != IS_NULL) {
+                convert_to_string(parameter);
+                /* allocate persistent or temporary buffer that outlives dispatch to async thread */
+                P->preconv_len = Z_STRLEN_P(parameter);
+                P->preconv_buf = emalloc(P->preconv_len + 1);
+                memcpy(P->preconv_buf, Z_STRVAL_P(parameter), P->preconv_len);
+                P->preconv_buf[P->preconv_len] = '\0';
+            }
+
             return 1;
 
         case PDO_PARAM_EVT_EXEC_POST:
@@ -487,6 +514,12 @@ static int oci_stmt_param_hook(pdo_stmt_t *stmt,
                 }
             }
 
+            if (P->preconv_buf) {
+				efree(P->preconv_buf);
+				P->preconv_buf = NULL;
+				P->preconv_len = 0;
+			}
+
             return 1;
         }
     }
@@ -546,6 +579,9 @@ static int oci_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend
     return 0;
 } /* }}} */
 
+/**
+ * This function is thread-safe as it does not call any ZendAPI.
+ */
 static sb4 oci_define_callback(
     dvoid *octxp, OCIDefine *define, ub4 iter, dvoid **bufpp, ub4 **alenpp, ub1 *piecep, dvoid **indpp, ub2 **rcodepp) {
     pdo_oci_column *col = (pdo_oci_column *) octxp;

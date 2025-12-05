@@ -83,6 +83,10 @@ typedef struct {
     dvoid *thing; /* for LOBS, REFCURSORS etc. */
 
     unsigned used_for_output;
+
+    /* --- NEW: preconverted buffer for async-safe binds --- */
+     char *preconv_buf;      /* pointer to a NUL-terminated C buffer (owned by param) */
+     ub4   preconv_len;      /* length of the buffer in bytes */
 } pdo_oci_bound_param;
 
 extern const ub4 SWOOLE_PDO_OCI_INIT_MODE;

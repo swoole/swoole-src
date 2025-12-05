@@ -61,9 +61,8 @@ const ub4 PDO_OCI_INIT_MODE =
 #ifdef OCI_OBJECT
     | OCI_OBJECT
 #endif
-#ifdef ZTS
+	// Whether PHP is ZTS or not, when used in Swoole coroutines, this option must be enabled.
     | OCI_THREADED
-#endif
     ;
 
 /* true global environment */
