@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 3a0362fa41692c98eaf55b86decb0dec7fbadaa7 */
+/* $Id: f8667c090a159e1ec3a259965faaf8ad8fc086c5 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -10903,6 +10903,37 @@ static const char* swoole_library_source_ext_standard =
     "    return $client->call('gethostbyaddr', $ip);\n"
     "}\n";
 
+static const char* swoole_library_source_ext_mongodb =
+    "\n"
+    "\n"
+    "namespace Swoole\\MongoDB;\n"
+    "\n"
+    "use Swoole\\RemoteObject\\ProxyTrait;\n"
+    "use Swoole\\RemoteObject;\n"
+    "\n"
+    "class Client\n"
+    "{\n"
+    "    public const DEFAULT_URI = 'mongodb://127.0.0.1/';\n"
+    "\n"
+    "    protected RemoteObject $client;\n"
+    "\n"
+    "    use ProxyTrait;\n"
+    "\n"
+    "    public function __construct(?string $uri = self::DEFAULT_URI, array $uriOptions = [], array $driverOptions = [])\n"
+    "    {\n"
+    "        $remoteObjectClient = swoole_library_get_option('mongodb_remote_object_client');\n"
+    "        if ($remoteObjectClient === null) {\n"
+    "            $remoteObjectClient = swoole_get_default_remote_object_client();\n"
+    "        }\n"
+    "        $this->client = $remoteObjectClient->create(\\MongoDB\\Client::class, $uri, $uriOptions, $driverOptions);\n"
+    "    }\n"
+    "\n"
+    "    protected function getObject(): RemoteObject\n"
+    "    {\n"
+    "        return $this->client;\n"
+    "    }\n"
+    "}\n";
+
 static const char* swoole_library_source_functions =
     "\n"
     "/**\n"
@@ -11263,6 +11294,7 @@ void php_swoole_load_library()
     _eval(swoole_library_source_ext_curl, "@swoole/library/ext/curl.php");
     _eval(swoole_library_source_ext_sockets, "@swoole/library/ext/sockets.php");
     _eval(swoole_library_source_ext_standard, "@swoole/library/ext/standard.php");
+    _eval(swoole_library_source_ext_mongodb, "@swoole/library/ext/mongodb.php");
     _eval(swoole_library_source_functions, "@swoole/library/functions.php");
     _eval(swoole_library_source_alias, "@swoole/library/alias.php");
     _eval(swoole_library_source_alias_ns, "@swoole/library/alias_ns.php");

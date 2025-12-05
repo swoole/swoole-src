@@ -138,7 +138,8 @@ class PHPCoroutine {
         HOOK_PDO_ORACLE = 1u << 18,
         HOOK_PDO_SQLITE = 1u << 19,
         HOOK_PDO_FIREBIRD = 1u << 20,
-        HOOK_REMOTE_OBJECT = 1u << 21,
+        HOOK_DNS_FUNCTION = 1u << 21,
+	    HOOK_MONGODB = 1u << 22,
 #ifdef SW_USE_CURL
         HOOK_ALL = 0x7fffffff ^ HOOK_CURL,
 #else

@@ -1742,15 +1742,8 @@ static void hook_all_func(uint32_t flags) {
 }
 
 static void hook_remote_object_func(uint32_t flags) {
-    if (flags & PHPCoroutine::HOOK_REMOTE_OBJECT) {
-        if (SWOOLE_G(enable_library)) {
-            zend::function::call(R"(swoole_init_default_remote_object_server)", 0, nullptr);
-        } else {
-            swoole_warning("The `swoole/library` must be loaded, otherwise the `SWOOLE_HOOK_REMOTE_OBJECT` option will be "
-                           "unavailable");
-            return;
-        }
-        if (!(runtime_hook_flags & PHPCoroutine::HOOK_REMOTE_OBJECT)) {
+    if (flags & PHPCoroutine::HOOK_DNS_FUNCTION) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_DNS_FUNCTION)) {
             SW_HOOK_WITH_PHP_FUNC(mail);
 	        SW_HOOK_WITH_PHP_FUNC(dns_check_record);
             SW_HOOK_WITH_PHP_FUNC(checkdnsrr);
@@ -1760,7 +1753,7 @@ static void hook_remote_object_func(uint32_t flags) {
             SW_HOOK_WITH_PHP_FUNC(gethostbyaddr);
         }
     } else {
-        if (runtime_hook_flags & PHPCoroutine::HOOK_REMOTE_OBJECT) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_DNS_FUNCTION) {
             SW_UNHOOK_FUNC(mail);
             SW_UNHOOK_FUNC(dns_check_record);
             SW_UNHOOK_FUNC(checkdnsrr);
@@ -1769,6 +1762,18 @@ static void hook_remote_object_func(uint32_t flags) {
             SW_UNHOOK_FUNC(dns_get_record);
             SW_UNHOOK_FUNC(gethostbyaddr);
         }
+    }
+
+    if (flags & PHPCoroutine::HOOK_MONGODB) {
+    	zend::String class_name(R"(Swoole\MongoDB\Client)");
+    	auto ce = zend_lookup_class_ex(class_name.get(), NULL, ZEND_FETCH_CLASS_NO_AUTOLOAD);
+    	if (ce) {
+    		if (!zend_register_class_alias(R"(MongoDB\Client)", ce) == SUCCESS) {
+    			zend_error(E_WARNING, "Cannot declare %s %s, because the name is already in use", zend_get_object_type(ce), R"(MongoDB\Client)");
+    		}
+    	}
+    } else {
+    	// TODO unset class alias
     }
 }
 
@@ -1791,8 +1796,13 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
     }
 
-    if (flags == HOOK_ALL && (flags & HOOK_SOCKETS) && !extension_loaded("sockets")) {
+    if (!extension_loaded("sockets")) {
         sw_unset_bit(flags, HOOK_SOCKETS);
+    }
+
+    if (!SWOOLE_G(enable_library)) {
+        sw_unset_bit(flags, HOOK_DNS_FUNCTION);
+        sw_unset_bit(flags, HOOK_MONGODB);
     }
 
     hook_stream_factory(&flags);
