@@ -180,6 +180,24 @@ static void hook_func(const char *name,
                       zend_internal_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
 
+static bool extension_loaded(const char *name) {
+    zend_string *extension_name = zend_string_init(name, strlen(name), false);
+    zend_string *lcname = zend_string_tolower(extension_name);
+    bool rv = zend_hash_exists(&module_registry, lcname);
+    zend_string_release(lcname);
+    zend_string_release(extension_name);
+    return rv;
+}
+
+static bool class_exists(const char *name) {
+    zend_string *class_name = zend_string_init(name, strlen(name), false);
+    zend_string *lcname = zend_string_tolower(class_name);
+    auto *ce = (zend_class_entry *) zend_hash_find_ptr(EG(class_table), lcname);
+    zend_string_release_ex(lcname, 0);
+    zend_string_release_ex(class_name, 0);
+    return !!ce;
+}
+
 static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
     auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
@@ -302,6 +320,8 @@ void php_swoole_runtime_minit(int module_number) {
 #ifdef SW_USE_FIREBIRD
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_FIREBIRD", PHPCoroutine::HOOK_PDO_FIREBIRD);
 #endif
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_NET_FUNCTION", PHPCoroutine::HOOK_NET_FUNCTION);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_MONGODB", PHPCoroutine::HOOK_MONGODB);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
     swoole_native_curl_minit(module_number);
@@ -1741,11 +1761,11 @@ static void hook_all_func(uint32_t flags) {
     }
 }
 
-static void hook_remote_object_func(uint32_t flags) {
-    if (flags & PHPCoroutine::HOOK_DNS_FUNCTION) {
-        if (!(runtime_hook_flags & PHPCoroutine::HOOK_DNS_FUNCTION)) {
+static void hook_net_func(uint32_t flags) {
+    if (flags & PHPCoroutine::HOOK_NET_FUNCTION) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_NET_FUNCTION)) {
             SW_HOOK_WITH_PHP_FUNC(mail);
-	        SW_HOOK_WITH_PHP_FUNC(dns_check_record);
+            SW_HOOK_WITH_PHP_FUNC(dns_check_record);
             SW_HOOK_WITH_PHP_FUNC(checkdnsrr);
             SW_HOOK_WITH_PHP_FUNC(dns_get_mx);
             SW_HOOK_WITH_PHP_FUNC(getmxrr);
@@ -1753,7 +1773,7 @@ static void hook_remote_object_func(uint32_t flags) {
             SW_HOOK_WITH_PHP_FUNC(gethostbyaddr);
         }
     } else {
-        if (runtime_hook_flags & PHPCoroutine::HOOK_DNS_FUNCTION) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_NET_FUNCTION) {
             SW_UNHOOK_FUNC(mail);
             SW_UNHOOK_FUNC(dns_check_record);
             SW_UNHOOK_FUNC(checkdnsrr);
@@ -1763,27 +1783,21 @@ static void hook_remote_object_func(uint32_t flags) {
             SW_UNHOOK_FUNC(gethostbyaddr);
         }
     }
-
-    if (flags & PHPCoroutine::HOOK_MONGODB) {
-    	zend::String class_name(R"(Swoole\MongoDB\Client)");
-    	auto ce = zend_lookup_class_ex(class_name.get(), NULL, ZEND_FETCH_CLASS_NO_AUTOLOAD);
-    	if (ce) {
-    		if (!zend_register_class_alias(R"(MongoDB\Client)", ce) == SUCCESS) {
-    			zend_error(E_WARNING, "Cannot declare %s %s, because the name is already in use", zend_get_object_type(ce), R"(MongoDB\Client)");
-    		}
-    	}
-    } else {
-    	// TODO unset class alias
-    }
 }
 
-static bool extension_loaded(const char *name) {
-    zend_string *extension_name = zend_string_init(name, strlen(name), false);
-    zend_string *lcname = zend_string_tolower(extension_name);
-    bool rv = zend_hash_exists(&module_registry, lcname);
-    zend_string_release(lcname);
-    zend_string_release(extension_name);
-    return rv;
+static void hook_mongodb(uint32_t flags) {
+    if (flags & PHPCoroutine::HOOK_MONGODB) {
+        auto alias_name = R"(MongoDB\Client)";
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_MONGODB) && !class_exists(alias_name)) {
+            zend::String class_name(R"(Swoole\MongoDB\Client)");
+            auto ce = zend_lookup_class_ex(class_name.get(), NULL, ZEND_FETCH_CLASS_NO_AUTOLOAD);
+            if (ce) {
+                if (zend_register_class_alias(alias_name, ce) != SUCCESS) {
+                    zend_error(E_WARNING, "Cannot declare class %s, because the name is already in use", alias_name);
+                }
+            }
+        }
+    }
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
@@ -1801,15 +1815,20 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
 
     if (!SWOOLE_G(enable_library)) {
-        sw_unset_bit(flags, HOOK_DNS_FUNCTION);
+        sw_unset_bit(flags, HOOK_NET_FUNCTION);
         sw_unset_bit(flags, HOOK_MONGODB);
+    }
+
+    if ((flags & HOOK_MONGODB) || (flags & HOOK_NET_FUNCTION)) {
+        zend::function::call(R"(swoole_init_default_remote_object_server)", 0, nullptr);
     }
 
     hook_stream_factory(&flags);
     hook_stream_ops(flags);
     hook_pdo_driver(flags);
     hook_all_func(flags);
-    hook_remote_object_func(flags);
+    hook_net_func(flags);
+    hook_mongodb(flags);
 
     if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
         swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
