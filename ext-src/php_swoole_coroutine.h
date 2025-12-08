@@ -96,6 +96,7 @@ struct PHPContext {
     long pcid;
     zend_object *context;
     int64_t last_msec;
+    size_t switch_count;
 };
 
 class PHPCoroutine {

@@ -326,31 +326,15 @@ ZEND_GET_MODULE(swoole)
 #endif
 
 // clang-format off
-/* {{{ PHP_INI
- */
-
 PHP_INI_BEGIN()
-/**
- * enable swoole coroutine
- */
 STD_ZEND_INI_BOOLEAN("swoole.enable_library", "On", PHP_INI_ALL, OnUpdateBool, enable_library, zend_swoole_globals, swoole_globals)
 STD_ZEND_INI_BOOLEAN("swoole.enable_fiber_mock", "Off", PHP_INI_ALL, OnUpdateBool, enable_fiber_mock, zend_swoole_globals, swoole_globals)
-/**
- * enable swoole coroutine epreemptive scheduler
- */
 STD_ZEND_INI_BOOLEAN("swoole.enable_preemptive_scheduler", "Off", PHP_INI_ALL, OnUpdateBool, enable_preemptive_scheduler, zend_swoole_globals, swoole_globals)
-/**
- * display error
- */
 STD_ZEND_INI_BOOLEAN("swoole.display_errors", "On", PHP_INI_ALL, OnUpdateBool, display_errors, zend_swoole_globals, swoole_globals)
-/**
- * use short class name
- */
 STD_ZEND_INI_BOOLEAN("swoole.use_shortname", "On", PHP_INI_SYSTEM, OnUpdateBool, use_shortname, zend_swoole_globals, swoole_globals)
-/**
- * unix socket buffer size
- */
-STD_PHP_INI_ENTRY("swoole.unixsock_buffer_size", ZEND_TOSTR(SW_SOCKET_BUFFER_SIZE), PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.socket_buffer_size", ZEND_TOSTR(SW_SOCKET_BUFFER_SIZE), PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
+STD_ZEND_INI_BOOLEAN("swoole.blocking_detection", "Off", PHP_INI_SYSTEM, OnUpdateBool, blocking_detection, zend_swoole_globals, swoole_globals)
+STD_PHP_INI_ENTRY("swoole.blocking_threshold", "100000", PHP_INI_SYSTEM, OnUpdateLong, blocking_threshold, zend_swoole_globals, swoole_globals)
 PHP_INI_END()
 // clang-format on
 
@@ -362,6 +346,9 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->display_errors = true;
     swoole_globals->use_shortname = true;
     swoole_globals->in_autoload = nullptr;
+    swoole_globals->blocking_detection = false;
+    swoole_globals->blocking_threshold = 100000;
+
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
         strcmp("embed", sapi_module.name) == 0 || strcmp("micro", sapi_module.name) == 0) {
         swoole_globals->cli = true;

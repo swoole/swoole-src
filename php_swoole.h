@@ -60,7 +60,9 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool enable_preemptive_scheduler;
     zend_bool enable_library;
     zend_bool enable_fiber_mock;
-    long socket_buffer_size;
+    zend_bool blocking_detection;
+    zend_long blocking_threshold;
+    zend_long socket_buffer_size;
     int req_status;
     HashTable *in_autoload;
 ZEND_END_MODULE_GLOBALS(swoole)

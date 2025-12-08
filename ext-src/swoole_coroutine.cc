@@ -24,18 +24,18 @@
 #include "swoole_signal.h"
 #include "swoole_async.h"
 
+BEGIN_EXTERN_C()
 #include "zend_builtin_functions.h"
+#include "zend_observer.h"
 #include "ext/standard/basic_functions.h"
+#include "ext/standard/php_math.h"
 #include "ext/spl/spl_array.h"
 
-#include "zend_observer.h"
+#include "stubs/php_swoole_coroutine_arginfo.h"
+END_EXTERN_C()
 
 #include <unordered_map>
 #include <chrono>
-
-BEGIN_EXTERN_C()
-#include "stubs/php_swoole_coroutine_arginfo.h"
-END_EXTERN_C()
 
 /**
  * The coroutine canceled exception must be explicitly caught in the php code.
@@ -289,6 +289,77 @@ static void coro_interrupt_resume(void *data) {
         swoole_trace_log(SW_TRACE_COROUTINE, "interrupt_callback cid=%ld ", co->get_cid());
         co->resume();
     }
+}
+
+struct BlockingDetectionSpan {
+    zend_long began_at;
+    size_t switch_count;
+    PHPContext::SwapCallback swap_callback;
+};
+
+constexpr int blocking_detection_func_reserve_index = 4;
+
+static void coro_observer_begin(zend_execute_data *execute_data) {
+    auto ctx = (PHPContext *) swoole::Coroutine::get_current_task();
+    if (ctx) {
+        auto span = new BlockingDetectionSpan;
+        span->began_at = swoole::time<std::chrono::microseconds>(true);
+        span->switch_count = ctx->switch_count;
+        span->swap_callback = [](PHPContext *ctx) { ctx->switch_count++; };
+        ctx->on_resume = &span->swap_callback;
+        ctx->on_yield = &span->swap_callback;
+        execute_data->func->internal_function.reserved[blocking_detection_func_reserve_index] = span;
+    }
+}
+
+static void coro_observer_end(zend_execute_data *execute_data, zval *return_value) {
+    PHPContext *ctx = PHPCoroutine::get_context();
+    if (ctx && execute_data->func->type == ZEND_INTERNAL_FUNCTION) {
+        auto fn = &execute_data->func->internal_function;
+        auto span = (BlockingDetectionSpan *) fn->reserved[blocking_detection_func_reserve_index];
+        if (span) {
+            auto now = swoole::time<std::chrono::microseconds>(true);
+            auto duration = now - span->began_at;
+            if (span->switch_count == ctx->switch_count && duration > SWOOLE_G(blocking_threshold)) {
+                zval backtrace;
+                zend_fetch_debug_backtrace(&backtrace, 0, 0, 0);
+
+                auto duration_str = _php_math_number_format_long(duration, 0, ".", 1, ",", 1);
+                auto backtrace_str = zend_trace_to_string(Z_ARRVAL(backtrace), false);
+
+                const char *scope = nullptr;
+                if (execute_data->func->common.scope) {
+                    scope = ZSTR_VAL(execute_data->func->common.scope->name);
+                }
+
+                sw_printf(
+                    " >>> [Detected blocking I/O in Coroutine#%ld, internal function `%s%s%s()` blocked for %s us]\n%s",
+                    PHPCoroutine::get_cid(),
+                    scope ? scope : "",
+                    scope ? "::" : "",
+                    fn->function_name->val,
+                    ZSTR_VAL(duration_str),
+                    ZSTR_VAL(backtrace_str));
+                zend_string_release(duration_str);
+                zend_string_release(backtrace_str);
+                zval_ptr_dtor(&backtrace);
+            }
+            delete span;
+        }
+    }
+}
+
+static zend_observer_fcall_handlers coro_observer(zend_execute_data *execute_data) {
+    zend_observer_fcall_handlers handlers = {NULL, NULL};
+
+    if (!execute_data->func || !execute_data->func->common.function_name ||
+        execute_data->func->type != ZEND_INTERNAL_FUNCTION) {
+        return handlers;
+    }
+
+    handlers.begin = coro_observer_begin;
+    handlers.end = coro_observer_end;
+    return handlers;
 }
 
 static void coro_interrupt_function(zend_execute_data *execute_data) {
@@ -1050,11 +1121,11 @@ void php_swoole_coroutine_minit(int module_number) {
     swoole_coroutine_canceled_exception_ce->ce_flags |= ZEND_ACC_FINAL;
 
     SW_INIT_CLASS_ENTRY_EX2(swoole_coroutine_timeout_exception,
-                                "Swoole\\Coroutine\\TimeoutException",
-                                nullptr,
-                                nullptr,
-                                zend_ce_exception,
-                                zend_get_std_object_handlers());
+                            "Swoole\\Coroutine\\TimeoutException",
+                            nullptr,
+                            nullptr,
+                            zend_ce_exception,
+                            zend_get_std_object_handlers());
     swoole_coroutine_timeout_exception_ce->ce_flags |= ZEND_ACC_FINAL;
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EXIT_IN_COROUTINE", SW_EXIT_IN_COROUTINE);
@@ -1071,6 +1142,10 @@ void php_swoole_coroutine_minit(int module_number) {
 
         ori_end_silence_handler = zend_get_user_opcode_handler(ZEND_END_SILENCE);
         zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
+
+        if (SWOOLE_G(blocking_detection)) {
+            zend_observer_fcall_register(coro_observer);
+        }
     }
 
     /* hook autoload */
