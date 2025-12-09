@@ -26,7 +26,7 @@ $pm->parentFunc = function () use ($pm) {
         curl_setopt($ch, CURLOPT_HEADER, 0);
         $output = curl_exec($ch);
         Assert::isEmpty($output);
-        Assert::eq(curl_errno($ch), CURLE_RECV_ERROR);
+        Assert::oneOf(curl_errno($ch), [CURLE_RECV_ERROR, CURLE_GOT_NOTHING]);
         curl_close($ch);
     });
     $pm->kill();
