@@ -7,7 +7,7 @@
  * @license  https://github.com/swoole/library/blob/master/LICENSE
  */
 
-require_once __DIR__ . '/config.php'; // (`once` because it may required in skip when we run phpt)
+require_once __DIR__ . '/config.php'; // (`once` because it may be required in skip when we run phpt)
 require  __DIR__ . '/../../tools/bootstrap.php';
 
 // PHP settings
@@ -19,7 +19,6 @@ assert_options(ASSERT_BAIL, 0);
 
 // Swoole settings
 swoole_async_set([
-    'socket_dontwait' => 1,
     'disable_dns_cache' => true,
     'dns_lookup_random' => true,
 ]);
