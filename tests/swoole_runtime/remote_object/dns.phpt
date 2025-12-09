@@ -2,7 +2,7 @@
 swoole_runtime/remote_object: dns
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
-skip_if_offline();
+skip('not support');
 ?>
 --FILE--
 <?php
