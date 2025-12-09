@@ -7,7 +7,7 @@
  * @license  https://github.com/swoole/library/blob/master/LICENSE
  */
 
-require_once __DIR__ . '/config.php'; // (`once` because it may required in skip when we run phpt)
+require_once __DIR__ . '/config.php'; // (`once` because it may be required in skip when we run phpt)
 require  __DIR__ . '/../../tools/bootstrap.php';
 
 // PHP settings
@@ -19,13 +19,12 @@ assert_options(ASSERT_BAIL, 0);
 
 // Swoole settings
 swoole_async_set([
-    'socket_dontwait' => 1,
     'disable_dns_cache' => true,
     'dns_lookup_random' => true,
 ]);
 
 // Run default remote object server
-swoole_library_set_option('default_remote_object_server_worker_num', 8);
+swoole_library_set_option('default_remote_object_server_worker_num', 2);
 swoole_init_default_remote_object_server();
 
 Co::set([

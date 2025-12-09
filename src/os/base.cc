@@ -19,6 +19,7 @@
 #include "swoole_socket.h"
 #include "swoole_async.h"
 #include "swoole_signal.h"
+#include "swoole_api.h"
 
 #include <pwd.h>
 #include <grp.h>
@@ -86,7 +87,20 @@ int swoole_daemon(int nochdir, int noclose) {
     if (swoole_fork(SW_FORK_PRECHECK) < 0) {
         return -1;
     }
-    return daemon(nochdir, noclose);
+    auto rv = daemon(nochdir, noclose);
+    if (rv == 0) {
+    	/**
+    	 * The daemon function forks the process multiple times, and the pid changes,
+    	 * which can lead to PHP assertion failures.
+    	 * After PHP 8.5, it is required that the process must call `refresh_memory_manager()` after forking,
+    	 * but this does not seem to take into account the invocation of the daemon function.
+    	 * If not modified, it will crash during shutdown, and users will think it is a bug in Swoole.
+    	 */
+        if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
+            swoole_call_hook(SW_GLOBAL_HOOK_AFTER_FORK, nullptr);
+        }
+    }
+    return rv;
 }
 #endif
 

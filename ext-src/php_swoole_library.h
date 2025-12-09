@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 97d9a3559e5f4c6cdd6140e3aad2c5f60ee897bb */
+/* $Id: 9e494000a6495581a5d59439cf15504c2bbdeaad */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -11192,14 +11192,20 @@ static const char* swoole_library_source_functions =
     "    $options['bootstrap']        = $php_file;\n"
     "    $options['pid_file']         = $pid_file;\n"
     "    $options['log_file']         = $log_file;\n"
+    "    $options['daemonize']        = true;\n"
     "    $options['socket_type']      = SWOOLE_SOCK_UNIX_STREAM;\n"
     "\n"
-    "    file_put_contents($php_file, '<?php' .\n"
+    "    $rv = file_put_contents($php_file, '<?php' .\n"
     "        \"\\nif (is_file(__DIR__ . '/vendor/autoload.php')) { require __DIR__ . '/vendor/autoload.php'; }\" .\n"
+    "        \"\\nif (is_file(__DIR__ . '/bootstrap.php')) { require __DIR__ . '/bootstrap.php'; }\" .\n"
+    "        \"\\n\" .\n"
     "        \"\\n(new Swoole\\\\RemoteObject\\\\Server(\"\n"
     "        . \"'{$socket_file}', 0, \"\n"
     "        . var_export($options, true) .\n"
     "        \"))->start();\\n\");\n"
+    "    if (!$rv) {\n"
+    "        throw new RuntimeException(\"failed to write php file[{$php_file}]\");\n"
+    "    }\n"
     "\n"
     "    $php_bin = PHP_BINARY;\n"
     "    if (posix_access($socket_file, POSIX_R_OK)) {\n"
@@ -11213,7 +11219,20 @@ static const char* swoole_library_source_functions =
     "    }\n"
     "\n"
     "    // start server\n"
-    "    shell_exec(\"nohup {$php_bin} {$php_file} > /dev/null 2>&1 &\");\n"
+    "    $proc = proc_open(\"{$php_bin} {$php_file}\", [\n"
+    "        0 => ['pipe', 'r'],\n"
+    "        1 => ['pipe', 'w'],\n"
+    "        2 => ['pipe', 'w'],\n"
+    "    ], $pipes);\n"
+    "    if ($proc === false) {\n"
+    "        throw new RuntimeException('failed to start remote object server');\n"
+    "    }\n"
+    "    $rc = proc_close($proc);\n"
+    "    if ($rc !== 0) {\n"
+    "        $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);\n"
+    "        throw new RuntimeException(\"failed to start remote object server: exit code {$rc}, output: \" . $output);\n"
+    "    }\n"
+    "\n"
     "    $wait_ready_fn();\n"
     "    flock($lock_handle, LOCK_UN);\n"
     "    fclose($lock_handle);\n"

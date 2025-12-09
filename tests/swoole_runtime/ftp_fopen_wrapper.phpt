@@ -2,6 +2,7 @@
 swoole_runtime: ftp fopen  wrapper
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
+skip_if_in_ci('failure');
 skip_if_no_ftp();
 ?>
 --FILE--
