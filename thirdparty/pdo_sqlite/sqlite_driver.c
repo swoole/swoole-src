@@ -16,7 +16,7 @@
 
 #define SW_USE_SQLITE_HOOK
 #include "php_swoole_sqlite.h"
-#include "php_swoole_call_stack.h"
+#include "php_swoole_api.h"
 
 #include "php.h"
 #include "php_ini.h"

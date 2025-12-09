@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 97d9a3559e5f4c6cdd6140e3aad2c5f60ee897bb */
+/* $Id: 9e494000a6495581a5d59439cf15504c2bbdeaad */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -11196,6 +11196,8 @@ static const char* swoole_library_source_functions =
     "\n"
     "    file_put_contents($php_file, '<?php' .\n"
     "        \"\\nif (is_file(__DIR__ . '/vendor/autoload.php')) { require __DIR__ . '/vendor/autoload.php'; }\" .\n"
+    "        \"\\nif (is_file(__DIR__ . '/bootstrap.php')) { require __DIR__ . '/bootstrap.php'; }\" .\n"
+    "        \"\\n\" .\n"
     "        \"\\n(new Swoole\\\\RemoteObject\\\\Server(\"\n"
     "        . \"'{$socket_file}', 0, \"\n"
     "        . var_export($options, true) .\n"
