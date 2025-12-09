@@ -323,8 +323,11 @@ static void coro_observer_end(zend_execute_data *execute_data, zval *return_valu
             if (span->switch_count == ctx->switch_count && duration > SWOOLE_G(blocking_threshold)) {
                 zval backtrace;
                 zend_fetch_debug_backtrace(&backtrace, 0, 0, 0);
-
+#if PHP_VERSION_ID >= 80300
                 auto duration_str = _php_math_number_format_long(duration, 0, ".", 1, ",", 1);
+#else
+                auto duration_str = _php_math_number_format((double) duration, 0, '.', ',');
+#endif
                 auto backtrace_str = zend_trace_to_string(Z_ARRVAL(backtrace), false);
 
                 const char *scope = nullptr;
@@ -347,6 +350,8 @@ static void coro_observer_end(zend_execute_data *execute_data, zval *return_valu
             delete span;
         }
     }
+    ctx->on_resume = nullptr;
+    ctx->on_yield = nullptr;
 }
 
 static zend_observer_fcall_handlers coro_observer(zend_execute_data *execute_data) {

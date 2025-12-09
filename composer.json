@@ -7,6 +7,14 @@
     "php": ">=8.2 <8.6",
     "ext-pdo": "*"
   },
+  "suggest": {
+    "ext-pdo_mysql": "PDO_MYSQL is required for Swoole to work with MySQL",
+    "ext-pdo_pgsql": "PDO_PGSQL is required for Swoole to work with PostgreSQL",
+    "ext-curl": "CURL is required for Swoole to work with HTTP",
+    "ext-sockets": "Sockets is required for Swoole to work with Socket",
+    "ext-openssl": "OpenSSL is required for Swoole to work with HTTPS",
+    "ext-posix": "*"
+  },
   "php-ext": {
     "extension-name": "swoole",
     "configure-options": [

@@ -57,6 +57,23 @@ $pm->run();
 sleep start then sleep end
 
 Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_tick.php on line %d
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_tick.php on line %d
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_tick.php on line %d
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_tick.php on line %d
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_tick.php on line %d
+DONE
+--EXPECTF_85--
+sleep start then sleep end
+
+Fatal error: ERROR in %s/tests/swoole_server/addProcess_with_tick.php on line %d
 Stack trace:
 #0 %s(%d): trigger_error('ERROR', 256)
 #1 [internal function]: Process3->{closure:Process3::run():%d}(%d)

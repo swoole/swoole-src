@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 6cf16e8afe0e5c25270a5b5f18b93a0822d15dfc */
+/* $Id: 97d9a3559e5f4c6cdd6140e3aad2c5f60ee897bb */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -7892,14 +7892,6 @@ static const char* swoole_library_source_core_remote_object_client =
     "        return $result;\n"
     "    }\n"
     "\n"
-    "    private function genUuid(): string\n"
-    "    {\n"
-    "        $data    = random_bytes(16);\n"
-    "        $data[6] = chr(ord($data[6]) & 0x0F | 0x40);\n"
-    "        $data[8] = chr(ord($data[8]) & 0x3F | 0x80);\n"
-    "        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));\n"
-    "    }\n"
-    "\n"
     "    public function ping(): bool\n"
     "    {\n"
     "        try {\n"
@@ -7908,6 +7900,14 @@ static const char* swoole_library_source_core_remote_object_client =
     "        } catch (\\Throwable $e) {\n"
     "            return false;\n"
     "        }\n"
+    "    }\n"
+    "\n"
+    "    private function genUuid(): string\n"
+    "    {\n"
+    "        $data    = random_bytes(16);\n"
+    "        $data[6] = chr(ord($data[6]) & 0x0F | 0x40);\n"
+    "        $data[8] = chr(ord($data[8]) & 0x3F | 0x80);\n"
+    "        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));\n"
     "    }\n"
     "}\n";
 
@@ -11201,14 +11201,14 @@ static const char* swoole_library_source_functions =
     "        . var_export($options, true) .\n"
     "        \"))->start();\\n\");\n"
     "\n"
-    "    $php_bin = $_SERVER['_'] ?? 'env php';\n"
-    "    if (is_file($socket_file)) {\n"
+    "    $php_bin = PHP_BINARY;\n"
+    "    if (posix_access($socket_file, POSIX_R_OK)) {\n"
     "        unlink($socket_file);\n"
     "    }\n"
     "\n"
     "    $hook_flags = Swoole\\Runtime::getHookFlags();\n"
     "    // Having enabled the MongoDB hook, you need to install the MongoDB PHP library through Composer.\n"
-    "    if ($hook_flags & SWOOLE_HOOK_MONGODB and !is_dir($dir . '/vendor/mongodb/mongodb')) {\n"
+    "    if (defined('SWOOLE_HOOK_MONGODB') and $hook_flags & SWOOLE_HOOK_MONGODB and !is_dir($dir . '/vendor/mongodb/mongodb')) {\n"
     "        system(\"cd {$dir} && composer require mongodb/mongodb\");\n"
     "    }\n"
     "\n"
