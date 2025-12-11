@@ -318,7 +318,11 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->on_close = nullptr;
     ctx->enable_scheduler = true;
 
-    fiber_context_try_init(ctx);
+    if (UNEXPECTED(SWOOLE_G(enable_fiber_mock))) {
+    	fiber_context_init(ctx);
+    } else {
+    	ctx->fiber_context = nullptr;
+    }
     ctx->fiber_init_notified = false;
 
     EG(vm_stack) = zend_vm_stack_new_page(SW_DEFAULT_PHP_STACK_PAGE_SIZE, nullptr);
@@ -724,9 +728,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
 
     Z_TRY_DELREF(ctx->return_value);
 
-    ctx->fiber_context->status = ZEND_FIBER_STATUS_DEAD;
-    fiber_context_switch_try_notify(ctx, origin_ctx);
-    fiber_context_try_destroy(ctx);
+    fiber_context_try_destroy(ctx, origin_ctx);
 
     swoole_trace_log(SW_TRACE_COROUTINE,
                      "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
@@ -757,7 +759,7 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
-        if (UNEXPECTED(SWOOLE_G(enable_fiber_mock) && ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
+        if (UNEXPECTED(ctx->fiber_context && ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
             zend_execute_data *tmp = EG(current_execute_data);
             zend_execute_data call = {};
             EG(current_execute_data) = &call;
@@ -855,29 +857,20 @@ void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
     zend_observer_fiber_init_notify(fiber_context);
 }
 
-void PHPCoroutine::fiber_context_try_init(PHPContext *ctx) {
-    if (EXPECTED(!SWOOLE_G(enable_fiber_mock))) {
-        return;
-    }
-    fiber_context_init(ctx);
-}
+void PHPCoroutine::fiber_context_try_destroy(const PHPContext *ctx, PHPContext *origin_ctx) {
+    if (UNEXPECTED(ctx->fiber_context)) {
+		ctx->fiber_context->status = ZEND_FIBER_STATUS_DEAD;
+        fiber_context_switch_try_notify(ctx, origin_ctx);
 
-void PHPCoroutine::fiber_context_destroy(const PHPContext *ctx) {
-    zend_observer_fiber_destroy_notify(ctx->fiber_context);
+        zend_observer_fiber_destroy_notify(ctx->fiber_context);
 
-    if (ctx->fiber_context != nullptr) {
-        efree(ctx->fiber_context);
+        if (ctx->fiber_context != nullptr) {
+            efree(ctx->fiber_context);
+        }
     }
 }
 
-void PHPCoroutine::fiber_context_try_destroy(const PHPContext *ctx) {
-    if (EXPECTED(!SWOOLE_G(enable_fiber_mock))) {
-        return;
-    }
-    fiber_context_destroy(ctx);
-}
-
-zend_fiber_status PHPCoroutine::get_fiber_status(const PHPContext *ctx) {
+zend_fiber_status PHPCoroutine::fiber_get_status(const PHPContext *ctx) {
     // main_context
     if (ctx->fiber_context == EG(main_fiber_context)) {
         return ZEND_FIBER_STATUS_RUNNING;
@@ -902,13 +895,13 @@ void PHPCoroutine::fiber_context_switch_notify(const PHPContext *from, PHPContex
     zend_fiber_context *from_context = from->fiber_context;
     zend_fiber_context *to_context = to->fiber_context;
 
-    from_context->status = get_fiber_status(from);
-    to_context->status = get_fiber_status(to);
+    from_context->status = fiber_get_status(from);
+    to_context->status = fiber_get_status(to);
 
     if (!to->fiber_init_notified) {
         to_context->status = ZEND_FIBER_STATUS_INIT;
         zend_observer_fiber_switch_notify(from_context, to_context);
-        to_context->status = get_fiber_status(to);
+        to_context->status = fiber_get_status(to);
         to->fiber_init_notified = true;
     } else {
         zend_observer_fiber_switch_notify(from_context, to_context);
@@ -916,10 +909,9 @@ void PHPCoroutine::fiber_context_switch_notify(const PHPContext *from, PHPContex
 }
 
 void PHPCoroutine::fiber_context_switch_try_notify(const PHPContext *from, PHPContext *to) {
-    if (EXPECTED(!SWOOLE_G(enable_fiber_mock))) {
-        return;
+    if (UNEXPECTED(from->fiber_context && to->fiber_context)) {
+        fiber_context_switch_notify(from, to);
     }
-    fiber_context_switch_notify(from, to);
 }
 
 #ifdef ZEND_CHECK_STACK_LIMIT

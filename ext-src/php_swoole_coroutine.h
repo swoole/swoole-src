@@ -295,11 +295,9 @@ class PHPCoroutine {
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
-    static zend_fiber_status get_fiber_status(const PHPContext *ctx);
+    static zend_fiber_status fiber_get_status(const PHPContext *ctx);
     static void fiber_context_init(PHPContext *ctx);
-    static void fiber_context_try_init(PHPContext *ctx);
-    static void fiber_context_destroy(const PHPContext *ctx);
-    static void fiber_context_try_destroy(const PHPContext *ctx);
+    static void fiber_context_try_destroy(const PHPContext *ctx, PHPContext *origin_ctx);
     static void fiber_context_switch_notify(const PHPContext *from, PHPContext *to);
     static void fiber_context_switch_try_notify(const PHPContext *from, PHPContext *to);
 #ifdef ZEND_CHECK_STACK_LIMIT
