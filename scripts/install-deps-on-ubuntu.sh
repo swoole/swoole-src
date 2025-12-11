@@ -4,7 +4,7 @@ apt install -y cmake make gcc g++ \
     libssl-dev \
     libcurl4-openssl-dev \
     libmariadb-dev \
-    libaio-dev libaio1  \
+    libaio-dev \
     zlib1g-dev \
     sqlite3 libsqlite3-dev \
     libbrotli-dev \

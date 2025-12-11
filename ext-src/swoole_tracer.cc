@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <iostream>
 #include <fstream>
+#include <array>
 
 using swoole::Coroutine;
 using swoole::PHPContext;
