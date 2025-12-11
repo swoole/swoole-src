@@ -1,7 +1,5 @@
 <?php
 
-/** @generate-class-entries */
-
 namespace {
     /**
      * @var int

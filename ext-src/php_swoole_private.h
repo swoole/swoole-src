@@ -214,6 +214,12 @@ PHP_FUNCTION(swoole_client_select);
 PHP_FUNCTION(swoole_async_set);
 PHP_FUNCTION(swoole_async_dns_lookup_coro);
 //---------------------------------------------------------
+//                  tracer
+//---------------------------------------------------------
+PHP_FUNCTION(swoole_tracer_leak_detect);
+PHP_FUNCTION(swoole_tracer_prof_begin);
+PHP_FUNCTION(swoole_tracer_prof_end);
+//---------------------------------------------------------
 //                  error
 //---------------------------------------------------------
 #define SW_STRERROR_SYSTEM 0
@@ -286,6 +292,7 @@ void php_swoole_thread_arraylist_minit(int module_number);
 #ifdef SW_STDEXT
 void php_swoole_stdext_minit(int module_number);
 #endif
+void php_swoole_tracer_minit(int module_number);
 
 /**
  * RINIT
@@ -298,6 +305,7 @@ void php_swoole_runtime_rinit();
 void php_swoole_oracle_rinit();
 #endif
 void php_swoole_thread_rinit();
+void php_swoole_tracer_rinit();
 
 /**
  * RSHUTDOWN
@@ -316,6 +324,7 @@ void php_swoole_server_rshutdown();
 #ifdef SW_THREAD
 void php_swoole_thread_rshutdown();
 #endif
+void php_swoole_tracer_rshutdown();
 
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(zend_array *vht);

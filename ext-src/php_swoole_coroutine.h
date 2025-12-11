@@ -131,7 +131,6 @@ class PHPCoroutine {
         HOOK_PROC = 1u << 10,
         HOOK_CURL = 1u << 11,
         HOOK_NATIVE_CURL = 1u << 12,
-        HOOK_BLOCKING_FUNCTION = 1u << 13,
         HOOK_SOCKETS = 1u << 14,
         HOOK_STDIO = 1u << 15,
         HOOK_PDO_PGSQL = 1u << 16,

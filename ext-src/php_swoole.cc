@@ -29,6 +29,7 @@ BEGIN_EXTERN_C()
 
 #include "stubs/php_swoole_arginfo.h"
 #include "stubs/php_swoole_ex_arginfo.h"
+#include "stubs/php_swoole_tracer_arginfo.h"
 #ifdef SW_STDEXT
 #include "stubs/php_swoole_stdext_arginfo.h"
 #endif
@@ -275,6 +276,9 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ftp_set_option, arginfo_ftp_set_option)
 	ZEND_FE(ftp_get_option, arginfo_ftp_get_option)
 #endif
+    ZEND_FE(swoole_tracer_leak_detect,   arginfo_swoole_tracer_leak_detect)
+    ZEND_FE(swoole_tracer_prof_begin,    arginfo_swoole_tracer_prof_begin)
+    ZEND_FE(swoole_tracer_prof_end,      arginfo_swoole_tracer_prof_end)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -335,6 +339,8 @@ STD_ZEND_INI_BOOLEAN("swoole.use_shortname", "On", PHP_INI_SYSTEM, OnUpdateBool,
 STD_PHP_INI_ENTRY("swoole.socket_buffer_size", ZEND_TOSTR(SW_SOCKET_BUFFER_SIZE), PHP_INI_ALL, OnUpdateLong, socket_buffer_size, zend_swoole_globals, swoole_globals)
 STD_ZEND_INI_BOOLEAN("swoole.blocking_detection", "Off", PHP_INI_SYSTEM, OnUpdateBool, blocking_detection, zend_swoole_globals, swoole_globals)
 STD_PHP_INI_ENTRY("swoole.blocking_threshold", "100000", PHP_INI_SYSTEM, OnUpdateLong, blocking_threshold, zend_swoole_globals, swoole_globals)
+STD_ZEND_INI_BOOLEAN("swoole.profile", "Off", PHP_INI_SYSTEM, OnUpdateBool, profile, zend_swoole_globals, swoole_globals)
+STD_ZEND_INI_BOOLEAN("swoole.leak_detection", "Off", PHP_INI_SYSTEM, OnUpdateBool, leak_detection, zend_swoole_globals, swoole_globals)
 PHP_INI_END()
 // clang-format on
 
@@ -348,6 +354,8 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->in_autoload = nullptr;
     swoole_globals->blocking_detection = false;
     swoole_globals->blocking_threshold = 100000;
+    swoole_globals->profile = false;
+    swoole_globals->leak_detection = false;
 
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
         strcmp("embed", sapi_module.name) == 0 || strcmp("micro", sapi_module.name) == 0) {
@@ -1019,6 +1027,7 @@ PHP_MINIT_FUNCTION(swoole) {
 #ifdef SW_STDEXT
     php_swoole_stdext_minit(module_number);
 #endif
+    php_swoole_tracer_minit(module_number);
 
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
@@ -1380,6 +1389,7 @@ PHP_RINIT_FUNCTION(swoole) {
 #ifdef SW_THREAD
     php_swoole_thread_rinit();
 #endif
+    php_swoole_tracer_rinit();
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
 
@@ -1406,6 +1416,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
 #ifdef SW_THREAD
     php_swoole_thread_rshutdown();
 #endif
+    php_swoole_tracer_rshutdown();
 
     swoole_event_free();
 

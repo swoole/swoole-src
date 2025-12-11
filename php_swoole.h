@@ -62,6 +62,8 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool enable_fiber_mock;
     zend_bool blocking_detection;
     zend_long blocking_threshold;
+    zend_bool profile;
+    zend_bool leak_detection;
     zend_long socket_buffer_size;
     int req_status;
     HashTable *in_autoload;

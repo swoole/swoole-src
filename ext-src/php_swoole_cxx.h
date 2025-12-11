@@ -710,6 +710,14 @@ static inline void array_set(zval *arg, const char *key, size_t l_key, const cha
     add_assoc_zval_ex(arg, key, l_key, &ztmp);
 }
 
+static inline void array_set(zval *arg, const char *key, size_t l_key, bool value) {
+    add_assoc_bool_ex(arg, key, l_key, value);
+}
+
+static inline void array_set(zval *arg, const char *key, size_t l_key, const char *value) {
+    add_assoc_string_ex(arg, key, l_key, value);
+}
+
 static inline void array_set(zval *arg, zend_ulong index, zval *zvalue) {
     Z_TRY_ADDREF_P(zvalue);
     zend_hash_index_add(Z_ARRVAL_P(arg), index, zvalue);
