@@ -303,7 +303,6 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PROC", PHPCoroutine::HOOK_PROC);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL", PHPCoroutine::HOOK_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_NATIVE_CURL", PHPCoroutine::HOOK_NATIVE_CURL);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", PHPCoroutine::HOOK_BLOCKING_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SOCKETS", PHPCoroutine::HOOK_SOCKETS);
 #ifdef SW_USE_PGSQL
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PDO_PGSQL", PHPCoroutine::HOOK_PDO_PGSQL);
@@ -1588,18 +1587,6 @@ static void hook_all_func(uint32_t flags) {
             SW_UNHOOK_FUNC(proc_terminate);
         }
     }
-    // blocking function
-    if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
-        if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
-            hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
-            SW_HOOK_WITH_PHP_FUNC(gethostbynamel);
-        }
-    } else {
-        if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
-            SW_UNHOOK_FUNC(gethostbyname);
-            SW_UNHOOK_FUNC(gethostbynamel);
-        }
-    }
     // ext-sockets
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
@@ -1633,7 +1620,7 @@ static void hook_all_func(uint32_t flags) {
             inherit_class(ZEND_STRL("Swoole\\Coroutine\\Socket"), ZEND_STRL("Socket"));
         }
     } else {
-        if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS) {
             SW_UNHOOK_FUNC(socket_create);
             SW_UNHOOK_FUNC(socket_create_listen);
             SW_UNHOOK_FUNC(socket_create_pair);
@@ -1759,11 +1746,11 @@ static void hook_all_func(uint32_t flags) {
             detach_parent_class("Swoole\\Curl\\Handler");
         }
     }
-}
-
-static void hook_net_func(uint32_t flags) {
+    // network functions
     if (flags & PHPCoroutine::HOOK_NET_FUNCTION) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_NET_FUNCTION)) {
+            hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
+            SW_HOOK_WITH_PHP_FUNC(gethostbynamel);
             SW_HOOK_WITH_PHP_FUNC(mail);
             SW_HOOK_WITH_PHP_FUNC(dns_check_record);
             SW_HOOK_WITH_PHP_FUNC(checkdnsrr);
@@ -1774,6 +1761,8 @@ static void hook_net_func(uint32_t flags) {
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_NET_FUNCTION) {
+            SW_UNHOOK_FUNC(gethostbyname);
+            SW_UNHOOK_FUNC(gethostbynamel);
             SW_UNHOOK_FUNC(mail);
             SW_UNHOOK_FUNC(dns_check_record);
             SW_UNHOOK_FUNC(checkdnsrr);
@@ -1827,7 +1816,6 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     hook_stream_ops(flags);
     hook_pdo_driver(flags);
     hook_all_func(flags);
-    hook_net_func(flags);
     hook_mongodb(flags);
 
     if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
