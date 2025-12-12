@@ -69,13 +69,14 @@ SW_THREAD_LOCAL bool PHPCoroutine::interrupt_thread_running = false;
 
 extern void php_swoole_load_library();
 
-static zend_atomic_bool *zend_vm_interrupt = nullptr;
+static SW_THREAD_LOCAL zend_atomic_bool *zend_vm_interrupt = nullptr;
+static SW_THREAD_LOCAL unordered_map<long, Coroutine *> user_yield_coros;
+
 #if PHP_VERSION_ID < 80400
 static user_opcode_handler_t ori_exit_handler = nullptr;
 #endif
 static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
-static unordered_map<long, Coroutine *> user_yield_coros;
 
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 
