@@ -574,6 +574,11 @@ static void fatal_error(int code, const char *format, ...) {
     swoole_exit(255);
 }
 
+static void print_backtrace() {
+    fprintf(stderr, "\nStack trace:\n");
+    sw_php_print_backtrace_impl(0);
+}
+
 static void bug_report_message_init() {
     SwooleG.bug_report_message += swoole::std_string::format("PHP_VERSION : %s\n", PHP_VERSION);
 }
@@ -1030,6 +1035,8 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_tracer_minit(module_number);
 
     SwooleG.fatal_error = fatal_error;
+    SwooleG.print_backtrace = print_backtrace;
+
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
 

@@ -320,9 +320,9 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->enable_scheduler = true;
 
     if (UNEXPECTED(SWOOLE_G(enable_fiber_mock))) {
-    	fiber_context_init(ctx);
+        fiber_context_init(ctx);
     } else {
-    	ctx->fiber_context = nullptr;
+        ctx->fiber_context = nullptr;
     }
     ctx->fiber_init_notified = false;
 
@@ -860,7 +860,7 @@ void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
 
 void PHPCoroutine::fiber_context_try_destroy(const PHPContext *ctx, PHPContext *origin_ctx) {
     if (UNEXPECTED(ctx->fiber_context)) {
-		ctx->fiber_context->status = ZEND_FIBER_STATUS_DEAD;
+        ctx->fiber_context->status = ZEND_FIBER_STATUS_DEAD;
         fiber_context_switch_try_notify(ctx, origin_ctx);
 
         zend_observer_fiber_destroy_notify(ctx->fiber_context);
@@ -1479,13 +1479,20 @@ static PHP_METHOD(swoole_coroutine, getBackTrace) {
     }
 }
 
-void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, zval *return_value) {
-    zval argv[2];
-    ZVAL_LONG(&argv[0], options);
-    ZVAL_LONG(&argv[1], limit);
+void sw_php_print_backtrace_impl(int skip_last, int options, int limit, bool include_main) {
+    zval backtrace;
+    zend_fetch_debug_backtrace(&backtrace, skip_last, options, limit);
+    ZEND_ASSERT(Z_TYPE(backtrace) == IS_ARRAY);
 
+    zend_string *str = zend_trace_to_string(Z_ARRVAL(backtrace), include_main);
+    ZEND_WRITE(ZSTR_VAL(str), ZSTR_LEN(str));
+    zend_string_release(str);
+    zval_ptr_dtor(&backtrace);
+}
+
+void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, zval *return_value) {
     if (!cid || cid == PHPCoroutine::get_cid()) {
-        zend::function::call("debug_print_backtrace", 2, argv);
+        sw_php_print_backtrace_impl(1, options, limit);
     } else {
         PHPContext *ctx = PHPCoroutine::get_context_by_cid(cid);
         if (UNEXPECTED(!ctx)) {
@@ -1497,7 +1504,7 @@ void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, z
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
         EG(current_execute_data) = ctx->execute_data;
-        zend::function::call("debug_print_backtrace", 2, argv);
+        sw_php_print_backtrace_impl(1, options, limit);
         EG(current_execute_data) = ex_backup;
     }
 }

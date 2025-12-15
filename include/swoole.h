@@ -736,6 +736,7 @@ struct Global {
     long trace_flags;
 
     void (*fatal_error)(int code, const char *str, ...);
+    void (*print_backtrace)();
 
     //-----------------------[System]--------------------------
     uint16_t cpu_num;

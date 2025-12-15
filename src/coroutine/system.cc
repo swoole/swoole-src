@@ -314,10 +314,7 @@ static inline void socket_poll_clean(const CoroPollTask *task) {
             continue;
         }
         int retval = swoole_event_del(fd.second.socket);
-        /**
-         * Temporary socket, fd marked -1, skip close
-         */
-        socket->fd = -1;
+        socket->move_fd();
         socket->free();
         fd.second.socket = nullptr;
         if (retval < 0) {
@@ -411,6 +408,10 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
     for (auto &fd : fds) {
         fd.second.socket = make_socket(fd.first, SW_FD_CO_POLL);
         if (swoole_event_add(fd.second.socket, fd.second.events) < 0) {
+            // socket_poll() is not the owner of the socket,
+            // so the socket should not be closed upon failure or successful return;
+            // it is necessary to release control over the fd.
+            fd.second.socket->move_fd();
             fd.second.socket->free();
             continue;
         }

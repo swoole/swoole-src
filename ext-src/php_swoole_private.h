@@ -504,6 +504,7 @@ void sw_php_print_backtrace(zend_long cid = 0,
                             zend_long options = 0,
                             zend_long limit = 0,
                             zval *return_value = nullptr);
+void sw_php_print_backtrace_impl(int skip_last = 1, int options = 0, int limit = 0, bool include_main = false);
 
 //----------------------------------Constant API------------------------------------
 

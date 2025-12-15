@@ -850,6 +850,9 @@ void swoole_print_backtrace() {}
 void swoole_print_backtrace_on_error() {
     if (SwooleG.print_backtrace_on_error) {
         swoole_print_backtrace();
+        if (SwooleG.print_backtrace) {
+            SwooleG.print_backtrace();
+        }
     }
 }
 
