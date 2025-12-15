@@ -25,14 +25,26 @@ BEGIN_EXTERN_C()
 
 #include "ext/pdo/php_pdo_driver.h"
 
-#if PHP_VERSION_ID < 80200
-#include "thirdparty/php81/pdo_sqlite/php_pdo_sqlite_int.h"
-#elif PHP_VERSION_ID >= 80200 && PHP_VERSION_ID < 80300
-#include "thirdparty/php81/pdo_sqlite/php_pdo_sqlite_int.h"
-#elif PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
-#include "thirdparty/php83/pdo_sqlite/php_pdo_sqlite_int.h"
-#else
-#include "thirdparty/php84/pdo_sqlite/php_pdo_sqlite_int.h"
+#include "thirdparty/pdo_sqlite/php_pdo_sqlite_int.h"
+
+#if PHP_VERSION_ID < 80300
+static inline const char *zend_zval_value_name(const zval *arg) {
+	ZVAL_DEREF(arg);
+
+	if (Z_ISUNDEF_P(arg)) {
+		return "null";
+	}
+
+	if (Z_TYPE_P(arg) == IS_OBJECT) {
+		return ZSTR_VAL(Z_OBJCE_P(arg)->name);
+	} else if (Z_TYPE_P(arg) == IS_FALSE) {
+		return "false";
+	} else if  (Z_TYPE_P(arg) == IS_TRUE) {
+		return "true";
+	}
+
+	return zend_get_type_by_const(Z_TYPE_P(arg));
+}
 #endif
 
 extern const pdo_driver_t swoole_pdo_sqlite_driver;

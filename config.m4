@@ -1077,7 +1077,7 @@ EOF
         PKG_CHECK_MODULES([URING], [liburing >= 2.0])
 
         AC_SWOOLE_HAVE_IOURING_STATX
-        
+
         KERNEL_MAJOR=`uname -r | awk -F '.' '{print $1}'`
         KERNEL_MINOR=`uname -r | awk -F '.' '{print $2}'`
 
@@ -1085,7 +1085,7 @@ EOF
             dnl IORING_OP_FTRUNCATE is available since 6.9
             AC_SWOOLE_HAVE_IOURING_FTRUNCATE
         fi
-        
+
         if (test $KERNEL_MAJOR -eq 6 && test $KERNEL_MINOR -ge 7); then
             dnl IORING_OP_FUTEX_WAKE/IORING_OP_FUTEX_WAIT is available since 6.7
             AC_SWOOLE_HAVE_IOURING_FUTEX
@@ -1248,8 +1248,8 @@ EOF
 
     if test "$PHP_SWOOLE_ORACLE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_driver.c \
-            ${SW_PHP_THIRDPARTY_DIR}/pdo_oci/oci_statement.c"
+            thirdparty/pdo_oci/oci_driver.c \
+            thirdparty/pdo_oci/oci_statement.c"
     fi
 
     if test "$PHP_SWOOLE_ODBC" != "no"; then
@@ -1260,11 +1260,11 @@ EOF
 
     if test "$PHP_SWOOLE_SQLITE" != "no"; then
         swoole_source_file="$swoole_source_file \
-            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_driver.c \
-            ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_statement.c"
+            thirdparty/pdo_sqlite/sqlite_driver.c \
+            thirdparty/pdo_sqlite/sqlite_statement.c"
         if test "$SW_PHP_VERSION_ID" -ge "84"; then
             swoole_source_file="$swoole_source_file \
-                ${SW_PHP_THIRDPARTY_DIR}/pdo_sqlite/sqlite_sql_parser.c"
+                thirdparty/pdo_sqlite/sqlite_sql_parser.c"
         fi
     fi
 
@@ -1435,15 +1435,5 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_odbc)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_odbc)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_odbc)
-    fi
-    if test "$PHP_SWOOLE_ORACLE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_oci)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_oci)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_oci)
-    fi
-    if test "$PHP_SWOOLE_SQLITE" != "no"; then
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_sqlite)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_sqlite)
-        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_sqlite)
     fi
 fi

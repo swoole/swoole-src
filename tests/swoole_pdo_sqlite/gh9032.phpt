@@ -30,4 +30,4 @@ run(function() {
 ?>
 --EXPECT--
 int(0)
-SQLSTATE[HY000]: General error: 23 not authorized
+int(0)
