@@ -2,7 +2,9 @@
 swoole_runtime/stream_select: conflict
 --SKIPIF--
 <?php
-require __DIR__ . '/../../include/skipif.inc'; ?>
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_not_linux();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -51,8 +53,8 @@ go(function () use ($n) {
 
 Event::wait();
 ?>
---EXPECT--
-[2025-12-15 14:28:23 %118658.0]	WARNING	ReactorEpoll::add(): [Reactor#0] epoll_ctl(epfd=4, EPOLL_CTL_ADD, fd=6, fd_type=7, events=1024) failed, Error: File exists[17]
+--EXPECTF--
+[%s]	WARNING	ReactorEpoll::add(): [Reactor#0] epoll_ctl(epfd=%d, EPOLL_CTL_ADD, fd=%d, fd_type=%d, events=1024) failed, Error: File exists[17]
 shutdown
 Server done
 Client done
