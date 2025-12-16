@@ -512,7 +512,7 @@ static void tracer_observer_begin(zend_execute_data *execute_data) {
         if (ctx) {
             auto span = new BlockingDetectionSpan;
             span->began_at = tracer_get_time_us();
-            span->switch_count = ctx->switch_count;
+            span->switch_count = ctx->switch_count = 0;
             span->swap_callback = [](PHPContext *ctx) { ctx->switch_count++; };
             ctx->on_resume = &span->swap_callback;
             ctx->on_yield = &span->swap_callback;
@@ -543,6 +543,7 @@ static void tracer_observer_end(zend_execute_data *execute_data, zval *return_va
         if (!span) {
             return;
         }
+        fn->reserved[blocking_detection_func_reserve_index] = nullptr;
 
         auto now = tracer_get_time_us();
         auto duration = now - span->began_at;
@@ -567,7 +568,13 @@ static void tracer_observer_end(zend_execute_data *execute_data, zval *return_va
             zend_string_release(duration_str);
             zend_string_release(backtrace_str);
         }
-        delete span;
+
+        swoole_event_defer(
+            [](void *ptr) {
+                auto span = (BlockingDetectionSpan *) ptr;
+                delete span;
+            },
+            span);
     }
 }
 
