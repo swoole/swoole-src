@@ -68,7 +68,14 @@ class Iouring {
         return task_num;
     }
 
+    static int socket(int domain, int type, int protocol = 0, int flags = 0);
     static int open(const char *pathname, int flags, mode_t mode);
+    static int connect(int fd, const struct sockaddr *addr, socklen_t len);
+    static int accept(int fd, struct sockaddr *addr, socklen_t *len, int flags = 0);
+    static int bind(int fd, const struct sockaddr *addr, socklen_t len);
+    static int listen(int fd, int backlog);
+    static int recv(int fd, char *buf, size_t len, int flags);
+    static int send(int fd, const char *buf, size_t len, int flags);
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size);
     static ssize_t write(int fd, const void *buf, size_t size);

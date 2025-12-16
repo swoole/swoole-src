@@ -33,11 +33,18 @@ using swoole::Coroutine;
 namespace swoole {
 //-------------------------------------------------------------------------------
 enum IouringOpcode {
+    SW_IORING_OP_SOCKET = IORING_OP_SOCKET,
     SW_IORING_OP_OPENAT = IORING_OP_OPENAT,
+    SW_IORING_OP_CONNECT = IORING_OP_CONNECT,
+    SW_IORING_OP_ACCEPT = IORING_OP_ACCEPT,
+    SW_IORING_OP_BIND = IORING_OP_BIND,
+    SW_IORING_OP_LISTEN = IORING_OP_LISTEN,
     SW_IORING_OP_CLOSE = IORING_OP_CLOSE,
     SW_IORING_OP_STATX = IORING_OP_STATX,
     SW_IORING_OP_READ = IORING_OP_READ,
     SW_IORING_OP_WRITE = IORING_OP_WRITE,
+    SW_IORING_OP_RECV = IORING_OP_RECV,
+    SW_IORING_OP_SEND = IORING_OP_SEND,
     SW_IORING_OP_RENAMEAT = IORING_OP_RENAMEAT,
     SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
 #ifdef HAVE_IOURING_FUTEX
@@ -59,25 +66,37 @@ enum IouringOpcode {
 };
 
 struct IouringEvent {
+    // control
     IouringOpcode opcode;
     Coroutine *coroutine;
+    // input
     int fd;
     int flags;
     union {
         mode_t mode;
         size_t size;
+        socklen_t addr_len;
+        socklen_t *addr_len_ptr;
+        int backlog;
+        struct {
+            int sock_type;
+            int sock_protocol;
+        };
     };
-    ssize_t result;
     const char *pathname;
     union {
         void *rbuf;
         const void *wbuf;
         struct statx *statxbuf;
         const char *pathname2;
+        const struct sockaddr *addr;
+        struct sockaddr *addr_wr;
 #ifdef HAVE_IOURING_FUTEX
         uint32_t *futex;
 #endif
     };
+    // output
+    ssize_t result;
 };
 
 static void parse_kernel_version(const char *release, int *major, int *minor) {
@@ -229,8 +248,22 @@ bool Iouring::wakeup() {
 
 static const char *get_opcode_name(IouringOpcode opcode) {
     switch (opcode) {
+    case SW_IORING_OP_SOCKET:
+        return "SOCKET";
     case SW_IORING_OP_OPENAT:
         return "OPENAT";
+    case SW_IORING_OP_ACCEPT:
+        return "ACCEPT";
+    case SW_IORING_OP_CONNECT:
+        return "CONNECT";
+    case SW_IORING_OP_BIND:
+        return "BIND";
+    case SW_IORING_OP_LISTEN:
+        return "LISTEN";
+    case SW_IORING_OP_SEND:
+        return "SEND";
+    case SW_IORING_OP_RECV:
+        return "RECV";
     case SW_IORING_OP_CLOSE:
         return "CLOSE";
     case SW_IORING_OP_STATX:
@@ -336,23 +369,37 @@ bool Iouring::dispatch(IouringEvent *event) {
 
     switch (event->opcode) {
     case SW_IORING_OP_OPENAT:
-        sqe->addr = (uintptr_t) event->pathname;
-        sqe->fd = AT_FDCWD;
-        sqe->len = event->mode;
-        sqe->opcode = SW_IORING_OP_OPENAT;
-        sqe->open_flags = event->flags | O_CLOEXEC;
+        io_uring_prep_open(sqe, event->pathname, event->flags | O_CLOEXEC, event->mode);
+        break;
+    case SW_IORING_OP_SOCKET:
+        io_uring_prep_socket(sqe, event->fd, event->sock_type, event->sock_protocol, event->flags);
+        break;
+    case SW_IORING_OP_CONNECT:
+        io_uring_prep_connect(sqe, event->fd, event->addr, event->addr_len);
+        break;
+    case SW_IORING_OP_ACCEPT:
+        io_uring_prep_accept(sqe, event->fd, event->addr_wr, event->addr_len_ptr, event->flags);
+        break;
+    case SW_IORING_OP_BIND:
+        io_uring_prep_bind(sqe, event->fd, (struct sockaddr *) event->addr, event->addr_len);
+        break;
+    case SW_IORING_OP_LISTEN:
+        io_uring_prep_listen(sqe, event->fd, event->backlog);
         break;
     case SW_IORING_OP_READ:
+        io_uring_prep_read(sqe, event->fd, event->rbuf, event->size, -1);
+        break;
     case SW_IORING_OP_WRITE:
-        sqe->fd = event->fd;
-        sqe->addr = (uintptr_t) (event->opcode == SW_IORING_OP_READ ? event->rbuf : event->wbuf);
-        sqe->len = event->size;
-        sqe->off = -1;
-        sqe->opcode = event->opcode;
+        io_uring_prep_write(sqe, event->fd, event->wbuf, event->size, -1);
+        break;
+    case SW_IORING_OP_RECV:
+        io_uring_prep_recv(sqe, event->fd, event->rbuf, event->size, event->flags);
+        break;
+    case SW_IORING_OP_SEND:
+        io_uring_prep_send(sqe, event->fd, event->wbuf, event->size, event->flags);
         break;
     case SW_IORING_OP_CLOSE:
-        sqe->fd = event->fd;
-        sqe->opcode = SW_IORING_OP_CLOSE;
+        io_uring_prep_close(sqe, event->fd);
         break;
     case SW_IORING_OP_FSTAT:
     case SW_IORING_OP_LSTAT:
@@ -374,7 +421,6 @@ bool Iouring::dispatch(IouringEvent *event) {
         sqe->len = event->mode;
         sqe->opcode = SW_IORING_OP_MKDIRAT;
         break;
-
     case SW_IORING_OP_UNLINK_FILE:
     case SW_IORING_OP_UNLINK_DIR:
         sqe->addr = (uintptr_t) event->pathname;
@@ -450,6 +496,80 @@ int Iouring::open(const char *pathname, int flags, mode_t mode) {
     event.mode = mode;
     event.flags = flags;
     event.pathname = pathname;
+
+    return static_cast<int>(execute(&event));
+}
+
+int Iouring::socket(int domain, int type, int protocol, int flags) {
+    INIT_EVENT(SW_IORING_OP_SOCKET);
+    event.fd = domain;
+    event.sock_type = type;
+    event.sock_protocol = protocol;
+    event.flags = flags;
+
+    return static_cast<int>(execute(&event));
+}
+
+int Iouring::connect(int fd, const struct sockaddr *addr, socklen_t len) {
+    INIT_EVENT(SW_IORING_OP_CONNECT);
+    event.fd = fd;
+    event.addr = addr;
+    event.addr_len = len;
+
+    return static_cast<int>(execute(&event));
+}
+
+int Iouring::bind(int fd, const struct sockaddr *addr, socklen_t len) {
+#if 1
+    return ::bind(fd, addr, len);
+#else
+    INIT_EVENT(SW_IORING_OP_BIND);
+    event.fd = fd;
+    event.addr = addr;
+    event.addr_len = len;
+
+    return static_cast<int>(execute(&event));
+#endif
+}
+
+int Iouring::listen(int fd, int backlog) {
+#if 1
+    return ::listen(fd, backlog);
+#else
+    INIT_EVENT(SW_IORING_OP_LISTEN);
+    event.fd = fd;
+    event.backlog = backlog;
+
+    return static_cast<int>(execute(&event));
+#endif
+}
+
+int Iouring::accept(int fd, struct sockaddr *addr, socklen_t *len, int flags) {
+    INIT_EVENT(SW_IORING_OP_ACCEPT);
+    event.fd = fd;
+    event.addr_wr = addr;
+    event.addr_len_ptr = len;
+    event.flags = flags;
+
+    return static_cast<int>(execute(&event));
+}
+
+int Iouring::recv(int fd, char *buf, size_t len, int flags) {
+    INIT_EVENT(SW_IORING_OP_RECV);
+    event.fd = fd;
+    event.rbuf = buf;
+    event.size = len;
+    event.flags = flags;
+
+    return static_cast<int>(execute(&event));
+}
+
+int Iouring::send(int fd, const char *buf, size_t len, int flags) {
+    INIT_EVENT(SW_IORING_OP_SEND);
+    event.fd = fd;
+    event.wbuf = buf;
+    event.size = len;
+    event.flags = flags;
 
     return static_cast<int>(execute(&event));
 }

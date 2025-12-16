@@ -23,6 +23,7 @@
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
 using swoole::Reactor;
+using swoole::coroutine::System;
 using swoole::test::coroutine;
 
 TEST(iouring, create) {
@@ -119,8 +120,11 @@ TEST(iouring, rename) {
 TEST(iouring, fstat_and_stat) {
     coroutine::run([](void *arg) {
         struct stat statbuf {};
-        int fd = Iouring::open(TEST_TMP_FILE, O_RDWR, 0666);
+        int fd = Iouring::open(TEST_TMP_FILE, O_CREAT | O_RDWR, 0666);
         ASSERT_TRUE(fd > 0);
+
+        ASSERT_EQ(Iouring::write(fd, TEST_STR, strlen(TEST_STR)), strlen(TEST_STR));
+
         int result = Iouring::fstat(fd, &statbuf);
         ASSERT_TRUE(result == 0);
         ASSERT_TRUE(statbuf.st_size > 0);
@@ -183,3 +187,121 @@ TEST(iouring, ftruncate) {
 }
 #endif
 #endif
+
+TEST(iouring, connect) {
+    signal(SIGPIPE, SIG_IGN);
+    coroutine::run([](void *arg) {
+        int fd = Iouring::socket(AF_INET, SOCK_STREAM, 0);
+        ASSERT_NE(fd, -1);
+
+        swoole::network::Address addr{};
+        ASSERT_TRUE(addr.assign(SW_SOCK_TCP, "www.baidu.com", 80, true));
+
+        int rv = Iouring::connect(fd, &addr.addr.ss, addr.len);
+
+        rv = Iouring::write(fd, TEST_REQUEST_BAIDU, strlen(TEST_REQUEST_BAIDU));
+        ASSERT_EQ(rv, strlen(TEST_REQUEST_BAIDU));
+
+        char buf[4096];
+
+        rv = Iouring::read(fd, buf, sizeof(buf));
+        ASSERT_GT(rv, 100);
+
+        std::string s{buf};
+        ASSERT_TRUE(s.find("Location: https://www.baidu.com/") != s.npos);
+
+        Iouring::close(fd);
+    });
+}
+
+TEST(iouring, send_recv) {
+    signal(SIGPIPE, SIG_IGN);
+    coroutine::run([](void *arg) {
+        int fd = Iouring::socket(AF_INET, SOCK_STREAM, 0);
+        ASSERT_NE(fd, -1);
+
+        swoole::network::Address addr{};
+        ASSERT_TRUE(addr.assign(SW_SOCK_TCP, "www.baidu.com", 80, true));
+
+        int rv = Iouring::connect(fd, &addr.addr.ss, addr.len);
+
+        rv = Iouring::send(fd, TEST_REQUEST_BAIDU, strlen(TEST_REQUEST_BAIDU), 0);
+        ASSERT_EQ(rv, strlen(TEST_REQUEST_BAIDU));
+
+        char buf[4096];
+
+        rv = Iouring::recv(fd, buf, sizeof(buf), 0);
+        ASSERT_GT(rv, 100);
+
+        std::string s{buf};
+        ASSERT_TRUE(s.find("Location: https://www.baidu.com/") != s.npos);
+
+        Iouring::close(fd);
+    });
+}
+
+TEST(iouring, accept) {
+    coroutine::run([](void *arg) {
+        // Create a TCP socket using coroutine API
+        int server_sock = Iouring::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+        ASSERT_GT(server_sock, 0);
+
+        // Bind the socket to localhost with port 0 (auto-assign)
+        struct sockaddr_in server_addr;
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+        server_addr.sin_port = 0;
+
+        int retval = Iouring::bind(server_sock, (struct sockaddr *) &server_addr, sizeof(server_addr));
+        ASSERT_EQ(retval, 0);
+
+        // Listen on the socket
+        retval = Iouring::listen(server_sock, 128);
+        ASSERT_EQ(retval, 0);
+
+        struct sockaddr_in client_addr;
+        socklen_t client_addr_len = sizeof(client_addr);
+
+        // Test that swoole_coroutine_accept works correctly
+        Coroutine::create([&](void *arg) {
+            // Give the server time to start listening
+            System::sleep(0.01);
+
+            // Connect to the server using coroutine API
+            int client_sock = Iouring::socket(AF_INET, SOCK_STREAM, 0);
+            ASSERT_GT(client_sock, 0);
+
+            // Get the actual server port
+            struct sockaddr_in actual_server_addr;
+            socklen_t addr_len = sizeof(actual_server_addr);
+            ASSERT_EQ(getsockname(server_sock, (struct sockaddr *) &actual_server_addr, &addr_len), 0);
+
+            // Connect to the server
+            retval = Iouring::connect(client_sock, (struct sockaddr *) &actual_server_addr, addr_len);
+            ASSERT_EQ(retval, 0);
+
+            // Send a test message
+            const char *test_message = "test_data";
+            ssize_t sent_bytes = Iouring::send(client_sock, test_message, strlen(test_message), 0);
+            ASSERT_EQ(sent_bytes, (ssize_t) strlen(test_message));
+
+            // Close the client socket
+            Iouring::close(client_sock);
+        });
+
+        // Accept the connection using coroutine API
+        int client_sock = Iouring::accept(server_sock, (struct sockaddr *) &client_addr, &client_addr_len);
+        ASSERT_GT(client_sock, 0);
+
+        // Receive data from client
+        char buffer[256] = {};
+        ssize_t received_bytes = Iouring::recv(client_sock, buffer, sizeof(buffer) - 1, 0);
+        ASSERT_GT(received_bytes, 0);
+        ASSERT_STREQ(buffer, "test_data");
+
+        // Close the client socket
+        Iouring::close(client_sock);
+        Iouring::close(server_sock);
+    });
+}
