@@ -159,10 +159,10 @@ bool Iouring::ready() const {
 
 bool Iouring::wakeup() {
     IouringEvent *waiting_task = nullptr;
-    io_uring_cqe *cqes[SW_IOURING_CQES_SIZE];
+    io_uring_cqe *cqes[SW_IOURING_QUEUE_SIZE];
 
     while (true) {
-        auto count = io_uring_peek_batch_cqe(&ring, cqes, SW_IOURING_CQES_SIZE);
+        auto count = io_uring_peek_batch_cqe(&ring, cqes, SW_IOURING_QUEUE_SIZE);
         if (count == 0) {
             return true;
         }
@@ -289,7 +289,7 @@ bool Iouring::submit(IouringEvent *event) {
     return true;
 }
 
-ssize_t Iouring::execute(IouringEvent *event, IouringTimeout *timeout) {
+Iouring *Iouring::get_instance() {
     if (sw_unlikely(!SwooleTG.iouring)) {
         if (!swoole_event_is_available()) {
             swoole_warning("no event loop, cannot initialized");
@@ -298,12 +298,16 @@ ssize_t Iouring::execute(IouringEvent *event, IouringTimeout *timeout) {
         auto iouring = new Iouring(sw_reactor());
         if (!iouring->ready()) {
             delete iouring;
-            return SW_ERR;
+            return nullptr;
         }
         SwooleTG.iouring = iouring;
     }
+    return SwooleTG.iouring;
+}
 
-    if (!SwooleTG.iouring->dispatch(event, timeout)) {
+ssize_t Iouring::execute(IouringEvent *event, IouringTimeout *timeout) {
+    auto iouring = get_instance();
+    if (!iouring->dispatch(event, timeout)) {
         return SW_ERR;
     }
 
@@ -375,6 +379,12 @@ int Iouring::listen(int fd, int backlog) {
 #else
     io_uring_prep_listen(sqe, fd, backlog);
 #endif
+}
+
+int Iouring::sleep(double seconds) {
+    IouringTimeout ts;
+    DOUBLE_TO_TIMESPEC(seconds, &ts);
+    return sleep(ts.tv_sec, ts.tv_nsec, 0);
 }
 
 int Iouring::sleep(int tv_sec, int tv_nsec, int flags) {
@@ -577,7 +587,7 @@ int Iouring::futex_wakeup(uint32_t *futex) {
 #endif
 
 pid_t Iouring::wait(int *stat_loc, double timeout) {
-	return waitpid(-1, stat_loc, 0, timeout);
+    return waitpid(-1, stat_loc, 0, timeout);
 }
 
 pid_t Iouring::waitpid(pid_t _pid, int *stat_loc, int options, double timeout) {
@@ -607,12 +617,46 @@ pid_t Iouring::waitpid(pid_t _pid, int *stat_loc, int options, double timeout) {
     }
 
     /**
-	 * After a timeout, iouring will set errno to `ECANCELED`, but in the async implementation,
-	 * the errno after a timeout is `ETIMEDOUT`.
-	 * To maintain compatibility, numerical conversion is necessary.
-	 */
-	errno = errno == ECANCELED ? ETIMEDOUT : errno;
-	return rc;
+     * After a timeout, iouring will set errno to `ECANCELED`, but in the async implementation,
+     * the errno after a timeout is `ETIMEDOUT`.
+     * To maintain compatibility, numerical conversion is necessary.
+     */
+    errno = errno == ECANCELED ? ETIMEDOUT : errno;
+    return rc;
+}
+
+int Iouring::poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+    if (nfds != 1) {
+        errno = EINVAL;
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "incomplete poll() implementation, only supports one fd");
+        return -1;
+    }
+    if (timeout == 0) {
+        return ::poll(fds, nfds, timeout);
+    }
+
+    auto ioring = get_instance();
+    if (!ioring) {
+        return -1;
+    }
+
+    INIT_EVENT(IORING_OP_POLL);
+    io_uring_prep_poll_add(&event.data, fds[0].fd, fds[0].events);
+
+    int rc;
+    if (timeout > 0) {
+        DOUBLE_TO_TIMESPEC(timeout * 1000, &event.timeout);
+        rc = static_cast<int>(execute(&event, &event.timeout));
+    } else {
+        rc = static_cast<int>(execute(&event));
+    }
+
+    if (rc > 0) {
+        fds[0].revents = rc;
+        return 1;
+    }
+    return rc;
 }
 
 int Iouring::callback(Reactor *reactor, Event *event) {

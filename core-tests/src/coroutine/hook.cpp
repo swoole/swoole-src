@@ -499,8 +499,6 @@ TEST(coroutine_hook, lseek) {
     ASSERT_EQ(offset, 0);
 }
 
-extern std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket>> create_socket_pair();
-
 TEST(coroutine_hook, socket_close) {
     coroutine::run([&](void *arg) {
         auto pair = create_socket_pair();

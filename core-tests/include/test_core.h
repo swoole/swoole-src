@@ -76,6 +76,14 @@
 #endif
 
 namespace swoole {
+namespace coroutine {
+class Socket;
+}
+}  // namespace swoole
+
+typedef swoole::coroutine::Socket CoSocket;
+
+namespace swoole {
 struct HttpProxy;
 struct Socks5Proxy;
 namespace test {
@@ -110,6 +118,8 @@ void counter_incr_and_put_log(int index, const char *msg);
 
 int dump_cert_info(const char *data, size_t len);
 int recursive_rmdir(const char *path);
+
+std::pair<std::shared_ptr<CoSocket>, std::shared_ptr<CoSocket>> create_socket_pair();
 
 static inline int dump_cert_info(const String *str) {
     return dump_cert_info(str->str, str->length);

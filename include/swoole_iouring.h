@@ -39,7 +39,7 @@ struct IouringTimeout {
 
 class Iouring {
     uint64_t task_num = 0;
-    uint64_t entries = 8192;
+    uint64_t entries = SW_IOURING_QUEUE_SIZE;
     io_uring ring;
     std::queue<IouringEvent *> waiting_tasks;
     network::Socket *ring_socket = nullptr;
@@ -51,6 +51,7 @@ class Iouring {
     bool dispatch(IouringEvent *event, IouringTimeout *timeout);
     bool wakeup();
 
+    static Iouring *get_instance();
     static ssize_t execute(IouringEvent *event, IouringTimeout *timeout = nullptr);
 
   public:
@@ -71,6 +72,7 @@ class Iouring {
     static int bind(int fd, const struct sockaddr *addr, socklen_t len);
     static int listen(int fd, int backlog);
     static int sleep(int tv_sec, int tv_nsec, int flags = 0);
+    static int sleep(double seconds);
     static ssize_t recv(int fd, char *buf, size_t len, int flags);
     static ssize_t send(int fd, const char *buf, size_t len, int flags);
     static int close(int fd);
@@ -88,6 +90,10 @@ class Iouring {
     static int fdatasync(int fd);
     static pid_t wait(int *stat_loc, double timeout = -1);
     static pid_t waitpid(pid_t pid, int *stat_loc, int options, double timeout = -1);
+    /**
+     * Only supports listening to the readable and writable events of a single fd; nfds must be 1.
+     */
+    static int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 #ifdef HAVE_IOURING_FUTEX
     static int futex_wait(uint32_t *futex);
     static int futex_wakeup(uint32_t *futex);

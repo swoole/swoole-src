@@ -32,6 +32,7 @@ using swoole::coroutine::System;
 using swoole::network::Address;
 using swoole::network::IOVector;
 using swoole::test::coroutine;
+using swoole::test::create_socket_pair;
 using swoole::test::Process;
 using swoole::test::Server;
 
@@ -1387,7 +1388,7 @@ TEST(coroutine_socket, sendmsg_and_recvmsg) {
     });
 }
 
-std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket> > create_socket_pair() {
+std::pair<std::shared_ptr<Socket>, std::shared_ptr<Socket> > swoole::test::create_socket_pair() {
     int pairs[2];
     socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
 

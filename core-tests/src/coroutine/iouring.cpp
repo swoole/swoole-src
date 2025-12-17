@@ -25,6 +25,7 @@ using swoole::Iouring;
 using swoole::Reactor;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
+using swoole::test::create_socket_pair;
 
 TEST(iouring, create) {
     coroutine::run([](void *arg) {
@@ -343,7 +344,7 @@ TEST(iouring, wait_timeout) {
         int status = 0x9501;
         ASSERT_EQ(Iouring::wait(&status, 0.5), -1);
         ASSERT_EQ(errno, ETIMEDOUT);
-        ASSERT_EQ(status, 0x9501); // After the timeout, the status will not be set.
+        ASSERT_EQ(status, 0x9501);  // After the timeout, the status will not be set.
     });
 
     kill(pid, SIGKILL);
@@ -361,5 +362,59 @@ TEST(iouring, waitpid) {
         kill(pid, SIGKILL);
         System::sleep(0.3);
         ASSERT_EQ(Iouring::waitpid(pid, &status, 0, 0.1), pid);
+    });
+}
+
+TEST(iouring, poll) {
+    auto buffer = sw_tg_buffer();
+    buffer->clear();
+    buffer->append_random_bytes(256 * 1024, false);
+
+    coroutine::run([=](void *arg) {
+        int pair[2];
+        struct pollfd fds[2];
+        char buf[4096];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pair);
+
+        std::map<std::string, bool> results;
+        auto _fd0 = pair[0];
+        auto _fd1 = pair[1];
+
+        bzero(fds, sizeof(pollfd));
+        fds[0].fd = _fd0;
+        fds[0].events = POLLIN | POLLOUT;
+        ASSERT_EQ(Iouring::poll(fds, 1, 1000), 1);
+        ASSERT_TRUE(fds[0].revents & POLLOUT);
+
+        Coroutine::create([=](void *) {
+            ssize_t result;
+            result = Iouring::write(_fd0, buffer->value(), buffer->get_length());
+            ASSERT_GT(result, 0);
+            Iouring::sleep(0.1);
+            result = Iouring::write(_fd1, buffer->value(), 16 * 1024);
+            ASSERT_GT(result, 0);
+        });
+
+        bzero(fds, sizeof(pollfd));
+        fds[0].fd = _fd1;
+        fds[0].events = POLLIN;
+
+        ASSERT_EQ(Iouring::poll(fds, 1, 1000), 1);
+        ASSERT_TRUE(fds[0].revents & POLLIN);
+
+        ssize_t result = Iouring::read(_fd1, buf, sizeof(buf));
+        ASSERT_GT(result, 1024);
+
+        bzero(fds, sizeof(pollfd));
+        ASSERT_EQ(Iouring::poll(fds, 2, 1000), -1);
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
+
+        System::sleep(0.02);
+
+        bzero(fds, sizeof(pollfd));
+        fds[0].fd = _fd0;
+        fds[0].events = POLLIN | POLLOUT;
+        ASSERT_EQ(Iouring::poll(fds, 1, 1000), 1);
+        ASSERT_TRUE(fds[0].revents & POLLIN);
     });
 }

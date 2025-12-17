@@ -168,7 +168,7 @@ int swoole_coroutine_accept(int sockfd, struct sockaddr *addr, socklen_t *addrle
 int swoole_coroutine_poll_fake(struct pollfd *fds, nfds_t nfds, int timeout) {
     if (nfds != 1) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
-        swoole_warning("fake poll() implementation, only supports one socket");
+        swoole_warning("fake poll() implementation, only supports one fd");
         return -1;
     }
     auto socket = get_socket_ex(fds[0].fd);
