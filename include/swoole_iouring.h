@@ -32,6 +32,11 @@ namespace swoole {
 
 struct IouringEvent;
 
+struct IouringTimeout {
+    int64_t tv_sec;
+    int64_t tv_nsec;
+};
+
 class Iouring {
     uint64_t task_num = 0;
     uint64_t entries = 8192;
@@ -43,19 +48,10 @@ class Iouring {
     explicit Iouring(Reactor *reactor_);
     bool ready() const;
     bool submit(IouringEvent *event);
-    bool dispatch(IouringEvent *event);
+    bool dispatch(IouringEvent *event, IouringTimeout *timeout);
     bool wakeup();
 
-    io_uring_sqe *get_iouring_sqe() {
-        struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-        // We need to reset the values of each sqe structure so that they can be used in a loop.
-        if (sqe) {
-            memset(sqe, 0, sizeof(struct io_uring_sqe));
-        }
-        return sqe;
-    }
-
-    static ssize_t execute(IouringEvent *event);
+    static ssize_t execute(IouringEvent *event, IouringTimeout *timeout = nullptr);
 
   public:
     ~Iouring();
@@ -74,8 +70,9 @@ class Iouring {
     static int accept(int fd, struct sockaddr *addr, socklen_t *len, int flags = 0);
     static int bind(int fd, const struct sockaddr *addr, socklen_t len);
     static int listen(int fd, int backlog);
-    static int recv(int fd, char *buf, size_t len, int flags);
-    static int send(int fd, const char *buf, size_t len, int flags);
+    static int sleep(int tv_sec, int tv_nsec, int flags = 0);
+    static ssize_t recv(int fd, char *buf, size_t len, int flags);
+    static ssize_t send(int fd, const char *buf, size_t len, int flags);
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size);
     static ssize_t write(int fd, const void *buf, size_t size);
@@ -89,6 +86,8 @@ class Iouring {
     static int rmdir(const char *pathname);
     static int fsync(int fd);
     static int fdatasync(int fd);
+    static pid_t wait(int *stat_loc, double timeout = -1);
+    static pid_t waitpid(pid_t pid, int *stat_loc, int options, double timeout = -1);
 #ifdef HAVE_IOURING_FUTEX
     static int futex_wait(uint32_t *futex);
     static int futex_wakeup(uint32_t *futex);

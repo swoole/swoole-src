@@ -14,6 +14,7 @@
   | @contact  team@swoole.com                                            |
   | @license  https://github.com/swoole/swoole-src/blob/master/LICENSE   |
   | @Author   NathanFreeman  <mariasocute@163.com>                       |
+  |           Tianfeng Han   <rango@swoole.com>                          |
   +----------------------------------------------------------------------+
 */
 
@@ -28,75 +29,31 @@
 #include <linux/futex.h>
 #endif
 
+#include <cmath>
+
+#define DOUBLE_TO_TIMESPEC(seconds, ts)                                                                                \
+    do {                                                                                                               \
+        double __int_part;                                                                                             \
+        double __frac_part = modf((seconds), &__int_part);                                                             \
+        (ts)->tv_sec = (__kernel_time64_t) __int_part;                                                                 \
+        (ts)->tv_nsec = (long long) (__frac_part * 1000000000.0);                                                      \
+        if ((ts)->tv_nsec >= 1000000000) {                                                                             \
+            (ts)->tv_sec += 1;                                                                                         \
+            (ts)->tv_nsec = 0;                                                                                         \
+        }                                                                                                              \
+    } while (0)
+
+#define TIMEOUT_EVENT (-1)
+
 using swoole::Coroutine;
 
 namespace swoole {
 //-------------------------------------------------------------------------------
-enum IouringOpcode {
-    SW_IORING_OP_SOCKET = IORING_OP_SOCKET,
-    SW_IORING_OP_OPENAT = IORING_OP_OPENAT,
-    SW_IORING_OP_CONNECT = IORING_OP_CONNECT,
-    SW_IORING_OP_ACCEPT = IORING_OP_ACCEPT,
-    SW_IORING_OP_BIND = IORING_OP_BIND,
-    SW_IORING_OP_LISTEN = IORING_OP_LISTEN,
-    SW_IORING_OP_CLOSE = IORING_OP_CLOSE,
-    SW_IORING_OP_STATX = IORING_OP_STATX,
-    SW_IORING_OP_READ = IORING_OP_READ,
-    SW_IORING_OP_WRITE = IORING_OP_WRITE,
-    SW_IORING_OP_RECV = IORING_OP_RECV,
-    SW_IORING_OP_SEND = IORING_OP_SEND,
-    SW_IORING_OP_RENAMEAT = IORING_OP_RENAMEAT,
-    SW_IORING_OP_MKDIRAT = IORING_OP_MKDIRAT,
-#ifdef HAVE_IOURING_FUTEX
-    SW_IORING_OP_FUTEX_WAIT = IORING_OP_FUTEX_WAIT,
-    SW_IORING_OP_FUTEX_WAKE = IORING_OP_FUTEX_WAKE,
-#endif
-#ifdef HAVE_IOURING_FTRUNCATE
-    SW_IORING_OP_FTRUNCATE = IORING_OP_FTRUNCATE,
-#endif
-
-    SW_IORING_OP_FSTAT = 100,
-    SW_IORING_OP_LSTAT = 101,
-    SW_IORING_OP_UNLINK_FILE = 102,
-    SW_IORING_OP_UNLINK_DIR = 103,
-    SW_IORING_OP_FSYNC = 104,
-    SW_IORING_OP_FDATASYNC = 105,
-
-    SW_IORING_OP_LAST = 128,
-};
-
 struct IouringEvent {
-    // control
-    IouringOpcode opcode;
     Coroutine *coroutine;
-    // input
-    int fd;
-    int flags;
-    union {
-        mode_t mode;
-        size_t size;
-        socklen_t addr_len;
-        socklen_t *addr_len_ptr;
-        int backlog;
-        struct {
-            int sock_type;
-            int sock_protocol;
-        };
-    };
-    const char *pathname;
-    union {
-        void *rbuf;
-        const void *wbuf;
-        struct statx *statxbuf;
-        const char *pathname2;
-        const struct sockaddr *addr;
-        struct sockaddr *addr_wr;
-#ifdef HAVE_IOURING_FUTEX
-        uint32_t *futex;
-#endif
-    };
-    // output
+    io_uring_sqe data;
     ssize_t result;
+    IouringTimeout timeout;
 };
 
 static void parse_kernel_version(const char *release, int *major, int *minor) {
@@ -213,6 +170,12 @@ bool Iouring::wakeup() {
         for (decltype(count) i = 0; i < count; i++) {
             auto *cqe = cqes[i];
             auto *task = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
+            // The user data for the timeout request is -1, this event should be ignored.
+            if (task == reinterpret_cast<void *>(TIMEOUT_EVENT)) {
+                io_uring_cq_advance(&ring, 1);
+                continue;
+            }
+
             task_num--;
             if (cqe->res < 0) {
                 errno = -(cqe->res);
@@ -236,7 +199,7 @@ bool Iouring::wakeup() {
             if (!is_empty_waiting_tasks()) {
                 waiting_task = waiting_tasks.front();
                 waiting_tasks.pop();
-                if (!dispatch(waiting_task)) {
+                if (!dispatch(waiting_task, &task->timeout)) {
                     waiting_task->coroutine->resume();
                 }
             }
@@ -246,56 +209,48 @@ bool Iouring::wakeup() {
     return true;
 }
 
-static const char *get_opcode_name(IouringOpcode opcode) {
+static const char *get_opcode_name(io_uring_op opcode) {
     switch (opcode) {
-    case SW_IORING_OP_SOCKET:
+    case IORING_OP_SOCKET:
         return "SOCKET";
-    case SW_IORING_OP_OPENAT:
+    case IORING_OP_OPENAT:
         return "OPENAT";
-    case SW_IORING_OP_ACCEPT:
+    case IORING_OP_ACCEPT:
         return "ACCEPT";
-    case SW_IORING_OP_CONNECT:
+    case IORING_OP_CONNECT:
         return "CONNECT";
-    case SW_IORING_OP_BIND:
+    case IORING_OP_BIND:
         return "BIND";
-    case SW_IORING_OP_LISTEN:
+    case IORING_OP_LISTEN:
         return "LISTEN";
-    case SW_IORING_OP_SEND:
+    case IORING_OP_SEND:
         return "SEND";
-    case SW_IORING_OP_RECV:
+    case IORING_OP_RECV:
         return "RECV";
-    case SW_IORING_OP_CLOSE:
+    case IORING_OP_CLOSE:
         return "CLOSE";
-    case SW_IORING_OP_STATX:
+    case IORING_OP_STATX:
         return "STATX";
-    case SW_IORING_OP_READ:
+    case IORING_OP_READ:
         return "READ";
-    case SW_IORING_OP_WRITE:
+    case IORING_OP_WRITE:
         return "WRITE";
-    case SW_IORING_OP_RENAMEAT:
+    case IORING_OP_RENAMEAT:
         return "RENAMEAT";
-    case SW_IORING_OP_MKDIRAT:
+    case IORING_OP_MKDIRAT:
         return "MKDIRAT";
-    case SW_IORING_OP_FSTAT:
-        return "FSTAT";
-    case SW_IORING_OP_LSTAT:
-        return "LSTAT";
-    case SW_IORING_OP_UNLINK_FILE:
-        return "UNLINK_FILE";
-    case SW_IORING_OP_UNLINK_DIR:
-        return "UNLINK_DIR";
-    case SW_IORING_OP_FSYNC:
+    case IORING_OP_UNLINKAT:
+        return "UNLINKAT";
+    case IORING_OP_FSYNC:
         return "FSYNC";
-    case SW_IORING_OP_FDATASYNC:
-        return "FDATASYNC";
 #ifdef HAVE_IOURING_FUTEX
-    case SW_IORING_OP_FUTEX_WAIT:
+    case IORING_OP_FUTEX_WAIT:
         return "FUTEX_WAIT";
-    case SW_IORING_OP_FUTEX_WAKE:
+    case IORING_OP_FUTEX_WAKE:
         return "FUTEX_WAKE";
 #endif
 #ifdef HAVE_IOURING_FTRUNCATE
-    case SW_IORING_OP_FTRUNCATE:
+    case IORING_OP_FTRUNCATE:
         return "FTRUNCATE";
 #endif
     default:
@@ -305,8 +260,8 @@ static const char *get_opcode_name(IouringOpcode opcode) {
 
 std::unordered_map<std::string, int> Iouring::list_all_opcode() {
     std::unordered_map<std::string, int> opcodes;
-    for (int i = SW_IORING_OP_OPENAT; i < SW_IORING_OP_LAST; i++) {
-        auto name = get_opcode_name((IouringOpcode) i);
+    for (int i = IORING_OP_NOP; i < IORING_OP_LAST; i++) {
+        auto name = get_opcode_name((io_uring_op) i);
         if (strcmp(name, "unknown") == 0) {
             continue;
         }
@@ -334,7 +289,7 @@ bool Iouring::submit(IouringEvent *event) {
     return true;
 }
 
-ssize_t Iouring::execute(IouringEvent *event) {
+ssize_t Iouring::execute(IouringEvent *event, IouringTimeout *timeout) {
     if (sw_unlikely(!SwooleTG.iouring)) {
         if (!swoole_event_is_available()) {
             swoole_warning("no event loop, cannot initialized");
@@ -348,7 +303,7 @@ ssize_t Iouring::execute(IouringEvent *event) {
         SwooleTG.iouring = iouring;
     }
 
-    if (!SwooleTG.iouring->dispatch(event)) {
+    if (!SwooleTG.iouring->dispatch(event, timeout)) {
         return SW_ERR;
     }
 
@@ -358,129 +313,25 @@ ssize_t Iouring::execute(IouringEvent *event) {
     return event->result;
 }
 
-bool Iouring::dispatch(IouringEvent *event) {
-    io_uring_sqe *sqe = get_iouring_sqe();
+bool Iouring::dispatch(IouringEvent *event, IouringTimeout *timeout) {
+    io_uring_sqe *sqe = io_uring_get_sqe(&ring);
     if (!sqe) {
         waiting_tasks.push(event);
         return true;
     }
 
+    memcpy(sqe, &event->data, sizeof(event->data));
     io_uring_sqe_set_data(sqe, (void *) event);
 
-    switch (event->opcode) {
-    case SW_IORING_OP_OPENAT:
-        io_uring_prep_open(sqe, event->pathname, event->flags | O_CLOEXEC, event->mode);
-        break;
-    case SW_IORING_OP_SOCKET:
-        io_uring_prep_socket(sqe, event->fd, event->sock_type, event->sock_protocol, event->flags);
-        break;
-    case SW_IORING_OP_CONNECT:
-        io_uring_prep_connect(sqe, event->fd, event->addr, event->addr_len);
-        break;
-    case SW_IORING_OP_ACCEPT:
-        io_uring_prep_accept(sqe, event->fd, event->addr_wr, event->addr_len_ptr, event->flags);
-        break;
-    case SW_IORING_OP_BIND:
-        io_uring_prep_bind(sqe, event->fd, (struct sockaddr *) event->addr, event->addr_len);
-        break;
-    case SW_IORING_OP_LISTEN:
-        io_uring_prep_listen(sqe, event->fd, event->backlog);
-        break;
-    case SW_IORING_OP_READ:
-        io_uring_prep_read(sqe, event->fd, event->rbuf, event->size, -1);
-        break;
-    case SW_IORING_OP_WRITE:
-        io_uring_prep_write(sqe, event->fd, event->wbuf, event->size, -1);
-        break;
-    case SW_IORING_OP_RECV:
-        io_uring_prep_recv(sqe, event->fd, event->rbuf, event->size, event->flags);
-        break;
-    case SW_IORING_OP_SEND:
-        io_uring_prep_send(sqe, event->fd, event->wbuf, event->size, event->flags);
-        break;
-    case SW_IORING_OP_CLOSE:
-        io_uring_prep_close(sqe, event->fd);
-        break;
-    case SW_IORING_OP_FSTAT:
-    case SW_IORING_OP_LSTAT:
-        if (event->opcode == SW_IORING_OP_FSTAT) {
-            sqe->addr = (uintptr_t) "";
-            sqe->fd = event->fd;
-            sqe->statx_flags |= AT_EMPTY_PATH;
-        } else {
-            sqe->addr = (uintptr_t) event->pathname;
-            sqe->fd = AT_FDCWD;
-            sqe->statx_flags |= AT_SYMLINK_NOFOLLOW;
+    if (timeout) {
+        auto timeout_sqe = io_uring_get_sqe(&ring);
+        if (!timeout_sqe) {
+            swoole_warning("timeout setting failed, the iouring queue[%d] is full", ring.ring_fd);
         }
-        sqe->opcode = SW_IORING_OP_STATX;
-        sqe->off = (uintptr_t) event->statxbuf;
-        break;
-    case SW_IORING_OP_MKDIRAT:
-        sqe->addr = (uintptr_t) event->pathname;
-        sqe->fd = AT_FDCWD;
-        sqe->len = event->mode;
-        sqe->opcode = SW_IORING_OP_MKDIRAT;
-        break;
-    case SW_IORING_OP_UNLINK_FILE:
-    case SW_IORING_OP_UNLINK_DIR:
-        sqe->addr = (uintptr_t) event->pathname;
-        sqe->fd = AT_FDCWD;
-        sqe->opcode = IORING_OP_UNLINKAT;
-        if (event->opcode == SW_IORING_OP_UNLINK_DIR) {
-            sqe->unlink_flags |= AT_REMOVEDIR;
-        }
-        break;
-    case SW_IORING_OP_RENAMEAT:
-        sqe->addr = (uintptr_t) event->pathname;
-        sqe->addr2 = (uintptr_t) event->pathname2;
-        sqe->fd = AT_FDCWD;
-        sqe->len = AT_FDCWD;
-        sqe->opcode = SW_IORING_OP_RENAMEAT;
-        break;
-    case SW_IORING_OP_FSYNC:
-    case SW_IORING_OP_FDATASYNC:
-        sqe->fd = event->fd;
-        sqe->addr = (uintptr_t) nullptr;
-        sqe->opcode = IORING_OP_FSYNC;
-        sqe->len = 0;
-        sqe->off = 0;
-        sqe->fsync_flags = 0;
-        if (event->opcode == SW_IORING_OP_FDATASYNC) {
-            sqe->fsync_flags = IORING_FSYNC_DATASYNC;
-        }
-        break;
-#ifdef HAVE_IOURING_FUTEX
-    case SW_IORING_OP_FUTEX_WAIT:
-        sqe->opcode = SW_IORING_OP_FUTEX_WAIT;
-        sqe->fd = FUTEX2_SIZE_U32;
-        sqe->off = 1;
-        sqe->addr = (uintptr_t) event->futex;
-        sqe->len = 0;
-        sqe->futex_flags = 0;
-        sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
-        break;
-    case SW_IORING_OP_FUTEX_WAKE:
-        sqe->opcode = SW_IORING_OP_FUTEX_WAKE;
-        sqe->fd = FUTEX2_SIZE_U32;
-        sqe->off = 1;
-        sqe->addr = (uintptr_t) event->futex;
-        sqe->len = 0;
-        sqe->futex_flags = 0;
-        sqe->addr3 = FUTEX_BITSET_MATCH_ANY;
-        break;
-#ifdef HAVE_IOURING_FTRUNCATE
-    case SW_IORING_OP_FTRUNCATE:
-        sqe->opcode = SW_IORING_OP_FTRUNCATE;
-        sqe->fd = event->fd;
-        sqe->off = event->size;
-        sqe->addr = 0;
-        sqe->len = 0;
-        break;
-#endif
-#endif
-    default:
-        abort();
-        return false;
+        memset(timeout_sqe, 0, sizeof(*timeout_sqe));
+        io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(timeout), 0);
+        io_uring_sqe_set_data(timeout_sqe, reinterpret_cast<void *>(TIMEOUT_EVENT));
+        sqe->flags |= IOSQE_IO_LINK;
     }
 
     return submit(event);
@@ -488,34 +339,23 @@ bool Iouring::dispatch(IouringEvent *event) {
 
 #define INIT_EVENT(op)                                                                                                 \
     IouringEvent event{};                                                                                              \
-    event.coroutine = Coroutine::get_current_safe();                                                                   \
-    event.opcode = op;
+    event.coroutine = Coroutine::get_current_safe();
 
 int Iouring::open(const char *pathname, int flags, mode_t mode) {
-    INIT_EVENT(SW_IORING_OP_OPENAT);
-    event.mode = mode;
-    event.flags = flags;
-    event.pathname = pathname;
-
+    INIT_EVENT(IORING_OP_OPENAT);
+    io_uring_prep_open(&event.data, pathname, flags | O_CLOEXEC, mode);
     return static_cast<int>(execute(&event));
 }
 
 int Iouring::socket(int domain, int type, int protocol, int flags) {
-    INIT_EVENT(SW_IORING_OP_SOCKET);
-    event.fd = domain;
-    event.sock_type = type;
-    event.sock_protocol = protocol;
-    event.flags = flags;
-
+    INIT_EVENT(IORING_OP_SOCKET);
+    io_uring_prep_socket(&event.data, domain, type, protocol, flags);
     return static_cast<int>(execute(&event));
 }
 
 int Iouring::connect(int fd, const struct sockaddr *addr, socklen_t len) {
-    INIT_EVENT(SW_IORING_OP_CONNECT);
-    event.fd = fd;
-    event.addr = addr;
-    event.addr_len = len;
-
+    INIT_EVENT(IORING_OP_CONNECT);
+    io_uring_prep_connect(&event.data, fd, addr, len);
     return static_cast<int>(execute(&event));
 }
 
@@ -523,11 +363,8 @@ int Iouring::bind(int fd, const struct sockaddr *addr, socklen_t len) {
 #if 1
     return ::bind(fd, addr, len);
 #else
-    INIT_EVENT(SW_IORING_OP_BIND);
-    event.fd = fd;
-    event.addr = addr;
-    event.addr_len = len;
-
+    INIT_EVENT(IORING_OP_BIND);
+    io_uring_prep_bind(&event.data, fd, (struct sockaddr *) addr, len);
     return static_cast<int>(execute(&event));
 #endif
 }
@@ -536,122 +373,123 @@ int Iouring::listen(int fd, int backlog) {
 #if 1
     return ::listen(fd, backlog);
 #else
-    INIT_EVENT(SW_IORING_OP_LISTEN);
-    event.fd = fd;
-    event.backlog = backlog;
-
-    return static_cast<int>(execute(&event));
+    io_uring_prep_listen(sqe, fd, backlog);
 #endif
 }
 
+int Iouring::sleep(int tv_sec, int tv_nsec, int flags) {
+    struct __kernel_timespec ts {
+        tv_sec, tv_nsec,
+    };
+
+    INIT_EVENT(IORING_OP_TIMEOUT);
+    io_uring_prep_timeout(&event.data, &ts, 0, flags);
+    return static_cast<int>(execute(&event));
+}
+
 int Iouring::accept(int fd, struct sockaddr *addr, socklen_t *len, int flags) {
-    INIT_EVENT(SW_IORING_OP_ACCEPT);
-    event.fd = fd;
-    event.addr_wr = addr;
-    event.addr_len_ptr = len;
-    event.flags = flags;
-
+    INIT_EVENT(IORING_OP_ACCEPT);
+    io_uring_prep_accept(&event.data, fd, addr, len, flags);
     return static_cast<int>(execute(&event));
 }
 
-int Iouring::recv(int fd, char *buf, size_t len, int flags) {
-    INIT_EVENT(SW_IORING_OP_RECV);
-    event.fd = fd;
-    event.rbuf = buf;
-    event.size = len;
-    event.flags = flags;
-
-    return static_cast<int>(execute(&event));
+ssize_t Iouring::recv(int fd, char *buf, size_t len, int flags) {
+    INIT_EVENT(IORING_OP_RECV);
+    io_uring_prep_recv(&event.data, fd, buf, len, flags);
+    return execute(&event);
 }
 
-int Iouring::send(int fd, const char *buf, size_t len, int flags) {
-    INIT_EVENT(SW_IORING_OP_SEND);
-    event.fd = fd;
-    event.wbuf = buf;
-    event.size = len;
-    event.flags = flags;
-
-    return static_cast<int>(execute(&event));
+ssize_t Iouring::send(int fd, const char *buf, size_t len, int flags) {
+    INIT_EVENT(IORING_OP_SEND);
+    io_uring_prep_send(&event.data, fd, buf, len, flags);
+    return execute(&event);
 }
 
 int Iouring::close(int fd) {
-    INIT_EVENT(SW_IORING_OP_CLOSE);
-    event.fd = fd;
-
+    INIT_EVENT(IORING_OP_CLOSE);
+    io_uring_prep_close(&event.data, fd);
     return static_cast<int>(execute(&event));
 }
 
 ssize_t Iouring::read(int fd, void *buf, size_t size) {
-    INIT_EVENT(SW_IORING_OP_READ);
-    event.fd = fd;
-    event.rbuf = buf;
-    event.size = size;
-
+    INIT_EVENT(IORING_OP_READ);
+    io_uring_prep_read(&event.data, fd, buf, size, -1);
     return execute(&event);
 }
 
 ssize_t Iouring::write(int fd, const void *buf, size_t size) {
-    INIT_EVENT(SW_IORING_OP_WRITE);
-    event.fd = fd;
-    event.wbuf = buf;
-    event.size = size;
-
+    INIT_EVENT(IORING_OP_WRITE);
+    io_uring_prep_write(&event.data, fd, buf, size, -1);
     return execute(&event);
 }
 
 int Iouring::rename(const char *oldpath, const char *newpath) {
-    INIT_EVENT(SW_IORING_OP_RENAMEAT);
-    event.pathname = oldpath;
-    event.pathname2 = newpath;
-
+    INIT_EVENT(IORING_OP_RENAMEAT);
+    io_uring_prep_rename(&event.data, oldpath, newpath);
     return static_cast<int>(execute(&event));
 }
 
 int Iouring::mkdir(const char *pathname, mode_t mode) {
-    INIT_EVENT(SW_IORING_OP_MKDIRAT);
-    event.pathname = pathname;
-    event.mode = mode;
-
+    INIT_EVENT(IORING_OP_MKDIRAT);
+    io_uring_prep_mkdir(&event.data, pathname, mode);
     return static_cast<int>(execute(&event));
 }
 
 int Iouring::unlink(const char *pathname) {
-    INIT_EVENT(SW_IORING_OP_UNLINK_FILE);
-    event.pathname = pathname;
-
+    INIT_EVENT(IORING_OP_UNLINK_FILE);
+    io_uring_prep_unlink(&event.data, pathname, 0);
     return static_cast<int>(execute(&event));
 }
 
 int Iouring::rmdir(const char *pathname) {
-    INIT_EVENT(SW_IORING_OP_UNLINK_DIR);
-    event.pathname = pathname;
-
+    INIT_EVENT(IORING_OP_UNLINK_DIR);
+    io_uring_prep_unlink(&event.data, pathname, AT_REMOVEDIR);
     return static_cast<int>(execute(&event));
 }
 
 int Iouring::fsync(int fd) {
-    INIT_EVENT(SW_IORING_OP_FSYNC);
-    event.fd = fd;
-
+    INIT_EVENT(IORING_OP_FSYNC);
+    io_uring_prep_fsync(&event.data, fd, 0);
     return static_cast<int>(execute(&event));
 }
 
 int Iouring::fdatasync(int fd) {
-    INIT_EVENT(SW_IORING_OP_FDATASYNC);
-    event.fd = fd;
-
+    INIT_EVENT(IORING_OP_FDATASYNC);
+    io_uring_prep_fsync(&event.data, fd, IORING_FSYNC_DATASYNC);
     return static_cast<int>(execute(&event));
 }
 
 #ifdef HAVE_IOURING_FTRUNCATE
 int Iouring::ftruncate(int fd, off_t length) {
-    INIT_EVENT(SW_IORING_OP_FTRUNCATE);
-    event.fd = fd;
-    event.size = length;
-
+    INIT_EVENT(IORING_OP_FTRUNCATE);
+    io_uring_prep_ftruncate(&event.data, fd, length);
     return static_cast<int>(execute(&event));
 }
 #endif
+
+static inline int siginfo_to_status(const siginfo_t *info) {
+    int status = 0;
+
+    switch (info->si_code) {
+    case CLD_EXITED:
+        status = (info->si_status & 0xFF) << 8;
+        break;
+    case CLD_KILLED:
+        status = info->si_status & 0x7F;
+        break;
+    case CLD_DUMPED:
+        status = (info->si_status & 0x7F) | 0x80;
+        break;
+    case CLD_STOPPED:
+        status = ((info->si_status & 0xFF) << 8) | 0x7F;
+        break;
+    case CLD_CONTINUED:
+        status = 0xFFFF;
+        break;
+    }
+
+    return status;
+}
 
 #ifdef HAVE_IOURING_STATX
 static void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *statbuf) {
@@ -674,27 +512,35 @@ static void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *stat
 }
 
 int Iouring::fstat(int fd, struct stat *statbuf) {
-    struct statx _statxbuf;
-    INIT_EVENT(SW_IORING_OP_FSTAT);
-    event.fd = fd;
-    event.statxbuf = &_statxbuf;
+    struct statx statxbuf;
+    INIT_EVENT(IORING_OP_FSTAT);
+
+    event.data.addr = (uintptr_t) "";
+    event.data.fd = fd;
+    event.data.statx_flags = AT_EMPTY_PATH;
+    event.data.opcode = IORING_OP_STATX;
+    event.data.off = (uintptr_t) &statxbuf;
 
     auto retval = execute(&event);
     if (retval == 0) {
-        swoole_statx_to_stat(&_statxbuf, statbuf);
+        swoole_statx_to_stat(&statxbuf, statbuf);
     }
     return retval;
 }
 
 int Iouring::stat(const char *path, struct stat *statbuf) {
-    struct statx _statxbuf;
-    INIT_EVENT(SW_IORING_OP_LSTAT);
-    event.pathname = path;
-    event.statxbuf = &_statxbuf;
+    struct statx statxbuf;
+    INIT_EVENT(IORING_OP_FSTAT);
+
+    event.data.addr = (uintptr_t) path;
+    event.data.fd = AT_FDCWD;
+    event.data.statx_flags = AT_SYMLINK_NOFOLLOW;
+    event.data.opcode = IORING_OP_STATX;
+    event.data.off = (uintptr_t) &statxbuf;
 
     auto retval = execute(&event);
     if (retval == 0) {
-        swoole_statx_to_stat(&_statxbuf, statbuf);
+        swoole_statx_to_stat(&statxbuf, statbuf);
     }
     return retval;
 }
@@ -702,19 +548,72 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
 
 #ifdef HAVE_IOURING_FUTEX
 int Iouring::futex_wait(uint32_t *futex) {
-    INIT_EVENT(SW_IORING_OP_FUTEX_WAIT);
-    event.futex = futex;
+    INIT_EVENT(IORING_OP_FUTEX_WAIT);
 
-    return execute(&event);
+    event.data.opcode = IORING_FSYNC_DATASYNC;
+    event.data.fd = FUTEX2_SIZE_U32;
+    event.data.off = 1;
+    event.data.addr = (uintptr_t) futex;
+    event.data.len = 0;
+    event.data.futex_flags = 0;
+    event.data.addr3 = FUTEX_BITSET_MATCH_ANY;
+
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::futex_wakeup(uint32_t *futex) {
-    INIT_EVENT(SW_IORING_OP_FUTEX_WAKE);
-    event.futex = futex;
+    INIT_EVENT(IORING_OP_FUTEX_WAKE);
 
-    return execute(&event);
+    event.data.opcode = IORING_OP_FUTEX_WAKE;
+    event.data.fd = FUTEX2_SIZE_U32;
+    event.data.off = 1;
+    event.data.addr = (uintptr_t) futex;
+    event.data.len = 0;
+    event.data.futex_flags = 0;
+    event.data.addr3 = FUTEX_BITSET_MATCH_ANY;
+
+    return static_cast<int>(execute(&event));
 }
 #endif
+
+pid_t Iouring::wait(int *stat_loc, double timeout) {
+	return waitpid(-1, stat_loc, 0, timeout);
+}
+
+pid_t Iouring::waitpid(pid_t _pid, int *stat_loc, int options, double timeout) {
+    if (options & WNOHANG) {
+        return ::waitpid(_pid, stat_loc, options);
+    }
+
+    INIT_EVENT(IORING_OP_WAITID);
+    siginfo_t info{};
+    idtype_t idtype = _pid > 0 ? P_PID : P_ALL;
+    id_t id = _pid > 0 ? _pid : 0;
+    options = options == 0 ? WEXITED : options;
+    io_uring_prep_waitid(&event.data, idtype, id, &info, options, 0);
+
+    int rc;
+
+    if (timeout > 0) {
+        DOUBLE_TO_TIMESPEC(timeout, &event.timeout);
+        rc = static_cast<int>(execute(&event, &event.timeout));
+    } else {
+        rc = static_cast<int>(execute(&event));
+    }
+
+    if (rc != -1) {
+        *stat_loc = siginfo_to_status(&info);
+        return info.si_pid;
+    }
+
+    /**
+	 * After a timeout, iouring will set errno to `ECANCELED`, but in the async implementation,
+	 * the errno after a timeout is `ETIMEDOUT`.
+	 * To maintain compatibility, numerical conversion is necessary.
+	 */
+	errno = errno == ECANCELED ? ETIMEDOUT : errno;
+	return rc;
+}
 
 int Iouring::callback(Reactor *reactor, Event *event) {
     auto *iouring = static_cast<Iouring *>(event->socket->object);

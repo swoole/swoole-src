@@ -61,11 +61,13 @@ TEST(iouring, open_and_close) {
 TEST(iouring, mkdir_and_rmdir) {
     coroutine::run([](void *arg) {
         const char *directory = "/tmp/aaaa";
-        int result = Iouring::mkdir(directory, 0755);
-        ASSERT_TRUE(result == 0);
+        int rv;
 
-        result = Iouring::rmdir(directory);
-        ASSERT_TRUE(result == 0);
+        rv = Iouring::mkdir(directory, 0755);
+        ASSERT_EQ(rv, 0);
+
+        rv = Iouring::rmdir(directory);
+        ASSERT_EQ(rv, 0);
     });
 }
 
@@ -303,5 +305,61 @@ TEST(iouring, accept) {
         // Close the client socket
         Iouring::close(client_sock);
         Iouring::close(server_sock);
+    });
+}
+
+TEST(iouring, sleep) {
+    coroutine::run([](void *arg) {
+        {
+            auto begin = swoole::microtime();
+            Iouring::sleep(1, 200 * SW_NUM_MILLION);
+            auto end = swoole::microtime();
+            ASSERT_GE(end - begin, 1.2);
+        }
+
+        {
+            auto begin = swoole::microtime();
+            Iouring::sleep(0, 300 * SW_NUM_MILLION);
+            auto end = swoole::microtime();
+            ASSERT_GE(end - begin, 0.3);
+        }
+    });
+}
+
+TEST(iouring, wait_success) {
+    auto pid = swoole::test::spawn_exec([]() { sleep(1); });
+
+    coroutine::run([pid](void *arg) {
+        int status;
+        ASSERT_EQ(Iouring::wait(&status, 5), pid);
+        ASSERT_EQ(status, 0);
+    });
+}
+
+TEST(iouring, wait_timeout) {
+    auto pid = swoole::test::spawn_exec([]() { sleep(2000); });
+
+    coroutine::run([pid](void *arg) {
+        int status = 0x9501;
+        ASSERT_EQ(Iouring::wait(&status, 0.5), -1);
+        ASSERT_EQ(errno, ETIMEDOUT);
+        ASSERT_EQ(status, 0x9501); // After the timeout, the status will not be set.
+    });
+
+    kill(pid, SIGKILL);
+}
+
+TEST(iouring, waitpid) {
+    auto pid = swoole::test::spawn_exec([]() { sleep(2000); });
+
+    coroutine::run([pid](void *arg) {
+        int status;
+        ASSERT_EQ(Iouring::waitpid(pid, &status, WNOHANG, -1), 0);
+        ASSERT_EQ(Iouring::waitpid(pid, &status, 0, 0.1), -1);
+        ASSERT_EQ(errno, ETIMEDOUT);
+
+        kill(pid, SIGKILL);
+        System::sleep(0.3);
+        ASSERT_EQ(Iouring::waitpid(pid, &status, 0, 0.1), pid);
     });
 }
