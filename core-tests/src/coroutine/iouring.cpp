@@ -243,6 +243,28 @@ TEST(iouring, send_recv) {
     });
 }
 
+TEST(iouring, sendfile) {
+    swoole::File file(swoole::test::get_jpg_file(), O_RDONLY);
+
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        Coroutine::create([&](void *) {
+            off_t offset = 0;
+            auto rv = Iouring::sendfile(pairs[0], file.get_fd(), &offset, file.get_size());
+            ASSERT_EQ(rv, file.get_size());
+        });
+
+        char data[250000];
+        CoSocket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        ssize_t result = sock.read(data, 250000);
+        data[result] = '\0';
+        sock.close();
+        ASSERT_EQ(result, file.get_size());
+    });
+}
+
 TEST(iouring, accept) {
     coroutine::run([](void *arg) {
         // Create a TCP socket using coroutine API

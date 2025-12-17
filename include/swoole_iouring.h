@@ -73,8 +73,9 @@ class Iouring {
     static int listen(int fd, int backlog);
     static int sleep(int tv_sec, int tv_nsec, int flags = 0);
     static int sleep(double seconds);
-    static ssize_t recv(int fd, char *buf, size_t len, int flags);
-    static ssize_t send(int fd, const char *buf, size_t len, int flags);
+    static ssize_t recv(int fd, void *buf, size_t len, int flags);
+    static ssize_t send(int fd, const void *buf, size_t len, int flags);
+    static ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size);
     static ssize_t write(int fd, const void *buf, size_t size);

@@ -53,14 +53,14 @@ class Socket {
     Socket(int _fd, int _domain, int _type, int _protocol);
     explicit Socket(SocketType type = SW_SOCK_TCP);
     Socket(int _fd, SocketType _type);
-    ~Socket();
+    virtual ~Socket();
     /**
      * If SSL is enabled, an SSL handshake will automatically take place during the connect() method.
      * When connect() returns true, it indicates that the TCP connection has been successfully
      * established and the SSL handshake has also succeeded.
      */
     bool connect(const std::string &host, int port = 0, int flags = 0);
-    bool connect(const sockaddr *addr, socklen_t addrlen);
+    virtual bool connect(const sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool cancel(EventType event);
     bool close();
@@ -79,8 +79,8 @@ class Socket {
 
     bool check_liveness();
     ssize_t peek(void *_buf, size_t _n);
-    ssize_t recv(void *_buf, size_t _n);
-    ssize_t send(const void *_buf, size_t _n);
+    virtual ssize_t recv(void *_buf, size_t _n);
+    virtual ssize_t send(const void *_buf, size_t _n);
 
     ssize_t send(const std::string &buf) {
         return send(buf.c_str(), buf.length());
@@ -98,8 +98,8 @@ class Socket {
     ssize_t readv_all(network::IOVector *io_vector);
     ssize_t writev(network::IOVector *io_vector);
     ssize_t writev_all(network::IOVector *io_vector);
-    ssize_t recv_all(void *_buf, size_t _n);
-    ssize_t send_all(const void *_buf, size_t _n);
+    virtual ssize_t recv_all(void *_buf, size_t _n);
+    virtual ssize_t send_all(const void *_buf, size_t _n);
     ssize_t recv_packet(double timeout = 0);
     ssize_t recv_line(void *_buf, size_t maxlen);
     ssize_t recv_with_buffer(void *_buf, size_t _n);
@@ -155,7 +155,7 @@ class Socket {
         return ssl_context.get();
     }
 
-    bool ssl_handshake();
+    virtual bool ssl_handshake();
     bool ssl_verify(bool allow_self_signed);
     std::string ssl_get_peer_cert();
 
@@ -404,7 +404,7 @@ class Socket {
     bool ssl_shutdown() const;
 #endif
 
-  private:
+  protected:
     SocketType type;
     network::Socket *socket = nullptr;
     int sock_domain = 0;

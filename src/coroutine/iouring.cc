@@ -21,7 +21,6 @@
 #include "swoole_iouring.h"
 
 #ifdef SW_USE_IOURING
-
 #ifdef HAVE_IOURING_FUTEX
 #ifndef FUTEX2_SIZE_U32
 #define FUTEX2_SIZE_U32 0x02
@@ -271,7 +270,7 @@ std::unordered_map<std::string, int> Iouring::list_all_opcode() {
 }
 
 bool Iouring::submit(IouringEvent *event) {
-    swoole_trace("opcode=%s, fd=%d, path=%s", get_opcode_name(event->opcode), event->fd, event->pathname);
+    swoole_trace("opcode=%s", get_opcode_name((io_uring_op) event->data.opcode));
 
     int ret = io_uring_submit(&ring);
 
@@ -403,16 +402,115 @@ int Iouring::accept(int fd, struct sockaddr *addr, socklen_t *len, int flags) {
     return static_cast<int>(execute(&event));
 }
 
-ssize_t Iouring::recv(int fd, char *buf, size_t len, int flags) {
+ssize_t Iouring::recv(int fd, void *buf, size_t len, int flags) {
     INIT_EVENT(IORING_OP_RECV);
     io_uring_prep_recv(&event.data, fd, buf, len, flags);
     return execute(&event);
 }
 
-ssize_t Iouring::send(int fd, const char *buf, size_t len, int flags) {
+ssize_t Iouring::send(int fd, const void *buf, size_t len, int flags) {
     INIT_EVENT(IORING_OP_SEND);
     io_uring_prep_send(&event.data, fd, buf, len, flags);
     return execute(&event);
+}
+
+ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
+    if (size == 0) {
+        return 0;
+    }
+
+    INIT_EVENT(IORING_OP_SPLICE);
+
+#ifndef MSG_SPLICE_PAGES
+    int pipe_fds[2];
+    if (pipe(pipe_fds) < 0) {
+        return -1;
+    }
+
+    fcntl(pipe_fds[1], F_SETPIPE_SZ, 1024 * 1024);
+    int pipe_size = fcntl(pipe_fds[0], F_GETPIPE_SZ);
+    if (pipe_size < 0) {
+        pipe_size = 65536;
+    }
+
+    size_t total_sent = 0;
+    off_t current_offset = offset ? *offset : 0;
+
+    while (total_sent < size) {
+        size_t remaining = size - total_sent;
+        size_t to_send = std::min(remaining, (size_t) pipe_size);
+
+        event.data = {};
+        io_uring_prep_splice(
+            &event.data, in_fd, offset ? (current_offset + total_sent) : -1, pipe_fds[1], -1, to_send, 0);
+
+        ssize_t ret1 = execute(&event);
+        if (ret1 <= 0) {
+            if (total_sent > 0) {
+                break;
+            }
+            int saved_errno = errno;
+            close(pipe_fds[0]);
+            close(pipe_fds[1]);
+            errno = saved_errno;
+            return -1;
+        }
+
+        event.data = {};
+        io_uring_prep_splice(&event.data, pipe_fds[0], -1, out_fd, -1, ret1, 0);
+
+        ssize_t ret2 = execute(&event);
+        if (ret2 <= 0) {
+            if (total_sent > 0) {
+                break;
+            }
+            int saved_errno = errno;
+            close(pipe_fds[0]);
+            close(pipe_fds[1]);
+            errno = saved_errno;
+            return -1;
+        }
+
+        total_sent += ret2;
+
+        if (ret2 < ret1) {
+            break;
+        }
+    }
+
+    close(pipe_fds[0]);
+    close(pipe_fds[1]);
+
+    if (total_sent > 0 && offset) {
+        *offset += total_sent;
+    }
+
+    return total_sent;
+
+#else
+    struct msghdr msg = {0};
+    struct iovec iov = {0};
+
+    iov.iov_base = NULL;
+    iov.iov_len = size;
+
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    io_uring_prep_sendmsg(&event.data, out_fd, &msg, MSG_SPLICE_PAGES);
+
+    event.data.len = size;
+    event.data.splice_fd_in = in_fd;
+    event.data.addr2 = offset ? (__u64) *offset : (__u64) -1;
+
+    ssize_t ret = execute(&event);
+
+    if (ret > 0 && offset) {
+        *offset += ret;
+    }
+
+    return ret;
+#endif
 }
 
 int Iouring::close(int fd) {
@@ -632,13 +730,9 @@ int Iouring::poll(struct pollfd *fds, nfds_t nfds, int timeout) {
             SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "incomplete poll() implementation, only supports one fd");
         return -1;
     }
+
     if (timeout == 0) {
         return ::poll(fds, nfds, timeout);
-    }
-
-    auto ioring = get_instance();
-    if (!ioring) {
-        return -1;
     }
 
     INIT_EVENT(IORING_OP_POLL);
