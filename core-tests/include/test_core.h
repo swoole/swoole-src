@@ -56,6 +56,11 @@
     "Chrome/51.0.2704.106 Safari/537.36"                                                                               \
     "\r\n\r\n"
 
+#define CRLF "\r\n"
+#define EOF_PACKET "hello world" CRLF
+#define EOF_PACKET_2 "php&swoole, java&golang" CRLF
+#define RECV_TIMEOUT 10.0
+
 #define ASSERT_MEMEQ(x, y, n) ASSERT_EQ(memcmp((x), (y), n), 0)
 #define EXPECT_MEMEQ(x, y, n) EXPECT_EQ(memcmp((x), (y), n), 0)
 #define ASSERT_ERREQ(x) ASSERT_EQ(swoole_get_last_error(), x)

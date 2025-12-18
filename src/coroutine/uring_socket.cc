@@ -23,6 +23,8 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_iouring.h"
 
+typedef swoole::network::Socket NetSocket;
+
 #ifdef SW_USE_IOURING
 namespace swoole {
 namespace coroutine {
@@ -30,7 +32,7 @@ bool UringSocket::connect(const sockaddr *addr, socklen_t addrlen) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
-    int retval = Iouring::connect(socket->get_fd(), addr, addrlen);
+    int retval = Iouring::connect(socket->get_fd(), addr, addrlen, socket->connect_timeout);
     if (retval < 0) {
         return false;
     }
@@ -40,12 +42,67 @@ bool UringSocket::connect(const sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
+UringSocket *UringSocket::accept(double timeout) {
+    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+        return nullptr;
+    }
+#ifdef SW_USE_OPENSSL
+    if (ssl_is_enable() && sw_unlikely(ssl_context->context == nullptr) && !ssl_context_create()) {
+        return nullptr;
+    }
+#endif
+    network::Socket *conn = uring_accept(timeout == 0 ? socket->read_timeout : timeout);
+    if (conn == nullptr) {
+        set_err(errno);
+        return nullptr;
+    }
+
+    auto *client_sock = new UringSocket(conn, this);
+    if (sw_unlikely(client_sock->get_fd() < 0)) {
+        swoole_sys_warning("new Socket() failed");
+        set_err(errno);
+        delete client_sock;
+        return nullptr;
+    }
+
+    return client_sock;
+}
+
+NetSocket *UringSocket::uring_accept(double timeout) {
+    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+        return nullptr;
+    }
+
+    auto *client_socket = new NetSocket();
+
+    read_co = Coroutine::get_current_safe();
+    int fd = Iouring::accept(socket->get_fd(),
+                             reinterpret_cast<sockaddr *>(&client_socket->info.addr),
+                             &client_socket->info.len,
+                             SOCK_CLOEXEC | SOCK_NONBLOCK,
+                             socket->read_timeout);
+    read_co = nullptr;
+
+    if (fd < 0) {
+        delete client_socket;
+        return nullptr;
+    }
+
+    client_socket->fd = fd;
+    client_socket->removed = 1;
+    client_socket->info.type = socket->socket_type;
+    client_socket->nonblock = 1;
+    client_socket->cloexec = 1;
+
+    return client_socket;
+}
+
 ssize_t UringSocket::uring_send(const void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
     write_co = Coroutine::get_current_safe();
-    ssize_t retval = Iouring::send(socket->get_fd(), _buf, _n, 0);
+    ssize_t retval = Iouring::send(socket->get_fd(), _buf, _n, 0, socket->write_timeout);
     write_co = nullptr;
     return retval;
 }
@@ -55,7 +112,7 @@ ssize_t UringSocket::uring_recv(void *_buf, size_t _n) {
         return -1;
     }
     read_co = Coroutine::get_current_safe();
-    ssize_t retval = Iouring::recv(socket->get_fd(), _buf, _n, 0);
+    ssize_t retval = Iouring::recv(socket->get_fd(), _buf, _n, 0, socket->read_timeout);
     read_co = nullptr;
     return retval;
 }
@@ -76,13 +133,11 @@ ssize_t UringSocket::ssl_recv(void *_buf, size_t _n) {
         }
 
         int error = SSL_get_error(socket->ssl, n);
-
         if (error == SSL_ERROR_WANT_READ) {
             if (!ssl_bio_read()) {
                 goto _error;
             }
             continue;
-
         } else if (error == SSL_ERROR_WANT_WRITE) {
             if (BIO_ctrl_pending(wbio) > 0) {
                 if (!ssl_bio_write()) {
@@ -90,7 +145,6 @@ ssize_t UringSocket::ssl_recv(void *_buf, size_t _n) {
                 }
             }
             continue;
-
         } else if (error == SSL_ERROR_ZERO_RETURN) {
             swoole_debug("SSL connection closed (fd=%d)", socket->fd);
             return 0;
@@ -131,7 +185,6 @@ ssize_t UringSocket::ssl_send(const void *_buf, size_t _n) {
         }
 
         int error = SSL_get_error(socket->ssl, n);
-
         if (error == SSL_ERROR_WANT_WRITE) {
             continue;
         } else if (error == SSL_ERROR_WANT_READ) {
@@ -144,13 +197,10 @@ ssize_t UringSocket::ssl_send(const void *_buf, size_t _n) {
                 }
             }
             continue;
-
         } else if (error == SSL_ERROR_ZERO_RETURN) {
             return 0;
-
         } else if (error == SSL_ERROR_SYSCALL) {
             goto _error;
-
         } else {
             ulong_t err_code = ERR_get_error();
             if (err_code != 0) {
@@ -237,8 +287,8 @@ bool UringSocket::ssl_bio_write() {
     auto buf = get_write_buffer();
 
     while (true) {
-        int pending = BIO_ctrl_pending(wbio);
-        if (pending <= 0) {
+        size_t pending = BIO_ctrl_pending(wbio);
+        if (pending == 0) {
             break;
         }
 

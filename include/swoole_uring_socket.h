@@ -34,6 +34,7 @@ class UringSocket : public Socket {
 
     ssize_t uring_send(const void *_buf, size_t _n);
     ssize_t uring_recv(void *_buf, size_t _n);
+    network::Socket *uring_accept(double timeout);
 
     bool is_ssl() {
 #ifdef SW_USE_OPENSSL
@@ -48,8 +49,14 @@ class UringSocket : public Socket {
     UringSocket(int domain, int type, int protocol) : Socket(domain, type, protocol) {}
     UringSocket(int _fd, int _domain, int _type, int _protocol) : Socket(_fd, _domain, _type, _protocol) {}
     UringSocket(int _fd, SocketType _type) : Socket(_fd, _type) {}
-    using Socket::connect;
+    UringSocket(network::Socket *sock, const UringSocket *server_sock) : Socket(sock, server_sock) {}
+
+    bool connect(const std::string &_host, int _port = 0, int flags = 0) {
+        return Socket::connect(_host, _port, flags);
+    }
+
     bool connect(const sockaddr *addr, socklen_t addrlen) override;
+    UringSocket *accept(double timeout = 0);
     ssize_t recv(void *_buf, size_t _n) override;
     ssize_t send(const void *_buf, size_t _n) override;
     ssize_t recv_all(void *_buf, size_t _n) override;

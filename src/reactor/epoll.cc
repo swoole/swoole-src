@@ -194,6 +194,11 @@ int ReactorEpoll::wait() {
                                    reactor_->get_timeout_msec());
                 return SW_ERR;
             } else {
+#ifdef SW_USE_IOURING
+                if (sw_likely(errno == EINTR && reactor_->iouring_signal_handler)) {
+                    reactor_->iouring_signal_handler(reactor_);
+                }
+#endif
                 goto _continue;
             }
         } else if (n == 0) {

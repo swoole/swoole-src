@@ -48,11 +48,24 @@ using swoole::Coroutine;
 
 namespace swoole {
 //-------------------------------------------------------------------------------
+enum IouringEventFlag {
+    SW_URING_TIMEOUT = 1U << 0,
+    SW_URING_DEFER_CALLBACK = 1U << 1,
+};
+
 struct IouringEvent {
     Coroutine *coroutine;
     io_uring_sqe data;
     ssize_t result;
     IouringTimeout timeout;
+    int flags;
+
+    void set_timeout(double seconds) {
+        if (seconds > 0) {
+            flags |= SW_URING_TIMEOUT;
+            DOUBLE_TO_TIMESPEC(seconds, &timeout);
+        }
+    }
 };
 
 static void parse_kernel_version(const char *release, int *major, int *minor) {
@@ -135,6 +148,8 @@ Iouring::Iouring(Reactor *_reactor) {
     });
 
     reactor->add(ring_socket, SW_EVENT_READ);
+
+    reactor->iouring_signal_handler = [this](Reactor *reactor) { wakeup(); };
 }
 
 Iouring::~Iouring() {
@@ -198,7 +213,8 @@ bool Iouring::wakeup() {
             if (!is_empty_waiting_tasks()) {
                 waiting_task = waiting_tasks.front();
                 waiting_tasks.pop();
-                if (!dispatch(waiting_task, &task->timeout)) {
+                if (!dispatch(waiting_task)) {
+                    waiting_task->result = -errno;
                     waiting_task->coroutine->resume();
                 }
             }
@@ -272,17 +288,26 @@ std::unordered_map<std::string, int> Iouring::list_all_opcode() {
 bool Iouring::submit(IouringEvent *event) {
     swoole_trace("opcode=%s", get_opcode_name((io_uring_op) event->data.opcode));
 
-    int ret = io_uring_submit(&ring);
-
-    if (ret < 0) {
-        if (-ret == EAGAIN) {
-            waiting_tasks.push(event);
-            return true;
+    do {
+        int ret = io_uring_submit(&ring);
+        if (ret < 0) {
+            if (-ret == EAGAIN) {
+                waiting_tasks.push(event);
+                return true;
+            } else if (-ret == EINTR) {
+                continue;
+            } else if (-ret == EBUSY) {
+                usleep(10);
+                continue;
+            } else {
+                swoole_set_last_error(-ret);
+                event->result = -1;
+                swoole_sys_warning("io_uring_submit() failed");
+                return false;
+            }
         }
-        swoole_set_last_error(-ret);
-        event->result = -1;
-        return false;
-    }
+        break;
+    } while (true);
 
     task_num++;
     return true;
@@ -304,9 +329,9 @@ Iouring *Iouring::get_instance() {
     return SwooleTG.iouring;
 }
 
-ssize_t Iouring::execute(IouringEvent *event, IouringTimeout *timeout) {
+ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();
-    if (!iouring->dispatch(event, timeout)) {
+    if (!iouring->dispatch(event)) {
         return SW_ERR;
     }
 
@@ -316,7 +341,7 @@ ssize_t Iouring::execute(IouringEvent *event, IouringTimeout *timeout) {
     return event->result;
 }
 
-bool Iouring::dispatch(IouringEvent *event, IouringTimeout *timeout) {
+bool Iouring::dispatch(IouringEvent *event) {
     io_uring_sqe *sqe = io_uring_get_sqe(&ring);
     if (!sqe) {
         waiting_tasks.push(event);
@@ -326,13 +351,13 @@ bool Iouring::dispatch(IouringEvent *event, IouringTimeout *timeout) {
     memcpy(sqe, &event->data, sizeof(event->data));
     io_uring_sqe_set_data(sqe, (void *) event);
 
-    if (timeout) {
+    if (event->flags & SW_URING_TIMEOUT) {
         auto timeout_sqe = io_uring_get_sqe(&ring);
         if (!timeout_sqe) {
             swoole_warning("timeout setting failed, the iouring queue[%d] is full", ring.ring_fd);
         }
         memset(timeout_sqe, 0, sizeof(*timeout_sqe));
-        io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(timeout), 0);
+        io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(&event->timeout), 0);
         io_uring_sqe_set_data(timeout_sqe, reinterpret_cast<void *>(TIMEOUT_EVENT));
         sqe->flags |= IOSQE_IO_LINK;
     }
@@ -356,9 +381,10 @@ int Iouring::socket(int domain, int type, int protocol, int flags) {
     return static_cast<int>(execute(&event));
 }
 
-int Iouring::connect(int fd, const struct sockaddr *addr, socklen_t len) {
+int Iouring::connect(int fd, const struct sockaddr *addr, socklen_t len, double timeout) {
     INIT_EVENT(IORING_OP_CONNECT);
     io_uring_prep_connect(&event.data, fd, addr, len);
+    event.set_timeout(timeout);
     return static_cast<int>(execute(&event));
 }
 
@@ -396,30 +422,34 @@ int Iouring::sleep(int tv_sec, int tv_nsec, int flags) {
     return static_cast<int>(execute(&event));
 }
 
-int Iouring::accept(int fd, struct sockaddr *addr, socklen_t *len, int flags) {
+int Iouring::accept(int fd, struct sockaddr *addr, socklen_t *len, int flags, double timeout) {
     INIT_EVENT(IORING_OP_ACCEPT);
     io_uring_prep_accept(&event.data, fd, addr, len, flags);
+    event.set_timeout(timeout);
     return static_cast<int>(execute(&event));
 }
 
-ssize_t Iouring::recv(int fd, void *buf, size_t len, int flags) {
+ssize_t Iouring::recv(int fd, void *buf, size_t len, int flags, double timeout) {
     INIT_EVENT(IORING_OP_RECV);
     io_uring_prep_recv(&event.data, fd, buf, len, flags);
+    event.set_timeout(timeout);
     return execute(&event);
 }
 
-ssize_t Iouring::send(int fd, const void *buf, size_t len, int flags) {
+ssize_t Iouring::send(int fd, const void *buf, size_t len, int flags, double timeout) {
     INIT_EVENT(IORING_OP_SEND);
     io_uring_prep_send(&event.data, fd, buf, len, flags);
+    event.set_timeout(timeout);
     return execute(&event);
 }
 
-ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
+ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, double timeout) {
     if (size == 0) {
         return 0;
     }
 
     INIT_EVENT(IORING_OP_SPLICE);
+    event.set_timeout(timeout);
 
 #ifndef MSG_SPLICE_PAGES
     int pipe_fds[2];
@@ -700,20 +730,12 @@ pid_t Iouring::waitpid(pid_t _pid, int *stat_loc, int options, double timeout) {
     options = options == 0 ? WEXITED : options;
     io_uring_prep_waitid(&event.data, idtype, id, &info, options, 0);
 
-    int rc;
-
-    if (timeout > 0) {
-        DOUBLE_TO_TIMESPEC(timeout, &event.timeout);
-        rc = static_cast<int>(execute(&event, &event.timeout));
-    } else {
-        rc = static_cast<int>(execute(&event));
-    }
-
+    event.set_timeout(timeout);
+    int rc = static_cast<int>(execute(&event));
     if (rc != -1) {
         *stat_loc = siginfo_to_status(&info);
         return info.si_pid;
     }
-
     /**
      * After a timeout, iouring will set errno to `ECANCELED`, but in the async implementation,
      * the errno after a timeout is `ETIMEDOUT`.
@@ -737,15 +759,9 @@ int Iouring::poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
     INIT_EVENT(IORING_OP_POLL);
     io_uring_prep_poll_add(&event.data, fds[0].fd, fds[0].events);
+    event.set_timeout(timeout * 1000);
 
-    int rc;
-    if (timeout > 0) {
-        DOUBLE_TO_TIMESPEC(timeout * 1000, &event.timeout);
-        rc = static_cast<int>(execute(&event, &event.timeout));
-    } else {
-        rc = static_cast<int>(execute(&event));
-    }
-
+    int rc = static_cast<int>(execute(&event));
     if (rc > 0) {
         fds[0].revents = rc;
         return 1;

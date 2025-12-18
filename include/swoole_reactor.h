@@ -163,6 +163,10 @@ class Reactor {
     DeferCallback idle_task;
     DeferCallback future_task;
 
+#ifdef SW_USE_IOURING
+    std::function<void(Reactor *)> iouring_signal_handler;
+#endif
+
     ssize_t (*write)(Reactor *reactor, network::Socket *socket, const void *buf, size_t n) = nullptr;
     ssize_t (*writev)(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) = nullptr;
     int (*close)(Reactor *reactor, network::Socket *socket) = nullptr;

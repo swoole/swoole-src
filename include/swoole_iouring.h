@@ -48,11 +48,11 @@ class Iouring {
     explicit Iouring(Reactor *reactor_);
     bool ready() const;
     bool submit(IouringEvent *event);
-    bool dispatch(IouringEvent *event, IouringTimeout *timeout);
+    bool dispatch(IouringEvent *event);
     bool wakeup();
 
     static Iouring *get_instance();
-    static ssize_t execute(IouringEvent *event, IouringTimeout *timeout = nullptr);
+    static ssize_t execute(IouringEvent *event);
 
   public:
     ~Iouring();
@@ -65,17 +65,33 @@ class Iouring {
         return task_num;
     }
 
+    uint32_t get_sq_space_left() const {
+        return io_uring_sq_space_left(&ring);
+    }
+
+    uint32_t get_sq_capacity() const {
+        return ring.sq.ring_entries;
+    }
+
+    unsigned int get_sq_used() const {
+        return get_sq_capacity() - get_sq_space_left();
+    }
+
+    float get_sq_usage_percent() const {
+        return (float) get_sq_used() / get_sq_capacity() * 100.0f;
+    }
+
     static int socket(int domain, int type, int protocol = 0, int flags = 0);
     static int open(const char *pathname, int flags, mode_t mode);
-    static int connect(int fd, const struct sockaddr *addr, socklen_t len);
-    static int accept(int fd, struct sockaddr *addr, socklen_t *len, int flags = 0);
+    static int connect(int fd, const struct sockaddr *addr, socklen_t len, double timeout = -1);
+    static int accept(int fd, struct sockaddr *addr, socklen_t *len, int flags = 0, double timeout = -1);
     static int bind(int fd, const struct sockaddr *addr, socklen_t len);
     static int listen(int fd, int backlog);
     static int sleep(int tv_sec, int tv_nsec, int flags = 0);
     static int sleep(double seconds);
-    static ssize_t recv(int fd, void *buf, size_t len, int flags);
-    static ssize_t send(int fd, const void *buf, size_t len, int flags);
-    static ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
+    static ssize_t recv(int fd, void *buf, size_t len, int flags, double timeout = -1);
+    static ssize_t send(int fd, const void *buf, size_t len, int flags, double timeout = -1);
+    static ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t size, double timeout = -1);
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size);
     static ssize_t write(int fd, const void *buf, size_t size);
