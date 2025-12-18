@@ -28,12 +28,18 @@ class UringSocket : public Socket {
 
     bool ssl_bio_write();
     bool ssl_bio_read();
+    bool ssl_bio_prepare();
+    bool ssl_bio_perform(int rc, const char *fn);
     ssize_t ssl_recv(void *_buf, size_t _n);
     ssize_t ssl_send(const void *_buf, size_t _n);
+    ssize_t ssl_readv(network::IOVector *io_vector);
+    ssize_t ssl_writev(network::IOVector *io_vector);
 #endif
 
     ssize_t uring_send(const void *_buf, size_t _n);
     ssize_t uring_recv(void *_buf, size_t _n);
+    ssize_t uring_readv(const struct iovec *iovec, int count);
+    ssize_t uring_writev(const struct iovec *iovec, int count);
     network::Socket *uring_accept(double timeout);
 
     bool is_ssl() {
@@ -55,12 +61,27 @@ class UringSocket : public Socket {
         return Socket::connect(_host, _port, flags);
     }
 
+    ssize_t recvfrom(void *_buf, size_t _n) {
+        return Socket::recvfrom(_buf, _n);
+    }
+
     bool connect(const sockaddr *addr, socklen_t addrlen) override;
     UringSocket *accept(double timeout = 0);
+
+    ssize_t read(void *_buf, size_t _n) override;
+    ssize_t write(const void *_buf, size_t _n) override;
+    ssize_t recvmsg(msghdr *msg, int flags) override;
+    ssize_t sendmsg(const msghdr *msg, int flags) override;
+    ssize_t recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen) override;
     ssize_t recv(void *_buf, size_t _n) override;
     ssize_t send(const void *_buf, size_t _n) override;
     ssize_t recv_all(void *_buf, size_t _n) override;
     ssize_t send_all(const void *_buf, size_t _n) override;
+    bool sendfile(const char *filename, off_t offset, size_t length) override;
+    ssize_t readv(network::IOVector *io_vector) override;
+    ssize_t readv_all(network::IOVector *io_vector) override;
+    ssize_t writev(network::IOVector *io_vector) override;
+    ssize_t writev_all(network::IOVector *io_vector) override;
 #ifdef SW_USE_OPENSSL
     bool ssl_handshake() override;
 #endif

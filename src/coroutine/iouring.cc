@@ -443,6 +443,43 @@ ssize_t Iouring::send(int fd, const void *buf, size_t len, int flags, double tim
     return execute(&event);
 }
 
+ssize_t Iouring::recvmsg(int fd, struct msghdr *message, int flags, double timeout) {
+    INIT_EVENT(IORING_OP_RECVMSG);
+    io_uring_prep_recvmsg(&event.data, fd, message, flags);
+    event.set_timeout(timeout);
+    return execute(&event);
+}
+
+ssize_t Iouring::sendmsg(int fd, const struct msghdr *message, int flags, double timeout) {
+    INIT_EVENT(IORING_OP_SENDMSG);
+    io_uring_prep_sendmsg(&event.data, fd, message, flags);
+    event.set_timeout(timeout);
+    return execute(&event);
+}
+
+ssize_t Iouring::recvfrom(int fd, void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen, double timeout) {
+    auto rv = recv(fd, _buf, _n, MSG_PEEK, timeout);
+    if (rv > 0) {
+        return recvfrom(fd, _buf, _n, _addr, _socklen);
+    } else {
+        return rv;
+    }
+}
+
+ssize_t Iouring::readv(int fd, const struct iovec *iovec, int count, double timeout) {
+    INIT_EVENT(IORING_OP_READV);
+    io_uring_prep_readv(&event.data, fd, iovec, count, -1);
+    event.set_timeout(timeout);
+    return execute(&event);
+}
+
+ssize_t Iouring::writev(int fd, const struct iovec *iovec, int count, double timeout) {
+    INIT_EVENT(IORING_OP_WRITEV);
+    io_uring_prep_writev(&event.data, fd, iovec, count, -1);
+    event.set_timeout(timeout);
+    return execute(&event);
+}
+
 ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, double timeout) {
     if (size == 0) {
         return 0;
@@ -549,15 +586,17 @@ int Iouring::close(int fd) {
     return static_cast<int>(execute(&event));
 }
 
-ssize_t Iouring::read(int fd, void *buf, size_t size) {
+ssize_t Iouring::read(int fd, void *buf, size_t size, double timeout) {
     INIT_EVENT(IORING_OP_READ);
     io_uring_prep_read(&event.data, fd, buf, size, -1);
+    event.set_timeout(timeout);
     return execute(&event);
 }
 
-ssize_t Iouring::write(int fd, const void *buf, size_t size) {
+ssize_t Iouring::write(int fd, const void *buf, size_t size, double timeout) {
     INIT_EVENT(IORING_OP_WRITE);
     io_uring_prep_write(&event.data, fd, buf, size, -1);
+    event.set_timeout(timeout);
     return execute(&event);
 }
 

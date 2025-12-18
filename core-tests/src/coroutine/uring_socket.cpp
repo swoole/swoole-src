@@ -120,50 +120,53 @@ TEST(uring_socket, accept) {
 }
 
 TEST(uring_socket, ssl_accept) {
-	const int port = __LINE__ + TEST_PORT;
-	auto svr = [port](void *arg) {
-		UringSocket sock(SW_SOCK_TCP);
-		bool retval = sock.bind("127.0.0.1", port);
-		ASSERT_EQ(retval, true);
+    const int port = __LINE__ + TEST_PORT;
+    auto svr = [port](void *arg) {
+        UringSocket sock(SW_SOCK_TCP);
+        bool retval = sock.bind("127.0.0.1", port);
+        ASSERT_EQ(retval, true);
 
-		sock.enable_ssl_encrypt();
-		sock.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/server.crt");
-		sock.set_ssl_key_file(swoole::test::get_ssl_dir() + "/server.key");
-		sock.set_ssl_dhparam(swoole::test::get_ssl_dir() + "/dhparams.pem");
-		sock.set_ssl_ecdh_curve("secp256r1");
+        sock.enable_ssl_encrypt();
+        sock.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/server.crt");
+        sock.set_ssl_key_file(swoole::test::get_ssl_dir() + "/server.key");
+        sock.set_ssl_dhparam(swoole::test::get_ssl_dir() + "/dhparams.pem");
+        sock.set_ssl_ecdh_curve("secp256r1");
 
-		ASSERT_EQ(sock.listen(128), true);
+        ASSERT_EQ(sock.listen(128), true);
 
-		UringSocket *conn = sock.accept();
-		ASSERT_NE(conn, nullptr);
-		ASSERT_TRUE(conn->ssl_handshake());
-		conn->send(EOF_PACKET, strlen(EOF_PACKET));
-		char rbuf[1024];
-		auto n = conn->recv(rbuf, sizeof(rbuf));
-		rbuf[n] = 0;
+        UringSocket *conn = sock.accept();
+        ASSERT_NE(conn, nullptr);
+        ASSERT_TRUE(conn->ssl_handshake());
+        ASSERT_EQ(conn->send(EOF_PACKET, strlen(EOF_PACKET)), strlen(EOF_PACKET));
+        char rbuf[1024];
 
-		ASSERT_STREQ(rbuf, EOF_PACKET_2);
-		conn->close();
-		delete conn;
-	};
+        auto n = conn->recv(rbuf, sizeof(rbuf));
+        ASSERT_GT(n, 0);
+        rbuf[n] = 0;
 
-	auto cli = [port](void *arg) {
-		UringSocket sock(SW_SOCK_TCP);
-		sock.enable_ssl_encrypt();
-		bool retval = sock.connect("127.0.0.1", port, -1);
-		ASSERT_EQ(retval, true);
-		ASSERT_EQ(sock.errCode, 0);
+        ASSERT_STREQ(rbuf, EOF_PACKET_2);
+        conn->close();
+        delete conn;
+    };
 
-		char rbuf[1024];
-		auto n = sock.recv(rbuf, sizeof(rbuf));
-		rbuf[n] = 0;
-		ASSERT_STREQ(rbuf, EOF_PACKET);
-		sock.send(EOF_PACKET_2, strlen(EOF_PACKET_2));
+    auto cli = [port](void *arg) {
+        UringSocket sock(SW_SOCK_TCP);
+        sock.enable_ssl_encrypt();
+        bool retval = sock.connect("127.0.0.1", port, -1);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.errCode, 0);
 
-		sock.close();
-	};
+        char rbuf[1024];
+        auto n = sock.recv(rbuf, sizeof(rbuf));
+        ASSERT_GT(n, 0);
+        rbuf[n] = 0;
+        ASSERT_STREQ(rbuf, EOF_PACKET);
+        ASSERT_EQ(sock.send(EOF_PACKET_2, strlen(EOF_PACKET_2)), strlen(EOF_PACKET_2));
 
-	coroutine::run({svr, cli});
+        sock.close();
+    };
+
+    coroutine::run({svr, cli});
 }
 
 #endif

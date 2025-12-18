@@ -91,10 +91,16 @@ class Iouring {
     static int sleep(double seconds);
     static ssize_t recv(int fd, void *buf, size_t len, int flags, double timeout = -1);
     static ssize_t send(int fd, const void *buf, size_t len, int flags, double timeout = -1);
+    static ssize_t recvmsg(int fd, struct msghdr *message, int flags, double timeout = -1);
+    static ssize_t sendmsg(int fd, const struct msghdr *message, int flags, double timeout = -1);
     static ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t size, double timeout = -1);
+    static ssize_t recvfrom(int fd, void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen, double timeout = -1);
+    static ssize_t readv(int fd, const struct iovec *iovec, int count, double timeout = -1);
+    static ssize_t writev(int fd, const struct iovec *iovec, int count, double timeout = -1);
+
     static int close(int fd);
-    static ssize_t read(int fd, void *buf, size_t size);
-    static ssize_t write(int fd, const void *buf, size_t size);
+    static ssize_t read(int fd, void *buf, size_t size, double timeout = -1);
+    static ssize_t write(int fd, const void *buf, size_t size, double timeout = -1);
     static int rename(const char *oldpath, const char *newpath);
     static int mkdir(const char *pathname, mode_t mode);
     static int unlink(const char *pathname);
