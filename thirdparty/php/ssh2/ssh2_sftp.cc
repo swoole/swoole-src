@@ -17,9 +17,12 @@
 */
 
 #include "php_ssh2.h"
+
 #include "php_swoole_ssh2_hook.h"
 
+BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
+END_EXTERN_C()
 
 /* *************************
  * Resource Housekeeping *
