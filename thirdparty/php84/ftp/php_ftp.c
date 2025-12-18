@@ -77,10 +77,6 @@ static zend_class_entry *register_class_FTP_Connection(void)
 	return class_entry;
 }
 
-#ifdef COMPILE_DL_FTP
-ZEND_GET_MODULE(php_ftp)
-#endif
-
 typedef struct _php_ftp_object {
 	ftpbuf_t *ftp;
 	zend_object std;

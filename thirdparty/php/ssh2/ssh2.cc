@@ -284,7 +284,7 @@ static int php_ssh2_set_method(
 /* {{{ php_ssh2_session_connect
  * Connect to an SSH server with requested methods
  */
-LIBSSH2_SESSION *php_ssh2_session_connect(char *host, int port, zval *methods, zval *callbacks) {
+LIBSSH2_SESSION *php_ssh2_session_connect(const char *host, int port, zval *methods, zval *callbacks) {
     LIBSSH2_SESSION *session;
     php_ssh2_session_data *data;
     zend_string *hash_lookup_zstring;
