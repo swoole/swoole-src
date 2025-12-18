@@ -195,8 +195,8 @@ int ReactorEpoll::wait() {
                 return SW_ERR;
             } else {
 #ifdef SW_USE_IOURING
-                if (sw_likely(errno == EINTR && reactor_->iouring_signal_handler)) {
-                    reactor_->iouring_signal_handler(reactor_);
+                if (sw_likely(errno == EINTR && reactor_->iouring_interrupt_handler)) {
+                    reactor_->iouring_interrupt_handler(reactor_);
                 }
 #endif
                 goto _continue;

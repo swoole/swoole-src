@@ -149,7 +149,7 @@ Iouring::Iouring(Reactor *_reactor) {
 
     reactor->add(ring_socket, SW_EVENT_READ);
 
-    reactor->iouring_signal_handler = [this](Reactor *reactor) { wakeup(); };
+    reactor->iouring_interrupt_handler = [this](Reactor *reactor) { wakeup(); };
 }
 
 Iouring::~Iouring() {

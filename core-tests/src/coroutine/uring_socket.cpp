@@ -169,4 +169,47 @@ TEST(uring_socket, ssl_accept) {
     coroutine::run({svr, cli});
 }
 
+static void socket_set_length_protocol_1(UringSocket &sock) {
+    sock.protocol = {};
+
+    sock.protocol.package_length_type = 'n';
+    sock.protocol.package_length_size = swoole_type_size(sock.protocol.package_length_type);
+    sock.protocol.package_body_offset = 2;
+    sock.protocol.get_package_length = swoole::Protocol::default_length_func;
+    sock.protocol.package_max_length = 65535;
+
+    sock.open_length_check = true;
+}
+
+TEST(uring_socket, length_3) {
+    const int port = __LINE__ + TEST_PORT;
+    coroutine::run({[](void *arg) {
+                        UringSocket sock(SW_SOCK_TCP);
+                        bool retval = sock.bind("127.0.0.1", port);
+                        ASSERT_EQ(retval, true);
+                        ASSERT_EQ(sock.listen(128), true);
+
+                        UringSocket *conn = sock.accept();
+                        char buf[1024];
+                        memset(buf, 'A', sizeof(buf));
+                        *(uint16_t *) buf = htons(65530);
+
+                        conn->send(buf, sizeof(buf));
+                    },
+
+                    [](void *arg) {
+                        UringSocket sock(SW_SOCK_TCP);
+                        bool retval = sock.connect("127.0.0.1", port, -1);
+                        ASSERT_EQ(retval, true);
+                        ASSERT_EQ(sock.errCode, 0);
+
+                        socket_set_length_protocol_1(sock);
+                        sock.protocol.package_max_length = 4096;
+
+                        ssize_t l = sock.recv_packet(RECV_TIMEOUT);
+                        ASSERT_EQ(l, -1);
+                        ASSERT_EQ(sock.errCode, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+                    }});
+}
+
 #endif
