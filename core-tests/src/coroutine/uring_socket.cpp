@@ -22,9 +22,9 @@
 #include <sys/stat.h>
 
 #ifdef SW_USE_IOURING
+using swoole::Coroutine;
 using swoole::Iouring;
 using swoole::Reactor;
-using swoole::Coroutine;
 
 using swoole::coroutine::UringSocket;
 using swoole::test::coroutine;
@@ -226,7 +226,7 @@ TEST(uring_socket, sendmsg_and_recvmsg) {
         const size_t length = text.length();
 
         Coroutine::create([&](void *) {
-        	UringSocket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            UringSocket sock(pairs[0], SW_SOCK_UNIX_STREAM);
             struct msghdr msg;
             struct iovec ivec;
 

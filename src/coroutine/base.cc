@@ -230,7 +230,7 @@ void Coroutine::print_socket_bound_error(int sock_fd, const char *event_str, lon
                        sock_fd,
                        socket_bound_cid,
                        event_str,
-					   get_current_cid());
+                       get_current_cid());
 }
 
 void Coroutine::set_on_yield(const SwapCallback func) {
