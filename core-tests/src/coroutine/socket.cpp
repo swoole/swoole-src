@@ -1090,7 +1090,7 @@ TEST(coroutine_socket, sendfile) {
     });
 }
 
-void test_sendto_recvfrom(enum swSocketType sock_type) {
+static void test_sendto_recvfrom(enum swSocketType sock_type) {
     coroutine::run([&](void *arg) {
         std::string server_text = "hello world!!!";
         size_t server_length = server_text.length();

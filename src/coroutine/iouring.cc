@@ -460,7 +460,7 @@ ssize_t Iouring::sendmsg(int fd, const struct msghdr *message, int flags, double
 ssize_t Iouring::recvfrom(int fd, void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen, double timeout) {
     auto rv = recv(fd, _buf, _n, MSG_PEEK, timeout);
     if (rv > 0) {
-        return recvfrom(fd, _buf, _n, _addr, _socklen);
+        return ::recvfrom(fd, _buf, _n, 0, _addr, _socklen);
     } else {
         return rv;
     }

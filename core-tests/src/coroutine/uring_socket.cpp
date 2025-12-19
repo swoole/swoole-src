@@ -16,6 +16,7 @@
 
 #include "test_coroutine.h"
 #include "swoole_uring_socket.h"
+#include "swoole_util.h"
 
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -23,6 +24,7 @@
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
 using swoole::Reactor;
+using swoole::Coroutine;
 
 using swoole::coroutine::UringSocket;
 using swoole::test::coroutine;
@@ -215,4 +217,109 @@ TEST(uring_socket, length_3) {
                     }});
 }
 
+TEST(uring_socket, sendmsg_and_recvmsg) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        std::string text = "Hello World";
+        const size_t length = text.length();
+
+        Coroutine::create([&](void *) {
+        	UringSocket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            struct msghdr msg;
+            struct iovec ivec;
+
+            msg.msg_control = nullptr;
+            msg.msg_controllen = 0;
+            msg.msg_flags = 0;
+            msg.msg_name = nullptr;
+            msg.msg_namelen = 0;
+            msg.msg_iov = &ivec;
+            msg.msg_iovlen = 1;
+
+            ivec.iov_base = (void *) text.c_str();
+            ivec.iov_len = length;
+
+            ssize_t ret = sock.sendmsg(&msg, 0);
+            sock.close();
+            ASSERT_EQ(ret, length);
+        });
+
+        UringSocket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        struct msghdr msg;
+        struct iovec ivec;
+        char buf[length + 1];
+
+        msg.msg_control = nullptr;
+        msg.msg_controllen = 0;
+        msg.msg_flags = 0;
+        msg.msg_name = nullptr;
+        msg.msg_namelen = 0;
+        msg.msg_iov = &ivec;
+        msg.msg_iovlen = 1;
+
+        ivec.iov_base = buf;
+        ivec.iov_len = length;
+
+        ssize_t ret = sock.recvmsg(&msg, 0);
+        buf[ret] = '\0';
+        sock.close();
+        ASSERT_STREQ(buf, text.c_str());
+    });
+}
+
+static void test_sendto_recvfrom(enum swSocketType sock_type) {
+    coroutine::run([&](void *arg) {
+        std::string server_text = "hello world!!!";
+        size_t server_length = server_text.length();
+        std::string client_text = "hello swoole!!!";
+        size_t client_length = client_text.length();
+
+        const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
+        const char *local = "localhost";
+
+        int port = swoole::test::get_random_port();
+
+        UringSocket sock_server(sock_type);
+        UringSocket sock_client(sock_type);
+        sock_server.bind(ip, port);
+        sock_client.bind(ip, port + 1);
+
+        ON_SCOPE_EXIT {
+            sock_server.close();
+            sock_client.close();
+        };
+
+        sock_server.sendto(ip, port + 1, (const void *) server_text.c_str(), server_length);
+
+        char data_from_server[128] = {};
+        struct sockaddr_in serveraddr;
+        bzero(&serveraddr, sizeof(serveraddr));
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_addr.s_addr = inet_addr(ip);
+        serveraddr.sin_port = htons(port);
+        socklen_t addr_length = sizeof(serveraddr);
+
+        // receive data from server
+        ssize_t result =
+            sock_client.recvfrom(data_from_server, server_length, (struct sockaddr *) &serveraddr, &addr_length);
+        data_from_server[result] = '\0';
+        ASSERT_EQ(result, server_length);
+        ASSERT_STREQ(data_from_server, server_text.c_str());
+
+        // receive data from client
+        char data_from_client[128] = {};
+        sock_client.sendto(local, port, (const void *) client_text.c_str(), client_length);
+        result = sock_server.recvfrom(data_from_client, client_length);
+        data_from_client[client_length] = '\0';
+        ASSERT_EQ(result, client_length);
+        ASSERT_STREQ(data_from_client, client_text.c_str());
+    });
+}
+
+TEST(uring_socket, sendto_recvfrom_udp) {
+    test_sendto_recvfrom(SW_SOCK_UDP);
+    test_sendto_recvfrom(SW_SOCK_UDP6);
+}
 #endif
