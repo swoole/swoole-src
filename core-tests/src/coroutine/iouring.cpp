@@ -265,25 +265,36 @@ TEST(iouring, sendfile) {
     });
 }
 
+static int uring_create_server_socket(struct sockaddr_in *actual_server_addr, socklen_t *actual_server_addr_len) {
+    // Create a TCP socket using coroutine API
+    int server_sock = Iouring::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    EXPECT_GT(server_sock, 0);
+
+    // Bind the socket to localhost with port 0 (auto-assign)
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server_addr.sin_port = 0;
+
+    int retval = Iouring::bind(server_sock, (struct sockaddr *) &server_addr, sizeof(server_addr));
+    EXPECT_EQ(retval, 0);
+
+    // Listen on the socket
+    retval = Iouring::listen(server_sock, 128);
+    EXPECT_EQ(retval, 0);
+
+    // Get the actual server port
+    EXPECT_EQ(getsockname(server_sock, (struct sockaddr *) actual_server_addr, actual_server_addr_len), 0);
+
+    return server_sock;
+}
+
 TEST(iouring, accept) {
     coroutine::run([](void *arg) {
-        // Create a TCP socket using coroutine API
-        int server_sock = Iouring::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-        ASSERT_GT(server_sock, 0);
-
-        // Bind the socket to localhost with port 0 (auto-assign)
-        struct sockaddr_in server_addr;
-        memset(&server_addr, 0, sizeof(server_addr));
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-        server_addr.sin_port = 0;
-
-        int retval = Iouring::bind(server_sock, (struct sockaddr *) &server_addr, sizeof(server_addr));
-        ASSERT_EQ(retval, 0);
-
-        // Listen on the socket
-        retval = Iouring::listen(server_sock, 128);
-        ASSERT_EQ(retval, 0);
+        struct sockaddr_in actual_server_addr;
+        socklen_t actual_server_addr_len = sizeof(actual_server_addr);
+        auto server_sock = uring_create_server_socket(&actual_server_addr, &actual_server_addr_len);
 
         struct sockaddr_in client_addr;
         socklen_t client_addr_len = sizeof(client_addr);
@@ -297,13 +308,9 @@ TEST(iouring, accept) {
             int client_sock = Iouring::socket(AF_INET, SOCK_STREAM, 0);
             ASSERT_GT(client_sock, 0);
 
-            // Get the actual server port
-            struct sockaddr_in actual_server_addr;
-            socklen_t addr_len = sizeof(actual_server_addr);
-            ASSERT_EQ(getsockname(server_sock, (struct sockaddr *) &actual_server_addr, &addr_len), 0);
-
             // Connect to the server
-            retval = Iouring::connect(client_sock, (struct sockaddr *) &actual_server_addr, addr_len);
+            auto retval =
+                Iouring::connect(client_sock, (struct sockaddr *) &actual_server_addr, actual_server_addr_len);
             ASSERT_EQ(retval, 0);
 
             // Send a test message
@@ -438,5 +445,21 @@ TEST(iouring, poll) {
         fds[0].events = POLLIN | POLLOUT;
         ASSERT_EQ(Iouring::poll(fds, 1, 1000), 1);
         ASSERT_TRUE(fds[0].revents & POLLIN);
+    });
+}
+
+TEST(iouring, accept_timeout) {
+    coroutine::run([](void *arg) {
+        struct sockaddr_in actual_server_addr;
+        socklen_t actual_server_addr_len = sizeof(actual_server_addr);
+        auto server_sock = uring_create_server_socket(&actual_server_addr, &actual_server_addr_len);
+
+        struct sockaddr_in client_addr;
+        socklen_t client_addr_len = sizeof(client_addr);
+
+        int client_sock = Iouring::accept(server_sock, (struct sockaddr *) &client_addr, &client_addr_len, 0, 0.1);
+        ASSERT_EQ(client_sock, -1);
+
+        Iouring::close(server_sock);
     });
 }

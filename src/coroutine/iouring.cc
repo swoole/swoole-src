@@ -19,6 +19,7 @@
 */
 
 #include "swoole_iouring.h"
+#include "swoole_coroutine_system.h"
 
 #ifdef SW_USE_IOURING
 #ifdef HAVE_IOURING_FUTEX
@@ -45,12 +46,14 @@
 #define TIMEOUT_EVENT (-1)
 
 using swoole::Coroutine;
+using swoole::coroutine::System;
 
 namespace swoole {
 //-------------------------------------------------------------------------------
 enum IouringEventFlag {
     SW_URING_TIMEOUT = 1U << 0,
     SW_URING_DEFER_CALLBACK = 1U << 1,
+    SW_URING_ASYNC_TASK = 1U << 2,
 };
 
 struct IouringEvent {
@@ -190,33 +193,24 @@ bool Iouring::wakeup() {
                 continue;
             }
 
-            task_num--;
             if (cqe->res < 0) {
                 errno = -(cqe->res);
-                /**
-                 * If the error code is EAGAIN, it indicates that the resource is temporarily unavailable,
-                 * but it can be retried. However, for the fairness of the tasks, this task should be placed
-                 * at the end of the queue.
-                 */
-                if (cqe->res == -EAGAIN) {
-                    io_uring_cq_advance(&ring, 1);
-                    waiting_tasks.push(task);
-                    continue;
-                }
+                task->result = -1;
+            } else {
+                task->result = cqe->res;
             }
 
-            task->result = (cqe->res >= 0 ? cqe->res : -1);
+            task_num--;
             io_uring_cq_advance(&ring, 1);
 
-            task->coroutine->resume();
+            if (task->coroutine) {
+                task->coroutine->resume();
+            }
 
             if (!is_empty_waiting_tasks()) {
                 waiting_task = waiting_tasks.front();
                 waiting_tasks.pop();
-                if (!dispatch(waiting_task)) {
-                    waiting_task->result = -errno;
-                    waiting_task->coroutine->resume();
-                }
+                dispatch(waiting_task);
             }
         }
     }
@@ -285,32 +279,24 @@ std::unordered_map<std::string, int> Iouring::list_all_opcode() {
     return opcodes;
 }
 
-bool Iouring::submit(IouringEvent *event) {
-    swoole_trace("opcode=%s", get_opcode_name((io_uring_op) event->data.opcode));
-
+void Iouring::submit(size_t count) {
     do {
         int ret = io_uring_submit(&ring);
         if (ret < 0) {
-            if (-ret == EAGAIN) {
-                waiting_tasks.push(event);
-                return true;
+            if (-ret == EBUSY && -ret == EAGAIN) {
+                System::sleep(0.01);
+                continue;
             } else if (-ret == EINTR) {
                 continue;
-            } else if (-ret == EBUSY) {
-                usleep(10);
-                continue;
             } else {
-                swoole_set_last_error(-ret);
-                event->result = -1;
-                swoole_sys_warning("io_uring_submit() failed");
-                return false;
+                swoole_sys_error("io_uring_submit() failed");
+                return;
             }
         }
         break;
     } while (true);
 
-    task_num++;
-    return true;
+    task_num += count;
 }
 
 Iouring *Iouring::get_instance() {
@@ -331,28 +317,28 @@ Iouring *Iouring::get_instance() {
 
 ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();
-    if (!iouring->dispatch(event)) {
-        return SW_ERR;
-    }
+    iouring->dispatch(event);
 
-    // File system operations cannot be canceled, must wait to be completed.
+    // iouring operations cannot be canceled, must wait to be completed.
     event->coroutine->yield();
 
     return event->result;
 }
 
-bool Iouring::dispatch(IouringEvent *event) {
-    io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+void Iouring::dispatch(IouringEvent *event) {
+    io_uring_sqe *sqe = get_sqe();
     if (!sqe) {
         waiting_tasks.push(event);
-        return true;
+        return;
     }
+
+    swoole_trace("opcode=%s", get_opcode_name((io_uring_op) event->data.opcode));
 
     memcpy(sqe, &event->data, sizeof(event->data));
     io_uring_sqe_set_data(sqe, (void *) event);
 
     if (event->flags & SW_URING_TIMEOUT) {
-        auto timeout_sqe = io_uring_get_sqe(&ring);
+        auto timeout_sqe = get_sqe();
         if (!timeout_sqe) {
             swoole_warning("timeout setting failed, the iouring queue[%d] is full", ring.ring_fd);
         }
@@ -362,7 +348,21 @@ bool Iouring::dispatch(IouringEvent *event) {
         sqe->flags |= IOSQE_IO_LINK;
     }
 
-    return submit(event);
+    submit();
+}
+
+void Iouring::dispatch_async(IouringEvent *event) {
+    event->coroutine = nullptr;
+    event->flags = SW_URING_ASYNC_TASK;
+
+    io_uring_sqe *sqe = get_sqe();
+    if (!sqe) {
+        waiting_tasks.push(event);
+        return;
+    }
+
+    memcpy(sqe, &event->data, sizeof(event->data));
+    io_uring_sqe_set_data(sqe, (void *) event);
 }
 
 #define INIT_EVENT(op)                                                                                                 \
