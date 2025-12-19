@@ -155,6 +155,7 @@
 #define SW_IOV_MAX_ERROR_MSG "The maximum of iov count is %d"
 
 #define SW_IOURING_QUEUE_SIZE 8192
+#define SW_IOURING_SQE_BATCH_SIZE 16
 
 /**
  * HTTP Protocol

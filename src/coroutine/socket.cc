@@ -1304,7 +1304,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     return true;
 }
 
-ssize_t Socket::sendto(std::string host, int port, const void *_buf, size_t _n) {
+ssize_t Socket::sendto(const std::string &host, int port, const void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
@@ -1317,11 +1317,13 @@ ssize_t Socket::sendto(std::string host, int port, const void *_buf, size_t _n) 
         return -1;
     }
 
+    auto ip_addr = host;
+
     SW_LOOP_N(2) {
-        if (!addr.assign(type, host, port, false)) {
+        if (!addr.assign(type, ip_addr, port, false)) {
             if (swoole_get_last_error() == SW_ERROR_BAD_HOST_ADDR) {
-                host = System::gethostbyname(host, sock_domain, socket->dns_timeout);
-                if (!host.empty()) {
+                ip_addr = System::gethostbyname(host, sock_domain, socket->dns_timeout);
+                if (!ip_addr.empty()) {
                     continue;
                 }
             }

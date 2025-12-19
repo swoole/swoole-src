@@ -89,15 +89,15 @@ class Socket {
     /**
      * The read()/write()/recvmsg()/sendmsg() functions currently does not support SSL
      */
-    ssize_t read(void *_buf, size_t _n);
-    ssize_t write(const void *_buf, size_t _n);
-    ssize_t recvmsg(msghdr *msg, int flags);
-    ssize_t sendmsg(const msghdr *msg, int flags);
+    virtual ssize_t read(void *_buf, size_t _n);
+    virtual ssize_t write(const void *_buf, size_t _n);
+    virtual ssize_t recvmsg(msghdr *msg, int flags);
+    virtual ssize_t sendmsg(const msghdr *msg, int flags);
 
-    ssize_t readv(network::IOVector *io_vector);
-    ssize_t readv_all(network::IOVector *io_vector);
-    ssize_t writev(network::IOVector *io_vector);
-    ssize_t writev_all(network::IOVector *io_vector);
+    virtual ssize_t readv(network::IOVector *io_vector);
+    virtual ssize_t readv_all(network::IOVector *io_vector);
+    virtual ssize_t writev(network::IOVector *io_vector);
+    virtual ssize_t writev_all(network::IOVector *io_vector);
     virtual ssize_t recv_all(void *_buf, size_t _n);
     virtual ssize_t send_all(const void *_buf, size_t _n);
     ssize_t recv_packet(double timeout = 0);
@@ -127,10 +127,10 @@ class Socket {
     bool bind(const std::string &address, int port = 0);
     bool bind(const sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
-    bool sendfile(const char *filename, off_t offset, size_t length);
-    ssize_t sendto(std::string host, int port, const void *_buf, size_t _n);
+    virtual bool sendfile(const char *filename, off_t offset, size_t length);
+    virtual ssize_t sendto(const std::string &host, int port, const void *_buf, size_t _n);
     ssize_t recvfrom(void *_buf, size_t _n);
-    ssize_t recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen);
+    virtual ssize_t recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen);
 
 #ifdef SW_USE_OPENSSL
     /**

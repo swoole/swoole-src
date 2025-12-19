@@ -124,7 +124,7 @@ static void test_getaddrinfo(
         ASSERT_TRUE(swoole::network::Address::verify_ip(family, ip));
         network::Client c(family == AF_INET ? SW_SOCK_TCP : SW_SOCK_TCP6, false);
         if (!test::is_github_ci()) {
-        	std::cout << ip.c_str() << "\n";
+            std::cout << ip.c_str() << "\n";
             ASSERT_EQ(c.connect(ip.c_str(), 443), SW_OK);
         }
     }

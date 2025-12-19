@@ -291,11 +291,6 @@ TEST(coroutine_socket, accept) {
                     }});
 }
 
-#define CRLF "\r\n"
-#define EOF_PACKET "hello world" CRLF
-#define EOF_PACKET_2 "php&swoole, java&golang" CRLF
-#define RECV_TIMEOUT 10.0
-
 static void socket_set_eof_protocol(Socket &sock) {
     memcpy(sock.protocol.package_eof, SW_STRL(CRLF));
     sock.protocol.package_eof_len = 2;
@@ -1095,7 +1090,7 @@ TEST(coroutine_socket, sendfile) {
     });
 }
 
-void test_sendto_recvfrom(enum swSocketType sock_type) {
+static void test_sendto_recvfrom(enum swSocketType sock_type) {
     coroutine::run([&](void *arg) {
         std::string server_text = "hello world!!!";
         size_t server_length = server_text.length();
