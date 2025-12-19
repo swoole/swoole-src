@@ -40,7 +40,17 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: install dependencies
-        run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client liburing-dev
+        run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client
+
+      - name: install liburing
+        run: |
+          LIBURING_VERSION=2.13
+          wget https://github.com/axboe/liburing/archive/refs/tags/liburing-${LIBURING_VERSION}.tar.gz
+          tar zxf liburing-${LIBURING_VERSION}.tar.gz
+          cd liburing-liburing-${LIBURING_VERSION} 
+          ./configure 
+          make -j$(cat /proc/cpuinfo | grep processor | wc -l)
+          make install
 
       - name: configure
         run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-iouring

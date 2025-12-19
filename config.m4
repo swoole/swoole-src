@@ -55,6 +55,11 @@ PHP_ARG_ENABLE([iouring],
   [enable io-uring support],
   [AS_HELP_STRING([--enable-iouring],
     [Enable io-uring])], [no], [no])
+    
+PHP_ARG_WITH([liburing_dir],
+  [dir of liburing],
+  [AS_HELP_STRING([[--with-liburing-dir[=DIR]]],
+    [Include liburing support (requires liburing >= 2.13)])], [no], [no])
 
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
@@ -1192,6 +1197,12 @@ EOF
     LDFLAGS="$LDFLAGS -lpthread"
 
     if test "$PHP_IOURING" = "yes" && test "$SW_OS" = "LINUX"; then
+        if test "$PHP_LIBURING_DIR" != "no"; then
+            PHP_ADD_INCLUDE("${PHP_LIBURING_DIR}/include")
+            PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_LIBURING_DIR}/${PHP_LIBDIR}")
+            PHP_ADD_LIBRARY(uring, 1, SWOOLE_SHARED_LIBADD)
+        fi
+        
         PKG_CHECK_MODULES([URING], [liburing >= 2.0])
 
         AC_SWOOLE_HAVE_IOURING_STATX

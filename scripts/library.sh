@@ -35,6 +35,7 @@ mv ./instantclient /usr/local/
 echo '/usr/local/instantclient' > /etc/ld.so.conf.d/oracle-instantclient.conf
 ldconfig
 
-wget https://github.com/axboe/liburing/archive/refs/tags/liburing-2.6.tar.gz
-tar zxf liburing-2.6.tar.gz
-cd liburing-liburing-2.6 && ./configure && make -j$(cat /proc/cpuinfo | grep processor | wc -l) && make install
+LIBURING_VERSION=2.13
+wget https://github.com/axboe/liburing/archive/refs/tags/liburing-${LIBURING_VERSION}.tar.gz
+tar zxf liburing-${LIBURING_VERSION}.tar.gz
+cd liburing-liburing-${LIBURING_VERSION} && ./configure && make -j$(cat /proc/cpuinfo | grep processor | wc -l) && make install
