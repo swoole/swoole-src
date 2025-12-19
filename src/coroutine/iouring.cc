@@ -735,7 +735,7 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
 int Iouring::futex_wait(uint32_t *futex) {
     INIT_EVENT(IORING_OP_FUTEX_WAIT);
 
-    event.data.opcode = IORING_FSYNC_DATASYNC;
+    event.data.opcode = IORING_OP_FUTEX_WAIT;
     event.data.fd = FUTEX2_SIZE_U32;
     event.data.off = 1;
     event.data.addr = (uintptr_t) futex;
