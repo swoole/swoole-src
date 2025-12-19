@@ -198,12 +198,14 @@ TEST(iouring, connect) {
         ASSERT_NE(fd, -1);
 
         swoole::network::Address addr{};
-        ASSERT_TRUE(addr.assign(SW_SOCK_TCP, "www.baidu.com", 80, true));
+        ASSERT_TRUE(addr.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80, true));
 
         int rv = Iouring::connect(fd, &addr.addr.ss, addr.len);
 
-        rv = Iouring::write(fd, TEST_REQUEST_BAIDU, strlen(TEST_REQUEST_BAIDU));
-        ASSERT_EQ(rv, strlen(TEST_REQUEST_BAIDU));
+        auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+
+        rv = Iouring::write(fd, req.c_str(), req.length());
+        ASSERT_EQ(rv, req.length());
 
         char buf[4096];
 
@@ -211,7 +213,7 @@ TEST(iouring, connect) {
         ASSERT_GT(rv, 100);
 
         std::string s{buf};
-        ASSERT_TRUE(s.find("Location: https://www.baidu.com/") != s.npos);
+        ASSERT_TRUE(s.find(TEST_HTTP_EXPECT) != s.npos);
 
         Iouring::close(fd);
     });
@@ -224,12 +226,13 @@ TEST(iouring, send_recv) {
         ASSERT_NE(fd, -1);
 
         swoole::network::Address addr{};
-        ASSERT_TRUE(addr.assign(SW_SOCK_TCP, "www.baidu.com", 80, true));
+        ASSERT_TRUE(addr.assign(SW_SOCK_TCP, TEST_HTTP_DOMAIN, 80, true));
 
         int rv = Iouring::connect(fd, &addr.addr.ss, addr.len);
 
-        rv = Iouring::send(fd, TEST_REQUEST_BAIDU, strlen(TEST_REQUEST_BAIDU), 0);
-        ASSERT_EQ(rv, strlen(TEST_REQUEST_BAIDU));
+        auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+        rv = Iouring::send(fd, req.c_str(), req.length(), 0);
+        ASSERT_EQ(rv, req.length());
 
         char buf[4096];
 
@@ -237,7 +240,7 @@ TEST(iouring, send_recv) {
         ASSERT_GT(rv, 100);
 
         std::string s{buf};
-        ASSERT_TRUE(s.find("Location: https://www.baidu.com/") != s.npos);
+        ASSERT_TRUE(s.find(TEST_HTTP_EXPECT) != s.npos);
 
         Iouring::close(fd);
     });
