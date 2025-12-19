@@ -21,6 +21,7 @@
 
 #include "swoole_uring_socket.h"
 #include "swoole_coroutine_socket.h"
+#include "swoole_util.h"
 #include "swoole_iouring.h"
 
 typedef swoole::network::Socket NetSocket;
@@ -308,20 +309,8 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
         length = offset + length;
     }
 
-    while ((size_t) offset < length) {
-        ssize_t sent_bytes = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-        ssize_t n = Iouring::sendfile(socket->get_fd(), file.get_fd(), &offset, sent_bytes, socket->write_timeout);
-        if (n > 0) {
-            continue;
-        } else if (n == 0) {
-            set_err(SW_ERROR_SYSTEM_CALL_FAIL, std_string::format("sendfile(%d, %s) return zero", sock_fd, filename));
-            return false;
-        } else if (errno != EAGAIN) {
-            set_err(errno, std_string::format("sendfile(%d, %s) failed, %s", sock_fd, filename, strerror(errno)));
-            return false;
-        }
-    }
-    return true;
+    return Iouring::sendfile(socket->get_fd(), file.get_fd(), &offset, length, socket->write_timeout) ==
+           (ssize_t) length;
 }
 
 ssize_t UringSocket::readv(network::IOVector *io_vector) {
