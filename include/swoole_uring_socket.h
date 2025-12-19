@@ -34,12 +34,14 @@ class UringSocket : public Socket {
     ssize_t ssl_send(const void *_buf, size_t _n);
     ssize_t ssl_readv(network::IOVector *io_vector);
     ssize_t ssl_writev(network::IOVector *io_vector);
+    ssize_t ssl_sendfile(const File &file, off_t *offset, size_t size);
 #endif
 
     ssize_t uring_send(const void *_buf, size_t _n);
     ssize_t uring_recv(void *_buf, size_t _n);
     ssize_t uring_readv(const struct iovec *iovec, int count);
     ssize_t uring_writev(const struct iovec *iovec, int count);
+    ssize_t uring_sendfile(const File &file, off_t *offset, size_t size);
     network::Socket *uring_accept(double timeout);
 
     bool is_ssl() {
@@ -73,6 +75,7 @@ class UringSocket : public Socket {
     ssize_t recvmsg(msghdr *msg, int flags) override;
     ssize_t sendmsg(const msghdr *msg, int flags) override;
     ssize_t recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen) override;
+    ssize_t sendto(const std::string &host, int port, const void *_buf, size_t _n) override;
     ssize_t recv(void *_buf, size_t _n) override;
     ssize_t send(const void *_buf, size_t _n) override;
     ssize_t recv_all(void *_buf, size_t _n) override;

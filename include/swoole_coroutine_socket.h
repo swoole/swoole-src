@@ -128,7 +128,7 @@ class Socket {
     bool bind(const sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
     virtual bool sendfile(const char *filename, off_t offset, size_t length);
-    ssize_t sendto(std::string host, int port, const void *_buf, size_t _n);
+    virtual ssize_t sendto(const std::string &host, int port, const void *_buf, size_t _n);
     ssize_t recvfrom(void *_buf, size_t _n);
     virtual ssize_t recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen);
 

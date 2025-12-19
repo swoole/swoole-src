@@ -21,6 +21,7 @@
 
 #include "swoole_uring_socket.h"
 #include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 #include "swoole_util.h"
 #include "swoole_iouring.h"
 
@@ -111,63 +112,11 @@ ssize_t UringSocket::uring_readv(const struct iovec *iovec, int count) {
 }
 
 ssize_t UringSocket::uring_writev(const struct iovec *iovec, int count) {
-    ssize_t retval = Iouring::writev(socket->get_fd(), iovec, count, socket->write_timeout);
-    write_co = nullptr;
-    return retval;
+    return Iouring::writev(socket->get_fd(), iovec, count, socket->write_timeout);
 }
 
-ssize_t UringSocket::ssl_readv(network::IOVector *io_vector) {
-    ssize_t retval, total_bytes = 0;
-
-    do {
-        retval = ssl_recv(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
-        total_bytes += retval > 0 ? retval : 0;
-        io_vector->update_iterator(retval);
-    } while (retval > 0 && io_vector->get_remain_count() > 0);
-
-    return total_bytes > 0 ? total_bytes : retval;
-}
-
-ssize_t UringSocket::ssl_writev(network::IOVector *io_vector) {
-    ssize_t retval, total_bytes = 0;
-
-    do {
-        retval = ssl_send(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
-        total_bytes += retval > 0 ? retval : 0;
-        io_vector->update_iterator(retval);
-    } while (retval > 0 && io_vector->get_remain_count() > 0);
-
-    return total_bytes > 0 ? total_bytes : retval;
-}
-
-ssize_t UringSocket::ssl_recv(void *_buf, size_t _n) {
-    while (true) {
-        int n = SSL_read(socket->ssl, _buf, _n);
-        if (!ssl_bio_prepare()) {
-            return -1;
-        }
-        if (n > 0) {
-            return n;
-        }
-        if (!ssl_bio_perform(n, "ssl_recv")) {
-            return -1;
-        }
-    }
-}
-
-ssize_t UringSocket::ssl_send(const void *_buf, size_t _n) {
-    while (true) {
-        int n = SSL_write(socket->ssl, _buf, _n);
-        if (!ssl_bio_prepare()) {
-            return -1;
-        }
-        if (n > 0) {
-            return n;
-        }
-        if (!ssl_bio_perform(n, "ssl_send")) {
-            return -1;
-        }
-    }
+ssize_t UringSocket::uring_sendfile(const File &file, off_t *offset, size_t size) {
+    return Iouring::sendfile(socket->get_fd(), file.get_fd(), offset, size, socket->write_timeout);
 }
 
 ssize_t UringSocket::read(void *_buf, size_t _n) {
@@ -225,6 +174,45 @@ ssize_t UringSocket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t 
     return retval;
 }
 
+ssize_t UringSocket::sendto(const std::string &host, int port, const void *_buf, size_t _n) {
+    if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
+        return -1;
+    }
+
+    ssize_t retval = 0;
+    network::Address addr;
+
+    if (!socket->is_dgram()) {
+        set_err(EPROTONOSUPPORT);
+        return -1;
+    }
+
+    auto ip_addr = host;
+
+    SW_LOOP_N(2) {
+        if (!addr.assign(type, ip_addr, port, false)) {
+            if (swoole_get_last_error() == SW_ERROR_BAD_HOST_ADDR) {
+                ip_addr = System::gethostbyname(host, sock_domain, socket->dns_timeout);
+                if (!ip_addr.empty()) {
+                    continue;
+                }
+            }
+            set_err();
+            return -1;
+        }
+        break;
+    }
+
+    write_co = Coroutine::get_current_safe();
+    retval = Iouring::sendto(socket->get_fd(), _buf, _n, 0, &addr.addr.ss, addr.len, socket->write_timeout);
+    write_co = nullptr;
+
+    swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, _n, errno);
+
+    check_return_value(retval);
+    return retval;
+}
+
 ssize_t UringSocket::recv(void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
@@ -244,12 +232,19 @@ ssize_t UringSocket::recv(void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::send(const void *_buf, size_t _n) {
+    if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
+        return -1;
+    }
+
     ssize_t retval;
+    write_co = Coroutine::get_current_safe();
     if (is_ssl()) {
         retval = ssl_send(_buf, _n);
     } else {
         retval = uring_send(_buf, _n);
     }
+    write_co = nullptr;
+
     check_return_value(retval);
     return retval;
 }
@@ -309,8 +304,17 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
         length = offset + length;
     }
 
-    return Iouring::sendfile(socket->get_fd(), file.get_fd(), &offset, length, socket->write_timeout) ==
-           (ssize_t) length;
+    ssize_t retval;
+
+    write_co = Coroutine::get_current_safe();
+    if (is_ssl()) {
+        retval = ssl_sendfile(file, &offset, length);
+    } else {
+        retval = uring_sendfile(file, &offset, length);
+    }
+    write_co = nullptr;
+
+    return retval == (ssize_t) length;
 }
 
 ssize_t UringSocket::readv(network::IOVector *io_vector) {
@@ -553,6 +557,87 @@ bool UringSocket::ssl_handshake() {
     ssl_handshaked = true;
 
     return true;
+}
+
+ssize_t UringSocket::ssl_readv(network::IOVector *io_vector) {
+    ssize_t retval, total_bytes = 0;
+
+    do {
+        retval = ssl_recv(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
+        total_bytes += retval > 0 ? retval : 0;
+        io_vector->update_iterator(retval);
+    } while (retval > 0 && io_vector->get_remain_count() > 0);
+
+    return total_bytes > 0 ? total_bytes : retval;
+}
+
+ssize_t UringSocket::ssl_writev(network::IOVector *io_vector) {
+    ssize_t retval, total_bytes = 0;
+
+    do {
+        retval = ssl_send(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
+        total_bytes += retval > 0 ? retval : 0;
+        io_vector->update_iterator(retval);
+    } while (retval > 0 && io_vector->get_remain_count() > 0);
+
+    return total_bytes > 0 ? total_bytes : retval;
+}
+
+ssize_t UringSocket::ssl_recv(void *_buf, size_t _n) {
+    while (true) {
+        int n = SSL_read(socket->ssl, _buf, _n);
+        if (!ssl_bio_prepare()) {
+            return -1;
+        }
+        if (n > 0) {
+            return n;
+        }
+        if (!ssl_bio_perform(n, "ssl_recv")) {
+            return -1;
+        }
+    }
+}
+
+ssize_t UringSocket::ssl_send(const void *_buf, size_t _n) {
+    while (true) {
+        int n = SSL_write(socket->ssl, _buf, _n);
+        if (!ssl_bio_prepare()) {
+            return -1;
+        }
+        if (n > 0) {
+            return n;
+        }
+        if (!ssl_bio_perform(n, "ssl_send")) {
+            return -1;
+        }
+    }
+}
+
+ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) {
+    char buf[SW_BUFFER_SIZE_BIG];
+    size_t total = 0;
+
+    while (total < size) {
+        ssize_t readn = size > sizeof(buf) ? sizeof(buf) : size;
+        ssize_t n = file.pread(buf, readn, *offset);
+        if (n > 0) {
+            ssize_t ret = ssl_send(buf, n);
+            if (ret < 0) {
+                if (socket->catch_write_error(errno) == SW_ERROR) {
+                    swoole_sys_warning("write() failed");
+                }
+            } else {
+                *offset += ret;
+                total += ret;
+            }
+            swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
+        } else {
+            swoole_sys_warning("pread() failed");
+            return total;
+        }
+    }
+
+    return -1;
 }
 #endif
 };  // namespace coroutine

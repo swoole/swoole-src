@@ -457,10 +457,18 @@ ssize_t Iouring::sendmsg(int fd, const struct msghdr *message, int flags, double
     return execute(&event);
 }
 
+ssize_t Iouring::sendto(
+    int fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t len, double timeout) {
+    INIT_EVENT(IORING_OP_SENDTO);
+    io_uring_prep_sendto(&event.data, fd, buf, n, flags, addr, len);
+    event.set_timeout(timeout);
+    return execute(&event);
+}
+
 ssize_t Iouring::recvfrom(int fd, void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen, double timeout) {
     auto rv = recv(fd, _buf, _n, MSG_PEEK, timeout);
     if (rv > 0) {
-        return ::recvfrom(fd, _buf, _n, 0, _addr, _socklen);
+        return ::recvfrom(fd, _buf, _n, MSG_DONTWAIT, _addr, _socklen);
     } else {
         return rv;
     }
