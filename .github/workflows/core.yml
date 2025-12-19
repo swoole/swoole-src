@@ -49,8 +49,7 @@ jobs:
           tar zxf liburing-${LIBURING_VERSION}.tar.gz
           cd liburing-liburing-${LIBURING_VERSION} 
           ./configure 
-          make -j$(cat /proc/cpuinfo | grep processor | wc -l)
-          make install
+          sudo make -j$(cat /proc/cpuinfo | grep processor | wc -l) install
 
       - name: configure
         run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-iouring
