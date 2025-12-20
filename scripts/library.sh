@@ -1,9 +1,14 @@
 #!/bin/sh -e
+__CURRENT__=$(pwd)
+__DIR__=$(cd "$(dirname "$0")";pwd)
+
 if [ "$(uname -m)" = "aarch64" ]; then
   arch="-arm64"
 else
   arch="x64"
 fi
+
+cd "${__DIR__}/"
 
 apt update
 bash ./install-deps-on-ubuntu.sh
@@ -13,11 +18,12 @@ apt install -y openssh-server
 service ssh start
 
 # MariaDB ODBC Connector
-wget https://github.com/mariadb-corporation/mariadb-connector-odbc/archive/refs/tags/3.1.21.tar.gz
-tar zxf 3.1.21.tar.gz
+MARIADB_CONNECTOR_VERSION=3.1.22
+wget https://github.com/mariadb-corporation/mariadb-connector-odbc/archive/refs/tags/${MARIADB_CONNECTOR_VERSION}.tar.gz
+tar zxf ${MARIADB_CONNECTOR_VERSION}.tar.gz
 mkdir build
 cd build
-cmake ../mariadb-connector-odbc-3.1.21/ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCONC_WITH_UNIT_TESTS=Off -DCMAKE_INSTALL_PREFIX=/usr/local -DWITH_SSL=OPENSSL
+cmake ../mariadb-connector-odbc-${MARIADB_CONNECTOR_VERSION}/ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCONC_WITH_UNIT_TESTS=Off -DCMAKE_INSTALL_PREFIX=/usr/local -DWITH_SSL=OPENSSL
 cmake --build . --config RelWithDebInfo
 make install
 echo '/usr/local/lib/mariadb/' > /etc/ld.so.conf.d/odbc-mariadb.conf
@@ -35,4 +41,7 @@ mv ./instantclient /usr/local/
 echo '/usr/local/instantclient' > /etc/ld.so.conf.d/oracle-instantclient.conf
 ldconfig
 
+cd "${__DIR__}/"
 bash ./install-liburing.sh
+
+cd -
