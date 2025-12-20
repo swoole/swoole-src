@@ -34,6 +34,11 @@
 #define SW_ZLIB_ENCODING_GZIP 0x1f
 #define SW_ZLIB_ENCODING_DEFLATE 0x0f
 #define SW_ZLIB_ENCODING_ANY 0x2f
+#if MAX_MEM_LEVEL >= 8
+#define SW_ZLIB_DEF_MEM_LEVEL 8
+#else
+#define SW_ZLIB_DEF_MEM_LEVEL MAX_MEM_LEVEL
+#endif
 #endif
 
 #ifdef SW_HAVE_BROTLI
@@ -170,7 +175,7 @@ struct Context {
     std::shared_ptr<String> zlib_buffer;
 #endif
 
-    std::shared_ptr<String> frame_buffer;
+    std::shared_ptr<String> continue_frame_buffer;
     WebSocketSettings websocket_settings;
 
     Request request;

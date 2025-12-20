@@ -28,7 +28,7 @@ namespace swoole {
 namespace websocket {
 void apply_setting(WebSocketSettings &settings, zend_array *vht, bool in_server);
 void recv_frame(const WebSocketSettings &settings,
-                std::shared_ptr<String> &frame_buffer,
+                std::shared_ptr<String> &continue_frame_buffer,
                 coroutine::Socket *sock,
                 zval *return_value,
                 double timeout);
