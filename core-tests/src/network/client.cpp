@@ -755,7 +755,6 @@ TEST(client, shutdown_all) {
     ASSERT_EQ(retval, 0);
 }
 
-#ifdef SW_USE_OPENSSL
 static void test_ssl_http_get() {
     bool connected = false;
     bool closed = false;
@@ -1014,7 +1013,6 @@ TEST(client, ssl) {
 
     ASSERT_TRUE(sw_tg_buffer()->contains(TEST_HTTPS_EXPECT));
 }
-#endif
 
 TEST(client, fail) {
     Client c(static_cast<swSocketType>(SW_SOCK_RAW6 + 1), false);
@@ -1062,10 +1060,10 @@ TEST(client, ssl_recv_timeout) {
 }
 
 TEST(client, sync_nonblock) {
-	Client cli(SW_SOCK_TCP, false);
-	ASSERT_NE(cli.socket, nullptr);
-	auto rv = cli.connect(TEST_HTTP_DOMAIN, 80, -1, 1);
-	ASSERT_EQ(rv, -1);
-	ASSERT_EQ(errno, EINPROGRESS);
-	ASSERT_TRUE(cli.async_connect);
+    Client cli(SW_SOCK_TCP, false);
+    ASSERT_NE(cli.socket, nullptr);
+    auto rv = cli.connect(TEST_HTTP_DOMAIN, 80, -1, 1);
+    ASSERT_EQ(rv, -1);
+    ASSERT_EQ(errno, EINPROGRESS);
+    ASSERT_TRUE(cli.async_connect);
 }

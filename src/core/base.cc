@@ -89,9 +89,7 @@ static void bug_report_message_init() {
     SwooleG.bug_report_message += swoole::std_string::format("GCC_VERSION: %s\n", __VERSION__);
 #endif
 
-#ifdef SW_USE_OPENSSL
     SwooleG.bug_report_message += swoole_ssl_get_version_message();
-#endif
 }
 
 void swoole_init() {

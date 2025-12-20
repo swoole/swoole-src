@@ -24,13 +24,10 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_client_coro_arginfo.h"
 END_EXTERN_C()
 
+using swoole::SSLContext;
 using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
-using NetSocket = swoole::network::Socket;
-#ifdef SW_USE_OPENSSL
-using swoole::SSLContext;
-#endif
 
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;
@@ -54,11 +51,9 @@ static PHP_METHOD(swoole_client_coro, send);
 static PHP_METHOD(swoole_client_coro, sendfile);
 static PHP_METHOD(swoole_client_coro, sendto);
 static PHP_METHOD(swoole_client_coro, recvfrom);
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_coro, enableSSL);
 static PHP_METHOD(swoole_client_coro, getPeerCert);
 static PHP_METHOD(swoole_client_coro, verifyPeerCert);
-#endif
 static PHP_METHOD(swoole_client_coro, exportSocket);
 static PHP_METHOD(swoole_client_coro, isConnected);
 static PHP_METHOD(swoole_client_coro, getsockname);
@@ -79,11 +74,9 @@ static const zend_function_entry swoole_client_coro_methods[] =
     PHP_ME(swoole_client_coro, sendfile,       arginfo_class_Swoole_Coroutine_Client_sendfile,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, sendto,         arginfo_class_Swoole_Coroutine_Client_sendto,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, recvfrom,       arginfo_class_Swoole_Coroutine_Client_recvfrom,       ZEND_ACC_PUBLIC)
-#ifdef SW_USE_OPENSSL
     PHP_ME(swoole_client_coro, enableSSL,      arginfo_class_Swoole_Coroutine_Client_enableSSL,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, getPeerCert,    arginfo_class_Swoole_Coroutine_Client_getPeerCert,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, verifyPeerCert, arginfo_class_Swoole_Coroutine_Client_verifyPeerCert, ZEND_ACC_PUBLIC)
-#endif
     PHP_ME(swoole_client_coro, isConnected,    arginfo_class_Swoole_Coroutine_Client_isConnected,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, getsockname,    arginfo_class_Swoole_Coroutine_Client_getsockname,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_coro, getpeername,    arginfo_class_Swoole_Coroutine_Client_getpeername,    ZEND_ACC_PUBLIC)
@@ -162,13 +155,11 @@ static Socket *client_coro_create_socket(zval *zobject, zend_long type) {
     socket->set_buffer_allocator(sw_zend_string_allocator());
     socket->set_zero_copy(true);
 
-#ifdef SW_USE_OPENSSL
     if ((type & SW_SOCK_SSL) && !socket->enable_ssl_encrypt()) {
         php_swoole_socket_set_error_properties(zobject, EISCONN);
         client_coro_socket_dtor(client);
         return nullptr;
     }
-#endif
 
     return socket;
 }
@@ -577,7 +568,6 @@ static PHP_METHOD(swoole_client_coro, close) {
     RETURN_TRUE;
 }
 
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_coro, enableSSL) {
     CLIENT_CORO_GET_SOCKET_SAFE(cli);
     if (cli->get_type() != SW_SOCK_TCP && cli->get_type() != SW_SOCK_TCP6) {
@@ -627,4 +617,3 @@ static PHP_METHOD(swoole_client_coro, verifyPeerCert) {
     }
     RETURN_BOOL(cli->ssl_verify(allow_self_signed));
 }
-#endif

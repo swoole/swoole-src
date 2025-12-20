@@ -17,7 +17,7 @@ cd "${__DIR__}" && cd ../ && \
 ./clear.sh > /dev/null && \
 phpize --clean > /dev/null && \
 phpize > /dev/null && \
-./configure --enable-openssl --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares > /dev/null && \
+./configure --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares > /dev/null && \
 make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
 make install && \

@@ -325,12 +325,10 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
         if (serv->is_healthy_connection(now, conn)) {
             return;
         }
-#ifdef SW_USE_OPENSSL
         if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY) {
             Server::close_connection(reactor, conn->socket);
             return;
         }
-#endif
         if (serv->disable_notify || conn->close_force) {
             Server::close_connection(reactor, conn->socket);
             return;

@@ -1243,7 +1243,6 @@ TEST(coroutine_socket, https_get_with_http_proxy) {
     });
 }
 
-#ifdef SW_USE_OPENSSL
 TEST(coroutine_socket, ssl) {
     coroutine::run([&](void *arg) {
         Socket sock(SW_SOCK_TCP);
@@ -1305,7 +1304,6 @@ TEST(coroutine_socket, ssl_accept) {
 
     coroutine::run({svr, cli});
 }
-#endif
 
 TEST(coroutine_socket, peek) {
     coroutine::run([&](void *arg) {

@@ -186,7 +186,6 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
             return SW_OK;
         }
 
-#ifdef SW_USE_OPENSSL
         if (listen_host->ssl) {
             if (!listen_host->ssl_create(sock)) {
                 serv->abort_connection(reactor, listen_host, sock);
@@ -195,7 +194,6 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
         } else {
             sock->ssl = nullptr;
         }
-#endif
 
         // add to connection_list
         Connection *conn = serv->add_connection(listen_host, sock, event->fd);
@@ -233,11 +231,9 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) const {
         conn->socket->read_timeout = port->max_idle_time;
         conn->socket->recv_timer = swoole_timer_add(sec2msec(port->max_idle_time), true, timeout_callback);
     }
-#ifdef SW_USE_OPENSSL
     if (conn->socket->ssl) {
         return reactor->add(conn->socket, SW_EVENT_READ);
     }
-#endif
     // delay receive, wait resume command
     if (!enable_delay_receive) {
         if (reactor->add(conn->socket, SW_EVENT_READ) < 0) {
@@ -1878,14 +1874,12 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     ls->port = port;
     ls->host = host;
 
-#ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
         type = static_cast<SocketType>(type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context_init();
     }
-#endif
 
     if (ls->create_socket() < 0) {
         swoole_set_last_error(errno);
@@ -2048,9 +2042,7 @@ _find_available_slot:
     connection->worker_id = -1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
-#ifdef SW_USE_OPENSSL
     connection->ssl = _socket->ssl != nullptr;
-#endif
 
     memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
     connection->info.len = _socket->info.len;

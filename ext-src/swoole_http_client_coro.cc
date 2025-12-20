@@ -88,9 +88,7 @@ class Client {
     /* request info */
     std::string host;
     uint16_t port;
-#ifdef SW_USE_OPENSSL
     uint8_t ssl;
-#endif
     double connect_timeout = 0;
     double response_timeout = 0;
     bool defer = false;
@@ -257,7 +255,6 @@ class Client {
         add_assoc_long(return_value, "port", sa.get_port());
     }
 
-#ifdef SW_USE_OPENSSL
     void getpeercert(zval *return_value) const {
         if (!is_available()) {
             RETURN_FALSE;
@@ -270,7 +267,6 @@ class Client {
             RETURN_STRINGL(cert.c_str(), cert.length());
         }
     }
-#endif
 
     ~Client();
 
@@ -323,9 +319,7 @@ static PHP_METHOD(swoole_http_client_coro, getHeaders);
 static PHP_METHOD(swoole_http_client_coro, getCookies);
 static PHP_METHOD(swoole_http_client_coro, getStatusCode);
 static PHP_METHOD(swoole_http_client_coro, getHeaderOut);
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_http_client_coro, getPeerCert);
-#endif
 static PHP_METHOD(swoole_http_client_coro, upgrade);
 static PHP_METHOD(swoole_http_client_coro, push);
 static PHP_METHOD(swoole_http_client_coro, recv);
@@ -360,9 +354,7 @@ static const zend_function_entry swoole_http_client_coro_methods[] =
     PHP_ME(swoole_http_client_coro, getCookies,    arginfo_class_Swoole_Coroutine_Http_Client_getCookies,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, getStatusCode, arginfo_class_Swoole_Coroutine_Http_Client_getStatusCode, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, getHeaderOut,  arginfo_class_Swoole_Coroutine_Http_Client_getHeaderOut,  ZEND_ACC_PUBLIC)
-#ifdef SW_USE_OPENSSL
     PHP_ME(swoole_http_client_coro, getPeerCert, arginfo_class_Swoole_Coroutine_Http_Client_getPeerCert, ZEND_ACC_PUBLIC)
-#endif
     PHP_ME(swoole_http_client_coro, upgrade, arginfo_class_Swoole_Coroutine_Http_Client_upgrade, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, push,    arginfo_class_Swoole_Coroutine_Http_Client_push,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_client_coro, recv,    arginfo_class_Swoole_Coroutine_Http_Client_recv,    ZEND_ACC_PUBLIC)
@@ -579,11 +571,8 @@ Client::Client(const zval *zobject, const std::string &host, zend_long port, zen
         port = ssl ? 443 : 80;
     }
     this->port = port;
-#ifdef SW_USE_OPENSSL
     this->ssl = ssl;
-#endif
     _zobject = *zobject;
-    // TODO: zend_read_property cache here (strong type properties)
 }
 
 #ifdef SW_HAVE_COMPRESSION
@@ -779,12 +768,7 @@ void Client::apply_setting(zval *zset, const bool check_all) {
     }
     if (socket) {
         php_swoole_socket_set(socket, zset);
-#ifdef SW_USE_OPENSSL
-        if (socket->http_proxy && !socket->ssl_is_enable())
-#else
-        if (socket->http_proxy)
-#endif
-        {
+        if (socket->http_proxy && !socket->ssl_is_enable()) {
             socket->http_proxy->dont_handshake = 1;
         }
     }
@@ -833,13 +817,11 @@ bool Client::connect() {
     ZVAL_OBJ(&zsocket, object);
     socket = php_swoole_get_socket(&zsocket);
 
-#ifdef SW_USE_OPENSSL
     if (ssl && !socket->enable_ssl_encrypt()) {
         set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_CONNECT_FAILED);
         close();
         return false;
     }
-#endif
 
     // apply settings
     apply_setting(sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0), false);
@@ -974,12 +956,7 @@ bool Client::send_request() {
 
     // ============ path & proxy ============
     bool require_proxy_authentication = false;
-#ifdef SW_USE_OPENSSL
-    if (socket->http_proxy && !socket->ssl_is_enable())
-#else
-    if (socket->http_proxy)
-#endif
-    {
+    if (socket->http_proxy && !socket->ssl_is_enable()) {
         const static char *pre = "http://";
         char *_host = (char *) host.c_str();
         size_t _host_len = host.length();
@@ -1019,12 +996,7 @@ bool Client::send_request() {
         // See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.23
         const std::string *_host;
         std::string real_host;
-#ifndef SW_USE_OPENSSL
-        if (port != 80)
-#else
-        if (!ssl ? port != 80 : port != 443)
-#endif
-        {
+        if (!ssl ? port != 80 : port != 443) {
             real_host = std_string::format("%s:%u", host.c_str(), port);
             _host = &real_host;
         } else {
@@ -1789,16 +1761,6 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
         zend_throw_exception_ex(swoole_http_client_coro_exception_ce, EINVAL, "host is empty");
         RETURN_FALSE;
     }
-    // check ssl
-#ifndef SW_USE_OPENSSL
-    if (ssl) {
-        zend_throw_exception_ex(
-            swoole_http_client_coro_exception_ce,
-            EPROTONOSUPPORT,
-            "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
-        RETURN_FALSE;
-    }
-#endif
     hcc->client = new Client(ZEND_THIS, std::string(host, host_len), port, ssl);
 }
 
@@ -2183,12 +2145,10 @@ static PHP_METHOD(swoole_http_client_coro, getpeername) {
     phc->getpeername(return_value);
 }
 
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_http_client_coro, getPeerCert) {
     Client *phc = http_client_coro_get_client(ZEND_THIS);
     phc->getpeercert(return_value);
 }
-#endif
 
 static PHP_METHOD(swoole_http_client_coro, ping) {
     Client *phc = http_client_coro_get_client(ZEND_THIS);

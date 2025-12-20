@@ -206,7 +206,6 @@ struct Socket {
     uchar direct_send : 1;
     uchar bound : 1;
     uchar listened : 1;
-#ifdef SW_USE_OPENSSL
     uchar ssl_send_ : 1;
     uchar ssl_want_read : 1;
     uchar ssl_want_write : 1;
@@ -216,7 +215,6 @@ struct Socket {
     uchar ssl_closed_ : 1;
 #ifdef SW_SUPPORT_DTLS
     uchar dtls : 1;
-#endif
 #endif
     uchar close_wait : 1;
     uchar send_wait : 1;
@@ -238,10 +236,8 @@ struct Socket {
 
     void *object;
 
-#ifdef SW_USE_OPENSSL
     SSL *ssl;
     uint32_t ssl_state;
-#endif
 
     /**
      * Only used for getsockname, written by the OS, not user. This is the exact actual address.
@@ -408,7 +404,6 @@ struct Socket {
     int connect_sync(const Address &sa);
     ReturnCode connect_async(const Address &sa);
 
-#ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
         ERR_clear_error();
         ssl_want_read = 0;
@@ -437,7 +432,6 @@ struct Socket {
     bool ssl_shutdown();
     void ssl_close();
     static const char *ssl_get_error_reason(int *reason);
-#endif
 
     ssize_t recvfrom(char *_buf, size_t _len, int flags, Address *sa) const {
         sa->len = sizeof(sa->addr);

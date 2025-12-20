@@ -124,11 +124,9 @@ static size_t get_sendfile_chunk_size(off_t begin, off_t end) {
 }
 
 int Socket::what_event_want(int default_event) const {
-#ifdef SW_USE_OPENSSL
     if (ssl && (ssl_want_write || ssl_want_read)) {
         return ssl_want_write ? SW_EVENT_WRITE : SW_EVENT_READ;
     }
-#endif
     return default_event;
 }
 
@@ -153,11 +151,9 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
         set_nonblock();
     }
 
-#ifdef SW_USE_OPENSSL
     if (ssl) {
         ssl_clear_error();
     }
-#endif
 
     while (true) {
         switch (fn()) {
@@ -847,12 +843,9 @@ static void Socket_sendfile_destructor(BufferChunk *chunk) {
 }
 
 ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
-#ifdef SW_USE_OPENSSL
     if (ssl) {
         return ssl_sendfile(fp, offset, length);
-    } else
-#endif
-    {
+    } else {
         return swoole_sendfile(fd, fp.get_fd(), offset, length);
     }
 }
@@ -879,7 +872,6 @@ ssize_t Socket::recv(void *_buf, size_t _n, int _flags) {
     ssize_t total_bytes = 0;
 
     do {
-#ifdef SW_USE_OPENSSL
         if (ssl) {
             ssize_t retval = 0;
             while (static_cast<size_t>(total_bytes) < _n) {
@@ -896,9 +888,7 @@ ssize_t Socket::recv(void *_buf, size_t _n, int _flags) {
                     }
                 }
             }
-        } else
-#endif
-        {
+        } else {
             total_bytes = ::recv(fd, _buf, _n, _flags);
         }
     } while (total_bytes < 0 && (errno == EINTR && !dont_restart));
@@ -924,12 +914,9 @@ ssize_t Socket::send(const void *_buf, size_t _n, int _flags) {
     ssize_t retval;
 
     do {
-#ifdef SW_USE_OPENSSL
         if (ssl) {
             retval = ssl_send(_buf, _n);
-        } else
-#endif
-        {
+        } else {
             retval = ::send(fd, _buf, _n, _flags);
         }
     } while (retval < 0 && (errno == EINTR && !dont_restart));
@@ -990,12 +977,9 @@ ssize_t Socket::readv(IOVector *io_vector) {
     ssize_t retval;
 
     do {
-#ifdef SW_USE_OPENSSL
         if (ssl) {
             retval = ssl_readv(io_vector);
-        } else
-#endif
-        {
+        } else {
             retval = ::readv(fd, io_vector->get_iterator(), io_vector->get_remain_count());
             io_vector->update_iterator(retval);
         }
@@ -1008,12 +992,9 @@ ssize_t Socket::writev(IOVector *io_vector) {
     ssize_t retval;
 
     do {
-#ifdef SW_USE_OPENSSL
         if (ssl) {
             retval = ssl_writev(io_vector);
-        } else
-#endif
-        {
+        } else {
             retval = ::writev(fd, io_vector->get_iterator(), io_vector->get_remain_count());
             io_vector->update_iterator(retval);
         }
@@ -1026,12 +1007,9 @@ ssize_t Socket::peek(void *_buf, size_t _n, int _flags) const {
     ssize_t retval;
     _flags |= MSG_PEEK;
     do {
-#ifdef SW_USE_OPENSSL
         if (ssl) {
             retval = SSL_peek(ssl, _buf, _n);
-        } else
-#endif
-        {
+        } else {
             retval = ::recv(fd, _buf, _n, _flags);
         }
     } while (retval < 0 && errno == EINTR);
@@ -1150,8 +1128,6 @@ int Socket::get_domain_and_type(SocketType type, int *sock_domain, int *sock_typ
 
     return SW_OK;
 }
-
-#ifdef SW_USE_OPENSSL
 
 #ifndef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
 static int ssl_check_name(const char *name, ASN1_STRING *pattern) {
@@ -1788,9 +1764,6 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
     ssl_state = 0;
     return SW_OK;
 }
-
-#endif
-
 }  // namespace network
 
 using network::Socket;

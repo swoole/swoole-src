@@ -57,10 +57,8 @@ class Client
 
     public function getHeaderOut(): false|string {}
 
-    # ifdef SW_USE_OPENSSL
     public function getPeerCert(): false|string {}
 
-    # endif
     public function upgrade(string $path): bool {}
 
     public function push(mixed $data, int $opcode = SWOOLE_WEBSOCKET_OPCODE_TEXT, int $flags = SWOOLE_WEBSOCKET_FLAG_FIN): bool {}

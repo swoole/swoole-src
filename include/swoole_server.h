@@ -27,7 +27,7 @@
 #include "swoole_channel.h"
 #include "swoole_message_bus.h"
 
-#ifdef SW_USE_OPENSSL
+#ifdef SW_SUPPORT_DTLS
 #include "swoole_dtls.h"
 #endif
 
@@ -78,10 +78,8 @@ struct Connection {
     int worker_id;
     SessionId session_id;
     //--------------------------------------------------------------
-#ifdef SW_USE_OPENSSL
     uint8_t ssl;
     uint8_t ssl_ready;
-#endif
     uint8_t overflow;
     uint8_t high_watermark;
     uint8_t http_upgrade;
@@ -137,10 +135,8 @@ struct Connection {
      */
     String *websocket_buffer;
 
-#ifdef SW_USE_OPENSSL
     String *ssl_client_cert;
     pid_t ssl_client_cert_pid;
-#endif
     sw_atomic_t lock;
 };
 
@@ -262,7 +258,6 @@ struct ListenPort {
     int kernel_socket_recv_buffer_size = 0;
     int kernel_socket_send_buffer_size = 0;
 
-#ifdef SW_USE_OPENSSL
     std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::unordered_map<std::string, std::shared_ptr<SSLContext>> sni_contexts;
 
@@ -284,7 +279,6 @@ struct ListenPort {
         *new_ctx = *ssl_context;
         return new_ctx;
     }
-#endif
 
     ServerPortGS *gs = nullptr;
 
@@ -334,7 +328,6 @@ struct ListenPort {
     static int readable_callback_http(Reactor *reactor, ListenPort *lp, Event *event);
     static int readable_callback_redis(Reactor *reactor, ListenPort *lp, Event *event);
 
-#ifdef SW_USE_OPENSSL
     bool ssl_context_init();
     bool ssl_context_create(SSLContext *context) const;
     bool ssl_create(network::Socket *sock);
@@ -462,20 +455,24 @@ struct ListenPort {
     }
 
     static int ssl_server_sni_callback(SSL *ssl, int *al, void *arg);
-#endif
     void clear_protocol();
+
     network::Socket *get_socket() const {
         return socket;
     }
+
     int get_port() const {
         return port;
     }
+
     const char *get_host() const {
         return host.c_str();
     }
+
     SocketType get_type() const {
         return type;
     }
+
     int get_fd() const {
         return socket ? socket->fd : -1;
     }
@@ -1295,19 +1292,11 @@ class Server {
     }
 
     bool if_require_packet_callback(const ListenPort *port, bool isset) const {
-#ifdef SW_USE_OPENSSL
         return (port->is_dgram() && !port->ssl && !isset);
-#else
-        return (port->is_dgram() && !isset);
-#endif
     }
 
     bool if_require_receive_callback(const ListenPort *port, bool isset) const {
-#ifdef SW_USE_OPENSSL
         return (((port->is_dgram() && port->ssl) || port->is_stream()) && !isset);
-#else
-        return (port->is_stream() && !isset);
-#endif
     }
 
     bool if_forward_message(const Session *session) const {
@@ -1456,11 +1445,9 @@ class Server {
 
     Connection *get_connection_verify(SessionId session_id) const {
         Connection *conn = get_connection_verify_no_ssl(session_id);
-#ifdef SW_USE_OPENSSL
         if (conn && conn->ssl && !conn->ssl_ready) {
             return nullptr;
         }
-#endif
         return conn;
     }
 
@@ -1474,11 +1461,9 @@ class Server {
     Connection *get_connection_for_iterator(int fd) const {
         Connection *conn = get_connection(fd);
         if (conn && conn->active && !conn->closed) {
-#ifdef SW_USE_OPENSSL
             if (conn->ssl && !conn->ssl_ready) {
                 return nullptr;
             }
-#endif
             return conn;
         }
         return nullptr;

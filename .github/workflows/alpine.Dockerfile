@@ -15,7 +15,7 @@ RUN apk add liburing-dev
 
 RUN set -ex \
     && phpize \
-    && ./configure --enable-openssl --enable-swoole-curl --enable-iouring \
+    && ./configure --enable-swoole-curl --enable-iouring \
     && make -s -j$(nproc) && make install
 
 RUN echo "extension=swoole.so" > "/usr/local/etc/php/conf.d/swoole.ini"

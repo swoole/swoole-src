@@ -33,7 +33,6 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event);
 static int ReactorThread_onClose(Reactor *reactor, Event *event);
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
 
-#ifdef SW_USE_OPENSSL
 static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
     auto serv = static_cast<Server *>(reactor->ptr);
     if (!_socket->ssl || _socket->ssl_state == SW_SSL_STATE_READY) {
@@ -80,7 +79,6 @@ _delay_receive:
 
     return SW_READY;
 }
-#endif
 
 /**
  * for udp
@@ -195,7 +193,6 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
 
     swoole_trace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
 
-#ifdef SW_USE_OPENSSL
     if (socket->ssl) {
         conn->socket->ssl_quiet_shutdown = conn->peer_closed;
         conn->socket->ssl_close();
@@ -206,7 +203,6 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         port->dtls_sessions->erase(socket->fd);
         delete session;
     }
-#endif
 #endif
 
     // free the reception memory buffer
@@ -368,7 +364,6 @@ int ReactorThread::close_connection(Reactor *reactor, SessionId session_id) {
         return Server::close_connection(reactor, conn->socket);
     }
 
-#ifdef SW_USE_OPENSSL
     /**
      * SSL connections that have not completed the handshake,
      * do not need to notify the workers, just close
@@ -376,7 +371,6 @@ int ReactorThread::close_connection(Reactor *reactor, SessionId session_id) {
     if (conn->ssl && !conn->ssl_ready) {
         return Server::close_connection(reactor, conn->socket);
     }
-#endif
     conn->close_force = 1;
     Event _ev = {};
     _ev.fd = conn->fd;
@@ -517,7 +511,6 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
         return SW_OK;
     }
     ListenPort *port = serv->get_port_by_fd(event->fd);
-#ifdef SW_USE_OPENSSL
 #ifdef SW_SUPPORT_DTLS
     if (port->is_dtls()) {
         dtls::Buffer *buffer = static_cast<dtls::Buffer *>(sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP));
@@ -549,7 +542,6 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     default:
         abort();
     }
-#endif
 
     conn->last_recv_time = microtime();
     long last_recv_bytes = event->socket->total_recv_bytes;
@@ -600,11 +592,9 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
                      conn->close_force);
 
     if (conn->close_notify) {
-#ifdef SW_USE_OPENSSL
         if (socket->ssl && socket->ssl_state != SW_SSL_STATE_READY) {
             return Server::close_connection(reactor, socket);
         }
-#endif
         serv->notify(conn, SW_SERVER_EVENT_CLOSE);
         conn->close_notify = 0;
         return SW_OK;

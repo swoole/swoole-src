@@ -46,14 +46,11 @@ void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
 int Socket::readable_event_callback(Reactor *reactor, Event *event) {
     auto *socket = static_cast<Socket *>(event->socket->object);
     socket->set_err(0);
-#ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->want_event != SW_EVENT_NULL)) {
         if (socket->want_event == SW_EVENT_READ) {
             socket->write_co->resume();
         }
-    } else
-#endif
-    {
+    } else {
         if (socket->recv_barrier && (*socket->recv_barrier)() && !event->socket->event_hup) {
             return SW_OK;
         }
@@ -66,14 +63,11 @@ int Socket::readable_event_callback(Reactor *reactor, Event *event) {
 int Socket::writable_event_callback(Reactor *reactor, Event *event) {
     auto *socket = static_cast<Socket *>(event->socket->object);
     socket->set_err(0);
-#ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->want_event != SW_EVENT_NULL)) {
         if (socket->want_event == SW_EVENT_WRITE) {
             socket->read_co->resume();
         }
-    } else
-#endif
-    {
+    } else {
         if (socket->send_barrier && (*socket->send_barrier)() && !event->socket->event_hup) {
             return SW_OK;
         }
@@ -122,14 +116,11 @@ static const char *get_trigger_event_name(Socket *socket, EventType added_event)
 }
 
 static const char *get_wait_event_name(Socket *socket, EventType event) {
-#ifdef SW_USE_OPENSSL
     if (socket->get_socket()->ssl_want_read) {
         return "SSL READ";
     } else if (socket->get_socket()->ssl_want_write) {
         return "SSL WRITE";
-    } else
-#endif
-    {
+    } else {
         return event == SW_EVENT_READ ? "READ" : "WRITE";
     }
 }
@@ -168,7 +159,6 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
 
     // clear the last errCode
     set_err(0);
-#ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->ssl && ((event == SW_EVENT_READ && socket->ssl_want_write) ||
                                     (event == SW_EVENT_WRITE && socket->ssl_want_read)))) {
         if (sw_likely(socket->ssl_want_write && add_event(SW_EVENT_WRITE))) {
@@ -179,9 +169,7 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
             return false;
         }
         added_event = want_event;
-    } else
-#endif
-        if (sw_unlikely(!add_event(event))) {
+    } else if (sw_unlikely(!add_event(event))) {
         return false;
     }
     swoole_trace_log(SW_TRACE_SOCKET,
@@ -209,11 +197,8 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
         assert(0);
         return false;
     }
-#ifdef SW_USE_OPENSSL
     // maybe read_co and write_co are all waiting for the same event when we use SSL
-    if (sw_likely(want_event == SW_EVENT_NULL || !has_bound()))
-#endif
-    {
+    if (sw_likely(want_event == SW_EVENT_NULL || !has_bound())) {
         Reactor *reactor = SwooleTG.reactor;
         if (sw_likely(added_event == SW_EVENT_READ)) {
             reactor->remove_read_event(socket);
@@ -221,9 +206,7 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
             reactor->remove_write_event(socket);
         }
     }
-#ifdef SW_USE_OPENSSL
     want_event = SW_EVENT_NULL;
-#endif
     swoole_trace_log(SW_TRACE_SOCKET,
                      "socket#%d blongs to cid#%ld trigger %s event",
                      sock_fd,
@@ -411,13 +394,11 @@ Socket::Socket(network::Socket *sock, const Socket *server_sock) {
     http2 = server_sock->http2;
     protocol = server_sock->protocol;
     connected = true;
-#ifdef SW_USE_OPENSSL
     ssl_context = server_sock->ssl_context;
     ssl_is_server = server_sock->ssl_is_server;
     if (server_sock->ssl_is_enable() && !ssl_create(server_sock->get_ssl_context())) {
         close();
     }
-#endif
 }
 
 bool Socket::getsockname() const {
@@ -555,7 +536,6 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         return false;
     }
 
-#ifdef SW_USE_OPENSSL
     if (ssl_context && (socks5_proxy || http_proxy)) {
         /* If the proxy is enabled, the host will be replaced with the proxy ip,
          * so we have to handle the host first,
@@ -565,7 +545,6 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
             ssl_host_name = _host;
         }
     }
-#endif
     if (socks5_proxy) {
         socks5_proxy->target_host = _host;
         socks5_proxy->target_port = _port;
@@ -606,13 +585,11 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     std::once_flag oc;
     auto name_resolve_fn = [ctx, &oc, this](int _type) -> bool {
         ctx->type = _type;
-#ifdef SW_USE_OPENSSL
         std::call_once(oc, [this]() {
             if (ssl_context && !(socks5_proxy || http_proxy)) {
                 ssl_host_name = connect_host;
             }
         });
-#endif
         /* locked like wait_event */
         read_co = write_co = Coroutine::get_current_safe();
         ON_SCOPE_EXIT {
@@ -667,7 +644,6 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
         return false;
     }
-#ifdef SW_USE_OPENSSL
     ssl_is_server = false;
     if (ssl_context && !ssl_handshake()) {
         if (swoole_get_last_error() == 0) {
@@ -675,7 +651,6 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         }
         return false;
     }
-#endif
     return true;
 }
 
@@ -1096,9 +1071,7 @@ bool Socket::listen(int backlog) {
         set_err(errno);
         return false;
     }
-#ifdef SW_USE_OPENSSL
     ssl_is_server = true;
-#endif
     return true;
 }
 
@@ -1106,11 +1079,9 @@ Socket *Socket::accept(double timeout) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return nullptr;
     }
-#ifdef SW_USE_OPENSSL
     if (ssl_is_enable() && sw_unlikely(ssl_context->context == nullptr) && !ssl_context_create()) {
         return nullptr;
     }
-#endif
     network::Socket *conn = socket->accept();
     if (conn == nullptr && errno == EAGAIN) {
         TimerController timer(&read_timer, timeout == 0 ? socket->read_timeout : timeout, this, timer_callback);
@@ -1135,7 +1106,6 @@ Socket *Socket::accept(double timeout) {
     return client_sock;
 }
 
-#ifdef SW_USE_OPENSSL
 bool Socket::ssl_context_create() {
     if (socket->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
@@ -1259,7 +1229,6 @@ std::string Socket::ssl_get_peer_cert() {
         return sw_tg_buffer()->to_std_string();
     }
 }
-#endif
 
 bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
@@ -1543,11 +1512,9 @@ bool Socket::shutdown(int _how) {
     if (!is_connected() || (_how == SHUT_RD && shutdown_read) || (_how == SHUT_WR && shutdown_write)) {
         errno = ENOTCONN;
     } else {
-#ifdef SW_USE_OPENSSL
         if (socket->ssl) {
             socket->ssl_shutdown();
         }
-#endif
         if (::shutdown(sock_fd, _how) == 0 || errno == ENOTCONN) {
             if (errno == ENOTCONN) {
                 // connection reset by server side
@@ -1574,14 +1541,9 @@ bool Socket::shutdown(int _how) {
     return false;
 }
 
-#ifdef SW_USE_OPENSSL
-bool Socket::ssl_shutdown() const {
-    if (socket->ssl) {
-        socket->ssl_close();
-    }
-    return true;
+void Socket::ssl_close() const {
+    socket->ssl_close();
 }
-#endif
 
 bool Socket::cancel(const EventType event) {
     if (!has_bound(event)) {
@@ -1655,9 +1617,9 @@ Socket::~Socket() {
         return;
     }
     /* {{{ release socket resources */
-#ifdef SW_USE_OPENSSL
-    ssl_shutdown();
-#endif
+    if (socket->ssl) {
+        ssl_close();
+    }
     socket->free();
 }
 

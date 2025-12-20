@@ -653,7 +653,6 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_SOCK_SYNC", 0);
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_SOCK_ASYNC", 1);
 
-#ifdef SW_USE_OPENSSL
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL", SW_SOCK_SSL);
 
     /**
@@ -699,26 +698,23 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL_SSLv3", SW_SSL_SSLv3);
 #endif
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL_TLSv1", SW_SSL_TLSv1);
-
 #ifdef TLS1_1_VERSION
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL_TLSv1_1", SW_SSL_TLSv1_1);
 #endif
-
 #ifdef TLS1_2_VERSION
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL_TLSv1_2", SW_SSL_TLSv1_2);
 #endif
-
 #ifdef TLS1_3_VERSION
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL_TLSv1_3", SW_SSL_TLSv1_3);
 #endif
-
 #ifdef SW_SUPPORT_DTLS
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL_DTLS", SW_SSL_DTLS);
 #endif
-
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SSL_SSLv2", SW_SSL_SSLv2);
-#endif
 
+    /**
+     * Register event constants
+     */
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EVENT_READ", SW_EVENT_READ);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE);
 
@@ -1136,7 +1132,6 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_SOCKETS
     php_info_print_table_row(2, "sockets", "enabled");
 #endif
-#ifdef SW_USE_OPENSSL
 #ifdef OPENSSL_VERSION_TEXT
     php_info_print_table_row(2, "openssl", OPENSSL_VERSION_TEXT);
 #else
@@ -1144,7 +1139,6 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef SW_SUPPORT_DTLS
     php_info_print_table_row(2, "dtls", "enabled");
-#endif
 #endif
     php_info_print_table_row(2, "http2", "enabled");
     php_info_print_table_row(2, "json", "enabled");

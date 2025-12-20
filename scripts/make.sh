@@ -3,7 +3,7 @@ __CURRENT_DIR__=$(cd "$(dirname "$0")";pwd)
 __DIR__=$(cd "$(dirname "${__CURRENT_DIR__}")";pwd)
 __HAVE_ZTS__=$(php -v|grep ZTS)
 
-COMPILE_PARAMS="--enable-openssl \
+COMPILE_PARAMS=" \
 --enable-sockets \
 --enable-mysqlnd \
 --enable-swoole-curl \

@@ -141,18 +141,15 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_CLOSE: {
-#ifdef SW_USE_OPENSSL
         Connection *conn = get_connection_verify_no_ssl(info->fd);
         if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
             delete conn->ssl_client_cert;
             conn->ssl_client_cert = nullptr;
         }
-#endif
         factory_->end(info->fd, false);
         break;
     }
     case SW_SERVER_EVENT_CONNECT: {
-#ifdef SW_USE_OPENSSL
         // SSL client certificate
         if (info->len > 0) {
             Connection *conn = get_connection_verify_no_ssl(info->fd);
@@ -162,7 +159,6 @@ void Server::worker_accept_event(DataHead *info) {
                 conn->ssl_client_cert_pid = swoole_get_worker_pid();
             }
         }
-#endif
         if (onConnect) {
             onConnect(this, info);
         }

@@ -31,7 +31,7 @@ jobs:
         run: |
           sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev libpq-dev valgrind
           phpize
-          ./configure --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql
+          ./configure --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-swoole-pgsql
           make -j$(nproc)
           sudo make install
           php -v
@@ -107,7 +107,7 @@ jobs:
           phpize
           export CPPFLAGS="${CPPFLAGS} -I/opt/homebrew/opt/pcre2/include/"
           export CFLAGS="${CFLAGS} -I/opt/homebrew/opt/pcre2/include/"
-          ./configure --enable-openssl --enable-mysqlnd --enable-swoole-curl --enable-cares
+          ./configure --enable-mysqlnd --enable-swoole-curl --enable-cares
           make -j$(sysctl -n hw.ncpu)
           sudo make install
           php --ri swoole

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d11df9a89282f03649b8b8a93b1d7085badbd053 */
+ * Stub hash: fafe9bb39d602351810bfd1f51687886a9e8899f */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Async_Client___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, type, IS_LONG, 0)
@@ -20,11 +20,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Async_Client_on, 0,
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
-#if defined(SW_USE_OPENSSL)
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Async_Client_enableSSL, 0, 0, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, onSslReady, IS_CALLABLE, 1, "null")
 ZEND_END_ARG_INFO()
-#endif
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Async_Client_isConnected, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
@@ -36,3 +34,4 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Async_Client_close, 0, 0, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, force, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
+

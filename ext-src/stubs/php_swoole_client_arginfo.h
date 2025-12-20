@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 0a690f1541bf0f2e75a4bc4117785beb0da158ed */
+ * Stub hash: 75835dd199229a2d75969892c2fce00f4d75a362 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Client___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, type, IS_LONG, 0)
@@ -43,24 +43,17 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Client_sendto, 0, 3
 	ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-#if defined(SW_USE_OPENSSL)
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Client_enableSSL, 0, 0, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, onSslReady, IS_CALLABLE, 1, "null")
 ZEND_END_ARG_INFO()
-#endif
 
-#if defined(SW_USE_OPENSSL)
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Client_getPeerCert, 0, 0, MAY_BE_STRING|MAY_BE_BOOL)
 ZEND_END_ARG_INFO()
-#endif
 
-#if defined(SW_USE_OPENSSL)
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Client_verifyPeerCert, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
-#endif
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Client_isConnected, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_class_Swoole_Client_isConnected arginfo_class_Swoole_Client_verifyPeerCert
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Client_getsockname, 0, 0, MAY_BE_ARRAY|MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
@@ -79,3 +72,4 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Client_getSocket, 0, 0, Socket, MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
 #endif
+
