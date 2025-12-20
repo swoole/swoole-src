@@ -230,7 +230,7 @@ void swoole_native_curl_minit(int module_number) {
     if (!CRYPTO_get_id_callback()) {
         int i, c = CRYPTO_num_locks();
 
-        php_curl_openssl_tsl = malloc(c * sizeof(MUTEX_T));
+        php_curl_openssl_tsl = (MUTEX_T *) malloc(c * sizeof(MUTEX_T));
         if (!php_curl_openssl_tsl) {
             return;
         }

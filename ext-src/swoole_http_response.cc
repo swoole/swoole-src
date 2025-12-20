@@ -336,7 +336,7 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
                 if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
                     content_type = zval_get_string(zvalue);
                 }
-                if (key_header == HTTP_HEADER_CONTENT_ENCODING && ZVAL_IS_STRING(zvalue) && Z_STRLEN_P(zvalue) == 0) {
+                if (key_header == HTTP_HEADER_CONTENT_ENCODING && ZVAL_IS_STRING(zvalue)) {
                     accept_compression = 0;
                 }
                 // https://github.com/swoole/swoole-src/issues/4857

@@ -3065,7 +3065,9 @@ PHP_FUNCTION(swoole_native_curl_unescape) {
     Z_PARAM_STR(str)
     ZEND_PARSE_PARAMETERS_END();
 
-    ch = Z_CURL_P(zid);
+    if ((ch = swoole_curl_get_handle(zid)) == NULL) {
+        RETURN_FALSE;
+    }
 
     if (ZEND_SIZE_T_INT_OVFL(ZSTR_LEN(str))) {
         RETURN_FALSE;
