@@ -1395,6 +1395,7 @@ void WebSocket::recv_frame(const WebSocketSettings &settings,
                     Z_TRY_ADDREF(zpayload);
                 }
 
+                sw_set_bit(complete_flags, WebSocket::FLAG_FIN);
                 WebSocket::construct_frame(return_value, complete_opcode, &zpayload, complete_flags);
                 zend::object_set(return_value, ZEND_STRL("fd"), sock->get_fd());
                 zval_ptr_dtor(&zpayload);
