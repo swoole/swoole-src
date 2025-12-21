@@ -49,10 +49,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2025-12-06</date>
-    <time>14:00:00</time>
+    <date>2025-12-21</date>
+    <time>18:00:00</time>
     <version>
-        <release>6.1.4</release>
+        <release>6.1.5</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,7 +61,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fix the memory leak issue in the curl module.
+        - Fixed a crash issue when users manually suspend coroutines in a multithreaded environment
+        - Fixed the issue where the `System::socket_poll()` function incorrectly closed sockets after failing to add events
+        - Fixed decompression failure in `WebSocket` when compressing message frames, caused by certain server environments not supporting `MAX_MEM_LEVEL=9`
+        - Fixed data reception errors in `WebSocket` when receiving consecutive compressed data frames, caused by the buffer not being cleared in time
+        - Fixed the `data race` issue in the `pdo_oci` coroutine client when processing non-`PDO_PARAM_LOB` data
+        - In `Http Server`, when developers set the `Content-Encoding` header, `Swoole` will no longer automatically compress the response body. Instead, developers need to implement compression logic themselves and output the corresponding content.
+        - Removed the `PDO::sqliteCreateAggregate()`, `PDO::sqliteCreateCollation()`, and `PDO::sqliteCreateFunction()` functions in the coroutine environment. Their implementation principle involves calling PHP functions as callbacks in the `sqlite3` engine, which is only feasible in single-threaded synchronous blocking mode. In `Swoole` coroutine mode, the `C` functions of `sqlite3` need to run in asynchronous `AIO` threads. In the `ZTS` version, this can cause null pointer reads, while in the `NTS` version, it may lead to `data race` issues and occasional crashes.
+        - Removed support for the `open_basedir` setting in the `pdo_sqlite` coroutine client. It is unsafe to read `PG(open_basedir)` in a multithreaded environment. Ensure that the `sqlite3` database file path is a constant or other safe path. Do not use user input parameters as part of the `sqlite` database file path.
     </notes>
     <contents>
         <dir name="/">
@@ -1564,6 +1571,8 @@
             <file role="test" name="tests/swoole_http_client_coro/websocket/ping.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/priority.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/priority1.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/websocket/send_more_continue_frame.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/websocket/send_more_continue_frame2.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/server_push_first.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/ssl_1.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/ssl_2.phpt" />
@@ -1601,6 +1610,7 @@
             <file role="test" name="tests/swoole_http_server/chunk_with_end_data.phpt" />
             <file role="test" name="tests/swoole_http_server/chunked_pipeline_request.phpt" />
             <file role="test" name="tests/swoole_http_server/client_ca.phpt" />
+            <file role="test" name="tests/swoole_http_server/client_compress.phpt" />
             <file role="test" name="tests/swoole_http_server/co_switching.phpt" />
             <file role="test" name="tests/swoole_http_server/compression.phpt" />
             <file role="test" name="tests/swoole_http_server/compression_min_length.phpt" />
@@ -1846,9 +1856,7 @@
             <file role="test" name="tests/swoole_pdo_sqlite/bug48773.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/bug50728.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/bug52487.phpt" />
-            <file role="test" name="tests/swoole_pdo_sqlite/bug60104.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/bug66033.phpt" />
-            <file role="test" name="tests/swoole_pdo_sqlite/bug70221.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/bug70862.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/bug70862_1.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/bug78192_1.phpt" />
@@ -1867,19 +1875,12 @@
             <file role="test" name="tests/swoole_pdo_sqlite/coroutine.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/coroutine2.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/debugdumpparams_001.phpt" />
-            <file role="test" name="tests/swoole_pdo_sqlite/gc.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/gh9032.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/open_basedir.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/pdo_035.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/pdo_fetch_func_001.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/pdo_fetch_func_001_1.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite.inc" />
-            <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_createaggregate.phpt" />
-            <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_createaggregate_002.phpt" />
-            <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_createcollation.phpt" />
-            <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_createfunction.phpt" />
-            <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_createfunction_002.phpt" />
-            <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_createfunction_with_flags.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_extendederror_attr.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_filename_uri.phpt" />
             <file role="test" name="tests/swoole_pdo_sqlite/pdo_sqlite_get_attribute.phpt" />
@@ -2462,6 +2463,7 @@
             <file role="test" name="tests/swoole_thread/atomic_ctor.phpt" />
             <file role="test" name="tests/swoole_thread/barrier.phpt" />
             <file role="test" name="tests/swoole_thread/co-stream.phpt" />
+            <file role="test" name="tests/swoole_thread/co-user-yield.phpt" />
             <file role="test" name="tests/swoole_thread/empty_args.phpt" />
             <file role="test" name="tests/swoole_thread/exit.phpt" />
             <file role="test" name="tests/swoole_thread/fatal_error_1.inc" />
@@ -2682,6 +2684,17 @@
             <file role="src" name="thirdparty/nlohmann/json_fwd.hpp" />
             <file role="src" name="thirdparty/nlohmann/thirdparty/hedley/hedley.hpp" />
             <file role="src" name="thirdparty/nlohmann/thirdparty/hedley/hedley_undef.hpp" />
+            <file role="doc" name="thirdparty/pdo_oci/CREDITS" />
+            <file role="doc" name="thirdparty/pdo_oci/README.md" />
+            <file role="src" name="thirdparty/pdo_oci/oci_driver.c" />
+            <file role="src" name="thirdparty/pdo_oci/oci_statement.c" />
+            <file role="src" name="thirdparty/pdo_oci/pdo_oci.c" />
+            <file role="src" name="thirdparty/pdo_oci/php_pdo_oci_int.h" />
+            <file role="src" name="thirdparty/pdo_sqlite/php_pdo_sqlite.h" />
+            <file role="src" name="thirdparty/pdo_sqlite/php_pdo_sqlite_int.h" />
+            <file role="src" name="thirdparty/pdo_sqlite/sqlite_driver.c" />
+            <file role="src" name="thirdparty/pdo_sqlite/sqlite_sql_parser.c" />
+            <file role="src" name="thirdparty/pdo_sqlite/sqlite_statement.c" />
             <file role="doc" name="thirdparty/php/LICENSE" />
             <file role="src" name="thirdparty/php/curl/curl_arginfo.h" />
             <file role="src" name="thirdparty/php/curl/curl_private.h" />
@@ -2702,9 +2715,6 @@
             <file role="src" name="thirdparty/php/streams/php_streams_int.h" />
             <file role="src" name="thirdparty/php/streams/plain_wrapper.c" />
             <file role="src" name="thirdparty/php/zend/zend_execute.c" />
-            <file role="src" name="thirdparty/php81/pdo_oci/oci_driver.c" />
-            <file role="src" name="thirdparty/php81/pdo_oci/oci_statement.c" />
-            <file role="src" name="thirdparty/php81/pdo_oci/php_pdo_oci_int.h" />
             <file role="src" name="thirdparty/php81/pdo_odbc/odbc_driver.c" />
             <file role="src" name="thirdparty/php81/pdo_odbc/odbc_stmt.c" />
             <file role="src" name="thirdparty/php81/pdo_odbc/php_pdo_odbc_int.h" />
@@ -2712,14 +2722,6 @@
             <file role="src" name="thirdparty/php81/pdo_pgsql/pgsql_driver_arginfo.h" />
             <file role="src" name="thirdparty/php81/pdo_pgsql/pgsql_statement.c" />
             <file role="src" name="thirdparty/php81/pdo_pgsql/php_pdo_pgsql_int.h" />
-            <file role="src" name="thirdparty/php81/pdo_sqlite/php_pdo_sqlite_int.h" />
-            <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver.c" />
-            <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver.stub.php" />
-            <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_driver_arginfo.h" />
-            <file role="src" name="thirdparty/php81/pdo_sqlite/sqlite_statement.c" />
-            <file role="src" name="thirdparty/php83/pdo_oci/oci_driver.c" />
-            <file role="src" name="thirdparty/php83/pdo_oci/oci_statement.c" />
-            <file role="src" name="thirdparty/php83/pdo_oci/php_pdo_oci_int.h" />
             <file role="src" name="thirdparty/php83/pdo_odbc/odbc_driver.c" />
             <file role="src" name="thirdparty/php83/pdo_odbc/odbc_stmt.c" />
             <file role="src" name="thirdparty/php83/pdo_odbc/php_pdo_odbc_int.h" />
@@ -2727,20 +2729,11 @@
             <file role="src" name="thirdparty/php83/pdo_pgsql/pgsql_driver_arginfo.h" />
             <file role="src" name="thirdparty/php83/pdo_pgsql/pgsql_statement.c" />
             <file role="src" name="thirdparty/php83/pdo_pgsql/php_pdo_pgsql_int.h" />
-            <file role="src" name="thirdparty/php83/pdo_sqlite/php_pdo_sqlite_int.h" />
-            <file role="src" name="thirdparty/php83/pdo_sqlite/sqlite_driver.c" />
-            <file role="src" name="thirdparty/php83/pdo_sqlite/sqlite_driver.stub.php" />
-            <file role="src" name="thirdparty/php83/pdo_sqlite/sqlite_driver_arginfo.h" />
-            <file role="src" name="thirdparty/php83/pdo_sqlite/sqlite_statement.c" />
             <file role="src" name="thirdparty/php84/curl/curl_arginfo.h" />
             <file role="src" name="thirdparty/php84/curl/curl_private.h" />
             <file role="src" name="thirdparty/php84/curl/interface.cc" />
             <file role="src" name="thirdparty/php84/curl/multi.cc" />
             <file role="src" name="thirdparty/php84/curl/php_curl.h" />
-            <file role="doc" name="thirdparty/php84/pdo_oci/LICENSE" />
-            <file role="src" name="thirdparty/php84/pdo_oci/oci_driver.c" />
-            <file role="src" name="thirdparty/php84/pdo_oci/oci_statement.c" />
-            <file role="src" name="thirdparty/php84/pdo_oci/php_pdo_oci_int.h" />
             <file role="src" name="thirdparty/php84/pdo_odbc/odbc_driver.c" />
             <file role="src" name="thirdparty/php84/pdo_odbc/odbc_stmt.c" />
             <file role="src" name="thirdparty/php84/pdo_odbc/php_pdo_odbc_int.h" />
@@ -2749,12 +2742,6 @@
             <file role="src" name="thirdparty/php84/pdo_pgsql/pgsql_sql_parser.c" />
             <file role="src" name="thirdparty/php84/pdo_pgsql/pgsql_statement.c" />
             <file role="src" name="thirdparty/php84/pdo_pgsql/php_pdo_pgsql_int.h" />
-            <file role="src" name="thirdparty/php84/pdo_sqlite/php_pdo_sqlite_int.h" />
-            <file role="src" name="thirdparty/php84/pdo_sqlite/sqlite_driver.c" />
-            <file role="src" name="thirdparty/php84/pdo_sqlite/sqlite_driver.stub.php" />
-            <file role="src" name="thirdparty/php84/pdo_sqlite/sqlite_driver_arginfo.h" />
-            <file role="src" name="thirdparty/php84/pdo_sqlite/sqlite_sql_parser.c" />
-            <file role="src" name="thirdparty/php84/pdo_sqlite/sqlite_statement.c" />
             <file role="src" name="tools/analysis.php" />
             <file role="src" name="tools/arginfo-check.php" />
             <file role="src" name="tools/bootstrap.php" />
