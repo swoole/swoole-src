@@ -19,8 +19,6 @@
 #include "php_ssh2.h"
 #include "php_swoole_ssh2_hook.h"
 
-using swoole::coroutine::Socket;
-
 void *php_ssh2_zval_from_resource_handle(int handle) {
     zval *val;
     zend_resource *zr;

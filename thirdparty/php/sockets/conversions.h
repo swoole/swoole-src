@@ -6,16 +6,14 @@
 #include <sys/socket.h>
 
 /* TYPE DEFINITIONS */
-struct err_s
-{
+struct err_s {
     int has_error;
     char *msg;
     int level;
     int should_free;
 };
 
-struct key_value
-{
+struct key_value {
     const char *key;
     unsigned key_size;
     void *value;
@@ -27,8 +25,8 @@ typedef struct _res_context res_context;
 
 #define KEY_RECVMSG_RET "recvmsg_ret"
 
-typedef void (from_zval_write_field)(const zval *arr_value, char *field, ser_context *ctx);
-typedef void (to_zval_read_field)(const char *data, zval *zv, res_context *ctx);
+typedef void(from_zval_write_field)(const zval *arr_value, char *field, ser_context *ctx);
+typedef void(to_zval_read_field)(const char *data, zval *zv, res_context *ctx);
 
 /* VARIABLE DECLARATIONS */
 extern const struct key_value sw_empty_key_value_list[];
@@ -51,12 +49,20 @@ void from_zval_write_ucred(const zval *container, char *ucred_c, ser_context *ct
 void to_zval_read_ucred(const char *data, zval *zv, res_context *ctx);
 #endif
 
-
 void from_zval_write_msghdr_recv(const zval *container, char *msghdr_c, ser_context *ctx);
 
 /* ENTRY POINTS FOR CONVERSIONS */
-void *from_zval_run_conversions(const zval *container, Socket *sock, from_zval_write_field *writer,
-        size_t struct_size, const char *top_name, zend_llist **allocations /* out */, struct err_s *err /* in/out */);
+void *from_zval_run_conversions(const zval *container,
+                                SocketImpl *sock,
+                                from_zval_write_field *writer,
+                                size_t struct_size,
+                                const char *top_name,
+                                zend_llist **allocations /* out */,
+                                struct err_s *err /* in/out */);
 
-zval *to_zval_run_conversions(const char *structure, to_zval_read_field *reader, const char *top_name,
-        const struct key_value *key_value_pairs, struct err_s *err, zval *zv);
+zval *to_zval_run_conversions(const char *structure,
+                              to_zval_read_field *reader,
+                              const char *top_name,
+                              const struct key_value *key_value_pairs,
+                              struct err_s *err,
+                              zval *zv);

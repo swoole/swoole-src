@@ -1118,7 +1118,7 @@ SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) {
     return ret;
 }
 
-SW_API bool php_swoole_socket_set_ssl(Socket *sock, const zval *zset) {
+SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
 
@@ -1346,7 +1346,7 @@ static PHP_METHOD(swoole_socket_coro, connect) {
             RETURN_FALSE;
         }
     }
-    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_CONNECT);
+    SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_CONNECT);
     if (!sock->socket->connect(std::string(host, l_host), port)) {
         socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
@@ -1424,7 +1424,7 @@ static inline void socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, RecvMode type)
     swoole_get_socket_coro(sock, ZEND_THIS);
 
     zend_string *buf = zend_string_alloc(length, false);
-    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
+    SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t bytes = -1;
     switch (type) {
     case SOCKET_RECV:
@@ -1511,7 +1511,7 @@ static sw_inline void socket_coro_send(INTERNAL_FUNCTION_PARAMETERS, const bool 
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_WRITE);
+    SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_WRITE);
     ssize_t retval = all ? sock->socket->send_all(data, length) : sock->socket->send(data, length);
     socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
@@ -1576,7 +1576,7 @@ static void socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const bool al
 
     swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
 
-    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_WRITE);
+    SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_WRITE);
     ssize_t retval = all ? sock->socket->writev_all(&io_vector) : sock->socket->writev(&io_vector);
     if (UNEXPECTED(retval < 0)) {
         RETURN_FALSE;
@@ -1649,7 +1649,7 @@ static void socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all
 
     swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
 
-    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
+    SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t retval = all ? sock->socket->readv_all(&io_vector) : sock->socket->readv(&io_vector);
 
     auto free_func = [](const iovec *iov, int iovcnt, int iov_index) {
@@ -1744,7 +1744,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
     zend_string *buf = zend_string_alloc(SW_BUFFER_SIZE_BIG, false);
-    Socket::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
+    SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t bytes = sock->socket->recvfrom(ZSTR_VAL(buf), SW_BUFFER_SIZE_BIG);
     socket_coro_sync_properties(ZEND_THIS, sock);
     if (bytes < 0) {

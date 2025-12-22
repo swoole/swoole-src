@@ -19,7 +19,6 @@
 using namespace std;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
 #ifdef HAVE_SYS_WAIT_H
