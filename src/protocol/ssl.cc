@@ -19,8 +19,6 @@
 #include "swoole_ssl.h"
 #include "swoole_util.h"
 
-#ifdef SW_USE_OPENSSL
-
 using swoole::SSLContext;
 using swoole::network::Address;
 using swoole::network::Socket;
@@ -722,6 +720,4 @@ static int swoole_ssl_set_default_dhparam(SSL_CTX *ssl_context) {
     DH_free(dh);
     return SW_OK;
 }
-#endif
-
 #endif

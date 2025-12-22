@@ -18,8 +18,6 @@
 
 #include "swoole.h"
 
-#ifdef SW_USE_OPENSSL
-
 #include <unordered_map>
 #include <string>
 
@@ -191,5 +189,3 @@ const char *swoole_ssl_get_error();
 int swoole_ssl_get_ex_connection_index();
 int swoole_ssl_get_ex_port_index();
 std::string swoole_ssl_get_version_message();
-
-#endif

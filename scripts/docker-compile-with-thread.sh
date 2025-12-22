@@ -15,7 +15,6 @@ phpize
 ./configure \
 --enable-brotli \
 --enable-zstd \
---enable-openssl \
 --enable-sockets \
 --enable-mysqlnd \
 --enable-swoole-curl \

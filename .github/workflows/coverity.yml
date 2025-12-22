@@ -36,7 +36,7 @@ jobs:
 
       - name: Run build steps
         run: |
-          sudo phpize && ./configure --enable-openssl --enable-mysqlnd --enable-sockets --enable-swoole-curl
+          sudo phpize && ./configure --enable-mysqlnd --enable-sockets --enable-swoole-curl
 
       - name: Run Coverity Scan Analysis Tool
         run: |

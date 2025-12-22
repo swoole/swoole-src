@@ -1236,7 +1236,6 @@ TEST(server, create_task_worker_fail) {
     ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
 }
 
-#ifdef SW_USE_OPENSSL
 TEST(server, ssl) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
@@ -1649,7 +1648,6 @@ TEST(server, ssl_client_cert_2) {
 TEST(server, ssl_client_cert_3) {
     test_ssl_client_cert(Server::MODE_THREAD);
 }
-#endif
 
 TEST(server, task_worker) {
     Server serv;

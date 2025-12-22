@@ -46,7 +46,7 @@ jobs:
         run: sudo bash ./scripts/install-liburing.sh
 
       - name: configure
-        run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-openssl --enable-iouring
+        run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-iouring
 
       - name: build
         run: |

@@ -222,7 +222,6 @@ bool Client::socks5_handshake(const char *recv_data, size_t length) {
     return socks5_proxy->handshake(recv_data, length, send_fn);
 }
 
-#ifdef SW_USE_OPENSSL
 #ifdef SW_SUPPORT_DTLS
 void Client::enable_dtls() {
     ssl_context->protocols = SW_SSL_DTLS;
@@ -297,8 +296,6 @@ int Client::ssl_verify(int allow_self_signed) const {
     return SW_OK;
 }
 
-#endif
-
 static int Client_inet_addr(Client *cli, const char *host, int port) {
     if (!cli->host_preseted) {
         // enable socks5 proxy
@@ -370,13 +367,11 @@ int Client::close() {
     closed = true;
     auto _socket = socket;
 
-#ifdef SW_USE_OPENSSL
     if (open_ssl && ssl_context) {
         if (socket->ssl) {
             socket->ssl_close();
         }
     }
-#endif
 
     if (socket->socket_type == SW_SOCK_UNIX_DGRAM) {
         unlink(socket->info.addr.un.sun_path);
@@ -471,11 +466,9 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
             }
         }
 
-#ifdef SW_USE_OPENSSL
         if (cli->open_ssl && cli->ssl_handshake() < 0) {
             return SW_ERR;
         }
-#endif
     }
 
     return ret;
@@ -656,7 +649,6 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         }
     }
 
-#ifdef SW_USE_OPENSSL
     if (cli->open_ssl)
 #ifdef SW_SUPPORT_DTLS
     {
@@ -668,7 +660,6 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         swoole_warning("DTLS support require openssl-1.1 or later");
         return SW_ERR;
     }
-#endif
 #endif
 
     if (udp_connect != 1) {
@@ -684,11 +675,9 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
             }
             execute_onConnect(cli);
         }
-#ifdef SW_USE_OPENSSL
         if (cli->open_ssl && cli->ssl_handshake() < 0) {
             return SW_ERR;
         }
-#endif
         return SW_OK;
     } else {
         cli->active = false;
@@ -730,11 +719,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     auto *cli = (Client *) event->socket->object;
     char *buf = cli->buffer->str + cli->buffer->length;
     ssize_t buf_size = cli->buffer->size - cli->buffer->length;
-#ifdef SW_USE_OPENSSL
     bool do_ssl_handshake = cli->open_ssl;
-#else
-    bool do_ssl_handshake = false;
-#endif
 
     if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY) {
         n = event->socket->recv(buf, buf_size, 0);
@@ -782,7 +767,6 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         }
     }
 
-#ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY) {
         if (cli->ssl_handshake() < 0) {
             swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
@@ -795,7 +779,6 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
             return SW_OK;
         }
     }
-#endif
 
     if (cli->open_eof_check || cli->open_length_check) {
         Socket *conn = cli->socket;
@@ -873,11 +856,9 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
 
     cli->timer = nullptr;
 
-#ifdef SW_USE_OPENSSL
     if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY) {
         cli->active = false;
     }
-#endif
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
         cli->active = false;
     } else if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY) {
@@ -926,7 +907,6 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
     int err;
 
     if (cli->active) {
-#ifdef SW_USE_OPENSSL
         if (cli->open_ssl && _socket->ssl_state == SW_SSL_STATE_WAIT_STREAM) {
             if (cli->ssl_handshake() < 0) {
                 swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
@@ -940,7 +920,6 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
                 return SW_OK;
             }
         }
-#endif
         if (Reactor::_writable_callback(reactor, event) < 0) {
             return SW_ERR;
         }
@@ -979,7 +958,6 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
             swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", (int) n, proxy_buf->str);
             return cli->send(proxy_buf->str, n, 0);
         }
-#ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
             if (cli->ssl_handshake() < 0) {
                 swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
@@ -990,12 +968,9 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
             return SW_OK;
         }
     _connect_success:
-#endif
         execute_onConnect(cli);
     } else {
-#ifdef SW_USE_OPENSSL
     _connect_fail:
-#endif
         cli->active = false;
         cli->close();
         cli->onError(cli);

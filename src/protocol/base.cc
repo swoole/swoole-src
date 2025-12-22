@@ -93,11 +93,9 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
         buffer->clear();
     }
 
-#ifdef SW_USE_OPENSSL
     if (socket->ssl) {
         return SW_CONTINUE;
     }
-#endif
 
     return SW_OK;
 }
@@ -170,11 +168,9 @@ _do_recv:
                     buffer->clear();
                 }
             }
-#ifdef SW_USE_OPENSSL
             if (socket->ssl) {
                 goto _do_recv;
             }
-#endif
             return SW_OK;
         } else {
         _do_get_length:
@@ -285,11 +281,9 @@ _recv_data:
                 return SW_OK;
             }
             buffer->clear();
-#ifdef SW_USE_OPENSSL
             if (socket->ssl && SSL_pending(socket->ssl) > 0) {
                 goto _recv_data;
             }
-#endif
             return SW_OK;
         }
 

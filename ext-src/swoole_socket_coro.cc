@@ -79,9 +79,7 @@ static PHP_METHOD(swoole_socket_coro, sendto);
 static PHP_METHOD(swoole_socket_coro, getOption);
 static PHP_METHOD(swoole_socket_coro, setOption);
 static PHP_METHOD(swoole_socket_coro, setProtocol);
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_socket_coro, sslHandshake);
-#endif
 static PHP_METHOD(swoole_socket_coro, shutdown);
 static PHP_METHOD(swoole_socket_coro, close);
 static PHP_METHOD(swoole_socket_coro, cancel);
@@ -119,9 +117,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, getOption,      arginfo_class_Swoole_Coroutine_Socket_getOption,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, setProtocol,    arginfo_class_Swoole_Coroutine_Socket_setProtocol,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, setOption,      arginfo_class_Swoole_Coroutine_Socket_setOption,      ZEND_ACC_PUBLIC)
-#ifdef SW_USE_OPENSSL
     PHP_ME(swoole_socket_coro, sslHandshake,  arginfo_class_Swoole_Coroutine_Socket_sslHandshake,    ZEND_ACC_PUBLIC)
-#endif
     PHP_ME(swoole_socket_coro, shutdown,      arginfo_class_Swoole_Coroutine_Socket_shutdown,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, cancel,        arginfo_class_Swoole_Coroutine_Socket_cancel,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, close,         arginfo_class_Swoole_Coroutine_Socket_close,           ZEND_ACC_PUBLIC)
@@ -878,7 +874,6 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, const zval *zset) {
     /**
      * ssl
      */
-#ifdef SW_USE_OPENSSL
     if (php_swoole_array_get_value(vht, "open_ssl", ztmp)) {
         if (zval_is_true(ztmp)) {
             sock->enable_ssl_encrypt();
@@ -892,7 +887,6 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, const zval *zset) {
             ret = false;
         }
     }
-#endif
     /**
      * protocol
      */
@@ -1125,7 +1119,6 @@ SW_API bool php_swoole_socket_set(Socket *cli, const zval *zset) {
     return ret;
 }
 
-#ifdef SW_USE_OPENSSL
 SW_API bool php_swoole_socket_set_ssl(Socket *sock, const zval *zset) {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
@@ -1197,7 +1190,6 @@ SW_API bool php_swoole_socket_set_ssl(Socket *sock, const zval *zset) {
 #endif
     return true;
 }
-#endif
 
 PHP_FUNCTION(swoole_coroutine_socketpair) {
     zend_long domain, type, protocol;
@@ -2173,13 +2165,11 @@ static PHP_METHOD(swoole_socket_coro, setProtocol) {
     }
 }
 
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_socket_coro, sslHandshake) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
     RETURN_BOOL(sock->socket->ssl_handshake());
 }
-#endif
 
 static PHP_METHOD(swoole_socket_coro, isClosed) {
     RETURN_BOOL(php_swoole_socket_is_closed(ZEND_THIS));

@@ -52,11 +52,9 @@ UringSocket *UringSocket::accept(double timeout) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return nullptr;
     }
-#ifdef SW_USE_OPENSSL
     if (ssl_is_enable() && sw_unlikely(ssl_context->context == nullptr) && !ssl_context_create()) {
         return nullptr;
     }
-#endif
 
     read_co = Coroutine::get_current_safe();
     network::Socket *conn = uring_accept(timeout == 0 ? socket->read_timeout : timeout);
@@ -391,7 +389,6 @@ ssize_t UringSocket::writev_all(network::IOVector *io_vector) {
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
 
-#ifdef SW_USE_OPENSSL
 bool UringSocket::ssl_bio_write() {
     auto buf = get_write_buffer();
 
@@ -639,7 +636,6 @@ ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) 
 
     return -1;
 }
-#endif
 };  // namespace coroutine
 };  // namespace swoole
 #endif

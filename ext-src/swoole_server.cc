@@ -952,7 +952,6 @@ void ServerObject::on_before_start() {
             return;
         }
 
-#ifdef SW_USE_OPENSSL
         if (port->ssl_is_enable() && port->get_ssl_verify_peer() && port->get_ssl_client_cert_file().empty() &&
             port->get_ssl_cafile().empty() && port->get_ssl_capath().empty()) {
             php_swoole_fatal_error(
@@ -960,7 +959,7 @@ void ServerObject::on_before_start() {
                 "server open verify peer require `ssl_client_cert_file` or `ssl_capath` or `ssl_cafile` config");
             return;
         }
-#endif
+
         if (port->open_http2_protocol && !serv->is_hash_dispatch_mode()) {
             php_swoole_fatal_error(
                 E_ERROR,
@@ -3607,11 +3606,9 @@ static PHP_METHOD(swoole_server, getClientInfo) {
         add_assoc_long(return_value, "websocket_status", conn->websocket_status);
     }
 
-#ifdef SW_USE_OPENSSL
     if (conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
         add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert->str, conn->ssl_client_cert->length);
     }
-#endif
     // server socket
     Connection *server_socket = serv->get_connection(conn->server_fd);
     if (server_socket) {

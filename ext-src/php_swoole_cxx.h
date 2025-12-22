@@ -22,6 +22,9 @@
 
 #include <string>
 
+using NetSocket = swoole::network::Socket;
+using CoSocket = swoole::coroutine::Socket;
+
 // clang-format off
 //----------------------------------Swoole known string------------------------------------
 
@@ -128,19 +131,17 @@ SW_API bool php_swoole_is_enable_coroutine();
 SW_API zend_object *php_swoole_create_socket(enum swSocketType type);
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type);
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, int _domain, int _type, int _protocol);
-SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_socket);
+SW_API bool php_swoole_export_socket(zval *zobject, CoSocket *_socket);
 SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type);
-SW_API void php_swoole_init_socket_object(zval *zobject, swoole::coroutine::Socket *socket);
-SW_API swoole::coroutine::Socket *php_swoole_get_socket(const zval *zobject);
+SW_API void php_swoole_init_socket_object(zval *zobject, CoSocket *socket);
+SW_API CoSocket *php_swoole_get_socket(const zval *zobject);
 SW_API bool php_swoole_socket_is_closed(const zval *zobject);
-#ifdef SW_USE_OPENSSL
-SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, const zval *zset);
-#endif
-SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, const zval *zset);
-SW_API bool php_swoole_socket_set(swoole::coroutine::Socket *cli, const zval *zset);
+SW_API bool php_swoole_socket_set_ssl(CoSocket *sock, const zval *zset);
+SW_API bool php_swoole_socket_set_protocol(CoSocket *sock, const zval *zset);
+SW_API bool php_swoole_socket_set(CoSocket *cli, const zval *zset);
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code);
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code, const char *msg);
-SW_API void php_swoole_socket_set_error_properties(const zval *zobject, const swoole::coroutine::Socket *socket);
+SW_API void php_swoole_socket_set_error_properties(const zval *zobject, const CoSocket *socket);
 #define php_swoole_client_set php_swoole_socket_set
 SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
                                                         int domain,
@@ -159,7 +160,7 @@ static inline bool php_swoole_is_fatal_error() {
     return PG(last_error_message) && (PG(last_error_type) & E_FATAL_ERRORS);
 }
 
-ssize_t php_swoole_length_func(const swoole::Protocol *, swoole::network::Socket *, swoole::PacketLength *);
+ssize_t php_swoole_length_func(const swoole::Protocol *, NetSocket *, swoole::PacketLength *);
 SW_API zend_long php_swoole_parse_to_size(zval *zv);
 SW_API zend_string *php_swoole_serialize(zval *zdata);
 SW_API bool php_swoole_unserialize(const zend_string *data, zval *zv);

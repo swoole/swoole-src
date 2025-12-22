@@ -754,14 +754,12 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
 
     std::shared_ptr<Socket> clisock(sock->accept());
 
-#ifdef SW_USE_OPENSSL
     if (clisock != nullptr && clisock->ssl_is_enable()) {
         if (!clisock->ssl_handshake()) {
             sock->errCode = clisock->errCode;
             clisock.reset();
         }
     }
-#endif
 
     if (clisock == nullptr) {
         error = sock->errCode;
@@ -829,8 +827,6 @@ static inline int socket_sendto(
         return sock->send(buf, buflen);
     }
 }
-
-#ifdef SW_USE_OPENSSL
 
 static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
     return 0;
@@ -922,8 +918,8 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
         if (!sock->ssl_handshake()) {
             return -1;
         }
-    } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
-        sock->ssl_shutdown();
+    } else if (!cparam->inputs.activate && sock->ssl_is_available() && sock->get_ssl()) {
+        sock->ssl_close();
         return -1;
     }
 
@@ -936,7 +932,6 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
 
     return 1;
 }
-#endif
 
 static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_xport_param *xparam STREAMS_DC) {
     static const int shutdown_how[] = {SHUT_RD, SHUT_WR, SHUT_RDWR};
@@ -949,12 +944,10 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     case STREAM_XPORT_OP_CONNECT:
     case STREAM_XPORT_OP_CONNECT_ASYNC:
         xparam->outputs.returncode = socket_connect(stream, sock, xparam);
-#ifdef SW_USE_OPENSSL
         if (sock->ssl_is_enable() &&
             (socket_xport_crypto_setup(stream) < 0 || socket_xport_crypto_enable(stream, 1) < 0)) {
             xparam->outputs.returncode = -1;
         }
-#endif
         break;
     case STREAM_XPORT_OP_BIND: {
         if (sock->get_sock_domain() != AF_UNIX) {
@@ -1071,7 +1064,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
     }
     case PHP_STREAM_OPTION_META_DATA_API: {
-#ifdef SW_USE_OPENSSL
         SSL *ssl = sock->get_socket() ? sock->get_socket()->ssl : nullptr;
         if (ssl) {
             zval tmp;
@@ -1114,7 +1106,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             add_assoc_string(&tmp, "cipher_version", SSL_CIPHER_get_version(cipher));
             add_assoc_zval((zval *) ptrparam, "crypto", &tmp);
         }
-#endif
         add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
         add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
         add_assoc_bool((zval *) ptrparam, "blocked", true);
@@ -1124,7 +1115,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_READ);
         break;
     }
-#ifdef SW_USE_OPENSSL
     case PHP_STREAM_OPTION_CRYPTO_API: {
         auto *cparam = static_cast<php_stream_xport_crypto_param *>(ptrparam);
         switch (cparam->op) {
@@ -1141,7 +1131,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         }
         break;
     }
-#endif
     case PHP_STREAM_OPTION_CHECK_LIVENESS: {
         return sock->check_liveness() ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
     }
@@ -1161,7 +1150,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
 
 static bool socket_ssl_set_options(Socket *sock, php_stream_context *context) {
     if (context && ZVAL_IS_ARRAY(&context->options)) {
-#ifdef SW_USE_OPENSSL
         zval *ztmp;
 
         if (sock->ssl_is_enable() && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
@@ -1192,7 +1180,6 @@ static bool socket_ssl_set_options(Socket *sock, php_stream_context *context) {
             zval_dtor(&zalias);
             return ret;
         }
-#endif
     }
 
     return true;
@@ -1257,14 +1244,8 @@ static php_stream *socket_create(const char *proto,
     if (SW_STREQ(proto, protolen, "tcp")) {
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
-#ifdef SW_USE_OPENSSL
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->enable_ssl_encrypt();
-#else
-        php_swoole_error(E_WARNING,
-                         "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
-        return nullptr;
-#endif
     } else if (SW_STREQ(proto, protolen, "unix")) {
         sock = new Socket(SW_SOCK_UNIX_STREAM);
     } else if (SW_STREQ(proto, protolen, "udp")) {

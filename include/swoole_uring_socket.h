@@ -22,7 +22,6 @@
 namespace swoole {
 namespace coroutine {
 class UringSocket : public Socket {
-#ifdef SW_USE_OPENSSL
     BIO *rbio = nullptr;
     BIO *wbio = nullptr;
 
@@ -35,7 +34,6 @@ class UringSocket : public Socket {
     ssize_t ssl_readv(network::IOVector *io_vector);
     ssize_t ssl_writev(network::IOVector *io_vector);
     ssize_t ssl_sendfile(const File &file, off_t *offset, size_t size);
-#endif
 
     ssize_t uring_send(const void *_buf, size_t _n);
     ssize_t uring_recv(void *_buf, size_t _n);
@@ -45,11 +43,7 @@ class UringSocket : public Socket {
     network::Socket *uring_accept(double timeout);
 
     bool is_ssl() {
-#ifdef SW_USE_OPENSSL
         return !!socket->ssl;
-#else
-        return false;
-#endif
     }
 
   public:
@@ -85,9 +79,7 @@ class UringSocket : public Socket {
     ssize_t readv_all(network::IOVector *io_vector) override;
     ssize_t writev(network::IOVector *io_vector) override;
     ssize_t writev_all(network::IOVector *io_vector) override;
-#ifdef SW_USE_OPENSSL
     bool ssl_handshake() override;
-#endif
 };
 }  // namespace coroutine
 }  // namespace swoole

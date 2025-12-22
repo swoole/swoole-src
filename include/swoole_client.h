@@ -96,11 +96,9 @@ class Client {
     uint32_t buffer_high_watermark = 0;
     uint32_t buffer_low_watermark = 0;
 
-#ifdef SW_USE_OPENSSL
     bool open_ssl = false;
     bool ssl_wait_handshake = false;
     std::shared_ptr<SSLContext> ssl_context = nullptr;
-#endif
 
     std::function<void(Client *cli)> onConnect = nullptr;
     std::function<void(Client *cli)> onError = nullptr;
@@ -126,11 +124,9 @@ class Client {
     }
 
     const std::string &get_http_proxy_host_name() const {
-#ifdef SW_USE_OPENSSL
         if (ssl_context && !ssl_context->tls_host_name.empty()) {
             return ssl_context->tls_host_name;
         }
-#endif
         return http_proxy->target_host;
     }
 
@@ -163,7 +159,6 @@ class Client {
     void set_socks5_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
     void set_http_proxy(const std::string &host, int port, const std::string &user = "", const std::string &pwd = "");
 
-#ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
 #ifdef SW_SUPPORT_DTLS
     void enable_dtls();
@@ -244,7 +239,6 @@ class Client {
     const std::string &get_ssl_key_file() const {
         return ssl_context->key_file;
     }
-#endif
 };
 
 //----------------------------------------Stream---------------------------------------
@@ -307,7 +301,6 @@ class SyncClient {
         client.protocol.package_max_length = max_length;
     }
 
-#ifdef SW_USE_OPENSSL
     bool enable_ssl_encrypt() {
         if (client.enable_ssl_encrypt() < 0) {
             return false;
@@ -318,7 +311,6 @@ class SyncClient {
             return true;
         }
     }
-#endif
 
     ssize_t send(const std::string &data) {
         return client.send(data.c_str(), data.length(), 0);

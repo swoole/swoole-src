@@ -26,7 +26,6 @@ RUN cd php-${PHP_VERSION} && ./buildconf --force && \
     --enable-swoole-curl   \
     --enable-swoole-pgsql  \
     --enable-swoole-sqlite \
-    --enable-openssl \
     --enable-mysqlnd \
     --enable-cares \
     --with-swoole-odbc=unixODBC,/usr \

@@ -354,19 +354,11 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     }
     // check ssl
     if (ssl) {
-#ifndef SW_USE_OPENSSL
-        zend_throw_exception_ex(
-            swoole_exception_ce,
-            EPROTONOSUPPORT,
-            "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
-        RETURN_FALSE;
-#else
         /* we have to call ssl_check_context after user setProtocols */
         zval *zsettings =
             sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
         add_assoc_bool(zsettings, "open_ssl", 1);
         sock->enable_ssl_encrypt();
-#endif
     }
     if (!sock->listen()) {
         http_server_coro_set_error(ZEND_THIS, sock);
@@ -547,11 +539,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     off_t header_crlf_offset = 0;
     size_t total_length = 0;
 
-#ifdef SW_USE_OPENSSL
     if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
         RETURN_NULL();
     }
-#endif
     zend::array_set(&hs->zclients, co->get_cid(), zconn);
     auto remote_addr = zend::Variable(sock->get_addr());
 

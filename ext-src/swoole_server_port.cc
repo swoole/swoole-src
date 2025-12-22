@@ -221,7 +221,6 @@ static PHP_METHOD(swoole_server_port, __construct) {
 
 static PHP_METHOD(swoole_server_port, __destruct) {}
 
-#ifdef SW_USE_OPENSSL
 static bool php_swoole_server_set_ssl_option(zend_array *vht, SSLContext *ctx) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
@@ -240,7 +239,6 @@ static bool php_swoole_server_set_ssl_option(zend_array *vht, SSLContext *ctx) {
     }
     return true;
 }
-#endif
 
 static PHP_METHOD(swoole_server_port, set) {
     zval *zset = nullptr;
@@ -455,7 +453,6 @@ static PHP_METHOD(swoole_server_port, set) {
         port->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
 
-#ifdef SW_USE_OPENSSL
     if (port->ssl) {
         if (!php_swoole_server_set_ssl_option(vht, port->get_ssl_context())) {
             RETURN_FALSE;
@@ -542,7 +539,6 @@ static PHP_METHOD(swoole_server_port, set) {
             }
         }
     }
-#endif
 
     if (SWOOLE_G(enable_library)) {
         zval params[1] = {

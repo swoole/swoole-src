@@ -31,11 +31,6 @@ PHP_ARG_ENABLE([sockets],
   [AS_HELP_STRING([--enable-sockets],
     [Do you have sockets extension?])], [no], [no])
 
-PHP_ARG_ENABLE([openssl],
-  [enable openssl support],
-  [AS_HELP_STRING([--enable-openssl],
-    [Use openssl])], [no], [no])
-
 PHP_ARG_ENABLE([swoole],
   [swoole support],
   [AS_HELP_STRING([--enable-swoole],
@@ -1264,30 +1259,20 @@ EOF
         LDFLAGS="$LDFLAGS -z now"
     fi
 
-    if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
-        if test "$PHP_OPENSSL_DIR" != "no"; then
-            PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/${PHP_LIBDIR}")
-
-            PHP_ADD_LIBRARY(ssl, 1, SWOOLE_SHARED_LIBADD)
-            PHP_ADD_LIBRARY(crypto, 1, SWOOLE_SHARED_LIBADD)
-        else
-            PKG_CHECK_MODULES([SSL], [libssl])
-            PHP_EVAL_LIBLINE($SSL_LIBS, SWOOLE_SHARED_LIBADD)
-            PHP_EVAL_INCLINE($SSL_CFLAGS)
-
-            PKG_CHECK_MODULES([CRYPTO], [libcrypto])
-            PHP_EVAL_LIBLINE($CRYPTO_LIBS, SWOOLE_SHARED_LIBADD)
-            PHP_EVAL_INCLINE($CRYPTO_CFLAGS)
-        fi
-
-        AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
-
-        if test "$PHP_SWOOLE_FTP" != "no"; then
-            AC_DEFINE(SW_HAVE_FTP_SSL, 1, [have swoole-ftp with SSL])
-        fi
+    if test "$PHP_OPENSSL_DIR" != "no"; then
+        PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
+        PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/${PHP_LIBDIR}")
+        PHP_ADD_LIBRARY_WITH_PATH(crypto, "${PHP_OPENSSL_DIR}/${PHP_LIBDIR}")
+    else
+        PKG_CHECK_MODULES([SSL], [libssl])
+        PHP_EVAL_LIBLINE($SSL_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($SSL_CFLAGS)
+        
+        PKG_CHECK_MODULES([CRYPTO], [libcrypto])
+        PHP_EVAL_LIBLINE($CRYPTO_LIBS, SWOOLE_SHARED_LIBADD)
+        PHP_EVAL_INCLINE($CRYPTO_CFLAGS)
     fi
-
+    
     if test "$PHP_NGHTTP2_DIR" != "no"; then
         PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
@@ -1426,6 +1411,7 @@ EOF
     fi
 
     if test "$PHP_SWOOLE_FTP" != "no"; then
+        AC_DEFINE(SW_HAVE_FTP_SSL, 1, [have swoole-ftp with SSL])
         swoole_source_file="$swoole_source_file \
             thirdparty/php84/ftp/ftp.c \
             thirdparty/php84/ftp/php_ftp.c"

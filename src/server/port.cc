@@ -30,7 +30,7 @@ using swoole::network::Socket;
 namespace swoole {
 
 ListenPort::ListenPort(Server *server) {
-	object_id = 0;
+    object_id = 0;
     protocol.package_length_type = 'N';
     protocol.package_length_size = 4;
     protocol.package_body_offset = 4;
@@ -41,8 +41,6 @@ ListenPort::ListenPort(Server *server) {
 
     protocol.private_data_2 = server;
 }
-
-#ifdef SW_USE_OPENSSL
 
 bool ListenPort::ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx) {
     if (!ssl_context_create(ctx.get())) {
@@ -177,7 +175,6 @@ bool ListenPort::ssl_context_create(SSLContext *context) const {
     }
     return true;
 }
-#endif
 
 int ListenPort::listen() {
     // listen stream socket
@@ -773,7 +770,6 @@ int ListenPort::readable_callback_eof(Reactor *reactor, ListenPort *port, Event 
 }
 
 void ListenPort::close() {
-#ifdef SW_USE_OPENSSL
     if (ssl) {
         if (ssl_context) {
             ssl_context.reset();
@@ -782,7 +778,6 @@ void ListenPort::close() {
         delete dtls_sessions;
 #endif
     }
-#endif
 
     if (socket) {
         socket->free();

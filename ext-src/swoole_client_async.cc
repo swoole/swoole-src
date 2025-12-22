@@ -33,9 +33,7 @@ static PHP_METHOD(swoole_client_async, __destruct);
 static PHP_METHOD(swoole_client_async, connect);
 static PHP_METHOD(swoole_client_async, sleep);
 static PHP_METHOD(swoole_client_async, wakeup);
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_async, enableSSL);
-#endif
 static PHP_METHOD(swoole_client_async, isConnected);
 static PHP_METHOD(swoole_client_async, close);
 static PHP_METHOD(swoole_client_async, on);
@@ -47,9 +45,7 @@ enum AsyncClientCallbackType {
     CLIENT_CB_onError,
     CLIENT_CB_onBufferFull,
     CLIENT_CB_onBufferEmpty,
-#ifdef SW_USE_OPENSSL
     CLIENT_CB_onSSLReady,
-#endif
 };
 
 static void client_onConnect(Client *cli);
@@ -81,11 +77,9 @@ void php_swoole_client_async_free_object(const ClientObject *client_obj) {
     if (client_obj->async->onBufferEmpty) {
         sw_callable_free(client_obj->async->onBufferEmpty);
     }
-#ifdef SW_USE_OPENSSL
     if (client_obj->async->onSSLReady) {
         sw_callable_free(client_obj->async->onSSLReady);
     }
-#endif
     delete client_obj->async;
 }
 
@@ -115,12 +109,10 @@ static sw_inline void client_execute_callback(zval *zobject, AsyncClientCallback
         callback_name = "onBufferEmpty";
         cb = client_obj->async->onBufferEmpty;
         break;
-#ifdef SW_USE_OPENSSL
     case CLIENT_CB_onSSLReady:
         callback_name = "onSSLReady";
         cb = client_obj->async->onSSLReady;
         break;
-#endif
     default:
         abort();
         return;
@@ -151,9 +143,7 @@ static const zend_function_entry swoole_client_async_methods[] = {
     PHP_ME(swoole_client_async, wakeup, arginfo_class_Swoole_Async_Client_wakeup, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_client_async, pause, sleep, arginfo_class_Swoole_Async_Client_sleep, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_client_async, resume, wakeup, arginfo_class_Swoole_Async_Client_wakeup, ZEND_ACC_PUBLIC)
-#ifdef SW_USE_OPENSSL
     PHP_ME(swoole_client_async, enableSSL, arginfo_class_Swoole_Async_Client_enableSSL, ZEND_ACC_PUBLIC)
-#endif
     PHP_ME(swoole_client_async, isConnected, arginfo_class_Swoole_Async_Client_isConnected, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_async, close, arginfo_class_Swoole_Async_Client_close, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client_async, on, arginfo_class_Swoole_Async_Client_on, ZEND_ACC_PUBLIC)
@@ -174,9 +164,7 @@ void php_swoole_client_async_minit(int module_number) {
     zend_declare_property_null(swoole_client_async_ce, ZEND_STRL("onClose"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_client_async_ce, ZEND_STRL("onBufferFull"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_client_async_ce, ZEND_STRL("onBufferEmpty"), ZEND_ACC_PRIVATE);
-#ifdef SW_USE_OPENSSL
     zend_declare_property_null(swoole_client_async_ce, ZEND_STRL("onSSLReady"), ZEND_ACC_PRIVATE);
-#endif
 }
 
 static void client_onReceive(const Client *cli, const char *data, size_t length) {
@@ -197,13 +185,11 @@ static void client_onReceive(const Client *cli, const char *data, size_t length)
 
 static void client_onConnect(Client *cli) {
     auto zobject = static_cast<zval *>(cli->object);
-#ifdef SW_USE_OPENSSL
     if (cli->ssl_wait_handshake) {
         cli->ssl_wait_handshake = false;
         client_execute_callback(zobject, CLIENT_CB_onSSLReady);
         return;
     }
-#endif
     client_execute_callback(zobject, CLIENT_CB_onConnect);
 }
 
@@ -292,11 +278,9 @@ static Client *php_swoole_client_async_new(zval *zobject, char *host, int host_l
 
     zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("sock"), cli->socket->fd);
 
-#ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
         cli->enable_ssl_encrypt();
     }
-#endif
 
     return cli;
 }
@@ -512,7 +496,6 @@ static PHP_METHOD(swoole_client_async, wakeup) {
     SW_CHECK_RETURN(cli->wakeup());
 }
 
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_async, enableSSL) {
     zval *zcallback = nullptr;
 
@@ -554,4 +537,3 @@ static PHP_METHOD(swoole_client_async, enableSSL) {
 
     RETURN_TRUE;
 }
-#endif

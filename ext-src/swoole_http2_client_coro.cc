@@ -424,13 +424,11 @@ bool Client::connect() {
     socket_ = php_swoole_get_socket(&zsocket);
     socket_->set_dtor([this](Socket *_socket) { socket_dtor(); });
     socket_->set_zero_copy(true);
-#ifdef SW_USE_OPENSSL
     if (open_ssl && !socket_->enable_ssl_encrypt()) {
         io_error();
         close();
         return false;
     }
-#endif
     socket_->http2 = true;
     socket_->open_length_check = true;
     socket_->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
@@ -810,17 +808,6 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
     }
 
     auto *client = new Client(host, host_len, port, ssl, ZEND_THIS);
-    if (ssl) {
-#ifndef SW_USE_OPENSSL
-        zend_throw_exception_ex(
-            swoole_http2_client_coro_exception_ce,
-            EPROTONOSUPPORT,
-            "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
-        delete client;
-        RETURN_FALSE;
-#endif
-    }
-
     http2_client_coro_fetch_object(Z_OBJ_P(ZEND_THIS))->client = client;
 
     zend_update_property_stringl(
@@ -1010,12 +997,7 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, char *buffer) {
     if (!find_host) {
         const std::string *host_ptr;
         std::string _host;
-#ifndef SW_USE_OPENSSL
-        if (h2c->port != 80)
-#else
-        if (!h2c->open_ssl ? h2c->port != 80 : h2c->port != 443)
-#endif
-        {
+        if (!h2c->open_ssl ? h2c->port != 80 : h2c->port != 443) {
             _host = std_string::format("%s:%d", h2c->host.c_str(), h2c->port);
             host_ptr = &_host;
         } else {

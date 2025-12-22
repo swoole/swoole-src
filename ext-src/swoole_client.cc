@@ -86,11 +86,9 @@ static PHP_METHOD(swoole_client, recv);
 static PHP_METHOD(swoole_client, send);
 static PHP_METHOD(swoole_client, sendfile);
 static PHP_METHOD(swoole_client, sendto);
-#ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client, enableSSL);
 static PHP_METHOD(swoole_client, getPeerCert);
 static PHP_METHOD(swoole_client, verifyPeerCert);
-#endif
 static PHP_METHOD(swoole_client, isConnected);
 static PHP_METHOD(swoole_client, getsockname);
 static PHP_METHOD(swoole_client, getpeername);
@@ -141,11 +139,9 @@ static const zend_function_entry swoole_client_methods[] =
     PHP_ME(swoole_client, sendfile,    arginfo_class_Swoole_Client_sendfile,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, sendto,      arginfo_class_Swoole_Client_sendto,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, shutdown,    arginfo_class_Swoole_Client_shutdown,    ZEND_ACC_PUBLIC)
-#ifdef SW_USE_OPENSSL
     PHP_ME(swoole_client, enableSSL,      arginfo_class_Swoole_Client_enableSSL,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, getPeerCert,    arginfo_class_Swoole_Client_getPeerCert,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, verifyPeerCert, arginfo_class_Swoole_Client_verifyPeerCert, ZEND_ACC_PUBLIC)
-#endif
     PHP_ME(swoole_client, isConnected, arginfo_class_Swoole_Client_isConnected, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, getsockname, arginfo_class_Swoole_Client_getsockname, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_client, getpeername, arginfo_class_Swoole_Client_getpeername, ZEND_ACC_PUBLIC)
@@ -188,7 +184,6 @@ void php_swoole_client_minit(int module_number) {
     zend::add_constant("SWOOLE_KEEP", SW_FLAG_KEEP);
 }
 
-#ifdef SW_USE_OPENSSL
 void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
@@ -254,7 +249,6 @@ void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) {
         return;
     }
 }
-#endif
 
 bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
     zval *ztmp;
@@ -444,11 +438,9 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
     /**
      * ssl
      */
-#ifdef SW_USE_OPENSSL
     if (cli->open_ssl) {
         php_swoole_client_check_ssl_setting(cli, zset);
     }
-#endif
     return true;
 }
 
@@ -569,11 +561,9 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
         cli->keep = true;
     }
 
-#ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
         cli->enable_ssl_encrypt();
     }
-#endif
 
     return cli;
 }
@@ -1119,7 +1109,6 @@ static PHP_METHOD(swoole_client, close) {
     SW_CHECK_RETURN(ret);
 }
 
-#ifdef SW_USE_OPENSSL
 bool php_swoole_client_enable_ssl_encryption(Client *cli, zval *zobject) {
     if (cli->socket->socket_type != SW_SOCK_TCP && cli->socket->socket_type != SW_SOCK_TCP6) {
         php_swoole_fatal_error(E_WARNING, "cannot use enableSSL");
@@ -1191,7 +1180,6 @@ static PHP_METHOD(swoole_client, verifyPeerCert) {
     }
     SW_CHECK_RETURN(cli->ssl_verify(allow_self_signed));
 }
-#endif
 
 static PHP_METHOD(swoole_client, shutdown) {
     Client *cli = php_swoole_client_get_cli_safe(ZEND_THIS);

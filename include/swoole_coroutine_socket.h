@@ -132,7 +132,6 @@ class Socket {
     ssize_t recvfrom(void *_buf, size_t _n);
     virtual ssize_t recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen);
 
-#ifdef SW_USE_OPENSSL
     /**
      * Operation sequence:
      * 1. enable_ssl_encrypt()
@@ -232,7 +231,6 @@ class Socket {
     const std::string &get_ssl_key_file() const {
         return ssl_context->key_file;
     }
-#endif
 
     static inline void init_reactor(Reactor *reactor) {
         reactor->set_handler(SW_FD_CO_SOCKET, SW_EVENT_READ, readable_event_callback);
@@ -392,7 +390,6 @@ class Socket {
         return _socket;
     }
 
-#ifdef SW_USE_OPENSSL
     bool ssl_is_available() const {
         return socket && ssl_handshaked;
     }
@@ -401,8 +398,7 @@ class Socket {
         return socket->ssl;
     }
 
-    bool ssl_shutdown() const;
-#endif
+    void ssl_close() const;
 
   protected:
     SocketType type;
@@ -414,9 +410,8 @@ class Socket {
 
     Coroutine *read_co = nullptr;
     Coroutine *write_co = nullptr;
-#ifdef SW_USE_OPENSSL
+
     EventType want_event = SW_EVENT_NULL;
-#endif
 
     std::string connect_host;
     int connect_port = 0;
@@ -433,14 +428,12 @@ class Socket {
     EventBarrier *recv_barrier = nullptr;
     EventBarrier *send_barrier = nullptr;
 
-#ifdef SW_USE_OPENSSL
     bool ssl_is_server = false;
     bool ssl_handshaked = false;
     std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::string ssl_host_name;
     bool ssl_context_create();
     bool ssl_create(SSLContext *ssl_context);
-#endif
 
     bool connected = false;
     bool shutdown_read = false;
@@ -509,11 +502,9 @@ class Socket {
     bool socks5_handshake();
 
     const std::string &get_http_proxy_host_name() const {
-#ifdef SW_USE_OPENSSL
         if (ssl_context && !ssl_context->tls_host_name.empty()) {
             return ssl_context->tls_host_name;
         }
-#endif
         return http_proxy->target_host;
     }
 
