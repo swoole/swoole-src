@@ -37,7 +37,6 @@ using swoole::HttpProxy;
 using swoole::PacketLength;
 using swoole::Protocol;
 using swoole::Socks5Proxy;
-using swoole::coroutine::Socket;
 using swoole::network::Address;
 
 zend_class_entry *swoole_socket_coro_ce;
@@ -47,7 +46,7 @@ static zend_class_entry *swoole_socket_coro_exception_ce;
 static zend_object_handlers swoole_socket_coro_exception_handlers;
 
 struct SocketObject {
-    Socket *socket;
+    SocketImpl *socket;
     zval zstream;
     bool reference;
     zend_object std;
@@ -762,7 +761,7 @@ static void sw_inline socket_coro_init(const zval *zobject, const SocketObject *
         swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
 }
 
-SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
+SW_API bool php_swoole_export_socket(zval *zobject, SocketImpl *_socket) {
     zend_object *object = socket_coro_create_object(swoole_socket_coro_ce);
     if (!object) {
         return false;
@@ -792,7 +791,7 @@ SW_API zend_object *php_swoole_create_socket(swSocketType type) {
     zend_object *object = socket_coro_create_object(swoole_socket_coro_ce);
     auto *sock = socket_coro_fetch_object(object);
 
-    sock->socket = new Socket(type);
+    sock->socket = new SocketImpl(type);
     if (UNEXPECTED(sock->socket->get_fd() < 0)) {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
         delete sock->socket;
@@ -816,11 +815,11 @@ SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code
     php_swoole_socket_set_error_properties(zobject, code, swoole_strerror(code));
 }
 
-SW_API void php_swoole_socket_set_error_properties(const zval *zobject, const Socket *socket) {
+SW_API void php_swoole_socket_set_error_properties(const zval *zobject, const SocketImpl *socket) {
     php_swoole_socket_set_error_properties(zobject, socket->errCode, socket->errMsg);
 }
 
-static zend_object *socket_coro_create_object(Socket *socket) {
+static zend_object *socket_coro_create_object(SocketImpl *socket) {
     zval zobject;
     auto *object = socket_coro_create_object(swoole_socket_coro_ce);
     auto *sock = socket_coro_fetch_object(object);
@@ -840,14 +839,14 @@ static zend_object *socket_coro_create_object(Socket *socket) {
 }
 
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, swSocketType type) {
-    return socket_coro_create_object(new Socket(fd, type));
+    return socket_coro_create_object(new SocketImpl(fd, type));
 }
 
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, int _domain, int _type, int _protocol) {
-    return socket_coro_create_object(new Socket(fd, _domain, _type, _protocol));
+    return socket_coro_create_object(new SocketImpl(fd, _domain, _type, _protocol));
 }
 
-SW_API Socket *php_swoole_get_socket(const zval *zobject) {
+SW_API SocketImpl *php_swoole_get_socket(const zval *zobject) {
     SW_ASSERT(Z_OBJCE_P(zobject) == swoole_socket_coro_ce);
     auto *sock = socket_coro_fetch_object(Z_OBJ_P(zobject));
     return sock->socket;
@@ -858,7 +857,7 @@ SW_API bool php_swoole_socket_is_closed(const zval *zobject) {
     return _sock->socket == nullptr || _sock->socket->is_closed();
 }
 
-SW_API void php_swoole_init_socket_object(zval *zobject, Socket *socket) {
+SW_API void php_swoole_init_socket_object(zval *zobject, SocketImpl *socket) {
     auto *object = socket_coro_create_object(swoole_socket_coro_ce);
     auto *sock = socket_coro_fetch_object(object);
     sock->socket = socket;
@@ -866,7 +865,7 @@ SW_API void php_swoole_init_socket_object(zval *zobject, Socket *socket) {
     socket_coro_init(zobject, sock);
 }
 
-SW_API bool php_swoole_socket_set_protocol(Socket *sock, const zval *zset) {
+SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
     bool ret = true;
@@ -998,7 +997,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, const zval *zset) {
     return ret;
 }
 
-SW_API bool php_swoole_socket_set(Socket *cli, const zval *zset) {
+SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
     bool ret = true;
@@ -1247,7 +1246,7 @@ static PHP_METHOD(swoole_socket_coro, __construct) {
     }
 
     php_swoole_check_reactor();
-    sock->socket = new Socket((int) domain, (int) type, (int) protocol);
+    sock->socket = new SocketImpl((int) domain, (int) type, (int) protocol);
     if (UNEXPECTED(sock->socket->get_fd() < 0)) {
         zend_throw_exception_ex(
             swoole_socket_coro_exception_ce, errno, "new Socket() failed. Error: %s [%d]", strerror(errno), errno);
@@ -1305,7 +1304,7 @@ static PHP_METHOD(swoole_socket_coro, accept) {
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    Socket *conn = sock->socket->accept(timeout);
+    SocketImpl *conn = sock->socket->accept(timeout);
     if (conn) {
         zend_object *client = socket_coro_create_object(swoole_socket_coro_ce);
         auto *client_sock = socket_coro_fetch_object(client);

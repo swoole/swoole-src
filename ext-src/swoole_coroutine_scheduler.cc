@@ -28,7 +28,6 @@ using swoole::Coroutine;
 using swoole::NameResolver;
 using swoole::PHPCoroutine;
 using swoole::Reactor;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
 struct SchedulerTask {

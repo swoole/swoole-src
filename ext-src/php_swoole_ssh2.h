@@ -7,8 +7,6 @@
 #include <libssh2_sftp.h>
 #include <libssh2_publickey.h>
 
-using CoSocket = swoole::coroutine::Socket;
-
 typedef struct _php_ssh2_session_data {
     /* Userspace callback functions */
     zval *ignore_cb;
@@ -16,7 +14,7 @@ typedef struct _php_ssh2_session_data {
     zval *macerror_cb;
     zval *disconnect_cb;
 
-    CoSocket *socket;
+    SocketImpl *socket;
 } php_ssh2_session_data;
 
 static inline swoole::EventType ssh2_get_event_type(LIBSSH2_SESSION *session) {
@@ -28,7 +26,7 @@ static inline swoole::EventType ssh2_get_event_type(LIBSSH2_SESSION *session) {
     }
 }
 
-static inline CoSocket *ssh2_get_socket(LIBSSH2_SESSION *session) {
+static inline SocketImpl *ssh2_get_socket(LIBSSH2_SESSION *session) {
     auto session_data = (php_ssh2_session_data **) libssh2_session_abstract(session);
     return (*session_data)->socket;
 }

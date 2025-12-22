@@ -279,11 +279,14 @@ std::unordered_map<std::string, int> Iouring::list_all_opcode() {
     return opcodes;
 }
 
-void Iouring::submit(size_t count) {
+void Iouring::submit(IouringEvent *event) {
     do {
         int ret = io_uring_submit(&ring);
         if (ret < 0) {
-            if (-ret == EBUSY && -ret == EAGAIN) {
+        	if ( -ret == EAGAIN) {
+                waiting_tasks.push(event);
+                return;
+        	} else if (-ret == EBUSY) {
                 System::sleep(0.01);
                 continue;
             } else if (-ret == EINTR) {
@@ -296,7 +299,7 @@ void Iouring::submit(size_t count) {
         break;
     } while (true);
 
-    task_num += count;
+    task_num ++;
 }
 
 Iouring *Iouring::get_instance() {
@@ -348,21 +351,7 @@ void Iouring::dispatch(IouringEvent *event) {
         sqe->flags |= IOSQE_IO_LINK;
     }
 
-    submit();
-}
-
-void Iouring::dispatch_async(IouringEvent *event) {
-    event->coroutine = nullptr;
-    event->flags = SW_URING_ASYNC_TASK;
-
-    io_uring_sqe *sqe = get_sqe();
-    if (!sqe) {
-        waiting_tasks.push(event);
-        return;
-    }
-
-    memcpy(sqe, &event->data, sizeof(event->data));
-    io_uring_sqe_set_data(sqe, (void *) event);
+    submit(event);
 }
 
 #define INIT_EVENT(op)                                                                                                 \

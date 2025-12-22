@@ -47,9 +47,8 @@ class Iouring {
 
     explicit Iouring(Reactor *reactor_);
     bool ready() const;
-    void submit(size_t count = 1);
+    void submit(IouringEvent *event);
     void dispatch(IouringEvent *event);
-    void dispatch_async(IouringEvent *event);
     bool wakeup();
 
     io_uring_sqe *get_sqe() {

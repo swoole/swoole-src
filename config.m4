@@ -55,6 +55,11 @@ PHP_ARG_WITH([liburing_dir],
   [dir of liburing],
   [AS_HELP_STRING([[--with-liburing-dir[=DIR]]],
     [Include liburing support (requires liburing >= 2.13)])], [no], [no])
+    
+PHP_ARG_ENABLE([uring_socket],
+  [enable uring_socket support],
+  [AS_HELP_STRING([--enable-uring-socket],
+    [Enable iouring socket support])], [no], [no])
 
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
@@ -1196,6 +1201,10 @@ EOF
             PHP_ADD_INCLUDE("${PHP_LIBURING_DIR}/include")
             PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_LIBURING_DIR}/${PHP_LIBDIR}")
             PHP_ADD_LIBRARY(uring, 1, SWOOLE_SHARED_LIBADD)
+        fi
+        
+        if test "$PHP_URING_SOCKET" != "no"; then
+            AC_DEFINE(SW_USE_URING_SOCKET, 1, [enable io_uring socket support])
         fi
         
         PKG_CHECK_MODULES([URING], [liburing >= 2.0])

@@ -32,7 +32,6 @@ using swoole::Server;
 using swoole::SessionId;
 using swoole::String;
 using swoole::WebSocketSettings;
-using swoole::coroutine::Socket;
 using swoole::websocket::Frame;
 using swoole::websocket::FrameObject;
 

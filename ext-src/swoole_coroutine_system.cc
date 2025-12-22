@@ -27,7 +27,6 @@ using swoole::PHPCoroutine;
 using swoole::Reactor;
 using swoole::String;
 using swoole::TimerNode;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
 enum FileOperateFlag {

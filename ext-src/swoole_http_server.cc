@@ -21,12 +21,15 @@ BEGIN_EXTERN_C()
 #include "rfc1867.h"
 END_EXTERN_C()
 
-using namespace swoole;
-using swoole::coroutine::Socket;
-
 using HttpRequest = swoole::http::Request;
 using HttpResponse = swoole::http::Response;
 using HttpContext = swoole::http::Context;
+
+using swoole::Connection;
+using swoole::DataHead;
+using swoole::RecvData;
+using swoole::Server;
+using swoole::SessionId;
 
 namespace WebSocket = swoole::websocket;
 

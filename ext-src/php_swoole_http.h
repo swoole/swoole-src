@@ -252,8 +252,8 @@ struct Context {
         return static_cast<Server *>(private_data);
     }
 
-    coroutine::Socket *get_co_socket() const {
-        return static_cast<coroutine::Socket *>(private_data);
+    SocketImpl *get_co_socket() const {
+        return static_cast<SocketImpl *>(private_data);
     }
 
 #ifdef SW_HAVE_COMPRESSION

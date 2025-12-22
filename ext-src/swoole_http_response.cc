@@ -27,7 +27,6 @@ using swoole::Server;
 using swoole::String;
 using swoole::substr_len;
 using swoole::WebSocketSettings;
-using swoole::coroutine::Socket;
 using swoole::websocket::FrameObject;
 
 using HttpResponse = swoole::http::Response;
@@ -1280,7 +1279,7 @@ static PHP_METHOD(swoole_http_response, close) {
 }
 
 ssize_t WebSocket::send_frame(const swoole::WebSocketSettings &settings,
-                              swoole::coroutine::Socket *sock,
+                              SocketImpl *sock,
                               uchar opcode,
                               uchar flags,
                               const char *payload,
@@ -1305,7 +1304,7 @@ ssize_t WebSocket::send_frame(const swoole::WebSocketSettings &settings,
  */
 void WebSocket::recv_frame(const WebSocketSettings &settings,
                            std::shared_ptr<String> &frame_buffer,
-                           Socket *sock,
+                           SocketImpl *sock,
                            zval *return_value,
                            double timeout) {
     zval zpayload;

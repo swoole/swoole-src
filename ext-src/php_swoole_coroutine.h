@@ -28,6 +28,14 @@
 #include "zend_fibers.h"
 #include "zend_observer.h"
 
+#ifdef SW_USE_URING_SOCKET
+#include "swoole_uring_socket.h"
+using SocketImpl = swoole::coroutine::UringSocket;
+#else
+using SocketImpl = swoole::coroutine::Socket;
+#endif
+using CoSocket = swoole::coroutine::Socket;
+
 #include <stack>
 #include <thread>
 

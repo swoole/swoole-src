@@ -291,7 +291,7 @@ LIBSSH2_SESSION *php_ssh2_session_connect(const char *host, int port, zval *meth
 
     int domain = swoole::network::Address::verify_ip(AF_INET6, host) ? AF_INET6 : AF_INET;
 
-    auto sock = new CoSocket(domain, SOCK_STREAM, 0);
+    auto sock = new SocketImpl(domain, SOCK_STREAM, 0);
     if (sock->get_fd() < 0 || !sock->connect(host, port)) {
         php_error_docref(NULL, E_WARNING, "Unable to connect to %s on port %d", host, port);
         delete sock;

@@ -37,7 +37,6 @@ SW_EXTERN_C_BEGIN
 SW_EXTERN_C_END
 using swoole::AsyncFile;
 using swoole::String;
-using swoole::coroutine::Socket;
 using swoole::network::Address;
 using swoole::websocket::FrameObject;
 
@@ -271,7 +270,7 @@ class Client {
     ~Client();
 
   private:
-    Socket *socket = nullptr;
+    SocketImpl *socket = nullptr;
     NameResolver::Context resolve_context_ = {};
     SocketType socket_type = SW_SOCK_TCP;
     llhttp_t parser = {};
@@ -1625,7 +1624,7 @@ void Client::socket_dtor() {
  * The client, mysql client, http2 client also need to follow this coding convention.
  */
 bool Client::close(const bool should_be_reset) {
-    Socket *_socket = socket;
+	SocketImpl *_socket = socket;
     if (!_socket) {
         return false;
     }

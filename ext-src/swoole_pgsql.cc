@@ -18,8 +18,7 @@
 
 #include "php_swoole_pgsql.h"
 #include "php_swoole_private.h"
-#include "swoole_coroutine_socket.h"
-#include "swoole_coroutine_system.h"
+#include "php_swoole_coroutine.h"
 
 #ifdef SW_USE_PGSQL
 
@@ -27,7 +26,6 @@ using swoole::Coroutine;
 using swoole::EventType;
 using swoole::Reactor;
 using swoole::translate_events_to_poll;
-using swoole::coroutine::Socket;
 
 static bool swoole_pgsql_blocking = true;
 
@@ -45,7 +43,7 @@ static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, double timeou
         return result > 0 ? 1 : errno == ETIMEDOUT ? 0 : -1;
     }
 
-    Socket sock(PQsocket(conn), SW_SOCK_RAW);
+    SocketImpl sock(PQsocket(conn), SW_SOCK_RAW);
     sock.get_socket()->nonblock = 1;
 
     bool retval = sock.poll(event, timeout);

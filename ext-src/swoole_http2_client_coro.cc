@@ -31,7 +31,6 @@ END_EXTERN_C()
 #define HTTP2_CLIENT_HOST_HEADER_INDEX 3
 
 using namespace swoole;
-using swoole::coroutine::Socket;
 using swoole::http2::get_default_setting;
 
 namespace Http2 = swoole::http2;
@@ -91,7 +90,7 @@ class Client {
     /* safety zval */
     zval _zobject;
     zval *zobject;
-    Socket *socket_ = nullptr;
+    SocketImpl *socket_ = nullptr;
     zval zsocket;
 
     Client(const char *_host, size_t _host_len, int _port, bool _ssl, const zval *zobj) {

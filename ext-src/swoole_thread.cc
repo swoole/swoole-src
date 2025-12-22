@@ -498,7 +498,7 @@ int php_swoole_thread_stream_cast(zval *zstream) {
 }
 
 int php_swoole_thread_co_socket_cast(zval *zvalue, swSocketType *type) {
-    swoole::coroutine::Socket *socket = php_swoole_get_socket(zvalue);
+    SocketImpl *socket = php_swoole_get_socket(zvalue);
     if (!socket) {
         return -1;
     }

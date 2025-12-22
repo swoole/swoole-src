@@ -28,7 +28,6 @@ using swoole::microtime;
 using swoole::PHPCoroutine;
 using swoole::Server;
 using swoole::String;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
 namespace WebSocket = swoole::websocket;
@@ -54,7 +53,7 @@ namespace coroutine {
 
 class HttpServer {
   public:
-    Socket *socket;
+    SocketImpl *socket;
     zend::Callable *default_handler;
     std::unordered_map<std::string, zend::Callable *> handlers;
     bool running;
@@ -77,7 +76,7 @@ class HttpServer {
 #endif
 
     explicit HttpServer(SocketType type) {
-        socket = new Socket(type);
+        socket = new SocketImpl(type);
         default_handler = nullptr;
         array_init(&zclients);
         running = true;
@@ -242,7 +241,7 @@ static HttpServer *http_server_coro_get_object(zend_object *obj) {
     return http_server_coro_fetch_object(obj)->server;
 }
 
-static void http_server_coro_set_error(const zval *zobject, const Socket *sock) {
+static void http_server_coro_set_error(const zval *zobject, const SocketImpl *sock) {
     zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
     zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
 }
@@ -341,7 +340,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     HttpServerObject *hsc = http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     std::string host_str(host, l_host);
     hsc->server = new HttpServer(swoole::network::Socket::convert_to_type(host_str));
-    Socket *sock = hsc->server->socket;
+    SocketImpl *sock = hsc->server->socket;
 
     if (reuse_port) {
         sock->get_socket()->set_reuse_port();
@@ -405,7 +404,7 @@ static PHP_METHOD(swoole_http_server_coro, set) {
 
 static PHP_METHOD(swoole_http_server_coro, start) {
     HttpServer *hs = http_server_coro_get_object(Z_OBJ_P(ZEND_THIS));
-    Socket *sock = hs->socket;
+    SocketImpl *sock = hs->socket;
 
     /* get callback fci cache */
     char *func_name = nullptr;
@@ -531,7 +530,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_NULL());
 
     Coroutine *co = Coroutine::get_current();
-    Socket *sock = php_swoole_get_socket(zconn);
+    SocketImpl *sock = php_swoole_get_socket(zconn);
     sock->set_buffer_allocator(sw_zend_string_allocator());
     String *buffer = sock->get_read_buffer();
     HttpContext *ctx = nullptr;
@@ -684,7 +683,7 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
     zend_ulong index;
     zval *zconn;
     ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARRVAL_P(&hs->zclients), index, zconn) {
-        Socket *sock = php_swoole_get_socket(zconn);
+        SocketImpl *sock = php_swoole_get_socket(zconn);
         if (sock->get_socket()->recv_wait) {
             sock->cancel(SW_EVENT_READ);
             zend_hash_index_del(Z_ARRVAL_P(&hs->zclients), index);

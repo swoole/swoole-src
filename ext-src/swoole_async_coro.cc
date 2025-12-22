@@ -26,7 +26,6 @@ using std::vector;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::Timer;
-using swoole::coroutine::Socket;
 
 struct DNSCacheEntity {
     char address[INET6_ADDRSTRLEN];

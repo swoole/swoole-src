@@ -29,11 +29,11 @@ namespace websocket {
 void apply_setting(WebSocketSettings &settings, zend_array *vht, bool in_server);
 void recv_frame(const WebSocketSettings &settings,
                 std::shared_ptr<String> &frame_buffer,
-                coroutine::Socket *sock,
+                SocketImpl *sock,
                 zval *return_value,
                 double timeout);
 ssize_t send_frame(const WebSocketSettings &settings,
-                   coroutine::Socket *sock,
+                   SocketImpl *sock,
                    uchar opcode,
                    uchar flags,
                    const char *payload,

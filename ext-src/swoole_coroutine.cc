@@ -48,7 +48,6 @@ using std::unordered_map;
 using swoole::Coroutine;
 using swoole::PHPContext;
 using swoole::PHPCoroutine;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };

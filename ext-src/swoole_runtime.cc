@@ -16,8 +16,8 @@
 
 #include "php_swoole_cxx.h"
 #include "php_swoole_api.h"
+#include "php_swoole_coroutine.h"
 
-#include "swoole_socket.h"
 #include "swoole_util.h"
 
 #include "thirdparty/php/standard/proc_open.h"
@@ -69,7 +69,6 @@ END_EXTERN_C()
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::PollSocket;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
 SW_EXTERN_C_BEGIN
@@ -101,7 +100,7 @@ static int socket_flush(php_stream *stream);
 static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
-static bool socket_ssl_set_options(Socket *sock, php_stream_context *context);
+static bool socket_ssl_set_options(SocketImpl *sock, php_stream_context *context);
 
 static php_stream *socket_create(const char *proto,
                                  size_t protolen,
@@ -130,7 +129,7 @@ static php_stream_ops socket_ops {
 
 struct NetStream {
     php_netstream_data_t stream;
-    std::shared_ptr<Socket> socket;
+    std::shared_ptr<SocketImpl> socket;
     bool blocking;
 };
 
@@ -479,7 +478,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
 
 static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count) {
     ssize_t didwrite = -1;
-    std::shared_ptr<Socket> sock;
+    std::shared_ptr<SocketImpl> sock;
 
     auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
@@ -524,7 +523,7 @@ _exit:
 }
 
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count) {
-    std::shared_ptr<Socket> sock;
+    std::shared_ptr<SocketImpl> sock;
     ssize_t nr_bytes = -1;
 
     auto *abstract = static_cast<NetStream *>(stream->abstract);
@@ -601,7 +600,7 @@ static int socket_cast(php_stream *stream, int castas, void **ret) {
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         return FAILURE;
     }
-    const std::shared_ptr<Socket> sock = abstract->socket;
+    const std::shared_ptr<SocketImpl> sock = abstract->socket;
     switch (castas) {
     case PHP_STREAM_AS_STDIO:
         if (ret) {
@@ -632,7 +631,7 @@ static int socket_stat(php_stream *stream, php_stream_statbuf *ssb) {
     return zend_fstat(abstract->socket->get_fd(), &ssb->sb);
 }
 
-static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xport_param *xparam) {
+static inline int socket_connect(php_stream *stream, SocketImpl *sock, php_stream_xport_param *xparam) {
     char *host = nullptr, *bindto = nullptr;
     int portno = 0, bindport = 0;
     int ret = 0;
@@ -701,7 +700,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     return ret;
 }
 
-static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport_param *xparam STREAMS_DC) {
+static inline int socket_bind(php_stream *stream, SocketImpl *sock, php_stream_xport_param *xparam STREAMS_DC) {
     char *host = nullptr;
     int portno = 0;
     char *ip_address = nullptr;
@@ -724,7 +723,7 @@ static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport
     return ret;
 }
 
-static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xport_param *xparam STREAMS_DC) {
+static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream_xport_param *xparam STREAMS_DC) {
     int tcp_nodelay = 0;
     zval *tmpzval = nullptr;
 
@@ -752,7 +751,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         sock->set_timeout(timeout, SW_TIMEOUT_READ);
     }
 
-    std::shared_ptr<Socket> clisock(sock->accept());
+    std::shared_ptr<SocketImpl> clisock(sock->accept());
 
     if (clisock != nullptr && clisock->ssl_is_enable()) {
         if (!clisock->ssl_handshake()) {
@@ -793,7 +792,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
 }
 
 static inline int socket_recvfrom(
-    Socket *sock, char *buf, size_t buflen, zend_string **textaddr, struct sockaddr **addr, socklen_t *addrlen) {
+    SocketImpl *sock, char *buf, size_t buflen, zend_string **textaddr, struct sockaddr **addr, socklen_t *addrlen) {
     int ret;
     int want_addr = textaddr || addr;
 
@@ -820,7 +819,7 @@ static inline int socket_recvfrom(
 }
 
 static inline int socket_sendto(
-    Socket *sock, const char *buf, size_t buflen, struct sockaddr *addr, socklen_t addrlen) {
+    SocketImpl *sock, const char *buf, size_t buflen, struct sockaddr *addr, socklen_t addrlen) {
     if (addr) {
         return sendto(sock->get_fd(), buf, buflen, 0, addr, addrlen);
     } else {
@@ -828,7 +827,7 @@ static inline int socket_sendto(
     }
 }
 
-static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
+static int socket_setup_crypto(php_stream *stream, SocketImpl *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
     return 0;
 }
 
@@ -867,7 +866,7 @@ static int socket_xport_crypto_enable(php_stream *stream, int activate) {
     return ret;
 }
 
-static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) {
+static bool php_openssl_capture_peer_certs(php_stream *stream, SocketImpl *sslsock) {
     zval *val;
 
     std::string peer_cert = sslsock->ssl_get_peer_cert();
@@ -908,7 +907,9 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) 
     return true;
 }
 
-static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
+static int socket_enable_crypto(php_stream *stream,
+                                SocketImpl *sock,
+                                php_stream_xport_crypto_param *cparam STREAMS_DC) {
     php_stream_context *context = PHP_STREAM_CONTEXT(stream);
     if (cparam->inputs.activate && !sock->ssl_is_available()) {
         sock->enable_ssl_encrypt();
@@ -933,7 +934,7 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
     return 1;
 }
 
-static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_xport_param *xparam STREAMS_DC) {
+static inline int socket_xport_api(php_stream *stream, SocketImpl *sock, php_stream_xport_param *xparam STREAMS_DC) {
     static const int shutdown_how[] = {SHUT_RD, SHUT_WR, SHUT_RDWR};
 
     switch (xparam->op) {
@@ -1051,7 +1052,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     if (UNEXPECTED(!abstract || !abstract->socket)) {
         return PHP_STREAM_OPTION_RETURN_ERR;
     }
-    std::shared_ptr<Socket> sock_wrapped = abstract->socket;
+    std::shared_ptr<SocketImpl> sock_wrapped = abstract->socket;
     auto sock = sock_wrapped.get();
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
@@ -1148,7 +1149,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     return PHP_STREAM_OPTION_RETURN_OK;
 }
 
-static bool socket_ssl_set_options(Socket *sock, php_stream_context *context) {
+static bool socket_ssl_set_options(SocketImpl *sock, php_stream_context *context) {
     if (context && ZVAL_IS_ARRAY(&context->options)) {
         zval *ztmp;
 
@@ -1228,7 +1229,7 @@ static php_stream *socket_create(const char *proto,
                                  struct timeval *timeout,
                                  php_stream_context *context STREAMS_DC) {
     php_stream *stream = nullptr;
-    Socket *sock = nullptr;
+    SocketImpl *sock = nullptr;
 
     auto co = Coroutine::get_current();
     if (sw_unlikely(co == nullptr)) {
@@ -1242,16 +1243,16 @@ static php_stream *socket_create(const char *proto,
     }
 
     if (SW_STREQ(proto, protolen, "tcp")) {
-        sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
+        sock = new SocketImpl(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
-        sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
+        sock = new SocketImpl(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->enable_ssl_encrypt();
     } else if (SW_STREQ(proto, protolen, "unix")) {
-        sock = new Socket(SW_SOCK_UNIX_STREAM);
+        sock = new SocketImpl(SW_SOCK_UNIX_STREAM);
     } else if (SW_STREQ(proto, protolen, "udp")) {
-        sock = new Socket(SW_SOCK_UDP);
+        sock = new SocketImpl(SW_SOCK_UDP);
     } else if (SW_STREQ(proto, protolen, "udg")) {
-        sock = new Socket(SW_SOCK_UNIX_DGRAM);
+        sock = new SocketImpl(SW_SOCK_UNIX_DGRAM);
     } else {
         php_swoole_fatal_error(E_WARNING, "unknown protocol '%s'", proto);
         return nullptr;
@@ -2220,7 +2221,7 @@ static void unhook_func(const char *name, size_t l_name) {
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC) {
     auto *abstract = new NetStream();
-    abstract->socket = std::make_shared<Socket>(_fd, domain, type, protocol);
+    abstract->socket = std::make_shared<SocketImpl>(_fd, domain, type, protocol);
     if (FG(default_socket_timeout) > 0) {
         abstract->socket->set_timeout((double) FG(default_socket_timeout));
     }
