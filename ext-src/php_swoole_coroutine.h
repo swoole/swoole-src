@@ -20,21 +20,14 @@
 #pragma once
 
 #include "swoole_coroutine.h"
-#include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_socket_impl.h"
+
 #include "zend_vm.h"
 #include "zend_closures.h"
 
 #include "zend_fibers.h"
 #include "zend_observer.h"
-
-#ifdef SW_USE_URING_SOCKET
-#include "swoole_uring_socket.h"
-using SocketImpl = swoole::coroutine::UringSocket;
-#else
-using SocketImpl = swoole::coroutine::Socket;
-#endif
-using CoSocket = swoole::coroutine::Socket;
 
 #include <stack>
 #include <thread>

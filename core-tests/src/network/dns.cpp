@@ -27,7 +27,6 @@ using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using namespace swoole::test;
-using namespace std;
 
 TEST(dns, lookup1) {
     test::coroutine::run([](void *arg) {
@@ -88,7 +87,7 @@ TEST(dns, getaddrinfo) {
     ASSERT_EQ(network::getaddrinfo(&req), 0);
     ASSERT_GT(req.count, 0);
 
-    vector<string> ip_list;
+    std::vector<std::string> ip_list;
     req.parse_result(ip_list);
 
     for (auto &ip : ip_list) {
@@ -109,7 +108,7 @@ TEST(dns, getaddrinfo_ipv6) {
 
     DEBUG() << "result count: " << req.count << std::endl;
 
-    vector<string> ip_list;
+    std::vector<std::string> ip_list;
     req.parse_result(ip_list);
 
     for (auto &ip : ip_list) {
@@ -143,7 +142,7 @@ TEST(dns, load_resolv_conf) {
 
 TEST(dns, gethosts) {
     char hosts_file[] = "/tmp/swoole_hosts";
-    ofstream file(hosts_file);
+    std::ofstream file(hosts_file);
     if (!file.is_open()) {
         std::cout << std::string("file open failed: ") + std::string(strerror(errno)) << std::endl;
         throw strerror(errno);

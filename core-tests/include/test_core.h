@@ -1,6 +1,7 @@
 #pragma once
 
 #include "swoole_client.h"
+#include "swoole_socket_impl.h"
 
 #include <gtest/gtest.h>
 
@@ -79,14 +80,6 @@
 #ifdef __ANDROID__
 #define sysv_signal signal
 #endif
-
-namespace swoole {
-namespace coroutine {
-class Socket;
-}
-}  // namespace swoole
-
-typedef swoole::coroutine::Socket CoSocket;
 
 namespace swoole {
 struct HttpProxy;

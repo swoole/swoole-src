@@ -24,8 +24,8 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_socket_impl.h"
 #include "swoole_iouring.h"
 
 using swoole::AsyncEvent;
@@ -36,9 +36,7 @@ using swoole::translate_events_to_poll;
 using swoole::async::dispatch;
 using swoole::coroutine::async;
 using swoole::coroutine::PollSocket;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using NetSocket = swoole::network::Socket;
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
@@ -46,7 +44,7 @@ using swoole::Iouring;
 #define SW_USE_ASYNC 1
 #endif
 
-static std::unordered_map<int, std::shared_ptr<Socket>> socket_map;
+static std::unordered_map<int, std::shared_ptr<SocketImpl>> socket_map;
 static std::mutex socket_map_lock;
 
 #if defined(__APPLE__) || defined(__MACH__)
@@ -59,7 +57,7 @@ static sw_inline bool is_no_coro() {
     return SwooleTG.reactor == nullptr || !Coroutine::get_current();
 }
 
-static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
+static sw_inline std::shared_ptr<SocketImpl> get_socket(int sockfd) {
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     auto socket_iterator = socket_map.find(sockfd);
     if (socket_iterator == socket_map.end()) {
@@ -69,7 +67,7 @@ static sw_inline std::shared_ptr<Socket> get_socket(int sockfd) {
     return socket_iterator->second;
 }
 
-static sw_inline std::shared_ptr<Socket> get_socket_ex(int sockfd) {
+static sw_inline std::shared_ptr<SocketImpl> get_socket_ex(int sockfd) {
     if (sw_unlikely(is_no_coro())) {
         errno = EWOULDBLOCK;
         return nullptr;
@@ -77,21 +75,20 @@ static sw_inline std::shared_ptr<Socket> get_socket_ex(int sockfd) {
     return get_socket(sockfd);
 }
 
-std::shared_ptr<Socket> swoole_coroutine_get_socket_object(int sockfd) {
+std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object(int sockfd) {
     return get_socket(sockfd);
 }
 
-std::shared_ptr<Socket> swoole_coroutine_get_socket_object_ex(int sockfd) {
+std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object_ex(int sockfd) {
     return get_socket_ex(sockfd);
 }
 
 SW_EXTERN_C_BEGIN
-
 int swoole_coroutine_socket(int domain, int type, int protocol) {
     if (sw_unlikely(is_no_coro())) {
         return ::socket(domain, type, protocol);
     }
-    auto socket = std::make_shared<Socket>(domain, type, protocol);
+    auto socket = std::make_shared<SocketImpl>(domain, type, protocol);
     int fd = socket->get_fd();
     if (sw_unlikely(fd < 0)) {
         return -1;
@@ -161,7 +158,7 @@ int swoole_coroutine_accept(int sockfd, struct sockaddr *addr, socklen_t *addrle
     memcpy(addr, &conn->get_socket()->info.addr.ss, *addrlen);
 
     std::unique_lock<std::mutex> _lock(socket_map_lock);
-    socket_map.emplace(conn->get_fd(), std::shared_ptr<Socket>(conn));
+    socket_map.emplace(conn->get_fd(), std::shared_ptr<SocketImpl>(conn));
     return conn->get_fd();
 }
 
@@ -190,6 +187,12 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
         return poll(fds, nfds, timeout);
     }
 
+#ifdef SW_USE_IOURING
+    if (nfds == 1) {
+        return Iouring::poll(fds, nfds, timeout);
+    }
+#endif
+
     std::unordered_map<int, PollSocket> _fds;
     for (nfds_t i = 0; i < nfds; i++) {
         _fds.emplace(fds[i].fd, PollSocket(translate_events_from_poll(fds[i].events), &fds[i]));
@@ -216,7 +219,7 @@ int swoole_coroutine_socket_create(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return -1;
     }
-    auto socket = std::make_shared<Socket>(fd, SW_SOCK_RAW);
+    auto socket = std::make_shared<SocketImpl>(fd, SW_SOCK_RAW);
     int _fd = socket->get_fd();
     if (sw_unlikely(_fd < 0)) {
         return -1;

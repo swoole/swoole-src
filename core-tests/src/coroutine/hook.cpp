@@ -26,7 +26,6 @@ using namespace swoole::test;
 using swoole::Coroutine;
 using swoole::File;
 using swoole::String;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
 

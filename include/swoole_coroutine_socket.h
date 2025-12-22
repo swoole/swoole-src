@@ -112,7 +112,7 @@ class Socket {
         }
     }
 
-    bool poll(EventType _type, double timeout = 0);
+    virtual bool poll(EventType _type, double timeout = 0);
     /**
      * If the server has SSL enabled, you must explicitly call `ssl_handshake()`,
      * as it will not be automatically executed within the `accept()` function.
@@ -580,6 +580,3 @@ std::string get_ip_by_hosts(const std::string &domain);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole
-
-std::shared_ptr<swoole::coroutine::Socket> swoole_coroutine_get_socket_object(int sockfd);
-std::shared_ptr<swoole::coroutine::Socket> swoole_coroutine_get_socket_object_ex(int sockfd);

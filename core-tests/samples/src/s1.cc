@@ -2,15 +2,13 @@
 #include "swoole_client.h"
 #include "swoole_server.h"
 #include "swoole_coroutine.h"
-#include "swoole_coroutine_socket.h"
+#include "swoole_socket_impl.h"
 #include "swoole_coroutine_system.h"
 
 #include <iostream>
 
 using swoole::Coroutine;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using namespace std;
 
 struct A {
     int x;
@@ -31,9 +29,9 @@ int main(int argc, char **argv) {
         // no longer as expected
         System::sleep(1);
         // output 100
-        cout << "X=" << G_a.x << endl;
+        std::cout << "X=" << G_a.x << std::endl;
         // read invalid point
-        cout << "Y=" << *G_a.y << endl;
+        std::cout << "Y=" << *G_a.y << std::endl;
     });
 
     // coroutine 2

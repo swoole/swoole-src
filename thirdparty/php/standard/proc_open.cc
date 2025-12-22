@@ -16,7 +16,6 @@
 
 #include "thirdparty/php/standard/proc_open.h"
 
-using namespace std;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::System;

@@ -79,6 +79,7 @@ class UringSocket : public Socket {
     ssize_t readv_all(network::IOVector *io_vector) override;
     ssize_t writev(network::IOVector *io_vector) override;
     ssize_t writev_all(network::IOVector *io_vector) override;
+    bool poll(EventType _type, double timeout = 0) override;
     bool ssl_handshake() override;
 };
 }  // namespace coroutine

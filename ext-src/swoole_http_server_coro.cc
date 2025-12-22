@@ -132,7 +132,7 @@ class HttpServer {
         return default_handler;
     }
 
-    HttpContext *create_context(Socket *conn, zval *zconn) const {
+    HttpContext *create_context(SocketImpl *conn, zval *zconn) const {
         HttpContext *ctx = swoole_http_context_new(conn->get_fd());
         ctx->parse_body = parse_post;
         ctx->parse_cookie = parse_cookie;

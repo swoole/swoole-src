@@ -483,7 +483,7 @@ bool Client::close() const {
      * The socket_ pointer MUST be staged,
      * when client close the member variable may be set to nullptr in socket dtor
      */
-    Socket *_socket = socket_;
+    SocketImpl *_socket = socket_;
     if (_socket == nullptr) {
         update_error_properties(EBADF, strerror(EBADF));
         return false;

@@ -29,12 +29,10 @@
 #include "swoole_socket.h"
 
 SW_EXTERN_C_BEGIN
-
 #include "stubs/php_swoole_http_client_coro_arginfo.h"
-
 #include "ext/standard/base64.h"
-
 SW_EXTERN_C_END
+
 using swoole::AsyncFile;
 using swoole::String;
 using swoole::network::Address;
@@ -1624,7 +1622,7 @@ void Client::socket_dtor() {
  * The client, mysql client, http2 client also need to follow this coding convention.
  */
 bool Client::close(const bool should_be_reset) {
-	SocketImpl *_socket = socket;
+    SocketImpl *_socket = socket;
     if (!_socket) {
         return false;
     }

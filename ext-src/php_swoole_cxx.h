@@ -22,8 +22,6 @@
 
 #include <string>
 
-using NetSocket = swoole::network::Socket;
-
 // clang-format off
 //----------------------------------Swoole known string------------------------------------
 

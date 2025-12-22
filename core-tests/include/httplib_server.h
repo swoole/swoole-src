@@ -9,11 +9,10 @@
 #pragma once
 
 #include "swoole_coroutine_system.h"
-#include "swoole_coroutine_socket.h"
+#include "swoole_socket_impl.h"
 #include "httplib_client.h"
 
 using swoole::Coroutine;
-using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::network::Address;
 
@@ -102,7 +101,7 @@ class Server {
                          bool &connection_closed,
                          const std::function<void(Request &)> &setup_request);
 
-    Socket *svr_sock_;
+    SocketImpl *svr_sock_;
     size_t keep_alive_max_count_ = CPPHTTPLIB_KEEPALIVE_MAX_COUNT;
     time_t read_timeout_sec_ = CPPHTTPLIB_READ_TIMEOUT_SECOND;
     time_t read_timeout_usec_ = CPPHTTPLIB_READ_TIMEOUT_USECOND;
@@ -118,7 +117,7 @@ class Server {
     using Handlers = std::vector<std::pair<std::regex, Handler>>;
     using HandlersForContentReader = std::vector<std::pair<std::regex, HandlerWithContentReader>>;
 
-    Socket *create_server_socket(const char *host, int port, int socket_flags, SocketOptions socket_options) const;
+    SocketImpl *create_server_socket(const char *host, int port, int socket_flags, SocketOptions socket_options) const;
     int bind_internal(const char *host, int port, int socket_flags);
     bool listen_internal();
 
@@ -148,7 +147,7 @@ class Server {
                            MultipartContentHeader mulitpart_header,
                            ContentReceiver multipart_receiver);
 
-    virtual bool process_and_close_socket(Socket *sock);
+    virtual bool process_and_close_socket(SocketImpl *sock);
 
     std::atomic<bool> is_running_;
     std::vector<std::pair<std::string, std::string>> base_dirs_;
@@ -642,10 +641,10 @@ inline bool Server::handle_file_request(Request &req, Response &res, bool head) 
     return false;
 }
 
-inline Socket *Server::create_server_socket(const char *host,
-                                            int port,
-                                            int socket_flags,
-                                            SocketOptions socket_options) const {
+inline SocketImpl *Server::create_server_socket(const char *host,
+                                                int port,
+                                                int socket_flags,
+                                                SocketOptions socket_options) const {
     struct addrinfo hints;
     struct addrinfo *result;
 
@@ -661,9 +660,9 @@ inline Socket *Server::create_server_socket(const char *host,
         return nullptr;
     }
 
-    Socket *sock = nullptr;
+    SocketImpl *sock = nullptr;
     for (auto rp = result; rp; rp = rp->ai_next) {
-        sock = new Socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        sock = new SocketImpl(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (sock->get_fd() == INVALID_SOCKET) {
             delete sock;
             continue;
@@ -721,7 +720,7 @@ inline int Server::bind_internal(const char *host, int port, int socket_flags) {
 }
 
 struct CoroutineArg {
-    Socket *client_socket;
+    SocketImpl *client_socket;
     Server *this_;
 };
 
@@ -992,7 +991,7 @@ inline bool process_server_socket(socket_t sock,
 
 class CoSocketStream : public detail::SocketStream {
   public:
-    CoSocketStream(Socket *sock,
+    CoSocketStream(SocketImpl *sock,
                    time_t read_timeout_sec,
                    time_t read_timeout_usec,
                    time_t write_timeout_sec,
@@ -1024,10 +1023,10 @@ class CoSocketStream : public detail::SocketStream {
     }
 
   private:
-    Socket *sock_;
+    SocketImpl *sock_;
 };
 
-inline bool Server::process_and_close_socket(Socket *sock) {
+inline bool Server::process_and_close_socket(SocketImpl *sock) {
     size_t keep_alive_max_count = keep_alive_max_count_;
     time_t read_timeout_sec = read_timeout_sec_;
     time_t read_timeout_usec = read_timeout_usec_;
