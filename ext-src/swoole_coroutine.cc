@@ -1504,7 +1504,7 @@ void sw_php_print_backtrace(zend_long cid, zend_long options, zend_long limit, z
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
         EG(current_execute_data) = ctx->execute_data;
-        sw_php_print_backtrace_impl(1, options, limit);
+        sw_php_print_backtrace_impl(0, options, limit);
         EG(current_execute_data) = ex_backup;
     }
 }
