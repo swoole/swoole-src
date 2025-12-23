@@ -134,7 +134,7 @@ class Client {
      * allowing access to the sent Request data even after the connection has been closed.
      */
     String *tmp_write_buffer = nullptr;
-    std::shared_ptr<String> frame_buffer;
+    std::shared_ptr<String> continue_frame_buffer;
     bool connection_close = false;
     bool completed = false;
     bool event_stream = false;
@@ -1486,7 +1486,7 @@ bool Client::recv_response(double timeout) {
 }
 
 void Client::recv_websocket_frame(zval *return_value, double timeout) {
-    WebSocket::recv_frame(websocket_settings, frame_buffer, socket, return_value, timeout);
+    WebSocket::recv_frame(websocket_settings, continue_frame_buffer, socket, return_value, timeout);
     if (ZVAL_IS_EMPTY_STRING(return_value)) {
         close();
         return;

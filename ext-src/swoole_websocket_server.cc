@@ -154,6 +154,7 @@ bool FrameObject::pack(String *buffer) {
         sw_set_bit(flags, WebSocket::FLAG_FIN);
         need_compress = false;
     } else if (opcode == WebSocket::OPCODE_CONTINUATION || !(flags & WebSocket::FLAG_FIN)) {
+        // Continuous frames and WebSocket message frames without the FLAG_FIN flag do not require compression.
         need_compress = false;
     }
 
@@ -407,7 +408,7 @@ bool WebSocket::message_compress(String *buffer, const char *data, size_t length
     zstream.zalloc = php_zlib_alloc;
     zstream.zfree = php_zlib_free;
 
-    status = deflateInit2(&zstream, level, Z_DEFLATED, SW_ZLIB_ENCODING_RAW, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+    status = deflateInit2(&zstream, level, Z_DEFLATED, SW_ZLIB_ENCODING_RAW, SW_ZLIB_DEF_MEM_LEVEL, Z_DEFAULT_STRATEGY);
     if (status != Z_OK) {
         php_swoole_fatal_error(E_WARNING, "deflateInit2() failed, Error: [%d]", status);
         return false;
