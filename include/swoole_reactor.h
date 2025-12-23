@@ -85,13 +85,18 @@ class Reactor {
 
     enum EndCallback {
         PRIORITY_TIMER = 0,
-        PRIORITY_IOURING_SUBMIT,
         PRIORITY_DEFER_TASK,
         PRIORITY_IDLE_TASK,
         PRIORITY_SIGNAL_CALLBACK,
         PRIORITY_TRY_EXIT,
         PRIORITY_MALLOC_TRIM,
         PRIORITY_WORKER_CALLBACK,
+        /**
+         * PRIORITY_IOURING_SUBMIT must be the last one, as other callback functions might allocate new SQEs.
+         * It is essential to ensure that the SQE is submitted before the next event loop iteration and before the
+         * epoll_wait() call.
+         */
+        PRIORITY_IOURING_SUBMIT,
     };
 
     enum ExitCondition {

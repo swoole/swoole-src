@@ -477,8 +477,6 @@ TEST(uring_socket, send_and_recv_all) {
 }
 
 TEST(uring_socket, poll) {
-    SwooleG.trace_flags = SW_TRACE_ALL;
-    swoole_set_log_level(0);
     coroutine::run([&](void *arg) {
         int pairs[2];
 
@@ -498,6 +496,47 @@ TEST(uring_socket, poll) {
         TEST_WRITE(pairs[0], TEST_STR);
         rs = sock.poll(SW_EVENT_READ, 0.01);
         ASSERT_TRUE(rs);
+    });
+}
+
+TEST(uring_socket, ssl_readv) {
+    coroutine::run([&](void *arg) {
+        UringSocket client(SW_SOCK_TCP);
+        client.enable_ssl_encrypt();
+        client.set_tls_host_name(TEST_HTTP_DOMAIN);
+        ASSERT_TRUE(client.connect(TEST_HTTP_DOMAIN, 443));
+
+        auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+
+        constexpr off_t offset1 = TEST_WRITEV_OFFSET;
+        iovec wr_iov[2];
+        wr_iov[0].iov_base = (void *) req.c_str();
+        wr_iov[0].iov_len = offset1;
+        wr_iov[1].iov_base = (char *) req.c_str() + offset1;
+        wr_iov[1].iov_len = req.length() - offset1;
+
+        swoole::network::IOVector wr_vec(wr_iov, 2);
+        ASSERT_EQ(client.writev(&wr_vec), req.length());
+
+        sw_tg_buffer()->clear();
+        if (sw_tg_buffer()->size < 1024 * 1024) {
+            sw_tg_buffer()->extend(1024 * 1024);
+        }
+
+        constexpr off_t offset2 = TEST_READV_OFFSET;
+        iovec rd_iov[2];
+        rd_iov[0].iov_base = sw_tg_buffer()->str;
+        rd_iov[0].iov_len = offset2;
+        rd_iov[1].iov_base = sw_tg_buffer()->str + offset2;
+        rd_iov[1].iov_len = sw_tg_buffer()->size - offset2;
+
+        swoole::network::IOVector rd_vec(rd_iov, 2);
+        auto rv = client.readv(&rd_vec);
+        ASSERT_GT(rv, 1024);
+        sw_tg_buffer()->length = rv;
+        sw_tg_buffer()->set_null_terminated();
+
+        ASSERT_TRUE(sw_tg_buffer()->contains(TEST_HTTPS_EXPECT));
     });
 }
 #endif

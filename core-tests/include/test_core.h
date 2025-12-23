@@ -47,6 +47,9 @@
 #define TEST_LOG_FILE "/tmp/swoole.log"
 #define TEST_SOCK_FILE "/tmp/swoole-core-tests.sock"
 
+#define TEST_WRITEV_OFFSET 87
+#define TEST_READV_OFFSET 1949
+
 #define TEST_COUNTER_NUM 32
 
 #define TEST_REQUEST_BAIDU                                                                                             \
