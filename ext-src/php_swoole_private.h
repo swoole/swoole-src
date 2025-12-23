@@ -116,9 +116,7 @@ BEGIN_EXTERN_C()
 
 #if PHP_VERSION_ID < 80100
 #error "require PHP version 8.1 or later"
-#endif
-
-#if PHP_VERSION_ID > 80500
+#elif PHP_VERSION_ID >= 80500
 #error "require PHP version 8.4 or earlier"
 #endif
 

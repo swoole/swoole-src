@@ -1423,7 +1423,6 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/pdo_sqlite)
     
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
@@ -1437,5 +1436,11 @@ EOF
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php81/pdo_odbc)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php83/pdo_odbc)
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_odbc)
+    fi
+    if test "$PHP_SWOOLE_ORACLE" != "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/pdo_oci)
+    fi
+    if test "$PHP_SWOOLE_SQLITE" != "no"; then
+        PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/pdo_sqlite)
     fi
 fi

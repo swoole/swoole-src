@@ -170,7 +170,7 @@ static zend_string* sqlite_handle_quoter(pdo_dbh_t *dbh, const zend_string *unqu
 	if (ZSTR_LEN(unquoted) > (INT_MAX - 3) / 2) {
 		return NULL;
 	}
-
+#if PHP_VERSION_ID >= 80500
 	if (UNEXPECTED(zend_str_has_nul_byte(unquoted))) {
 		if (dbh->error_mode == PDO_ERRMODE_EXCEPTION) {
 			zend_throw_exception_ex(
@@ -182,6 +182,7 @@ static zend_string* sqlite_handle_quoter(pdo_dbh_t *dbh, const zend_string *unqu
 		}
 		return NULL;
 	}
+#endif
 
 	quoted = safe_emalloc(2, ZSTR_LEN(unquoted), 3);
 	/* TODO use %Q format? */
