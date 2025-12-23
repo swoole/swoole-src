@@ -67,6 +67,8 @@
 #define ASSERT_ERREQ(x) ASSERT_EQ(swoole_get_last_error(), x)
 #define EXPECT_ERREQ(x) EXPECT_EQ(swoole_get_last_error(), x)
 
+#define TEST_WRITE(fd, s) ASSERT_EQ(write(fd, s, strlen(s)), strlen(s))
+
 #define TIMER_PARAMS swoole::Timer *timer, swoole::TimerNode *tnode
 
 #ifdef SW_VERBOSE

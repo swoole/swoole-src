@@ -62,6 +62,7 @@ class Iouring {
 
     static Iouring *get_instance();
     static ssize_t execute(IouringEvent *event);
+    static const char *get_opcode_name(enum io_uring_op opcode);
 
   public:
     ~Iouring();

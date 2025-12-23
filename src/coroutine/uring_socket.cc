@@ -283,11 +283,18 @@ bool UringSocket::poll(EventType _type, double timeout) {
     if (sw_unlikely(!is_available(_type))) {
         return false;
     }
+
     struct pollfd fds[1];
     fds[0].events = translate_events_to_poll(_type);
     fds[0].fd = socket->get_fd();
     fds[0].revents = 0;
-    return Iouring::poll(fds, 1, timeout * 1000) == 1;
+
+    auto rc = Iouring::poll(fds, 1, timeout > 0 ? timeout * 1000 : timeout) == 1;
+    if (rc != 1) {
+        set_err(rc == 0 ? ETIMEDOUT : errno);
+        return false;
+    }
+    return true;
 }
 
 bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {

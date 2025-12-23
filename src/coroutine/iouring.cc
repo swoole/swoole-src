@@ -205,6 +205,8 @@ bool Iouring::wakeup() {
             auto *event = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
             // The user data for the timeout request is -1, this event should be ignored.
             if (event == reinterpret_cast<void *>(TIMEOUT_EVENT)) {
+                swoole_trace(
+                    "timeout, cqe.flags=%d, ceq.res=%d, error=`%s`", cqe->flags, cqe->res, strerror(-cqe->res));
                 continue;
             }
             if (cqe->res < 0) {
@@ -213,6 +215,11 @@ bool Iouring::wakeup() {
             } else {
                 event->result = cqe->res;
             }
+            swoole_trace("opcode=%s, cqe.flags=%d, ceq.res=%d, error=`%s`",
+                         get_opcode_name((io_uring_op) event->data.opcode),
+                         cqe->flags,
+                         cqe->res,
+                         strerror(cqe->res < 0 ? errno : 0));
             ready_events[ready_count++] = event;
         }
         io_uring_cq_advance(&ring, count);
@@ -230,7 +237,7 @@ bool Iouring::wakeup() {
     return true;
 }
 
-static const char *get_opcode_name(io_uring_op opcode) {
+const char *Iouring::get_opcode_name(io_uring_op opcode) {
     switch (opcode) {
     case IORING_OP_SOCKET:
         return "SOCKET";
@@ -274,6 +281,10 @@ static const char *get_opcode_name(io_uring_op opcode) {
     case IORING_OP_FTRUNCATE:
         return "FTRUNCATE";
 #endif
+    case IORING_OP_POLL_ADD:
+        return "POLL_ADD";
+    case IORING_OP_POLL_REMOVE:
+        return "POLL_REMOVE";
     default:
         return "unknown";
     }
@@ -315,7 +326,7 @@ void Iouring::submit(bool immediately) {
             if (-ret == EAGAIN) {
                 return;
             } else if (-ret == EBUSY) {
-                System::sleep(0.01);
+                usleep(10000);
                 continue;
             } else if (-ret == EINTR) {
                 continue;
@@ -358,7 +369,10 @@ void Iouring::dispatch(IouringEvent *event) {
         return;
     }
 
-    swoole_trace("opcode=%s", get_opcode_name((io_uring_op) event->data.opcode));
+    swoole_trace("opcode=%s, timeout[tv_sec=%ld, tv_nsec=%ld]",
+                 get_opcode_name((io_uring_op) event->data.opcode),
+                 event->timeout.tv_sec,
+                 event->timeout.tv_nsec);
 
     memcpy(sqe, &event->data, sizeof(event->data));
     io_uring_sqe_set_data(sqe, (void *) event);
@@ -819,7 +833,7 @@ int Iouring::poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
     INIT_EVENT(IORING_OP_POLL);
     io_uring_prep_poll_add(&event.data, fds[0].fd, fds[0].events);
-    event.set_timeout(timeout * 1000);
+    event.set_timeout((double) timeout / 1000);
 
     int rc = static_cast<int>(execute(&event));
     if (rc > 0) {

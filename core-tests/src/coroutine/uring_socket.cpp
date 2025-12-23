@@ -25,6 +25,7 @@
 using swoole::Coroutine;
 using swoole::Iouring;
 using swoole::Reactor;
+using swoole::String;
 
 using swoole::coroutine::System;
 using swoole::coroutine::UringSocket;
@@ -441,6 +442,62 @@ TEST(uring_socket, sendfile) {
         data[result] = '\0';
         sock.close();
         ASSERT_GT(result, 0);
+    });
+}
+
+TEST(uring_socket, send_and_recv_all) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+
+        String wbuf;
+        wbuf.append_random_bytes(4 * 1024 * 1024, false);
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        Coroutine::create([&](void *) {
+            UringSocket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            sock.get_socket()->set_send_buffer_size(65536);
+
+            ASSERT_EQ(sock.send_all(wbuf.str, wbuf.length), wbuf.length);
+
+            System::sleep(0.1);
+
+            sock.close();
+        });
+
+        UringSocket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        sock.get_socket()->set_recv_buffer_size(65536);
+
+        String rbuf(wbuf.length);
+        ssize_t result = sock.recv_all(rbuf.str, wbuf.length);
+        ASSERT_EQ(result, wbuf.length);
+        ASSERT_MEMEQ(wbuf.str, rbuf.str, wbuf.length);
+        System::sleep(0.1);
+        sock.close();
+    });
+}
+
+TEST(uring_socket, poll) {
+    SwooleG.trace_flags = SW_TRACE_ALL;
+    swoole_set_log_level(0);
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+
+        String wbuf;
+        wbuf.append_random_bytes(4 * 1024 * 1024, false);
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        UringSocket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        sock.get_socket()->set_recv_buffer_size(65536);
+
+        bool rs;
+
+        rs = sock.poll(SW_EVENT_READ, 0.01);
+        ASSERT_FALSE(rs);
+        ASSERT_EQ(sock.errCode, ETIMEDOUT);
+
+        TEST_WRITE(pairs[0], TEST_STR);
+        rs = sock.poll(SW_EVENT_READ, 0.01);
+        ASSERT_TRUE(rs);
     });
 }
 #endif
