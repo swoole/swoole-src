@@ -38,8 +38,8 @@ struct IouringTimeout {
 };
 
 class Iouring {
-    uint64_t task_num = 0;
-    uint64_t entries = SW_IOURING_QUEUE_SIZE;
+    uint32_t task_num = 0;
+    uint32_t entries = SW_IOURING_QUEUE_SIZE;
     io_uring ring;
     std::queue<IouringEvent *> waiting_tasks;
     network::Socket *ring_socket = nullptr;

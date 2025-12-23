@@ -18,6 +18,9 @@
 
 #include "php_swoole_private.h"
 #include "php_swoole_coroutine.h"
+
+#include "swoole_socket_impl.h"
+#include "swoole_protocol.h"
 #include "swoole_util.h"
 
 #include <string>

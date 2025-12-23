@@ -20,6 +20,8 @@
 #include "php_swoole_private.h"
 #include "php_swoole_coroutine.h"
 
+#include "swoole_socket_impl.h"
+
 #ifdef SW_USE_PGSQL
 
 using swoole::Coroutine;
