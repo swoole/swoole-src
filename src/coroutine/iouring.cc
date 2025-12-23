@@ -201,30 +201,38 @@ bool Iouring::wakeup() {
 
         uint32_t ready_count = 0;
         for (decltype(count) i = 0; i < count; i++) {
-            auto *cqe = cqes[i];
-            auto *event = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
+            auto cqe = cqes[i];
+            auto event = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
             // The user data for the timeout request is -1, this event should be ignored.
             if (event == reinterpret_cast<void *>(TIMEOUT_EVENT)) {
                 swoole_trace(
                     "timeout, cqe.flags=%d, ceq.res=%d, error=`%s`", cqe->flags, cqe->res, strerror(-cqe->res));
                 continue;
             }
-            if (cqe->res < 0) {
-                errno = -(cqe->res);
-                event->result = -1;
-            } else {
-                event->result = cqe->res;
-            }
+
+            event->result = cqe->res;
+            ready_events[ready_count++] = event;
+
             swoole_trace("opcode=%s, cqe.flags=%d, ceq.res=%d, error=`%s`",
                          get_opcode_name((io_uring_op) event->data.opcode),
                          cqe->flags,
                          cqe->res,
                          strerror(cqe->res < 0 ? errno : 0));
-            ready_events[ready_count++] = event;
         }
         io_uring_cq_advance(&ring, count);
 
         for (decltype(ready_count) i = 0; i < ready_count; i++) {
+            auto event = ready_events[i];
+            if (event->result < 0) {
+                errno = -(event->result);
+                /**
+                 * After a timeout, iouring will set errno to `ECANCELED`, but in the async implementation,
+                 * the errno after a timeout is `ETIMEDOUT`.
+                 * To maintain compatibility, numerical conversion is necessary.
+                 */
+                errno = errno == ECANCELED ? ETIMEDOUT : errno;
+                event->result = -1;
+            }
             resume(ready_events[i]);
             if (!is_empty_waiting_tasks()) {
                 waiting_task = waiting_tasks.front();
@@ -810,12 +818,6 @@ pid_t Iouring::waitpid(pid_t _pid, int *stat_loc, int options, double timeout) {
         *stat_loc = siginfo_to_status(&info);
         return info.si_pid;
     }
-    /**
-     * After a timeout, iouring will set errno to `ECANCELED`, but in the async implementation,
-     * the errno after a timeout is `ETIMEDOUT`.
-     * To maintain compatibility, numerical conversion is necessary.
-     */
-    errno = errno == ECANCELED ? ETIMEDOUT : errno;
     return rc;
 }
 
