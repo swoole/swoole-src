@@ -983,7 +983,7 @@ TEST(client, ssl) {
 
     auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
 
-    constexpr off_t offset1 = 87;
+    constexpr off_t offset1 = TEST_WRITEV_OFFSET;
     iovec wr_iov[2];
     wr_iov[0].iov_base = (void *) req.c_str();
     wr_iov[0].iov_len = offset1;
@@ -998,7 +998,7 @@ TEST(client, ssl) {
         sw_tg_buffer()->extend(1024 * 1024);
     }
 
-    constexpr off_t offset2 = 1949;
+    constexpr off_t offset2 = TEST_READV_OFFSET;
     iovec rd_iov[2];
     rd_iov[0].iov_base = sw_tg_buffer()->str;
     rd_iov[0].iov_len = offset2;

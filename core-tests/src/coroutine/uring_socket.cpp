@@ -17,20 +17,24 @@
 #include "test_coroutine.h"
 #include "swoole_uring_socket.h"
 #include "swoole_util.h"
+#include "swoole_file.h"
 
 #include <sys/file.h>
 #include <sys/stat.h>
 
 #ifdef SW_USE_IOURING
 using swoole::Coroutine;
+using swoole::File;
 using swoole::Iouring;
 using swoole::Reactor;
+using swoole::String;
 
 using swoole::coroutine::System;
 using swoole::coroutine::UringSocket;
 using swoole::network::IOVector;
 using swoole::test::coroutine;
 using swoole::test::create_socket_pair;
+using swoole::test::get_jpg_file;
 
 TEST(uring_socket, connect) {
     coroutine::run([](void *arg) {
@@ -128,7 +132,10 @@ TEST(uring_socket, accept) {
 
 TEST(uring_socket, ssl_accept) {
     const int port = __LINE__ + TEST_PORT;
-    auto svr = [port](void *arg) {
+    auto jpg_file = get_jpg_file();
+    File file(jpg_file, File::READ);
+
+    auto svr = [port, &file](void *arg) {
         UringSocket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", port);
         ASSERT_EQ(retval, true);
@@ -150,13 +157,25 @@ TEST(uring_socket, ssl_accept) {
         auto n = conn->recv(rbuf, sizeof(rbuf));
         ASSERT_GT(n, 0);
         rbuf[n] = 0;
-
         ASSERT_STREQ(rbuf, EOF_PACKET_2);
+
+        size_t fsize = file.get_size();
+        char *jpg = new char[fsize];
+        size_t nr = 0;
+
+        while (nr < fsize) {
+            auto ret = conn->recv(jpg + nr, fsize - nr);
+            ASSERT_GT(ret, 0);
+            nr += ret;
+        }
+        auto content = file.read_content();
+        ASSERT_MEMEQ(jpg, content.get()->value(), fsize);
+
         conn->close();
         delete conn;
     };
 
-    auto cli = [port](void *arg) {
+    auto cli = [port, &file](void *arg) {
         UringSocket sock(SW_SOCK_TCP);
         sock.enable_ssl_encrypt();
         bool retval = sock.connect("127.0.0.1", port, -1);
@@ -169,6 +188,8 @@ TEST(uring_socket, ssl_accept) {
         rbuf[n] = 0;
         ASSERT_STREQ(rbuf, EOF_PACKET);
         ASSERT_EQ(sock.send(EOF_PACKET_2, strlen(EOF_PACKET_2)), strlen(EOF_PACKET_2));
+
+        ASSERT_TRUE(sock.sendfile(file.get_path().c_str(), 0, file.get_size()));
 
         sock.close();
     };
@@ -441,6 +462,101 @@ TEST(uring_socket, sendfile) {
         data[result] = '\0';
         sock.close();
         ASSERT_GT(result, 0);
+    });
+}
+
+TEST(uring_socket, send_and_recv_all) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+
+        String wbuf;
+        wbuf.append_random_bytes(4 * 1024 * 1024, false);
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        Coroutine::create([&](void *) {
+            UringSocket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            sock.get_socket()->set_send_buffer_size(65536);
+
+            ASSERT_EQ(sock.send_all(wbuf.str, wbuf.length), wbuf.length);
+
+            System::sleep(0.1);
+
+            sock.close();
+        });
+
+        UringSocket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        sock.get_socket()->set_recv_buffer_size(65536);
+
+        String rbuf(wbuf.length);
+        ssize_t result = sock.recv_all(rbuf.str, wbuf.length);
+        ASSERT_EQ(result, wbuf.length);
+        ASSERT_MEMEQ(wbuf.str, rbuf.str, wbuf.length);
+        System::sleep(0.1);
+        sock.close();
+    });
+}
+
+TEST(uring_socket, poll) {
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+
+        String wbuf;
+        wbuf.append_random_bytes(4 * 1024 * 1024, false);
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        UringSocket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        sock.get_socket()->set_recv_buffer_size(65536);
+
+        bool rs;
+
+        rs = sock.poll(SW_EVENT_READ, 0.01);
+        ASSERT_FALSE(rs);
+        ASSERT_EQ(sock.errCode, ETIMEDOUT);
+
+        TEST_WRITE(pairs[0], TEST_STR);
+        rs = sock.poll(SW_EVENT_READ, 0.01);
+        ASSERT_TRUE(rs);
+    });
+}
+
+TEST(uring_socket, ssl_readv) {
+    coroutine::run([&](void *arg) {
+        UringSocket client(SW_SOCK_TCP);
+        client.enable_ssl_encrypt();
+        client.set_tls_host_name(TEST_HTTP_DOMAIN);
+        ASSERT_TRUE(client.connect(TEST_HTTP_DOMAIN, 443));
+
+        auto req = swoole::test::http_get_request(TEST_HTTP_DOMAIN, "/");
+
+        constexpr off_t offset1 = TEST_WRITEV_OFFSET;
+        iovec wr_iov[2];
+        wr_iov[0].iov_base = (void *) req.c_str();
+        wr_iov[0].iov_len = offset1;
+        wr_iov[1].iov_base = (char *) req.c_str() + offset1;
+        wr_iov[1].iov_len = req.length() - offset1;
+
+        swoole::network::IOVector wr_vec(wr_iov, 2);
+        ASSERT_EQ(client.writev(&wr_vec), req.length());
+
+        sw_tg_buffer()->clear();
+        if (sw_tg_buffer()->size < 1024 * 1024) {
+            sw_tg_buffer()->extend(1024 * 1024);
+        }
+
+        constexpr off_t offset2 = TEST_READV_OFFSET;
+        iovec rd_iov[2];
+        rd_iov[0].iov_base = sw_tg_buffer()->str;
+        rd_iov[0].iov_len = offset2;
+        rd_iov[1].iov_base = sw_tg_buffer()->str + offset2;
+        rd_iov[1].iov_len = sw_tg_buffer()->size - offset2;
+
+        swoole::network::IOVector rd_vec(rd_iov, 2);
+        auto rv = client.readv(&rd_vec);
+        ASSERT_GT(rv, 1024);
+        sw_tg_buffer()->length = rv;
+        sw_tg_buffer()->set_null_terminated();
+
+        ASSERT_TRUE(sw_tg_buffer()->contains(TEST_HTTPS_EXPECT));
     });
 }
 #endif

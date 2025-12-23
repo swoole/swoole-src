@@ -92,12 +92,11 @@ Reactor::Reactor(int max_event, Type _type) {
         break;
     }
 
-    if (!impl->ready()) {
-        running = false;
+    ready_ = impl->ready();
+    if (!ready_) {
         return;
     }
 
-    running = true;
     timeout_msec = -1;
     idle_task = {};
     future_task = {};

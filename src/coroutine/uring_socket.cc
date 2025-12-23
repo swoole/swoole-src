@@ -283,11 +283,18 @@ bool UringSocket::poll(EventType _type, double timeout) {
     if (sw_unlikely(!is_available(_type))) {
         return false;
     }
+
     struct pollfd fds[1];
     fds[0].events = translate_events_to_poll(_type);
     fds[0].fd = socket->get_fd();
     fds[0].revents = 0;
-    return Iouring::poll(fds, 1, timeout * 1000) == 1;
+
+    auto rc = Iouring::poll(fds, 1, timeout > 0 ? timeout * 1000 : timeout) == 1;
+    if (rc != 1) {
+        set_err(rc == 0 ? ETIMEDOUT : errno);
+        return false;
+    }
+    return true;
 }
 
 bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
@@ -628,24 +635,33 @@ ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) 
     while (total < size) {
         ssize_t readn = size > sizeof(buf) ? sizeof(buf) : size;
         ssize_t n = file.pread(buf, readn, *offset);
-        if (n > 0) {
-            ssize_t ret = ssl_send(buf, n);
-            if (ret < 0) {
-                if (socket->catch_write_error(errno) == SW_ERROR) {
-                    swoole_sys_warning("write() failed");
-                }
-            } else {
-                *offset += ret;
-                total += ret;
-            }
-            swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
-        } else {
+        if (n <= 0) {
             swoole_sys_warning("pread() failed");
+            break;
+        }
+
+        ssize_t ret = ssl_send(buf, n);
+        if (ret > 0) {
+            *offset += ret;
+            total += ret;
+            swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
+        } else if (ret == 0) {
             return total;
+        } else {
+            switch (socket->catch_write_error(errno)) {
+            case SW_ERROR:
+                swoole_sys_warning("write() failed");
+                return total;
+            case SW_CLOSE:
+                return total;
+            case SW_WAIT:
+            default:
+                break;
+            }
         }
     }
 
-    return -1;
+    return total;
 }
 };  // namespace coroutine
 };  // namespace swoole

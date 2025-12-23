@@ -91,6 +91,12 @@ class Reactor {
         PRIORITY_TRY_EXIT,
         PRIORITY_MALLOC_TRIM,
         PRIORITY_WORKER_CALLBACK,
+        /**
+         * PRIORITY_IOURING_SUBMIT must be the last one, as other callback functions might allocate new SQEs.
+         * It is essential to ensure that the SQE is submitted before the next event loop iteration and before the
+         * epoll_wait() call.
+         */
+        PRIORITY_IOURING_SUBMIT,
     };
 
     enum ExitCondition {
@@ -113,6 +119,7 @@ class Reactor {
     int native_handle = -1;
     uint32_t max_event_num = 0;
 
+    bool ready_ = false;
     bool running = false;
     bool start = false;
     bool once = false;
@@ -193,6 +200,10 @@ class Reactor {
     void drain_write_buffer(network::Socket *socket);
 
     bool ready() const {
+        return ready_;
+    }
+
+    bool is_running() const {
         return running;
     }
 

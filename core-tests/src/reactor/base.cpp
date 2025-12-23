@@ -34,7 +34,7 @@ TEST(reactor, create) {
 
     ASSERT_EQ(reactor->max_event_num, SW_REACTOR_MAXEVENTS);
 
-    ASSERT_TRUE(reactor->running);
+    ASSERT_TRUE(reactor->ready());
     ASSERT_NE(reactor->write, nullptr);
     ASSERT_NE(reactor->close, nullptr);
     ASSERT_EQ(reactor->defer_tasks, nullptr);
@@ -87,7 +87,7 @@ TEST(reactor, wait) {
     ret = swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
     ASSERT_EQ(ret, SW_OK);
     ASSERT_NE(SwooleTG.reactor, nullptr);
-    ASSERT_TRUE(swoole_event_is_running());
+    ASSERT_TRUE(SwooleTG.reactor->ready());
 
     swoole_event_set_handler(SW_FD_PIPE, SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
         char buffer[16];

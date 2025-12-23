@@ -47,6 +47,9 @@
 #define TEST_LOG_FILE "/tmp/swoole.log"
 #define TEST_SOCK_FILE "/tmp/swoole-core-tests.sock"
 
+#define TEST_WRITEV_OFFSET 87
+#define TEST_READV_OFFSET 1949
+
 #define TEST_COUNTER_NUM 32
 
 #define TEST_REQUEST_BAIDU                                                                                             \
@@ -66,6 +69,8 @@
 #define EXPECT_MEMEQ(x, y, n) EXPECT_EQ(memcmp((x), (y), n), 0)
 #define ASSERT_ERREQ(x) ASSERT_EQ(swoole_get_last_error(), x)
 #define EXPECT_ERREQ(x) EXPECT_EQ(swoole_get_last_error(), x)
+
+#define TEST_WRITE(fd, s) ASSERT_EQ(write(fd, s, strlen(s)), strlen(s))
 
 #define TIMER_PARAMS swoole::Timer *timer, swoole::TimerNode *tnode
 

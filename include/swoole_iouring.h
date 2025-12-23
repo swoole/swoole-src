@@ -45,18 +45,24 @@ class Iouring {
     network::Socket *ring_socket = nullptr;
     Reactor *reactor = nullptr;
 
+    IouringEvent *ready_events[SW_IOURING_QUEUE_SIZE];
+    io_uring_cqe *cqes[SW_IOURING_QUEUE_SIZE];
+
     explicit Iouring(Reactor *reactor_);
     bool ready() const;
-    void submit(IouringEvent *event);
+    void yield(IouringEvent *event);
+    void resume(IouringEvent *event);
     void dispatch(IouringEvent *event);
+    void submit(bool immediately);
     bool wakeup();
 
-    io_uring_sqe *get_sqe() {
+    io_uring_sqe *alloc_sqe() {
         return io_uring_get_sqe(&ring);
     }
 
     static Iouring *get_instance();
     static ssize_t execute(IouringEvent *event);
+    static const char *get_opcode_name(enum io_uring_op opcode);
 
   public:
     ~Iouring();
@@ -77,7 +83,7 @@ class Iouring {
         return ring.sq.ring_entries;
     }
 
-    unsigned int get_sq_used() const {
+    uint32_t get_sq_used() const {
         return get_sq_capacity() - get_sq_space_left();
     }
 
