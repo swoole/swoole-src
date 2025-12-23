@@ -93,20 +93,17 @@ Iouring::Iouring(Reactor *_reactor) {
     int ret =
         io_uring_queue_init(entries, &ring, (SwooleG.iouring_flag == IORING_SETUP_SQPOLL ? IORING_SETUP_SQPOLL : 0));
     if (ret < 0) {
-        swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "Create io_uring failed, the error code is %d", -ret);
+        errno = -ret;
+        swoole_sys_error("Failed to initialize io_uring instance");
         return;
     }
 
     if (SwooleG.iouring_workers > 0) {
         uint32_t workers[2] = {SwooleG.iouring_workers, SwooleG.iouring_workers};
         ret = io_uring_register_iowq_max_workers(&ring, workers);
-
         if (ret < 0) {
-            swoole_error_log(SW_LOG_WARNING,
-                             SW_ERROR_SYSTEM_CALL_FAIL,
-                             "Failed to increase io_uring async workers, the error code is %d",
-                             -ret);
+            errno = -ret;
+            swoole_sys_error("Failed to set the maximum of io_uring async workers");
             return;
         }
     }
@@ -116,17 +113,13 @@ Iouring::Iouring(Reactor *_reactor) {
 
 #ifdef HAVE_IOURING_FUTEX
     if (!(major >= 6 && minor >= 7)) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_OPERATION_NOT_SUPPORT,
-                         "The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
+        swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
     }
 #endif
 
 #ifdef HAVE_IOURING_FTRUNCATE
     if (!(major >= 6 && minor >= 9)) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_OPERATION_NOT_SUPPORT,
-                         "The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
+        swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
     }
 #endif
 
@@ -155,9 +148,11 @@ Iouring::Iouring(Reactor *_reactor) {
         SwooleTG.iouring->submit(true);
     });
 
-    reactor->add(ring_socket, SW_EVENT_READ);
-
     reactor->iouring_interrupt_handler = [this](Reactor *reactor) { wakeup(); };
+
+    if (reactor->add(ring_socket, SW_EVENT_READ) == SW_ERR) {
+        swoole_sys_error("Failed to add io_uring ring fd to the event loop");
+    }
 }
 
 Iouring::~Iouring() {
@@ -350,15 +345,9 @@ void Iouring::submit(bool immediately) {
 Iouring *Iouring::get_instance() {
     if (sw_unlikely(!SwooleTG.iouring)) {
         if (!swoole_event_is_available()) {
-            swoole_warning("no event loop, cannot initialized");
-            throw Exception(SW_ERROR_WRONG_OPERATION);
+            swoole_error("The event loop is unavailable, unable to create io_uring instance.");
         }
-        auto iouring = new Iouring(sw_reactor());
-        if (!iouring->ready()) {
-            delete iouring;
-            return nullptr;
-        }
-        SwooleTG.iouring = iouring;
+        SwooleTG.iouring = new Iouring(sw_reactor());
     }
     return SwooleTG.iouring;
 }

@@ -148,7 +148,7 @@ swoole::Logger *sw_logger();
 
 #define swoole_error(str, ...)                                                                                         \
     do {                                                                                                               \
-        size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);                           \
+        size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(): " str, __SW_FUNC__, ##__VA_ARGS__);     \
         sw_logger()->put(SW_LOG_ERROR, sw_error, _sw_error_len);                                                       \
         swoole_exit(1);                                                                                                \
     } while (0)
