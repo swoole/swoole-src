@@ -130,16 +130,14 @@ void pdo_odbc_error(
 static void odbc_handle_closer(pdo_dbh_t *dbh) {
     pdo_odbc_db_handle *H = (pdo_odbc_db_handle *) dbh->driver_data;
 
-    SQLFreeHandle(SQL_HANDLE_ENV, H->env);
-    H->env = NULL;
-
     if (H->dbc != SQL_NULL_HANDLE) {
         SQLEndTran(SQL_HANDLE_DBC, H->dbc, SQL_ROLLBACK);
         SQLDisconnect(H->dbc);
         SQLFreeHandle(SQL_HANDLE_DBC, H->dbc);
         H->dbc = NULL;
     }
-
+    SQLFreeHandle(SQL_HANDLE_ENV, H->env);
+    H->env = NULL;
     pefree(H, dbh->is_persistent);
     dbh->driver_data = NULL;
 }
