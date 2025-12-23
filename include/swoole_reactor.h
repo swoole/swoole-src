@@ -85,6 +85,7 @@ class Reactor {
 
     enum EndCallback {
         PRIORITY_TIMER = 0,
+        PRIORITY_IOURING_SUBMIT,
         PRIORITY_DEFER_TASK,
         PRIORITY_IDLE_TASK,
         PRIORITY_SIGNAL_CALLBACK,
@@ -113,6 +114,7 @@ class Reactor {
     int native_handle = -1;
     uint32_t max_event_num = 0;
 
+    bool ready_ = false;
     bool running = false;
     bool start = false;
     bool once = false;
@@ -193,6 +195,10 @@ class Reactor {
     void drain_write_buffer(network::Socket *socket);
 
     bool ready() const {
+        return ready_;
+    }
+
+    bool is_running() const {
         return running;
     }
 

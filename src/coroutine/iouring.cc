@@ -52,8 +52,6 @@ namespace swoole {
 //-------------------------------------------------------------------------------
 enum IouringEventFlag {
     SW_URING_TIMEOUT = 1U << 0,
-    SW_URING_DEFER_CALLBACK = 1U << 1,
-    SW_URING_ASYNC_TASK = 1U << 2,
 };
 
 struct IouringEvent {
@@ -150,6 +148,13 @@ Iouring::Iouring(Reactor *_reactor) {
         SwooleTG.iouring = nullptr;
     });
 
+    reactor->set_end_callback(Reactor::PRIORITY_IOURING_SUBMIT, [](Reactor *reactor) {
+        if (!SwooleTG.iouring) {
+            return;
+        }
+        SwooleTG.iouring->submit(true);
+    });
+
     reactor->add(ring_socket, SW_EVENT_READ);
 
     reactor->iouring_interrupt_handler = [this](Reactor *reactor) { wakeup(); };
@@ -174,39 +179,46 @@ bool Iouring::ready() const {
     return ring_socket && reactor->exists(ring_socket);
 }
 
+void Iouring::yield(IouringEvent *event) {
+    ++task_num;
+    // iouring operations cannot be canceled, must wait to be completed.
+    event->coroutine->yield();
+}
+
+void Iouring::resume(IouringEvent *event) {
+    --task_num;
+    event->coroutine->resume();
+}
+
 bool Iouring::wakeup() {
     IouringEvent *waiting_task = nullptr;
-    io_uring_cqe *cqes[SW_IOURING_QUEUE_SIZE];
 
     while (true) {
         auto count = io_uring_peek_batch_cqe(&ring, cqes, SW_IOURING_QUEUE_SIZE);
         if (count == 0) {
-            return true;
+            break;
         }
 
+        uint32_t ready_count = 0;
         for (decltype(count) i = 0; i < count; i++) {
             auto *cqe = cqes[i];
-            auto *task = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
+            auto *event = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
             // The user data for the timeout request is -1, this event should be ignored.
-            if (task == reinterpret_cast<void *>(TIMEOUT_EVENT)) {
-                io_uring_cq_advance(&ring, 1);
+            if (event == reinterpret_cast<void *>(TIMEOUT_EVENT)) {
                 continue;
             }
-
             if (cqe->res < 0) {
                 errno = -(cqe->res);
-                task->result = -1;
+                event->result = -1;
             } else {
-                task->result = cqe->res;
+                event->result = cqe->res;
             }
+            ready_events[ready_count++] = event;
+        }
+        io_uring_cq_advance(&ring, count);
 
-            task_num--;
-            io_uring_cq_advance(&ring, 1);
-
-            if (task->coroutine) {
-                task->coroutine->resume();
-            }
-
+        for (decltype(ready_count) i = 0; i < ready_count; i++) {
+            resume(ready_events[i]);
             if (!is_empty_waiting_tasks()) {
                 waiting_task = waiting_tasks.front();
                 waiting_tasks.pop();
@@ -279,14 +291,30 @@ std::unordered_map<std::string, int> Iouring::list_all_opcode() {
     return opcodes;
 }
 
-void Iouring::submit(IouringEvent *event) {
+void Iouring::submit(bool immediately) {
+    /**
+     * Submit SQEs in batches to reduce the number of system calls.
+     * If the number of SQEs is still less than SW_IOURING_SQE_BATCH_SIZE at the end of this event loop,
+     * it will be automatically submitted at the end of the event loop.
+     */
+    if (!immediately && swoole_event_is_running() && get_sq_used() < SW_IOURING_SQE_BATCH_SIZE) {
+        return;
+    }
+
     do {
+        /**
+         * If the value returned by io_uring_submit() is less than the current length of the SQE queue,
+         * it indicates that only a part of the SQEs has been submitted and needs to be retried after the next event
+         * loop.
+         */
         int ret = io_uring_submit(&ring);
         if (ret < 0) {
-        	if ( -ret == EAGAIN) {
-                waiting_tasks.push(event);
+            /**
+             * Returned EAGAIN error, ignoring this error, will retry on the next submit.
+             */
+            if (-ret == EAGAIN) {
                 return;
-        	} else if (-ret == EBUSY) {
+            } else if (-ret == EBUSY) {
                 System::sleep(0.01);
                 continue;
             } else if (-ret == EINTR) {
@@ -298,8 +326,6 @@ void Iouring::submit(IouringEvent *event) {
         }
         break;
     } while (true);
-
-    task_num ++;
 }
 
 Iouring *Iouring::get_instance() {
@@ -321,16 +347,13 @@ Iouring *Iouring::get_instance() {
 ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();
     iouring->dispatch(event);
-
-    // iouring operations cannot be canceled, must wait to be completed.
-    event->coroutine->yield();
-
+    iouring->yield(event);
     return event->result;
 }
 
 void Iouring::dispatch(IouringEvent *event) {
-    io_uring_sqe *sqe = get_sqe();
-    if (!sqe) {
+    io_uring_sqe *sqe = alloc_sqe();
+    if (sw_unlikely(!sqe)) {
         waiting_tasks.push(event);
         return;
     }
@@ -341,17 +364,18 @@ void Iouring::dispatch(IouringEvent *event) {
     io_uring_sqe_set_data(sqe, (void *) event);
 
     if (event->flags & SW_URING_TIMEOUT) {
-        auto timeout_sqe = get_sqe();
-        if (!timeout_sqe) {
+        auto timeout_sqe = alloc_sqe();
+        if (sw_likely(timeout_sqe)) {
+            memset(timeout_sqe, 0, sizeof(*timeout_sqe));
+            io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(&event->timeout), 0);
+            io_uring_sqe_set_data(timeout_sqe, reinterpret_cast<void *>(TIMEOUT_EVENT));
+            sqe->flags |= IOSQE_IO_LINK;
+        } else {
             swoole_warning("timeout setting failed, the iouring queue[%d] is full", ring.ring_fd);
         }
-        memset(timeout_sqe, 0, sizeof(*timeout_sqe));
-        io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(&event->timeout), 0);
-        io_uring_sqe_set_data(timeout_sqe, reinterpret_cast<void *>(TIMEOUT_EVENT));
-        sqe->flags |= IOSQE_IO_LINK;
     }
 
-    submit(event);
+    submit(false);
 }
 
 #define INIT_EVENT(op)                                                                                                 \
