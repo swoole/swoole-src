@@ -1423,6 +1423,8 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/pdo_sqlite)
+    
     if test "$PHP_NGHTTP2_DIR" = "no"; then
         PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     fi
