@@ -635,24 +635,33 @@ ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) 
     while (total < size) {
         ssize_t readn = size > sizeof(buf) ? sizeof(buf) : size;
         ssize_t n = file.pread(buf, readn, *offset);
-        if (n > 0) {
-            ssize_t ret = ssl_send(buf, n);
-            if (ret < 0) {
-                if (socket->catch_write_error(errno) == SW_ERROR) {
-                    swoole_sys_warning("write() failed");
-                }
-            } else {
-                *offset += ret;
-                total += ret;
-            }
-            swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
-        } else {
+        if (n <= 0) {
             swoole_sys_warning("pread() failed");
+            break;
+        }
+
+        ssize_t ret = ssl_send(buf, n);
+        if (ret > 0) {
+            *offset += ret;
+            total += ret;
+            swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
+        } else if (ret == 0) {
             return total;
+        } else {
+            switch (socket->catch_write_error(errno)) {
+            case SW_ERROR:
+                swoole_sys_warning("write() failed");
+                return total;
+            case SW_CLOSE:
+                return total;
+            case SW_WAIT:
+            default:
+                break;
+            }
         }
     }
 
-    return -1;
+    return total;
 }
 };  // namespace coroutine
 };  // namespace swoole

@@ -17,12 +17,14 @@
 #include "test_coroutine.h"
 #include "swoole_uring_socket.h"
 #include "swoole_util.h"
+#include "swoole_file.h"
 
 #include <sys/file.h>
 #include <sys/stat.h>
 
 #ifdef SW_USE_IOURING
 using swoole::Coroutine;
+using swoole::File;
 using swoole::Iouring;
 using swoole::Reactor;
 using swoole::String;
@@ -32,6 +34,7 @@ using swoole::coroutine::UringSocket;
 using swoole::network::IOVector;
 using swoole::test::coroutine;
 using swoole::test::create_socket_pair;
+using swoole::test::get_jpg_file;
 
 TEST(uring_socket, connect) {
     coroutine::run([](void *arg) {
@@ -129,7 +132,10 @@ TEST(uring_socket, accept) {
 
 TEST(uring_socket, ssl_accept) {
     const int port = __LINE__ + TEST_PORT;
-    auto svr = [port](void *arg) {
+    auto jpg_file = get_jpg_file();
+    File file(jpg_file, File::READ);
+
+    auto svr = [port, &file](void *arg) {
         UringSocket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", port);
         ASSERT_EQ(retval, true);
@@ -151,13 +157,25 @@ TEST(uring_socket, ssl_accept) {
         auto n = conn->recv(rbuf, sizeof(rbuf));
         ASSERT_GT(n, 0);
         rbuf[n] = 0;
-
         ASSERT_STREQ(rbuf, EOF_PACKET_2);
+
+        size_t fsize = file.get_size();
+        char *jpg = new char[fsize];
+        size_t nr = 0;
+
+        while (nr < fsize) {
+            auto ret = conn->recv(jpg + nr, fsize - nr);
+            ASSERT_GT(ret, 0);
+            nr += ret;
+        }
+        auto content = file.read_content();
+        ASSERT_MEMEQ(jpg, content.get()->value(), fsize);
+
         conn->close();
         delete conn;
     };
 
-    auto cli = [port](void *arg) {
+    auto cli = [port, &file](void *arg) {
         UringSocket sock(SW_SOCK_TCP);
         sock.enable_ssl_encrypt();
         bool retval = sock.connect("127.0.0.1", port, -1);
@@ -170,6 +188,8 @@ TEST(uring_socket, ssl_accept) {
         rbuf[n] = 0;
         ASSERT_STREQ(rbuf, EOF_PACKET);
         ASSERT_EQ(sock.send(EOF_PACKET_2, strlen(EOF_PACKET_2)), strlen(EOF_PACKET_2));
+
+        ASSERT_TRUE(sock.sendfile(file.get_path().c_str(), 0, file.get_size()));
 
         sock.close();
     };
