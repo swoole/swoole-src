@@ -1790,10 +1790,6 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         sw_unset_bit(flags, HOOK_MONGODB);
     }
 
-    if ((flags & HOOK_MONGODB) || (flags & HOOK_NET_FUNCTION)) {
-        zend::function::call(R"(swoole_init_default_remote_object_server)", 0, nullptr);
-    }
-
     hook_stream_factory(&flags);
     hook_stream_ops(flags);
     hook_pdo_driver(flags);

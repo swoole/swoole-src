@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 9e494000a6495581a5d59439cf15504c2bbdeaad */
+/* $Id: 54ad6d15fb4330384673e6d6a8317c46d0ca78a3 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -11003,6 +11003,10 @@ static const char* swoole_library_source_functions =
     "     * @var array<string, mixed>\n"
     "     */\n"
     "    public static array $options = [];\n"
+    "\n"
+    "    public static bool $remote_object_server_initiated = false;\n"
+    "\n"
+    "    public static string $remote_object_server_socket_file = '';\n"
     "}\n"
     "\n"
     "/**\n"
@@ -11240,13 +11244,19 @@ static const char* swoole_library_source_functions =
     "\n"
     "function swoole_get_default_remote_object_client(): Swoole\\RemoteObject\\Client\n"
     "{\n"
-    "    $dir = swoole_library_get_option('default_remote_object_server_dir');\n"
-    "    if (empty($dir)) {\n"
-    "        $home = getenv('HOME') ?: sys_get_temp_dir();\n"
-    "        $dir  = $home . '/.swoole';\n"
+    "    if (!SwooleLibrary::$remote_object_server_initiated) {\n"
+    "        SwooleLibrary::$remote_object_server_initiated = true;\n"
+    "        swoole_init_default_remote_object_server();\n"
     "    }\n"
-    "    $socket_file = 'unix://' . $dir . '/remote-object-server.sock';\n"
-    "    return new Swoole\\RemoteObject\\Client($socket_file);\n"
+    "    if (!SwooleLibrary::$remote_object_server_socket_file) {\n"
+    "        $dir = swoole_library_get_option('default_remote_object_server_dir');\n"
+    "        if (empty($dir)) {\n"
+    "            $home = getenv('HOME') ?: sys_get_temp_dir();\n"
+    "            $dir  = $home . '/.swoole';\n"
+    "        }\n"
+    "        SwooleLibrary::$remote_object_server_socket_file = 'unix://' . $dir . '/remote-object-server.sock';\n"
+    "    }\n"
+    "    return new Swoole\\RemoteObject\\Client(SwooleLibrary::$remote_object_server_socket_file);\n"
     "}\n";
 
 static const char* swoole_library_source_alias =
