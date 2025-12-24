@@ -15,14 +15,10 @@
 */
 
 #include "swoole_coroutine_system.h"
-#include "swoole_coroutine_socket.h"
 #include "swoole_lru_cache.h"
 #include "swoole_signal.h"
-
-#ifdef SW_USE_IOURING
 #include "swoole_iouring.h"
-using swoole::Iouring;
-#endif
+#include "swoole_socket_impl.h"
 
 namespace swoole {
 namespace coroutine {
@@ -69,6 +65,9 @@ float System::get_dns_cache_hit_ratio() {
 }
 
 int System::sleep(double sec) {
+#if SW_USE_IOURING
+    return Iouring::sleep(sec);
+#endif
     Coroutine *co = Coroutine::get_current_safe();
     if (sec < SW_TIMER_MIN_SEC) {
         sec = SW_TIMER_MIN_SEC;
@@ -540,7 +539,7 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
         return false;
     }
 
-    Socket socket(fd, SW_SOCK_UNIX_STREAM);
+    SocketImpl socket(fd, SW_SOCK_UNIX_STREAM);
     while (true) {
         ssize_t retval = socket.read(buffer->str + buffer->length, buffer->size - buffer->length);
         if (retval > 0) {

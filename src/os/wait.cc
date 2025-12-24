@@ -18,6 +18,7 @@
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_api.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_iouring.h"
 #include "swoole_signal.h"
 
 #include <list>
@@ -97,6 +98,10 @@ pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
         return ::waitpid(_pid, _stat_loc, _options);
     }
 
+#if SW_USE_IOURING
+    return Iouring::waitpid(_pid, _stat_loc, _options);
+#endif
+
     pid_t retval = -1;
     wait_for([_pid, &retval, _stat_loc]() -> bool {
         retval = ::waitpid(_pid, _stat_loc, WNOHANG);
@@ -110,6 +115,9 @@ pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
  * @error: errno & swoole_get_last_error()
  */
 pid_t System::waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout) {
+#if SW_USE_IOURING
+    return Iouring::waitpid(_pid, _stat_loc, _options, timeout);
+#endif
     if (_pid < 0) {
         if (!child_processes.empty()) {
             auto i = child_processes.begin();
