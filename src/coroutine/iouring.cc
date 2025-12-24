@@ -195,7 +195,7 @@ bool Iouring::wakeup() {
         }
 
         uint32_t ready_count = 0;
-        for (decltype(count) i = 0; i < count; i++) {
+        SW_LOOP_N(count) {
             auto cqe = cqes[i];
             auto event = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
             // The user data for the timeout request is -1, this event should be ignored.
@@ -216,7 +216,22 @@ bool Iouring::wakeup() {
         }
         io_uring_cq_advance(&ring, count);
 
-        for (decltype(ready_count) i = 0; i < ready_count; i++) {
+        /**
+         * After the harvest is completed, the operating system's unprocessed task queue is reduced.
+         * Before resuming the coroutine ready for IO, it should extract the queued SQE to the SQEs queue for processing
+         * by the operating system. This can achieve a relatively good balance. If the submission is made after resuming
+         * the coroutine, the kernel may become idle.
+         */
+        SW_LOOP_N(ready_count) {
+            if (get_sq_space_left() == 0 || is_empty_waiting_tasks()) {
+                break;
+            }
+            waiting_task = waiting_tasks.front();
+            waiting_tasks.pop();
+            dispatch(waiting_task);
+        }
+
+        SW_LOOP_N(ready_count) {
             auto event = ready_events[i];
             if (event->result < 0) {
                 errno = -(event->result);
@@ -229,11 +244,6 @@ bool Iouring::wakeup() {
                 event->result = -1;
             }
             resume(ready_events[i]);
-            if (!is_empty_waiting_tasks()) {
-                waiting_task = waiting_tasks.front();
-                waiting_tasks.pop();
-                dispatch(waiting_task);
-            }
         }
     }
 
