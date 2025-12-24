@@ -414,10 +414,11 @@ void php_swoole_runtime_rshutdown() {
     void *ptr;
     ZEND_HASH_FOREACH_PTR(hook_function_table, ptr) {
         auto *rf = static_cast<PhpFunc *>(ptr);
-        // php library function
         if (rf->fci_cache) {
-            zval_dtor(&rf->name);
             sw_callable_free(rf->fci_cache);
+        }
+        if (Z_TYPE(rf->name) == IS_STRING) {
+            zval_dtor(&rf->name);
         }
         if (rf->arg_info_copy) {
             free_arg_info(&rf->function->internal_function, rf->arg_info_copy);
@@ -2197,10 +2198,9 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
 
         ZVAL_STRINGL(&rf->name, func, fn_str->len + 7);
         auto fci_cache = sw_callable_create(&rf->name);
-        if (!fci_cache) {
-            return;
+        if (fci_cache) {
+            rf->fci_cache = fci_cache;
         }
-        rf->fci_cache = fci_cache;
     }
 
     zend_hash_add_ptr(hook_function_table, fn_str, rf);
@@ -2374,7 +2374,7 @@ static PHP_FUNCTION(swoole_user_func_handler) {
     }
 
     auto *rf = static_cast<PhpFunc *>(zend_hash_find_ptr(hook_function_table, fn_str));
-    if (!rf) {
+    if (!rf || !rf->fci_cache) {
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_UNDEFINED_BEHAVIOR, "%s func not exists", fn_str->val);
         return;
     }
