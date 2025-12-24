@@ -164,6 +164,15 @@ static void hook_func(const char *name,
                       zend_internal_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
 
+static bool extension_loaded(const char *name) {
+    zend_string *extension_name = zend_string_init(name, strlen(name), false);
+    zend_string *lcname = zend_string_tolower(extension_name);
+    bool rv = zend_hash_exists(&module_registry, lcname);
+    zend_string_release(lcname);
+    zend_string_release(extension_name);
+    return rv;
+}
+
 static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
     auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
@@ -1718,6 +1727,10 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
 
     if (swoole_isset_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
         swoole_call_hook((swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
+    }
+
+    if (!extension_loaded("sockets")) {
+        sw_unset_bit(flags, HOOK_SOCKETS);
     }
 
     hook_stream_factory(&flags);
