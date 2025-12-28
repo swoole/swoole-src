@@ -49,8 +49,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2025-12-21</date>
-    <time>18:00:00</time>
+    <date>2025-12-28</date>
+    <time>19:00:00</time>
     <version>
         <release>6.1.6</release>
         <api>6.0</api>
@@ -1555,6 +1555,8 @@
             <file role="test" name="tests/swoole_http_client_coro/websocket/bug_01.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/bug_02.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/close_socket.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/websocket/continue_frame_finish_flag.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/websocket/continue_frame_finish_flag2.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/continue_frames.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/continue_frames2.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/continue_frames3.phpt" />
