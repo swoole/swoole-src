@@ -52,7 +52,7 @@
     <date>2025-12-21</date>
     <time>18:00:00</time>
     <version>
-        <release>6.1.5</release>
+        <release>6.1.6</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,14 +61,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed a crash issue when users manually suspend coroutines in a multithreaded environment
-        - Fixed the issue where the `System::socket_poll()` function incorrectly closed sockets after failing to add events
-        - Fixed decompression failure in `WebSocket` when compressing message frames, caused by certain server environments not supporting `MAX_MEM_LEVEL=9`
-        - Fixed data reception errors in `WebSocket` when receiving consecutive compressed data frames, caused by the buffer not being cleared in time
-        - Fixed the `data race` issue in the `pdo_oci` coroutine client when processing non-`PDO_PARAM_LOB` data
-        - In `Http Server`, when developers set the `Content-Encoding` header, `Swoole` will no longer automatically compress the response body. Instead, developers need to implement compression logic themselves and output the corresponding content.
-        - Removed the `PDO::sqliteCreateAggregate()`, `PDO::sqliteCreateCollation()`, and `PDO::sqliteCreateFunction()` functions in the coroutine environment. Their implementation principle involves calling PHP functions as callbacks in the `sqlite3` engine, which is only feasible in single-threaded synchronous blocking mode. In `Swoole` coroutine mode, the `C` functions of `sqlite3` need to run in asynchronous `AIO` threads. In the `ZTS` version, this can cause null pointer reads, while in the `NTS` version, it may lead to `data race` issues and occasional crashes.
-        - Removed support for the `open_basedir` setting in the `pdo_sqlite` coroutine client. It is unsafe to read `PG(open_basedir)` in a multithreaded environment. Ensure that the `sqlite3` database file path is a constant or other safe path. Do not use user input parameters as part of the `sqlite` database file path.
+        - Fix the issue where the `finish` attribute remains `false` when receiving continuous frames in `websocket`.
+        - Fix compilation warnings generated when using the `--enable-swoole-sqlite` compilation option.
+        - Automatically remove HOOK_SOCKETS from the runtime hook flags when the ext-sockets extension is detected as not enabled.
     </notes>
     <contents>
         <dir name="/">
