@@ -345,14 +345,14 @@ TEST(iouring, sleep) {
     coroutine::run([](void *arg) {
         {
             auto begin = swoole::microtime();
-            Iouring::sleep(1, 200 * SW_NUM_MILLION);
+            ASSERT_EQ(Iouring::sleep(1, 200 * SW_NUM_MILLION), 0);
             auto end = swoole::microtime();
             ASSERT_GE(end - begin, 1.2);
         }
 
         {
             auto begin = swoole::microtime();
-            Iouring::sleep(0, 300 * SW_NUM_MILLION);
+            ASSERT_EQ(Iouring::sleep(0, 300 * SW_NUM_MILLION), 0);
             auto end = swoole::microtime();
             ASSERT_GE(end - begin, 0.3);
         }

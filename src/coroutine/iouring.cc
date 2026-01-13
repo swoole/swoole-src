@@ -268,6 +268,16 @@ const char *Iouring::get_opcode_name(io_uring_op opcode) {
         return "SEND";
     case IORING_OP_RECV:
         return "RECV";
+    case IORING_OP_READV:
+        return "READV";
+    case IORING_OP_WRITEV:
+        return "WRITEV";
+    case IORING_OP_SENDMSG:
+        return "SENDMSG";
+    case IORING_OP_RECVMSG:
+        return "RECVMSG";
+    case IORING_OP_SHUTDOWN:
+        return "SHUTDOWN";
     case IORING_OP_CLOSE:
         return "CLOSE";
     case IORING_OP_STATX:
@@ -453,7 +463,8 @@ int Iouring::sleep(int tv_sec, int tv_nsec, int flags) {
 
     INIT_EVENT(IORING_OP_TIMEOUT);
     io_uring_prep_timeout(&event.data, &ts, 0, flags);
-    return static_cast<int>(execute(&event));
+    execute(&event);
+    return errno == ETIME ? SW_OK : SW_ERR;
 }
 
 int Iouring::accept(int fd, struct sockaddr *addr, socklen_t *len, int flags, double timeout) {
@@ -620,6 +631,12 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
 
     return ret;
 #endif
+}
+
+int Iouring::shutdown(int fd, int how) {
+    INIT_EVENT(IORING_OP_SHUTDOWN);
+    io_uring_prep_shutdown(&event.data, fd, how);
+    return static_cast<int>(execute(&event));
 }
 
 int Iouring::close(int fd) {

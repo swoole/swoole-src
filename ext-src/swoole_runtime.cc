@@ -2197,10 +2197,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         memcpy(func + 7, fn_str->val, fn_str->len);
 
         ZVAL_STRINGL(&rf->name, func, fn_str->len + 7);
-        auto fci_cache = sw_callable_create(&rf->name);
-        if (fci_cache) {
-            rf->fci_cache = fci_cache;
-        }
+        rf->fci_cache = sw_callable_create(&rf->name);
     }
 
     zend_hash_add_ptr(hook_function_table, fn_str, rf);

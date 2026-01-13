@@ -87,6 +87,10 @@ class Iouring {
         return get_sq_capacity() - get_sq_space_left();
     }
 
+    size_t get_waiting_task_num() const {
+        return waiting_tasks.size();
+    }
+
     float get_sq_usage_percent() const {
         return (float) get_sq_used() / get_sq_capacity() * 100.0f;
     }
@@ -109,7 +113,7 @@ class Iouring {
     static ssize_t recvfrom(int fd, void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen, double timeout = -1);
     static ssize_t readv(int fd, const struct iovec *iovec, int count, double timeout = -1);
     static ssize_t writev(int fd, const struct iovec *iovec, int count, double timeout = -1);
-
+    static int shutdown(int fd, int how);
     static int close(int fd);
     static ssize_t read(int fd, void *buf, size_t size, double timeout = -1);
     static ssize_t write(int fd, const void *buf, size_t size, double timeout = -1);

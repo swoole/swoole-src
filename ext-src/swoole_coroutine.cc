@@ -23,6 +23,7 @@
 #include "swoole_server.h"
 #include "swoole_signal.h"
 #include "swoole_async.h"
+#include "swoole_iouring.h"
 
 BEGIN_EXTERN_C()
 #include "zend_builtin_functions.h"
@@ -1154,6 +1155,15 @@ static PHP_METHOD(swoole_coroutine, stats) {
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), Coroutine::get_peak_num());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_last_cid"), Coroutine::get_last_cid());
+
+#ifdef SW_USE_IOURING
+    auto iouring = SwooleTG.iouring;
+    if (iouring) {
+        add_assoc_long_ex(return_value, ZEND_STRL("iouring_task_num"), iouring->get_task_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("iouring_sq_usage_percent"), iouring->get_sq_usage_percent());
+        add_assoc_long_ex(return_value, ZEND_STRL("iouring_waiting_task_num"), iouring->get_waiting_task_num());
+    }
+#endif
 }
 
 PHP_METHOD(swoole_coroutine, getCid) {
