@@ -394,32 +394,55 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         if (n <= 0) {
             return SW_OK;
         }
-        if (resp->info.type == SW_SERVER_EVENT_INCOMING) {
+        switch (resp->info.type) {
+        case SW_SERVER_EVENT_INCOMING: {
             Connection *conn = serv->get_connection_verify_no_ssl(resp->info.fd);
             if (conn && serv->connection_incoming(reactor, conn) < 0) {
                 reactor->close(reactor, conn->socket);
             }
-        } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
+            break;
+        }
+        case SW_SERVER_EVENT_COMMAND_REQUEST: {
             serv->call_command_handler(thread->message_bus, thread->id, thread->pipe_command);
-        } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_RESPONSE) {
+            break;
+        }
+        case SW_SERVER_EVENT_COMMAND_RESPONSE: {
             auto packet = thread->message_bus.get_packet();
             serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
-        } else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
+            break;
+        }
+        case SW_SERVER_EVENT_SHUTDOWN: {
             thread->shutdown(reactor);
-        } else if (resp->info.type == SW_SERVER_EVENT_FINISH) {
+            break;
+        }
+        case SW_SERVER_EVENT_SHUTDOWN_SIGNAL: {
+            swoole_kill(getpid(), SIGTERM);
+            break;
+        }
+        case SW_SERVER_EVENT_FINISH: {
             serv->onFinish(serv, reinterpret_cast<EventData *>(resp));
-        } else if (resp->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
+            break;
+        }
+        case SW_SERVER_EVENT_PIPE_MESSAGE: {
             serv->onPipeMessage(serv, reinterpret_cast<EventData *>(resp));
-        } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
+            break;
+        }
+        case SW_SERVER_EVENT_CLOSE_FORCE: {
             thread->close_connection(reactor, resp->info.fd);
-        } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORWARD) {
+            break;
+        }
+        case SW_SERVER_EVENT_CLOSE_FORWARD: {
             serv->factory_->end(resp->info.fd, Server::CLOSE_ACTIVELY);
-        } else {
+            break;
+        }
+        default: {
             PacketPtr packet = thread->message_bus.get_packet();
             _send.info = resp->info;
             _send.info.len = packet.length;
             _send.data = packet.data;
             serv->send_to_connection(&_send);
+            break;
+        }
         }
         thread->message_bus.pop();
     }

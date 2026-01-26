@@ -921,17 +921,29 @@ bool Server::shutdown() {
         return true;
     }
 
-    pid_t pid;
-    if (is_base_mode()) {
-        pid = get_manager_pid() == 0 ? get_master_pid() : get_manager_pid();
+    if (is_process_mode()) {
+        /**
+         * The working process may be using a non-root user, and it will not be possible to send a signal to the master
+         * process. A shutdown command must be sent via a pipe.
+         */
+        SendData _send{};
+        _send.info.type = SW_SERVER_EVENT_SHUTDOWN_SIGNAL;
+        if (is_process_mode()) {
+            return get_reactor_pipe_socket(0, 0)->send_async(&_send, sizeof(_send)) > 0;
+        }
     } else {
-        pid = get_master_pid();
-    }
+        pid_t pid;
+        if (is_base_mode()) {
+            pid = get_manager_pid() == 0 ? get_master_pid() : get_manager_pid();
+        } else {
+            pid = get_master_pid();
+        }
 
-    if (swoole_kill(pid, SIGTERM) < 0) {
-        swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "failed to shutdown, kill(%d, SIGTERM) failed", pid);
-        return false;
+        if (swoole_kill(pid, SIGTERM) < 0) {
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "failed to shutdown, kill(%d, SIGTERM) failed", pid);
+            return false;
+        }
     }
 
     return true;
