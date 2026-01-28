@@ -42,6 +42,7 @@ extern const pdo_driver_t swoole_pdo_pgsql_driver;
 #include <libpq/libpq-fs.h>
 
 void swoole_pgsql_set_blocking(bool blocking);
+void swoole_libpq_version(char *buf, size_t len);
 
 PGconn *swoole_pgsql_connectdb(const char *conninfo);
 PGresult *swoole_pgsql_prepare(PGconn *conn, const char *stmt_name, const char *query, int n_params, const Oid *param_types);

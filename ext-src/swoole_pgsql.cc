@@ -31,6 +31,20 @@ using swoole::coroutine::Socket;
 
 static bool swoole_pgsql_blocking = true;
 
+void swoole_libpq_version(char *buf, size_t len)
+{
+    int version = PQlibVersion();
+    int major = version / 10000;
+    if (major >= 10) {
+        int minor = version % 10000;
+        snprintf(buf, len, "%d.%d", major, minor);
+    } else {
+        int minor = version / 100 % 100;
+        int revision = version % 100;
+        snprintf(buf, len, "%d.%d.%d", major, minor, revision);
+    }
+}
+
 static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, double timeout = -1, bool check_nonblock = false) {
     if (swoole_pgsql_blocking) {
         struct pollfd fds[1];
