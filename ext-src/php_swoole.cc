@@ -78,6 +78,10 @@ END_EXTERN_C()
 #include <ares.h>
 #endif
 
+#ifdef SW_USE_PGSQL
+extern void swoole_libpq_version(char *buf, size_t len);
+#endif
+
 using swoole::Coroutine;
 using swoole::Server;
 using swoole::network::Socket;
@@ -1187,6 +1191,9 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "tcmalloc", "enabled");
 #endif
 #ifdef SW_USE_PGSQL
+    char libpq_version[16];
+    swoole_libpq_version(libpq_version, sizeof(libpq_version));
+    php_info_print_table_row(2, "postgresql(libpq) version", libpq_version);
     php_info_print_table_row(2, "coroutine_pgsql", "enabled");
 #endif
 #ifdef SW_USE_ODBC
