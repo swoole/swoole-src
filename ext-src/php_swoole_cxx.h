@@ -81,6 +81,7 @@
     _(SW_ZEND_STR_REQUEST_TIME,             "request_time")  \
     _(SW_ZEND_STR_REQUEST_TIME_FLOAT,       "request_time_float")  \
     _(SW_ZEND_STR_SERVER_PROTOCOL,          "server_protocol")  \
+    _(SW_ZEND_STR_SERVER_ADDR,              "server_addr")  \
     _(SW_ZEND_STR_SERVER_PORT,              "server_port")  \
     _(SW_ZEND_STR_REMOTE_PORT,              "remote_port")  \
     _(SW_ZEND_STR_REMOTE_ADDR,              "remote_addr")  \
