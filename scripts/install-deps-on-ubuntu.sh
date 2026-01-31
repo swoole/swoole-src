@@ -12,7 +12,8 @@ apt install -y cmake make gcc g++ \
     unixodbc-dev \
     firebird-dev \
     libzstd-dev \
-    libssh2-1-dev
+    libssh2-1-dev \
+    iproute2
 
 # The built-in liburing version of Ubuntu is 0.7, which is too low. We must install liburing through the source code
 # liburing-dev

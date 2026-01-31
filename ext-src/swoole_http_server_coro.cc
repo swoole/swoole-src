@@ -543,6 +543,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     }
     zend::array_set(&hs->zclients, co->get_cid(), zconn);
     auto remote_addr = zend::Variable(sock->get_addr());
+    int remote_port = sock->get_port();
+
+    sock->get_socket()->get_name();
+    auto server_addr = zend::Variable(sock->get_socket()->get_addr());
+    int server_port = hs->socket->get_port();
 
     while (true) {
     _recv_request : {
@@ -620,6 +625,21 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
         }
 
+        zval *zserver = ctx->request.zserver;
+        HashTable *ht = Z_ARRVAL_P(zserver);
+
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (zend_long) time(nullptr));
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
+
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), remote_addr.ptr());
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) remote_port);
+
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), server_addr.ptr());
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), (zend_long) server_port);
+
+        remote_addr.add_ref();
+        server_addr.add_ref();
+
         if (ctx->parser.error == HPE_PAUSED_H2_UPGRADE && buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
             memcmp(buffer->str, SW_HTTP2_PRI_STRING, sizeof(SW_HTTP2_PRI_STRING) - 1) == 0) {
             buffer->offset = (sizeof(SW_HTTP2_PRI_STRING) - 1);
@@ -629,15 +649,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             break;
         }
 
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11));
         zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
-
-        zval *zserver = ctx->request.zserver;
-        http_server_add_server_array(
-            Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), (zend_long) hs->socket->get_port());
-        http_server_add_server_array(
-            Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) sock->get_port());
-        http_server_add_server_array(Z_ARRVAL_P(zserver), SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), remote_addr.ptr());
-        remote_addr.add_ref();
 
         zend::Callable *cb = hs->get_handler(ctx);
         zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
@@ -695,17 +708,21 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
                                    const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
+    zval *zserver_http2 = ctx->request.zserver;
+    zval *zserver_http1 = session->default_ctx->request.zserver;
+
+    zend_string *key;
+    zval *zvalue;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zserver_http1), key, zvalue) {
+        http_server_add_server_array(Z_ARRVAL_P(zserver_http2), key, zvalue);
+        if (ZVAL_IS_STRING(zvalue)) {
+            Z_TRY_ADDREF_P(zvalue);
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    http_server_add_server_array(Z_ARRVAL_P(zserver_http2), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP2));
+
     const auto *hs = static_cast<HttpServer *>(session->private_data);
-    const auto *sock = ctx->get_co_socket();
-    zval *zserver = ctx->request.zserver;
-
-    add_assoc_long(zserver, "request_time", time(nullptr));
-    add_assoc_double(zserver, "request_time_float", microtime());
-    add_assoc_long(zserver, "server_port", hs->socket->get_port());
-    add_assoc_long(zserver, "remote_port", sock->get_port());
-    add_assoc_string(zserver, "remote_addr", sock->get_addr());
-    add_assoc_string(zserver, "server_protocol", "HTTP/2");
-
     zend::Callable *cb = hs->get_handler(ctx);
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
 

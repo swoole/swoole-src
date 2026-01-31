@@ -37,6 +37,7 @@ zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
 static SW_THREAD_LOCAL std::queue<HttpContext *> queued_http_contexts;
+static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> server_ips;
 static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
@@ -120,7 +121,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         Connection *serv_sock = serv->get_connection(conn->server_fd);
         HashTable *ht = Z_ARR_P(zserver);
 
-        if (serv_sock) {
+        if (sw_likely(serv_sock)) {
             http_server_add_server_array(
                 ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), (zend_long) serv_sock->info.get_port());
         }
@@ -128,17 +129,14 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
         if (conn->info.is_loopback_addr()) {
             auto key = conn->info.type == SW_SOCK_TCP6 ? SW_ZEND_STR_ADDR_LOOPBACK_V6 : SW_ZEND_STR_ADDR_LOOPBACK_V4;
+            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), SW_ZSTR_KNOWN(key));
             http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(key));
         } else {
             if (serv->is_base_mode() && ctx->keepalive) {
-                auto iter = client_ips.find(session_id);
-                if (iter == client_ips.end()) {
-                    auto rs = client_ips.emplace(session_id, conn->info.get_addr());
-                    iter = rs.first;
-                }
-                iter->second.add_ref();
-                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), iter->second.ptr());
+                http_server_session_track_ip(ht, conn, session_id, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), server_ips);
+                http_server_session_track_ip(ht, conn, session_id, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), client_ips);
             } else {
+                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), conn->socket->get_addr());
                 http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_addr());
             }
         }
@@ -185,7 +183,10 @@ _dtor_and_return:
 }
 
 void php_swoole_http_server_onClose(Server *serv, DataHead *info) {
-    client_ips.erase(info->fd);
+    if (serv->is_base_mode()) {
+        server_ips.erase(info->fd);
+        client_ips.erase(info->fd);
+    }
     php_swoole_server_onClose(serv, info);
 }
 
@@ -210,6 +211,7 @@ void php_swoole_http_server_rshutdown() {
         SG(rfc1867_uploaded_files) = nullptr;
     }
 
+    server_ips.clear();
     client_ips.clear();
     while (!queued_http_contexts.empty()) {
         HttpContext *ctx = queued_http_contexts.front();

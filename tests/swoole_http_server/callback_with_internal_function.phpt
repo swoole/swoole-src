@@ -41,7 +41,7 @@ object(Swoole\Http\Request)#%d (%d) {
     string(%d) "%s"
   }
   ["server"]=>
-  array(10) {
+  array(11) {
     ["request_method"]=>
     string(3) "GET"
     ["request_uri"]=>
@@ -58,6 +58,8 @@ object(Swoole\Http\Request)#%d (%d) {
     int(%d)
     ["remote_port"]=>
     int(%d)
+    ["server_addr"]=>
+    string(9) "127.0.0.1"
     ["remote_addr"]=>
     string(9) "127.0.0.1"
     ["master_time"]=>

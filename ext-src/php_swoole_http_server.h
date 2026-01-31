@@ -85,3 +85,31 @@ static inline void http_server_set_object_fd_property(zend_object *object, const
     auto property = OBJ_PROP(object, property_info->offset);
     ZVAL_LONG(property, fd);
 }
+
+/**
+ * When calculating the server-side IP and client-side IP, since these two calculations
+ * share the same memory block, they cannot be performed simultaneously; otherwise,
+ * both results would be identical. Therefore, it is necessary to first calculate the client-side IP,
+ * write it to the cache, and then proceed to calculate the server-side IP.
+ */
+static void http_server_session_track_ip(HashTable *ht,
+                                    swoole::Connection *conn,
+                                    swoole::SessionId session_id,
+                                    zend_string *known_string,
+                                    std::unordered_map<swoole::SessionId, zend::Variable> &ips) {
+    auto iter = ips.find(session_id);
+    if (iter == ips.end()) {
+        const char* address = nullptr;
+        if (known_string == SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR)) {
+            address = conn->socket->get_addr();
+        } else {
+            address = conn->info.get_addr();
+        }
+
+        auto rs = ips.emplace(session_id, address);
+        iter = rs.first;
+    }
+
+    iter->second.add_ref();
+    http_server_add_server_array(ht, known_string, iter->second.ptr());
+}
