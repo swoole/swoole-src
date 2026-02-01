@@ -644,7 +644,7 @@ bool async(const std::function<void()> &fn) {
 }
 
 bool wait_for(const std::function<bool(void)> &fn) {
-    double second = 0.001;
+    double second = SW_FILE_LOCK_DEFAULT_SECOND;
     while (true) {
         if (fn()) {
             break;
@@ -652,7 +652,10 @@ bool wait_for(const std::function<bool(void)> &fn) {
         if (System::sleep(second) != SW_OK) {
             return false;
         }
-        second *= 2;
+        // Limit the maximum waiting time to 0.1 second; otherwise, this exponential time waiting
+        // will make it increasingly difficult to acquire the lock.
+        second = (second >= SW_FILE_LOCK_MAX_SECOND) ? SW_FILE_LOCK_DEFAULT_SECOND
+                                                     : SW_MIN(second * 2, SW_FILE_LOCK_MAX_SECOND);
     }
     return true;
 }

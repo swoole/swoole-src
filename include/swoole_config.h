@@ -137,6 +137,8 @@
 #define SW_SSL_ECDH_CURVE "auto"
 
 #define SW_SPINLOCK_LOOP_N 1024
+#define SW_FILE_LOCK_DEFAULT_SECOND 0.001
+#define SW_FILE_LOCK_MAX_SECOND 0.1
 
 #define SW_SIGNO_MAX 128
 #define SW_UNREGISTERED_SIGNAL_FMT "Unable to find callback function for signal %s"
