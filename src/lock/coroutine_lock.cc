@@ -85,7 +85,7 @@ int CoroutineLock::lock_impl(bool blocking) {
 
     int result = 0;
 #ifndef HAVE_IOURING_FUTEX
-    double second = 0.001;
+    double second = SW_FILE_LOCK_DEFAULT_SECOND;
 #endif
 
     while (true) {
@@ -106,7 +106,10 @@ int CoroutineLock::lock_impl(bool blocking) {
         if (System::sleep(second) != SW_OK) {
             return SW_ERROR_CO_CANCELED;
         }
-        second *= 2;
+        // Limit the maximum waiting time to 0.1 second; otherwise, this exponential time waiting
+        // will make it increasingly difficult to acquire the lock.
+        second = (second >= SW_FILE_LOCK_MAX_SECOND) ? SW_FILE_LOCK_DEFAULT_SECOND
+                                                     : SW_MIN(second * 2, SW_FILE_LOCK_MAX_SECOND);
 #endif
     }
 
