@@ -23,12 +23,8 @@
         "description": "Enable sockets support"
       },
       {
-        "name": "enable-openssl",
-        "description": "Enable openssl support"
-      },
-      {
         "name": "with-openssl-dir",
-        "description": "Include OpenSSL support (requires OpenSSL >= 1.0.2)",
+        "description": "Include OpenSSL support (requires OpenSSL >= 1.1.0)",
         "needs-value": true
       },
       {
@@ -71,12 +67,30 @@
         "description": "Enable Sqlite database support"
       },
       {
+        "name": "with-swoole-firebird",
+        "description": "Enable Firebird database support",
+        "needs-value": true
+      },
+      {
         "name": "enable-swoole-thread",
         "description": "Enable swoole thread support (need php zts support)"
       },
       {
         "name": "enable-iouring",
         "description": "Enable iouring for file async support"
+      },
+      {
+        "name": "enable-uring-socket",
+        "description": "Enable iouring for http coroutine server support"
+      },
+      {
+        "name": "with-swoole-ssh2",
+        "description": "Enable async ssh2 client support",
+        "needs-value": true
+      },
+      {
+        "name": "enable-swoole-ftp",
+        "description": "Enable async ssh2 client support"
       },
       {
         "name": "enable-zstd",
