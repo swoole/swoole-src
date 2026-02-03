@@ -2834,17 +2834,22 @@
     <providesextension>swoole</providesextension>
     <extsrcrelease>
         <configureoption default="no" name="enable-sockets" prompt="enable sockets support?"/>
-        <configureoption default="no" name="enable-openssl" prompt="enable openssl support?"/>
+        <configureoption default="no" name="with-openssl-dir" prompt="include OpenSSL support (requires OpenSSL >= 1.1.0)"/>
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?"/>
         <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>
         <configureoption default="no" name="enable-cares" prompt="enable cares support?"/>
         <configureoption default="yes" name="enable-brotli" prompt="enable brotli support?"/>
+        <configureoption default="yes" name="with-brotli-dir" prompt="include Brotli support?"/>
         <configureoption default="no" name="enable-zstd" prompt="enable zstd support?"/>
         <configureoption default="no" name="enable-swoole-pgsql" prompt="enable PostgreSQL database support?"/>
         <configureoption default="no" name="with-swoole-odbc" prompt="enable ODBC database support?"/>
         <configureoption default="no" name="with-swoole-oracle" prompt="enable Oracle database support?"/>
         <configureoption default="no" name="enable-swoole-sqlite" prompt="enable Sqlite database support?"/>
+        <configureoption default="no" name="with-swoole-firebird" prompt="enable Firebird database support?"/>
         <configureoption default="no" name="enable-swoole-thread" prompt="enable swoole thread support (need php zts support)?"/>
         <configureoption default="no" name="enable-iouring" prompt="enable iouring for file async support?"/>
+        <configureoption default="no" name="enable-uring-socket" prompt="enable iouring for http coroutine server support?"/>
+        <configureoption default="no" name="with-swoole-ssh2" prompt="enable async ssh2 client support?"/>
+        <configureoption default="no" name="enable-swoole-ftp" prompt="enable async ftp client support?"/>
     </extsrcrelease>
 </package>
