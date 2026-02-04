@@ -206,10 +206,17 @@ PHP_FUNCTION(swoole_native_curl_multi_select) {
         RETURN_FALSE;
     }
 
+#if PHP_VERSION_ID >= 80500
+    if (!(timeout >= 0.0 && timeout <= (INT_MAX / 1000.0))) {
+        zend_argument_value_error(2, "must be between 0 and %f", INT_MAX / 1000.0);
+        RETURN_THROWS();
+    }
+#else
     if (!(timeout >= 0.0 && timeout <= ((double) INT_MAX / 1000.0))) {
         zend_argument_value_error(2, "must be between 0 and %d", (int) ceilf((double) INT_MAX / 1000));
         RETURN_THROWS();
     }
+#endif
 
     RETURN_LONG(mh->multi->select(mh, timeout));
 }
@@ -405,15 +412,20 @@ static int _php_server_push_callback(
         handle->multi = parent_handle->multi;
     }
 
-    array_init(&headers);
 #if PHP_VERSION_ID >= 80500
-	zend_hash_real_init_packed(Z_ARRVAL(headers));
-#endif
-
+    array_init_size(&headers, num_headers);
+    zend_hash_real_init_packed(Z_ARRVAL(headers));
+    for (size_t i = 0; i < num_headers; i++) {
+        char *header = curl_pushheader_bynum(push_headers, i);
+        add_index_string(&headers, i, header);
+    }
+#else
+    array_init(&headers);
     for (size_t i = 0; i < num_headers; i++) {
         char *header = curl_pushheader_bynum(push_headers, i);
         add_next_index_string(&headers, header);
     }
+#endif
 
     ZEND_ASSERT(pz_parent_ch);
     zval call_args[3] = {*pz_parent_ch, pz_ch, headers};
@@ -611,7 +623,11 @@ static HashTable *swoole_curl_multi_get_gc(zend_object *object, zval **table, in
 
     zend_get_gc_buffer_use(gc_buffer, table, n);
 
+#if PHP_VERSION_ID >= 80500
+    return NULL;
+#else
     return zend_std_get_properties(object);
+#endif
 }
 
 void curl_multi_register_class(const zend_function_entry *method_entries) {
