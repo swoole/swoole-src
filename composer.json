@@ -24,7 +24,7 @@
       },
       {
         "name": "with-openssl-dir",
-        "description": "Include OpenSSL support (requires OpenSSL >= 1.1.0)",
+        "description": "Specify openssl installation directory (requires OpenSSL 1.1.0 or later)?",
         "needs-value": true
       },
       {
@@ -45,7 +45,7 @@
       },
       {
         "name": "with-brotli-dir",
-        "description": "Include Brotli support",
+        "description": "Specify brotli installation directory?",
         "needs-value": true
       },
       {
@@ -80,6 +80,11 @@
         "description": "Enable iouring for file async support"
       },
       {
+        "name": "with-liburing-dir",
+        "description": "Specify liburing installation directory (requires liburing 2.8 or later)",
+        "needs-value": true
+      },
+      {
         "name": "enable-uring-socket",
         "description": "Enable iouring for http coroutine server support"
       },
@@ -94,7 +99,7 @@
       },
       {
         "name": "enable-zstd",
-        "description": "Enable zstd support"
+        "description": "Enable zstd support (requires zstd 1.4.0 or later)"
       }
     ]
   }

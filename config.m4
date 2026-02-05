@@ -64,7 +64,7 @@ PHP_ARG_ENABLE([uring_socket],
 PHP_ARG_WITH([openssl_dir],
   [dir of openssl],
   [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
-    [Include OpenSSL support (requires OpenSSL >= 1.0.2)])], [no], [no])
+    [Include OpenSSL support (requires OpenSSL >= 1.1.0)])], [no], [no])
 
 PHP_ARG_ENABLE([brotli],
   [enable brotli support],
@@ -1196,18 +1196,17 @@ EOF
     CFLAGS="-Wall -pthread $CFLAGS"
     LDFLAGS="$LDFLAGS -lpthread"
 
-    if test "$PHP_IOURING" = "yes" && test "$SW_OS" = "LINUX"; then
-        if test "$PHP_LIBURING_DIR" != "no"; then
+	HAVE_CONFIG_IOURING_X="no"
+    if (test "$PHP_IOURING" = "yes" || test "$PHP_LIBURING_DIR" != "no") && test "$SW_OS" = "LINUX"; then
+        if test "$PHP_IOURING" != "no"; then
+            PKG_CHECK_MODULES([URING], [liburing >= 2.8])
+			PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
+            PHP_EVAL_INCLINE($URING_CFLAGS)
+        elif test "$PHP_LIBURING_DIR" != "no"; then
             PHP_ADD_INCLUDE("${PHP_LIBURING_DIR}/include")
-            PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_LIBURING_DIR}/${PHP_LIBDIR}")
+            PHP_ADD_LIBRARY_WITH_PATH(uring, "${PHP_LIBURING_DIR}/${PHP_LIBDIR}")
             PHP_ADD_LIBRARY(uring, 1, SWOOLE_SHARED_LIBADD)
         fi
-        
-        if test "$PHP_URING_SOCKET" != "no"; then
-            AC_DEFINE(SW_USE_URING_SOCKET, 1, [enable io_uring socket support])
-        fi
-        
-        PKG_CHECK_MODULES([URING], [liburing >= 2.0])
 
         AC_SWOOLE_HAVE_IOURING_STATX
 
@@ -1224,9 +1223,16 @@ EOF
             AC_SWOOLE_HAVE_IOURING_FUTEX
         fi
 
-        PHP_EVAL_LIBLINE($URING_LIBS, SWOOLE_SHARED_LIBADD)
-        PHP_EVAL_INCLINE($URING_CFLAGS)
+        HAVE_CONFIG_IOURING_X="yes"
         AC_DEFINE(SW_USE_IOURING, 1, [have io_uring])
+    fi
+
+    if test "$PHP_URING_SOCKET" != "no"; then
+        if test "$HAVE_CONFIG_IOURING_X" != "no"; then
+            AC_DEFINE(SW_USE_URING_SOCKET, 1, [enable io_uring socket support])
+        else
+            AC_MSG_ERROR([--enable-uring-socket requires io_uring. Please specify either --enable-iouring or --with-liburing-dir.])
+        fi
     fi
 
     dnl Check should we link to librt
