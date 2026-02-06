@@ -29,6 +29,10 @@
 #include <linux/futex.h>
 #endif
 
+#if IO_URING_VERSION_MAJOR < 2 || (IO_URING_VERSION_MAJOR == 2 && IO_URING_VERSION_MINOR < 8)
+#error "The version of liburing required must be greater than or equal to 2.8."
+#endif
+
 #include <cmath>
 
 #define DOUBLE_TO_TIMESPEC(seconds, ts)                                                                                \

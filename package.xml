@@ -52,7 +52,7 @@
     <date>2025-11-26</date>
     <time>10:00:00</time>
     <version>
-        <release>6.1.3</release>
+        <release>6.2.0</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -2834,13 +2834,13 @@
     <providesextension>swoole</providesextension>
     <extsrcrelease>
         <configureoption default="no" name="enable-sockets" prompt="enable sockets support?"/>
-        <configureoption default="no" name="with-openssl-dir" prompt="include OpenSSL support (requires OpenSSL >= 1.1.0)"/>
+        <configureoption default="no" name="with-openssl-dir" prompt="specify openssl installation directory (requires openssl 1.1.0 or later)?"/>
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?"/>
         <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>
         <configureoption default="no" name="enable-cares" prompt="enable cares support?"/>
         <configureoption default="yes" name="enable-brotli" prompt="enable brotli support?"/>
-        <configureoption default="yes" name="with-brotli-dir" prompt="include Brotli support?"/>
-        <configureoption default="no" name="enable-zstd" prompt="enable zstd support?"/>
+        <configureoption default="no" name="with-brotli-dir" prompt="specify brotli installation directory?"/>
+        <configureoption default="no" name="enable-zstd" prompt="enable zstd support (requires zstd 1.4.0 or later)?"/>
         <configureoption default="no" name="enable-swoole-pgsql" prompt="enable PostgreSQL database support?"/>
         <configureoption default="no" name="with-swoole-odbc" prompt="enable ODBC database support?"/>
         <configureoption default="no" name="with-swoole-oracle" prompt="enable Oracle database support?"/>
@@ -2848,6 +2848,7 @@
         <configureoption default="no" name="with-swoole-firebird" prompt="enable Firebird database support?"/>
         <configureoption default="no" name="enable-swoole-thread" prompt="enable swoole thread support (need php zts support)?"/>
         <configureoption default="no" name="enable-iouring" prompt="enable iouring for file async support?"/>
+        <configureoption default="no" name="with-liburing-dir" prompt="specify liburing installation directory (requires liburing 2.8 or later)?"/>
         <configureoption default="no" name="enable-uring-socket" prompt="enable iouring for http coroutine server support?"/>
         <configureoption default="no" name="with-swoole-ssh2" prompt="enable async ssh2 client support?"/>
         <configureoption default="no" name="enable-swoole-ftp" prompt="enable async ftp client support?"/>
