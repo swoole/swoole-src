@@ -41,6 +41,7 @@ SW_EXTERN_C_BEGIN
 #define HttpPost curl_httppost
 #endif
 
+#if PHP_VERSION_ID < 80500
 /* {{{ cruft for thread safe SSL crypto locks */
 #if defined(ZTS) && defined(HAVE_CURL_OLD_OPENSSL)
 #if defined(HAVE_OPENSSL_CRYPTO_H)
@@ -53,6 +54,7 @@ SW_EXTERN_C_BEGIN
 #endif
 #endif /* ZTS && HAVE_CURL_OLD_OPENSSL */
 /* }}} */
+#endif
 
 #include "zend_smart_str.h"
 #include "ext/standard/info.h"
@@ -66,6 +68,7 @@ SW_EXTERN_C_BEGIN
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
+#if PHP_VERSION_ID < 80500
 #ifdef PHP_CURL_NEED_OPENSSL_TSL /* {{{ */
 static MUTEX_T *php_curl_openssl_tsl = NULL;
 
@@ -84,6 +87,7 @@ static ZEND_ATTRIBUTE_UNUSED unsigned long php_curl_ssl_id(void) {
 }
 #endif
 /* }}} */
+#endif
 
 static zend_class_entry *swoole_native_curl_exception_ce;
 static zend_object_handlers swoole_native_curl_exception_handlers;
@@ -226,6 +230,7 @@ void swoole_native_curl_minit(int module_number) {
         return;
     }
 
+#if PHP_VERSION_ID < 80500
 #ifdef PHP_CURL_NEED_OPENSSL_TSL
     if (!CRYPTO_get_id_callback()) {
         int i, c = CRYPTO_num_locks();
@@ -242,6 +247,7 @@ void swoole_native_curl_minit(int module_number) {
         CRYPTO_set_id_callback(php_curl_ssl_id);
         CRYPTO_set_locking_callback(php_curl_ssl_lock);
     }
+#endif
 #endif
 
     swoole_coroutine_curl_handle_ce = curl_ce;
@@ -1342,7 +1348,18 @@ PHP_FUNCTION(swoole_native_curl_copy_handle) {
         RETURN_FALSE;
     }
 
-    RETURN_OBJ(swoole_curl_clone_obj(Z_OBJ_P(zid)));
+    zend_object *new_object = swoole_curl_clone_obj(Z_OBJ_P(zid));
+#if PHP_VERSION_ID >= 80500
+    if (EG(exception)) {
+        if (new_object != NULL) {
+            OBJ_RELEASE(new_object);
+        }
+        zend_clear_exception();
+        php_error_docref(NULL, E_WARNING, "Cannot duplicate cURL handle");
+        RETURN_FALSE;
+    }
+#endif
+    RETURN_OBJ(new_object);
 }
 /* }}} */
 
@@ -1584,6 +1601,9 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
 #if LIBCURL_VERSION_NUM >= 0x080900 /* Available since 8.9.0 */
     case CURLOPT_TCP_KEEPCNT:
 #endif
+#if PHP_VERSION_ID >= 80500
+    case CURLOPT_FOLLOWLOCATION:
+#endif
         lval = zval_get_long(zvalue);
         if ((option == CURLOPT_PROTOCOLS || option == CURLOPT_REDIR_PROTOCOLS) &&
             (PG(open_basedir) && *PG(open_basedir)) && (lval & CURLPROTO_FILE)) {
@@ -1720,7 +1740,7 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
     case CURLOPT_USERPWD:
     case CURLOPT_USERNAME:
     case CURLOPT_PASSWORD:
-#if LIBCURL_VERSION_NUM >= 0x080e00 /* Available since 8.14.0 */
+#if LIBCURL_VERSION_NUM >= 0x080e00 && PHP_VERSION_ID >= 80500 /* Available since 8.14.0 */
     case CURLOPT_SSL_SIGNATURE_ALGORITHMS:
 #endif
     {
@@ -1946,14 +1966,16 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
         /* Do nothing, just backward compatibility */
         break;
 
+#if PHP_VERSION_ID < 80500
     case CURLOPT_FOLLOWLOCATION:
         lval = zend_is_true(zvalue);
         error = curl_easy_setopt(ch->cp, (CURLoption) option, (long) lval);
         break;
+#endif
 
     case CURLOPT_POSTFIELDS:
         if (Z_TYPE_P(zvalue) == IS_ARRAY) {
-            if (zend_hash_num_elements(HASH_OF(zvalue)) == 0) {
+            if (zend_hash_num_elements(Z_ARRVAL_P(zvalue)) == 0) {
                 /* no need to build the mime structure for empty hashtables;
                    also works around https://github.com/curl/curl/issues/6455 */
                 curl_easy_setopt(ch->cp, CURLOPT_POSTFIELDS, "");
@@ -1980,7 +2002,9 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
         break;
 
     /* Curl off_t options */
+#if PHP_VERSION_ID >= 80500
     case CURLOPT_INFILESIZE_LARGE:
+#endif
     case CURLOPT_MAX_RECV_SPEED_LARGE:
     case CURLOPT_MAX_SEND_SPEED_LARGE:
     case CURLOPT_MAXFILESIZE_LARGE:
@@ -2038,28 +2062,28 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
         break;
 
     case CURLOPT_SHARE: {
+#if PHP_VERSION_ID >= 80500
         if (Z_TYPE_P(zvalue) != IS_OBJECT) {
             break;
         }
 
-#if PHP_VERSION_ID >= 80500
         if (Z_OBJCE_P(zvalue) != curl_share_ce && Z_OBJCE_P(zvalue) != curl_share_persistent_ce) {
-#else
-		if (Z_OBJCE_P(zvalue) != curl_share_ce) {
-#endif
             break;
         }
-
+#else
+        if (Z_TYPE_P(zvalue) == IS_OBJECT && Z_OBJCE_P(zvalue) == curl_share_ce) {
+#endif
         php_curlsh *sh = Z_CURL_SHARE_P(zvalue);
-
         curl_easy_setopt(ch->cp, CURLOPT_SHARE, sh->share);
 
         if (ch->share) {
             OBJ_RELEASE(&ch->share->std);
         }
-
         GC_ADDREF(&sh->std);
         ch->share = sh;
+#if PHP_VERSION_ID < 80500
+    }
+#endif
     } break;
 
     /* Curl blob options */
@@ -2367,7 +2391,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
         if (curl_easy_getinfo(ch->cp, CURLINFO_APPCONNECT_TIME_T, &co) == CURLE_OK) {
             CAAL("appconnect_time_us", co);
         }
-#if LIBCURL_VERSION_NUM >= 0x080600 /* Available since 8.6.0 */
+#if LIBCURL_VERSION_NUM >= 0x080600 && PHP_VERSION_ID >= 80500 /* Available since 8.6.0 */
         if (curl_easy_getinfo(ch->cp, CURLINFO_QUEUE_TIME_T, &co) == CURLE_OK) {
             CAAL("queue_time_us", co);
         }
@@ -2411,6 +2435,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
             CAAS("cainfo", s_code);
         }
 #endif
+#if PHP_VERSION_ID >= 80500
 #if LIBCURL_VERSION_NUM >= 0x080700 /* Available since 8.7.0 */
         if (curl_easy_getinfo(ch->cp, CURLINFO_USED_PROXY, &l_code) == CURLE_OK) {
             CAAL("used_proxy", l_code);
@@ -2428,6 +2453,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
         if (curl_easy_getinfo(ch->cp, CURLINFO_CONN_ID, &co) == CURLE_OK) {
             CAAL("conn_id", co);
         }
+#endif
 #endif
     } else {
         switch (option) {
