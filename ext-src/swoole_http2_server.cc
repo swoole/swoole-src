@@ -36,6 +36,8 @@ using Http2Stream = Http2::Stream;
 using Http2Session = Http2::Session;
 
 static SW_THREAD_LOCAL std::unordered_map<SessionId, std::shared_ptr<Http2Session>> http2_sessions;
+static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> server_ips;
+static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http2_server_respond(HttpContext *ctx, const String *body);
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler);
@@ -271,7 +273,6 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
                                    const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
-    zval *zserver = ctx->request.zserver;
     auto serv = ctx->get_async_server();
     zval args[2];
     Connection *serv_sock = nullptr;
@@ -292,15 +293,36 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
         goto _destroy;
     }
 
-    add_assoc_long(zserver, "request_time", time(nullptr));
-    add_assoc_double(zserver, "request_time_float", microtime());
-    if (serv_sock) {
-        add_assoc_long(zserver, "server_port", serv_sock->info.get_port());
-    }
-    add_assoc_long(zserver, "remote_port", conn->info.get_port());
-    add_assoc_string(zserver, "remote_addr", (char *) conn->info.get_addr());
-    add_assoc_long(zserver, "master_time", conn->last_recv_time);
-    add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
+    do {
+        auto session_id = client->fd;
+        zval *zserver = ctx->request.zserver;
+        HashTable *ht = Z_ARR_P(zserver);
+
+        if (sw_likely(serv_sock)) {
+            http_server_add_server_array(
+                ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PORT), (zend_long) serv_sock->info.get_port());
+        }
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) conn->info.get_port());
+
+        if (conn->info.is_loopback_addr()) {
+            auto key = conn->info.type == SW_SOCK_TCP6 ? SW_ZEND_STR_ADDR_LOOPBACK_V6 : SW_ZEND_STR_ADDR_LOOPBACK_V4;
+            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), SW_ZSTR_KNOWN(key));
+            http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(key));
+        } else {
+            if (serv->is_base_mode() && ctx->keepalive) {
+                http_server_session_track_ip(ht, conn, session_id, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), server_ips);
+                http_server_session_track_ip(ht, conn, session_id, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), client_ips);
+            } else {
+                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), conn->socket->get_addr());
+                http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), conn->info.get_addr());
+            }
+        }
+
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (zend_long) time(nullptr));
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->last_recv_time);
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP2));
+    } while (false);
 
     cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onRequest);
     ctx->private_data_2 = cb;
@@ -1306,14 +1328,22 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     return retval;
 }
 
-std::shared_ptr<swoole::http2::Session> swoole_http2_server_session_new(swoole::SessionId fd) {
+std::shared_ptr<Http2Session> swoole_http2_server_session_new(SessionId fd) {
     auto session = std::make_shared<Http2Session>(fd);
     http2_sessions.emplace(fd, session);
     return session;
 }
 
-void swoole_http2_server_session_free(swoole::SessionId fd) {
-    auto iter = http2_sessions.find(fd);
+void php_swoole_http2_server_onClose(Server *serv, SessionId session_id) {
+    if (serv->is_base_mode()) {
+        server_ips.erase(session_id);
+        client_ips.erase(session_id);
+    }
+    swoole_http2_server_session_free(session_id);
+}
+
+void swoole_http2_server_session_free(SessionId session_id) {
+    auto iter = http2_sessions.find(session_id);
     if (iter == http2_sessions.end()) {
         return;
     }

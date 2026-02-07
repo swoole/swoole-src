@@ -85,12 +85,14 @@
     _(SW_ZEND_STR_REQUEST_TIME_FLOAT,       "request_time_float")  \
     _(SW_ZEND_STR_SERVER_PROTOCOL,          "server_protocol")  \
     _(SW_ZEND_STR_SERVER_PORT,              "server_port")  \
+    _(SW_ZEND_STR_SERVER_ADDR,              "server_addr")  \
     _(SW_ZEND_STR_REMOTE_PORT,              "remote_port")  \
     _(SW_ZEND_STR_REMOTE_ADDR,              "remote_addr")  \
     _(SW_ZEND_STR_MASTER_TIME,              "master_time") \
     _(SW_ZEND_STR_QUERY_STRING,             "query_string") \
     _(SW_ZEND_STR_HTTP10,                   "HTTP/1.0") \
     _(SW_ZEND_STR_HTTP11,                   "HTTP/1.1") \
+    _(SW_ZEND_STR_HTTP2,                    "HTTP/2") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,

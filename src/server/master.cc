@@ -2059,6 +2059,7 @@ _find_available_slot:
     memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
     connection->info.len = _socket->info.len;
     connection->info.type = connection->socket_type;
+    connection->socket->get_name();
 
     if (!ls->ssl) {
         _socket->direct_send = 1;

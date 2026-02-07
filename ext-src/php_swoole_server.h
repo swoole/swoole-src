@@ -143,12 +143,13 @@ zend::Callable *php_swoole_server_get_callback(swServer *serv, int server_fd, in
 int php_swoole_create_dir(const char *path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 bool php_swoole_server_isset_callback(swServer *serv, swoole::ListenPort *port, int event_type);
-bool php_swoole_server_send_yield(swServer *serv, swoole::SessionId sesion_id, zend_string *sdata);
+bool php_swoole_server_send_yield(swServer *serv, swoole::SessionId session_id, zend_string *sdata);
 void php_swoole_get_recv_data(swServer *serv, zval *zdata, swoole::RecvData *req);
 void php_swoole_server_onConnect(swServer *, swoole::DataHead *);
 int php_swoole_server_onReceive(swServer *, swoole::RecvData *);
 int php_swoole_http_server_onReceive(swServer *, swoole::RecvData *);
 void php_swoole_http_server_onClose(swServer *serv, swoole::DataHead *info);
+void php_swoole_http2_server_onClose(swServer *serv, swoole::SessionId session_id);
 int php_swoole_redis_server_onReceive(swServer *serv, swoole::RecvData *req);
 int php_swoole_server_onPacket(swServer *, swoole::RecvData *);
 void php_swoole_server_onClose(swServer *, swoole::DataHead *);
