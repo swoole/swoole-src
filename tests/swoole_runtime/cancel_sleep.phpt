@@ -18,8 +18,8 @@ use function Swoole\Coroutine\go;
 run(function() {
     $cid = Coroutine::getCid();
     go(function() use ($cid) {
-        System::sleep(2);
-        Coroutine::cancel($cid);
+        System::sleep(0.1);
+        Assert::true(Coroutine::cancel($cid));
     });
 
     Assert::false(System::sleep(2000));
@@ -33,12 +33,12 @@ run(function() {
     }
 
     go(function() use ($cid) {
-        Assert::true(System::sleep(2));
+        Assert::true(System::sleep(0.1));
         echo "success3" . PHP_EOL;
     });
 
     foreach($cids as $cid) {
-        Coroutine::cancel($cid);
+        Assert::true(Coroutine::cancel($cid));
     }
 
     echo "success2" . PHP_EOL;

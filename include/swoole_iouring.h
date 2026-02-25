@@ -52,6 +52,7 @@ class Iouring {
     bool ready() const;
     void yield(IouringEvent *event);
     void resume(IouringEvent *event);
+    bool cancel(IouringEvent *prev_event);
     void dispatch(IouringEvent *event);
     void submit(bool immediately);
     bool wakeup();
@@ -95,7 +96,6 @@ class Iouring {
         return (float) get_sq_used() / get_sq_capacity() * 100.0f;
     }
 
-    static int cancel(IouringEvent *prev_event);
     static int socket(int domain, int type, int protocol = 0, int flags = 0);
     static int open(const char *pathname, int flags, mode_t mode);
     static int connect(int fd, const struct sockaddr *addr, socklen_t len, double timeout = -1);

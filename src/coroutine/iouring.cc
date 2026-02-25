@@ -180,7 +180,7 @@ bool Iouring::ready() const {
 
 void Iouring::yield(IouringEvent *event) {
     ++task_num;
-    Coroutine::CancelFunc cancel_fn = [event](Coroutine *) { return Iouring::cancel(event) == 0; };
+    Coroutine::CancelFunc cancel_fn = [event, this](Coroutine *) { return cancel(event); };
     event->coroutine->yield(&cancel_fn);
 }
 
@@ -245,7 +245,6 @@ bool Iouring::wakeup() {
                  * To maintain compatibility, numerical conversion is necessary.
                  */
                 errno = errno == ECANCELED ? ETIMEDOUT : errno;
-                swoole_set_last_error(errno);
                 event->result = -1;
             }
             resume(ready_events[i]);
@@ -426,10 +425,10 @@ int Iouring::open(const char *pathname, int flags, mode_t mode) {
     return static_cast<int>(execute(&event));
 }
 
-int Iouring::cancel(IouringEvent *prev_event) {
+bool Iouring::cancel(IouringEvent *prev_event) {
     INIT_EVENT(IORING_OP_ASYNC_CANCEL);
     io_uring_prep_cancel(&event.data, (void *) prev_event, 0);
-    return static_cast<int>(execute(&event));
+    return static_cast<int>(execute(&event)) == 0;
 }
 
 int Iouring::socket(int domain, int type, int protocol, int flags) {
