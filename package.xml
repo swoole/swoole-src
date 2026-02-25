@@ -49,10 +49,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2025-12-28</date>
-    <time>19:00:00</time>
+    <date>2026-02-25</date>
+    <time>22:00:00</time>
     <version>
-        <release>6.1.6</release>
+        <release>6.1.7</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -1595,6 +1595,7 @@
             <file role="test" name="tests/swoole_http_server/bug_5114.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_5146.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_5186.phpt" />
+            <file role="test" name="tests/swoole_http_server/bug_6007.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_compression_level.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_get_request_data_after_end.phpt" />
             <file role="test" name="tests/swoole_http_server/callback_new_obj_method.phpt" />
@@ -1780,6 +1781,7 @@
             <file role="test" name="tests/swoole_library/string_object/base.phpt" />
             <file role="test" name="tests/swoole_library/wait_group/normal.phpt" />
             <file role="test" name="tests/swoole_library/wait_group/timeout.phpt" />
+            <file role="test" name="tests/swoole_lock/bug_5984.phpt" />
             <file role="test" name="tests/swoole_lock/lock_nb.phpt" />
             <file role="test" name="tests/swoole_lock/lock_read.phpt" />
             <file role="test" name="tests/swoole_lock/lock_timeout.phpt" />
