@@ -89,6 +89,16 @@ static void signal_init() {
     }
 }
 
+#if SW_USE_IOURING
+static pid_t iouring_waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout = -1) {
+    auto rs = Iouring::waitpid(_pid, _stat_loc, _options, timeout);
+    if (rs < 0) {
+        swoole_set_last_error(errno);
+    }
+    return rs;
+}
+#endif
+
 pid_t System::wait(int *_stat_loc, double timeout) {
     return System::waitpid(-1, _stat_loc, 0, timeout);
 }
@@ -99,7 +109,7 @@ pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
     }
 
 #if SW_USE_IOURING
-    return Iouring::waitpid(_pid, _stat_loc, _options);
+    return iouring_waitpid(_pid, _stat_loc, _options);
 #endif
 
     pid_t retval = -1;
@@ -116,7 +126,7 @@ pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
  */
 pid_t System::waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout) {
 #if SW_USE_IOURING
-    return Iouring::waitpid(_pid, _stat_loc, _options, timeout);
+    return iouring_waitpid(_pid, _stat_loc, _options, timeout);
 #endif
     if (_pid < 0) {
         if (!child_processes.empty()) {
