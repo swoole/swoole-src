@@ -54,7 +54,7 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     if (body_length < 0) {
         return SW_ERR;
     }
-    swoole_debug("length=%d", protocol->package_body_offset + body_length);
+    swoole_debug("length=%ld", protocol->package_body_offset + body_length);
     pl->header_len = protocol->package_length_size;
 
     // total package length
