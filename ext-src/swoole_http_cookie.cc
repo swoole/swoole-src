@@ -225,46 +225,46 @@ zend_string *HttpCookie::toString() {
             smart_str_append_long(&buffer_, (zend_long) (diff >= 0 ? diff : 0));
             zend_string_free(date);
         }
+    }
 
-        if (path && ZSTR_LEN(path) > 0) {
-            if (strpbrk(ZSTR_VAL(path), ILLEGAL_COOKIE_CHARACTER) != nullptr) {
-                php_swoole_error(E_WARNING, "The path option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
-                return nullptr;
-            }
-            smart_str_appends(&buffer_, "; path=");
-            smart_str_append(&buffer_, path);
+    if (path && ZSTR_LEN(path) > 0) {
+        if (strpbrk(ZSTR_VAL(path), ILLEGAL_COOKIE_CHARACTER) != nullptr) {
+            php_swoole_error(E_WARNING, "The path option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
+            return nullptr;
         }
+        smart_str_appends(&buffer_, "; path=");
+        smart_str_append(&buffer_, path);
+    }
 
-        if (domain && ZSTR_LEN(domain) > 0) {
-            if (strpbrk(ZSTR_VAL(domain), ILLEGAL_COOKIE_CHARACTER) != nullptr) {
-                php_swoole_error(E_WARNING, "The domain option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
-                return nullptr;
-            }
-            smart_str_appends(&buffer_, "; domain=");
-            smart_str_append(&buffer_, domain);
+    if (domain && ZSTR_LEN(domain) > 0) {
+        if (strpbrk(ZSTR_VAL(domain), ILLEGAL_COOKIE_CHARACTER) != nullptr) {
+            php_swoole_error(E_WARNING, "The domain option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
+            return nullptr;
         }
+        smart_str_appends(&buffer_, "; domain=");
+        smart_str_append(&buffer_, domain);
+    }
 
-        if (secure) {
-            smart_str_appends(&buffer_, "; secure");
-        }
+    if (secure) {
+        smart_str_appends(&buffer_, "; secure");
+    }
 
-        if (httpOnly) {
-            smart_str_appends(&buffer_, "; HttpOnly");
-        }
+    if (httpOnly) {
+        smart_str_appends(&buffer_, "; HttpOnly");
+    }
 
-        if (sameSite && ZSTR_LEN(sameSite) > 0) {
-            smart_str_appends(&buffer_, "; SameSite=");
-            smart_str_append(&buffer_, sameSite);
-        }
+    if (sameSite && ZSTR_LEN(sameSite) > 0) {
+        smart_str_appends(&buffer_, "; SameSite=");
+        smart_str_append(&buffer_, sameSite);
+    }
 
-        if (priority && ZSTR_LEN(priority) > 0) {
-            smart_str_appends(&buffer_, "; Priority=");
-            smart_str_append(&buffer_, priority);
-        }
+    if (priority && ZSTR_LEN(priority) > 0) {
+        smart_str_appends(&buffer_, "; Priority=");
+        smart_str_append(&buffer_, priority);
+    }
 
-        if (partitioned) {
-            smart_str_appends(&buffer_, "; Partitioned");
-        }
+    if (partitioned) {
+        smart_str_appends(&buffer_, "; Partitioned");
     }
 
     return smart_str_extract(&buffer_);
