@@ -52,5 +52,5 @@ array(4) {
   [2]=>
   string(152) "key1=val1; expires=%s; Max-Age=84600; path=/; domain=id.test.com; secure; HttpOnly; SameSite=None; Priority=High; Partitioned"
   [3]=>
-  string(62) "key1=deleted; expires=%s; Max-Age=0"
+  string(151) "key1=deleted; expires=%s; Max-Age=0; path=/; domain=id.test.com; secure; HttpOnly; SameSite=None; Priority=High; Partitioned"
 }
