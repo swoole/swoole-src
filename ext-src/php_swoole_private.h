@@ -190,6 +190,9 @@ extern zend_class_entry *swoole_error_ce;
 extern zend_class_entry *swoole_resolve_context_ce;
 extern zend_object_handlers swoole_resolve_context_handlers;
 
+// Export zend_autoload hook
+extern zend_class_entry *(*swoole_hook_zend_autoload)(zend_string *name, zend_string *lc_name);
+
 PHP_FUNCTION(swoole_clear_dns_cache);
 PHP_FUNCTION(swoole_last_error);
 PHP_FUNCTION(swoole_set_process_name);
