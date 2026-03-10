@@ -49,15 +49,15 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2026-03-02</date>
+    <date>2026-03-10</date>
     <time>22:00:00</time>
     <version>
-        <release>6.2.0RC2</release>
+        <release>6.2.0</release>
         <api>6.0</api>
     </version>
     <stability>
-        <release>alpha</release>
-        <api>alpha</api>
+        <release>stable</release>
+        <api>stable</api>
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
@@ -83,7 +83,7 @@
         - Fixed thread safety issues during the coroutinization process of `pdo_sqlite` and `pdo_oci`.
         - Fixed the `sw_php_print_backtrace` function to ensure its output format matches the backtrace information format of PHP's built-in functions.
         - Fixed compilation failures caused by enabling --enable-uring-socket, --enable-trace-log, and --enable-error-log.
-        - Fixed an issue where pdo_firebird could not be compiled in a coroutine environment.
+        - Fixed the issue where `pdo_firebird` could not be compiled due to undefined macros.
         - Executing `php --ri swoole` now outputs version information for `libpq`.
         - Optimized logic related to `io_uring` in file coroutine operations.
         - Added PHP call stack information output when event addition fails.
@@ -93,7 +93,6 @@
         - Removed the `--enable-openssl` compilation option; support for `OpenSSL` is now included by default.
         - `--enable-uring-socket` requires explicitly specifying either `--enable-iouring` or `--with-liburing-dir`.
         - `PHP 8.1` is no longer supported.
-        - Swoole 6.2.0 RC1 is currently a release candidate version and can only be used in testing environments. It is prohibited to use it in production environments.
     </notes>
     <contents>
         <dir name="/">
