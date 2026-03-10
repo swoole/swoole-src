@@ -104,6 +104,7 @@ sds sdsnewlen(const void *init, size_t initlen) {
     int hdrlen = sdsHdrSize(type);
     unsigned char *fp; /* flags pointer. */
 
+    if (initlen > SIZE_MAX - hdrlen - 1) return NULL; /* Catch size_t overflow */
     sh = s_malloc(hdrlen+initlen+1);
     if (sh == NULL) return NULL;
     if (!init)
