@@ -188,8 +188,8 @@ class HttpServer {
         swoole_http2_server_session_free(ctx->fd);
 
         ctx->detached = 1;
-        zval_dtor(ctx->request.zobject);
-        zval_dtor(ctx->response.zobject);
+        zval_ptr_dtor_nogc(ctx->request.zobject);
+        zval_ptr_dtor_nogc(ctx->response.zobject);
     }
 };
 };  // namespace coroutine
@@ -425,20 +425,20 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     zval *ztmp;
     // parse cookie header
     if (php_swoole_array_get_value(vht, "http_parse_cookie", ztmp)) {
-        hs->parse_cookie = zval_is_true(ztmp);
+        hs->parse_cookie = zend_is_true(ztmp);
     }
     // parse x-www-form-urlencoded form data
     if (php_swoole_array_get_value(vht, "http_parse_post", ztmp)) {
-        hs->parse_post = zval_is_true(ztmp);
+        hs->parse_post = zend_is_true(ztmp);
     }
     // parse multipart/form-data file uploads
     if (php_swoole_array_get_value(vht, "http_parse_files", ztmp)) {
-        hs->parse_files = zval_is_true(ztmp);
+        hs->parse_files = zend_is_true(ztmp);
     }
 #ifdef SW_HAVE_COMPRESSION
     // http content compression
     if (php_swoole_array_get_value(vht, "http_compression", ztmp)) {
-        hs->compression = zval_is_true(ztmp);
+        hs->compression = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "http_compression_level", ztmp) ||
         php_swoole_array_get_value(vht, "compression_level", ztmp) ||
@@ -494,7 +494,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
             zval zsocket;
             php_swoole_init_socket_object(&zsocket, conn);
             long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, zcallback.ptr());
-            zval_dtor(&zsocket);
+            zval_ptr_dtor_nogc(&zsocket);
             if (cid < 0) {
                 goto _wait_1s;
             }
@@ -665,8 +665,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             ctx->response.status = SW_HTTP_NOT_FOUND;
         }
 
-        zval_dtor(&args[0]);
-        zval_dtor(&args[1]);
+        zval_ptr_dtor_nogc(&args[0]);
+        zval_ptr_dtor_nogc(&args[1]);
         ctx = nullptr;
 
         if (!hs->running || !keep_alive || php_swoole_socket_is_closed(zconn)) {
@@ -682,8 +682,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     }
 
     if (ctx) {
-        zval_dtor(ctx->request.zobject);
-        zval_dtor(ctx->response.zobject);
+        zval_ptr_dtor_nogc(ctx->request.zobject);
+        zval_ptr_dtor_nogc(ctx->response.zobject);
     }
     zend_hash_index_del(Z_ARRVAL_P(&hs->zclients), co->get_cid());
 }

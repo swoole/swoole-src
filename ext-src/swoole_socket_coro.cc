@@ -874,12 +874,12 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
      * ssl
      */
     if (php_swoole_array_get_value(vht, "open_ssl", ztmp)) {
-        if (zval_is_true(ztmp)) {
+        if (zend_is_true(ztmp)) {
             sock->enable_ssl_encrypt();
         }
     }
     if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {
-        sock->http2 = zval_is_true(ztmp);
+        sock->http2 = zend_is_true(ztmp);
     }
     if (sock->ssl_is_enable()) {
         if (!php_swoole_socket_set_ssl(sock, zset)) {
@@ -891,11 +891,11 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
      */
     // buffer: eof check
     if (php_swoole_array_get_value(vht, "open_eof_check", ztmp)) {
-        sock->open_eof_check = zval_is_true(ztmp);
+        sock->open_eof_check = zend_is_true(ztmp);
     }
     // buffer: split package with eof
     if (php_swoole_array_get_value(vht, "open_eof_split", ztmp)) {
-        sock->protocol.split_by_eof = zval_is_true(ztmp);
+        sock->protocol.split_by_eof = zend_is_true(ztmp);
         if (sock->protocol.split_by_eof) {
             sock->open_eof_check = true;
         }
@@ -917,7 +917,7 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
     if (php_swoole_array_get_value(vht, "open_fastcgi_protocol", ztmp)) {
 #define FCGI_HEADER_LEN 8
 #define FCGI_MAX_LENGTH 0xffff
-        sock->open_length_check = zval_is_true(ztmp);
+        sock->open_length_check = zend_is_true(ztmp);
         sock->protocol.package_length_size = FCGI_HEADER_LEN;
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
@@ -938,14 +938,14 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
     }
     // open mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp)) {
-        sock->open_length_check = zval_is_true(ztmp);
-        if (zval_is_true(ztmp)) {
+        sock->open_length_check = zend_is_true(ztmp);
+        if (zend_is_true(ztmp)) {
             swoole::mqtt::set_protocol(&sock->protocol);
         }
     }
     // open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp)) {
-        sock->open_length_check = zval_is_true(ztmp);
+        sock->open_length_check = zend_is_true(ztmp);
         sock->protocol.get_package_length = Protocol::default_length_func;
     }
     // package length size
@@ -1047,7 +1047,7 @@ SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) {
      */
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp)) {
         if (cli->get_type() == SW_SOCK_TCP || cli->get_type() != SW_SOCK_TCP6) {
-            cli->get_socket()->set_tcp_nodelay(zval_is_true(ztmp));
+            cli->get_socket()->set_tcp_nodelay(zend_is_true(ztmp));
         }
     }
     /**
@@ -1127,9 +1127,9 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
         sock->set_ssl_protocols(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
-        sock->set_ssl_disable_compress(!zval_is_true(ztmp));
+        sock->set_ssl_disable_compress(!zend_is_true(ztmp));
     } else if (php_swoole_array_get_value(vht, "ssl_disable_compression", ztmp)) {
-        sock->set_ssl_disable_compress(!zval_is_true(ztmp));
+        sock->set_ssl_disable_compress(!zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
         zend::String str_v(ztmp);
@@ -1160,10 +1160,10 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
-        sock->set_ssl_verify_peer(zval_is_true(ztmp));
+        sock->set_ssl_verify_peer(zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
-        sock->set_ssl_allow_self_signed(zval_is_true(ztmp));
+        sock->set_ssl_allow_self_signed(zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
         sock->set_ssl_cafile(zend::String(ztmp).to_std_string());
@@ -1754,7 +1754,7 @@ static PHP_METHOD(swoole_socket_coro, recvfrom) {
         zend_string_free(buf);
         RETURN_EMPTY_STRING();
     } else {
-        zval_dtor(peername);
+        zval_ptr_dtor_nogc(peername);
         array_init(peername);
         add_assoc_string(peername, "address", (char *) sock->socket->get_addr());
         add_assoc_long(peername, "port", sock->socket->get_port());

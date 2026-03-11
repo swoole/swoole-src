@@ -938,7 +938,7 @@ void ServerObject::on_before_start() {
         zval *zport_setting =
             sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         // use swoole_server->setting
-        if (zport_setting == nullptr || ZVAL_IS_NULL(zport_setting)) {
+        if (zport_setting == nullptr || Z_ISNULL_P(zport_setting)) {
             Z_TRY_ADDREF_P(zport);
             sw_zend_call_method_with_1_params(zport, swoole_server_port_ce, nullptr, "set", nullptr, zsetting);
         }
@@ -1314,7 +1314,7 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
         zval_ptr_dtor(&argv[1]);
     }
 
-    if (!ZVAL_IS_NULL(&retval)) {
+    if (!Z_ISNULL_P(&retval)) {
         php_swoole_server_task_finish(serv, &retval, req);
         zval_ptr_dtor(&retval);
     }
@@ -1835,7 +1835,7 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
     HOOK_PHP_CALL_STACK(auto call_result = sw_zend_call_function_ex(nullptr, cb->ptr(), zdata ? 4 : 3, args, &retval););
     if (UNEXPECTED(call_result != SUCCESS)) {
         php_swoole_error(E_WARNING, "%s->onDispatch handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
-    } else if (!ZVAL_IS_NULL(&retval)) {
+    } else if (!Z_ISNULL_P(&retval)) {
         worker_id = zval_get_long(&retval);
         if (worker_id >= (zend_long) serv->worker_num) {
             php_swoole_fatal_error(E_WARNING, "invalid target worker-id[" ZEND_LONG_FMT "]", worker_id);
@@ -2043,7 +2043,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->group_ = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "daemonize", ztmp)) {
-        serv->daemonize = zval_is_true(ztmp);
+        serv->daemonize = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "pid_file", ztmp)) {
         serv->pid_file = zend::String(ztmp).to_std_string();
@@ -2056,7 +2056,7 @@ static PHP_METHOD(swoole_server, set) {
         }
     }
     if (php_swoole_array_get_value(vht, "single_thread", ztmp)) {
-        serv->single_thread = zval_is_true(ztmp);
+        serv->single_thread = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "worker_num", ztmp)) {
         zend_long v = zval_get_long(ztmp);
@@ -2085,7 +2085,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->set_worker_max_concurrency(SW_MAX(1, SW_MIN(v, UINT32_MAX)));
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        serv->enable_coroutine = zval_is_true(ztmp);
+        serv->enable_coroutine = zend_is_true(ztmp);
     } else {
         serv->enable_coroutine = SwooleG.enable_coroutine;
     }
@@ -2097,7 +2097,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->dispatch_mode = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
     if (php_swoole_array_get_value(vht, "send_yield", ztmp)) {
-        serv->send_yield = zval_is_true(ztmp);
+        serv->send_yield = zend_is_true(ztmp);
         if (serv->send_yield &&
             !(serv->dispatch_mode == Server::DISPATCH_FDMOD || serv->dispatch_mode == Server::DISPATCH_IPMOD)) {
             php_swoole_error(E_WARNING, "'send_yield' option can only be set when using dispatch_mode=2/4");
@@ -2121,35 +2121,35 @@ static PHP_METHOD(swoole_server, set) {
      * for dispatch_mode = 1/3
      */
     if (php_swoole_array_get_value(vht, "discard_timeout_request", ztmp)) {
-        serv->discard_timeout_request = zval_is_true(ztmp);
+        serv->discard_timeout_request = zend_is_true(ztmp);
     }
     // onConnect/onClose event
     if (php_swoole_array_get_value(vht, "enable_unsafe_event", ztmp)) {
-        serv->enable_unsafe_event = zval_is_true(ztmp);
+        serv->enable_unsafe_event = zend_is_true(ztmp);
     }
     // delay receive
     if (php_swoole_array_get_value(vht, "enable_delay_receive", ztmp)) {
-        serv->enable_delay_receive = zval_is_true(ztmp);
+        serv->enable_delay_receive = zend_is_true(ztmp);
     }
 #if defined(__linux__) and defined(HAVE_REUSEPORT)
     if (php_swoole_array_get_value(vht, "enable_reuse_port", ztmp)) {
-        serv->enable_reuse_port = zval_is_true(ztmp);
+        serv->enable_reuse_port = zend_is_true(ztmp);
     }
 #endif
     // task use object
     if (php_swoole_array_get_value(vht, "task_use_object", ztmp) ||
         php_swoole_array_get_value(vht, "task_object", ztmp)) {
-        serv->task_object = zval_is_true(ztmp);
+        serv->task_object = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "event_object", ztmp)) {
-        serv->event_object = zval_is_true(ztmp);
+        serv->event_object = zend_is_true(ztmp);
         if (serv->event_object) {
             serv->task_object = true;
         }
     }
     // task coroutine
     if (php_swoole_array_get_value(vht, "task_enable_coroutine", ztmp)) {
-        serv->task_enable_coroutine = zval_is_true(ztmp);
+        serv->task_enable_coroutine = zend_is_true(ztmp);
     }
     // task_worker_num
     if (php_swoole_array_get_value(vht, "task_worker_num", ztmp)) {
@@ -2210,11 +2210,11 @@ static PHP_METHOD(swoole_server, set) {
     }
     // reload async
     if (php_swoole_array_get_value(vht, "reload_async", ztmp)) {
-        serv->reload_async = zval_is_true(ztmp);
+        serv->reload_async = zend_is_true(ztmp);
     }
     // cpu affinity
     if (php_swoole_array_get_value(vht, "open_cpu_affinity", ztmp)) {
-        serv->open_cpu_affinity = zval_is_true(ztmp);
+        serv->open_cpu_affinity = zend_is_true(ztmp);
     }
     // cpu affinity set
     if (php_swoole_array_get_value(vht, "cpu_affinity_ignore", ztmp)) {
@@ -2253,20 +2253,20 @@ static PHP_METHOD(swoole_server, set) {
     }
     // parse cookie header
     if (php_swoole_array_get_value(vht, "http_parse_cookie", ztmp)) {
-        serv->http_parse_cookie = zval_is_true(ztmp);
+        serv->http_parse_cookie = zend_is_true(ztmp);
     }
     // parse x-www-form-urlencoded form data
     if (php_swoole_array_get_value(vht, "http_parse_post", ztmp)) {
-        serv->http_parse_post = zval_is_true(ztmp);
+        serv->http_parse_post = zend_is_true(ztmp);
     }
     // parse multipart/form-data file uploads
     if (php_swoole_array_get_value(vht, "http_parse_files", ztmp)) {
-        serv->http_parse_files = zval_is_true(ztmp);
+        serv->http_parse_files = zend_is_true(ztmp);
     }
 #ifdef SW_HAVE_COMPRESSION
     // http content compression
     if (php_swoole_array_get_value(vht, "http_compression", ztmp)) {
-        serv->http_compression = zval_is_true(ztmp);
+        serv->http_compression = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "http_compression_level", ztmp) ||
         php_swoole_array_get_value(vht, "compression_level", ztmp) ||
@@ -2287,7 +2287,7 @@ static PHP_METHOD(swoole_server, set) {
 
 #ifdef SW_HAVE_ZLIB
     if (php_swoole_array_get_value(vht, "websocket_compression", ztmp)) {
-        serv->websocket_compression = zval_is_true(ztmp);
+        serv->websocket_compression = zend_is_true(ztmp);
     }
 #endif
 
@@ -2307,7 +2307,7 @@ static PHP_METHOD(swoole_server, set) {
      * http static file handler
      */
     if (php_swoole_array_get_value(vht, "enable_static_handler", ztmp)) {
-        serv->enable_static_handler = zval_is_true(ztmp);
+        serv->enable_static_handler = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "document_root", ztmp)) {
         zend::String str_v(ztmp);
@@ -2318,7 +2318,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->set_document_root(std::string(str_v.val(), str_v.len()));
     }
     if (php_swoole_array_get_value(vht, "http_autoindex", ztmp)) {
-        serv->http_autoindex = zval_is_true(ztmp);
+        serv->http_autoindex = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "http_index_files", ztmp)) {
         if (ZVAL_IS_ARRAY(ztmp)) {
@@ -2511,7 +2511,7 @@ static PHP_METHOD(swoole_server, getCallback) {
         zval rv,
             *property = zend_read_property(
                 Z_OBJCE_P(ZEND_THIS), SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), true, &rv);
-        if (!ZVAL_IS_NULL(property)) {
+        if (!Z_ISNULL_P(property)) {
             RETURN_ZVAL(property, 1, 0);
         }
     }
@@ -2715,7 +2715,7 @@ static PHP_METHOD(swoole_server, start) {
         zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
         bootstrap = zend_string_dup(Z_STR_P(_bootstrap), true);
 
-        if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
+        if (!Z_ISNULL_P(&server_object->init_arguments)) {
             zval _thread_argv;
             call_user_function(NULL, nullptr, &server_object->init_arguments, &_thread_argv, 0, nullptr);
             if (ZVAL_IS_ARRAY(&_thread_argv)) {
@@ -2777,7 +2777,7 @@ static PHP_METHOD(swoole_server, send) {
     Z_PARAM_LONG(server_socket)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (UNEXPECTED(ZVAL_IS_NULL(zfd))) {
+    if (UNEXPECTED(Z_ISNULL_P(zfd))) {
         php_swoole_fatal_error(E_WARNING, "fd can not be null");
         RETURN_FALSE;
     }
@@ -3331,7 +3331,7 @@ static PHP_METHOD(swoole_server, task) {
 
     if (!serv->is_worker()) {
         buf.info.ext_flags |= SW_TASK_NOREPLY;
-    } else if (zfn && zval_is_true(zfn)) {
+    } else if (zfn && zend_is_true(zfn)) {
         buf.info.ext_flags |= SW_TASK_CALLBACK;
         auto cb = sw_callable_create(zfn);
         if (!cb) {

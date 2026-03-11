@@ -147,7 +147,7 @@ LIBSSH2_MACERROR_FUNC(php_ssh2_macerror_cb) {
     if (FAILURE == call_user_function(NULL, NULL, data->macerror_cb, &zretval, 1, args)) {
         php_error_docref(NULL, E_WARNING, "Failure calling macerror callback");
     } else {
-        retval = zval_is_true(&zretval) ? 0 : -1;
+        retval = zend_is_true(&zretval) ? 0 : -1;
     }
     if (Z_TYPE_P(&zretval) != IS_UNDEF) {
         zval_ptr_dtor(&zretval);

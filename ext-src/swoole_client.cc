@@ -192,7 +192,7 @@ void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) {
         cli->set_ssl_protocols(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
-        cli->set_ssl_disable_compress(!zval_is_true(ztmp));
+        cli->set_ssl_disable_compress(!zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
         zend::String str_v(ztmp);
@@ -219,10 +219,10 @@ void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) {
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
-        cli->set_ssl_verify_peer(zval_is_true(ztmp));
+        cli->set_ssl_verify_peer(zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
-        cli->set_ssl_allow_self_signed(zval_is_true(ztmp));
+        cli->set_ssl_allow_self_signed(zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
         zend::String str_v(ztmp);
@@ -257,11 +257,11 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
 
     // buffer: eof check
     if (php_swoole_array_get_value(vht, "open_eof_check", ztmp)) {
-        cli->open_eof_check = zval_is_true(ztmp);
+        cli->open_eof_check = zend_is_true(ztmp);
     }
     // buffer: split package with eof
     if (php_swoole_array_get_value(vht, "open_eof_split", ztmp)) {
-        cli->protocol.split_by_eof = zval_is_true(ztmp);
+        cli->protocol.split_by_eof = zend_is_true(ztmp);
         if (cli->protocol.split_by_eof) {
             cli->open_eof_check = true;
         }
@@ -281,14 +281,14 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
     }
     // open mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp)) {
-        cli->open_length_check = zval_is_true(ztmp);
-        if (zval_is_true(ztmp)) {
+        cli->open_length_check = zend_is_true(ztmp);
+        if (zend_is_true(ztmp)) {
             swoole::mqtt::set_protocol(&cli->protocol);
         }
     }
     // open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp)) {
-        cli->open_length_check = zval_is_true(ztmp);
+        cli->open_length_check = zend_is_true(ztmp);
         cli->protocol.get_package_length = Protocol::default_length_func;
     }
     // package length size
@@ -379,7 +379,7 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
      * client: tcp_nodelay
      */
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp)) {
-        if (zval_is_true(ztmp)) {
+        if (zend_is_true(ztmp)) {
             goto _open_tcp_nodelay;
         }
     } else {
@@ -499,7 +499,7 @@ ssize_t php_swoole_length_func(const Protocol *protocol, Socket *_socket, Packet
 
 static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port) {
     zval *ztype = sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TYPE), 0);
-    if (ztype == nullptr || ZVAL_IS_NULL(ztype)) {
+    if (ztype == nullptr || Z_ISNULL_P(ztype)) {
         php_swoole_fatal_error(E_ERROR, "failed to get swoole_client->type");
         return nullptr;
     }

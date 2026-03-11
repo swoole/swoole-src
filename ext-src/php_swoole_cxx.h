@@ -838,7 +838,7 @@ static inline zend::Callable *sw_callable_create(zval *zfn) {
 }
 
 static inline zend::Callable *sw_callable_create_ex(zval *zfn, const char *fname, bool allow_null = true) {
-    if (zfn == nullptr || ZVAL_IS_NULL(zfn)) {
+    if (zfn == nullptr || Z_ISNULL_P(zfn)) {
         if (!allow_null) {
             zend_throw_exception_ex(
                 swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "%s must be of type callable, null given", fname);

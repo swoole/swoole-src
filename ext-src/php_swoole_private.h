@@ -117,8 +117,8 @@ BEGIN_EXTERN_C()
 
 #if PHP_VERSION_ID < 80200
 #error "require PHP version 8.2 or later"
-#elif PHP_VERSION_ID >= 80600
-#error "require PHP version 8.5 or earlier"
+#elif PHP_VERSION_ID > 80600
+#error "require PHP version 8.6 or earlier"
 #endif
 
 #if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)
@@ -547,8 +547,8 @@ static sw_inline zend_string *sw_zend_string_recycle(zend_string *s, size_t allo
 //----------------------------------Array API------------------------------------
 
 #define php_swoole_array_length(zarray) zend_hash_num_elements(Z_ARRVAL_P(zarray))
-#define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str) - 1)) && !ZVAL_IS_NULL(v))
-#define php_swoole_array_get_value_ex(ht, str, v) ((v = zend_hash_str_find(ht, str, strlen(str))) && !ZVAL_IS_NULL(v))
+#define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str) - 1)) && !Z_ISNULL_P(v))
+#define php_swoole_array_get_value_ex(ht, str, v) ((v = zend_hash_str_find(ht, str, strlen(str))) && !Z_ISNULL_P(v))
 
 static sw_inline int php_swoole_array_length_safe(zval *zarray) {
     if (zarray && ZVAL_IS_ARRAY(zarray)) {

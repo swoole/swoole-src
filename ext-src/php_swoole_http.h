@@ -250,7 +250,7 @@ struct Context {
     }
 
     bool is_co_socket() const {
-        return !ZVAL_IS_NULL(&zsocket);
+        return !Z_ISNULL_P(&zsocket);
     }
 
     Server *get_async_server() const {

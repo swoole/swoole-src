@@ -277,7 +277,7 @@ static void http_response_set_date_header(String *response) {
 }
 
 static void http_response_add_custom_header(String *http_buffer, const char *key, size_t l_key, zval *value) {
-    if (ZVAL_IS_NULL(value)) {
+    if (Z_ISNULL_P(value)) {
         return;
     }
 
@@ -472,11 +472,11 @@ ssize_t HttpContext::build_trailer(String *http_buffer) const {
         zval *zvalue;
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(ztrailer), key, keylen, type, zvalue) {
-            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
+            if (UNEXPECTED(!key || Z_ISNULL_P(zvalue))) {
                 continue;
             }
 
-            if (!ZVAL_IS_NULL(zvalue)) {
+            if (!Z_ISNULL_P(zvalue)) {
                 zend::String str_value(zvalue);
                 size_t n = sw_snprintf(
                     buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
@@ -1460,7 +1460,7 @@ static PHP_METHOD(swoole_http_response, recv) {
         ctx->close(ctx);
         return;
     }
-    if (sw_unlikely(ZVAL_IS_NULL(return_value))) {
+    if (sw_unlikely(Z_ISNULL_P(return_value))) {
         ZVAL_FALSE(return_value);
     }
 }

@@ -138,7 +138,7 @@ bool FrameObject::pack(String *buffer) {
     }
 
     zend::String str_zdata;
-    if (data && !ZVAL_IS_NULL(data)) {
+    if (data && !Z_ISNULL_P(data)) {
         str_zdata = data;
         ptr = str_zdata.val();
         len = str_zdata.len();
@@ -207,7 +207,7 @@ FrameObject::FrameObject(zval *zdata, zend_long _opcode, zend_long _flags, zend_
         }
         if ((ztmp = sw_zend_read_property_not_null_ex(
                  swoole_websocket_frame_ce, zdata, SW_ZSTR_KNOWN(SW_ZEND_STR_FINISH), 1))) {
-            if (zval_is_true(ztmp)) {
+            if (zend_is_true(ztmp)) {
                 sw_set_bit(flags, WebSocket::FLAG_FIN);
             } else {
                 sw_unset_bit(flags, WebSocket::FLAG_FIN);
@@ -642,23 +642,23 @@ void WebSocket::apply_setting(WebSocketSettings &settings, zend_array *vht, bool
         settings.protocol = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "websocket_mask", ztmp)) {
-        settings.mask = zval_is_true(ztmp);
+        settings.mask = zend_is_true(ztmp);
     } else {
         settings.mask = !in_server;
     }
 #ifdef SW_HAVE_ZLIB
     if (php_swoole_array_get_value(vht, "websocket_compression", ztmp)) {
-        settings.compression = zval_is_true(ztmp);
+        settings.compression = zend_is_true(ztmp);
     }
 #endif
     if (php_swoole_array_get_value(vht, "open_websocket_close_frame", ztmp)) {
-        settings.open_close_frame = zval_is_true(ztmp);
+        settings.open_close_frame = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "open_websocket_ping_frame", ztmp)) {
-        settings.open_ping_frame = zval_is_true(ztmp);
+        settings.open_ping_frame = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "open_websocket_pong_frame", ztmp)) {
-        settings.open_pong_frame = zval_is_true(ztmp);
+        settings.open_pong_frame = zend_is_true(ztmp);
     }
     settings.in_server = in_server;
 }

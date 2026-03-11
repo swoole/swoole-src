@@ -213,7 +213,7 @@ static sb4 oci_bind_input_cb(
     if (P->thing) {
         *bufpp = P->thing;
         *alenp = sizeof(void *);
-    } else if (ZVAL_IS_NULL(parameter)) {
+    } else if (Z_ISNULL_P(parameter)) {
         /* insert a NULL value into the column */
         P->indicator = -1; /* NULL */
         *bufpp = 0;
