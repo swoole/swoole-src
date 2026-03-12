@@ -180,8 +180,8 @@ bool Iouring::ready() const {
 
 void Iouring::yield(IouringEvent *event) {
     ++task_num;
-    // iouring operations cannot be canceled, must wait to be completed.
-    event->coroutine->yield();
+    Coroutine::CancelFunc cancel_fn = [event, this](Coroutine *) { return cancel(event); };
+    event->coroutine->yield(&cancel_fn);
 }
 
 void Iouring::resume(IouringEvent *event) {
@@ -312,6 +312,8 @@ const char *Iouring::get_opcode_name(io_uring_op opcode) {
         return "POLL_ADD";
     case IORING_OP_POLL_REMOVE:
         return "POLL_REMOVE";
+    case IORING_OP_ASYNC_CANCEL:
+        return "CANCEL";
     default:
         return "unknown";
     }
@@ -421,6 +423,12 @@ int Iouring::open(const char *pathname, int flags, mode_t mode) {
     INIT_EVENT(IORING_OP_OPENAT);
     io_uring_prep_open(&event.data, pathname, flags | O_CLOEXEC, mode);
     return static_cast<int>(execute(&event));
+}
+
+bool Iouring::cancel(IouringEvent *prev_event) {
+    INIT_EVENT(IORING_OP_ASYNC_CANCEL);
+    io_uring_prep_cancel(&event.data, (void *) prev_event, 0);
+    return static_cast<int>(execute(&event)) == 0;
 }
 
 int Iouring::socket(int domain, int type, int protocol, int flags) {
@@ -754,12 +762,7 @@ static void swoole_statx_to_stat(const struct statx *statxbuf, struct stat *stat
 int Iouring::fstat(int fd, struct stat *statbuf) {
     struct statx statxbuf;
     INIT_EVENT(IORING_OP_FSTAT);
-
-    event.data.addr = (uintptr_t) "";
-    event.data.fd = fd;
-    event.data.statx_flags = AT_EMPTY_PATH;
-    event.data.opcode = IORING_OP_STATX;
-    event.data.off = (uintptr_t) &statxbuf;
+    io_uring_prep_statx(&event.data, fd, "", AT_EMPTY_PATH, STATX_BASIC_STATS | STATX_BTIME, &statxbuf);
 
     auto retval = execute(&event);
     if (retval == 0) {
@@ -771,12 +774,8 @@ int Iouring::fstat(int fd, struct stat *statbuf) {
 int Iouring::stat(const char *path, struct stat *statbuf) {
     struct statx statxbuf;
     INIT_EVENT(IORING_OP_FSTAT);
-
-    event.data.addr = (uintptr_t) path;
-    event.data.fd = AT_FDCWD;
-    event.data.statx_flags = AT_SYMLINK_NOFOLLOW;
-    event.data.opcode = IORING_OP_STATX;
-    event.data.off = (uintptr_t) &statxbuf;
+    io_uring_prep_statx(
+        &event.data, AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS | STATX_BTIME, &statxbuf);
 
     auto retval = execute(&event);
     if (retval == 0) {
@@ -789,29 +788,13 @@ int Iouring::stat(const char *path, struct stat *statbuf) {
 #ifdef HAVE_IOURING_FUTEX
 int Iouring::futex_wait(uint32_t *futex) {
     INIT_EVENT(IORING_OP_FUTEX_WAIT);
-
-    event.data.opcode = IORING_OP_FUTEX_WAIT;
-    event.data.fd = FUTEX2_SIZE_U32;
-    event.data.off = 1;
-    event.data.addr = (uintptr_t) futex;
-    event.data.len = 0;
-    event.data.futex_flags = 0;
-    event.data.addr3 = FUTEX_BITSET_MATCH_ANY;
-
+    io_uring_prep_futex_wait(&event.data, futex, 1, FUTEX_BITSET_MATCH_ANY, FUTEX2_SIZE_U32, 0);
     return static_cast<int>(execute(&event));
 }
 
 int Iouring::futex_wakeup(uint32_t *futex) {
     INIT_EVENT(IORING_OP_FUTEX_WAKE);
-
-    event.data.opcode = IORING_OP_FUTEX_WAKE;
-    event.data.fd = FUTEX2_SIZE_U32;
-    event.data.off = 1;
-    event.data.addr = (uintptr_t) futex;
-    event.data.len = 0;
-    event.data.futex_flags = 0;
-    event.data.addr3 = FUTEX_BITSET_MATCH_ANY;
-
+    io_uring_prep_futex_wake(&event.data, futex, 1, FUTEX_BITSET_MATCH_ANY, FUTEX2_SIZE_U32, 0);
     return static_cast<int>(execute(&event));
 }
 #endif

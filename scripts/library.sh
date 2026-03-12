@@ -3,7 +3,7 @@ __CURRENT__=$(pwd)
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
 if [ "$(uname -m)" = "aarch64" ]; then
-  arch="-arm64"
+  arch="arm64"
 else
   arch="x64"
 fi
@@ -29,9 +29,9 @@ make install
 echo '/usr/local/lib/mariadb/' > /etc/ld.so.conf.d/odbc-mariadb.conf
 ldconfig
 
-wget -nv https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linux${arch}.zip
+wget -nv -O instantclient-basiclite-linux${arch}.zip https://download.oracle.com/otn_software/linux/instantclient/1930000/instantclient-basiclite-linux.${arch}-19.30.0.0.0dbru.zip
 unzip instantclient-basiclite-linux${arch}.zip && rm instantclient-basiclite-linux${arch}.zip
-wget -nv https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linux${arch}.zip
+wget -nv -O instantclient-sdk-linux${arch}.zip https://download.oracle.com/otn_software/linux/instantclient/1930000/instantclient-sdk-linux.${arch}-19.30.0.0.0dbru.zip
 unzip instantclient-sdk-linux${arch}.zip && rm instantclient-sdk-linux${arch}.zip
 mv instantclient_*_* ./instantclient
 rm ./instantclient/sdk/include/ldap.h

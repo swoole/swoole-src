@@ -52,6 +52,7 @@ class Iouring {
     bool ready() const;
     void yield(IouringEvent *event);
     void resume(IouringEvent *event);
+    bool cancel(IouringEvent *prev_event);
     void dispatch(IouringEvent *event);
     void submit(bool immediately);
     bool wakeup();

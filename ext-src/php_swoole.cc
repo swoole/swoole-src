@@ -297,8 +297,14 @@ static const zend_module_dep swoole_deps[] = {
 #ifdef SW_USE_CURL
     ZEND_MOD_REQUIRED("curl")
 #endif
-#if defined(SW_USE_PGSQL) || defined(SW_USE_ORACLE) || defined(SW_USE_SQLITE)
+#if defined(SW_USE_PGSQL) || defined(SW_USE_ORACLE) || defined(SW_USE_SQLITE) || defined(SW_USE_FIREBIRD)
     ZEND_MOD_REQUIRED("pdo")
+#endif
+#ifdef SW_HAVE_FTP
+	ZEND_MOD_CONFLICTS("ftp")
+#endif
+#ifdef SW_HAVE_SSH2LIB
+	ZEND_MOD_CONFLICTS("ssh2")
 #endif
 
     ZEND_MOD_END

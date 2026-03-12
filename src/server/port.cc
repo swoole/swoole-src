@@ -687,7 +687,7 @@ _parse:
             } else {
                 swoole_trace_log(
                     SW_TRACE_SERVER,
-                    "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
+                    "PostWait: request->content_length=%" PRIu64 ", buffer->length=%zu, request->header_length=%d\n",
                     request->content_length_,
                     buffer->length,
                     request->header_length_);

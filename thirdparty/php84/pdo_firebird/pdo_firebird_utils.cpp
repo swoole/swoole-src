@@ -14,11 +14,15 @@
   +----------------------------------------------------------------------+
 */
 
+#define SW_USE_FIREBIRD_HOOK
+#include "php_swoole_firebird.h"
+
+#if PHP_VERSION_ID < 80500
+
 #include "pdo_firebird_utils.h"
 #include <firebird/Interface.h>
 #include <cstring>
 
-#if PHP_VERSION_ID < 80500
 /* Returns the client version. 0 bytes are minor version, 1 bytes are major version. */
 extern "C" unsigned fb_get_client_version(void)
 {
