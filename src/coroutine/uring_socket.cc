@@ -494,7 +494,7 @@ bool UringSocket::ssl_bio_perform(int rc, const char *fn) {
         }
         return true;
     } else if (error == SSL_ERROR_ZERO_RETURN) {
-        swoole_debug("%s(fd=%d) return zero value", fn, fd);
+        swoole_debug("%s(fd=%d) return zero value", fn, socket->get_fd());
         error = SW_ERROR_SSL_RESET;
         goto _error;
     } else if (error == SSL_ERROR_SYSCALL) {
@@ -644,7 +644,7 @@ ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) 
         if (ret > 0) {
             *offset += ret;
             total += ret;
-            swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
+            swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", socket->get_fd(), readn, n, ret);
         } else if (ret == 0) {
             return total;
         } else {
