@@ -176,7 +176,7 @@ static php_stream_ops ori_php_stream_stdio_ops;
 static void hook_func(const char *name,
                       size_t l_name,
                       zif_handler handler = nullptr,
-                      zend_arg_info *arg_info = nullptr);
+                      zend_func_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
 
 static bool extension_loaded(const char *name) {
@@ -197,7 +197,7 @@ static bool class_exists(const char *name) {
     return !!ce;
 }
 
-static zend_arg_info *get_arginfo(const char *name, size_t l_name) {
+static zend_func_arg_info *get_arginfo(const char *name, size_t l_name) {
     auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
         return nullptr;
@@ -205,12 +205,12 @@ static zend_arg_info *get_arginfo(const char *name, size_t l_name) {
     return zf->internal_function.arg_info;
 }
 
-static zend_arg_info *copy_arginfo(const zend_internal_function *function, zend_arg_info *_arg_info) {
+static zend_func_arg_info *copy_arginfo(const zend_internal_function *function, zend_func_arg_info *_arg_info) {
     uint32_t num_args = function->num_args + 1;
-    zend_arg_info *arg_info = _arg_info - 1;
+    zend_func_arg_info *arg_info = _arg_info - 1;
 
-    auto new_arg_info = static_cast<zend_arg_info *>(pemalloc(sizeof(zend_arg_info) * num_args, 1));
-    memcpy(new_arg_info, arg_info, sizeof(zend_arg_info) * num_args);
+    auto new_arg_info = static_cast<zend_func_arg_info *>(pemalloc(sizeof(zend_func_arg_info) * num_args, 1));
+    memcpy(new_arg_info, arg_info, sizeof(zend_func_arg_info) * num_args);
 
     if (function->fn_flags & ZEND_ACC_VARIADIC) {
         num_args++;
@@ -250,8 +250,8 @@ static zend_arg_info *copy_arginfo(const zend_internal_function *function, zend_
     return new_arg_info + 1;
 }
 
-static void free_arg_info(const zend_internal_function *function, zend_arg_info *arg_info_copy) {
-    zend_arg_info *arg_info = arg_info_copy - 1;
+static void free_arg_info(const zend_internal_function *function, zend_func_arg_info *arg_info_copy) {
+    zend_func_arg_info *arg_info = arg_info_copy - 1;
     uint32_t num_args = function->num_args + 1;
     if (function->fn_flags & ZEND_ACC_VARIADIC) {
         num_args++;
@@ -275,7 +275,7 @@ static int runtime_hook_flags = 0;
 static zend_array *hook_function_table = nullptr;
 static std::unordered_map<std::string, zend_class_entry *> child_class_entries;
 static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(nullptr);
-static zend::ConcurrencyHashMap<std::string, zend_arg_info *> ori_func_arg_infos(nullptr);
+static zend::ConcurrencyHashMap<std::string, zend_func_arg_info *> ori_func_arg_infos(nullptr);
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
@@ -338,9 +338,9 @@ void php_swoole_runtime_minit(int module_number) {
 
 struct PhpFunc {
     zend_function *function;
-    zend_arg_info *ori_arg_info;
+    zend_func_arg_info *ori_arg_info;
     zif_handler ori_handler;
-    zend_arg_info *arg_info_copy;
+    zend_func_arg_info *arg_info_copy;
     uint32_t ori_fn_flags;
     zend::Callable *fci_cache;
     zval name;
@@ -2146,7 +2146,7 @@ static PHP_FUNCTION(swoole_stream_select) {
     RETURN_LONG(retval);
 }
 
-static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_arg_info *arg_info) {
+static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_func_arg_info *arg_info) {
     auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     bool use_php_func = false;
     /**
