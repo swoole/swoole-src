@@ -24,6 +24,8 @@ SW_EXTERN_C_BEGIN
 #include <curl/curl.h>
 #include <curl/multi.h>
 
+#define fread swoole_coroutine_fread
+#define fwrite swoole_coroutine_fwrite
 #define curl_easy_reset swoole_curl_easy_reset
 
 void swoole_native_curl_minit(int module_number);
