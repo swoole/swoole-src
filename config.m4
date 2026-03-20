@@ -1549,7 +1549,7 @@ EOF
         AC_MSG_RESULT([disabled])
     fi
 
-    PHP_INSTALL_HEADERS([ext/swoole], [ext-src/*.h config.h php_swoole.h \
+    PHP_INSTALL_HEADERS([ext/swoole], [ext-src/*.h config.h php_swoole.h php_swoole_api.h \
         include/*.h \
         stubs/*.h \
         thirdparty/*.h \
