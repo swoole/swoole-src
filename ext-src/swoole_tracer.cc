@@ -499,101 +499,105 @@ static void profiling_end() {
 #endif
 }
 
-static void tracer_observer_begin(zend_execute_data *execute_data) {
-    if (SWOOLE_G(profile)) {
-        if (!TracerG.profiling || execute_data->func->type == ZEND_INTERNAL_FUNCTION) {
-            return;
+static void blocking_detection_begin(zend_execute_data *execute_data) {
+    auto ctx = (PHPContext *) swoole::Coroutine::get_current_task();
+    if (!ctx) {
+        return;
+    }
+
+    auto span = new BlockingDetectionSpan;
+    span->began_at = tracer_get_time_us();
+    span->switch_count = ctx->switch_count = 0;
+    span->swap_callback = [](PHPContext *ctx) { ctx->switch_count++; };
+    ctx->on_resume = &span->swap_callback;
+    ctx->on_yield = &span->swap_callback;
+    execute_data->func->internal_function.reserved[blocking_detection_func_reserve_index] = span;
+}
+
+static void blocking_detection_end(zend_execute_data *execute_data) {
+    PHPContext *ctx = PHPCoroutine::get_context();
+    if (!ctx) {
+        return;
+    }
+
+    ctx->on_resume = nullptr;
+    ctx->on_yield = nullptr;
+
+    auto fn = &execute_data->func->internal_function;
+    auto span = (BlockingDetectionSpan *) fn->reserved[blocking_detection_func_reserve_index];
+    if (!span) {
+        return;
+    }
+    fn->reserved[blocking_detection_func_reserve_index] = nullptr;
+
+    auto now = tracer_get_time_us();
+    auto duration = now - span->began_at;
+    if (span->switch_count == ctx->switch_count && duration > SWOOLE_G(blocking_threshold)) {
+        auto duration_str = tracer_format_number(duration);
+        auto backtrace_str = tracer_get_backtrace();
+
+        const char *scope = nullptr;
+        if (execute_data->func->common.scope) {
+            scope = ZSTR_VAL(execute_data->func->common.scope->name);
         }
+
+        sw_printf(" >>> [Detected blocking I/O in Coroutine#%ld, internal function `%s%s%s()` blocked for %s us]\n%s",
+                  PHPCoroutine::get_cid(),
+                  scope ? scope : "",
+                  scope ? "::" : "",
+                  fn->function_name->val,
+                  duration_str->val,
+                  backtrace_str->val);
+
+        zend_string_release(duration_str);
+        zend_string_release(backtrace_str);
+    }
+
+    swoole_event_defer(
+        [](void *ptr) {
+            auto span = (BlockingDetectionSpan *) ptr;
+            delete span;
+        },
+        span);
+}
+
+static bool tracer_observer_if_enable_profile(zend_execute_data *execute_data) {
+    return SWOOLE_G(profile) && TracerG.profiling && execute_data->func->type != ZEND_INTERNAL_FUNCTION;
+}
+
+static bool tracer_observer_if_enable_blocking_detection(zend_execute_data *execute_data) {
+    return SWOOLE_G(blocking_detection) && execute_data->func->type == ZEND_INTERNAL_FUNCTION;
+}
+
+static void tracer_observer_begin(zend_execute_data *execute_data) {
+    if (tracer_observer_if_enable_profile(execute_data)) {
         profiling_begin(NULL, execute_data);
     }
 
-    if (SWOOLE_G(blocking_detection)) {
-        auto ctx = (PHPContext *) swoole::Coroutine::get_current_task();
-        if (ctx) {
-            auto span = new BlockingDetectionSpan;
-            span->began_at = tracer_get_time_us();
-            span->switch_count = ctx->switch_count = 0;
-            span->swap_callback = [](PHPContext *ctx) { ctx->switch_count++; };
-            ctx->on_resume = &span->swap_callback;
-            ctx->on_yield = &span->swap_callback;
-            execute_data->func->internal_function.reserved[blocking_detection_func_reserve_index] = span;
-        }
+    if (tracer_observer_if_enable_blocking_detection(execute_data)) {
+        blocking_detection_begin(execute_data);
     }
 }
 
 static void tracer_observer_end(zend_execute_data *execute_data, zval *return_value) {
-    if (SWOOLE_G(profile)) {
-        if (!TracerG.profiling || execute_data->func->type == ZEND_INTERNAL_FUNCTION) {
-            return;
-        }
+    if (tracer_observer_if_enable_profile(execute_data)) {
         profiling_end();
     }
 
-    if (SWOOLE_G(blocking_detection)) {
-        PHPContext *ctx = PHPCoroutine::get_context();
-        if (!ctx || execute_data->func->type != ZEND_INTERNAL_FUNCTION) {
-            return;
-        }
-
-        ctx->on_resume = nullptr;
-        ctx->on_yield = nullptr;
-
-        auto fn = &execute_data->func->internal_function;
-        auto span = (BlockingDetectionSpan *) fn->reserved[blocking_detection_func_reserve_index];
-        if (!span) {
-            return;
-        }
-        fn->reserved[blocking_detection_func_reserve_index] = nullptr;
-
-        auto now = tracer_get_time_us();
-        auto duration = now - span->began_at;
-        if (span->switch_count == ctx->switch_count && duration > SWOOLE_G(blocking_threshold)) {
-            auto duration_str = tracer_format_number(duration);
-            auto backtrace_str = tracer_get_backtrace();
-
-            const char *scope = nullptr;
-            if (execute_data->func->common.scope) {
-                scope = ZSTR_VAL(execute_data->func->common.scope->name);
-            }
-
-            sw_printf(
-                " >>> [Detected blocking I/O in Coroutine#%ld, internal function `%s%s%s()` blocked for %s us]\n%s",
-                PHPCoroutine::get_cid(),
-                scope ? scope : "",
-                scope ? "::" : "",
-                fn->function_name->val,
-                duration_str->val,
-                backtrace_str->val);
-
-            zend_string_release(duration_str);
-            zend_string_release(backtrace_str);
-        }
-
-        swoole_event_defer(
-            [](void *ptr) {
-                auto span = (BlockingDetectionSpan *) ptr;
-                delete span;
-            },
-            span);
+    if (tracer_observer_if_enable_blocking_detection(execute_data)) {
+        blocking_detection_end(execute_data);
     }
 }
 
 static zend_observer_fcall_handlers tracer_observer(zend_execute_data *execute_data) {
     zend_observer_fcall_handlers empty_handlers = {nullptr, nullptr};
 
-    if (!SWOOLE_G(profile) && !SWOOLE_G(blocking_detection)) {
-        return empty_handlers;
-    }
-
     if (!execute_data->func || !execute_data->func->common.function_name) {
         return empty_handlers;
     }
 
-    if (SWOOLE_G(profile) && (!TracerG.profiling || execute_data->func->type != ZEND_USER_FUNCTION)) {
-        return empty_handlers;
-    }
-
-    if (SWOOLE_G(blocking_detection) && execute_data->func->type != ZEND_INTERNAL_FUNCTION) {
+    if (!tracer_observer_if_enable_profile(execute_data) &&
+        !tracer_observer_if_enable_blocking_detection(execute_data)) {
         return empty_handlers;
     }
 
