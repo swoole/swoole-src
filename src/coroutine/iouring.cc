@@ -84,6 +84,54 @@ static void parse_kernel_version(const char *release, int *major, int *minor) {
     *minor = token ? sw_atoi(token) : 0;
 }
 
+static void check_iouring_kernel_version() {
+    int major, minor;
+    parse_kernel_version(SwooleG.uname.release, &major, &minor);
+
+#ifdef HAVE_IOURING_FUTEX
+    if (!((major > 6) || (major == 6 && minor >= 7))) {
+        swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
+    }
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    if (!((major > 6) || (major == 6 && minor >= 9))) {
+        swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
+    }
+#endif
+}
+
+static void check_iouring_opcode_support(io_uring *ring) {
+    struct io_uring_probe *probe = io_uring_get_probe_ring(ring);
+    ON_SCOPE_EXIT {
+        if (probe) {
+            io_uring_free_probe(probe);
+        }
+    };
+
+    if (!probe) {
+        swoole_warning("Failed to get io_uring probe information, falling back to the Linux kernel version check");
+        check_iouring_kernel_version();
+        return;
+    }
+
+#ifdef HAVE_IOURING_FUTEX
+    if (!io_uring_opcode_supported(probe, IORING_OP_FUTEX_WAIT) ||
+        !io_uring_opcode_supported(probe, IORING_OP_FUTEX_WAKE)) {
+        swoole_error(
+            "The running kernel does not support IORING_OP_FUTEX_WAIT/IORING_OP_FUTEX_WAKE required by "
+            "Iouring::futex_wait()/Iouring::futex_wakeup()");
+    }
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    if (!io_uring_opcode_supported(probe, IORING_OP_FTRUNCATE)) {
+        swoole_error(
+            "The running kernel does not support IORING_OP_FTRUNCATE required by Iouring::ftruncate()");
+    }
+#endif
+}
+
 Iouring::Iouring(Reactor *_reactor) {
     reactor = _reactor;
     if (SwooleG.iouring_entries > 0) {
@@ -112,20 +160,7 @@ Iouring::Iouring(Reactor *_reactor) {
         }
     }
 
-    int major, minor;
-    parse_kernel_version(SwooleG.uname.release, &major, &minor);
-
-#ifdef HAVE_IOURING_FUTEX
-    if (!((major > 6) || (major == 6 && minor >= 7))) {
-        swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
-    }
-#endif
-
-#ifdef HAVE_IOURING_FTRUNCATE
-    if (!((major > 6) || (major == 6 && minor >= 9))) {
-        swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
-    }
-#endif
+    check_iouring_opcode_support(&ring);
 
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
     ring_socket->object = this;
