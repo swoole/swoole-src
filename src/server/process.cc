@@ -415,7 +415,7 @@ _close:
         return false;
     }
 
-    if (server_->onClose != nullptr && !conn->closed) {
+    if (server_->if_do_close_callback(conn)) {
         info.fd = session_id;
         if (conn->close_actively) {
             info.reactor_id = -1;
@@ -427,7 +427,6 @@ _close:
         server_->onClose(server_, &info);
         conn->closing = 0;
     }
-    conn->closed = 1;
     conn->close_errno = 0;
     return finish(&_send);
 }

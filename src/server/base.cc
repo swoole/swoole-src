@@ -170,7 +170,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     }
 
     conn->closing = 1;
-    if (server_->onClose != nullptr && !conn->closed) {
+    if (server_->if_do_close_callback(conn)) {
         DataHead info{};
         info.fd = session_id;
         if (conn->close_actively) {
@@ -182,7 +182,6 @@ bool BaseFactory::end(SessionId session_id, int flags) {
         server_->onClose(server_, &info);
     }
     conn->closing = 0;
-    conn->closed = 1;
     conn->close_errno = 0;
     network::Socket *_socket = conn->socket;
 
