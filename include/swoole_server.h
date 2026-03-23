@@ -87,7 +87,6 @@ struct Connection {
     uint8_t websocket_compression;
     // If it is equal to 1, it means server actively closed the connection
     uint8_t close_actively;
-    uint8_t closed;
     uint8_t close_queued;
     uint8_t closing;
     uint8_t close_reset;
@@ -99,6 +98,7 @@ struct Connection {
     ReactorId reactor_id;
     uint16_t close_errno;
     int server_fd;
+    sw_atomic_t closed;
     sw_atomic_t recv_queued_bytes;
     uint32_t send_queued_bytes;
     uint16_t waiting_time;
@@ -1308,6 +1308,10 @@ class Server {
 
     bool if_forward_message(const Session *session) const {
         return session->reactor_id != swoole_get_worker_id();
+    }
+
+    bool if_do_close_callback(Connection *conn) const {
+        return onClose != nullptr && sw_atomic_cmp_set(&conn->closed, 0, 1);
     }
 
     Worker *get_worker(uint16_t worker_id) const;
