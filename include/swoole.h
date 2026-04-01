@@ -264,7 +264,7 @@ static inline int sw_atoi(const char *str) {
 }
 
 static inline void sw_memset_zero(void *s, size_t n) {
-    memset(s, '\0', n);
+    memset(s, 0, n);
 }
 
 #define sw_unset_bit(val, bit) val &= ~bit

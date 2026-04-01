@@ -176,6 +176,12 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
 
     if (conn->timer) {
         swoole_timer_del(conn->timer);
+        conn->timer = nullptr;
+    }
+
+    if (conn->websocket_buffer) {
+    	delete conn->websocket_buffer;
+    	conn->websocket_buffer = nullptr;
     }
 
     if (!socket->removed && reactor->del(socket) < 0) {
@@ -218,9 +224,9 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     if (port->open_http_protocol && conn->object) {
         port->destroy_http_request(conn);
     }
+
     if (port->open_redis_protocol && conn->object) {
         sw_free(conn->object);
-        conn->object = nullptr;
     }
 
 #ifdef SW_USE_SOCKET_LINGER
@@ -254,7 +260,11 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     }
     serv->unlock();
 
-    *conn = {};
+    conn->active = 0;
+    conn->closed = 1;
+    conn->socket = nullptr;
+    conn->object = nullptr;
+
     return Reactor::_close(reactor, socket);
 }
 
@@ -280,23 +290,22 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     if (conn == nullptr || conn->active == 0) {
         return SW_ERR;
     } else if (serv->disable_notify) {
-        Server::close_connection(reactor, socket);
-        return SW_OK;
+        return Server::close_connection(reactor, socket);
     } else if (reactor->del(socket) == 0) {
         if (conn->close_queued) {
-            Server::close_connection(reactor, socket);
-            return SW_OK;
-        } else {
+            return Server::close_connection(reactor, socket);
+        } else if (socket->close_notified == 0) {
             /**
              * peer_closed indicates that the client has closed the connection
              * and the connection is no longer available.
              */
             conn->peer_closed = 1;
+            socket->close_notified = 1;
             return serv->factory_->notify(&notify_ev);
         }
-    } else {
-        return SW_ERR;
+        return SW_OK;
     }
+    return SW_ERR;
 }
 
 void ReactorThread::shutdown(Reactor *reactor) {

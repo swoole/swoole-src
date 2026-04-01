@@ -1,7 +1,7 @@
 <?php
 //$serv = new Swoole\Server("0.0.0.0", 9501, SWOOLE_BASE);
-// $serv = new Swoole\Server("0.0.0.0", 9501);
-$serv = new Swoole\Server("0.0.0.0", 9501, SWOOLE_THREAD);
+$serv = new Swoole\Server("0.0.0.0", 9501, SWOOLE_PROCESS);
+//$serv = new Swoole\Server("0.0.0.0", 9501, SWOOLE_THREAD);
 
 function getpid()
 {

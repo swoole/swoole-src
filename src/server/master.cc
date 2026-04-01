@@ -1507,16 +1507,12 @@ int Server::send_to_connection(const SendData *_send) const {
     if (_send->info.type == SW_SERVER_EVENT_CLOSE) {
         _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
         conn->close_queued = 1;
-    }
-    // sendfile to client
-    else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
+    } else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         auto *task = (SendfileTask *) _send_data;
         if (conn->socket->sendfile_async(task->filename, task->offset, task->length) < 0) {
             return false;
         }
-    }
-    // send data
-    else {
+    } else {
         // connection is closed
         if (conn->peer_closed) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
@@ -1988,7 +1984,7 @@ Connection *Server::add_connection(const ListenPort *ls, Socket *_socket, int se
 
     Connection *connection = &(connection_list[fd]);
     ReactorId reactor_id = is_base_mode() ? swoole_get_worker_id() : fd % reactor_num;
-    *connection = {};
+    sw_memset_zero(connection, offsetof(Connection, closed));
 
     sw_spinlock(&gs->spinlock);
     SessionId session_id = gs->session_round;
@@ -2044,6 +2040,7 @@ _find_available_slot:
     connection->server_fd = server_fd;
     connection->last_recv_time = connection->connect_time = microtime();
     connection->active = 1;
+    connection->closed = 0;
     connection->worker_id = -1;
     connection->socket_type = ls->type;
     connection->socket = _socket;

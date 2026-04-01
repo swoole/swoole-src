@@ -97,8 +97,6 @@ struct Connection {
     uint8_t close_force;
     ReactorId reactor_id;
     uint16_t close_errno;
-    int server_fd;
-    sw_atomic_t closed;
     sw_atomic_t recv_queued_bytes;
     uint32_t send_queued_bytes;
     uint16_t waiting_time;
@@ -140,6 +138,8 @@ struct Connection {
     pid_t ssl_client_cert_pid;
 #endif
     sw_atomic_t lock;
+    sw_atomic_t closed;
+    int server_fd;
 };
 
 //------------------------------------ReactorThread-------------------------------------------
