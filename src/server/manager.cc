@@ -251,14 +251,7 @@ void Manager::wait(Server *_server) {
 
                 // check the process return code and signal
                 _server->factory_->check_worker_exit_status(worker, exit_status);
-
-                do {
-                    if (_server->factory_->spawn_event_worker(worker) < 0) {
-                        SW_START_SLEEP;
-                        continue;
-                    }
-                    break;
-                } while (true);
+                _server->factory_->spawn_event_worker(worker);
             }
 
             // task worker
