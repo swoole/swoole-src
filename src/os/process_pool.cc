@@ -499,7 +499,7 @@ pid_t ProcessPool::spawn(Worker *worker) {
         }
         exit(ret_code);
     } else {
-        if (worker->pid) {
+        if (worker->pid && worker->pid != pid) {
             map_->erase(worker->pid);
         }
         worker->pid = pid;

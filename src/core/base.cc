@@ -306,9 +306,10 @@ pid_t swoole_fork(int flags) {
         pid = fork();
         if (pid < 0) {
             swoole_sys_warning("fork() failed");
-            SW_START_SLEEP;
+            sleep(1);
+        } else {
+            break;
         }
-        break;
     }
 
     if (pid == 0) {
