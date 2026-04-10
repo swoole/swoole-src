@@ -4262,6 +4262,7 @@ TEST(server, restart_worker_process) {
     ExitStatus fake_exit(getpid(), 0);
     auto pool = serv.get_task_worker_pool();
     auto worker = serv.get_worker(2);
+    serv.get_event_worker_pool()->workers = serv.workers;
     worker->pid = getpid();
     pool->add_worker(worker);
     serv.restart_worker_process(fake_exit);

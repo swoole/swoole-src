@@ -239,7 +239,8 @@ void Manager::wait(Server *_server) {
                 auto reload_task = pool->reload_task;
                 reload_task->add_workers(_server->get_task_worker_pool()->workers, _server->task_worker_num);
                 goto _kill_worker;
-            } else if (exit_status.get_pid() < 0) {
+            }
+            if (exit_status.get_pid() < 0) {
                 continue;
             }
             /**
@@ -376,39 +377,10 @@ void Manager::signal_handler(int signo) {
  * @return: success returns pid, failure returns SW_ERR.
  */
 pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
-    Worker *exited_worker = nullptr;
     pid_t exited_pid = exit_status.get_pid();
-    int worker_type;
+    Worker *exited_worker = get_worker_by_pid(exited_pid);
 
-    do {
-        // Event Worker
-        SW_LOOP_N(worker_num) {
-            Worker *worker = get_worker(i);
-            if (exited_pid != worker->pid) {
-                continue;
-            }
-            worker_type = SW_EVENT_WORKER;
-            exited_worker = worker;
-            break;
-        }
-        // Task Worker
-        if (get_task_worker_pool()->map_) {
-            const auto iter = get_task_worker_pool()->map_->find(exited_pid);
-            if (iter != get_task_worker_pool()->map_->end()) {
-                worker_type = SW_TASK_WORKER;
-                exited_worker = iter->second;
-                break;
-            }
-        }
-        // User Worker
-        if (!user_worker_map.empty()) {
-            const auto iter = user_worker_map.find(exited_pid);
-            if (iter != user_worker_map.end()) {
-                worker_type = SW_USER_WORKER;
-                exited_worker = iter->second;
-                break;
-            }
-        }
+    if (exited_worker == nullptr) {
         // Exception: Received an exit signal from an unknown process
         if (detached_processes.find(exited_pid) == detached_processes.end()) {
             swoole_warning("Unknown type child process [%d] exited", exited_pid);
@@ -417,28 +389,20 @@ pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
             detached_processes.erase(exited_pid);
         }
         return SW_ERR;
-    } while (false);
+    }
 
     factory_->check_worker_exit_status(exited_worker, exit_status);
 
-    pid_t new_process_pid = -1;
-
-    switch (worker_type) {
-    case SW_EVENT_WORKER:
-        new_process_pid = factory_->spawn_event_worker(exited_worker);
-        break;
-    case SW_TASK_WORKER:
-        new_process_pid = factory_->spawn_task_worker(exited_worker);
-        break;
-    case SW_USER_WORKER:
-        new_process_pid = factory_->spawn_user_worker(exited_worker);
-        break;
-    default:
-        /* never here */
-        abort();
+    if (exited_worker->type == SW_EVENT_WORKER) {
+        return factory_->spawn_event_worker(exited_worker);
+    } else if (exited_worker->type == SW_TASK_WORKER) {
+        return factory_->spawn_task_worker(exited_worker);
+    } else if (exited_worker->type == SW_USER_WORKER) {
+        return factory_->spawn_user_worker(exited_worker);
+    } else {
+        swoole_warning("Unknown worker [pid=%d] type [%d]", exited_pid, exited_worker->type);
+        return SW_ERR;
     }
-
-    return new_process_pid;
 }
 
 /**

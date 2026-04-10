@@ -790,6 +790,31 @@ Worker *Server::get_worker(uint16_t worker_id) const {
     return nullptr;
 }
 
+Worker *Server::get_worker_by_pid(pid_t worker_pid) const {
+    SW_LOOP_N(worker_num) {
+        Worker *worker = get_worker(i);
+        if (worker_pid == worker->pid) {
+            return worker;
+        }
+    }
+
+    if (get_task_worker_pool()->map_) {
+        const auto iter = get_task_worker_pool()->map_->find(worker_pid);
+        if (iter != get_task_worker_pool()->map_->end()) {
+            return iter->second;
+        }
+    }
+
+    if (!user_worker_map.empty()) {
+        const auto iter = user_worker_map.find(worker_pid);
+        if (iter != user_worker_map.end()) {
+            return iter->second;
+        }
+    }
+
+    return nullptr;
+}
+
 int Server::create() {
     if (is_created()) {
         return SW_ERR;
