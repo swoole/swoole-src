@@ -240,32 +240,17 @@ void Manager::wait(Server *_server) {
             } else if (exit_status.get_pid() < 0) {
                 continue;
             }
-
-            // event workers
-            SW_LOOP_N(_server->worker_num) {
-                Worker *worker = _server->get_worker(i);
-                // find worker
-                if (exit_status.get_pid() != worker->pid) {
-                    continue;
-                }
-
-                // check the process return code and signal
-                _server->factory_->check_worker_exit_status(worker, exit_status);
-                _server->factory_->spawn_event_worker(worker);
-            }
-
-            // task worker
-            if (task_pool->map_) {
-                auto iter = task_pool->map_->find(exit_status.get_pid());
-                if (iter != task_pool->map_->end()) {
-                    _server->factory_->check_worker_exit_status(iter->second, exit_status);
-                    _server->factory_->spawn_task_worker(iter->second);
-                }
-            }
-            // user process
-            if (!_server->user_worker_map.empty()) {
-                Server::wait_other_worker(pool, exit_status);
-            }
+            /**
+             * Restart a worker process after it exits. This mechanism does not rely on signals; instead, the process ID
+             * is returned by the `wait()` system call. Internally, the process table is consulted to locate the
+             * corresponding worker process object, which is then recreated in place. For example, if worker process No.
+             * 1 exits, a new one will be started in its stead.
+             */
+            _server->restart_worker_process(exit_status);
+            /**
+             * Remove this process from the reload task. This PID list is a snapshot taken when signal USR1 or USR2 is
+             * received. Once all PIDs in the reload task list have exited, the reload task will be destroyed.
+             */
             if (pool->reload_task) {
                 pool->reload_task->remove(exit_status.get_pid());
             }
@@ -388,41 +373,57 @@ void Manager::signal_handler(int signo) {
 /**
  * @return: success returns pid, failure returns SW_ERR.
  */
-int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) {
-    auto serv = static_cast<Server *>(pool->ptr);
-    Worker *exit_worker = nullptr;
+pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
+    Worker *exited_worker = nullptr;
     int worker_type;
 
     do {
-        if (serv->get_task_worker_pool()->map_) {
-            const auto iter = serv->get_task_worker_pool()->map_->find(exit_status.get_pid());
-            if (iter != serv->get_task_worker_pool()->map_->end()) {
+        // Event Worker
+        SW_LOOP_N(worker_num) {
+            Worker *worker = get_worker(i);
+            if (exit_status.get_pid() != worker->pid) {
+                continue;
+            }
+            worker_type = SW_EVENT_WORKER;
+            exited_worker = worker;
+            break;
+        }
+        // Task Worker
+        if (get_task_worker_pool()->map_) {
+            const auto iter = get_task_worker_pool()->map_->find(exit_status.get_pid());
+            if (iter != get_task_worker_pool()->map_->end()) {
                 worker_type = SW_TASK_WORKER;
-                exit_worker = iter->second;
+                exited_worker = iter->second;
                 break;
             }
         }
-        if (!serv->user_worker_map.empty()) {
-            const auto iter = serv->user_worker_map.find(exit_status.get_pid());
-            if (iter != serv->user_worker_map.end()) {
+        // User Worker
+        if (!user_worker_map.empty()) {
+            const auto iter = user_worker_map.find(exit_status.get_pid());
+            if (iter != user_worker_map.end()) {
                 worker_type = SW_USER_WORKER;
-                exit_worker = iter->second;
+                exited_worker = iter->second;
                 break;
             }
         }
+        // Exception: Received an exit signal from an unknown process
+        swoole_warning("Unknown type child process [%d] exited", exit_status.get_pid());
         return SW_ERR;
     } while (false);
 
-    serv->factory_->check_worker_exit_status(exit_worker, exit_status);
+    factory_->check_worker_exit_status(exited_worker, exit_status);
 
     pid_t new_process_pid = -1;
 
     switch (worker_type) {
+    case SW_EVENT_WORKER:
+        new_process_pid = factory_->spawn_event_worker(exited_worker);
+        break;
     case SW_TASK_WORKER:
-        new_process_pid = serv->factory_->spawn_task_worker(exit_worker);
+        new_process_pid = factory_->spawn_task_worker(exited_worker);
         break;
     case SW_USER_WORKER:
-        new_process_pid = serv->factory_->spawn_user_worker(exit_worker);
+        new_process_pid = factory_->spawn_user_worker(exited_worker);
         break;
     default:
         /* never here */

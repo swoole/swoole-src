@@ -1608,6 +1608,7 @@ class Server {
 
     void disable_accept();
     int schedule_worker(int fd, SendData *data);
+    pid_t restart_worker_process(const ExitStatus &exit_status);
 
     size_t get_connection_num() const {
         if (gs->connection_nums) {
@@ -1621,7 +1622,6 @@ class Server {
         }
     }
 
-    static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe() const;

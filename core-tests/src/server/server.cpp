@@ -4243,7 +4243,7 @@ TEST(server, ssl_matches_wildcard_name) {
     }
 }
 
-TEST(server, wait_other_worker) {
+TEST(server, restart_worker_process) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
     serv.task_worker_num = 2;
@@ -4264,7 +4264,7 @@ TEST(server, wait_other_worker) {
     auto worker = serv.get_worker(2);
     worker->pid = getpid();
     pool->add_worker(worker);
-    serv.wait_other_worker(pool, fake_exit);
+    serv.restart_worker_process(fake_exit);
 
     test::wait_all_child_processes();
 
