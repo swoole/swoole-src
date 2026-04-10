@@ -18,6 +18,7 @@
 #include "swoole_util.h"
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace swoole {
@@ -181,6 +182,7 @@ void Manager::wait(Server *_server) {
                     Worker *worker = _server->get_worker(worker_stop_msg.worker_id);
                     _server->factory_->spawn_event_worker(worker);
                 }
+                _server->detached_processes.insert(worker_stop_msg.pid);
             }
             pool->read_message = false;
         }
@@ -375,13 +377,14 @@ void Manager::signal_handler(int signo) {
  */
 pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
     Worker *exited_worker = nullptr;
+    pid_t exited_pid = exit_status.get_pid();
     int worker_type;
 
     do {
         // Event Worker
         SW_LOOP_N(worker_num) {
             Worker *worker = get_worker(i);
-            if (exit_status.get_pid() != worker->pid) {
+            if (exited_pid != worker->pid) {
                 continue;
             }
             worker_type = SW_EVENT_WORKER;
@@ -390,7 +393,7 @@ pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
         }
         // Task Worker
         if (get_task_worker_pool()->map_) {
-            const auto iter = get_task_worker_pool()->map_->find(exit_status.get_pid());
+            const auto iter = get_task_worker_pool()->map_->find(exited_pid);
             if (iter != get_task_worker_pool()->map_->end()) {
                 worker_type = SW_TASK_WORKER;
                 exited_worker = iter->second;
@@ -399,7 +402,7 @@ pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
         }
         // User Worker
         if (!user_worker_map.empty()) {
-            const auto iter = user_worker_map.find(exit_status.get_pid());
+            const auto iter = user_worker_map.find(exited_pid);
             if (iter != user_worker_map.end()) {
                 worker_type = SW_USER_WORKER;
                 exited_worker = iter->second;
@@ -407,7 +410,12 @@ pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
             }
         }
         // Exception: Received an exit signal from an unknown process
-        swoole_warning("Unknown type child process [%d] exited", exit_status.get_pid());
+        if (detached_processes.find(exited_pid) == detached_processes.end()) {
+            swoole_warning("Unknown type child process [%d] exited", exited_pid);
+        } else {
+            swoole_trace_log(SW_TRACE_SERVER, "Detached process [%d] exited normally", exited_pid);
+            detached_processes.erase(exited_pid);
+        }
         return SW_ERR;
     } while (false);
 
