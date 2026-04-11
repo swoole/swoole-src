@@ -608,6 +608,7 @@ bool Server::create_user_workers() {
     for (const auto worker : user_worker_list) {
         memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
         create_worker(worker);
+        worker->type = SW_USER_WORKER;
         i++;
     }
 
@@ -1753,6 +1754,7 @@ int Server::add_worker(Worker *worker) {
     }
     user_worker_list.push_back(worker);
     worker->id = user_worker_list.size() - 1;
+    worker->type = SW_USER_WORKER;
     return worker->id;
 }
 

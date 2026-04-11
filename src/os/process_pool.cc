@@ -472,6 +472,7 @@ bool ProcessPool::shutdown() {
 }
 
 pid_t ProcessPool::spawn(Worker *worker) {
+    map_->erase(worker->pid);
     pid_t pid = swoole_fork(0);
     int ret_code = 0;
 
@@ -499,9 +500,6 @@ pid_t ProcessPool::spawn(Worker *worker) {
         }
         exit(ret_code);
     } else {
-        if (worker->pid && worker->pid != pid) {
-            map_->erase(worker->pid);
-        }
         worker->pid = pid;
         // insert new process
         map_->emplace(std::make_pair(pid, worker));
