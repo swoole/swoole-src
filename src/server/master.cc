@@ -1569,7 +1569,7 @@ int Server::send_to_connection(const SendData *_send) const {
 
     if (port->max_idle_time > 0 && _socket->send_timer == nullptr) {
         const auto timeout_callback = get_timeout_callback(port, reactor, conn);
-        _socket->read_timeout = port->max_idle_time;
+        _socket->write_timeout = port->max_idle_time;
         _socket->last_sent_time = time<std::chrono::milliseconds>(true);
         _socket->send_timer = swoole_timer_add(sec2msec(port->max_idle_time), true, timeout_callback);
         swoole_trace_log(SW_TRACE_SERVER,
