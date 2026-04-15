@@ -761,9 +761,14 @@ Server::~Server() {
     if (!is_shutdown() && getpid() == gs->master_pid) {
         destroy();
     }
+
     for (auto port : ports) {
         delete port;
     }
+
+    local_addr_v4_map.clear();
+    local_addr_v6_map.clear();
+
     sw_shm_free(gs);
 }
 
