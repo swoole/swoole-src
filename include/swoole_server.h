@@ -565,6 +565,10 @@ class ProcessFactory : public Factory {
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
     bool end(SessionId session_id, int flags) override;
+
+  private:
+    bool is_send_buffer_available(network::Socket *socket, uint32_t length, bool is_master) const;
+    void log_buffer_overflow_error(uint32_t length, uint32_t buffer_size, bool is_master) const;
 };
 
 struct ThreadReloadTask {
@@ -902,7 +906,7 @@ class Server {
 
     /* buffer output/input setting*/
     uint32_t output_buffer_size = UINT_MAX;
-    uint32_t input_buffer_size = SW_INPUT_BUFFER_SIZE;
+    uint32_t input_buffer_size = UINT_MAX;
     uint32_t max_queued_bytes = 0;
 
     /**

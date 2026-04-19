@@ -281,6 +281,13 @@ bool ProcessFactory::dispatch(SendData *task) {
     }
 
     Worker *worker = server_->get_worker(target_worker_id);
+    MessageBus *mb = &server_->get_thread(swoole_get_thread_id())->message_bus;
+    Socket *pipe_master = mb->get_pipe_socket(worker->pipe_master);
+
+    // Check if data exceeds the buffer size.
+    if (task->info.len > 0 && !is_send_buffer_available(pipe_master, task->info.len, true)) {
+        return false;
+    }
 
     if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
         sw_atomic_fetch_add(&worker->dispatch_count, 1);
@@ -288,10 +295,7 @@ bool ProcessFactory::dispatch(SendData *task) {
 
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
-
-    MessageBus *mb = &server_->get_thread(swoole_get_thread_id())->message_bus;
-    Socket *sock = mb->get_pipe_socket(worker->pipe_master);
-    return mb->write(sock, &_task);
+    return mb->write(pipe_master, &_task);
 }
 
 static bool process_is_supported_send_yield(Server *serv, const Connection *conn) {
@@ -306,19 +310,6 @@ static bool process_is_supported_send_yield(Server *serv, const Connection *conn
  * [Worker] send to client, proxy by reactor
  */
 bool ProcessFactory::finish(SendData *resp) {
-    /**
-     * More than the output buffer
-     */
-    if (resp->info.len > server_->output_buffer_size) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_DATA_LENGTH_TOO_LARGE,
-                         "The length of data [%u] exceeds the output buffer size[%u], "
-                         "please use the sendfile, chunked transfer mode or adjust the output_buffer_size",
-                         resp->info.len,
-                         server_->output_buffer_size);
-        return false;
-    }
-
     SessionId session_id = resp->info.fd;
     Connection *conn;
     if (resp->info.type != SW_SERVER_EVENT_CLOSE) {
@@ -326,6 +317,7 @@ bool ProcessFactory::finish(SendData *resp) {
     } else {
         conn = server_->get_connection_verify_no_ssl(session_id);
     }
+
     if (!conn) {
         if (resp->info.type != SW_SERVER_EVENT_CLOSE) {
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
@@ -351,6 +343,12 @@ bool ProcessFactory::finish(SendData *resp) {
         return false;
     }
 
+    // Check if data exceeds the buffer size.
+    Socket *pipe_worker = server_->get_reactor_pipe_socket(session_id, conn->reactor_id);
+    if (resp->info.len > 0 && !is_send_buffer_available(pipe_worker, resp->info.len, false)) {
+        return false;
+    }
+
     SendData task;
     memcpy(&task, resp, sizeof(SendData));
     task.info.fd = session_id;
@@ -359,7 +357,7 @@ bool ProcessFactory::finish(SendData *resp) {
 
     swoole_trace("worker_id=%d, type=%d", task.info.server_fd, task.info.type);
 
-    return server_->message_bus.write(server_->get_reactor_pipe_socket(session_id, task.info.reactor_id), &task);
+    return server_->message_bus.write(pipe_worker, &task);
 }
 
 bool ProcessFactory::end(SessionId session_id, int flags) {
@@ -430,5 +428,47 @@ _close:
     }
     conn->close_errno = 0;
     return finish(&_send);
+}
+
+bool ProcessFactory::is_send_buffer_available(Socket *socket, uint32_t length, bool is_master) const {
+    uint32_t buffer_size = is_master ? server_->input_buffer_size : server_->output_buffer_size;
+
+    if (length > buffer_size) {
+        log_buffer_overflow_error(length, buffer_size, is_master);
+        return false;
+    }
+
+    if (socket->buffer_size == 0) {
+        socket->set_memory_buffer_size(buffer_size);
+    }
+
+    if (socket->out_buffer) {
+        if (sw_unlikely(socket->out_buffer->length() >= socket->buffer_size)) {
+            log_buffer_overflow_error(length, buffer_size, is_master);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void ProcessFactory::log_buffer_overflow_error(uint32_t length, uint32_t buffer_size, bool is_master) const {
+    if (is_master) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_DATA_LENGTH_TOO_LARGE,
+                         "The length of data [%u] exceeds the input buffer size[%u], "
+                         "the master process cannot send data to the worker process, "
+                         "please adjust the input_buffer_size",
+                         length,
+                         buffer_size);
+    } else {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_DATA_LENGTH_TOO_LARGE,
+                         "The length of data [%u] exceeds the output buffer size[%u], "
+                         "the worker process cannot send data to the master process, "
+                         "please use the sendfile, chunked transfer mode or adjust the output_buffer_size",
+                         length,
+                         buffer_size);
+    }
 }
 }  // namespace swoole
