@@ -6,9 +6,18 @@ swoole_http2_server: add server addr for http2 server
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$output = shell_exec('ip addr show');
-preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)\//', $output, $matches);
-$ips = $matches[1];
+switch(PHP_OS_FAMILY) {
+    case 'Darwin':
+        $output = shell_exec('ifconfig | grep "inet " | grep -Fv 127.0.0.1');
+        preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)/', $output, $matches);
+        $ips = $matches[1];
+        break;
+    default:
+        $output = shell_exec('ip addr show');
+        preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)\//', $output, $matches);
+        $ips = $matches[1];
+        break;
+}
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm, $ips) {
