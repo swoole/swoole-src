@@ -237,6 +237,7 @@ struct Socket {
      * the caller must explicitly handle this error.
      */
     uchar dont_restart : 1;
+    uchar close_notified : 1;
 
     // memory buffer size [user space]
     uint32_t buffer_size;

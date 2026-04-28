@@ -606,6 +606,7 @@ bool Server::create_user_workers() {
     for (const auto worker : user_worker_list) {
         memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
         create_worker(worker);
+        worker->type = SW_USER_WORKER;
         i++;
     }
 
@@ -783,6 +784,31 @@ Worker *Server::get_worker(uint16_t worker_id) const {
     uint32_t user_worker_max = task_worker_max + user_worker_list.size();
     if (worker_id < user_worker_max) {
         return &(user_workers[worker_id - task_worker_max]);
+    }
+
+    return nullptr;
+}
+
+Worker *Server::get_worker_by_pid(pid_t worker_pid) const {
+    SW_LOOP_N(worker_num) {
+        Worker *worker = get_worker(i);
+        if (worker_pid == worker->pid) {
+            return worker;
+        }
+    }
+
+    if (get_task_worker_pool()->map_) {
+        const auto iter = get_task_worker_pool()->map_->find(worker_pid);
+        if (iter != get_task_worker_pool()->map_->end()) {
+            return iter->second;
+        }
+    }
+
+    if (!user_worker_map.empty()) {
+        const auto iter = user_worker_map.find(worker_pid);
+        if (iter != user_worker_map.end()) {
+            return iter->second;
+        }
     }
 
     return nullptr;
@@ -1521,16 +1547,12 @@ int Server::send_to_connection(const SendData *_send) const {
     if (_send->info.type == SW_SERVER_EVENT_CLOSE) {
         _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
         conn->close_queued = 1;
-    }
-    // sendfile to client
-    else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
+    } else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         auto *task = (SendfileTask *) _send_data;
         if (conn->socket->sendfile_async(task->filename, task->offset, task->length) < 0) {
             return false;
         }
-    }
-    // send data
-    else {
+    } else {
         // connection is closed
         if (conn->peer_closed) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
@@ -1561,7 +1583,7 @@ int Server::send_to_connection(const SendData *_send) const {
 
     if (port->max_idle_time > 0 && _socket->send_timer == nullptr) {
         const auto timeout_callback = get_timeout_callback(port, reactor, conn);
-        _socket->read_timeout = port->max_idle_time;
+        _socket->write_timeout = port->max_idle_time;
         _socket->last_sent_time = time<std::chrono::milliseconds>(true);
         _socket->send_timer = swoole_timer_add(sec2msec(port->max_idle_time), true, timeout_callback);
         swoole_trace_log(SW_TRACE_SERVER,
@@ -1746,6 +1768,7 @@ int Server::add_worker(Worker *worker) {
     }
     user_worker_list.push_back(worker);
     worker->id = user_worker_list.size() - 1;
+    worker->type = SW_USER_WORKER;
     return worker->id;
 }
 
@@ -2074,7 +2097,7 @@ Connection *Server::add_connection(const ListenPort *ls, Socket *_socket, int se
 
     Connection *connection = &(connection_list[fd]);
     ReactorId reactor_id = is_base_mode() ? swoole_get_worker_id() : fd % reactor_num;
-    *connection = {};
+    sw_memset_zero(connection, offsetof(Connection, closed));
 
     sw_spinlock(&gs->spinlock);
     SessionId session_id = gs->session_round;
@@ -2130,6 +2153,7 @@ _find_available_slot:
     connection->server_fd = server_fd;
     connection->last_recv_time = connection->connect_time = microtime();
     connection->active = 1;
+    connection->closed = 0;
     connection->worker_id = -1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
