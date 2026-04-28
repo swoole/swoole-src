@@ -295,11 +295,22 @@ pid_t swoole_fork(int flags) {
             swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "can not fork after using async-threads");
         }
     }
+
     if (flags & SW_FORK_PRECHECK) {
         return 0;
     }
 
-    pid_t pid = fork();
+    pid_t pid;
+    while (true) {
+        pid = fork();
+        if (pid < 0) {
+            swoole_sys_warning("fork() failed");
+            sleep(1);
+        } else {
+            break;
+        }
+    }
+
     if (pid == 0) {
         if (flags & SW_FORK_DAEMON) {
             return pid;
