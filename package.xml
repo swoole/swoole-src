@@ -52,7 +52,7 @@
     <date>2026-02-25</date>
     <time>22:00:00</time>
     <version>
-        <release>6.1.7</release>
+        <release>6.1.8</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,9 +61,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed the defect where some coroutines were unable to acquire locks for extended periods due to improper configuration of the exponential backoff algorithm.
-        - Added timeout control for the coroutine implementation of pdo_pgsql, improving the stability of database operations.
-        - Fixed the issue where cookies with specific Domain and Path attributes could not be manually expired.
+        - Fixed an issue where the write timeout incorrectly used the read timeout when `max_idle_time` was set.
+        - Fixed an invalid warning caused by the exit of old processes during asynchronous reload.
+        - Refactored server process management logic.
+        - Optimized handling of fork failures: added a retry mechanism with a 1-second wait before each retry to reduce excessive error logging.
+        - Changed the `closed` field in the underlying `Connection` struct to use atomic operations, resolving a potential data race condition.
+        - Fixed an integer overflow issue in the Redis server.
     </notes>
     <contents>
         <dir name="/">
