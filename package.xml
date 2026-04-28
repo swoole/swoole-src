@@ -52,7 +52,7 @@
     <date>2026-03-10</date>
     <time>22:00:00</time>
     <version>
-        <release>6.2.0</release>
+        <release>6.2.1</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,38 +61,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Added coroutine-based `FTP` client. By including the `--enable-swoole-ftp` option during compilation, coroutine support for `FTP` operations can be enabled to avoid network blocking.
-        - Added coroutine-based `SSH` client. By including the `--enable-swoole-ssh` option during compilation, coroutine support for `SSH` operations can be enabled to improve concurrency efficiency.
-        - Added support for `io_uring` in the `HTTP` coroutine server. The `HTTP` coroutine server can now utilize the high-performance `io_uring` event mechanism. Enable it by adding the `--enable-uring_socket` option during compilation for better I/O performance.
-        - Added the `Swoole\RemoteObject\Server` module, providing transparent coroutine operation support for `MongoDB`.
-        - Added the `Swoole\Coroutine::setTimeLimit()` function to control coroutine execution timeout, preventing coroutines from occupying resources for extended periods.
-        - Added `URL` rewriting support for the `HTTP` static file server.
-        - Added coroutine support for `pdo_firebird`.
-        - Added support for `PHP 8.5`.
-        - Added coroutine support for the `gethostbyname` function.
-        - Swoole\Coroutine::cancel now supports canceling iouring operations.
-        - Optimized the implementation of `Server::shutdown()`, replacing signal communication with pipe communication in `Process` mode.
-        - In the callback functions of Swoole's HTTP servers (including Swoole\Http\Server, Swoole\Http2\Server, and Swoole\Coroutine\Http\Server), the `server` property of the `Swoole\Http\Request` object now includes a new `server_addr` field, which identifies the server's IP address.
-        - `SSH` and `FTP` coroutine clients cannot coexist with PHP's `ext-ssh` and `ext-ftp`. To enable these features, the PHP `ssh` and `ftp` extensions must be disabled.
-        - Fixed an issue where the HTTP2 server session was released multiple times in a multi-threaded environment.
-        - Fixed an issue in version `8.5` where `refresh_memory_manager()` must be executed after forking a child process or creating a child thread; otherwise, the program would crash.
-        - Fixed an issue where the `swoole_get_local_mac` function did not work correctly on `macOS` systems.
-        - Fixed a potential crash issue that could occur when users manually suspended coroutines in a multi-threaded environment.
-        - Fixed compilation errors on Alpine systems.
-        - Fixed a memory leak issue when function hooking failed.
-        - Fixed thread safety issues during the coroutinization process of `pdo_sqlite` and `pdo_oci`.
-        - Fixed the `sw_php_print_backtrace` function to ensure its output format matches the backtrace information format of PHP's built-in functions.
-        - Fixed compilation failures caused by enabling --enable-uring-socket, --enable-trace-log, and --enable-error-log.
-        - Fixed the issue where `pdo_firebird` could not be compiled due to undefined macros.
-        - Executing `php --ri swoole` now outputs version information for `libpq`.
-        - Optimized logic related to `io_uring` in file coroutine operations.
-        - Added PHP call stack information output when event addition fails.
-        - Optimized the implementation code for the `swoole_get_local_ip` and `swoole_get_local_mac` functions.
-        - Optimized the coroutine waiting time for file locks to prevent exponentially increasing sleep times from making locks increasingly difficult to acquire.
-        - Improved compatibility with the `Android` platform.
-        - Removed the `--enable-openssl` compilation option; support for `OpenSSL` is now included by default.
-        - `--enable-uring-socket` requires explicitly specifying either `--enable-iouring` or `--with-liburing-dir`.
-        - `PHP 8.1` is no longer supported.
+        - Coroutine-based Downloading: Refactor the `curl`-based file download functionality to support coroutines, enabling non-blocking, high-concurrency downloads and improving resource utilization.
+        - Blocking Detection Optimization: Refactor the Observer function in the Tracker module to optimize the blocking detection mechanism, enhancing detection accuracy and efficiency.
+        - Atomic Operation Refactoring: Change the `closed` field in the underlying `Connection` struct from a plain boolean to an atomic operation type, fundamentally eliminating the risk of data races in concurrent scenarios.
     </notes>
     <contents>
         <dir name="/">
