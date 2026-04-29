@@ -73,15 +73,30 @@ struct IouringEvent {
     }
 };
 
-static void parse_kernel_version(const char *release, int *major, int *minor) {
-    char copy[SW_STRUCT_MEMBER_SIZE(utsname, release)];
-    strcpy(copy, release);
+static void iouring_opcode_supported(io_uring *ring) {
+    struct io_uring_probe *probe = io_uring_get_probe_ring(ring);
+    ON_SCOPE_EXIT {
+        if (probe) {
+            io_uring_free_probe(probe);
+        }
+    };
 
-    char *token = strtok(copy, ".-");
-    *major = token ? sw_atoi(token) : 0;
+    if (!probe) {
+        swoole_warning("failed to get kernel probe info");
+        return;
+    }
 
-    token = strtok(nullptr, ".-");
-    *minor = token ? sw_atoi(token) : 0;
+#ifdef HAVE_IOURING_FUTEX
+    if (!io_uring_opcode_supported(probe, IORING_OP_FUTEX_WAIT) || !io_uring_opcode_supported(probe, IORING_OP_FUTEX_WAKE)) {
+        swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
+    }
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    if (!io_uring_opcode_supported(probe, IORING_OP_FTRUNCATE)) {
+        swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
+    }
+#endif
 }
 
 Iouring::Iouring(Reactor *_reactor) {
@@ -112,20 +127,7 @@ Iouring::Iouring(Reactor *_reactor) {
         }
     }
 
-    int major, minor;
-    parse_kernel_version(SwooleG.uname.release, &major, &minor);
-
-#ifdef HAVE_IOURING_FUTEX
-    if (!(major >= 6 && minor >= 7)) {
-        swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
-    }
-#endif
-
-#ifdef HAVE_IOURING_FTRUNCATE
-    if (!(major >= 6 && minor >= 9)) {
-        swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
-    }
-#endif
+    iouring_opcode_supported(&ring);
 
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
     ring_socket->object = this;
@@ -774,8 +776,7 @@ int Iouring::fstat(int fd, struct stat *statbuf) {
 int Iouring::stat(const char *path, struct stat *statbuf) {
     struct statx statxbuf;
     INIT_EVENT(IORING_OP_FSTAT);
-    io_uring_prep_statx(
-        &event.data, AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS | STATX_BTIME, &statxbuf);
+    io_uring_prep_statx(&event.data, AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS | STATX_BTIME, &statxbuf);
 
     auto retval = execute(&event);
     if (retval == 0) {
