@@ -44,3 +44,4 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Thread_Atomic_Long_set arginfo_class_Swoole_Thread_Atomic_set
 
 #define arginfo_class_Swoole_Thread_Atomic_Long_cmpset arginfo_class_Swoole_Thread_Atomic_cmpset
+

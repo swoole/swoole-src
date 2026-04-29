@@ -54,3 +54,4 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Thread_Map_toArray arginfo_class_Swoole_Thread_Map_keys
 
 #define arginfo_class_Swoole_Thread_Map_sort arginfo_class_Swoole_Thread_Map_clean
+

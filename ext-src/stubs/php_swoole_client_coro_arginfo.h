@@ -71,3 +71,4 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Coroutine_Client_getpeername arginfo_class_Swoole_Coroutine_Client_getsockname
 
 #define arginfo_class_Swoole_Coroutine_Client_close arginfo_class_Swoole_Coroutine_Client_enableSSL
+
