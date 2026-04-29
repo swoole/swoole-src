@@ -137,7 +137,8 @@ pid_t Factory::spawn_event_worker(Worker *worker) const {
     }
 
     if (server_->is_base_mode()) {
-        server_->get_event_worker_pool()->main_loop(server_->get_event_worker_pool(), worker);
+        auto pool = server_->get_event_worker_pool();
+        pool->main_loop(pool, worker);
     } else {
         server_->start_event_worker(worker);
     }

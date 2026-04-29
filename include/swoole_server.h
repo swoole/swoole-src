@@ -1042,6 +1042,11 @@ class Server {
      */
     std::unordered_map<pid_t, Worker *> user_worker_map;
     /**
+     * When asynchronous restart is enabled, the old worker process will be detached first, and a new worker process
+     * will be created immediately. The old process will live and die by itself
+     */
+    std::unordered_set<pid_t> detached_processes;
+    /**
      * Shared memory, sharing state between processes
      */
     Worker *user_workers = nullptr;
@@ -1313,6 +1318,7 @@ class Server {
     }
 
     Worker *get_worker(uint16_t worker_id) const;
+    Worker *get_worker_by_pid(pid_t worker_pid) const;
     bool kill_worker(int worker_id);
     void stop_async_worker(Worker *worker);
 
@@ -1602,6 +1608,7 @@ class Server {
 
     void disable_accept();
     int schedule_worker(int fd, SendData *data);
+    pid_t restart_worker_process(const ExitStatus &exit_status);
 
     size_t get_connection_num() const {
         if (gs->connection_nums) {
