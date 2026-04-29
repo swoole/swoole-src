@@ -22,6 +22,7 @@ using namespace swoole;
 
 SW_EXTERN_C_BEGIN
 #define ZEND_INCLUDE_FULL_WINDOWS_HEADERS
+#define SW_CURL_COROUTINE_FILE 1
 #include "swoole_curl_interface.h"
 #include "curl_arginfo.h"
 
