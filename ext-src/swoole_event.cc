@@ -629,7 +629,7 @@ static PHP_FUNCTION(swoole_event_cycle) {
     auto reactor = sw_reactor();
     auto defer_task = before ? &reactor->future_task : &reactor->idle_task;
 
-    if (ZVAL_IS_NULL(zcallback)) {
+    if (Z_ISNULL_P(zcallback)) {
         if (defer_task->callback == nullptr) {
             RETURN_FALSE;
         } else {

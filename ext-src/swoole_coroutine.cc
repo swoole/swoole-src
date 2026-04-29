@@ -406,7 +406,7 @@ void PHPCoroutine::activate() {
     }
 
     zval *enable_library = zend_get_constant_str(ZEND_STRL("SWOOLE_LIBRARY"));
-    if (enable_library == nullptr || !zval_is_true(enable_library)) {
+    if (enable_library == nullptr || !zend_is_true(enable_library)) {
         php_swoole_load_library();
     }
 

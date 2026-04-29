@@ -255,7 +255,7 @@ static PHP_METHOD(swoole_client_async, __destruct) {
 
 static Client *php_swoole_client_async_new(zval *zobject, char *host, int host_len, int port) {
     zval *ztype = sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TYPE), 0);
-    if (ztype == nullptr || ZVAL_IS_NULL(ztype)) {
+    if (ztype == nullptr || Z_ISNULL_P(ztype)) {
         php_swoole_fatal_error(E_ERROR, "failed to get client type");
         return nullptr;
     }

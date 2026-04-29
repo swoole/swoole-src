@@ -401,17 +401,17 @@ void php_swoole_set_global_option(HashTable *vht) {
     zval *ztmp;
 
 #ifdef SW_DEBUG
-    if (php_swoole_array_get_value(vht, "debug_mode", ztmp) && zval_is_true(ztmp)) {
+    if (php_swoole_array_get_value(vht, "debug_mode", ztmp) && zend_is_true(ztmp)) {
         swoole_set_log_level(0);
     }
 #endif
     // [EventLoop]
     // ======================================================================
     if (php_swoole_array_get_value(vht, "enable_signalfd", ztmp)) {
-        SwooleG.enable_signalfd = zval_is_true(ztmp);
+        SwooleG.enable_signalfd = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "enable_kqueue", ztmp)) {
-        SwooleG.enable_kqueue = zval_is_true(ztmp);
+        SwooleG.enable_kqueue = zend_is_true(ztmp);
     }
     // [Logger]
     // ======================================================================
@@ -428,13 +428,13 @@ void php_swoole_set_global_option(HashTable *vht) {
         sw_logger()->set_date_format(zend::String(ztmp).val());
     }
     if (php_swoole_array_get_value(vht, "log_date_with_microseconds", ztmp)) {
-        sw_logger()->set_date_with_microseconds(zval_is_true(ztmp));
+        sw_logger()->set_date_with_microseconds(zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "log_rotation", ztmp)) {
         sw_logger()->set_rotation(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp)) {
-        SWOOLE_G(display_errors) = zval_is_true(ztmp);
+        SWOOLE_G(display_errors) = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "print_backtrace_on_error", ztmp)) {
 #if !defined(HAVE_BOOST_STACKTRACE) && !defined(HAVE_EXECINFO)
@@ -443,7 +443,7 @@ void php_swoole_set_global_option(HashTable *vht) {
             "The `print_backtrace_on_error` option requires `boost stacktrace` or `execinfo.h` to be installed",
             SW_ERROR_OPERATION_NOT_SUPPORT);
 #else
-        SwooleG.print_backtrace_on_error = zval_is_true(ztmp);
+        SwooleG.print_backtrace_on_error = zend_is_true(ztmp);
 #endif
     }
     // [DNS]

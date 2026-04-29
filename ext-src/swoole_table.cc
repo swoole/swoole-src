@@ -296,7 +296,7 @@ static PHP_METHOD(swoole_table, set) {
     if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
         for (const auto col : *table->column_list) {
             zval *zv = zend_hash_str_find(ht, col->name.c_str(), col->name.length());
-            if (zv == nullptr || ZVAL_IS_NULL(zv)) {
+            if (zv == nullptr || Z_ISNULL_P(zv)) {
                 col->clear(row);
             } else {
                 if (col->type == TableColumn::TYPE_STRING) {

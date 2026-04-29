@@ -962,22 +962,22 @@ static PHP_METHOD(swoole_http_request, create) {
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zoptions), key, keylen, keytype, zvalue) {
             if (SW_STRCASEEQ(key, keylen, "parse_cookie")) {
-                ctx->parse_cookie = zval_is_true(zvalue);
+                ctx->parse_cookie = zend_is_true(zvalue);
             } else if (SW_STRCASEEQ(key, keylen, "parse_body")) {
-                ctx->parse_body = zval_is_true(zvalue);
+                ctx->parse_body = zend_is_true(zvalue);
             } else if (SW_STRCASEEQ(key, keylen, "parse_files")) {
-                ctx->parse_files = zval_is_true(zvalue);
+                ctx->parse_files = zend_is_true(zvalue);
             }
 #ifdef SW_HAVE_COMPRESSION
             else if (SW_STRCASEEQ(key, keylen, "enable_compression")) {
-                ctx->enable_compression = zval_is_true(zvalue);
+                ctx->enable_compression = zend_is_true(zvalue);
             } else if (SW_STRCASEEQ(key, keylen, "compression_level")) {
                 ctx->compression_level = zval_get_long(zvalue);
             }
 #endif
 #ifdef SW_HAVE_ZLIB
             else if (SW_STRCASEEQ(key, keylen, "websocket_compression")) {
-                ctx->websocket_compression = zval_is_true(zvalue);
+                ctx->websocket_compression = zend_is_true(zvalue);
             }
 #endif
             else if (SW_STRCASEEQ(key, keylen, "upload_tmp_dir")) {
@@ -1019,7 +1019,7 @@ static PHP_METHOD(swoole_http_request, parse) {
         memcpy(new_str->val + Z_STRLEN(ctx->request.zdata), str, l_str);
         new_str->val[len] = 0;
         new_str->len = len;
-        zval_dtor(&ctx->request.zdata);
+        zval_ptr_dtor_nogc(&ctx->request.zdata);
         ZVAL_STR(&ctx->request.zdata, new_str);
     }
 

@@ -95,7 +95,7 @@ PHP_FUNCTION(swoole_async_set) {
     php_swoole_set_aio_option(vht);
 
     if (php_swoole_array_get_value(vht, "wait_signal", ztmp)) {
-        SwooleG.wait_signal = zval_is_true(ztmp);
+        SwooleG.wait_signal = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", ztmp)) {
         SwooleG.dns_cache_refresh_time = zval_get_double(ztmp);
@@ -112,13 +112,13 @@ PHP_FUNCTION(swoole_async_set) {
         SwooleG.aio_worker_num = v;
     }
     if (php_swoole_array_get_value(vht, "dns_lookup_random", ztmp)) {
-        SwooleG.dns_lookup_random = zval_is_true(ztmp);
+        SwooleG.dns_lookup_random = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "use_async_resolver", ztmp)) {
-        SwooleG.use_async_resolver = zval_is_true(ztmp);
+        SwooleG.use_async_resolver = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        SwooleG.enable_coroutine = zval_is_true(ztmp);
+        SwooleG.enable_coroutine = zend_is_true(ztmp);
     }
     RETURN_TRUE;
 }

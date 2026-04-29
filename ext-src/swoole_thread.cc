@@ -352,7 +352,7 @@ void php_swoole_thread_rinit() {
 }
 
 void php_swoole_thread_rshutdown() {
-    zval_dtor(&thread_argv);
+    zval_ptr_dtor_nogc(&thread_argv);
     if (!tsrm_is_main_thread()) {
         return;
     }
@@ -1039,7 +1039,7 @@ void ZendArray::append(zval *zvalue) {
 }
 
 bool ZendArray::index_incr(zval *zkey, zval *zvalue, zval *return_value) {
-    zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
+    zend_long index = Z_ISNULL_P(zkey) ? -1 : zval_get_long(zkey);
 
     bool success = true;
     lock_.lock();

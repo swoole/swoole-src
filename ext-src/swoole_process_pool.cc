@@ -422,10 +422,10 @@ static PHP_METHOD(swoole_process_pool, set) {
     php_swoole_set_aio_option(vht);
 
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        pool->async = pp->enable_coroutine = zval_is_true(ztmp);
+        pool->async = pp->enable_coroutine = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "enable_message_bus", ztmp)) {
-        pp->enable_message_bus = zval_is_true(ztmp);
+        pp->enable_message_bus = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "max_package_size", ztmp)) {
         pool->set_max_packet_size(php_swoole_parse_to_size(ztmp));
@@ -679,7 +679,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
     zval *zprocess = zend_hash_index_find(Z_ARRVAL_P(zworkers), worker_id);
     zval zobject;
 
-    if (zprocess == nullptr || ZVAL_IS_NULL(zprocess)) {
+    if (zprocess == nullptr || Z_ISNULL_P(zprocess)) {
         zprocess = &zobject;
         /**
          * Separation from shared memory

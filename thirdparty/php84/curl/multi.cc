@@ -44,7 +44,7 @@ void swoole_curl_multi_set_in_coroutine(php_curlm *mh, bool value) {
 bool swoole_curl_multi_is_in_coroutine(php_curlm *mh) {
     zval rv;
     zval *zv = zend_read_property_ex(nullptr, &mh->std, SW_ZSTR_KNOWN(SW_ZEND_STR_IN_COROUTINE), 1, &rv);
-    return zval_is_true(zv);
+    return zend_is_true(zv);
 }
 
 /* CurlMultiHandle class */

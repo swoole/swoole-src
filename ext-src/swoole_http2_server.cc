@@ -145,7 +145,7 @@ static ssize_t http2_server_build_trailer(const HttpContext *ctx, uchar *buffer)
         zval *zvalue;
 
         ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(ztrailer), key, zvalue) {
-            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
+            if (UNEXPECTED(!key || Z_ISNULL_P(zvalue))) {
                 continue;
             }
             zend::String str_value(zvalue);
@@ -346,7 +346,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         auto add_header =
             [ctx, &content_type](
                 Http2::HeaderSet &headers, const char *key, size_t l_key, zval *value, uint32_t &header_flags) {
-                if (ZVAL_IS_NULL(value)) {
+                if (Z_ISNULL_P(value)) {
                     return;
                 }
                 zend::String str_value(value);
@@ -372,7 +372,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
             };
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheader), key, keylen, type, zvalue) {
-            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
+            if (UNEXPECTED(!key || Z_ISNULL_P(zvalue))) {
                 continue;
             }
             if (ZVAL_IS_ARRAY(zvalue)) {

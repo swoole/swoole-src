@@ -57,6 +57,12 @@ static inline const char *zend_zval_value_name(const zval *arg) {
 }
 #endif
 
+#if PHP_VERSION_ID >= 80600
+typedef zend_arg_info zend_func_arg_info;
+#else
+typedef zend_internal_arg_info zend_func_arg_info;
+#endif
+
 #ifdef __cplusplus
 }
 #endif

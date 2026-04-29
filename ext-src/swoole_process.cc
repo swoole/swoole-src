@@ -937,7 +937,7 @@ static PHP_METHOD(swoole_process, daemon) {
         int fd = 0;
         zval *elem;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zpipes), elem) {
-            if (!ZVAL_IS_NULL(elem)) {
+            if (!Z_ISNULL_P(elem)) {
                 int new_fd = php_swoole_convert_to_fd(elem);
                 if (new_fd >= 0) {
                     if (dup2(new_fd, fd) < 0) {
@@ -1097,7 +1097,7 @@ static PHP_METHOD(swoole_process, set) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        po->enable_coroutine = zval_is_true(ztmp);
+        po->enable_coroutine = zend_is_true(ztmp);
     }
 }
 
