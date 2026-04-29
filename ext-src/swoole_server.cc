@@ -231,7 +231,7 @@ static void server_free_object(zend_object *object) {
     delete property;
 
     zend_object_std_dtor(object);
-    if (serv && serv->is_master()) {
+    if (serv && (serv->is_master() || serv->is_single_worker()) ) {
 #ifdef SW_THREAD
         if (serv->is_thread_mode()) {
             zend_string_release((zend_string *) serv->private_data_4);
