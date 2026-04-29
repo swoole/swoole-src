@@ -17,9 +17,7 @@ $pm->initFreePorts();
 
 $port = $pm->getFreePort();
 
-$output = shell_exec('ip addr show');
-preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)\//', $output, $matches);
-$ips = $matches[1];
+$ips = get_server_ips();
 
 $pm->parentFunc = function ($pid) use ($pm, $port, $ips) {
     run(function () use ($pm, $port, $ips) {
