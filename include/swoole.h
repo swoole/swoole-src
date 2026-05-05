@@ -207,6 +207,7 @@ class Timer;
 struct TimerNode;
 struct Event;
 class Pipe;
+class UnixSocket;
 class MessageBus;
 class Server;
 namespace network {
