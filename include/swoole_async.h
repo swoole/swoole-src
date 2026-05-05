@@ -91,7 +91,7 @@ struct GetaddrinfoRequest : public AsyncRequest {
 class AsyncThreads {
   public:
     size_t task_num = 0;
-    Pipe *pipe = nullptr;
+    UnixSocket *pipe = nullptr;
     std::shared_ptr<async::ThreadPool> pool;
     network::Socket *read_socket = nullptr;
     network::Socket *write_socket = nullptr;
