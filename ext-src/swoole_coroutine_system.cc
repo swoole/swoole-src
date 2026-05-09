@@ -79,15 +79,20 @@ PHP_METHOD(swoole_coroutine_system, sleep) {
 }
 
 PHP_METHOD(swoole_coroutine_system, readFile) {
-    char *filename;
+    char *filename = nullptr;
     size_t l_filename;
     zend_long flags = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_STRING(filename, l_filename)
+    Z_PARAM_PATH(filename, l_filename)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (!filename || !*filename) {
+        zend_value_error("Filename cannot be empty");
+        RETURN_FALSE;
+    }
 
     auto result = System::read_file(filename, flags & SW_FILE_LOCK);
     if (result == nullptr) {
@@ -98,20 +103,25 @@ PHP_METHOD(swoole_coroutine_system, readFile) {
 }
 
 PHP_METHOD(swoole_coroutine_system, writeFile) {
-    char *filename;
+    char *filename = nullptr;
     size_t l_filename;
     char *data;
     size_t l_data;
     zend_long flags = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
-    Z_PARAM_STRING(filename, l_filename)
+    Z_PARAM_PATH(filename, l_filename)
     Z_PARAM_STRING(data, l_data)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    int _flags = 0;
+    if (!filename || !*filename) {
+        zend_value_error("Filename cannot be empty");
+        RETURN_FALSE;
+    }
+
+    int _flags = O_CREAT | O_WRONLY | O_NOFOLLOW;
     if (flags & SW_FILE_APPEND) {
         _flags |= O_APPEND;
     } else {
@@ -207,12 +217,17 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo) {
 }
 
 PHP_METHOD(swoole_coroutine_system, statvfs) {
-    char *path;
+    char *path = nullptr;
     size_t l_path;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_STRING(path, l_path)
+    Z_PARAM_PATH(path, l_path)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (!path || !*path) {
+        zend_value_error("Path cannot be empty");
+        RETURN_FALSE;
+    }
 
     struct statvfs _stat;
     swoole_coroutine_statvfs(path, &_stat);
