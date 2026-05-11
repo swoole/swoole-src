@@ -50,6 +50,9 @@ PGresult *swoole_pgsql_exec_prepared(PGconn *conn, const char *stmt_name, int n_
 PGresult *swoole_pgsql_exec(PGconn *conn, const char *query);
 PGresult *swoole_pgsql_exec_params(PGconn *conn, const char *command, int n_params,
     const Oid *param_types, const char *const *param_values, const int *param_lengths, const int *param_formats, int result_format);
+#ifdef HAVE_PQCLOSEPREPARED
+PGresult * swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName);
+#endif
 
 #ifdef SW_USE_PGSQL_HOOK
 #define PQconnectdb  swoole_pgsql_connectdb
@@ -57,6 +60,9 @@ PGresult *swoole_pgsql_exec_params(PGconn *conn, const char *command, int n_para
 #define PQexecPrepared  swoole_pgsql_exec_prepared
 #define PQexec  swoole_pgsql_exec
 #define PQexecParams  swoole_pgsql_exec_params
+#ifdef HAVE_PQCLOSEPREPARED
+#define PQclosePrepared  swoole_pgsql_close_prepared
+#endif
 #endif
 
 END_EXTERN_C()

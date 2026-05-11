@@ -232,6 +232,17 @@ PGresult *swoole_pgsql_exec_params(PGconn *conn,
     return swoole_pgsql_get_result(conn);
 }
 
+#ifdef HAVE_PQCLOSEPREPARED
+PGresult *swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName) {
+    int result = PQsendClosePrepared(conn, stmtName);
+    if (sw_likely(result)) {
+        return swoole_pgsql_get_result(conn);
+    }
+
+    return nullptr;
+}
+#endif
+
 void swoole_pgsql_set_blocking(bool blocking) {
     swoole_pgsql_blocking = blocking;
 }

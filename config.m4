@@ -580,6 +580,9 @@ install following package to obtain them:
 EOF
             AC_MSG_ERROR([postgresql support needs libpq libraries to build])
         ])
+
+        AC_CHECK_LIB(pq, PQsendClosePrepared, AC_DEFINE([HAVE_PQCLOSEPREPARED], [1], [Define to 1 if libpq has the 'PQsendClosePrepared' function (PostgreSQL 17 or later).]), [])
+
         LIBS="$_libpq_saved_libs"
 
         dnl FIXME: this should be SWOOLE_CFLAGS="$SWOOLE_CFLAGS $LIBPQ_CFLAGS"
