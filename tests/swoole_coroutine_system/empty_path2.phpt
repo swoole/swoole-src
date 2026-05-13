@@ -15,6 +15,6 @@ run(function() {
 Fatal error: Uncaught ValueError: Path cannot be empty in %s:%d
 Stack trace:
 #0 %s(%d): Swoole\Coroutine\System::statvfs('')
-#1 [internal function]: {closure}()
+#1 [internal function]: %s
 #2 {main}
   thrown in %s on line %d
