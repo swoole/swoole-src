@@ -17,7 +17,13 @@
 #include "swoole_file.h"
 
 int swoole_tmpfile(char *filename) {
-#if defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
+#if defined(_WIN32)
+    if (_mktemp_s(filename, strlen(filename) + 1) != 0) {
+        swoole_sys_warning("_mktemp_s('%s') failed", filename);
+        return SW_ERR;
+    }
+    int tmp_fd = _open(filename, _O_RDWR | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
+#elif defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
     int tmp_fd = mkostemp(filename, O_WRONLY | O_CREAT);
 #else
     int tmp_fd = mkstemp(filename);
@@ -129,12 +135,20 @@ File::File(const std::string &path, int oflags, int mode) {
 
 bool File::open(const std::string &path, int oflags, int mode) {
     if (fd_ != -1) {
-        ::close(fd_);
+        SW_CLOSE_FILE(fd_);
     }
     if (oflags & CREATE) {
+#ifdef _WIN32
+        fd_ = ::_open(path.c_str(), oflags, mode == 0 ? 0644 : mode);
+#else
         fd_ = ::open(path.c_str(), oflags, mode == 0 ? 0644 : mode);
+#endif
     } else {
+#ifdef _WIN32
+        fd_ = ::_open(path.c_str(), oflags);
+#else
         fd_ = ::open(path.c_str(), oflags);
+#endif
     }
     path_ = path;
     flags_ = oflags;
@@ -147,7 +161,7 @@ bool File::close() {
     }
     int tmp_fd = fd_;
     fd_ = -1;
-    return ::close(tmp_fd) == 0;
+    return SW_CLOSE_FILE(tmp_fd) == 0;
 }
 
 bool File::stat(FileStatus *_stat) const {
@@ -160,7 +174,7 @@ bool File::stat(FileStatus *_stat) const {
 
 File::~File() {
     if (fd_ >= 0) {
-        ::close(fd_);
+        SW_CLOSE_FILE(fd_);
     }
 }
 

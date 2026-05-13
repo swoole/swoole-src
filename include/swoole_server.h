@@ -54,7 +54,9 @@ class StaticHandler;
 }  // namespace http_server
 
 class Server;
+#ifndef _WIN32
 struct Manager;
+#endif
 class Thread;
 
 typedef std::function<void(void)> WorkerFn;
@@ -527,12 +529,14 @@ class Factory {
     explicit Factory(Server *_server) {
         server_ = _server;
     }
+#ifndef _WIN32
     pid_t spawn_event_worker(Worker *worker) const;
     pid_t spawn_user_worker(Worker *worker) const;
     pid_t spawn_task_worker(Worker *worker) const;
     void kill_user_workers() const;
     void kill_event_workers() const;
     void kill_task_workers() const;
+#endif
     void check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) const;
     virtual ~Factory() = default;
     virtual bool start() = 0;
@@ -556,6 +560,7 @@ class BaseFactory : public Factory {
     bool forward_message(const Session *session, SendData *data) const;
 };
 
+#ifndef _WIN32
 class ProcessFactory : public Factory {
   public:
     explicit ProcessFactory(Server *server);
@@ -567,6 +572,7 @@ class ProcessFactory : public Factory {
     bool notify(DataHead *) override;
     bool end(SessionId session_id, int flags) override;
 };
+#endif
 
 struct ThreadReloadTask {
     Server *server_;
@@ -680,14 +686,18 @@ class Server {
 
     enum Mode {
         MODE_BASE = 1,
+#ifndef _WIN32
         MODE_PROCESS = 2,
+#endif
         MODE_THREAD = 3,
     };
 
     enum TaskIpcMode {
+#ifndef _WIN32
         TASK_IPC_UNIXSOCK = 1,
         TASK_IPC_MSGQUEUE = 2,
         TASK_IPC_PREEMPTIVE = 3,
+#endif
         TASK_IPC_STREAM = 4,
     };
 
@@ -889,7 +899,9 @@ class Server {
     int *cpu_affinity_available = nullptr;
     int cpu_affinity_available_num = 0;
 
+#ifndef _WIN32
     UnixSocket *pipe_command = nullptr;
+#endif
     MessageBus message_bus;
 
     double send_timeout = 0;
@@ -920,10 +932,14 @@ class Server {
     void *private_data_4 = nullptr;
 
     Factory *factory_ = nullptr;
+#ifndef _WIN32
     Manager *manager_ = nullptr;
+#endif
 
     std::vector<ListenPort *> ports;
+#ifndef _WIN32
     std::vector<std::shared_ptr<UnixSocket>> worker_pipes;
+#endif
 
     ListenPort *get_primary_port() const {
         return ports.front();
@@ -979,7 +995,11 @@ class Server {
     }
 
     network::Socket *get_command_reply_socket() const {
+#ifdef _WIN32
+        return get_worker(0)->pipe_master;
+#else
         return is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
+#endif
     }
 
     network::Socket *get_worker_pipe_master(WorkerId id) const {
@@ -1031,7 +1051,13 @@ class Server {
      *  task process
      */
     uint32_t task_worker_num = 0;
-    uint8_t task_ipc_mode = TASK_IPC_UNIXSOCK;
+    uint8_t task_ipc_mode =
+#ifdef _WIN32
+        SW_IPC_SOCKET
+#else
+        TASK_IPC_UNIXSOCK
+#endif
+        ;
     uint32_t task_max_request = 0;
     uint32_t task_max_request_grace = 0;
     std::vector<std::shared_ptr<Pipe>> task_notify_pipes;
@@ -1267,7 +1293,11 @@ class Server {
     }
 
     bool is_process_mode() const {
+#ifdef _WIN32
+        return false;
+#else
         return mode_ == MODE_PROCESS;
+#endif
     }
 
     bool is_base_mode() const {
@@ -1498,7 +1528,9 @@ class Server {
     bool create_event_workers();
     bool create_task_workers();
     bool create_user_workers();
+#ifndef _WIN32
     int start_manager_process();
+#endif
 
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
@@ -1608,7 +1640,9 @@ class Server {
 
     void disable_accept();
     int schedule_worker(int fd, SendData *data);
+#ifndef _WIN32
     pid_t restart_worker_process(const ExitStatus &exit_status);
+#endif
 
     size_t get_connection_num() const {
         if (gs->connection_nums) {
@@ -1692,18 +1726,26 @@ class Server {
     void create_worker(Worker *worker);
     Factory *create_base_factory();
     Factory *create_thread_factory();
+#ifndef _WIN32
     Factory *create_process_factory();
+#endif
     int start_check();
     void check_port_type(const ListenPort *ls);
     void store_listen_socket();
+#ifndef _WIN32
     void store_pipe_fd(UnixSocket *p);
+#endif
     void destroy_base_factory() const;
     void destroy_thread_factory() const;
+#ifndef _WIN32
     void destroy_process_factory();
+#endif
     void destroy_worker(Worker *worker);
     void destroy_task_workers() const;
     int start_reactor_threads();
+#ifndef _WIN32
     int start_reactor_processes();
+#endif
     int start_worker_threads();
     int start_master_thread(Reactor *reactor);
     void start_heartbeat_thread();

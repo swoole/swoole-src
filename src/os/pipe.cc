@@ -27,7 +27,11 @@ void SocketPair::init_socket(int master_fd, int worker_fd) {
 }
 
 Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
+#ifdef _WIN32
+    if (_pipe(socks, 8192, _O_BINARY) < 0) {
+#else
     if (pipe(socks) < 0) {
+#endif
         swoole_sys_warning("pipe() failed");
         return;
     }

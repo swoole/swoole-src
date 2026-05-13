@@ -3,7 +3,12 @@
 #include "php_swoole_cxx.h"
 
 #include <php_network.h>
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <netinet/in.h>
+#endif
 
 #include "thirdparty/php/sockets/multicast.h"
 #include "thirdparty/php/sockets/conversions.h"

@@ -155,8 +155,8 @@ bool Logger::redirect_stdout_and_stderr(bool enable) {
         if (dup2(stderr_fd, STDERR_FILENO) < 0) {
             swoole_sys_warning("dup2(STDERR_FILENO) failed");
         }
-        ::close(stdout_fd);
-        ::close(stderr_fd);
+        SW_CLOSE_FILE(stdout_fd);
+        SW_CLOSE_FILE(stderr_fd);
         stdout_fd = -1;
         stderr_fd = -1;
         redirected = false;
@@ -326,12 +326,16 @@ void Logger::put(int level, const char *content, size_t length) {
 
     lock.lock();
     if (opened) {
+#ifndef _WIN32
         flockfile(log_fp);
+#endif
     }
     fwrite(log_str, n, 1, log_fp);
     fflush(log_fp);
     if (opened) {
+#ifndef _WIN32
         funlockfile(log_fp);
+#endif
     }
     lock.unlock();
 

@@ -17,6 +17,8 @@
 #include "swoole_pipe.h"
 #include "swoole_socket.h"
 
+#ifndef _WIN32
+
 namespace swoole {
 UnixSocket::UnixSocket(bool blocking, int _protocol) : SocketPair(blocking), protocol_(_protocol) {
     if (socketpair(AF_UNIX, protocol_, 0, socks) < 0) {
@@ -37,3 +39,5 @@ bool UnixSocket::set_buffer_size(size_t _size) const {
     return true;
 }
 }  // namespace swoole
+
+#endif  // _WIN32

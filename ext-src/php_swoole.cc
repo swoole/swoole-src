@@ -15,9 +15,13 @@
 */
 #include "php_swoole_cxx.h"
 #include "php_swoole_library.h"
+#ifndef _WIN32
 #include "php_swoole_process.h"
+#endif
 #include "php_swoole_thread.h"
+#ifndef _WIN32
 #include "swoole_iouring.h"
+#endif
 
 BEGIN_EXTERN_C()
 #include "zend_exceptions.h"
@@ -47,11 +51,12 @@ END_EXTERN_C()
 #include "swoole_util.h"
 #include "swoole_http2.h"
 
+#ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <ifaddrs.h>
-#include <sys/ioctl.h>
+#endif
 
 #ifdef SW_USE_CURL
 #include <curl/curl.h>
@@ -931,7 +936,9 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_LOG_ROTATION_EVERY_MINUTE", SW_LOG_ROTATION_EVERY_MINUTE);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_NONE", SW_IPC_NONE);
+#ifndef _WIN32
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_UNIXSOCK", SW_IPC_UNIXSOCK);
+#endif
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_SOCKET", SW_IPC_SOCKET);
 
     /**
@@ -976,8 +983,10 @@ PHP_MINIT_FUNCTION(swoole) {
     // base
     php_swoole_atomic_minit(module_number);
     php_swoole_lock_minit(module_number);
+#ifndef _WIN32
     php_swoole_process_minit(module_number);
     php_swoole_process_pool_minit(module_number);
+#endif
     php_swoole_table_minit(module_number);
     php_swoole_timer_minit(module_number);
     // coroutine
@@ -1527,7 +1536,11 @@ static PHP_FUNCTION(swoole_strerror) {
     if (error_type == SW_STRERROR_GAI) {
         RETURN_STRING(gai_strerror(swoole_errno));
     } else if (error_type == SW_STRERROR_DNS) {
+#ifdef _WIN32
+        RETURN_STRING(sw_win32_strerror(swoole_errno));
+#else
         RETURN_STRING(hstrerror(swoole_errno));
+#endif
     } else if (error_type == SW_STRERROR_SWOOLE || (swoole_errno > SW_ERROR_BEGIN && swoole_errno < SW_ERROR_END)) {
         RETURN_STRING(swoole_strerror(swoole_errno));
     } else {
@@ -1647,13 +1660,6 @@ PHP_FUNCTION(swoole_set_process_name) {
 }
 
 static PHP_FUNCTION(swoole_get_local_ip) {
-    struct ifaddrs *ipaddrs;
-
-    if (getifaddrs(&ipaddrs) != 0) {
-        php_swoole_sys_error(E_WARNING, "getifaddrs() failed");
-        RETURN_FALSE;
-    }
-
     zend_long family = AF_INET;
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
@@ -1661,11 +1667,18 @@ static PHP_FUNCTION(swoole_get_local_ip) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     array_init(return_value);
+
+#ifndef _WIN32
+    struct ifaddrs *ipaddrs;
+    if (getifaddrs(&ipaddrs) != 0) {
+        php_swoole_sys_error(E_WARNING, "getifaddrs() failed");
+        RETURN_FALSE;
+    }
+
     for (struct ifaddrs *ifa = ipaddrs; ifa != nullptr; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == nullptr || !(ifa->ifa_flags & IFF_UP)) {
             continue;
         }
-
         if (ifa->ifa_addr->sa_family != family) {
             continue;
         }
@@ -1689,6 +1702,74 @@ static PHP_FUNCTION(swoole_get_local_ip) {
         }
     }
     freeifaddrs(ipaddrs);
+#else
+    ULONG flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+    ULONG familyWanted = (family == AF_INET) ? AF_INET : (family == AF_INET6 ? AF_INET6 : AF_UNSPEC);
+    ULONG outBufLen = 0;
+    DWORD dwRetVal = 0;
+    PIP_ADAPTER_ADDRESSES pAddresses = NULL;
+    PIP_ADAPTER_ADDRESSES pCurr = NULL;
+
+    dwRetVal = GetAdaptersAddresses(familyWanted, flags, NULL, NULL, &outBufLen);
+    if (dwRetVal != ERROR_BUFFER_OVERFLOW && dwRetVal != ERROR_SUCCESS) {
+        php_swoole_sys_error(E_WARNING, "GetAdaptersAddresses() failed to get size");
+        RETURN_FALSE;
+    }
+
+    pAddresses = (PIP_ADAPTER_ADDRESSES) HeapAlloc(GetProcessHeap(), 0, outBufLen);
+    if (pAddresses == NULL) {
+        php_swoole_sys_error(E_WARNING, "HeapAlloc() failed");
+        RETURN_FALSE;
+    }
+
+    dwRetVal = GetAdaptersAddresses(familyWanted, flags, NULL, pAddresses, &outBufLen);
+    if (dwRetVal != ERROR_SUCCESS) {
+        php_swoole_sys_error(E_WARNING, "GetAdaptersAddresses() failed with error: %ld", dwRetVal);
+        HeapFree(GetProcessHeap(), 0, pAddresses);
+        RETURN_FALSE;
+    }
+
+    for (pCurr = pAddresses; pCurr != NULL; pCurr = pCurr->Next) {
+        if (pCurr->OperStatus != IfOperStatusUp) {
+            continue;
+        }
+
+        for (PIP_ADAPTER_UNICAST_ADDRESS pUnicast = pCurr->FirstUnicastAddress; pUnicast != NULL;
+             pUnicast = pUnicast->Next) {
+            LPSOCKADDR pSockAddr = pUnicast->Address.lpSockaddr;
+
+            if (family != AF_UNSPEC && pSockAddr->sa_family != family) {
+                continue;
+            }
+
+            char ipStr[INET6_ADDRSTRLEN] = {0};
+            DWORD ipStrLen = sizeof(ipStr);
+            if (WSAAddressToStringA(pSockAddr, pUnicast->Address.iSockaddrLength, NULL, ipStr, &ipStrLen) != 0) {
+                continue;
+            }
+            BOOL isLoopback = FALSE;
+            if (pSockAddr->sa_family == AF_INET) {
+                struct sockaddr_in *sin = (struct sockaddr_in *) pSockAddr;
+                unsigned char *ip = (unsigned char *) &sin->sin_addr;
+                if (ip[0] == 127) {  // 127.0.0.0/8
+                    isLoopback = TRUE;
+                }
+            } else if (pSockAddr->sa_family == AF_INET6) {
+                struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) pSockAddr;
+                if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr)) {
+                    isLoopback = TRUE;
+                }
+            }
+            if (isLoopback) {
+                continue;
+            }
+            char friendlyName[256] = {0};
+            wcstombs(friendlyName, pCurr->FriendlyName, sizeof(friendlyName) - 1);
+            add_assoc_string(return_value, friendlyName, ipStr);
+        }
+    }
+    HeapFree(GetProcessHeap(), 0, pAddresses);
+#endif
 }
 
 static PHP_FUNCTION(swoole_get_local_mac) {
@@ -1699,7 +1780,47 @@ static PHP_FUNCTION(swoole_get_local_mac) {
         add_assoc_string(zv, name, buf);
     };
 
-#ifdef SIOCGIFHWADDR
+#ifdef _WIN32
+    ULONG flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+    ULONG outBufLen = 0;
+    DWORD dwRetVal = 0;
+    PIP_ADAPTER_ADDRESSES pAddresses = NULL;
+    PIP_ADAPTER_ADDRESSES pCurr = NULL;
+
+    dwRetVal = GetAdaptersAddresses(AF_UNSPEC, flags, NULL, NULL, &outBufLen);
+    if (dwRetVal != ERROR_BUFFER_OVERFLOW && dwRetVal != ERROR_SUCCESS) {
+        php_swoole_sys_error(E_WARNING, "GetAdaptersAddresses() failed to get size");
+        RETURN_FALSE;
+    }
+
+    pAddresses = (PIP_ADAPTER_ADDRESSES) HeapAlloc(GetProcessHeap(), 0, outBufLen);
+    if (pAddresses == NULL) {
+        php_swoole_sys_error(E_WARNING, "HeapAlloc() failed");
+        RETURN_FALSE;
+    }
+
+    dwRetVal = GetAdaptersAddresses(AF_UNSPEC, flags, NULL, pAddresses, &outBufLen);
+    if (dwRetVal != ERROR_SUCCESS) {
+        php_swoole_sys_error(E_WARNING, "GetAdaptersAddresses() failed with error: %ld", dwRetVal);
+        HeapFree(GetProcessHeap(), 0, pAddresses);
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+
+    for (pCurr = pAddresses; pCurr != NULL; pCurr = pCurr->Next) {
+        if (pCurr->IfType == IF_TYPE_SOFTWARE_LOOPBACK) {
+            continue;
+        }
+        if (pCurr->PhysicalAddressLength == 6) {
+            char friendlyName[256] = {0};
+            wcstombs(friendlyName, pCurr->FriendlyName, sizeof(friendlyName) - 1);
+            add_assoc_address(return_value, friendlyName, pCurr->PhysicalAddress);
+        }
+    }
+
+    HeapFree(GetProcessHeap(), 0, pAddresses);
+#elif defined(SIOCGIFHWADDR)
     char buffer[4096];
     struct ifconf ifc;
     struct ifreq *ifr;
@@ -1743,8 +1864,7 @@ static PHP_FUNCTION(swoole_get_local_mac) {
         }
     }
     close(sock);
-#else
-#ifdef LLADDR
+#elif defined(LLADDR)
     ifaddrs *ifas, *ifa;
 
     if (getifaddrs(&ifas) != 0) {
@@ -1767,7 +1887,6 @@ static PHP_FUNCTION(swoole_get_local_mac) {
 #else
     php_error_docref(nullptr, E_WARNING, "swoole_get_local_mac is not supported on this platform");
     RETURN_FALSE;
-#endif
 #endif
 }
 

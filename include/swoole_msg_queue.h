@@ -19,7 +19,9 @@
 
 #include "swoole.h"
 
+#ifndef _WIN32
 #include <sys/types.h>
+#endif
 
 namespace swoole {
 
@@ -33,6 +35,7 @@ struct QueueNode {
     char mdata[sizeof(EventData)]; /* text of the message */
 };
 
+#ifndef _WIN32
 class MsgQueue {
   private:
     bool blocking_;
@@ -60,4 +63,5 @@ class MsgQueue {
     bool stat(size_t *queue_num, size_t *queue_bytes) const;
     bool destroy();
 };
+#endif
 }  // namespace swoole

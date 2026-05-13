@@ -17,7 +17,9 @@
 #include "swoole_coroutine_system.h"
 #include "swoole_lru_cache.h"
 #include "swoole_signal.h"
+#ifndef _WIN32
 #include "swoole_iouring.h"
+#endif
 #include "swoole_socket_impl.h"
 
 namespace swoole {
@@ -539,7 +541,13 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
         return false;
     }
 
-    SocketImpl socket(fd, SW_SOCK_UNIX_STREAM);
+    SocketImpl socket(fd,
+#ifndef _WIN32
+        SW_SOCK_UNIX_STREAM
+#else
+        SW_SOCK_TCP
+#endif
+    );
     while (true) {
         ssize_t retval = socket.read(buffer->str + buffer->length, buffer->size - buffer->length);
         if (retval > 0) {

@@ -51,9 +51,17 @@ static inline void worker_end_callback() {
  * Process manager
  */
 int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ipc_mode) {
-#ifndef HAVE_MSGQUEUE
+#if !defined(HAVE_MSGQUEUE) || defined(_WIN32)
     if (_ipc_mode == SW_IPC_MSGQUEUE) {
         swoole_warning("current platform does not support `sysvmsg`");
+        return SW_ERR;
+    }
+#endif
+#ifdef _WIN32
+    if (_ipc_mode == SW_IPC_SOCKET) {
+        // On Windows, only SW_IPC_SOCKET is supported
+    } else {
+        swoole_warning("current platform only supports SW_IPC_SOCKET");
         return SW_ERR;
     }
 #endif
@@ -71,6 +79,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
         return SW_ERR;
     }
 
+#ifndef _WIN32
     if (_ipc_mode == SW_IPC_MSGQUEUE) {
         use_msgqueue = 1;
         msgqueue_key = _msgqueue_key;
@@ -95,7 +104,9 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
             workers[i].pipe_worker = sock->get_socket(false);
             workers[i].pipe_object = sock;
         }
-    } else if (_ipc_mode == SW_IPC_SOCKET) {
+    } else
+#endif
+    if (_ipc_mode == SW_IPC_SOCKET) {
         use_socket = 1;
         stream_info_ = new StreamInfo();
     } else {
@@ -125,6 +136,7 @@ int ProcessPool::create_message_box(size_t memory_size) {
 }
 
 int ProcessPool::create_message_bus() {
+#ifndef _WIN32
     if (ipc_mode != SW_IPC_UNIXSOCK) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
@@ -160,6 +172,9 @@ int ProcessPool::create_message_bus() {
         return SW_ERR;
     }
     return SW_OK;
+#else
+    return SW_ERR;
+#endif  // _WIN32
 }
 
 int ProcessPool::listen(const char *socket_file, int backlog) const {
@@ -167,6 +182,7 @@ int ProcessPool::listen(const char *socket_file, int backlog) const {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
     }
+#ifndef _WIN32
     stream_info_->socket_file = sw_strdup(socket_file);
     if (stream_info_->socket_file == nullptr) {
         return SW_ERR;
@@ -176,6 +192,7 @@ int ProcessPool::listen(const char *socket_file, int backlog) const {
     if (!stream_info_->socket) {
         return SW_ERR;
     }
+#endif
     return SW_OK;
 }
 
@@ -255,20 +272,24 @@ int ProcessPool::start() {
         onStart(this);
     }
 
+#ifndef _WIN32
     SW_LOOP_N(worker_num) {
         if (spawn(&(workers[i])) < 0) {
             return SW_ERR;
         }
     }
+#endif
 
     return SW_OK;
 }
 
 int ProcessPool::schedule() {
     // schedule by system message queue
+#ifndef _WIN32
     if (schedule_by_sysvmsg) {
         return 0;
     }
+#endif
 
     uint32_t target_worker_id = 0;
     uint8_t found = 0;
@@ -313,7 +334,11 @@ int ProcessPool::push_message(const EventData *msg) const {
     if (message_box->push(msg, msg->size()) < 0) {
         return SW_ERR;
     }
+#ifndef _WIN32
     return swoole_kill(master_pid, SIGIO);
+#else
+    return 0;
+#endif
 }
 
 int ProcessPool::push_message(uint8_t _type, const void *data, size_t length) const {
@@ -340,6 +365,7 @@ int ProcessPool::pop_message(void *data, size_t size) const {
 }
 
 swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
+#ifndef _WIN32
     if (use_socket) {
         Stream *stream = Stream::create(stream_info_->socket_file, 0, SW_SOCK_UNIX_STREAM);
         if (!stream) {
@@ -353,6 +379,7 @@ swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
         }
         return SW_OK;
     }
+#endif
 
     if (*dst_worker_id < 0) {
         *dst_worker_id = schedule();
@@ -451,26 +478,35 @@ void ProcessPool::stop(Worker *worker) {
 void ProcessPool::reopen_logger() {
     sw_logger()->reopen();
 
+#ifndef _WIN32
     if (is_master()) {
         kill_all_workers(SIGWINCH);
     }
+#endif
 }
 
+#ifndef _WIN32
 void ProcessPool::kill_all_workers(int signo) {
     SW_LOOP_N(worker_num) {
         swoole_kill(workers[i].pid, signo);
     }
 }
+#endif
 
 bool ProcessPool::shutdown() {
     if (is_master()) {
         running = false;
         return true;
     } else {
+#ifndef _WIN32
         return swoole_kill(master_pid, SIGTERM) == 0;
+#else
+        return false;
+#endif
     }
 }
 
+#ifndef _WIN32
 pid_t ProcessPool::spawn(Worker *worker) {
     map_->erase(worker->pid);
     pid_t pid = swoole_fork(0);
@@ -507,6 +543,7 @@ pid_t ProcessPool::spawn(Worker *worker) {
 
     return pid;
 }
+#endif  // _WIN32
 
 void ProcessPool::set_max_request(uint32_t _max_request, uint32_t _max_request_grace) {
     max_request = _max_request;
@@ -521,6 +558,7 @@ void ProcessPool::at_worker_enter(Worker *worker) const {
     if (worker->pipe_worker) {
         worker->pipe_worker->dont_restart = 1;
     }
+#ifndef _WIN32
     if (ipc_mode == SW_IPC_UNIXSOCK) {
         if (swoole_timer_is_available()) {
             sw_timer()->reinit(true);
@@ -528,6 +566,7 @@ void ProcessPool::at_worker_enter(Worker *worker) const {
             swoole_timer_create(true);
         }
     }
+#endif
 }
 
 void ProcessPool::at_worker_exit(Worker *worker) {
@@ -546,9 +585,12 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
 
     out.buf.info.server_fd = worker->id;
 
+#ifndef _WIN32
     if (pool->schedule_by_sysvmsg) {
         out.mtype = 0;
-    } else {
+    } else
+#endif
+    {
         out.mtype = worker->id + 1;
     }
 
@@ -557,13 +599,16 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         /**
          * fetch task
          */
+#ifndef _WIN32
         if (pool->use_msgqueue) {
             n = pool->queue->pop((QueueNode *) &out, sizeof(out.buf));
             if (n < 0 && catch_system_error(errno) == SW_ERROR) {
                 swoole_sys_warning("[Worker#%d] msgrcv(%d) failed", worker->id, pool->queue->get_id());
                 break;
             }
-        } else if (pool->use_socket) {
+        } else
+#endif
+        if (pool->use_socket) {
             Socket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
                 if (catch_system_error(errno) == SW_ERROR) {
@@ -648,6 +693,7 @@ int ProcessPool::recv_message(Reactor *reactor, Event *event) {
 }
 
 int ProcessPool::run_async(ProcessPool *pool, Worker *worker) {
+#ifndef _WIN32
     if (pool->ipc_mode == SW_IPC_UNIXSOCK && pool->onMessage) {
         swoole_event_add(worker->pipe_worker, SW_EVENT_READ);
         if (pool->message_bus) {
@@ -660,6 +706,7 @@ int ProcessPool::run_async(ProcessPool *pool, Worker *worker) {
             swoole_event_set_handler(SW_FD_PIPE, SW_EVENT_READ, recv_packet);
         }
     }
+#endif  // _WIN32
     return swoole_event_wait();
 }
 
@@ -681,6 +728,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
         /**
          * fetch task
          */
+#ifndef _WIN32
         if (pool->use_msgqueue) {
             n = pool->queue->pop(outbuf, SW_MSGMAX);
             /**
@@ -694,7 +742,9 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             msg.info.len = n - sizeof(msg.info);
             msg.data = outbuf->mdata;
             outbuf->mtype = 0;
-        } else if (pool->use_socket) {
+        } else
+#endif
+        if (pool->use_socket) {
             Socket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
                 if (catch_system_error(errno) == SW_ERROR) {
@@ -764,6 +814,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
 }
 
 int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
+#ifndef _WIN32
     if (pool->ipc_mode != SW_IPC_UNIXSOCK) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
@@ -814,6 +865,9 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     pool->at_worker_exit(worker);
 
     return SW_OK;
+#else
+    return SW_ERR;
+#endif  // _WIN32
 }
 
 void ProcessPool::add_worker(Worker *worker) const {
@@ -879,6 +933,7 @@ bool ProcessPool::detach() {
     return true;
 }
 
+#ifndef _WIN32
 int ProcessPool::wait() {
     std::unordered_set<pid_t> detached_workers;
 
@@ -1007,8 +1062,10 @@ int ProcessPool::wait() {
 
     return SW_OK;
 }
+#endif  // _WIN32
 
 void ProcessPool::destroy() {
+#ifndef _WIN32
     if (pipes) {
         delete pipes;
         pipes = nullptr;
@@ -1018,12 +1075,15 @@ void ProcessPool::destroy() {
         delete queue;
         queue = nullptr;
     }
+#endif
 
     if (stream_info_) {
+#ifndef _WIN32
         if (stream_info_->socket) {
             unlink(stream_info_->socket_file);
             sw_free(stream_info_->socket_file);
         }
+#endif
         if (stream_info_->socket) {
             stream_info_->socket->free();
             stream_info_->socket = nullptr;
@@ -1098,6 +1158,7 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) const {
     }
 
     // message-queue
+#ifndef _WIN32
     if (pool->use_msgqueue) {
         struct {
             long mtype;
@@ -1111,6 +1172,7 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) const {
 
         return pool->queue->push((QueueNode *) &msg, n) ? n : -1;
     }
+#endif
 
     if ((flags & SW_PIPE_NONBLOCK) && swoole_event_is_available()) {
         return swoole_event_write(pipe_sock, buf, n);

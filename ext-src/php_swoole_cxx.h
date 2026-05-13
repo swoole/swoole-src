@@ -150,7 +150,9 @@ SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
                                                         int type,
                                                         int protocol STREAMS_DC);
 SW_API php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC);
+#ifndef _WIN32
 SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
+#endif
 SW_API zif_handler php_swoole_get_original_handler(const char *name, size_t len);
 SW_API bool php_swoole_call_original_handler(const char *name, size_t len, INTERNAL_FUNCTION_PARAMETERS);
 

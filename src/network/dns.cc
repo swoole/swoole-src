@@ -737,7 +737,12 @@ int gethostbyname(int flags, const char *name, char *addr) {
     std::lock_guard<std::mutex> _lock(g_gethostbyname2_lock);
 
     struct hostent *host_entry;
+#ifdef _WIN32
+    // Windows does not have gethostbyname2, use gethostbyname for IPv4 only
+    if (__af != AF_INET || !(host_entry = ::gethostbyname(name))) {
+#else
     if (!(host_entry = ::gethostbyname2(name, __af))) {
+#endif
         return SW_ERR;
     }
 

@@ -18,9 +18,14 @@
 #define SW_SOCKET_HOOK_H_
 
 #include <stdlib.h>
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <poll.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

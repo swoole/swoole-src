@@ -78,6 +78,7 @@ class Pipe : public SocketPair {
     explicit Pipe(bool blocking);
 };
 
+#ifndef _WIN32
 class UnixSocket : public SocketPair {
     int protocol_;
 
@@ -85,5 +86,6 @@ class UnixSocket : public SocketPair {
     UnixSocket(bool blocking, int _protocol);
     bool set_buffer_size(size_t _size) const;
 };
+#endif
 
 }  // namespace swoole

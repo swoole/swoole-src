@@ -19,8 +19,10 @@
 
 #ifdef SW_THREAD
 
+#ifndef _WIN32
 #include <sys/ipc.h>
 #include <sys/resource.h>
+#endif
 
 #include <atomic>
 

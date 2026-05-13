@@ -26,7 +26,12 @@
 #include "nghttp2.h"
 #include "nghttp2_mem.h"
 
+#ifndef _WIN32
 #include <netinet/in.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
 #include <assert.h>
 #include <string.h>
 

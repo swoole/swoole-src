@@ -16,10 +16,12 @@
 
 #include "swoole_memory.h"
 
+#ifndef _WIN32
 #include <sys/mman.h>
 
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
 #define MAP_ANONYMOUS MAP_ANON
+#endif
 #endif
 
 namespace swoole {
@@ -37,13 +39,17 @@ struct SharedMemory {
 
 void *SharedMemory::alloc(size_t size) {
     void *mem;
-    int tmpfd = -1;
-    int flags = MAP_SHARED;
     SharedMemory object;
 
     size = SW_MEM_ALIGNED_SIZE(size);
     size += sizeof(SharedMemory);
 
+#ifdef _WIN32
+    mem = VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (!mem)
+#else
+    int tmpfd = -1;
+    int flags = MAP_SHARED;
 #ifdef MAP_ANONYMOUS
     flags |= MAP_ANONYMOUS;
 #else
@@ -59,6 +65,7 @@ void *SharedMemory::alloc(size_t size) {
 #else
     if (!mem)
 #endif
+#endif
     {
         swoole_sys_warning("mmap(%lu) failed", size);
         return nullptr;
@@ -72,9 +79,15 @@ void *SharedMemory::alloc(size_t size) {
 void SharedMemory::free(void *ptr) {
     SharedMemory *object = SharedMemory::fetch_object(ptr);
     size_t size = object->size_;
+#ifdef _WIN32
+    if (!VirtualFree(object, 0, MEM_RELEASE)) {
+        swoole_sys_warning("VirtualFree(%p, %lu) failed", object, size);
+    }
+#else
     if (munmap(object, size) < 0) {
         swoole_sys_warning("munmap(%p, %lu) failed", object, size);
     }
+#endif
 }
 
 }  // namespace swoole
@@ -91,7 +104,20 @@ void *sw_shm_calloc(size_t num, size_t _size) {
 
 int sw_shm_protect(void *ptr, int flags) {
     SharedMemory *object = SharedMemory::fetch_object(ptr);
+#ifdef _WIN32
+    DWORD winprot;
+    if ((flags & PROT_READ) && (flags & PROT_WRITE)) {
+        winprot = PAGE_READWRITE;
+    } else if (flags & PROT_READ) {
+        winprot = PAGE_READONLY;
+    } else {
+        winprot = PAGE_NOACCESS;
+    }
+    DWORD oldprot;
+    return VirtualProtect(object, object->size_, winprot, &oldprot) ? 0 : -1;
+#else
     return mprotect(object, object->size_, flags);
+#endif
 }
 
 void sw_shm_free(void *ptr) {

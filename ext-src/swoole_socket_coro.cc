@@ -1200,10 +1200,18 @@ PHP_FUNCTION(swoole_coroutine_socketpair) {
     Z_PARAM_LONG(protocol)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (0 != socketpair((int) domain, (int) type, (int) protocol, pair)) {
+    int int_pair[2];
+    if (0 != socketpair((int) domain, (int) type, (int) protocol, int_pair)) {
+#ifdef _WIN32
+        php_swoole_sys_error(E_WARNING, "failed to create socket pair");
+#else
         php_swoole_sys_error(E_WARNING, "failed to create socket");
+#endif
         RETURN_FALSE;
     }
+
+    pair[0] = (php_socket_t) int_pair[0];
+    pair[1] = (php_socket_t) int_pair[1];
 
     php_swoole_check_reactor();
 
@@ -2210,7 +2218,7 @@ static PHP_METHOD(swoole_socket_coro, import) {
 
 #ifdef SO_TYPE
     socklen_t sock_type_len = sizeof(sock_type);
-    if (getsockopt(socket_fd, SOL_SOCKET, SO_TYPE, &sock_type, &sock_type_len) < 0) {
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_TYPE, reinterpret_cast<char *>(&sock_type), &sock_type_len) < 0) {
         php_swoole_sys_error(E_WARNING, "getsockopt(SOL_SOCKET, SO_TYPE) failed");
         RETURN_FALSE;
     }
@@ -2219,7 +2227,14 @@ static PHP_METHOD(swoole_socket_coro, import) {
     type = swoole::network::Socket::convert_to_type(sock_domain, sock_type);
 
     /* determine blocking mode */
+#ifdef _WIN32
+    // Windows: use ioctlsocket to check non-blocking mode
+    u_long mode = 0;
+    ioctlsocket(socket_fd, FIONBIO, &mode);
+    int t = (mode == 0) ? 0 : O_NONBLOCK;
+#else
     int t = fcntl(socket_fd, F_GETFL);
+#endif
     if (t < 0) {
         php_swoole_sys_error(E_WARNING, "fcntl(F_GETFL) failed");
         RETURN_FALSE;

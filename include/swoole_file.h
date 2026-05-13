@@ -18,9 +18,16 @@
 
 #include "swoole_string.h"
 
+#ifdef _WIN32
+// <sys/stat.h> is available on Windows MSVC, <fcntl.h> provides O_* flags
+// <sys/file.h> is NOT available on Windows; flock() is replaced by sw_flock
+#include <sys/stat.h>
+#include <fcntl.h>
+#else
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#endif
 
 namespace swoole {
 
@@ -46,6 +53,9 @@ class File {
         CREATE = O_CREAT,
         EXCL = O_EXCL,
         APPEND = O_APPEND,
+#ifdef _WIN32
+        BINARY = _O_BINARY,
+#endif
     };
 
     explicit File(const int fd) {
@@ -72,15 +82,23 @@ class File {
     }
 
     ssize_t write(const void *_buf, size_t _n) const {
+#ifdef _WIN32
+        return _write(fd_, _buf, static_cast<unsigned int>(_n));
+#else
         return ::write(fd_, _buf, _n);
+#endif
     }
 
     ssize_t write(const std::string &str) const {
-        return ::write(fd_, str.c_str(), str.length());
+        return write(str.c_str(), str.length());
     }
 
     ssize_t read(void *_buf, const size_t _n) const {
+#ifdef _WIN32
+        return _read(fd_, _buf, static_cast<unsigned int>(_n));
+#else
         return ::read(fd_, _buf, _n);
+#endif
     }
 
     ssize_t pwrite(const void *_buf, size_t _n, off_t _offset) const {
@@ -105,19 +123,35 @@ class File {
     std::shared_ptr<String> read_content() const;
 
     bool sync() const {
+#ifdef _WIN32
+        return _commit(fd_) == 0;
+#else
         return ::fsync(fd_) == 0;
+#endif
     }
 
     bool truncate(off_t length) const {
+#ifdef _WIN32
+        return _chsize(fd_, length) == 0;
+#else
         return ::ftruncate(fd_, length) == 0;
+#endif
     }
 
     off_t set_offset(off_t offset) const {
+#ifdef _WIN32
+        return _lseeki64(fd_, offset, SEEK_SET);
+#else
         return lseek(fd_, offset, SEEK_SET);
+#endif
     }
 
     off_t get_offset() const {
+#ifdef _WIN32
+        return _lseeki64(fd_, 0, SEEK_CUR);
+#else
         return lseek(fd_, 0, SEEK_CUR);
+#endif
     }
 
     bool lock(int operation) const {
@@ -145,7 +179,7 @@ class File {
     }
 
     static bool exists(const std::string &file) {
-        return ::access(file.c_str(), R_OK) == 0;
+        return ::access(file.c_str(), F_OK) == 0;
     }
 
     static bool remove(const std::string &file) {

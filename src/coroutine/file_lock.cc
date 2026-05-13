@@ -14,7 +14,9 @@
   +----------------------------------------------------------------------+
 */
 
+#ifndef _WIN32
 #include <sys/file.h>
+#endif
 
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_api.h"

@@ -75,12 +75,28 @@ if (PHP_SWOOLE != "no") {
 		}
 	}
 
-	// Check for nghttp2
+	// Check for nghttp2 (required, use system library on Windows)
+	// The bundled nghttp2 sources are excluded from Windows build;
+	// you must provide a system nghttp2 library via --with-nghttp2-dir
+	var nghttp2_ok = false;
 	if (PHP_NGHTTP2_DIR != "no") {
 		if (CHECK_LIB("nghttp2.lib", "swoole", PHP_NGHTTP2_DIR) &&
 			CHECK_HEADER_ADD_INCLUDE("nghttp2/nghttp2.h", "CFLAGS_SWOOLE", PHP_NGHTTP2_DIR)) {
-			// Using external nghttp2
+			AC_DEFINE("SW_USE_NGHTTP2", 1, "Enable nghttp2 support");
+			nghttp2_ok = true;
 		}
+	}
+	if (!nghttp2_ok) {
+		// Try to find nghttp2 without a specific directory (e.g. in vcpkg paths)
+		if (CHECK_LIB("nghttp2.lib", "swoole", "") &&
+			CHECK_HEADER_ADD_INCLUDE("nghttp2/nghttp2.h", "CFLAGS_SWOOLE", "")) {
+			AC_DEFINE("SW_USE_NGHTTP2", 1, "Enable nghttp2 support");
+			nghttp2_ok = true;
+		}
+	}
+	if (!nghttp2_ok) {
+		WARNING("nghttp2 library not found. HTTP/2 support requires a system nghttp2 library.");
+		WARNING("Install nghttp2 and use --with-nghttp2-dir to specify its location.");
 	}
 
 	// Check for c-ares
@@ -185,77 +201,87 @@ if (PHP_SWOOLE != "no") {
 
 	// Build the extension if all checks passed
 	if (swoole_ok) {
+		// Source files for Windows build.
+		// POSIX-only files excluded (fork, SysV IPC, process mode):
+		//   ext-src/swoole_process_pool.cc - depends on fork + SysV msgqueue
+		//   ext-src/swoole_process.cc      - depends on fork + execv + SysV msgqueue
+		//   src/os/process_pool.cc         - depends on fork + waitpid + SysV msgqueue
+		//   src/os/wait.cc                 - depends on waitpid + SIGCHLD
+		//   src/os/msg_queue.cc            - depends on SysV msgqueue (msgget/msgrcv/msgsnd)
+		//   src/server/manager.cc          - depends on fork + waitpid + POSIX signals
+		//   src/server/task_worker.cc      - depends on fork + SysV msgqueue + POSIX signals
+		//   thirdparty/php/sockets/multicast.cc - depends on POSIX multicast API
+		//   thirdparty/php/sockets/sendrecvmsg.cc - depends on IPV6_PKTINFO (partial Windows support)
+		// Files that need adaptation but are included (have #ifndef _WIN32 guards):
+		//   src/server/master.cc           - process mode disabled, base/thread mode works
+		//   src/server/worker.cc           - process mode paths guarded
 		EXTENSION("swoole",
-			"ext-src/php_swoole.cc " +
-			"ext-src/php_swoole_cxx.cc " +
-			"ext-src/swoole_admin_server.cc " +
-			"ext-src/swoole_async_coro.cc " +
-			"ext-src/swoole_atomic.cc " +
-			"ext-src/swoole_channel_coro.cc " +
-			"ext-src/swoole_client.cc " +
-			"ext-src/swoole_client_async.cc " +
-			"ext-src/swoole_client_coro.cc " +
-			"ext-src/swoole_coroutine.cc " +
-			"ext-src/swoole_coroutine_lock.cc " +
-			"ext-src/swoole_coroutine_scheduler.cc " +
-			"ext-src/swoole_coroutine_system.cc " +
-			"ext-src/swoole_curl.cc " +
-			"ext-src/swoole_event.cc " +
-			"ext-src/swoole_http2_client_coro.cc " +
-			"ext-src/swoole_http2_server.cc " +
-			"ext-src/swoole_http_client_coro.cc " +
-			"ext-src/swoole_http_cookie.cc " +
-			"ext-src/swoole_http_request.cc " +
-			"ext-src/swoole_http_response.cc " +
-			"ext-src/swoole_http_server.cc " +
-			"ext-src/swoole_http_server_coro.cc " +
-			"ext-src/swoole_lock.cc " +
-			"ext-src/swoole_name_resolver.cc " +
-			"ext-src/swoole_process.cc " +
-			"ext-src/swoole_process_pool.cc " +
-			"ext-src/swoole_redis_server.cc " +
-			"ext-src/swoole_runtime.cc " +
-			"ext-src/swoole_server.cc " +
-			"ext-src/swoole_server_port.cc " +
-			"ext-src/swoole_socket_coro.cc " +
-			"ext-src/swoole_stdext.cc " +
-			"ext-src/swoole_table.cc " +
-			"ext-src/swoole_thread.cc " +
-			"ext-src/swoole_thread_arraylist.cc " +
-			"ext-src/swoole_thread_atomic.cc " +
-			"ext-src/swoole_thread_barrier.cc " +
-			"ext-src/swoole_thread_lock.cc " +
-			"ext-src/swoole_thread_map.cc " +
-			"ext-src/swoole_thread_queue.cc " +
-			"ext-src/swoole_timer.cc " +
-			"ext-src/swoole_tracer.cc " +
-			"ext-src/swoole_websocket_server.cc " +
-			"src/core/base.cc " +
-			"src/core/base64.cc " +
-			"src/core/buffer.cc " +
-			"src/core/channel.cc " +
-			"src/core/crc32.cc " +
-			"src/core/error.cc " +
-			"src/core/heap.cc " +
-			"src/core/log.cc " +
-			"src/core/misc.cc " +
-			"src/core/string.cc " +
-			"src/core/timer.cc " +
-			"src/coroutine/base.cc " +
-			"src/coroutine/channel.cc " +
-			"src/coroutine/context.cc " +
-			"src/coroutine/file.cc " +
-			"src/coroutine/file_lock.cc " +
-			"src/coroutine/hook.cc " +
-			"src/coroutine/iouring.cc " +
-			"src/coroutine/socket.cc " +
-			"src/coroutine/system.cc " +
-			"src/coroutine/thread_context.cc " +
-			"src/coroutine/uring_socket.cc " +
-			"src/lock/barrier.cc " +
-			"src/lock/coroutine_lock.cc " +
-			"src/lock/mutex.cc " +
-			"src/lock/rw_lock.cc " +
+			"ext-src\\php_swoole.cc " +
+			"ext-src\\php_swoole_cxx.cc " +
+			"ext-src\\swoole_admin_server.cc " +
+			"ext-src\\swoole_async_coro.cc " +
+			"ext-src\\swoole_atomic.cc " +
+			"ext-src\\swoole_channel_coro.cc " +
+			"ext-src\\swoole_client.cc " +
+			"ext-src\\swoole_client_async.cc " +
+			"ext-src\\swoole_client_coro.cc " +
+			"ext-src\\swoole_coroutine.cc " +
+			"ext-src\\swoole_coroutine_lock.cc " +
+			"ext-src\\swoole_coroutine_scheduler.cc " +
+			"ext-src\\swoole_coroutine_system.cc " +
+			"ext-src\\swoole_curl.cc " +
+			"ext-src\\swoole_event.cc " +
+			"ext-src\\swoole_http2_client_coro.cc " +
+			"ext-src\\swoole_http2_server.cc " +
+			"ext-src\\swoole_http_client_coro.cc " +
+			"ext-src\\swoole_http_cookie.cc " +
+			"ext-src\\swoole_http_request.cc " +
+			"ext-src\\swoole_http_response.cc " +
+			"ext-src\\swoole_http_server.cc " +
+			"ext-src\\swoole_http_server_coro.cc " +
+			"ext-src\\swoole_lock.cc " +
+			"ext-src\\swoole_name_resolver.cc " +
+			"ext-src\\swoole_redis_server.cc " +
+			"ext-src\\swoole_runtime.cc " +
+			"ext-src\\swoole_server.cc " +
+			"ext-src\\swoole_server_port.cc " +
+			"ext-src\\swoole_socket_coro.cc " +
+			"ext-src\\swoole_stdext.cc " +
+			"ext-src\\swoole_table.cc " +
+			"ext-src\\swoole_thread.cc " +
+			"ext-src\\swoole_thread_arraylist.cc " +
+			"ext-src\\swoole_thread_atomic.cc " +
+			"ext-src\\swoole_thread_barrier.cc " +
+			"ext-src\\swoole_thread_lock.cc " +
+			"ext-src\\swoole_thread_map.cc " +
+			"ext-src\\swoole_thread_queue.cc " +
+			"ext-src\\swoole_timer.cc " +
+			"ext-src\\swoole_tracer.cc " +
+			"ext-src\\swoole_websocket_server.cc " +
+			"src\\core\\base.cc " +
+			"src\\core\\base64.cc " +
+			"src\\core\\buffer.cc " +
+			"src\\core\\channel.cc " +
+			"src\\core\\crc32.cc " +
+			"src\\core\\error.cc " +
+			"src\\core\\heap.cc " +
+			"src\\core\\log.cc " +
+			"src\\core\\misc.cc " +
+			"src\\core\\string.cc " +
+			"src\\core\\timer.cc " +
+			"src\\coroutine\\base.cc " +
+			"src\\coroutine\\channel.cc " +
+			"src\\coroutine\\context.cc " +
+			"src\\coroutine\\file.cc " +
+			"src\\coroutine\\file_lock.cc " +
+			"src\\coroutine\\hook.cc " +
+			"src\\coroutine\\socket.cc " +
+			"src\\coroutine\\system.cc " +
+			"src\\coroutine\\thread_context.cc " +
+			"src\\lock\\barrier.cc " +
+			"src\\lock\\coroutine_lock.cc " +
+			"src\\lock\\mutex.cc " +
+			"src\\lock\\rw_lock.cc " +
 			"src/lock/spin_lock.cc " +
 			"src/memory/fixed_pool.cc " +
 			"src/memory/global_memory.cc " +
@@ -270,14 +296,8 @@ if (PHP_SWOOLE != "no") {
 			"src/os/async_thread.cc " +
 			"src/os/base.cc " +
 			"src/os/file.cc " +
-			"src/os/msg_queue.cc " +
 			"src/os/pipe.cc " +
-			"src/os/process_pool.cc " +
-			"src/os/sendfile.cc " +
-			"src/os/signal.cc " +
 			"src/os/timer.cc " +
-			"src/os/unix_socket.cc " +
-			"src/os/wait.cc " +
 			"src/os/win32.cc " +
 			"src/protocol/base.cc " +
 			"src/protocol/dtls.cc " +
@@ -291,40 +311,27 @@ if (PHP_SWOOLE != "no") {
 			"src/protocol/ssl.cc " +
 			"src/protocol/websocket.cc " +
 			"src/reactor/base.cc " +
-			"src/reactor/epoll.cc " +
-			"src/reactor/kqueue.cc " +
 			"src/reactor/poll.cc " +
 			"src/server/base.cc " +
-			"src/server/manager.cc " +
 			"src/server/master.cc " +
 			"src/server/port.cc " +
 			"src/server/reactor_thread.cc " +
 			"src/server/static_handler.cc " +
-			"src/server/task_worker.cc " +
 			"src/server/thread.cc " +
 			"src/server/worker.cc " +
 			"src/wrapper/event.cc " +
 			"src/wrapper/http.cc " +
 			"src/wrapper/timer.cc " +
 			"thirdparty/php/sockets/conversions.cc " +
-			"thirdparty/php/sockets/multicast.cc " +
-			"thirdparty/php/sockets/sendrecvmsg.cc " +
 			"thirdparty/php/sockets/sockaddr_conv.cc " +
-			"thirdparty/php/standard/proc_open.cc " +
+			// proc_open.cc excluded: depends on openpty/util.h (POSIX-only)
 			"thirdparty/php/standard/var_decoder.cc " +
 			"thirdparty/llhttp/api.c " +
 			"thirdparty/llhttp/http.c " +
 			"thirdparty/llhttp/llhttp.c " +
-			"thirdparty/multipart_parser.c " +
-			"thirdparty/nghttp2/nghttp2_buf.c " +
-			"thirdparty/nghttp2/nghttp2_hd.c " +
-			"thirdparty/nghttp2/nghttp2_hd_huffman.c " +
-			"thirdparty/nghttp2/nghttp2_hd_huffman_data.c " +
-			"thirdparty/nghttp2/nghttp2_helper.c " +
-			"thirdparty/nghttp2/nghttp2_mem.c " +
-			"thirdparty/nghttp2/nghttp2_rcbuf.c",
+			"thirdparty/multipart_parser.c",
 			PHP_SWOOLE_SHARED,
-			"/D ENABLE_PHP_SWOOLE /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /D SW_USE_ASM_CONTEXT"
+			"/D ENABLE_PHP_SWOOLE /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /D SW_USE_ASM_CONTEXT /EHsc"
 		);
 
 		AC_DEFINE("HAVE_SWOOLE", 1, "Define to 1 if the PHP extension 'swoole' is available.");
@@ -358,9 +365,18 @@ if (PHP_SWOOLE != "no") {
 		ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\ext-src\"");
 		ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\include\"");
 		ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\thirdparty\"");
+		// Note: When using system nghttp2, CHECK_HEADER_ADD_INCLUDE adds the
+		// system include path BEFORE thirdparty, so <nghttp2/nghttp2.h> will
+		// find the system version first.
 
 		// Add compiler flags
 		ADD_FLAG("CFLAGS_SWOOLE", "/D PHP_SWOOLE_EXPORTS=1");
+		ADD_FLAG("CFLAGS_SWOOLE", "/D SW_USE_POLL=1");
+
+		// Remove /FR (browse info) flag from CFLAGS_BD_EXT_SWOOLE to prevent
+		// .sbr file name conflicts when compiling multiple source files with
+		// the same base name (e.g. base.cc, socket.cc) in parallel (/MP).
+		DEFINE("CFLAGS_BD_EXT_SWOOLE", "/Fp$(BUILD_DIR)\\ext\\swoole\\ /Fd$(BUILD_DIR)\\ext\\swoole\\ ");
 
 		// Install headers
 		PHP_INSTALL_HEADERS("ext/swoole", "php_swoole.h");

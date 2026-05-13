@@ -100,7 +100,7 @@ bool Socket::add_event(const EventType event) {
             ret = swoole_event_set(socket, socket->events | event) == SW_OK;
         }
     }
-    set_err(ret ? 0 : errno);
+    set_err(ret ? 0 : SW_SOCKET_ERRNO);
     return ret;
 }
 
@@ -1008,7 +1008,12 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags) {
     ssize_t retval;
     TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
     do {
+#ifdef _WIN32
+        retval = -1;
+        errno = ENOSYS;
+#else
         retval = ::recvmsg(sock_fd, msg, flags);
+#endif
     } while (retval < 0 && socket->catch_read_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     check_return_value(retval);
     return retval;
@@ -1024,7 +1029,12 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
     ssize_t retval;
     TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
     do {
+#ifdef _WIN32
+        retval = -1;
+        errno = ENOSYS;
+#else
         retval = ::sendmsg(sock_fd, msg, flags);
+#endif
     } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
     check_return_value(retval);
     return retval;
@@ -1328,7 +1338,7 @@ ssize_t Socket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_soc
     ssize_t retval;
     TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
     do {
-        retval = ::recvfrom(sock_fd, _buf, _n, 0, _addr, _socklen);
+        retval = ::recvfrom(sock_fd, static_cast<char *>(_buf), _n, 0, _addr, _socklen);
         swoole_trace_log(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, _n, errno);
     } while (retval < 0 && ((errno == EINTR) || (socket->catch_read_error(errno) == SW_WAIT && timer.start() &&
                                                  wait_event(SW_EVENT_READ))));

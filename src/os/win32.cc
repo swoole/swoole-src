@@ -61,7 +61,7 @@ int uname(struct utsname *buf) {
     osvi.dwOSVersionInfoSize = sizeof(osvi);
 
     // Use RtlGetVersion as GetVersionEx is deprecated
-    typedef NTSTATUS(WINAPI * RtlGetVersionPtr)(OSVERSIONINFOEXW *);
+    typedef LONG(WINAPI * RtlGetVersionPtr)(OSVERSIONINFOEXW *);
     HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
     if (ntdll) {
         auto RtlGetVersion = reinterpret_cast<RtlGetVersionPtr>(GetProcAddress(ntdll, "RtlGetVersion"));
@@ -226,8 +226,10 @@ ssize_t sw_pwrite(int fd, const void *buf, size_t count, off_t offset) {
     }
 
     OVERLAPPED ov = {};
-    ov.Offset = static_cast<DWORD>(offset & 0xFFFFFFFF);
-    ov.OffsetHigh = static_cast<DWORD>(offset >> 32);
+    ULARGE_INTEGER ul;
+    ul.QuadPart = static_cast<ULONGLONG>(offset);
+    ov.Offset = ul.LowPart;
+    ov.OffsetHigh = ul.HighPart;
 
     DWORD bytes_written = 0;
     if (!WriteFile(h, buf, static_cast<DWORD>(count), &bytes_written, &ov)) {
@@ -564,6 +566,213 @@ int sw_access(const char *path, int mode) {
     if (mode == F_OK) win_mode = 0;
 
     return _access(path, win_mode);
+}
+
+// ============================================================================
+// Directory traversal (opendir/readdir/closedir)
+// ============================================================================
+
+DIR *opendir(const char *name) {
+    if (!name) {
+        errno = EFAULT;
+        return nullptr;
+    }
+    size_t len = strlen(name);
+    if (len == 0) {
+        errno = ENOENT;
+        return nullptr;
+    }
+
+    DIR *dir = static_cast<DIR *>(sw_malloc(sizeof(DIR)));
+    if (!dir) {
+        errno = ENOMEM;
+        return nullptr;
+    }
+    memset(dir, 0, sizeof(DIR));
+
+    // Build search path with wildcard
+    char *search_path = static_cast<char *>(sw_malloc(len + 3));
+    if (!search_path) {
+        sw_free(dir);
+        errno = ENOMEM;
+        return nullptr;
+    }
+    strcpy(search_path, name);
+    if (name[len - 1] != '/' && name[len - 1] != '\\') {
+        strcat(search_path, "\\");
+    }
+    strcat(search_path, "*");
+
+    // Convert to wide string
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, search_path, -1, nullptr, 0);
+    wchar_t *wsearch_path = static_cast<wchar_t *>(sw_malloc(wlen * sizeof(wchar_t)));
+    if (!wsearch_path) {
+        sw_free(search_path);
+        sw_free(dir);
+        errno = ENOMEM;
+        return nullptr;
+    }
+    MultiByteToWideChar(CP_UTF8, 0, search_path, -1, wsearch_path, wlen);
+    sw_free(search_path);
+
+    dir->handle = FindFirstFileW(wsearch_path, &dir->find_data);
+    sw_free(wsearch_path);
+
+    if (dir->handle == INVALID_HANDLE_VALUE) {
+        sw_free(dir);
+        errno = ENOENT;
+        return nullptr;
+    }
+    dir->first = 1;
+    return dir;
+}
+
+struct dirent *readdir(DIR *dir) {
+    if (!dir || dir->handle == INVALID_HANDLE_VALUE) {
+        return nullptr;
+    }
+
+    if (dir->first) {
+        dir->first = 0;
+    } else {
+        if (!FindNextFileW(dir->handle, &dir->find_data)) {
+            return nullptr;
+        }
+    }
+
+    // Convert wide filename to UTF-8
+    WideCharToMultiByte(CP_UTF8, 0, dir->find_data.cFileName, -1, dir->entry.d_name, 260, nullptr, nullptr);
+    dir->entry.d_namlen = static_cast<unsigned short>(strlen(dir->entry.d_name));
+
+    // Map Windows file attributes to d_type
+    if (dir->find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        dir->entry.d_type = 4;  // DT_DIR
+    } else {
+        dir->entry.d_type = 8;  // DT_REG
+    }
+
+    return &dir->entry;
+}
+
+int closedir(DIR *dir) {
+    if (!dir) {
+        errno = EBADF;
+        return -1;
+    }
+    if (dir->handle != INVALID_HANDLE_VALUE) {
+        FindClose(dir->handle);
+    }
+    sw_free(dir);
+    return 0;
+}
+
+// ============================================================================
+// memmem() - find byte sequence in memory
+// ============================================================================
+
+void *swoole_memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen) {
+    if (needlelen == 0) {
+        return const_cast<void *>(haystack);
+    }
+    if (haystacklen < needlelen) {
+        return nullptr;
+    }
+    const char *hs = static_cast<const char *>(haystack);
+    const char *ne = static_cast<const char *>(needle);
+    for (size_t i = 0; i <= haystacklen - needlelen; i++) {
+        if (hs[i] == ne[0] && memcmp(hs + i, ne, needlelen) == 0) {
+            return const_cast<char *>(hs + i);
+        }
+    }
+    return nullptr;
+}
+
+// ============================================================================
+// nanosleep() - high-resolution sleep
+// ============================================================================
+
+int sw_nanosleep(const struct timespec *req, struct timespec *rem) {
+    if (!req) {
+        errno = EFAULT;
+        return -1;
+    }
+    DWORD ms = (DWORD)(req->tv_sec * 1000 + req->tv_nsec / 1000000);
+    if (ms == 0 && req->tv_nsec > 0) {
+        ms = 1;  // minimum 1ms on Windows
+    }
+    Sleep(ms);
+    if (rem) {
+        rem->tv_sec = 0;
+        rem->tv_nsec = 0;
+    }
+    return 0;
+}
+
+// ============================================================================
+// strptime() - parse date/time string (minimal implementation)
+// ============================================================================
+
+char *sw_strptime(const char *buf, const char *fmt, struct tm *tm) {
+    if (!buf || !fmt || !tm) {
+        return nullptr;
+    }
+    // Minimal implementation: only support the format strings used by Swoole
+    // RFC1123: "%a, %d %b %Y %H:%M:%S GMT"
+    // RFC850:  "%A, %d-%b-%y %H:%M:%S GMT"
+    // asctime: "%a %b %d %H:%M:%S %Y"
+
+    // Use sscanf for simple parsing - not fully POSIX compliant but sufficient
+    memset(tm, 0, sizeof(struct tm));
+
+    char month[4] = {0};
+    int day = 0, year = 0, hour = 0, min = 0, sec = 0;
+    int n = 0;
+    const char *p = buf;
+
+    // Try RFC1123/1123-like format: "Thu, 01 Jan 2024 00:00:00 GMT"
+    n = sscanf(buf, "%*3s, %2d %3s %4d %2d:%2d:%2d", &day, month, &year, &hour, &min, &sec);
+    if (n >= 6) {
+        static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+        tm->tm_mday = day;
+        tm->tm_year = year - 1900;
+        tm->tm_hour = hour;
+        tm->tm_min = min;
+        tm->tm_sec = sec;
+        for (int i = 0; i < 12; i++) {
+            if (strcmp(month, months[i]) == 0) {
+                tm->tm_mon = i;
+                break;
+            }
+        }
+        // Find the end of the parsed portion
+        while (*p && *p != 'G' && *p != 'U') p++;
+        while (*p && *p != ' ') p++;
+        return const_cast<char *>(p);
+    }
+
+    // Try asctime format: "Thu Jan  1 00:00:00 2024"
+    n = sscanf(buf, "%*3s %3s %2d %2d:%2d:%2d %4d", month, &day, &hour, &min, &sec, &year);
+    if (n >= 6) {
+        static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+        tm->tm_mday = day;
+        tm->tm_year = year - 1900;
+        tm->tm_hour = hour;
+        tm->tm_min = min;
+        tm->tm_sec = sec;
+        for (int i = 0; i < 12; i++) {
+            if (strcmp(month, months[i]) == 0) {
+                tm->tm_mon = i;
+                break;
+            }
+        }
+        while (*p && *p >= '0' && *p <= '9') p++;
+        return const_cast<char *>(p);
+    }
+
+    // Fallback: return nullptr for unsupported formats
+    return nullptr;
 }
 
 // ============================================================================

@@ -17,9 +17,11 @@
 #include "swoole_coroutine_context.h"
 
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
+#ifndef _WIN32
 #include <sys/mman.h>
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS MAP_ANON
+#endif
 #endif
 #endif
 

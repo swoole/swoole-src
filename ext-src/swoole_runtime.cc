@@ -20,7 +20,9 @@
 
 #include "swoole_util.h"
 
+#ifndef _WIN32
 #include "thirdparty/php/standard/proc_open.h"
+#endif
 
 #ifdef SW_USE_CURL
 #include "swoole_curl_interface.h"
@@ -279,7 +281,9 @@ static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
+#ifndef _WIN32
 #include "thirdparty/php/streams/plain_wrapper.c"
+#endif
 #undef close
 SW_EXTERN_C_END
 
@@ -324,7 +328,9 @@ void php_swoole_runtime_minit(int module_number) {
 #ifdef SW_USE_CURL
     swoole_native_curl_minit(module_number);
 #endif
+#ifndef _WIN32
     swoole_proc_open_init(module_number);
+#endif
 
     php_stream_xport_register("async.tcp", socket_create);
     php_stream_xport_register("async.udp", socket_create);
@@ -333,7 +339,12 @@ void php_swoole_runtime_minit(int module_number) {
     php_stream_xport_register("async.ssl", socket_create);
     php_stream_xport_register("async.tls", socket_create);
 
+#ifndef _WIN32
     php_register_url_stream_wrapper(SW_ASYNC_FILE_PROTOCOL, &sw_php_plain_files_wrapper);
+#else
+    // On Windows, plain file stream wrapper is not hooked (plain_wrapper.c is POSIX-dependent)
+    php_register_url_stream_wrapper(SW_ASYNC_FILE_PROTOCOL, &php_plain_files_wrapper);
+#endif
 }
 
 struct PhpFunc {
@@ -399,7 +410,9 @@ void php_swoole_runtime_rinit() {
     ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
 
     memcpy(&ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+#ifndef _WIN32
     memcpy(&ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+#endif
 }
 
 void php_swoole_runtime_rshutdown() {
@@ -1447,15 +1460,18 @@ static void hook_stream_factory(uint32_t *flags_ptr) {
 static void hook_stream_ops(uint32_t flags) {
     // file
     if (flags & PHPCoroutine::HOOK_FILE) {
+#ifndef _WIN32
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
             memcpy(&php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
+#endif
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
             memcpy(&php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
     }
     // stdio
+#ifndef _WIN32
     if (flags & PHPCoroutine::HOOK_STDIO) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
             memcpy(&php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
@@ -1465,6 +1481,7 @@ static void hook_stream_ops(uint32_t flags) {
             memcpy(&php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
     }
+#endif
 }
 
 static void hook_pdo_driver(uint32_t flags) {
@@ -1555,6 +1572,7 @@ static void hook_all_func(uint32_t flags) {
         }
     }
     // proc_open
+#ifndef _WIN32
     if (flags & PHPCoroutine::HOOK_PROC) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_PROC)) {
             SW_HOOK_FUNC(proc_open);
@@ -1570,6 +1588,7 @@ static void hook_all_func(uint32_t flags) {
             SW_UNHOOK_FUNC(proc_terminate);
         }
     }
+#endif // _WIN32
     // ext-sockets
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
@@ -1909,6 +1928,11 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
         php_req.tv_sec = (time_t) tv_sec;
         php_req.tv_nsec = (long) tv_nsec;
 
+#ifdef _WIN32
+        // Windows: use Sleep for millisecond resolution
+        Sleep((DWORD)(tv_sec * 1000 + tv_nsec / 1000000));
+        RETURN_TRUE;
+#else
         if (nanosleep(&php_req, &php_rem) == 0) {
             RETURN_TRUE;
         } else if (errno == EINTR) {
@@ -1918,6 +1942,7 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
         } else if (errno == EINVAL) {
             php_swoole_error(E_WARNING, "nanoseconds was not in the range 0 to 999 999 999 or seconds was negative");
         }
+#endif
     }
     RETURN_TRUE;
 }
@@ -2312,12 +2337,18 @@ int php_async_socket_poll(php_socket_t fd, int events, int timeout) {
 }
 
 php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC) {
+#ifdef _WIN32
+    return php_stream_fopen_from_fd(fd, mode, persistent_id);
+#else
     return _sw_php_stream_fopen_from_fd(fd, mode, persistent_id, false STREAMS_CC);
+#endif
 }
 
+#ifndef _WIN32
 php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
     return &ori_php_stream_stdio_ops;
 }
+#endif
 
 zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
     zif_handler handler = ori_func_handlers.get(std::string(name, len));
@@ -2341,10 +2372,20 @@ static PHP_FUNCTION(swoole_stream_socket_pair) {
     Z_PARAM_LONG(protocol)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+#ifdef _WIN32
+    int int_pair[2];
+    if (0 != socketpair((int) domain, (int) type, (int) protocol, int_pair)) {
+        php_swoole_error(E_WARNING, "failed to create sockets: [%d]: %s", errno, strerror(errno));
+        RETURN_FALSE;
+    }
+    pair[0] = (php_socket_t) int_pair[0];
+    pair[1] = (php_socket_t) int_pair[1];
+#else
     if (0 != socketpair((int) domain, (int) type, (int) protocol, pair)) {
         php_swoole_error(E_WARNING, "failed to create sockets: [%d]: %s", errno, strerror(errno));
         RETURN_FALSE;
     }
+#endif
 
     array_init(return_value);
 

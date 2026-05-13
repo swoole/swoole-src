@@ -17,7 +17,9 @@
  */
 
 #include "php_swoole_cxx.h"
+#ifndef _WIN32
 #include "php_swoole_process.h"
+#endif
 
 #include "swoole_server.h"
 
@@ -155,10 +157,12 @@ static bool timer_if_use_reactor() {
     if (server) {
         return server->is_user_worker() || (server->is_task_worker() && server->task_enable_coroutine);
     }
+#ifndef _WIN32
     auto process_pool = sw_process_pool();
     if (process_pool) {
         return !process_pool->is_master();
     }
+#endif
     return true;
 }
 

@@ -14,19 +14,26 @@
   +----------------------------------------------------------------------+
 */
 
+#ifndef _WIN32
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <netdb.h>
 #include <poll.h>
 #include <dirent.h>
+#else
+#include <sys/stat.h>
+#include <io.h>
+#endif
 
 #include <mutex>
 #include <unordered_map>
 
 #include "swoole_coroutine_system.h"
 #include "swoole_socket_impl.h"
+#ifndef _WIN32
 #include "swoole_iouring.h"
+#endif
 
 using swoole::AsyncEvent;
 using swoole::Coroutine;
@@ -102,7 +109,11 @@ int swoole_coroutine_socket(int domain, int type, int protocol) {
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
+#ifdef _WIN32
+        return ::send(sockfd, static_cast<const char *>(buf), static_cast<int>(len), flags);
+#else
         return ::send(sockfd, buf, len, flags);
+#endif
     }
     return socket->send(buf, len);
 }
@@ -110,7 +121,13 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
+#ifndef _WIN32
         return ::sendmsg(sockfd, msg, flags);
+#else
+        // Windows does not have sendmsg; return error
+        errno = ENOSYS;
+        return -1;
+#endif
     }
     return socket->sendmsg(msg, flags);
 }
@@ -118,7 +135,13 @@ ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags
 ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
+#ifndef _WIN32
         return ::recvmsg(sockfd, msg, flags);
+#else
+        // Windows does not have recvmsg; return error
+        errno = ENOSYS;
+        return -1;
+#endif
     }
     return socket->recvmsg(msg, flags);
 }
@@ -126,7 +149,11 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags) {
 ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
+#ifdef _WIN32
+        return ::recv(sockfd, static_cast<char *>(buf), static_cast<int>(len), flags);
+#else
         return ::recv(sockfd, buf, len, flags);
+#endif
     }
     if (flags & MSG_PEEK) {
         return socket->peek(buf, len);
@@ -442,7 +469,12 @@ hostent *swoole_coroutine_gethostbyname(const char *name) {
         retval = gethostbyname(name);
         _tmp_h_errno = h_errno;
     });
+#ifdef _WIN32
+    // On Windows, h_errno is a macro that expands to a function call, not an lvalue
+    // We cannot assign to it, so skip the assignment
+#else
     h_errno = _tmp_h_errno;
+#endif
     return retval;
 }
 
@@ -588,12 +620,20 @@ int swoole_coroutine_unlink(const char *pathname) {
 
 int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
     if (sw_unlikely(is_no_coro())) {
+#ifdef _WIN32
+        return mkdir(pathname);
+#else
         return mkdir(pathname, mode);
+#endif
     }
 
 #ifdef SW_USE_ASYNC
     int ret = -1;
+#ifdef _WIN32
+    async([&]() { ret = mkdir(pathname); });
+#else
     async([&]() { ret = mkdir(pathname, mode); });
+#endif
     return ret;
 #else
     return Iouring::mkdir(pathname, mode);
@@ -690,21 +730,41 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
 
 ssize_t swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
     if (sw_unlikely(is_no_coro())) {
+#ifdef _WIN32
+        errno = ENOSYS;
+        return -1;
+#else
         return readlink(pathname, buf, len);
+#endif
     }
 
     ssize_t ret = -1;
+#ifdef _WIN32
+    errno = ENOSYS;
+    ret = -1;
+#else
     async([&]() { ret = readlink(pathname, buf, len); });
+#endif
     return ret;
 }
 
 int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
     if (sw_unlikely(is_no_coro())) {
+#ifdef _WIN32
+        errno = ENOSYS;
+        return -1;
+#else
         return statvfs(path, buf);
+#endif
     }
 
     int ret = -1;
+#ifdef _WIN32
+    errno = ENOSYS;
+    ret = -1;
+#else
     async([&]() { ret = statvfs(path, buf); });
+#endif
     return ret;
 }
 

@@ -19,7 +19,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#if !defined(_WIN32) || defined(__MINGW32__)
 #include <unistd.h>
+#endif
 
 #define SW_LOG_BUFFER_SIZE (SW_ERROR_MSG_SIZE + 256)
 #define SW_LOG_DATE_STRLEN 128
@@ -208,7 +210,7 @@ swoole::Logger *sw_logger();
 #define swoole_hex_dump(data, length)
 #endif
 
-enum swTraceWhat : long {
+enum swTraceWhat : long long {
     /**
      * Server
      */
@@ -250,18 +252,18 @@ enum swTraceWhat : long {
     SW_TRACE_CARES = 1u << 30,
 
     SW_TRACE_ZLIB = 1u << 31,
-    SW_TRACE_CO_PGSQL = 1ul << 32,
-    SW_TRACE_CO_ODBC = 1ul << 33,
-    SW_TRACE_CO_ORACLE = 1ul << 34,
-    SW_TRACE_CO_SQLITE = 1ul << 35,
-    SW_TRACE_CO_FIREBIRD = 1ul << 36,
-    SW_TRACE_CO_SSH2 = 1ul << 37,
+    SW_TRACE_CO_PGSQL = 1ull << 32,
+    SW_TRACE_CO_ODBC = 1ull << 33,
+    SW_TRACE_CO_ORACLE = 1ull << 34,
+    SW_TRACE_CO_SQLITE = 1ull << 35,
+    SW_TRACE_CO_FIREBIRD = 1ull << 36,
+    SW_TRACE_CO_SSH2 = 1ull << 37,
     /**
      * Thread
      */
-    SW_TRACE_THREAD = 1ul << 40,
+    SW_TRACE_THREAD = 1ull << 40,
 
-    SW_TRACE_ALL = 0x7fffffffffffffff
+    SW_TRACE_ALL = 0x7fffffffffffffffULL
 };
 
 #ifdef SW_LOG_TRACE_OPEN

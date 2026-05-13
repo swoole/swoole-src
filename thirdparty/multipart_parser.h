@@ -14,6 +14,13 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#ifdef _WIN32
+#include <basetsd.h>
+#ifndef _SSIZE_T_DEFINED
+#define _SSIZE_T_DEFINED
+typedef SSIZE_T ssize_t;
+#endif
+#endif
 
 typedef struct multipart_parser multipart_parser;
 typedef struct multipart_parser_settings multipart_parser_settings;

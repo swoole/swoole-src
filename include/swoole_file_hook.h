@@ -24,15 +24,36 @@
 #define read(fd, buf, count) swoole_coroutine_read(fd, buf, count)
 #define write(fd, buf, count) swoole_coroutine_write(fd, buf, count)
 #define lseek(fd, offset, whence) swoole_coroutine_lseek(fd, offset, whence)
+#ifdef _WIN32
+// On Windows, swoole_win32.h already defines lstat as stat, realpath as _fullpath, etc.
+// readlink is not available on Windows; skip macro
+// PHP's php.h already defines mkdir/rmdir on Windows; guard to avoid redefinition
+#ifndef mkdir
+#define mkdir(pathname, mode) swoole_coroutine_mkdir(pathname, mode)
+#endif
+#ifndef rmdir
+#define rmdir(pathname) swoole_coroutine_rmdir(pathname)
+#endif
+#else
 #define readlink(fd, buf, size) swoole_coroutine_readlink(fd, buf, size)
-#define unlink(pathname) swoole_coroutine_unlink(pathname)
 #define mkdir(pathname, mode) swoole_coroutine_mkdir(pathname, mode)
 #define rmdir(pathname) swoole_coroutine_rmdir(pathname)
+#endif
 #define rename(oldpath, newpath) swoole_coroutine_rename(oldpath, newpath)
+// fsync and ftruncate may already be defined by PHP's php_network.h on Windows
+#ifndef fsync
 #define fsync(fd) swoole_coroutine_fsync(fd)
+#endif
 #define fdatasync(fd) swoole_coroutine_fdatasync(fd)
+#ifndef ftruncate
 #define ftruncate(fd, length) swoole_coroutine_ftruncate(fd, length)
+#endif
 
+// access may already be defined by swoole_win32.h as sw_access
+// Override it for coroutine hooking
+#ifdef access
+#undef access
+#endif
 #define access(pathname, mode) swoole_coroutine_access(pathname, mode)
 #define fopen(pathname, mode) swoole_coroutine_fopen(pathname, mode)
 #define fdopen(fd, mode) swoole_coroutine_fdopen(fd, mode)

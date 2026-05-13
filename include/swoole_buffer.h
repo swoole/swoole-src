@@ -17,7 +17,9 @@
 #pragma once
 
 #include <queue>
+#ifndef _WIN32
 #include <sys/uio.h>
+#endif
 
 namespace swoole {
 

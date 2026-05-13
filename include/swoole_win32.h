@@ -32,11 +32,62 @@
 #include <ws2tcpip.h>
 #include <mswsock.h>
 #include <windows.h>
+#include <iphlpapi.h>
 
+// CRITICAL: Include <float.h> BEFORE #undef'ing its macros.
+// <float.h> defines SW_INVALID, SW_OVERFLOW, etc. as floating-point status
+// word macros. If we #undef them here but <float.h> is later re-included
+// (e.g. via C++ standard library headers like <limits>, <sstream>), the
+// macros would be re-defined and corrupt Swoole's enum values.
+// By including <float.h> first, its include guard prevents re-inclusion.
+#include <float.h>
+
+// Undefine Windows macros that conflict with Swoole/STL names.
+// Windows defines SW_MAX/SW_MIN as ShowWindow constants (e.g. SW_MAX=3),
+// which conflicts with Swoole's SW_MAX(A,B)/SW_MIN(A,B) macros.
+#undef SW_MAX
+#undef SW_MIN
+
+// Windows CRT <float.h> defines SW_* as floating-point status word flags
+// (e.g. SW_INVALID = _SW_INVALID), which conflict with Swoole enum values.
+#undef SW_INVALID
+#undef SW_DENORMAL
+#undef SW_ZERODIVIDE
+#undef SW_OVERFLOW
+#undef SW_UNDERFLOW
+#undef SW_INEXACT
+#undef SW_UNEMULATED
+#undef SW_SQRTNEG
+#undef SW_STACKOVERFLOW
+#undef SW_STACKUNDERFLOW
+
+// Windows SDK <winerror.h> defines ERROR_TIMEOUT as 1460L,
+// which conflicts with Swoole's coroutine::Channel::ErrorCode::ERROR_TIMEOUT.
+#undef ERROR_TIMEOUT
+
+// PHP's php.h includes <windows.h> before this header, so NOMINMAX
+// defined above may be too late. Undefine min/max macros here.
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
+#include <cstdint>
 #include <io.h>
 #include <direct.h>
 #include <process.h>
 #include <basetsd.h>
+
+// POSIX string functions not available on Windows
+// PHP's zend_config.w32.h already defines these, so guard with #ifndef
+#ifndef strncasecmp
+#define strncasecmp _strnicmp
+#endif
+#ifndef strcasecmp
+#define strcasecmp _stricmp
+#endif
 
 // ============================================================================
 // Missing POSIX type definitions
@@ -74,12 +125,16 @@ typedef unsigned int gid_t;
 #endif
 #endif
 
-// off_t: use 64-bit for large file support
+// off_t and _off_t: must define BOTH because Windows CRT's sys/stat.h uses _off_t
+// and guards it with _OFF_T_DEFINED. If we set _OFF_T_DEFINED without defining _off_t,
+// the CRT skips its definition and _off_t remains undefined, causing st_size errors
+// in struct stat.
 // PHP's php.h defines off_t as _off_t on Windows; skip if PHP has been included.
 #ifndef PHP_H
 #ifndef _OFF_T_DEFINED
 #define _OFF_T_DEFINED
-typedef __int64 off_t;
+typedef long _off_t;
+typedef _off_t off_t;
 #endif
 #endif
 
@@ -143,6 +198,11 @@ struct timezone {
 // SIGKILL is not available on Windows; define a value that won't conflict
 #ifndef SIGKILL
 #define SIGKILL 9
+#endif
+
+// SIGCHLD - not available on Windows
+#ifndef SIGCHLD
+#define SIGCHLD 17
 #endif
 
 // ============================================================================
@@ -255,6 +315,11 @@ typedef int key_t;
 #define EMSGSIZE WSAEMSGSIZE
 #endif
 
+// ESOCKTNOSUPPORT is guarded by #if 0 in WinSock2.h, so it's not available
+#ifndef ESOCKTNOSUPPORT
+#define ESOCKTNOSUPPORT WSAESOCKTNOSUPPORT
+#endif
+
 // ============================================================================
 // File open flags (POSIX -> Windows CRT)
 // ============================================================================
@@ -265,6 +330,10 @@ typedef int key_t;
 
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
+#endif
+
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
 #endif
 
 #ifndef F_GETFL
@@ -308,6 +377,10 @@ typedef int key_t;
 #endif
 
 // File mode bits
+// PHP's php_filestat.h also defines these on Windows (without #ifndef guards).
+// When building as a PHP extension, skip our definitions to avoid conflicts.
+// PHP defines S_IXUSR as S_IEXEC while we define it as 0, etc.
+#ifndef PHP_H
 #ifndef S_IRUSR
 #define S_IRUSR _S_IREAD
 #endif
@@ -343,6 +416,7 @@ typedef int key_t;
 #ifndef S_IXOTH
 #define S_IXOTH 0
 #endif
+#endif /* PHP_H */
 
 #ifndef S_ISREG
 #define S_ISREG(mode) (((mode) & _S_IFMT) == _S_IFREG)
@@ -451,7 +525,8 @@ struct dirent {
     char d_name[260];
 };
 typedef struct _sw_DIR {
-    void *handle;
+    HANDLE handle;
+    WIN32_FIND_DATAW find_data;  // Used internally by FindFirstFileW/FindNextFileW
     struct dirent entry;
     int first;
 } DIR;
@@ -524,6 +599,191 @@ struct msghdr {
 #endif
 
 // ============================================================================
+// MSVC does not support C++ alternative tokens (and, or, not, etc.)
+// These are standard C++ keywords but MSVC treats them as identifiers.
+// Define them as macros for compatibility.
+// ============================================================================
+#ifndef and
+#define and &&
+#endif
+#ifndef or
+#define or ||
+#endif
+#ifndef not
+#define not !
+#endif
+#ifndef bitand
+#define bitand &
+#endif
+#ifndef bitor
+#define bitor |
+#endif
+#ifndef xor
+#define xor ^
+#endif
+#ifndef and_eq
+#define and_eq &=
+#endif
+#ifndef or_eq
+#define or_eq |=
+#endif
+#ifndef xor_eq
+#define xor_eq ^=
+#endif
+#ifndef not_eq
+#define not_eq !=
+#endif
+#ifndef compl
+#define compl ~
+#endif
+
+// ============================================================================
+// Missing POSIX constants and types
+// ============================================================================
+
+// PATH_MAX - Windows has _MAX_PATH (260) but not PATH_MAX
+#ifndef PATH_MAX
+#define PATH_MAX _MAX_PATH
+#endif
+
+// SIGTERM - not defined by Windows CRT signals
+#ifndef SIGTERM
+#define SIGTERM 15
+#endif
+
+// SIGWINCH - window resize signal, not available on Windows
+#ifndef SIGWINCH
+#define SIGWINCH 28
+#endif
+
+// SIGIO - I/O possible signal, not available on Windows
+#ifndef SIGIO
+#define SIGIO 29
+#endif
+
+// in_port_t - POSIX type for port numbers
+#ifndef _IN_PORT_T_DEFINED
+#define _IN_PORT_T_DEFINED
+typedef uint16_t in_port_t;
+#endif
+
+// Missing WSA errno mappings
+#ifndef EPFNOSUPPORT
+#define EPFNOSUPPORT WSAEPFNOSUPPORT
+#endif
+
+#ifndef ESHUTDOWN
+#define ESHUTDOWN WSAESHUTDOWN
+#endif
+
+#ifndef EHOSTDOWN
+#define EHOSTDOWN WSAEHOSTDOWN
+#endif
+
+// ECANCELED - may not be defined on Windows
+#ifndef ECANCELED
+#define ECANCELED WSAECANCELLED
+#endif
+
+// EALREADY - may not be defined on Windows
+#ifndef EALREADY
+#define EALREADY WSAEALREADY
+#endif
+
+// ENOTSOCK - may not be defined on Windows
+#ifndef ENOTSOCK
+#define ENOTSOCK WSAENOTSOCK
+#endif
+
+// EDESTADDRREQ
+#ifndef EDESTADDRREQ
+#define EDESTADDRREQ WSAEDESTADDRREQ
+#endif
+
+// EMSGSIZE already defined above
+
+// EPROTOTYPE
+#ifndef EPROTOTYPE
+#define EPROTOTYPE WSAEPROTOTYPE
+#endif
+
+// ENOPROTOOPT
+#ifndef ENOPROTOOPT
+#define ENOPROTOOPT WSAENOPROTOOPT
+#endif
+
+// EPROTONOSUPPORT
+#ifndef EPROTONOSUPPORT
+#define EPROTONOSUPPORT WSAEPROTONOSUPPORT
+#endif
+
+// EOPNOTSUPP
+#ifndef EOPNOTSUPP
+#define EOPNOTSUPP WSAEOPNOTSUPP
+#endif
+
+// EAFNOSUPPORT
+#ifndef EAFNOSUPPORT
+#define EAFNOSUPPORT WSAEAFNOSUPPORT
+#endif
+
+// EADDRNOTAVAIL
+#ifndef EADDRNOTAVAIL
+#define EADDRNOTAVAIL WSAEADDRNOTAVAIL
+#endif
+
+// ENETRESET
+#ifndef ENETRESET
+#define ENETRESET WSAENETRESET
+#endif
+
+// ENOBUFS
+#ifndef ENOBUFS
+#define ENOBUFS WSAENOBUFS
+#endif
+
+// EISCONN
+#ifndef EISCONN
+#define EISCONN WSAEISCONN
+#endif
+
+// POSIX string/token function replacements
+#define strtok_r strtok_s
+
+// memmem() - find byte sequence in memory (not available on Windows)
+// Declared here; implemented in src/os/win32.cc
+SW_EXTERN_C_BEGIN
+void *swoole_memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen);
+SW_EXTERN_C_END
+#define memmem swoole_memmem
+
+// S_ISLNK - Windows has no symbolic link concept in stat
+#ifndef S_ISLNK
+#define S_ISLNK(mode) 0
+#endif
+
+// NTSTATUS type for RtlGetVersion (normally in winternl.h or ntdef.h)
+#ifndef _NTSTATUS_DEFINED
+typedef LONG NTSTATUS;
+#endif
+
+// mmap protection flags (from sys/mman.h)
+// Windows uses VirtualAlloc/VirtualProtect instead, but these constants
+// are needed for sw_shm_protect() compatibility.
+#ifndef PROT_READ
+#define PROT_READ 0x1
+#endif
+#ifndef PROT_WRITE
+#define PROT_WRITE 0x2
+#endif
+#ifndef PROT_EXEC
+#define PROT_EXEC 0x4
+#endif
+#ifndef PROT_NONE
+#define PROT_NONE 0x0
+#endif
+
+// ============================================================================
 // Utility function declarations (implemented in src/os/win32.cc)
 // ============================================================================
 
@@ -578,6 +838,17 @@ int sw_kill(pid_t pid, int sig);
 // access() replacement (Windows uses _access with different mode values)
 int sw_access(const char *path, int mode);
 
+// Directory traversal replacements (opendir/readdir/closedir)
+DIR *opendir(const char *name);
+struct dirent *readdir(DIR *dir);
+int closedir(DIR *dir);
+
+// nanosleep() replacement
+int sw_nanosleep(const struct timespec *req, struct timespec *rem);
+
+// strptime() replacement
+char *sw_strptime(const char *buf, const char *fmt, struct tm *tm);
+
 SW_EXTERN_C_END
 
 // ============================================================================
@@ -589,6 +860,24 @@ SW_EXTERN_C_END
 // poll() -> WSAPoll() (same signature, defined in winsock2.h)
 // Note: only affects standalone poll() calls, not identifiers containing 'poll'
 #define poll WSAPoll
+
+// lstat -> stat on Windows (no symbolic link distinction)
+// lstat -> stat on Windows (no symbolic link distinction)
+// Use #undef to avoid C4005 warning when php.h also defines lstat
+#undef lstat
+#define lstat stat
+
+// realpath -> _fullpath on Windows
+#define realpath(path, resolved) _fullpath(resolved, path, PATH_MAX)
+
+// nanosleep -> sw_nanosleep (implemented in src/os/win32.cc)
+#define nanosleep sw_nanosleep
+
+// socketpair -> sw_socketpair
+#define socketpair sw_socketpair
+
+// strptime -> sw_strptime (implemented in src/os/win32.cc)
+#define strptime sw_strptime
 
 // ============================================================================
 // Socket errno abstraction
@@ -604,6 +893,30 @@ int sw_socket_errno(void);
 #define SW_SOCKET_ERRNO sw_socket_errno()
 #define SW_SOCKET_SET_ERRNO(e) WSASetLastError(e)
 
+
+static inline const char *sw_win32_strerror(DWORD error) {
+    static char buf[256];
+    buf[0] = '\0';
+
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                   NULL,
+                   error,
+                   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+                   buf,
+                   sizeof(buf),
+                   NULL);
+    // 去除消息末尾的换行符
+    char *p = buf;
+    while (*p) {
+        if (*p == '\r' || *p == '\n') {
+            *p = '\0';
+            break;
+        }
+        p++;
+    }
+    return buf;
+}
+
 // On Windows, close() cannot be used for sockets; use closesocket() instead.
 // For file descriptors, use _close() instead of close().
 // Use SW_CLOSE_SOCKET() for sockets (already defined above) and SW_CLOSE_FILE for files.
@@ -614,9 +927,18 @@ int sw_socket_errno(void);
 #define strndup sw_strndup
 #define pread sw_pread
 #define pwrite sw_pwrite
+// flock: PHP's flock_compat.h also defines flock on Windows.
+// Guard with #ifndef to avoid redefinition.
+#ifndef flock
 #define flock sw_flock
+#endif
+// fsync/ftruncate: PHP's php_network.h also defines these on Windows.
+#ifndef fsync
 #define fsync sw_fsync
+#endif
+#ifndef ftruncate
 #define ftruncate sw_ftruncate
+#endif
 #define kill sw_kill
 #define access sw_access
 
@@ -629,5 +951,11 @@ int sw_socket_errno(void);
 // Note: pthread.h is NOT available on Windows. Source files that use
 // pthread functions directly must be adapted individually.
 // For SW_USE_THREAD_CONTEXT, C++11 <thread>/<mutex> is used instead.
+
+// pthread_t typedef for Windows (native thread handle)
+#ifndef _PTHREAD_T_DEFINED
+#define _PTHREAD_T_DEFINED
+typedef void *pthread_t;
+#endif
 
 #endif  // _WIN32

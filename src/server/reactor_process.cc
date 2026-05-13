@@ -16,6 +16,8 @@
 
 #include "swoole_server.h"
 
+#ifndef _WIN32
+
 namespace swoole {
 using network::Socket;
 
@@ -48,7 +50,13 @@ int Server::start_reactor_processes() {
 
     ProcessPool *pool = get_event_worker_pool();
     *pool = {};
-    if (pool->create(worker_num, 0, SW_IPC_UNIXSOCK) < 0) {
+    if (pool->create(worker_num, 0,
+#ifdef _WIN32
+        SW_IPC_SOCKET
+#else
+        SW_IPC_UNIXSOCK
+#endif
+        ) < 0) {
         return SW_ERR;
     }
     pool->set_max_request(max_request, max_request_grace);
@@ -231,11 +239,13 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
 
     // task workers
     if (serv->task_worker_num > 0) {
+#ifndef _WIN32
         if (serv->task_ipc_mode == Server::TASK_IPC_UNIXSOCK) {
             SW_LOOP_N(serv->get_task_worker_pool()->worker_num) {
                 serv->get_task_worker_pool()->workers[i].pipe_master->set_nonblock();
             }
         }
+#endif
     }
 
     serv->init_reactor(reactor);
@@ -344,3 +354,5 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
     });
 }
 }  // namespace swoole
+
+#endif  // _WIN32

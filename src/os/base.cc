@@ -21,8 +21,10 @@
 #include "swoole_signal.h"
 #include "swoole_api.h"
 
+#ifndef _WIN32
 #include <pwd.h>
 #include <grp.h>
+#endif
 
 #if defined(__linux__)
 #include <sys/prctl.h>
@@ -81,6 +83,13 @@ int swoole_daemon(int nochdir, int noclose) {
         return -1;
     }
     return 0;
+}
+#elif defined(_WIN32)
+int swoole_daemon(int nochdir, int noclose) {
+    // daemon() is not available on Windows
+    swoole_warning("daemon() is not supported on Windows");
+    errno = ENOSYS;
+    return -1;
 }
 #else
 int swoole_daemon(int nochdir, int noclose) {
@@ -179,10 +188,15 @@ size_t swoole_random_bytes(char *buf, size_t size) {
 }
 
 bool swoole_is_root_user() {
+#ifdef _WIN32
+    return false;
+#else
     return geteuid() == 0;
+#endif
 }
 
 void swoole_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_) {
+#ifndef _WIN32
     group *_group = nullptr;
     passwd *_passwd = nullptr;
     // get group info
@@ -217,6 +231,9 @@ void swoole_set_isolation(const std::string &group_, const std::string &user_, c
             swoole_sys_warning("chroot('%s') failed", chroot_.c_str());
         }
     }
+#else
+    swoole_warning("set_isolation is not supported on Windows");
+#endif
 }
 
 void swoole_set_process_death_signal(int signal) {
@@ -225,7 +242,7 @@ void swoole_set_process_death_signal(int signal) {
 #elif defined(__FreeBSD__)
     procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signal);
 #else
-#warning "no `PDEATHSIG` supports"
+// no PDEATHSIG support on this platform
 #endif
 }
 
@@ -293,13 +310,40 @@ static bool check_pthread_return_value(int rc) {
 bool swoole_thread_set_name(const char *name) {
 #if defined(__APPLE__)
     return check_pthread_return_value(pthread_setname_np(name));
+#elif defined(_WIN32)
+    wchar_t wname[256];
+    if (!name || MultiByteToWideChar(CP_UTF8, 0, name, -1, wname, 256) == 0) {
+        return false;
+    }
+    HRESULT hr = SetThreadDescription(GetCurrentThread(), wname);
+    return SUCCEEDED(hr);
 #else
     return check_pthread_return_value(pthread_setname_np(pthread_self(), name));
 #endif
 }
 
 bool swoole_thread_get_name(char *buf, size_t len) {
+    if (!buf || len == 0) {
+        return false;
+    }
+
+#if defined(_WIN32)
+    PWSTR wname = NULL;
+    HRESULT hr = GetThreadDescription(GetCurrentThread(), &wname);
+    if (SUCCEEDED(hr) && wname) {
+        int ret = WideCharToMultiByte(CP_UTF8, 0, wname, -1, buf, (int) len, NULL, NULL);
+        LocalFree(wname);
+        return ret > 0;
+    }
+    if (wname) {
+        LocalFree(wname);
+    }
+    return false;
+#elif defined(__APPLE__)
     return check_pthread_return_value(pthread_getname_np(pthread_self(), buf, len));
+#else
+    return check_pthread_return_value(pthread_getname_np(pthread_self(), buf, len));
+#endif
 }
 
 std::string swoole_thread_id_to_str(std::thread::id id) {

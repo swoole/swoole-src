@@ -16,6 +16,8 @@
 
 #include "swoole_msg_queue.h"
 
+#ifndef _WIN32
+
 namespace swoole {
 #ifdef HAVE_MSGQUEUE
 #include <sys/ipc.h>
@@ -146,3 +148,5 @@ MsgQueue::~MsgQueue() {
 }
 #endif
 }  // namespace swoole
+
+#endif  // _WIN32

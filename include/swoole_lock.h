@@ -19,7 +19,9 @@
 
 #include "swoole_memory.h"
 
+#ifndef _WIN32
 #include <sys/file.h>
+#endif
 #include <system_error>
 
 namespace swoole {

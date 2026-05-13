@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "swoole.h"
+
 #include <string>
 #include <cstdint>
 #include <functional>

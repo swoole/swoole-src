@@ -17,7 +17,9 @@
 #include "php_swoole_coroutine_system.h"
 
 #include "ext/standard/file.h"
+#ifndef _WIN32
 #include <sys/file.h>
+#endif
 
 #include <string>
 
