@@ -372,6 +372,7 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
         if (ctx->is_co_socket()) {
             goto _add_header;
         }
+#ifndef _WIN32
         auto *serv = ctx->get_async_server();
         Connection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
@@ -382,6 +383,7 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
         if (port->open_websocket_protocol) {
             conn->websocket_status = swoole::websocket::STATUS_CONNECTION;
         }
+#endif
     } else if ((parser->method == HTTP_POST || parser->method == HTTP_PUT || parser->method == HTTP_DELETE ||
                 parser->method == HTTP_PATCH) &&
                SW_STRCASEEQ(header_name, header_len, "content-type")) {

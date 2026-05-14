@@ -172,9 +172,12 @@ const zend_function_entry swoole_functions[] = {
     // for test
     PHP_FE(swoole_implicit_fn,           arginfo_swoole_implicit_fn)
     // for admin server
+#ifndef _WIN32
     ZEND_FE(swoole_get_objects,          arginfo_swoole_get_objects)
     ZEND_FE(swoole_get_vm_status,        arginfo_swoole_get_vm_status)
     ZEND_FE(swoole_get_object_by_handle, arginfo_swoole_get_object_by_handle)
+#endif
+    // name resolver
     ZEND_FE(swoole_name_resolver_lookup, arginfo_swoole_name_resolver_lookup)
     ZEND_FE(swoole_name_resolver_add,    arginfo_swoole_name_resolver_add)
     ZEND_FE(swoole_name_resolver_remove, arginfo_swoole_name_resolver_remove)
@@ -336,6 +339,18 @@ zend_object_handlers swoole_exception_handlers;
 
 zend_class_entry *swoole_error_ce;
 zend_object_handlers swoole_error_handlers;
+
+#ifdef _WIN32
+// Stub class entry pointers for Server module on WIN32.
+// These are set to nullptr since the Server module is not built.
+// Code that references them conditionally must check for nullptr.
+zend_class_entry *swoole_server_ce = nullptr;
+zend_class_entry *swoole_http_server_ce = nullptr;
+zend_class_entry *swoole_websocket_server_ce = nullptr;
+zend_class_entry *swoole_redis_server_ce = nullptr;
+zend_class_entry *swoole_server_port_ce = nullptr;
+zend_class_entry *swoole_websocket_frame_ce = nullptr;
+#endif
 
 #ifdef COMPILE_DL_SWOOLE
 #ifdef ZTS
@@ -509,8 +524,12 @@ void php_swoole_set_global_option(HashTable *vht) {
 }
 
 SW_API bool php_swoole_is_enable_coroutine() {
-    if (sw_server()) {
-        return sw_server()->is_enable_coroutine();
+    if (sw_server()
+#ifndef _WIN32
+        && sw_server()->is_enable_coroutine()
+#endif
+    ) {
+        return true;
     } else {
         return SwooleG.enable_coroutine;
     }
@@ -942,6 +961,17 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_SOCKET", SW_IPC_SOCKET);
 
     /**
+     * server mode (SWOOLE_PROCESS not available on WIN32)
+     */
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_BASE", swoole::Server::MODE_BASE);
+#ifndef _WIN32
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_PROCESS", swoole::Server::MODE_PROCESS);
+#endif
+#ifdef SW_THREAD
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_THREAD", swoole::Server::MODE_THREAD);
+#endif
+
+    /**
      * limit
      */
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOV_MAX", IOV_MAX);
@@ -1010,15 +1040,21 @@ PHP_MINIT_FUNCTION(swoole) {
     PHP_MINIT(ftp)(type, module_number);
 #endif
     // server
+#ifndef _WIN32
     php_swoole_server_minit(module_number);
     php_swoole_server_port_minit(module_number);
     php_swoole_http_request_minit(module_number);
     php_swoole_http_response_minit(module_number);
     php_swoole_http_cookie_minit(module_number);
     php_swoole_http_server_minit(module_number);
-    php_swoole_http_server_coro_minit(module_number);
     php_swoole_websocket_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);
+#else
+    php_swoole_http_request_minit(module_number);
+    php_swoole_http_response_minit(module_number);
+    php_swoole_http_cookie_minit(module_number);
+#endif
+    php_swoole_http_server_coro_minit(module_number);
     php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
     php_swoole_pgsql_minit(module_number);
@@ -1429,16 +1465,18 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
 
+#ifndef _WIN32
     php_swoole_server_rshutdown();
     php_swoole_http_server_rshutdown();
+    php_swoole_redis_server_rshutdown();
+    php_swoole_process_rshutdown();
+#endif
     php_swoole_http_response_rshutdown();
     php_swoole_async_coro_rshutdown();
-    php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();
     php_swoole_coroutine_scheduler_rshutdown();
     php_swoole_timer_rshutdown();
     php_swoole_runtime_rshutdown();
-    php_swoole_process_rshutdown();
 #ifdef SW_THREAD
     php_swoole_thread_rshutdown();
 #endif

@@ -223,6 +223,7 @@ int php_swoole_reactor_init() {
     }
 
     if (sw_server()) {
+#ifndef _WIN32
         if (sw_server()->is_task_worker() && !sw_server()->task_enable_coroutine) {
             php_swoole_fatal_error(
                 E_ERROR, "Unable to use async-io in task processes, please set `task_enable_coroutine` to true");
@@ -232,6 +233,7 @@ int php_swoole_reactor_init() {
             php_swoole_fatal_error(E_ERROR, "Unable to use async-io in manager process");
             return SW_ERR;
         }
+#endif
     }
     if (!sw_reactor()) {
         swoole_trace_log(SW_TRACE_PHP, "init reactor");
@@ -316,8 +318,10 @@ int php_swoole_convert_to_fd(zval *zsocket) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_FD), 0);
         } else if (sw_zval_is_client(zsocket)) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_SOCK), 0);
+#ifndef _WIN32
         } else if (sw_zval_is_process(zsocket)) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_PIPE), 0);
+#endif
 #ifdef SWOOLE_SOCKETS_SUPPORT
         } else if (sw_zval_is_php_socket(zsocket)) {
             php_socket *php_sock = SW_Z_SOCKET_P(zsocket);

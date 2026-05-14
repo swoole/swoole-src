@@ -963,4 +963,7 @@ static inline const char *sw_win32_strerror(DWORD error) {
 typedef void *pthread_t;
 #endif
 
+#define swoole_jump_fcontext jump_fcontext
+#define swoole_make_fcontext make_fcontext
+
 #endif  // _WIN32

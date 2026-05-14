@@ -232,6 +232,7 @@ void print_frame(const Frame *frame) {
     }
 }
 
+#ifndef _WIN32
 int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata) {
     auto *serv = (Server *) proto->private_data_2;
     auto *conn = (Connection *) _socket->object;
@@ -356,5 +357,6 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     }
     return SW_OK;
 }
+#endif  // _WIN32
 }  // namespace websocket
 }  // namespace swoole

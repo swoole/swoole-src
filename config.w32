@@ -208,17 +208,19 @@ if (PHP_SWOOLE != "no") {
 		//   src/os/process_pool.cc         - depends on fork + waitpid + SysV msgqueue
 		//   src/os/wait.cc                 - depends on waitpid + SIGCHLD
 		//   src/os/msg_queue.cc            - depends on SysV msgqueue (msgget/msgrcv/msgsnd)
-		//   src/server/manager.cc          - depends on fork + waitpid + POSIX signals
-		//   src/server/task_worker.cc      - depends on fork + SysV msgqueue + POSIX signals
 		//   thirdparty/php/sockets/multicast.cc - depends on POSIX multicast API
 		//   thirdparty/php/sockets/sendrecvmsg.cc - depends on IPV6_PKTINFO (partial Windows support)
-		// Files that need adaptation but are included (have #ifndef _WIN32 guards):
-		//   src/server/master.cc           - process mode disabled, base/thread mode works
-		//   src/server/worker.cc           - process mode paths guarded
+		// Server module excluded (too complex for WIN32):
+		//   Swoole\Server, Swoole\Http\Server, Swoole\WebSocket\Server, Swoole\Redis\Server
+		//   ext-src/swoole_server.cc, swoole_server_port.cc, swoole_http_server.cc,
+		//   swoole_http2_server.cc, swoole_websocket_server.cc, swoole_redis_server.cc,
+		//   swoole_admin_server.cc
+		//   src/server/*, src/wrapper/http.cc, src/protocol/message_bus.cc
+		// Note: Swoole\Coroutine\Http\Server is still available (independent implementation).
+		// Note: Swoole\Http\Request/Response/Cookie are kept (used by Coroutine\Http\Server).
 		EXTENSION("swoole",
 			"ext-src\\php_swoole.cc " +
 			"ext-src\\php_swoole_cxx.cc " +
-			"ext-src\\swoole_admin_server.cc " +
 			"ext-src\\swoole_async_coro.cc " +
 			"ext-src\\swoole_atomic.cc " +
 			"ext-src\\swoole_channel_coro.cc " +
@@ -232,19 +234,14 @@ if (PHP_SWOOLE != "no") {
 			"ext-src\\swoole_curl.cc " +
 			"ext-src\\swoole_event.cc " +
 			"ext-src\\swoole_http2_client_coro.cc " +
-			"ext-src\\swoole_http2_server.cc " +
 			"ext-src\\swoole_http_client_coro.cc " +
 			"ext-src\\swoole_http_cookie.cc " +
 			"ext-src\\swoole_http_request.cc " +
 			"ext-src\\swoole_http_response.cc " +
-			"ext-src\\swoole_http_server.cc " +
 			"ext-src\\swoole_http_server_coro.cc " +
 			"ext-src\\swoole_lock.cc " +
 			"ext-src\\swoole_name_resolver.cc " +
-			"ext-src\\swoole_redis_server.cc " +
 			"ext-src\\swoole_runtime.cc " +
-			"ext-src\\swoole_server.cc " +
-			"ext-src\\swoole_server_port.cc " +
 			"ext-src\\swoole_socket_coro.cc " +
 			"ext-src\\swoole_stdext.cc " +
 			"ext-src\\swoole_table.cc " +
@@ -257,7 +254,6 @@ if (PHP_SWOOLE != "no") {
 			"ext-src\\swoole_thread_queue.cc " +
 			"ext-src\\swoole_timer.cc " +
 			"ext-src\\swoole_tracer.cc " +
-			"ext-src\\swoole_websocket_server.cc " +
 			"src\\core\\base.cc " +
 			"src\\core\\base64.cc " +
 			"src\\core\\buffer.cc " +
@@ -282,83 +278,50 @@ if (PHP_SWOOLE != "no") {
 			"src\\lock\\coroutine_lock.cc " +
 			"src\\lock\\mutex.cc " +
 			"src\\lock\\rw_lock.cc " +
-			"src/lock/spin_lock.cc " +
-			"src/memory/fixed_pool.cc " +
-			"src/memory/global_memory.cc " +
-			"src/memory/ring_buffer.cc " +
-			"src/memory/shared_memory.cc " +
-			"src/memory/table.cc " +
-			"src/network/address.cc " +
-			"src/network/client.cc " +
-			"src/network/dns.cc " +
-			"src/network/socket.cc " +
-			"src/network/stream.cc " +
-			"src/os/async_thread.cc " +
-			"src/os/base.cc " +
-			"src/os/file.cc " +
-			"src/os/pipe.cc " +
-			"src/os/timer.cc " +
-			"src/os/win32.cc " +
-			"src/protocol/base.cc " +
-			"src/protocol/dtls.cc " +
-			"src/protocol/http.cc " +
-			"src/protocol/http2.cc " +
-			"src/protocol/message_bus.cc " +
-			"src/protocol/mime_type.cc " +
-			"src/protocol/mqtt.cc " +
-			"src/protocol/redis.cc " +
-			"src/protocol/socks5.cc " +
-			"src/protocol/ssl.cc " +
-			"src/protocol/websocket.cc " +
-			"src/reactor/base.cc " +
-			"src/reactor/poll.cc " +
-			"src/server/base.cc " +
-			"src/server/master.cc " +
-			"src/server/port.cc " +
-			"src/server/reactor_thread.cc " +
-			"src/server/static_handler.cc " +
-			"src/server/thread.cc " +
-			"src/server/worker.cc " +
-			"src/wrapper/event.cc " +
-			"src/wrapper/http.cc " +
-			"src/wrapper/timer.cc " +
-			"thirdparty/php/sockets/conversions.cc " +
-			"thirdparty/php/sockets/sockaddr_conv.cc " +
+			"src\\lock\\spin_lock.cc " +
+			"src\\memory\\fixed_pool.cc " +
+			"src\\memory\\global_memory.cc " +
+			"src\\memory\\ring_buffer.cc " +
+			"src\\memory\\shared_memory.cc " +
+			"src\\memory\\table.cc " +
+			"src\\network\\address.cc " +
+			"src\\network\\client.cc " +
+			"src\\network\\dns.cc " +
+			"src\\network\\socket.cc " +
+			"src\\network\\stream.cc " +
+			"src\\os\\async_thread.cc " +
+			"src\\os\\base.cc " +
+			"src\\os\\file.cc " +
+			"src\\os\\pipe.cc " +
+			"src\\os\\timer.cc " +
+			"src\\os\\win32.cc " +
+			"src\\protocol\\base.cc " +
+			"src\\protocol\\dtls.cc " +
+			"src\\protocol\\http.cc " +
+			"src\\protocol\\http2.cc " +
+			"src\\protocol\\mime_type.cc " +
+			"src\\protocol\\mqtt.cc " +
+			"src\\protocol\\redis.cc " +
+			"src\\protocol\\socks5.cc " +
+			"src\\protocol\\ssl.cc " +
+			"src\\protocol\\websocket.cc " +
+			"src\\reactor\\base.cc " +
+			"src\\reactor\\poll.cc " +
+			"src\\wrapper\\event.cc " +
+			"src\\wrapper\\timer.cc " +
+			"thirdparty\\php\\sockets\\conversions.cc " +
+			"thirdparty\\php\\sockets\\sockaddr_conv.cc " +
 			// proc_open.cc excluded: depends on openpty/util.h (POSIX-only)
-			"thirdparty/php/standard/var_decoder.cc " +
-			"thirdparty/llhttp/api.c " +
-			"thirdparty/llhttp/http.c " +
-			"thirdparty/llhttp/llhttp.c " +
-			"thirdparty/multipart_parser.c",
+			"thirdparty\\php\\standard\\var_decoder.cc " +
+			"thirdparty\\llhttp\\api.c " +
+			"thirdparty\\llhttp\\http.c " +
+			"thirdparty\\llhttp\\llhttp.c " +
+			"thirdparty\\multipart_parser.c",
 			PHP_SWOOLE_SHARED,
 			"/D ENABLE_PHP_SWOOLE /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /D SW_USE_ASM_CONTEXT /EHsc"
 		);
 
 		AC_DEFINE("HAVE_SWOOLE", 1, "Define to 1 if the PHP extension 'swoole' is available.");
-
-		// MASM assembly build rules for boost context (Windows x64)
-		var asm_src = configure_module_dirname + "\\thirdparty\\boost\\asm";
-		var bd_real = get_define("BUILD_DIR");
-
-		MFO.WriteLine("$(BUILD_DIR)\\jump_x86_64_ms_pe_masm.obj: " + asm_src + "\\jump_x86_64_ms_pe_masm.asm");
-		MFO.WriteLine("\tml64.exe /c /Fo$(BUILD_DIR)\\jump_x86_64_ms_pe_masm.obj " + asm_src + "\\jump_x86_64_ms_pe_masm.asm");
-		MFO.WriteLine("");
-		MFO.WriteLine("$(BUILD_DIR)\\make_x86_64_ms_pe_masm.obj: " + asm_src + "\\make_x86_64_ms_pe_masm.asm");
-		MFO.WriteLine("\tml64.exe /c /Fo$(BUILD_DIR)\\make_x86_64_ms_pe_masm.obj " + asm_src + "\\make_x86_64_ms_pe_masm.asm");
-		MFO.WriteLine("");
-
-		// Add MASM objects to the extension's global object list
-		ADD_FLAG("SWOOLE_GLOBAL_OBJS", "$(BUILD_DIR)\\jump_x86_64_ms_pe_masm.obj $(BUILD_DIR)\\make_x86_64_ms_pe_masm.obj");
-
-		// Also append MASM objects to the linker response file
-		var respd = bd_real + "\\resp";
-		var obj_lst_fn = respd + "\\SWOOLE_GLOBAL_OBJS.txt";
-		if (!FSO.FolderExists(respd)) {
-			FSO.CreateFolder(respd);
-		}
-		var obj_lst_fh = FSO.OpenTextFile(obj_lst_fn, 8, true);
-		obj_lst_fh.Write(" " + bd_real + "\\jump_x86_64_ms_pe_masm.obj " + bd_real + "\\make_x86_64_ms_pe_masm.obj");
-		obj_lst_fh.Close();
 
 		// Add include directories
 		ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\"");
@@ -373,10 +336,24 @@ if (PHP_SWOOLE != "no") {
 		ADD_FLAG("CFLAGS_SWOOLE", "/D PHP_SWOOLE_EXPORTS=1");
 		ADD_FLAG("CFLAGS_SWOOLE", "/D SW_USE_POLL=1");
 
-		// Remove /FR (browse info) flag from CFLAGS_BD_EXT_SWOOLE to prevent
+		// Remove /FR (browse info) flag from CFLAGS_BD_EXT_SWOOLE* to prevent
 		// .sbr file name conflicts when compiling multiple source files with
 		// the same base name (e.g. base.cc, socket.cc) in parallel (/MP).
+		// Must override ALL subdirectory variants, not just the root.
 		DEFINE("CFLAGS_BD_EXT_SWOOLE", "/Fp$(BUILD_DIR)\\ext\\swoole\\ /Fd$(BUILD_DIR)\\ext\\swoole\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_EXT_SRC", "/Fp$(BUILD_DIR)\\ext\\swoole\\ext-src\\ /Fd$(BUILD_DIR)\\ext\\swoole\\ext-src\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_CORE", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\core\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\core\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_COROUTINE", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\coroutine\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\coroutine\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_LOCK", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\lock\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\lock\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_MEMORY", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\memory\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\memory\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_NETWORK", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\network\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\network\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_OS", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\os\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\os\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_PROTOCOL", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\protocol\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\protocol\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_REACTOR", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\reactor\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\reactor\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_SRC_WRAPPER", "/Fp$(BUILD_DIR)\\ext\\swoole\\src\\wrapper\\ /Fd$(BUILD_DIR)\\ext\\swoole\\src\\wrapper\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_THIRDPARTY_PHP_SOCKETS", "/Fp$(BUILD_DIR)\\ext\\swoole\\thirdparty\\php\\sockets\\ /Fd$(BUILD_DIR)\\ext\\swoole\\thirdparty\\php\\sockets\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_THIRDPARTY_PHP_STANDARD", "/Fp$(BUILD_DIR)\\ext\\swoole\\thirdparty\\php\\standard\\ /Fd$(BUILD_DIR)\\ext\\swoole\\thirdparty\\php\\standard\\ ");
+		DEFINE("CFLAGS_BD_EXT_SWOOLE_THIRDPARTY_LLHTTP", "/Fp$(BUILD_DIR)\\ext\\swoole\\thirdparty\\llhttp\\ /Fd$(BUILD_DIR)\\ext\\swoole\\thirdparty\\llhttp\\ ");
 
 		// Install headers
 		PHP_INSTALL_HEADERS("ext/swoole", "php_swoole.h");
@@ -384,6 +361,8 @@ if (PHP_SWOOLE != "no") {
 		// Add Windows-specific libraries
 		CHECK_LIB("ws2_32.lib", "swoole", null);
 		CHECK_LIB("iphlpapi.lib", "swoole", null);
+        CHECK_LIB("libssl.lib;ssleay32.lib", "swoole", null);
+        CHECK_LIB("libcrypto.lib;libeay32.lib", "swoole", null);
 	} else {
 		WARNING("swoole not enabled; required libraries or headers not found");
 		WARNING("Please ensure you have the following:");

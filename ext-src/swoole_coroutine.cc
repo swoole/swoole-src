@@ -189,13 +189,13 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
     if (Coroutine::get_current()) {
         flags |= SW_EXIT_IN_COROUTINE;
     }
-    if (sw_server() && sw_server()->is_started()) {
+    if (sw_server()
+#ifndef _WIN32
+        && sw_server()->is_started()
+#endif
+    ) {
         flags |= SW_EXIT_IN_SERVER;
     }
-    if (flags) {
-        const zend_op *opline = EX(opline);
-        zval _exit_status{};
-        zval *exit_status = nullptr;
 
         if (opline->op1_type != IS_UNUSED) {
             if (opline->op1_type == IS_CONST) {
@@ -234,7 +234,11 @@ PHP_FUNCTION(swoole_exit) {
         flags |= SW_EXIT_IN_COROUTINE;
     }
 
-    if (sw_server() && sw_server()->is_started()) {
+    if (sw_server()
+#ifndef _WIN32
+        && sw_server()->is_started()
+#endif
+    ) {
         flags |= SW_EXIT_IN_SERVER;
     }
 
