@@ -719,6 +719,7 @@ static sw_inline bool swoole_websocket_server_close(Server *serv, SessionId fd, 
         return false;
     }
 }
+#endif
 
 static inline void swoole_websocket_server_pack(zval *zdata, zend_long opcode, zend_long flags, zval *return_value) {
     FrameObject frame{zdata, opcode, flags};
@@ -735,6 +736,7 @@ static inline void swoole_websocket_server_pack(zval *zdata, zend_long opcode, z
     RETURN_STR(packed_str);
 }
 
+#ifndef _WIN32
 static PHP_METHOD(swoole_websocket_server, disconnect) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {

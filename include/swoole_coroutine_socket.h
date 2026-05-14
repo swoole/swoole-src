@@ -258,7 +258,7 @@ class Socket {
         return sock_protocol;
     }
 
-    int get_fd() const {
+    sw_socket_t get_fd() const {
         return sock_fd;
     }
 

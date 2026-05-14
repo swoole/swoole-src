@@ -3,7 +3,7 @@
 ARG_ENABLE("swoole", "swoole support", "no");
 ARG_ENABLE("debug-log", "enable debug log", "no");
 ARG_ENABLE("trace-log", "enable trace log", "no");
-ARG_ENABLE("sockets", "enable sockets support", "no");
+ARG_ENABLE("php-sockets", "enable php-sockets support", "no");
 ARG_ENABLE("mysqlnd", "enable mysqlnd support", "no");
 ARG_ENABLE("cares", "enable c-ares support", "no");
 ARG_WITH("openssl-dir", "dir of openssl", "no");
@@ -299,6 +299,8 @@ if (PHP_SWOOLE != "no") {
 			"src\\wrapper\\timer.cc " +
 			"thirdparty\\php\\sockets\\conversions.cc " +
 			"thirdparty\\php\\sockets\\sockaddr_conv.cc " +
+            "thirdparty\\php\\sockets\\multicast.cc " +
+			"thirdparty\\php\\sockets\\sendrecvmsg.cc " +
 			// proc_open.cc excluded: depends on openpty/util.h (POSIX-only)
 			"thirdparty\\php\\standard\\var_decoder.cc " +
 			"thirdparty\\llhttp\\api.c " +

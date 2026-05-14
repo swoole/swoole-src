@@ -23,9 +23,8 @@
 
 #include "swoole_server.h"
 
-#include "ext/spl/spl_array.h"
-
 BEGIN_EXTERN_C()
+#include "ext/spl/spl_array.h"
 #include "stubs/php_swoole_timer_arginfo.h"
 END_EXTERN_C()
 

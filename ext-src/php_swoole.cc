@@ -346,18 +346,6 @@ zend_object_handlers swoole_exception_handlers;
 zend_class_entry *swoole_error_ce;
 zend_object_handlers swoole_error_handlers;
 
-#ifdef _WIN32
-// Stub class entry pointers for Server module on WIN32.
-// These are set to nullptr since the Server module is not built.
-// Code that references them conditionally must check for nullptr.
-zend_class_entry *swoole_server_ce = nullptr;
-zend_class_entry *swoole_http_server_ce = nullptr;
-zend_class_entry *swoole_websocket_server_ce = nullptr;
-zend_class_entry *swoole_redis_server_ce = nullptr;
-zend_class_entry *swoole_server_port_ce = nullptr;
-zend_class_entry *swoole_websocket_frame_ce = nullptr;
-#endif
-
 #ifdef COMPILE_DL_SWOOLE
 #ifdef ZTS
 ZEND_TSRMLS_CACHE_DEFINE()

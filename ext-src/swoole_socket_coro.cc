@@ -2008,6 +2008,7 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
         }                                                                                                              \
     } while (0)
 
+
     if (level == IPPROTO_IP) {
         int res = php_do_setsockopt_ip_mcast(sock->socket, level, optname, optval);
         HANDLE_SUBCALL(res);

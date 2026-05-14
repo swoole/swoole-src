@@ -4,8 +4,7 @@
 
 #include <php_network.h>
 #ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#include <swoole_win32.h>
 #else
 #include <netinet/in.h>
 #endif

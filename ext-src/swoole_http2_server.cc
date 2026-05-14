@@ -1276,6 +1276,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
     return SW_OK;
 }
 
+#ifndef _WIN32
 int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req) {
     SessionId session_id = req->info.fd;
     auto iter = http2_sessions.find(session_id);
@@ -1303,16 +1304,17 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     return retval;
 }
 
-std::shared_ptr<Http2Session> swoole_http2_server_session_new(SessionId fd) {
-    auto session = std::make_shared<Http2Session>(fd);
-    http2_sessions.emplace(fd, session);
-    return session;
-}
-
 void php_swoole_http2_server_onClose(Server *serv, SessionId session_id) {
     server_ips.erase(session_id);
     client_ips.erase(session_id);
     swoole_http2_server_session_free(session_id);
+}
+#endif
+
+std::shared_ptr<Http2Session> swoole_http2_server_session_new(SessionId fd) {
+    auto session = std::make_shared<Http2Session>(fd);
+    http2_sessions.emplace(fd, session);
+    return session;
 }
 
 void swoole_http2_server_session_free(SessionId session_id) {

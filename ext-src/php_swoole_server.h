@@ -160,3 +160,10 @@ swServer *php_swoole_server_get_and_check_server(zval *zobject);
 void php_swoole_server_port_deref(zend_object *object);
 void php_swoole_server_set_websocket_option(swoole::ListenPort *port, zend_array *vht);
 swoole::ServerObject *php_swoole_server_get_zend_object(swoole::Server *serv);
+
+static inline int php_swoole_create_dir(const char *path, size_t length) {
+    if (access(path, F_OK) == 0) {
+        return 0;
+    }
+    return php_stream_mkdir(path, 0777, PHP_STREAM_MKDIR_RECURSIVE | REPORT_ERRORS, nullptr) ? 0 : -1;
+}

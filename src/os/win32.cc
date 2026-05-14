@@ -869,4 +869,8 @@ void swoole_signal_block_all() {
     // TODO 禁止 Windows 线程接收信号
 }
 
+void swoole_signal_clear() {
+    // TODO windows 清理信号设置
+}
+
 #endif  // _WIN32

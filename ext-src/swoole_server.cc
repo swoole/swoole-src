@@ -655,13 +655,6 @@ zend::Callable *php_swoole_server_get_callback(Server *serv, int server_fd, int 
     }
 }
 
-int php_swoole_create_dir(const char *path, size_t length) {
-    if (access(path, F_OK) == 0) {
-        return 0;
-    }
-    return php_stream_mkdir(path, 0777, PHP_STREAM_MKDIR_RECURSIVE | REPORT_ERRORS, nullptr) ? 0 : -1;
-}
-
 static TaskId php_swoole_server_task_pack(zval *zdata, EventData *task) {
     smart_str serialized_data = {};
     php_serialize_data_t var_hash;

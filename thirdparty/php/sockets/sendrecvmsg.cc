@@ -19,10 +19,6 @@
 #include "php_sockets_cxx.h"
 
 #include <limits.h>
-#include <Zend/zend_llist.h>
-#ifdef ZTS
-#include <TSRM/TSRM.h>
-#endif
 
 #define MAX_USER_BUFF_SIZE ((size_t) (100 * 1024 * 1024))
 #define DEFAULT_BUFF_SIZE 8192
@@ -73,7 +69,7 @@ int php_do_setsockopt_ipv6_rfc3542(SocketImpl *php_sock, int level, int optname,
 #ifdef IPV6_PKTINFO
 dosockopt:
 #endif
-    retval = setsockopt(php_sock->get_fd(), level, optname, opt_ptr, optlen);
+    retval = setsockopt(php_sock->get_fd(), level, optname, (char *) opt_ptr, optlen);
     if (retval != 0) {
         PHP_SWOOLE_SOCKET_ERROR(php_sock, "unable to set socket option", errno);
     }
