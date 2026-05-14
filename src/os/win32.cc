@@ -14,9 +14,13 @@
 #ifdef _WIN32
 
 #include "swoole.h"
+#include "swoole_coroutine_system.h"
+#include "swoole_signal.h"
 
 #include <sstream>
 #include <algorithm>
+
+using swoole::coroutine::System;
 
 // ============================================================================
 // WSA initialization
@@ -859,6 +863,10 @@ int sw_socket_errno(void) {
         // to avoid colliding with standard errno values
         return wsa_err;
     }
+}
+
+void swoole_signal_block_all() {
+    // TODO 禁止 Windows 线程接收信号
 }
 
 #endif  // _WIN32

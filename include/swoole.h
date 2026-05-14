@@ -241,6 +241,7 @@ class String;
 class Timer;
 struct TimerNode;
 struct Event;
+class SocketPair;
 class Pipe;
 class UnixSocket;
 class MessageBus;

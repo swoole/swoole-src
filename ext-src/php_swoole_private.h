@@ -168,7 +168,9 @@ enum php_swoole_hook_type {
 };
 //---------------------------------------------------------
 
+#ifndef _WIN32
 extern zend_class_entry *swoole_event_ce;
+#endif
 extern zend_class_entry *swoole_timer_ce;
 extern zend_class_entry *swoole_socket_coro_ce;
 extern zend_class_entry *swoole_client_ce;
@@ -240,7 +242,9 @@ PHP_FUNCTION(swoole_tracer_prof_end);
  * MINIT <Sort by dependency>
  * ==============================================================
  */
+#ifndef _WIN32
 void php_swoole_event_minit(int module_number);
+#endif
 // base
 void php_swoole_atomic_minit(int module_number);
 void php_swoole_lock_minit(int module_number);
@@ -259,7 +263,9 @@ void php_swoole_runtime_minit(int module_number);
 // client
 void php_swoole_socket_coro_minit(int module_number);
 void php_swoole_client_minit(int module_number);
+#ifndef _WIN32
 void php_swoole_client_async_minit(int module_number);
+#endif
 void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
 void php_swoole_http2_client_coro_minit(int module_number);
@@ -288,9 +294,9 @@ void php_swoole_http_response_minit(int module_number);
 void php_swoole_http_cookie_minit(int module_number);
 #ifndef _WIN32
 void php_swoole_http_server_minit(int module_number);
-void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
 #endif
+void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_name_resolver_minit(int module_number);
 #ifdef SW_THREAD

@@ -17,6 +17,8 @@
  */
 
 #include "php_swoole_cxx.h"
+
+#ifndef _WIN32
 #include "swoole_server.h"
 #include "swoole_signal.h"
 
@@ -287,6 +289,7 @@ void php_swoole_event_exit() {
         sw_reactor()->running = false;
     }
 }
+#endif
 
 int php_swoole_convert_to_fd(zval *zsocket) {
     int fd = -1;
@@ -387,6 +390,7 @@ php_socket *php_swoole_convert_to_socket(int sock) {
 }
 #endif
 
+#ifndef _WIN32
 static void event_check_reactor() {
     php_swoole_check_reactor();
 
@@ -718,3 +722,4 @@ static PHP_FUNCTION(swoole_event_isset) {
         RETURN_FALSE;
     }
 }
+#endif

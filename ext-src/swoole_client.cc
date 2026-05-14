@@ -62,9 +62,11 @@ static void client_set_zsocket(const zval *zobject, zval *zsocket) {
 
 static void client_free_object(zend_object *object) {
     auto client_obj = php_swoole_client_fetch_object(object);
+#ifndef _WIN32    
     if (client_obj->async) {
         php_swoole_client_async_free_object(client_obj);
     }
+#endif
     zend_object_std_dtor(object);
 }
 

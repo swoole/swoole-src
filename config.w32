@@ -208,15 +208,17 @@ if (PHP_SWOOLE != "no") {
 			"ext-src\\swoole_async_coro.cc " +
 			"ext-src\\swoole_atomic.cc " +
 			"ext-src\\swoole_channel_coro.cc " +
-			"ext-src\\swoole_client.cc " +
-			"ext-src\\swoole_client_async.cc " +
+            "ext-src\\swoole_client.cc " +
 			"ext-src\\swoole_client_coro.cc " +
 			"ext-src\\swoole_coroutine.cc " +
 			"ext-src\\swoole_coroutine_lock.cc " +
 			"ext-src\\swoole_coroutine_scheduler.cc " +
 			"ext-src\\swoole_coroutine_system.cc " +
 			"ext-src\\swoole_curl.cc " +
-			"ext-src\\swoole_event.cc " +
+        	"ext-src\\swoole_event.cc " +
+            "ext-src\\swoole_http_server.cc " +
+            "ext-src\\swoole_websocket_server.cc " +
+            "ext-src\\swoole_http2_server.cc " +
 			"ext-src\\swoole_http2_client_coro.cc " +
 			"ext-src\\swoole_http_client_coro.cc " +
 			"ext-src\\swoole_http_cookie.cc " +
@@ -238,6 +240,7 @@ if (PHP_SWOOLE != "no") {
 			"ext-src\\swoole_thread_queue.cc " +
 			"ext-src\\swoole_timer.cc " +
 			"ext-src\\swoole_tracer.cc " +
+			"ext-src\\swoole_windows.cc " +
 			"src\\core\\base.cc " +
 			"src\\core\\base64.cc " +
 			"src\\core\\buffer.cc " +
@@ -277,6 +280,7 @@ if (PHP_SWOOLE != "no") {
 			"src\\os\\base.cc " +
 			"src\\os\\file.cc " +
 			"src\\os\\pipe.cc " +
+			"src\\os\\sendfile.cc " +
 			"src\\os\\timer.cc " +
 			"src\\os\\win32.cc " +
 			"src\\protocol\\base.cc " +
@@ -304,6 +308,8 @@ if (PHP_SWOOLE != "no") {
 			PHP_SWOOLE_SHARED,
 			"/D ENABLE_PHP_SWOOLE /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /D SW_USE_ASM_CONTEXT /EHsc"
 		);
+
+		ADD_EXTENSION_DEP("swoole", "spl");
 
 		AC_DEFINE("HAVE_SWOOLE", 1, "Define to 1 if the PHP extension 'swoole' is available.");
 

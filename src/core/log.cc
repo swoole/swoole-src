@@ -305,12 +305,18 @@ void Logger::put(int level, const char *content, size_t length) {
             date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%lld>", (long long) now_us - now_sec * 1000000);
     }
 
+#ifdef _WIN32
+    int worker_id = 0;
+    pid_t worker_pid = GetCurrentProcessId();
+    char worker_symbol = '*';
+#else
     int worker_id = swoole_get_worker_id();
     pid_t worker_pid = swoole_get_worker_pid();
     if (worker_pid == 0) {
         worker_pid = getpid();
     }
     char worker_symbol = swoole_get_worker_symbol();
+#endif
 
     size_t n = sw_snprintf(log_str,
                            SW_LOG_BUFFER_SIZE,

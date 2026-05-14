@@ -146,9 +146,11 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_coroutine_socketpair,  arginfo_swoole_coroutine_socketpair)
     PHP_FE(swoole_test_kernel_coroutine, arginfo_swoole_test_kernel_coroutine)
     /*------other-----*/
+#ifndef _WIN32
     PHP_FE(swoole_client_select,      arginfo_swoole_client_select)
     PHP_FALIAS(swoole_select,         swoole_client_select, arginfo_swoole_client_select)
     PHP_FE(swoole_set_process_name,   arginfo_swoole_set_process_name)
+#endif
     PHP_FE(swoole_get_local_ip,       arginfo_swoole_get_local_ip)
     PHP_FE(swoole_get_local_mac,      arginfo_swoole_get_local_mac)
     PHP_FE(swoole_strerror,           arginfo_swoole_strerror)
@@ -749,8 +751,10 @@ PHP_MINIT_FUNCTION(swoole) {
     /**
      * Register event constants
      */
+#ifndef _WIN32
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EVENT_READ", SW_EVENT_READ);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE);
+#endif
 
     /**
      * Register ERROR types
@@ -1009,7 +1013,9 @@ PHP_MINIT_FUNCTION(swoole) {
         swoole_error, "Swoole\\Error", nullptr, nullptr, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
+#ifndef _WIN32
     php_swoole_event_minit(module_number);
+#endif
     // base
     php_swoole_atomic_minit(module_number);
     php_swoole_lock_minit(module_number);
@@ -1028,8 +1034,10 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_runtime_minit(module_number);
     // client
     php_swoole_socket_coro_minit(module_number);
+#ifndef _WIN32
     php_swoole_client_minit(module_number);
     php_swoole_client_async_minit(module_number);
+#endif
     php_swoole_client_coro_minit(module_number);
     php_swoole_http_client_coro_minit(module_number);
     php_swoole_http2_client_coro_minit(module_number);
@@ -1442,7 +1450,9 @@ PHP_RINIT_FUNCTION(swoole) {
 
     swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
+#ifndef _WIN32
     php_swoole_http_server_rinit();
+#endif
     php_swoole_coroutine_rinit();
     php_swoole_runtime_rinit();
 #ifdef SW_USE_ORACLE
@@ -1482,7 +1492,9 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
 #endif
     php_swoole_tracer_rshutdown();
 
+#ifndef _WIN32
     swoole_event_free();
+#endif
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_END;
 
