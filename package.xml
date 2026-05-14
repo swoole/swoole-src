@@ -49,8 +49,8 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2026-03-10</date>
-    <time>22:00:00</time>
+    <date>2026-05-14</date>
+    <time>21:00:00</time>
     <version>
         <release>6.2.1</release>
         <api>6.0</api>
@@ -61,9 +61,17 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Coroutine-based Downloading: Refactor the `curl`-based file download functionality to support coroutines, enabling non-blocking, high-concurrency downloads and improving resource utilization.
-        - Blocking Detection Optimization: Refactor the Observer function in the Tracker module to optimize the blocking detection mechanism, enhancing detection accuracy and efficiency.
-        - Atomic Operation Refactoring: Change the `closed` field in the underlying `Connection` struct from a plain boolean to an atomic operation type, fundamentally eliminating the risk of data races in concurrent scenarios.
+        - Fix timeout configuration error: Resolved an issue where the write timeout incorrectly used the read timeout when `max_idle_time` was set.
+        - Fix async reload warning: Eliminated invalid warnings triggered by the exit of old processes during asynchronous reloads.
+        - Refactor process management: Refactored the server process management logic.
+        - Optimize fork failure handling: Improved the handling mechanism after child process `fork` failures. Added a retry logic that waits 1 second before each retry to avoid excessive error logs.
+        - Fix data race issue: Changed the `closed` field in the underlying `Connection` struct to an atomic operation, resolving a potential data race risk.
+        - Fix integer overflow: Fixed an integer overflow issue in the Redis server.
+        - Replace communication mechanism: Replaced the communication method between child threads and the main thread in the thread pool from `Pipe` to `UnixSocket`.
+        - Support curl coroutine mode: In `curl` coroutine scenarios, file upload and download operations have been replaced with coroutine implementations.
+        - Optimize blocking function detection: Enhanced the `tracker observer`'s ability to detect blocking functions.
+        - Adapt unit tests: Updated IP address lookup functionality in unit tests for different operating system families.
+        - Add PDO asynchronous method: Added the asynchronous method `PQsendClosePrepared` for `pdo_pgsql` to close existing prepared statements.
     </notes>
     <contents>
         <dir name="/">
@@ -1287,6 +1295,9 @@
             <file role="test" name="tests/swoole_coroutine_scheduler/start_in_server_shutdown.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/start_in_server_worker_stop.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/aio_thread_num.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/empty_path.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/empty_path1.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/empty_path2.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/getaddrinfo.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/getaddrinfo_timeout.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/gethostbyname.phpt" />
@@ -1339,6 +1350,9 @@
             <file role="test" name="tests/swoole_curl/cancel.phpt" />
             <file role="test" name="tests/swoole_curl/close_before_resume.phpt" />
             <file role="test" name="tests/swoole_curl/concurrent.phpt" />
+            <file role="test" name="tests/swoole_curl/coro_read.phpt" />
+            <file role="test" name="tests/swoole_curl/coro_write.phpt" />
+            <file role="test" name="tests/swoole_curl/coro_write_header.phpt" />
             <file role="test" name="tests/swoole_curl/error.phpt" />
             <file role="test" name="tests/swoole_curl/event_exit.phpt" />
             <file role="test" name="tests/swoole_curl/exec_twice.phpt" />
