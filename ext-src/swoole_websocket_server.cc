@@ -50,18 +50,19 @@ static zend_object_handlers swoole_websocket_frame_handlers;
 static zend_class_entry *swoole_websocket_closeframe_ce;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
 
-#ifndef _WIN32
 SW_EXTERN_C_BEGIN
+#ifndef _WIN32
 static PHP_METHOD(swoole_websocket_server, push);
 static PHP_METHOD(swoole_websocket_server, isEstablished);
 static PHP_METHOD(swoole_websocket_server, pack);
 static PHP_METHOD(swoole_websocket_server, unpack);
 static PHP_METHOD(swoole_websocket_server, disconnect);
 static PHP_METHOD(swoole_websocket_server, ping);
-
+#endif
 static PHP_METHOD(swoole_websocket_frame, __toString);
 SW_EXTERN_C_END
 
+#ifndef _WIN32
 // clang-format off
 const zend_function_entry swoole_websocket_server_methods[] =
 {
