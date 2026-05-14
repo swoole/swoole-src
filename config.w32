@@ -308,7 +308,7 @@ if (PHP_SWOOLE != "no") {
 			"thirdparty\\llhttp\\llhttp.c " +
 			"thirdparty\\multipart_parser.c",
 			PHP_SWOOLE_SHARED,
-			"/D ENABLE_PHP_SWOOLE /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /D SW_USE_ASM_CONTEXT /EHsc"
+			"/D ENABLE_PHP_SWOOLE /D SW_USE_ASM_CONTEXT /EHsc"
 		);
 
 		ADD_EXTENSION_DEP("swoole", "spl");
