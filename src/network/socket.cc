@@ -449,7 +449,13 @@ static void socket_free_defer(void *ptr) {
     if (sock->is_local() && sock->bound) {
         ::unlink(sock->get_addr());
     }
-    if (sock->fd != -1 && close(sock->fd) != 0) {
+    if (sock->fd != SW_BAD_SOCKET &&
+#ifdef _WIN32
+        closesocket(sock->fd) != 0
+#else
+        close(sock->fd) != 0
+#endif
+    ) {
         swoole_sys_warning("close(%d) failed", sock->fd);
     }
     delete sock;

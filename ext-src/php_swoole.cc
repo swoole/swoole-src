@@ -32,6 +32,9 @@ BEGIN_EXTERN_C()
 #include "php_open_temporary_file.h"
 
 #include "stubs/php_swoole_arginfo.h"
+#ifdef _WIN32
+#include "stubs/php_swoole_event_arginfo.h"
+#endif
 #include "stubs/php_swoole_ex_arginfo.h"
 #include "stubs/php_swoole_tracer_arginfo.h"
 #ifdef SW_STDEXT
@@ -175,6 +178,9 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_substr_unserialize, arginfo_swoole_substr_unserialize)
     PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_internal_call_user_shutdown_begin)
+#ifdef _WIN32
+    PHP_FE(swoole_event_rshutdown,    arginfo_swoole_event_rshutdown)
+#endif
     // for test
     PHP_FE(swoole_implicit_fn,           arginfo_swoole_implicit_fn)
     // for admin server

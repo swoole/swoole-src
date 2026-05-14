@@ -36,7 +36,7 @@ static void Stream_onConnect(Client *cli) {
     }
 }
 
-static void Stream_onError(const Client *cli) {
+static void Stream_onError(Client *cli) {
     auto *stream = static_cast<Stream *>(cli->object);
     stream->errCode = swoole_get_last_error();
 
@@ -54,7 +54,7 @@ static void Stream_onError(const Client *cli) {
     delete stream;
 }
 
-static void Stream_onReceive(const Client *cli, const char *data, uint32_t length) {
+static void Stream_onReceive(Client *cli, const char *data, size_t length) {
     auto *stream = static_cast<Stream *>(cli->object);
     if (length == 4) {
         cli->socket->close_wait = 1;

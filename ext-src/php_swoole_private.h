@@ -244,6 +244,8 @@ PHP_FUNCTION(swoole_tracer_prof_end);
  */
 #ifndef _WIN32
 void php_swoole_event_minit(int module_number);
+#else
+PHP_FUNCTION(swoole_event_rshutdown);
 #endif
 // base
 void php_swoole_atomic_minit(int module_number);
