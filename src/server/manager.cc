@@ -17,8 +17,6 @@
 #include "swoole_server.h"
 #include "swoole_util.h"
 
-#ifndef _WIN32
-
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -465,5 +463,3 @@ bool Server::reload(bool reload_all_workers) const {
 }
 
 }  // namespace swoole
-
-#endif  // _WIN32

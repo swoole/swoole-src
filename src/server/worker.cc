@@ -14,10 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef _WIN32
 #include <sys/uio.h>
 #include <sys/mman.h>
-#endif
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
@@ -42,15 +40,11 @@ void Server::worker_signal_init() const {
         return;
     }
     swoole_signal_set(SIGHUP, nullptr);
-#ifndef _WIN32
     swoole_signal_set(SIGPIPE, SIG_IGN);
     swoole_signal_set(SIGUSR1, nullptr);
     swoole_signal_set(SIGUSR2, nullptr);
-#endif
     swoole_signal_set(SIGTERM, worker_signal_handler);
-#ifndef _WIN32
     swoole_signal_set(SIGWINCH, worker_signal_handler);
-#endif
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, worker_signal_handler);
 #endif
@@ -68,11 +62,9 @@ void Server::worker_signal_handler(int signo) {
             sw_worker()->shutdown();
         }
         break;
-#ifndef _WIN32
     case SIGWINCH:
         Worker_reopen_logger();
         break;
-#endif
     default:
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN) {
@@ -194,9 +186,7 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_COMMAND_REQUEST: {
-#ifndef _WIN32
         call_command_handler(message_bus, worker->id, pipe_command->get_socket(false));
-#endif
         break;
     }
     case SW_SERVER_EVENT_SHUTDOWN: {
@@ -239,11 +229,7 @@ void Server::worker_start_callback(Worker *worker) {
     worker->set_status_to_idle();
 
     if (is_process_mode()) {
-#ifdef _WIN32
-        // Windows shared memory protection not supported
-#else
         sw_shm_protect(session_list, PROT_READ);
-#endif
     }
 
     call_worker_start_callback(worker);

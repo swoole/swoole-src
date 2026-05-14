@@ -374,12 +374,12 @@ int ListenPort::readable_callback_raw(Reactor *reactor, ListenPort *port, Event 
 
     ssize_t n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
-        switch (_socket->catch_read_error(SW_SOCKET_ERRNO)) {
+        switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from connection#%d failed", event->fd);
             return SW_OK;
         case SW_CLOSE:
-            conn->close_errno = SW_SOCKET_ERRNO;
+            conn->close_errno = errno;
             goto _close_fd;
         default:
             return SW_OK;
@@ -405,7 +405,7 @@ int ListenPort::readable_callback_length(Reactor *reactor, ListenPort *port, Eve
 
     if (protocol->recv_with_length_protocol(_socket, buffer) < 0) {
         swoole_trace("Close Event.FD=%d|From=%d", event->fd, event->reactor_id);
-        conn->close_errno = SW_SOCKET_ERRNO;
+        conn->close_errno = errno;
         reactor->trigger_close_event(event);
     }
 
@@ -465,12 +465,12 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
 _recv_data:
     ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
-        switch (_socket->catch_read_error(SW_SOCKET_ERRNO)) {
+        switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from connection#%d failed", event->fd);
             return SW_OK;
         case SW_CLOSE:
-            conn->close_errno = SW_SOCKET_ERRNO;
+            conn->close_errno = errno;
             goto _close_fd;
         default:
             return SW_OK;
@@ -735,7 +735,7 @@ int ListenPort::readable_callback_redis(Reactor *reactor, ListenPort *port, Even
     auto buffer = serv->get_recv_buffer(_socket);
 
     if (redis::recv_packet(protocol, conn, buffer) < 0) {
-        conn->close_errno = SW_SOCKET_ERRNO;
+        conn->close_errno = errno;
         reactor->trigger_close_event(event);
     }
 
@@ -755,7 +755,7 @@ int ListenPort::readable_callback_eof(Reactor *reactor, ListenPort *port, Event 
     }
 
     if (protocol->recv_with_eof_protocol(_socket, buffer) < 0) {
-        conn->close_errno = SW_SOCKET_ERRNO;
+        conn->close_errno = errno;
         reactor->trigger_close_event(event);
     }
 
@@ -785,11 +785,9 @@ void ListenPort::close() {
     }
 
     // remove unix socket file
-#ifndef _WIN32
     if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
         unlink(host.c_str());
     }
-#endif
 }
 
 const char *ListenPort::get_protocols() const {
@@ -847,7 +845,7 @@ int ListenPort::create_socket() {
     socket =
         make_socket(type, is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (socket == nullptr) {
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        swoole_set_last_error(errno);
         return SW_ERR;
     }
 
@@ -882,7 +880,7 @@ int ListenPort::create_socket() {
 
     if (socket->get_name() < 0) {
     __cleanup:
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        swoole_set_last_error(errno);
         socket->free();
         return SW_ERR;
     }
@@ -893,7 +891,7 @@ int ListenPort::create_socket() {
 }
 
 void ListenPort::close_socket() {
-    if (SW_CLOSE_SOCKET(socket->fd) < 0) {
+    if (::close(socket->fd) < 0) {
         swoole_sys_warning("close(%d) failed", socket->fd);
     }
     delete socket;

@@ -412,9 +412,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             break;
         }
         case SW_SERVER_EVENT_COMMAND_REQUEST: {
-#ifndef _WIN32
             serv->call_command_handler(thread->message_bus, thread->id, thread->pipe_command);
-#endif
             break;
         }
         case SW_SERVER_EVENT_COMMAND_RESPONSE: {
@@ -794,12 +792,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
             serv_sock->fd = server_fd;
             serv_sock->socket_type = ls->type;
             serv_sock->object = ls;
-            ls->thread_id =
-#ifdef _WIN32
-                reinterpret_cast<pthread_t>(GetCurrentThreadId());
-#else
-                pthread_self();
-#endif
+            ls->thread_id = pthread_self();
             if (reactor->add(ls->socket, SW_EVENT_READ) < 0) {
                 return SW_ERR;
             }
@@ -821,14 +814,12 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         }
     }
 
-#ifndef _WIN32
     if (serv->pipe_command) {
         auto pipe_socket = serv->pipe_command->get_socket(false);
         message_bus.init_pipe_socket(pipe_socket);
         pipe_command = message_bus.get_pipe_socket(pipe_socket);
         pipe_command->buffer_size = UINT_MAX;
     }
-#endif
 
     message_bus.set_id_generator(serv->msg_id_generator);
     message_bus.set_buffer_size(serv->ipc_max_size);
@@ -1015,11 +1006,7 @@ void Server::start_heartbeat_thread() {
                 ev.fd = session_id;
                 get_reactor_pipe_socket(session_id, conn->reactor_id)->send_sync(&ev, sizeof(ev));
             });
-#ifndef _WIN32
             sleep(heartbeat_check_interval);
-#else
-            Sleep(heartbeat_check_interval * 1000);
-#endif
         }
     });
 }

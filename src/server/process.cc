@@ -20,15 +20,6 @@ namespace swoole {
 
 using network::Socket;
 
-void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) const {
-    if (exit_status.get_status() != 0) {
-        worker->report_error(exit_status);
-        server_->call_worker_error_callback(worker, exit_status);
-    }
-}
-
-#ifndef _WIN32
-
 Factory *Server::create_process_factory() {
     /**
      * init reactor thread pool
@@ -191,6 +182,27 @@ pid_t Factory::spawn_task_worker(Worker *worker) const {
     return server_->get_task_worker_pool()->spawn(worker);
 }
 
+void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_status) const {
+    if (exit_status.get_status() != 0) {
+        worker->report_error(exit_status);
+        server_->call_worker_error_callback(worker, exit_status);
+    }
+}
+
+bool ProcessFactory::shutdown() {
+    int status;
+
+    if (swoole_kill(server_->gs->manager_pid, SIGTERM) < 0) {
+        swoole_sys_warning("kill(%d) failed", server_->gs->manager_pid);
+    }
+
+    if (swoole_waitpid(server_->gs->manager_pid, &status, 0) < 0) {
+        swoole_sys_warning("waitpid(%d) failed", server_->gs->manager_pid);
+    }
+
+    return SW_OK;
+}
+
 bool Server::create_worker_pipes() {
     SW_LOOP_N(worker_num) {
         auto _sock = new UnixSocket(true, SOCK_DGRAM);
@@ -210,20 +222,6 @@ bool Server::create_worker_pipes() {
         return false;
     }
     return true;
-}
-
-bool ProcessFactory::shutdown() {
-    int status;
-
-    if (swoole_kill(server_->gs->manager_pid, SIGTERM) < 0) {
-        swoole_sys_warning("kill(%d) failed", server_->gs->manager_pid);
-    }
-
-    if (swoole_waitpid(server_->gs->manager_pid, &status, 0) < 0) {
-        swoole_sys_warning("waitpid(%d) failed", server_->gs->manager_pid);
-    }
-
-    return SW_OK;
 }
 
 bool ProcessFactory::start() {
@@ -433,6 +431,4 @@ _close:
     conn->close_errno = 0;
     return finish(&_send);
 }
-
-#endif  // _WIN32
 }  // namespace swoole

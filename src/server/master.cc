@@ -24,12 +24,8 @@
 #include "swoole_api.h"
 
 #include <cassert>
-#ifndef _WIN32
 #include <net/if.h>
 #include <ifaddrs.h>
-#else
-#include <iphlpapi.h>
-#endif
 
 using swoole::network::Address;
 using swoole::network::SendfileTask;
@@ -471,14 +467,12 @@ int Server::start_master_thread(Reactor *reactor) {
     reactor->ptr = this;
     reactor->set_handler(SW_FD_STREAM_SERVER, SW_EVENT_READ, accept_connection);
 
-#ifndef _WIN32
-    if (serv->pipe_command) {
+    if (pipe_command) {
         if (!single_thread) {
             reactor->set_handler(SW_FD_PIPE, SW_EVENT_READ, accept_command_result);
         }
         reactor->add(pipe_command->get_socket(true), SW_EVENT_READ);
     }
-#endif
 
     if ((master_timer = swoole_timer_add(1000L, true, Server::timer_callback, this)) == nullptr) {
         swoole_event_free();
@@ -489,9 +483,7 @@ int Server::start_master_thread(Reactor *reactor) {
         reactor_thread_barrier.wait();
     }
     if (is_process_mode()) {
-#ifndef _WIN32
         gs->manager_barrier.wait();
-#endif
     }
     gs->master_pid = getpid();
 
@@ -508,7 +500,7 @@ int Server::start_master_thread(Reactor *reactor) {
 
 void Server::store_listen_socket() {
     for (auto ls : ports) {
-        sw_socket_t sockfd = ls->socket->fd;
+        int sockfd = ls->socket->fd;
         // save server socket to connection_list
         connection_list[sockfd].fd = sockfd;
         connection_list[sockfd].socket = ls->socket;
@@ -530,14 +522,13 @@ bool Server::create_task_workers() {
     key_t key = 0;
     swIPCMode ipc_mode;
 
-    if (task_ipc_mode == TASK_IPC_STREAM) {
+    if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
+        key = message_queue_key;
+        ipc_mode = SW_IPC_MSGQUEUE;
+    } else if (task_ipc_mode == TASK_IPC_STREAM) {
         ipc_mode = SW_IPC_SOCKET;
     } else {
-#ifdef _WIN32
-        ipc_mode = SW_IPC_SOCKET;
-#else
         ipc_mode = SW_IPC_UNIXSOCK;
-#endif
     }
 
     ProcessPool *pool = get_task_worker_pool();
@@ -627,11 +618,9 @@ bool Server::create_user_workers() {
  */
 void Server::create_worker(Worker *worker) {
     worker->lock = new Mutex(true);
-#ifndef _WIN32
     if (worker->pipe_object) {
         store_pipe_fd(worker->pipe_object);
     }
-#endif
 }
 
 void Server::destroy_worker(Worker *worker) {
@@ -686,9 +675,7 @@ int Server::start() {
     pool->ptr = this;
     pool->workers = workers;
     pool->worker_num = worker_num;
-#ifndef _WIN32
     pool->use_msgqueue = 0;
-#endif
 
     SW_LOOP_N(worker_num) {
         pool->workers[i].pool = pool;
@@ -716,12 +703,7 @@ int Server::start() {
     }
     int ret;
     if (is_base_mode()) {
-#ifndef _WIN32
         ret = start_reactor_processes();
-#else
-        // On Windows, base mode runs as a single process with reactor
-        ret = start_reactor_threads();
-#endif
     } else if (is_process_mode()) {
         ret = start_reactor_threads();
     } else if (is_thread_mode()) {
@@ -923,18 +905,9 @@ int Server::create() {
         factory_ = create_base_factory();
     } else if (is_thread_mode()) {
         factory_ = create_thread_factory();
-    }
-#ifndef _WIN32
-    else {
+    } else {
         factory_ = create_process_factory();
     }
-#else
-    else {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_OPERATION_NOT_SUPPORT,
-                         "MODE_PROCESS is not supported on Windows");
-        return SW_ERR;
-    }
-#endif
     if (!factory_) {
         return SW_ERR;
     }
@@ -1024,9 +997,7 @@ bool Server::signal_handler_reopen_logger() const {
     sw_logger()->reopen();
 
     if (is_process_mode()) {
-#ifndef _WIN32
         swoole_kill(gs->manager_pid, SIGWINCH);
-#endif
     }
 
     return true;
@@ -1043,11 +1014,9 @@ void Server::stop_master_thread() {
             reactor->del(port->socket);
         }
     }
-#ifndef _WIN32
     if (pipe_command) {
         reactor->del(pipe_command->get_socket(true));
     }
-#endif
     clear_timer();
     if (max_wait_time > 0) {
         time_t shutdown_time = std::time(nullptr);
@@ -1178,11 +1147,7 @@ void Server::destroy() {
     } else if (is_thread_mode()) {
         destroy_thread_factory();
     } else {
-#ifndef _WIN32
         destroy_process_factory();
-#else
-        destroy_base_factory();
-#endif
     }
 
     if (task_worker_num > 0) {
@@ -1340,7 +1305,6 @@ bool Server::command(WorkerId process_id,
     return true;
 }
 
-#ifndef _WIN32
 void Server::store_pipe_fd(UnixSocket *p) {
     Socket *master_socket = p->get_socket(true);
     Socket *worker_socket = p->get_socket(false);
@@ -1355,7 +1319,6 @@ void Server::store_pipe_fd(UnixSocket *p) {
         set_maxfd(worker_socket->fd);
     }
 }
-#endif  // _WIN32
 
 /**
  * @process Worker
@@ -1488,7 +1451,7 @@ int Server::send_to_connection(const SendData *_send) const {
         return SW_ERR;
     }
 
-    sw_socket_t fd = conn->fd;
+    int fd = conn->fd;
     Reactor *reactor = SwooleTG.reactor;
     ListenPort *port = get_port_by_server_fd(conn->server_fd);
 
@@ -1752,16 +1715,12 @@ bool Server::send_pipe_message(WorkerId worker_id, const char *data, size_t len)
 }
 
 void Server::init_signal_handler() const {
-#ifndef _WIN32
     swoole_signal_set(SIGPIPE, nullptr);
-#endif
     swoole_signal_set(SIGHUP, nullptr);
     if (is_process_mode()) {
         swoole_signal_set(SIGCHLD, master_signal_handler);
     } else {
-#ifndef _WIN32
         swoole_signal_set(SIGIO, master_signal_handler);
-#endif
     }
     swoole_signal_set(SIGUSR1, master_signal_handler);
     swoole_signal_set(SIGUSR2, master_signal_handler);
@@ -1824,7 +1783,6 @@ bool Server::add_command(const std::string &name, int accepted_process_types, co
     if (commands.find(name) != commands.end()) {
         return false;
     }
-#ifndef _WIN32
     if (!is_base_mode() && pipe_command == nullptr) {
         auto _pipe = new UnixSocket(false, SOCK_DGRAM);
         if (!_pipe->ready()) {
@@ -1833,7 +1791,6 @@ bool Server::add_command(const std::string &name, int accepted_process_types, co
         }
         pipe_command = _pipe;
     }
-#endif
     int command_id = command_current_id++;
     Command command{
         command_id,
@@ -1996,11 +1953,9 @@ void Server::master_signal_handler(int signo) {
     case SIGUSR2:
         serv->signal_handler_reload(signo == SIGUSR1);
         break;
-#ifndef _WIN32
     case SIGIO:
         serv->signal_handler_read_message();
         break;
-#endif
     case SIGWINCH:
         serv->signal_handler_reopen_logger();
         break;
@@ -2062,7 +2017,6 @@ void Server::abort_worker(Worker *worker) const {
 }
 
 bool Server::init_network_interface_addr_map() {
-#ifndef _WIN32
     struct ifaddrs *ifaddr = nullptr;
     if (getifaddrs(&ifaddr) != 0) {
         swoole_sys_warning("getifaddrs() failed");
@@ -2091,43 +2045,6 @@ bool Server::init_network_interface_addr_map() {
     }
 
     freeifaddrs(ifaddr);
-#else
-    // Windows: use GetAdaptersAddresses API
-    ULONG size = 0;
-    GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST, NULL, NULL, &size);
-    PIP_ADAPTER_ADDRESSES addresses = (PIP_ADAPTER_ADDRESSES) sw_malloc(size);
-    if (!addresses) {
-        return false;
-    }
-    ULONG ret = GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST, NULL, addresses, &size);
-    if (ret != ERROR_SUCCESS) {
-        sw_free(addresses);
-        return false;
-    }
-
-    uint16_t index_val = 1;
-    for (PIP_ADAPTER_ADDRESSES aa = addresses; aa; aa = aa->Next) {
-        if (aa->OperStatus != IfOperStatusUp) continue;
-        for (PIP_ADAPTER_UNICAST_ADDRESS ua = aa->FirstUnicastAddress; ua; ua = ua->Next) {
-            network::Address na{};
-            struct sockaddr *sa = ua->Address.lpSockaddr;
-            if (sa->sa_family == AF_INET) {
-                struct sockaddr_in *sin = (struct sockaddr_in *) sa;
-                na.addr.inet_v4.sin_family = AF_INET;
-                na.addr.inet_v4.sin_addr = sin->sin_addr;
-                na.type = SW_SOCK_TCP;
-                local_addr_v4_map.emplace(index_val++, na);
-            } else if (sa->sa_family == AF_INET6) {
-                struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) sa;
-                na.addr.inet_v6.sin6_family = AF_INET6;
-                na.addr.inet_v6.sin6_addr = sin6->sin6_addr;
-                na.type = SW_SOCK_TCP6;
-                local_addr_v6_map.emplace(index_val++, na);
-            }
-        }
-    }
-    sw_free(addresses);
-#endif
     return true;
 }
 
@@ -2176,7 +2093,7 @@ const char *Server::get_remote_addr(Connection *conn) {
  * new connection
  */
 Connection *Server::add_connection(const ListenPort *ls, Socket *_socket, int server_fd) {
-    sw_socket_t fd = _socket->fd;
+    int fd = _socket->fd;
 
     Connection *connection = &(connection_list[fd]);
     ReactorId reactor_id = is_base_mode() ? swoole_get_worker_id() : fd % reactor_num;
@@ -2285,11 +2202,7 @@ void Server::init_pipe_sockets(MessageBus *mb) const {
 
     SW_LOOP_N(n) {
         const auto worker = get_worker(i);
-        if (i >= worker_num
-#ifndef _WIN32
-            && task_ipc_mode != TASK_IPC_UNIXSOCK
-#endif
-            ) {
+        if (i >= worker_num && task_ipc_mode != TASK_IPC_UNIXSOCK) {
             continue;
         }
         mb->init_pipe_socket(worker->pipe_master);
@@ -2300,27 +2213,6 @@ void Server::init_pipe_sockets(MessageBus *mb) const {
 /**
  * allocate memory for Server::pipe_buffers
  */
-#ifdef _WIN32
-bool Server::create_worker_pipes() {
-    SW_LOOP_N(worker_num) {
-        auto _sock = new Pipe(true);
-        if (!_sock->ready()) {
-            delete _sock;
-            return false;
-        }
-
-        workers[i].pipe_master = _sock->get_socket(true);
-        workers[i].pipe_worker = _sock->get_socket(false);
-    }
-
-    init_ipc_max_size();
-    if (create_pipe_buffers() < 0) {
-        return false;
-    }
-    return true;
-}
-#endif
-
 int Server::create_pipe_buffers() {
     message_bus.set_buffer_size(ipc_max_size);
     return message_bus.alloc_buffer() ? SW_OK : SW_ERR;

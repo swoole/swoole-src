@@ -17,13 +17,8 @@
 #include "swoole_static_handler.h"
 #include "swoole_util.h"
 
-// Windows does not have lstat; use stat as fallback (no symlink distinction)
-// lstat is defined as stat in swoole_win32.h
-
 #include <string>
-#ifndef _WIN32
 #include <dirent.h>
-#endif
 #include <algorithm>
 #include <sstream>
 #include <regex>

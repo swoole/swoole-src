@@ -41,32 +41,16 @@ bool Server::init_task_workers() {
      * Make the task worker support asynchronous
      */
     if (task_enable_coroutine) {
-#ifndef _WIN32
         if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
             swoole_error_log(
-                SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION,
-                "cannot use msgqueue when task_enable_coroutine is enable");
+                SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "cannot use msgqueue when task_enable_coroutine is enable");
             return false;
         }
-#endif
         pool->main_loop = TaskWorker_loop_async;
-    }
-#ifndef _WIN32
-    if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION,
-                         "msgqueue ipc mode is not supported on Windows");
-        return false;
     }
     if (task_ipc_mode == TASK_IPC_PREEMPTIVE) {
         pool->schedule_by_sysvmsg = true;
     }
-#else
-    if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION,
-                         "TASK_IPC_MSGQUEUE/PREEMPTIVE is not supported on Windows");
-        return false;
-    }
-#endif
     SW_LOOP_N(task_worker_num) {
         create_worker(&pool->workers[i]);
     }
@@ -359,10 +343,8 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
         return;
     }
     swoole_signal_set(SIGHUP, nullptr);
-#ifndef _WIN32
     swoole_signal_set(SIGPIPE, nullptr);
     swoole_signal_set(SIGUSR1, nullptr);
-#endif
     swoole_signal_set(SIGUSR2, nullptr);
     swoole_signal_set(SIGTERM, Server::worker_signal_handler);
     swoole_signal_set(SIGWINCH, Server::worker_signal_handler);

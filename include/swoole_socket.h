@@ -26,8 +26,6 @@
 #include <vector>
 
 #ifdef _WIN32
-// winsock2.h, ws2tcpip.h, sockaddr_un etc. are already included via swoole_win32.h
-// poll is mapped to WSAPoll via macro
 #else
 #include <poll.h>
 #include <sys/types.h>
@@ -44,7 +42,6 @@
 
 #ifndef SOCK_NONBLOCK
 #ifdef _WIN32
-// On Windows, SOCK_NONBLOCK is not a socket() flag; non-blocking is set via ioctlsocket
 #define SOCK_NONBLOCK 0
 #else
 #define SOCK_NONBLOCK O_NONBLOCK
