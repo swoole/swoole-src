@@ -401,8 +401,8 @@ int Client::close() {
     }
 
     // Set `socket->fd` to -1 to prevent duplicate closure of file descriptors
-    const int fd = socket->fd;
-    socket->fd = -1;
+    const sw_socket_t fd = socket->fd;
+    socket->fd = SW_BAD_SOCKET;
     swoole_trace_log(SW_TRACE_CLIENT, "fd=%d", fd);
 
     return SW_CLOSE_SOCKET(fd);

@@ -776,11 +776,11 @@ SW_API bool php_swoole_export_socket(zval *zobject, SocketImpl *_socket) {
     return true;
 }
 
-SW_API zend_object *php_swoole_dup_socket(int fd, swSocketType type) {
+SW_API zend_object *php_swoole_dup_socket(sw_socket_t fd, swSocketType type) {
     php_swoole_check_reactor();
-    int new_fd = dup(fd);
-    if (new_fd < 0) {
-        php_swoole_sys_error(E_WARNING, "dup(%d) failed", fd);
+    sw_socket_t new_fd = (sw_socket_t)dup((int)fd);
+    if (new_fd == SW_BAD_SOCKET) {
+        php_swoole_sys_error(E_WARNING, "dup(%d) failed", (int)fd);
         return nullptr;
     }
     return php_swoole_create_socket_from_fd(new_fd, type);
@@ -838,11 +838,11 @@ static zend_object *socket_coro_create_object(SocketImpl *socket) {
     return object;
 }
 
-SW_API zend_object *php_swoole_create_socket_from_fd(int fd, swSocketType type) {
+SW_API zend_object *php_swoole_create_socket_from_fd(sw_socket_t fd, swSocketType type) {
     return socket_coro_create_object(new SocketImpl(fd, type));
 }
 
-SW_API zend_object *php_swoole_create_socket_from_fd(int fd, int _domain, int _type, int _protocol) {
+SW_API zend_object *php_swoole_create_socket_from_fd(sw_socket_t fd, int _domain, int _type, int _protocol) {
     return socket_coro_create_object(new SocketImpl(fd, _domain, _type, _protocol));
 }
 
@@ -1192,7 +1192,7 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
 
 PHP_FUNCTION(swoole_coroutine_socketpair) {
     zend_long domain, type, protocol;
-    php_socket_t pair[2];
+    sw_socket_t pair[2];
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
     Z_PARAM_LONG(domain)
@@ -1200,8 +1200,7 @@ PHP_FUNCTION(swoole_coroutine_socketpair) {
     Z_PARAM_LONG(protocol)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    int int_pair[2];
-    if (0 != socketpair((int) domain, (int) type, (int) protocol, int_pair)) {
+    if (0 != socketpair((int) domain, (int) type, (int) protocol, pair)) {
 #ifdef _WIN32
         php_swoole_sys_error(E_WARNING, "failed to create socket pair");
 #else
@@ -1209,9 +1208,6 @@ PHP_FUNCTION(swoole_coroutine_socketpair) {
 #endif
         RETURN_FALSE;
     }
-
-    pair[0] = (php_socket_t) int_pair[0];
-    pair[1] = (php_socket_t) int_pair[1];
 
     php_swoole_check_reactor();
 
@@ -2193,7 +2189,7 @@ static PHP_METHOD(swoole_socket_coro, import) {
     php_stream_from_zval(stream, zstream);
 
     swSocketType type = SW_SOCK_TCP;
-    int socket_fd;
+    sw_socket_t socket_fd;
 
     if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, (void **) &socket_fd, 1)) {
         /* error supposedly already shown */

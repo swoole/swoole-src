@@ -371,7 +371,7 @@ void MessageBus::init_pipe_socket(const Socket *sock) {
 MessageBus::~MessageBus() {
     for (auto _socket : pipe_sockets_) {
         if (_socket) {
-            _socket->fd = -1;
+            _socket->fd = SW_BAD_SOCKET;
             _socket->free();
         }
     }

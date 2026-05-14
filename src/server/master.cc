@@ -508,7 +508,7 @@ int Server::start_master_thread(Reactor *reactor) {
 
 void Server::store_listen_socket() {
     for (auto ls : ports) {
-        int sockfd = ls->socket->fd;
+        sw_socket_t sockfd = ls->socket->fd;
         // save server socket to connection_list
         connection_list[sockfd].fd = sockfd;
         connection_list[sockfd].socket = ls->socket;
@@ -1488,7 +1488,7 @@ int Server::send_to_connection(const SendData *_send) const {
         return SW_ERR;
     }
 
-    int fd = conn->fd;
+    sw_socket_t fd = conn->fd;
     Reactor *reactor = SwooleTG.reactor;
     ListenPort *port = get_port_by_server_fd(conn->server_fd);
 
@@ -2176,7 +2176,7 @@ const char *Server::get_remote_addr(Connection *conn) {
  * new connection
  */
 Connection *Server::add_connection(const ListenPort *ls, Socket *_socket, int server_fd) {
-    int fd = _socket->fd;
+    sw_socket_t fd = _socket->fd;
 
     Connection *connection = &(connection_list[fd]);
     ReactorId reactor_id = is_base_mode() ? swoole_get_worker_id() : fd % reactor_num;

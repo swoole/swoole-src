@@ -320,7 +320,7 @@ bool Socket::reinit_sock(SocketType _type) {
     return true;
 }
 
-bool Socket::init_reactor_socket(int _fd) {
+bool Socket::init_reactor_socket(sw_socket_t _fd) {
     socket = make_socket(_fd, SW_FD_CO_SOCKET);
     sock_fd = _fd;
     socket->object = this;
@@ -348,7 +348,7 @@ Socket::Socket(SocketType _type) {
     init_options();
 }
 
-Socket::Socket(int _fd, SocketType _type) {
+Socket::Socket(sw_socket_t _fd, SocketType _type) {
     init_sock_type(_type);
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
@@ -360,7 +360,7 @@ Socket::Socket(int _fd, SocketType _type) {
     init_options();
 }
 
-Socket::Socket(int _fd, int _domain, int _type, int _protocol)
+Socket::Socket(sw_socket_t _fd, int _domain, int _type, int _protocol)
     : sock_domain(_domain), sock_type(_type), sock_protocol(_protocol) {
     type = network::Socket::convert_to_type(_domain, _type);
     if (sw_unlikely(!init_reactor_socket(_fd))) {

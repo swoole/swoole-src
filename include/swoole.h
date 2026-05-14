@@ -51,6 +51,13 @@
 #define SW_CLOSE_FILE(fd) close(fd)
 #define SW_SOCKET_ERRNO errno
 #define SW_SOCKET_SET_ERRNO(e) (errno = (e))
+
+// Cross-platform socket file descriptor type
+// On POSIX: int (same as always)
+// On Windows: SOCKET (UINT_PTR, 8 bytes on x64)
+// This avoids truncation when SOCKET values exceed int range on 64-bit Windows.
+typedef int sw_socket_t;
+#define SW_BAD_SOCKET ((sw_socket_t) -1)
 #endif
 
 /*--- C standard library ---*/
@@ -668,7 +675,7 @@ typedef swReturnCode ReturnCode;
 typedef swResultCode ResultCode;
 
 struct Event {
-    int fd;
+    sw_socket_t fd;
     int16_t reactor_id;
     FdType type;
     network::Socket *socket;

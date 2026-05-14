@@ -131,10 +131,10 @@ extern zend_string **sw_zend_known_strings;
 
 SW_API bool php_swoole_is_enable_coroutine();
 SW_API zend_object *php_swoole_create_socket(enum swSocketType type);
-SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type);
-SW_API zend_object *php_swoole_create_socket_from_fd(int fd, int _domain, int _type, int _protocol);
+SW_API zend_object *php_swoole_create_socket_from_fd(sw_socket_t fd, enum swSocketType type);
+SW_API zend_object *php_swoole_create_socket_from_fd(sw_socket_t fd, int _domain, int _type, int _protocol);
 SW_API bool php_swoole_export_socket(zval *zobject, SocketImpl *_socket);
-SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type);
+SW_API zend_object *php_swoole_dup_socket(sw_socket_t fd, enum swSocketType type);
 SW_API void php_swoole_init_socket_object(zval *zobject, SocketImpl *socket);
 SW_API SocketImpl *php_swoole_get_socket(const zval *zobject);
 SW_API bool php_swoole_socket_is_closed(const zval *zobject);
@@ -145,7 +145,7 @@ SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code, const char *msg);
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, const SocketImpl *socket);
 #define php_swoole_client_set php_swoole_socket_set
-SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd,
+SW_API php_stream *php_swoole_create_stream_from_socket(sw_socket_t _fd,
                                                         int domain,
                                                         int type,
                                                         int protocol STREAMS_DC);

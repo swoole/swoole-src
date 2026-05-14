@@ -301,7 +301,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
 }
 
 struct CoroPollTask {
-    std::unordered_map<int, PollSocket> *fds = nullptr;
+    std::unordered_map<sw_socket_t, PollSocket> *fds = nullptr;
     Coroutine *co = nullptr;
     TimerNode *timer = nullptr;
     bool success = false;
@@ -339,7 +339,7 @@ static void socket_poll_completed(void *data) {
     task->co->resume();
 }
 
-static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, int fd, EventType event) {
+static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, sw_socket_t fd, EventType event) {
     auto i = task->fds->find(fd);
     if (event == SW_EVENT_ERROR && !(i->second.events & SW_EVENT_ERROR)) {
         if (i->second.events & SW_EVENT_READ) {
@@ -377,7 +377,7 @@ static int socket_poll_error_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout) {
+bool System::socket_poll(std::unordered_map<sw_socket_t, PollSocket> &fds, double timeout) {
     if (timeout == 0) {
         auto *event_list = static_cast<struct pollfd *>(sw_calloc(fds.size(), sizeof(struct pollfd)));
         if (!event_list) {
@@ -456,7 +456,7 @@ struct EventWaiter {
 
         swoole_event_del(socket);
     _done:
-        socket->fd = -1; /* skip close */
+        socket->fd = SW_BAD_SOCKET; /* skip close */
         socket->free();
     }
 };

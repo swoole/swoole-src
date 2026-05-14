@@ -528,7 +528,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
             if (events == 0) {
                 swoole_trace_log(SW_TRACE_CARES, "[del event], fd=%d", fd);
                 swoole_event_del(_socket);
-                _socket->fd = -1;
+                _socket->fd = SW_BAD_SOCKET;
                 _socket->free();
                 ctx->sockets.erase(fd);
                 return;

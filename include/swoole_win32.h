@@ -485,6 +485,11 @@ struct rlimit {
 // Socket compatibility
 // ============================================================================
 
+// Cross-platform socket file descriptor type
+// On Windows, SOCKET is UINT_PTR (8 bytes on x64), which cannot be safely stored in int (4 bytes).
+typedef SOCKET sw_socket_t;
+#define SW_BAD_SOCKET INVALID_SOCKET
+
 // On Windows, use closesocket() for sockets
 #define SW_CLOSE_SOCKET(fd) closesocket(fd)
 
@@ -810,7 +815,7 @@ void sw_wsastartup();
 void sw_wsacleanup();
 
 // socketpair() replacement using TCP loopback
-int sw_socketpair(int domain, int type, int protocol, int sv[2]);
+int sw_socketpair(int domain, int type, int protocol, sw_socket_t sv[2]);
 
 // setsockopt compatibility for TCP_KEEPIDLE etc.
 int sw_setsockopt_keepalive(int sockfd, int idle, int interval, int count);

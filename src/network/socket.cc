@@ -379,14 +379,14 @@ Socket *Socket::accept() {
     if (nonblock) {
         flags |= SOCK_NONBLOCK;
     }
-    socket->fd = ::accept4(fd, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len, flags);
+    socket->fd = (sw_socket_t)::accept4(fd, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len, flags);
 #else
-    socket->fd = ::accept(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len);
-    if (socket->fd >= 0) {
+    socket->fd = (sw_socket_t)::accept(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len);
+    if (socket->fd != SW_BAD_SOCKET) {
         set_fd_option(nonblock, 1);
     }
 #endif
-    if (socket->fd < 0) {
+    if (socket->fd == SW_BAD_SOCKET) {
         delete socket;
         return nullptr;
     }
@@ -597,7 +597,7 @@ bool Socket::uncork() {
 Socket *Socket::dup() const {
     auto *_socket = new Socket();
     *_socket = *this;
-    _socket->fd = ::dup(fd);
+    _socket->fd = (sw_socket_t)::dup(fd);
     return _socket;
 }
 
@@ -1840,8 +1840,8 @@ Socket *make_socket(SocketType type, FdType fd_type, int flags) {
 }
 
 Socket *make_socket(SocketType type, FdType fd_type, int sock_domain, int sock_type, int socket_protocol, int flags) {
-    int sockfd = swoole::socket(sock_domain, sock_type, socket_protocol, flags);
-    if (sockfd < 0) {
+    sw_socket_t sockfd = (sw_socket_t)swoole::socket(sock_domain, sock_type, socket_protocol, flags);
+    if (sockfd == SW_BAD_SOCKET) {
         swoole_set_last_error(SW_SOCKET_ERRNO);
         return nullptr;
     }
@@ -1865,23 +1865,23 @@ int socket(int sock_domain, int sock_type, int socket_protocol, int flags) {
     if (cloexec) {
         sock_flags |= SOCK_CLOEXEC;
     }
-    int sockfd = ::socket(sock_domain, sock_type | sock_flags, socket_protocol);
-    if (sockfd < 0) {
-        return sockfd;
+    sw_socket_t sockfd = ::socket(sock_domain, sock_type | sock_flags, socket_protocol);
+    if (sockfd == SW_BAD_SOCKET) {
+        return -1;
     }
 #else
-    int sockfd = ::socket(sock_domain, sock_type, socket_protocol);
-    if (sockfd < 0) {
-        return sockfd;
+    sw_socket_t sockfd = ::socket(sock_domain, sock_type, socket_protocol);
+    if (sockfd == SW_BAD_SOCKET) {
+        return -1;
     }
     if (nonblock || cloexec) {
-        if (!network::_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1)) {
-            close(sockfd);
-            return sockfd;
+        if (!network::_fcntl_set_option((int)sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1)) {
+            close((int)sockfd);
+            return -1;
         }
     }
 #endif
-    return sockfd;
+    return (int)sockfd;
 }
 
 Socket *make_server_socket(SocketType type, const char *address, int port, int backlog) {
@@ -1907,7 +1907,7 @@ Socket *make_server_socket(SocketType type, const char *address, int port, int b
     return sock;
 }
 
-Socket *make_socket(int fd, FdType fd_type) {
+Socket *make_socket(sw_socket_t fd, FdType fd_type) {
     auto *socket = new Socket();
     socket->fd = fd;
     socket->fd_type = fd_type;

@@ -298,7 +298,7 @@ static void swoole_signalfd_close() {
     if (!swoole_signalfd_is_available()) {
         return;
     }
-    signal_socket->fd = -1;
+    signal_socket->fd = SW_BAD_SOCKET;
     signal_socket->free();
     close(signal_fd);
     signal_socket = nullptr;

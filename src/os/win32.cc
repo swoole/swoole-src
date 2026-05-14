@@ -244,7 +244,7 @@ ssize_t sw_pwrite(int fd, const void *buf, size_t count, off_t offset) {
 // socketpair() - create a pair of connected sockets using TCP loopback
 // ============================================================================
 
-int sw_socketpair(int domain, int type, int protocol, int sv[2]) {
+int sw_socketpair(int domain, int type, int protocol, sw_socket_t sv[2]) {
     SOCKET listener = INVALID_SOCKET;
     SOCKET connector = INVALID_SOCKET;
     SOCKET acceptor = INVALID_SOCKET;
@@ -297,8 +297,8 @@ int sw_socketpair(int domain, int type, int protocol, int sv[2]) {
     closesocket(listener);
     listener = INVALID_SOCKET;
 
-    sv[0] = static_cast<int>(connector);
-    sv[1] = static_cast<int>(acceptor);
+    sv[0] = connector;
+    sv[1] = acceptor;
     return 0;
 
 fail:

@@ -1249,7 +1249,7 @@ PHP_FUNCTION(swoole_client_select) {
     RETURN_LONG(retval);
 }
 
-static inline int client_poll_get(const pollfd *fds, int maxevents, int fd) {
+static inline int client_poll_get(const pollfd *fds, int maxevents, sw_socket_t fd) {
     for (int i = 0; i < maxevents; i++) {
         if (fds[i].fd == fd) {
             return i;
@@ -1277,7 +1277,7 @@ static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, 
         if (sock < 0) {
             continue;
         }
-        int poll_key = client_poll_get(fds, maxevents, sock);
+        int poll_key = client_poll_get(fds, maxevents, (sw_socket_t)sock);
         if (poll_key == -1) {
             php_swoole_fatal_error(E_WARNING, "bad fd[%d]", sock);
             continue;
@@ -1319,11 +1319,11 @@ static uint32_t client_poll_add(const zval *sock_array, uint32_t index, struct p
         key = client_poll_get(fds, maxevents, sock);
     }
     if (key < 0) {
-        fds[index].fd = sock;
+        fds[index].fd = (sw_socket_t)sock;
         fds[index].events = event;
         index++;
     } else {
-        fds[key].fd = sock;
+        fds[key].fd = (sw_socket_t)sock;
         fds[key].events |= event;
     }
     SW_HASHTABLE_FOREACH_END();

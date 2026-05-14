@@ -20,7 +20,7 @@
 namespace swoole {
 using network::Socket;
 
-void SocketPair::init_socket(int master_fd, int worker_fd) {
+void SocketPair::init_socket(sw_socket_t master_fd, sw_socket_t worker_fd) {
     master_socket = make_socket(master_fd, SW_FD_PIPE);
     worker_socket = make_socket(worker_fd, SW_FD_PIPE);
     set_blocking(blocking);
@@ -28,13 +28,18 @@ void SocketPair::init_socket(int master_fd, int worker_fd) {
 
 Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
 #ifdef _WIN32
-    if (_pipe(socks, 8192, _O_BINARY) < 0) {
+    int int_socks[2];
+    if (_pipe(int_socks, 8192, _O_BINARY) < 0) {
 #else
     if (pipe(socks) < 0) {
 #endif
         swoole_sys_warning("pipe() failed");
         return;
     }
+#ifdef _WIN32
+    socks[0] = (sw_socket_t)int_socks[0];
+    socks[1] = (sw_socket_t)int_socks[1];
+#endif
     // socks[0]: (read end)
     // socks[1]: (write end)
     init_socket(socks[1], socks[0]);
