@@ -870,7 +870,44 @@ void swoole_signal_block_all() {
 }
 
 void swoole_signal_clear() {
-    // TODO windows 清理信号设置
+    // TODO Windows 清理信号设置
+}
+
+void swoole_signal_dispatch() {
+    // TODO Windows 派发信号
+}
+
+int sw_waitpid(pid_t pid, int *status, int options) {
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
+    if (!hProcess) {
+        errno = ECHILD;
+        return -1;
+    }
+
+    DWORD waitResult = WAIT_OBJECT_0;
+    if (options & WNOHANG) {
+        waitResult = WaitForSingleObject(hProcess, 0);
+    } else {
+        waitResult = WaitForSingleObject(hProcess, INFINITE);
+    }
+
+    int resultPid = -1;
+    if (waitResult == WAIT_OBJECT_0) {
+        DWORD exitCode;
+        if (GetExitCodeProcess(hProcess, &exitCode)) {
+            if (status) *status = exitCode;
+            resultPid = pid;
+        }
+    } else if (waitResult == WAIT_TIMEOUT) {
+        errno = 0;
+        resultPid = 0;
+    } else {
+        errno = ECHILD;
+        resultPid = -1;
+    }
+
+    CloseHandle(hProcess);
+    return resultPid;
 }
 
 #endif  // _WIN32

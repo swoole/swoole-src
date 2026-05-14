@@ -103,24 +103,6 @@ pid_t System::wait(int *_stat_loc, double timeout) {
     return System::waitpid(-1, _stat_loc, 0, timeout);
 }
 
-pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
-    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (_options & WNOHANG))) {
-        return ::waitpid(_pid, _stat_loc, _options);
-    }
-
-#if SW_USE_IOURING
-    return iouring_waitpid(_pid, _stat_loc, _options);
-#endif
-
-    pid_t retval = -1;
-    wait_for([_pid, &retval, _stat_loc]() -> bool {
-        retval = ::waitpid(_pid, _stat_loc, WNOHANG);
-        return retval != 0;
-    });
-
-    return retval;
-}
-
 /**
  * @error: errno & swoole_get_last_error()
  */

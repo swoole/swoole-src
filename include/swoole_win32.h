@@ -854,6 +854,9 @@ int sw_nanosleep(const struct timespec *req, struct timespec *rem);
 // strptime() replacement
 char *sw_strptime(const char *buf, const char *fmt, struct tm *tm);
 
+// waitpid() replacement
+int sw_waitpid(pid_t pid, int *status, int options);
+
 SW_EXTERN_C_END
 
 // ============================================================================

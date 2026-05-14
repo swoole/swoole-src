@@ -220,6 +220,7 @@ std::vector<std::string> System::getaddrinfo(
     return retval;
 }
 
+#ifndef _WIN32
 struct SignalListener {
     Coroutine *co;
     int signo;
@@ -299,6 +300,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
 
     return retval ? listener.signo : -1;
 }
+#endif
 
 struct CoroPollTask {
     std::unordered_map<sw_socket_t, PollSocket> *fds = nullptr;
@@ -529,6 +531,28 @@ int System::wait_event(int fd, int events, double timeout) {
     }
 
     return revents;
+}
+
+pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
+    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (_options & WNOHANG))) {
+        return ::waitpid(_pid, _stat_loc, _options);
+    }
+
+#if SW_USE_IOURING
+    return iouring_waitpid(_pid, _stat_loc, _options);
+#endif
+
+    pid_t retval = -1;
+    wait_for([_pid, &retval, _stat_loc]() -> bool {
+#ifdef _WIN32
+        retval = sw_waitpid(_pid, _stat_loc, WNOHANG);
+#else
+        retval = ::waitpid(_pid, _stat_loc, WNOHANG);
+#endif
+        return retval != 0;
+    });
+
+    return retval;
 }
 
 bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status) {
