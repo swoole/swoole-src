@@ -1261,6 +1261,12 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_URING_SOCKET
     php_info_print_table_row(2, "uring_socket", "enabled");
 #endif
+#ifdef SW_USE_IOCP
+    php_info_print_table_row(2, "iocp", "enabled");
+#endif
+#ifdef SW_USE_IOCP_SOCKET
+    php_info_print_table_row(2, "iocp_socket", "enabled");
+#endif
 #ifdef HAVE_BOOST_STACKTRACE
     php_info_print_table_row(2, "boost stacktrace", "enabled");
 #elif defined(HAVE_EXECINFO)

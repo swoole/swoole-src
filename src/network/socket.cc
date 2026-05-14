@@ -1857,7 +1857,18 @@ int socket(int sock_domain, int sock_type, int socket_protocol, int flags) {
     bool nonblock = flags & SW_SOCK_NONBLOCK;
     bool cloexec = flags & SW_SOCK_CLOEXEC;
 
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+    sw_socket_t sockfd = WSASocketW(sock_domain, sock_type, socket_protocol, nullptr, 0, WSA_FLAG_OVERLAPPED);
+    if (sockfd == SW_BAD_SOCKET) {
+        return -1;
+    }
+    if (nonblock || cloexec) {
+        if (!network::_fcntl_set_option((int) sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1)) {
+            closesocket(sockfd);
+            return -1;
+        }
+    }
+#elif defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
     int sock_flags = 0;
     if (nonblock) {
         sock_flags |= SOCK_NONBLOCK;

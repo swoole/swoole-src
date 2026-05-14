@@ -156,7 +156,11 @@ void swoole_init() {
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
+#ifdef _WIN32
+    SwooleG.task_tmpfile = SW_TASK_TMP_DIR "\\" SW_TASK_TMP_FILE;
+#else
     SwooleG.task_tmpfile = SW_TASK_TMP_DIR "/" SW_TASK_TMP_FILE;
+#endif
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
@@ -259,17 +263,37 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     std::unique_lock<std::mutex> _lock(sw_thread_lock);
 #endif
 
+#ifdef _WIN32
+    // On Windows, an absolute path can be:
+    // 1. Drive letter path: "C:\..." or "C:/..."
+    // 2. UNC path: "\\server\share\..."
+    bool is_absolute = false;
+    if (dir.length() >= 2 && ((dir[0] >= 'A' && dir[0] <= 'Z') || (dir[0] >= 'a' && dir[0] <= 'z')) && dir[1] == ':') {
+        is_absolute = true;
+    } else if (dir.length() >= 2 && dir[0] == '\\' && dir[1] == '\\') {
+        is_absolute = true;
+    }
+    if (!is_absolute) {
+        swoole_warning("wrong absolute path '%s'", dir.c_str());
+        return false;
+    }
+#else
     if (dir.at(0) != '/') {
         swoole_warning("wrong absolute path '%s'", dir.c_str());
         return false;
     }
+#endif
 
     if (access(dir.c_str(), R_OK) < 0 && !swoole_mkdir_recursive(dir)) {
         swoole_warning("create task tmp dir('%s') failed", dir.c_str());
         return false;
     }
 
+#ifdef _WIN32
+    sw_tg_buffer()->format("%s\\" SW_TASK_TMP_FILE, dir.c_str());
+#else
     sw_tg_buffer()->format("%s/" SW_TASK_TMP_FILE, dir.c_str());
+#endif
     SwooleG.task_tmpfile = sw_tg_buffer()->to_std_string();
 
     if (SwooleG.task_tmpfile.length() >= SW_TASK_TMP_PATH_SIZE) {
@@ -439,13 +463,23 @@ bool swoole_mkdir_recursive(const std::string &dir) {
     }
     swoole_strlcpy(tmp, dir.c_str(), PATH_MAX);
 
+#ifdef _WIN32
+    if (dir[len - 1] != '/' && dir[len - 1] != '\\') {
+        strcat(tmp, "\\");
+    }
+#else
     if (dir[len - 1] != '/') {
         strcat(tmp, "/");
     }
+#endif
 
     len = strlen(tmp);
     for (size_t i = 1; i < len; i++) {
+#ifdef _WIN32
+        if (tmp[i] == '/' || tmp[i] == '\\') {
+#else
         if (tmp[i] == '/') {
+#endif
             tmp[i] = 0;
             if (access(tmp, R_OK) != 0) {
 #ifdef _WIN32
@@ -457,7 +491,11 @@ bool swoole_mkdir_recursive(const std::string &dir) {
                     return false;
                 }
             }
+#ifdef _WIN32
+            tmp[i] = '\\';
+#else
             tmp[i] = '/';
+#endif
         }
     }
 

@@ -254,6 +254,9 @@ class AsyncThreads;
 #ifdef SW_USE_IOURING
 class Iouring;
 #endif
+#ifdef SW_USE_IOCP
+class Iocp;
+#endif
 namespace async {
 class ThreadPool;
 }
@@ -723,6 +726,9 @@ struct ThreadGlobal {
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
     Iouring *iouring;
+#endif
+#ifdef SW_USE_IOCP
+    Iocp *iocp;
 #endif
     bool signal_blocking_all;
 };

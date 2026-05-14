@@ -19,6 +19,8 @@
 #include "swoole_signal.h"
 #ifndef _WIN32
 #include "swoole_iouring.h"
+#else
+#include "swoole_iocp.h"
 #endif
 #include "swoole_socket_impl.h"
 

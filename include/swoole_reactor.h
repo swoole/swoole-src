@@ -91,6 +91,7 @@ class Reactor {
         PRIORITY_TRY_EXIT,
         PRIORITY_MALLOC_TRIM,
         PRIORITY_WORKER_CALLBACK,
+        PRIORITY_IOCP_WAKEUP,
         /**
          * PRIORITY_IOURING_SUBMIT must be the last one, as other callback functions might allocate new SQEs.
          * It is essential to ensure that the SQE is submitted before the next event loop iteration and before the
@@ -110,6 +111,7 @@ class Reactor {
         EXIT_CONDITION_USER_BEFORE_DEFAULT,
         EXIT_CONDITION_FORCED_TERMINATION,
         EXIT_CONDITION_IOURING,
+        EXIT_CONDITION_IOCP,
         EXIT_CONDITION_DEFAULT = 999,
         EXIT_CONDITION_USER_AFTER_DEFAULT,
     };
