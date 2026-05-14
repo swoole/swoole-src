@@ -17,7 +17,9 @@
 #include "php_swoole.h"
 #include "php_open_temporary_file.h"
 #include "ext/standard/file.h"
+#ifndef PHP_WIN32
 #include "ext/standard/flock_compat.h"
+#endif
 #include "ext/standard/php_filestat.h"
 
 #include <fcntl.h>
@@ -63,9 +65,25 @@ extern int php_get_gid_by_name(const char *name, gid_t *gid);
 #if defined(PHP_WIN32)
 #define PLAIN_WRAP_BUF_SIZE(st) (((st) > UINT_MAX) ? UINT_MAX : (unsigned int) (st))
 
+static int sw_php_win32_check_trailing_space(const char *path, const size_t path_len) {
+    if (path_len == 0 || path_len > MAXPATHLEN - 1) {
+        return 1;
+    }
+    if (path == NULL) {
+        return 0;
+    }
+    return path[0] != ' ' && path[path_len - 1] != ' ';
+}
+
+#define php_win32_check_trailing_space(path, path_len) sw_php_win32_check_trailing_space((path), (path_len))
+
 #if PHP_VERSION_ID >= 80100
+#ifndef fsync
 #define fsync _commit
+#endif
+#ifndef fdatasync
 #define fdatasync fsync
+#endif
 #endif
 
 #else
@@ -208,7 +226,7 @@ static int do_fstat(php_stdio_stream_data *d, int force) {
         int r;
 
         PHP_STDIOP_GET_FD(fd, d);
-        r = fstat(fd, &d->sb);
+        r = zend_fstat(fd, &d->sb);
         d->cached_fstat = r == 0;
 
         return r;
@@ -305,7 +323,7 @@ static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf
         if (ZEND_SIZE_T_UINT_OVFL(count)) {
             count = UINT_MAX;
         }
-        bytes_written = _write(data->fd, buf, (unsigned int)count);
+        bytes_written = write(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
 #else
         ssize_t bytes_written = write(data->fd, buf, count);
 #endif
@@ -616,7 +634,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
     php_stdio_stream_data *data = (php_stdio_stream_data *) stream->abstract;
     size_t size;
     int fd;
-#ifdef O_NONBLOCK
+#if defined(O_NONBLOCK) && !defined(PHP_WIN32)
     /* FIXME: make this work for win32 */
     int flags;
     int oldval;
@@ -627,7 +645,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
         if (fd == -1) return -1;
-#ifdef O_NONBLOCK
+#if defined(O_NONBLOCK) && !defined(PHP_WIN32)
         flags = fcntl(fd, F_GETFL, 0);
         oldval = (flags & O_NONBLOCK) ? 0 : 1;
         if (value)
@@ -834,7 +852,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
                 return PHP_STREAM_OPTION_RETURN_ERR;
             }
 
-            data->last_mapped_addr = MapViewOfFile(data->file_mapping, acc, hoffs, loffs, range->length + delta);
+            data->last_mapped_addr = (char *) MapViewOfFile(data->file_mapping, acc, hoffs, loffs, range->length + delta);
 
             if (data->last_mapped_addr) {
                 /* give them back the address of the start offset they requested */
@@ -931,7 +949,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
 #endif
     case PHP_STREAM_OPTION_META_DATA_API:
         if (fd == -1) return -1;
-#ifdef O_NONBLOCK
+#if defined(O_NONBLOCK) && !defined(PHP_WIN32)
         flags = fcntl(fd, F_GETFL, 0);
 
         add_assoc_bool((zval *) ptrparam, "timed_out", 0);
@@ -977,10 +995,12 @@ static int php_plain_files_dirstream_close(php_stream *stream, int close_handle)
     return closedir((DIR *) stream->abstract);
 }
 
+#ifndef PHP_WIN32
 static int php_plain_files_dirstream_rewind(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffs) {
     rewinddir((DIR *) stream->abstract);
     return 0;
 }
+#endif
 
 static php_stream_ops php_plain_files_dirstream_ops = {
     NULL,
@@ -988,7 +1008,11 @@ static php_stream_ops php_plain_files_dirstream_ops = {
     php_plain_files_dirstream_close,
     NULL,
     "dir",
+#ifndef PHP_WIN32
     php_plain_files_dirstream_rewind,
+#else
+    NULL,
+#endif
     NULL, /* cast */
     NULL, /* stat */
     NULL  /* set_option */
@@ -1078,7 +1102,7 @@ static php_stream *_sw_php_stream_fopen(const char *filename,
         }
     }
 #ifdef PHP_WIN32
-    fd = php_win32_ioutil_open(_realpath, open_flags, 0666);
+    fd = swoole_coroutine_open(_realpath, open_flags, 0666);
 #else
     fd = open(_realpath, open_flags, 0666);
 #endif
@@ -1187,16 +1211,16 @@ static int php_plain_files_url_stater(
 
 #ifdef PHP_WIN32
     if (flags & PHP_STREAM_URL_STAT_LINK) {
-        return lstat(url, &ssb->sb);
+        return VCWD_LSTAT(url, &ssb->sb);
     }
 #else
 #ifdef HAVE_SYMLINK
     if (flags & PHP_STREAM_URL_STAT_LINK) {
-        return lstat(url, &ssb->sb);
+        return VCWD_LSTAT(url, &ssb->sb);
     } else
 #endif
 #endif
-    return stat(url, &ssb->sb);
+    return VCWD_STAT(url, &ssb->sb);
 }
 
 static int php_plain_files_unlink(php_stream_wrapper *wrapper,
@@ -1271,7 +1295,7 @@ static int php_plain_files_rename(
 #endif
             int success = 0;
             if (php_copy_file(url_from, url_to) == SUCCESS) {
-                if (stat(url_from, &sb) == 0) {
+                if (VCWD_STAT(url_from, &sb) == 0) {
                     success = 1;
 #ifndef TSRM_WIN32
                     /*
@@ -1371,7 +1395,7 @@ static int php_plain_files_mkdir(
                 --p;
                 *p = '\0';
             }
-            if (stat(buf, &sb) == 0) {
+            if (VCWD_STAT(buf, &sb) == 0) {
                 while (1) {
                     *p = DEFAULT_SLASH;
                     if (!n) break;
@@ -1544,7 +1568,10 @@ static php_stream_wrapper_ops sw_php_plain_files_wrapper_ops = {
     php_plain_files_metadata
 };
 
-PHPAPI php_stream_wrapper sw_php_plain_files_wrapper = {
+#ifndef PHP_WIN32
+PHPAPI
+#endif
+php_stream_wrapper sw_php_plain_files_wrapper = {
     &sw_php_plain_files_wrapper_ops,
     NULL,
     0

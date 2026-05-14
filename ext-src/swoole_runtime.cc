@@ -281,9 +281,7 @@ static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
-#ifndef _WIN32
 #include "thirdparty/php/streams/plain_wrapper.c"
-#endif
 #undef close
 SW_EXTERN_C_END
 
@@ -339,12 +337,7 @@ void php_swoole_runtime_minit(int module_number) {
     php_stream_xport_register("async.ssl", socket_create);
     php_stream_xport_register("async.tls", socket_create);
 
-#ifndef _WIN32
     php_register_url_stream_wrapper(SW_ASYNC_FILE_PROTOCOL, &sw_php_plain_files_wrapper);
-#else
-    // On Windows, plain file stream wrapper is not hooked (plain_wrapper.c is POSIX-dependent)
-    php_register_url_stream_wrapper(SW_ASYNC_FILE_PROTOCOL, &php_plain_files_wrapper);
-#endif
 }
 
 struct PhpFunc {
@@ -1460,11 +1453,9 @@ static void hook_stream_factory(uint32_t *flags_ptr) {
 static void hook_stream_ops(uint32_t flags) {
     // file
     if (flags & PHPCoroutine::HOOK_FILE) {
-#ifndef _WIN32
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
             memcpy(&php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
-#endif
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
             memcpy(&php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
@@ -2344,11 +2335,9 @@ php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const c
 #endif
 }
 
-#ifndef _WIN32
 php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
     return &ori_php_stream_stdio_ops;
 }
-#endif
 
 zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
     zif_handler handler = ori_func_handlers.get(std::string(name, len));

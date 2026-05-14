@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <unordered_set>
+#include <unordered_map>
 
 namespace swoole {
 
@@ -33,9 +34,12 @@ class Iocp {
     uint32_t task_num = 0;
     int original_timeout_msec = -1;
     std::unordered_set<sw_socket_t> associated_sockets;
+    std::unordered_set<int> associated_files;
+    std::unordered_map<int, int> file_flags;
 
     explicit Iocp(Reactor *reactor_);
     bool associate(sw_socket_t fd);
+    bool associate(HANDLE handle, ULONG_PTR key);
     ssize_t execute(IocpEvent *event, double timeout);
 
     static Iocp *get_instance();
@@ -46,6 +50,7 @@ class Iocp {
 
     static bool init(Reactor *reactor = nullptr);
     static void set_error(DWORD error);
+    static void set_file_error(DWORD error);
 
     bool ready() const {
         return port != INVALID_HANDLE_VALUE && port != nullptr;
@@ -75,6 +80,11 @@ class Iocp {
     static int shutdown(sw_socket_t fd, int how);
     static int close(sw_socket_t fd);
     static int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+
+    static int open_file(const char *pathname, int flags, mode_t mode);
+    static int close_file(int fd);
+    static ssize_t read_file(int fd, void *buf, size_t size, double timeout = -1);
+    static ssize_t write_file(int fd, const void *buf, size_t size, double timeout = -1);
 };
 
 }  // namespace swoole

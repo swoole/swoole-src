@@ -33,6 +33,8 @@
 #include "swoole_socket_impl.h"
 #ifndef _WIN32
 #include "swoole_iouring.h"
+#else
+#include "swoole_iocp.h"
 #endif
 
 using swoole::AsyncEvent;
@@ -47,6 +49,10 @@ using swoole::coroutine::System;
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
+#elif defined(_WIN32) && defined(SW_USE_IOCP)
+using swoole::Iocp;
+#define SW_USE_IOCP_FILE 1
+#define SW_USE_ASYNC 1
 #else
 #define SW_USE_ASYNC 1
 #endif
@@ -483,12 +489,16 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
         return open(pathname, flags, mode);
     }
 
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+    return Iocp::open_file(pathname, flags, mode);
+#else
 #ifdef SW_USE_ASYNC
     int ret = -1;
     async([&]() { ret = open(pathname, flags, mode); });
     return ret;
 #else
     return Iouring::open(pathname, flags, mode);
+#endif
 #endif
 }
 
@@ -507,7 +517,9 @@ int swoole_coroutine_close(int sockfd) {
         return -1;
     }
 
-#ifdef SW_USE_ASYNC
+#ifdef SW_USE_IOCP_FILE
+    return Iocp::close_file(sockfd);
+#elif defined(SW_USE_ASYNC)
     int ret = -1;
     async([&]() { ret = close(sockfd); });
     return ret;
@@ -526,7 +538,9 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
         return socket->read(buf, count);
     }
 
-#ifdef SW_USE_ASYNC
+#ifdef SW_USE_IOCP_FILE
+    return Iocp::read_file(sockfd, buf, count);
+#elif defined(SW_USE_ASYNC)
     ssize_t ret = -1;
     NetSocket sock = {};
     sock.fd = sockfd;
@@ -549,7 +563,9 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
         return socket->write(buf, count);
     }
 
-#ifdef SW_USE_ASYNC
+#ifdef SW_USE_IOCP_FILE
+    return Iocp::write_file(sockfd, buf, count);
+#elif defined(SW_USE_ASYNC)
     ssize_t ret = -1;
     NetSocket sock = {};
     sock.fd = sockfd;

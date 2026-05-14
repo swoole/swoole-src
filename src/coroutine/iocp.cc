@@ -20,6 +20,12 @@
 #if defined(_WIN32) && defined(SW_USE_IOCP)
 
 #include <algorithm>
+#include <io.h>
+#include <fcntl.h>
+#ifdef realpath
+#undef realpath
+#endif
+#include "win32/ioutil.h"
 
 using swoole::Coroutine;
 using swoole::coroutine::System;
@@ -37,17 +43,21 @@ enum IocpOpcode {
     SW_IOCP_SENDMSG,
     SW_IOCP_READV,
     SW_IOCP_WRITEV,
+    SW_IOCP_FILE_READ,
+    SW_IOCP_FILE_WRITE,
 };
 
 struct IocpEvent {
     OVERLAPPED overlapped;
     Coroutine *coroutine = nullptr;
     sw_socket_t fd = SW_BAD_SOCKET;
+    HANDLE handle = INVALID_HANDLE_VALUE;
     IocpOpcode opcode = SW_IOCP_RECV;
     ssize_t result = -1;
     int error = 0;
     bool completed = false;
     bool orphaned = false;
+    bool socket_event = true;
 
     WSABUF wsabuf = {};
     std::vector<WSABUF> wsabufs;
@@ -63,6 +73,7 @@ struct IocpEvent {
 
     IocpEvent(IocpOpcode opcode_, sw_socket_t fd_) : fd(fd_), opcode(opcode_) {
         memset(&overlapped, 0, sizeof(overlapped));
+        handle = reinterpret_cast<HANDLE>(fd_);
     }
 
     void set_result(DWORD transferred, DWORD err) {
@@ -70,9 +81,16 @@ struct IocpEvent {
         if (err == ERROR_SUCCESS) {
             result = static_cast<ssize_t>(transferred);
             error = 0;
+        } else if (!socket_event && err == ERROR_HANDLE_EOF) {
+            result = 0;
+            error = 0;
         } else {
             result = -1;
-            Iocp::set_error(err);
+            if (socket_event) {
+                Iocp::set_error(err);
+            } else {
+                Iocp::set_file_error(err);
+            }
             error = errno;
         }
     }
@@ -104,6 +122,10 @@ static const char *get_opcode_name(IocpOpcode opcode) {
         return "READV";
     case SW_IOCP_WRITEV:
         return "WRITEV";
+    case SW_IOCP_FILE_READ:
+        return "FILE_READ";
+    case SW_IOCP_FILE_WRITE:
+        return "FILE_WRITE";
     default:
         return "UNKNOWN";
     }
@@ -208,6 +230,42 @@ void Iocp::set_error(DWORD error) {
     swoole_set_last_error(errno);
 }
 
+void Iocp::set_file_error(DWORD error) {
+    SetLastError(error);
+    switch (error) {
+    case ERROR_SUCCESS:
+        errno = 0;
+        break;
+    case ERROR_FILE_NOT_FOUND:
+    case ERROR_PATH_NOT_FOUND:
+        errno = ENOENT;
+        break;
+    case ERROR_ACCESS_DENIED:
+    case ERROR_SHARING_VIOLATION:
+    case ERROR_LOCK_VIOLATION:
+        errno = EACCES;
+        break;
+    case ERROR_INVALID_HANDLE:
+        errno = EBADF;
+        break;
+    case ERROR_ALREADY_EXISTS:
+    case ERROR_FILE_EXISTS:
+        errno = EEXIST;
+        break;
+    case ERROR_HANDLE_EOF:
+        errno = 0;
+        break;
+    case ERROR_NOT_ENOUGH_MEMORY:
+    case ERROR_OUTOFMEMORY:
+        errno = ENOMEM;
+        break;
+    default:
+        errno = EIO;
+        break;
+    }
+    swoole_set_last_error(errno);
+}
+
 bool Iocp::get_extension_function(SOCKET fd, GUID guid, void **fn) {
     DWORD bytes = 0;
     if (WSAIoctl(fd,
@@ -259,14 +317,20 @@ bool Iocp::associate(sw_socket_t fd) {
     if (associated_sockets.find(fd) != associated_sockets.end()) {
         return true;
     }
-    HANDLE handle = reinterpret_cast<HANDLE>(fd);
-    HANDLE retval = CreateIoCompletionPort(handle, port, static_cast<ULONG_PTR>(fd), 0);
-    if (retval != port) {
-        set_error(GetLastError());
+    if (!associate(reinterpret_cast<HANDLE>(fd), static_cast<ULONG_PTR>(fd))) {
         return false;
     }
     associated_sockets.insert(fd);
     swoole_trace_log(SW_TRACE_EVENT, "IOCP associate fd=%d", (int) fd);
+    return true;
+}
+
+bool Iocp::associate(HANDLE handle, ULONG_PTR key) {
+    HANDLE retval = CreateIoCompletionPort(handle, port, key, 0);
+    if (retval != port) {
+        set_error(GetLastError());
+        return false;
+    }
     return true;
 }
 
@@ -284,7 +348,7 @@ ssize_t Iocp::execute(IocpEvent *event, double timeout) {
         event->coroutine->yield_ex(timeout);
     } else {
         Coroutine::CancelFunc cancel_fn = [event](Coroutine *co) {
-            CancelIoEx(reinterpret_cast<HANDLE>(event->fd), &event->overlapped);
+            CancelIoEx(event->handle, &event->overlapped);
             co->resume();
             return true;
         };
@@ -293,7 +357,7 @@ ssize_t Iocp::execute(IocpEvent *event, double timeout) {
 
     if (!event->completed) {
         event->orphaned = true;
-        CancelIoEx(reinterpret_cast<HANDLE>(event->fd), &event->overlapped);
+        CancelIoEx(event->handle, &event->overlapped);
         if (event->coroutine->is_timedout()) {
             errno = ETIMEDOUT;
         } else if (event->coroutine->is_canceled()) {
@@ -670,6 +734,218 @@ ssize_t Iocp::read(sw_socket_t fd, void *buf, size_t size, double timeout) {
 
 ssize_t Iocp::write(sw_socket_t fd, const void *buf, size_t size, double timeout) {
     return send(fd, buf, size, 0, timeout);
+}
+
+static bool get_file_handle(int fd, HANDLE *handle) {
+    auto h = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
+    if (h == INVALID_HANDLE_VALUE) {
+        errno = EBADF;
+        swoole_set_last_error(errno);
+        return false;
+    }
+    *handle = h;
+    return true;
+}
+
+static bool get_file_offset(HANDLE handle, uint64_t *offset, bool append) {
+    LARGE_INTEGER pos = {};
+    if (append) {
+        if (!GetFileSizeEx(handle, &pos)) {
+            Iocp::set_file_error(GetLastError());
+            return false;
+        }
+    } else {
+        LARGE_INTEGER zero = {};
+        if (!SetFilePointerEx(handle, zero, &pos, FILE_CURRENT)) {
+            Iocp::set_file_error(GetLastError());
+            return false;
+        }
+    }
+    *offset = static_cast<uint64_t>(pos.QuadPart);
+    return true;
+}
+
+static void set_file_offset(HANDLE handle, uint64_t offset) {
+    LARGE_INTEGER pos = {};
+    pos.QuadPart = static_cast<LONGLONG>(offset);
+    if (!SetFilePointerEx(handle, pos, nullptr, FILE_BEGIN)) {
+        Iocp::set_file_error(GetLastError());
+    }
+}
+
+int Iocp::open_file(const char *pathname, int flags, mode_t mode) {
+    php_ioutil_open_opts open_opts;
+    if (!php_win32_ioutil_posix_to_open_opts(flags, mode, &open_opts)) {
+        return -1;
+    }
+
+    wchar_t *pathw = php_win32_ioutil_any_to_w(pathname);
+    if (!pathw) {
+        set_file_error(ERROR_INVALID_PARAMETER);
+        return -1;
+    }
+    if (!PHP_WIN32_IOUTIL_PATH_IS_OK_W(pathw, wcslen(pathw))) {
+        free(pathw);
+        set_file_error(ERROR_ACCESS_DENIED);
+        return -1;
+    }
+
+    open_opts.attributes |= FILE_FLAG_OVERLAPPED;
+    HANDLE file = CreateFileW(pathw, open_opts.access, open_opts.share, nullptr, open_opts.disposition, open_opts.attributes, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        DWORD error = GetLastError();
+        free(pathw);
+        if (error == ERROR_FILE_EXISTS && (flags & _O_CREAT) && !(flags & _O_EXCL)) {
+            errno = EISDIR;
+            swoole_set_last_error(errno);
+        } else {
+            set_file_error(error);
+        }
+        return -1;
+    }
+    free(pathw);
+
+    int fd = _open_osfhandle(reinterpret_cast<intptr_t>(file), flags);
+    if (fd < 0) {
+        CloseHandle(file);
+        swoole_set_last_error(errno);
+        return -1;
+    }
+    if (flags & _O_TEXT) {
+        _setmode(fd, _O_TEXT);
+    } else if (flags & _O_BINARY) {
+        _setmode(fd, _O_BINARY);
+    }
+
+    auto iocp = get_instance();
+    if (!iocp) {
+        _close(fd);
+        return -1;
+    }
+    iocp->file_flags[fd] = flags;
+    swoole_trace_log(SW_TRACE_AIO, "IOCP file open fd=%d, path=%s, flags=%d", fd, pathname, flags);
+    return fd;
+}
+
+int Iocp::close_file(int fd) {
+    if (SwooleTG.iocp) {
+        SwooleTG.iocp->associated_files.erase(fd);
+        SwooleTG.iocp->file_flags.erase(fd);
+    }
+    swoole_trace_log(SW_TRACE_AIO, "IOCP file close fd=%d", fd);
+    return _close(fd);
+}
+
+ssize_t Iocp::read_file(int fd, void *buf, size_t size, double timeout) {
+    if (size == 0) {
+        return 0;
+    }
+    if (size > UINT_MAX) {
+        size = UINT_MAX;
+    }
+
+    auto iocp = get_instance();
+    if (!iocp) {
+        return -1;
+    }
+
+    HANDLE handle;
+    if (!get_file_handle(fd, &handle)) {
+        return -1;
+    }
+    if (iocp->associated_files.find(fd) == iocp->associated_files.end()) {
+        if (!iocp->associate(handle, static_cast<ULONG_PTR>(fd))) {
+            set_file_error(GetLastError());
+            return -1;
+        }
+        iocp->associated_files.insert(fd);
+        swoole_trace_log(SW_TRACE_AIO, "IOCP associate file fd=%d", fd);
+    }
+
+    uint64_t offset = 0;
+    if (!get_file_offset(handle, &offset, false)) {
+        return -1;
+    }
+
+    auto *event = new IocpEvent(SW_IOCP_FILE_READ, static_cast<sw_socket_t>(fd));
+    event->socket_event = false;
+    event->handle = handle;
+    event->overlapped.Offset = static_cast<DWORD>(offset & 0xffffffff);
+    event->overlapped.OffsetHigh = static_cast<DWORD>(offset >> 32);
+
+    if (!ReadFile(handle, buf, static_cast<DWORD>(size), nullptr, &event->overlapped)) {
+        DWORD error = GetLastError();
+        if (error == ERROR_HANDLE_EOF) {
+            delete event;
+            return 0;
+        }
+        if (error != ERROR_IO_PENDING) {
+            set_file_error(error);
+            delete event;
+            return -1;
+        }
+    }
+
+    ssize_t n = iocp->execute(event, timeout);
+    if (n >= 0) {
+        set_file_offset(handle, offset + static_cast<uint64_t>(n));
+    }
+    return n;
+}
+
+ssize_t Iocp::write_file(int fd, const void *buf, size_t size, double timeout) {
+    if (size == 0) {
+        return 0;
+    }
+    if (size > UINT_MAX) {
+        size = UINT_MAX;
+    }
+
+    auto iocp = get_instance();
+    if (!iocp) {
+        return -1;
+    }
+
+    HANDLE handle;
+    if (!get_file_handle(fd, &handle)) {
+        return -1;
+    }
+    if (iocp->associated_files.find(fd) == iocp->associated_files.end()) {
+        if (!iocp->associate(handle, static_cast<ULONG_PTR>(fd))) {
+            set_file_error(GetLastError());
+            return -1;
+        }
+        iocp->associated_files.insert(fd);
+        swoole_trace_log(SW_TRACE_AIO, "IOCP associate file fd=%d", fd);
+    }
+
+    const auto flags_iter = iocp->file_flags.find(fd);
+    const bool append = flags_iter != iocp->file_flags.end() && (flags_iter->second & _O_APPEND);
+    uint64_t offset = 0;
+    if (!get_file_offset(handle, &offset, append)) {
+        return -1;
+    }
+
+    auto *event = new IocpEvent(SW_IOCP_FILE_WRITE, static_cast<sw_socket_t>(fd));
+    event->socket_event = false;
+    event->handle = handle;
+    event->overlapped.Offset = static_cast<DWORD>(offset & 0xffffffff);
+    event->overlapped.OffsetHigh = static_cast<DWORD>(offset >> 32);
+
+    if (!WriteFile(handle, buf, static_cast<DWORD>(size), nullptr, &event->overlapped)) {
+        DWORD error = GetLastError();
+        if (error != ERROR_IO_PENDING) {
+            set_file_error(error);
+            delete event;
+            return -1;
+        }
+    }
+
+    ssize_t n = iocp->execute(event, timeout);
+    if (n >= 0) {
+        set_file_offset(handle, offset + static_cast<uint64_t>(n));
+    }
+    return n;
 }
 
 ssize_t Iocp::sendfile(sw_socket_t out_fd, int in_fd, off_t *offset, size_t size, double timeout) {
