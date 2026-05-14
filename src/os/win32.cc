@@ -206,8 +206,10 @@ ssize_t sw_pread(int fd, void *buf, size_t count, off_t offset) {
     }
 
     OVERLAPPED ov = {};
-    ov.Offset = static_cast<DWORD>(offset & 0xFFFFFFFF);
-    ov.OffsetHigh = static_cast<DWORD>(offset >> 32);
+    ULARGE_INTEGER ul;
+    ul.QuadPart = static_cast<ULONGLONG>(offset);
+    ov.Offset = ul.LowPart;
+    ov.OffsetHigh = ul.HighPart;
 
     DWORD bytes_read = 0;
     if (!ReadFile(h, buf, static_cast<DWORD>(count), &bytes_read, &ov)) {

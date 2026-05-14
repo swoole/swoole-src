@@ -27,7 +27,7 @@ namespace swoole {
 std::string Logger::get_pretty_name(const std::string &pretty_function, bool strip) {
     const size_t brackets = pretty_function.find_first_of('(');
     if (brackets == std::string::npos) {
-        return "";
+        return pretty_function;
     }
 
     const size_t begin = pretty_function.substr(0, brackets).rfind(' ') + 1;
