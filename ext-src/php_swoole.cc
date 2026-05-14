@@ -66,6 +66,10 @@ END_EXTERN_C()
 #include <net/if_dl.h>
 #endif
 
+#ifdef __linux__
+#include <sys/ioctl.h>
+#endif
+
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
@@ -1823,13 +1827,6 @@ static PHP_FUNCTION(swoole_get_local_ip) {
 }
 
 static PHP_FUNCTION(swoole_get_local_mac) {
-    auto add_assoc_address = [](zval *zv, const char *name, const unsigned char *addr) {
-        char buf[32];
-        sw_snprintf(
-            SW_STRS(buf), "%02X:%02X:%02X:%02X:%02X:%02X", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
-        add_assoc_string(zv, name, buf);
-    };
-
 #ifdef _WIN32
     ULONG flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
     ULONG outBufLen = 0;
@@ -1871,6 +1868,13 @@ static PHP_FUNCTION(swoole_get_local_mac) {
 
     HeapFree(GetProcessHeap(), 0, pAddresses);
 #elif defined(SIOCGIFHWADDR)
+    auto add_assoc_address = [](zval *zv, const char *name, const unsigned char *addr) {
+        char buf[32];
+        sw_snprintf(
+            SW_STRS(buf), "%02X:%02X:%02X:%02X:%02X:%02X", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+        add_assoc_string(zv, name, buf);
+    };
+
     char buffer[4096];
     struct ifconf ifc;
     struct ifreq *ifr;

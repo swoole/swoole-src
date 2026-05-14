@@ -47,8 +47,8 @@
 #endif
 
 // POSIX platform: standard macros for cross-platform compatibility
-#define SW_CLOSE_SOCKET(fd) close(fd)
-#define SW_CLOSE_FILE(fd) close(fd)
+#define SW_CLOSE_SOCKET(fd) ::close(fd)
+#define SW_CLOSE_FILE(fd) ::close(fd)
 #define SW_SOCKET_ERRNO errno
 #define SW_SOCKET_SET_ERRNO(e) (errno = (e))
 

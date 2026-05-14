@@ -50,18 +50,11 @@ extern "C" {
 #  include <inttypes.h>
 #endif /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
 #include <sys/types.h>
-#ifdef _WIN32
-#include <basetsd.h>
-#ifndef _SSIZE_T_DEFINED
-#define _SSIZE_T_DEFINED
-typedef SSIZE_T ssize_t;
-#endif
-#endif
 #include <stdarg.h>
 #include <string.h>
 #include <stddef.h>
 
-NGHTTP2_EXTERN const char *nghttp2_strerror(int error_code);
+const char *nghttp2_strerror(int error_code);
 static inline uint8_t *nghttp2_cpymem(uint8_t *dest, const void *src, size_t len) {
     if (len == 0) {
         return dest;
