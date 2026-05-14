@@ -50,7 +50,7 @@
         <active>yes</active>
     </developer>
     <date>2026-05-14</date>
-    <time>21:00:00</time>
+    <time>22:00:00</time>
     <version>
         <release>6.2.1</release>
         <api>6.0</api>
@@ -61,17 +61,18 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fix timeout configuration error: Resolved an issue where the write timeout incorrectly used the read timeout when `max_idle_time` was set.
+        - Fix timeout configuration error: Fixed an issue where the write timeout incorrectly reused the read timeout when `max_idle_time` was set.
         - Fix async reload warning: Eliminated invalid warnings triggered by the exit of old processes during asynchronous reloads.
         - Refactor process management: Refactored the server process management logic.
-        - Optimize fork failure handling: Improved the handling mechanism after child process `fork` failures. Added a retry logic that waits 1 second before each retry to avoid excessive error logs.
-        - Fix data race issue: Changed the `closed` field in the underlying `Connection` struct to an atomic operation, resolving a potential data race risk.
+        - Optimize fork failure handling: Improved the handling mechanism after child process `fork` failures. Added retry logic that waits 1 second before each retry to avoid generating excessive error logs.
+        - Fix data race issue: Changed the `closed` field in the underlying `Connection` struct to an atomic operation, eliminating a potential data race risk.
         - Fix integer overflow: Fixed an integer overflow issue in the Redis server.
         - Replace communication mechanism: Replaced the communication method between child threads and the main thread in the thread pool from `Pipe` to `UnixSocket`.
         - Support curl coroutine mode: In `curl` coroutine scenarios, file upload and download operations have been replaced with coroutine implementations.
         - Optimize blocking function detection: Enhanced the `tracker observer`'s ability to detect blocking functions.
-        - Adapt unit tests: Updated IP address lookup functionality in unit tests for different operating system families.
+        - Adapt unit tests: Updated the IP address lookup functionality in unit tests for different operating system families.
         - Add PDO asynchronous method: Added the asynchronous method `PQsendClosePrepared` for `pdo_pgsql` to close existing prepared statements.
+        - Database connection pool optimization: Added recognition and handling for various error messages indicating that database connections have been disconnected and require reconnection.
     </notes>
     <contents>
         <dir name="/">
