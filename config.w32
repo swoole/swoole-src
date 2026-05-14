@@ -202,22 +202,6 @@ if (PHP_SWOOLE != "no") {
 	// Build the extension if all checks passed
 	if (swoole_ok) {
 		// Source files for Windows build.
-		// POSIX-only files excluded (fork, SysV IPC, process mode):
-		//   ext-src/swoole_process_pool.cc - depends on fork + SysV msgqueue
-		//   ext-src/swoole_process.cc      - depends on fork + execv + SysV msgqueue
-		//   src/os/process_pool.cc         - depends on fork + waitpid + SysV msgqueue
-		//   src/os/wait.cc                 - depends on waitpid + SIGCHLD
-		//   src/os/msg_queue.cc            - depends on SysV msgqueue (msgget/msgrcv/msgsnd)
-		//   thirdparty/php/sockets/multicast.cc - depends on POSIX multicast API
-		//   thirdparty/php/sockets/sendrecvmsg.cc - depends on IPV6_PKTINFO (partial Windows support)
-		// Server module excluded (too complex for WIN32):
-		//   Swoole\Server, Swoole\Http\Server, Swoole\WebSocket\Server, Swoole\Redis\Server
-		//   ext-src/swoole_server.cc, swoole_server_port.cc, swoole_http_server.cc,
-		//   swoole_http2_server.cc, swoole_websocket_server.cc, swoole_redis_server.cc,
-		//   swoole_admin_server.cc
-		//   src/server/*, src/wrapper/http.cc, src/protocol/message_bus.cc
-		// Note: Swoole\Coroutine\Http\Server is still available (independent implementation).
-		// Note: Swoole\Http\Request/Response/Cookie are kept (used by Coroutine\Http\Server).
 		EXTENSION("swoole",
 			"ext-src\\php_swoole.cc " +
 			"ext-src\\php_swoole_cxx.cc " +
