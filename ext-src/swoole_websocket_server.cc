@@ -39,6 +39,7 @@ using HttpContext = swoole::http::Context;
 
 namespace WebSocket = swoole::websocket;
 
+#ifndef _WIN32
 zend_class_entry *swoole_websocket_server_ce;
 static zend_object_handlers swoole_websocket_server_handlers;
 
@@ -79,6 +80,7 @@ static constexpr zend_function_entry swoole_websocket_frame_methods[] =
     PHP_FE_END
 };
 // clang-format on
+#endif
 
 void WebSocket::construct_frame(zval *zframe, zend_long opcode, zval *zpayload, uint8_t flags) {
     if (opcode == OPCODE_CLOSE) {
@@ -221,6 +223,7 @@ FrameObject::FrameObject(zval *zdata, zend_long _opcode, zend_long _flags, zend_
     }
 }
 
+#ifndef _WIN32
 void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, HttpContext *ctx) {
     auto cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onBeforeHandshakeResponse);
     if (cb) {
@@ -253,6 +256,7 @@ void swoole_websocket_onOpen(Server *serv, const HttpContext *ctx) {
         }
     }
 }
+#endif
 
 /**
  * default onRequest callback
@@ -312,6 +316,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
     ctx->set_header(ZEND_STRL("Sec-WebSocket-Accept"), sec_buf, sec_len, false);
     ctx->set_header(ZEND_STRL("Sec-WebSocket-Version"), ZEND_STRL(SW_WEBSOCKET_VERSION), false);
 
+#ifndef _WIN32
     Server *serv = nullptr;
     Connection *conn = nullptr;
 
@@ -332,13 +337,16 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         }
         swoole_websocket_onBeforeHandshakeResponse(serv, conn->server_fd, ctx);
     } else {
+#endif
         auto sock = ctx->get_co_socket();
         sock->open_length_check = true;
         sock->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = WebSocket::get_package_length;
+#ifndef _WIN32
     }
+#endif
 
     ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;
     ctx->upgrade = 1;
@@ -466,6 +474,7 @@ bool WebSocket::message_compress(String *buffer, const char *data, size_t length
 }
 #endif
 
+#ifndef _WIN32
 int swoole_websocket_onMessage(Server *serv, RecvData *req) {
     SessionId fd = req->info.fd;
     uchar flags = 0;
@@ -635,6 +644,8 @@ void php_swoole_websocket_server_minit(int module_number) {
 void php_swoole_server_set_websocket_option(ListenPort *port, zend_array *vht) {
     WebSocket::apply_setting(port->websocket_settings, vht, true);
 }
+#endif
+
 
 void WebSocket::apply_setting(WebSocketSettings &settings, zend_array *vht, bool in_server) {
     zval *ztmp;
@@ -663,6 +674,7 @@ void WebSocket::apply_setting(WebSocketSettings &settings, zend_array *vht, bool
     settings.in_server = in_server;
 }
 
+#ifndef _WIN32
 static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, String *buffer) {
     if (sw_unlikely(fd <= 0)) {
         php_swoole_fatal_error(E_WARNING, "fd[%ld] is invalid", fd);
@@ -899,3 +911,4 @@ static PHP_METHOD(swoole_websocket_server, isEstablished) {
         RETURN_TRUE;
     }
 }
+#endif
