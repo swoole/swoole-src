@@ -54,16 +54,16 @@ SW_EXTERN_C_BEGIN
 #ifndef _WIN32
 static PHP_METHOD(swoole_websocket_server, push);
 static PHP_METHOD(swoole_websocket_server, isEstablished);
-static PHP_METHOD(swoole_websocket_server, pack);
-static PHP_METHOD(swoole_websocket_server, unpack);
 static PHP_METHOD(swoole_websocket_server, disconnect);
 static PHP_METHOD(swoole_websocket_server, ping);
 #endif
+static PHP_METHOD(swoole_websocket_server, pack);
+static PHP_METHOD(swoole_websocket_server, unpack);
 static PHP_METHOD(swoole_websocket_frame, __toString);
 SW_EXTERN_C_END
 
-#ifndef _WIN32
 // clang-format off
+#ifndef _WIN32
 const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, push,          arginfo_class_Swoole_WebSocket_Server_push,          ZEND_ACC_PUBLIC)
@@ -74,11 +74,9 @@ const zend_function_entry swoole_websocket_server_methods[] =
     PHP_ME(swoole_websocket_server, unpack,        arginfo_class_Swoole_WebSocket_Server_unpack,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
-// clang-format on
 #endif
 
-// clang-format off
-static constexpr zend_function_entry swoole_websocket_frame_methods[] =
+static zend_function_entry swoole_websocket_frame_methods[] =
 {
     PHP_ME(swoole_websocket_frame, __toString, arginfo_class_Swoole_WebSocket_Frame___toString, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, pack,      arginfo_class_Swoole_WebSocket_Frame_pack,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)

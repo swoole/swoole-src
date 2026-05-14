@@ -185,6 +185,7 @@ static ssize_t http2_server_build_trailer(const HttpContext *ctx, uchar *buffer)
     return 0;
 }
 
+#ifndef _WIN32
 static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     zval *zserver = ctx->request.zserver;
     zval *zrequest_uri = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_uri"));
@@ -315,6 +316,7 @@ _destroy:
     zval_ptr_dtor(ctx->request.zobject);
     zval_ptr_dtor(ctx->response.zobject);
 }
+#endif
 
 static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const String *body) {
     zval *zheader =
