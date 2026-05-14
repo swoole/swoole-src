@@ -76,7 +76,7 @@ class String {
 
     ~String() {
         if (allocator && str) {
-            allocator->free(str);
+            (allocator->free)(str);
         }
     }
 
