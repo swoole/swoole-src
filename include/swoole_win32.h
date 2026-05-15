@@ -737,6 +737,7 @@ typedef uint16_t in_port_t;
 
 // POSIX string/token function replacements
 #define strtok_r strtok_s
+#define sw_strdup _strdup
 
 // memmem() - find byte sequence in memory (not available on Windows)
 // Declared here; implemented in src/os/win32.cc
@@ -778,7 +779,7 @@ typedef LONG NTSTATUS;
 SW_EXTERN_C_BEGIN
 
 // uname() replacement
-int uname(struct utsname *buf);
+int sw_uname(struct utsname *buf);
 
 // usleep() replacement
 int sw_usleep(unsigned int microseconds);
@@ -905,33 +906,6 @@ static inline const char *sw_win32_strerror(DWORD error) {
     }
     return buf;
 }
-
-// Override POSIX functions not available in Windows CRT
-#define usleep sw_usleep
-#define strndup sw_strndup
-#define pread sw_pread
-#define pwrite sw_pwrite
-// flock: PHP's flock_compat.h also defines flock on Windows.
-// Guard with #ifndef to avoid redefinition.
-#ifndef flock
-#define flock sw_flock
-#endif
-// fsync/ftruncate: PHP's php_network.h also defines these on Windows.
-#ifndef fsync
-#define fsync sw_fsync
-#endif
-#ifndef ftruncate
-#define ftruncate sw_ftruncate
-#endif
-#define kill sw_kill
-#define access sw_access
-#define getrlimit sw_getrlimit
-#define setrlimit sw_setrlimit
-#define wait sw_wait
-#define waitpid sw_waitpid
-#define opendir sw_opendir
-#define readdir sw_readdir
-#define closedir sw_closedir
 
 // ============================================================================
 // pthread compatibility (minimal stubs for header compilation)

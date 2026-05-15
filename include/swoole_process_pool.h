@@ -464,7 +464,7 @@ struct ProcessPool {
 };  // namespace swoole
 
 static sw_inline int swoole_kill(pid_t _pid, int _sig) {
-    return kill(_pid, _sig);
+    return sw_kill(_pid, _sig);
 }
 
 typedef swoole::ProtocolType swProtocolType;

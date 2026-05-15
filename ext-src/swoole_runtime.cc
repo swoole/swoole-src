@@ -1890,7 +1890,7 @@ static PHP_FUNCTION(swoole_usleep) {
     if (Coroutine::get_current()) {
         System::sleep(sec);
     } else {
-        usleep((unsigned int) num);
+        sw_usleep((unsigned int) num);
     }
 }
 

@@ -947,7 +947,7 @@ ssize_t Iocp::sendfile(swSocketFd out_fd, int in_fd, off_t *offset, size_t size,
     off_t current_offset = offset ? *offset : 0;
     while (total < size) {
         size_t read_size = std::min(size - total, sizeof(buffer));
-        ssize_t n = pread(in_fd, buffer, read_size, current_offset + total);
+        ssize_t n = sw_pread(in_fd, buffer, read_size, current_offset + total);
         if (n <= 0) {
             return total > 0 ? static_cast<ssize_t>(total) : -1;
         }

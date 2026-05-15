@@ -83,7 +83,7 @@ int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
         if ((int32_t) *atomic > i) {
             return 0;
         } else {
-            usleep(1000);
+            sw_usleep(1000);
             timeout -= 0.001;
         }
     }

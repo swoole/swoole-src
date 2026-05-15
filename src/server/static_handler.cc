@@ -251,17 +251,17 @@ bool StaticHandler::get_dir_files() {
         return false;
     }
 
-    DIR *dir = opendir(filename);
+    DIR *dir = sw_opendir(filename);
     if (dir == nullptr) {
         return false;
     }
 
     struct dirent *ptr;
-    while ((ptr = readdir(dir)) != nullptr) {
+    while ((ptr = sw_readdir(dir)) != nullptr) {
         dir_files.insert(ptr->d_name);
     }
 
-    closedir(dir);
+    sw_closedir(dir);
 
     return true;
 }

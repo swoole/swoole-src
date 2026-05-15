@@ -262,12 +262,6 @@ typedef swoole::DataHead swDataHead;
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
 #define sw_strdup swoole_strdup
 #define sw_strndup swoole_strndup
-#elif defined(_WIN32)
-#define sw_strdup _strdup
-#define sw_strndup swoole_strndup
-#else
-#define sw_strdup strdup
-#define sw_strndup strndup
 #endif
 
 /** always return less than size, zero termination  */

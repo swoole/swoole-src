@@ -171,7 +171,7 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
              * only recourse is to sleep for 10 milliseconds while awaiting kernel memory recovery.
              */
             if (has_kernel_nobufs()) {
-                usleep(10 * 1000);
+                sw_usleep(10 * 1000);
                 continue;
             }
             break;

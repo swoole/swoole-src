@@ -383,31 +383,31 @@ int swoole_coroutine_fclose(FILE *stream) {
 
 DIR *swoole_coroutine_opendir(const char *name) {
     if (sw_unlikely(is_no_coro())) {
-        return opendir(name);
+        return sw_opendir(name);
     }
 
     DIR *retval = nullptr;
-    async([&]() { retval = opendir(name); });
+    async([&]() { retval = sw_opendir(name); });
     return retval;
 }
 
 struct dirent *swoole_coroutine_readdir(DIR *dirp) {
     if (sw_unlikely(is_no_coro())) {
-        return readdir(dirp);
+        return sw_readdir(dirp);
     }
 
     struct dirent *retval;
-    async([&retval, dirp]() { retval = readdir(dirp); });
+    async([&retval, dirp]() { retval = sw_readdir(dirp); });
     return retval;
 }
 
 int swoole_coroutine_closedir(DIR *dirp) {
     if (sw_unlikely(is_no_coro())) {
-        return closedir(dirp);
+        return sw_closedir(dirp);
     }
 
     int retval = -1;
-    async([&]() { retval = closedir(dirp); });
+    async([&]() { retval = sw_closedir(dirp); });
     return retval;
 }
 
@@ -686,7 +686,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
 
 int swoole_coroutine_fsync(int fd) {
     if (sw_unlikely(is_no_coro())) {
-        return fsync(fd);
+        return sw_fsync(fd);
     }
 
 #ifdef SW_USE_ASYNC
@@ -703,7 +703,7 @@ int swoole_coroutine_fdatasync(int fd) {
 #ifdef HAVE_FDATASYNC
         return fdatasync(fd);
 #else
-        return fsync(fd);
+        return sw_fsync(fd);
 #endif
     }
 
@@ -712,7 +712,7 @@ int swoole_coroutine_fdatasync(int fd) {
 #ifdef HAVE_FDATASYNC
     async([&]() { ret = fdatasync(fd); });
 #else
-    async([&]() { ret = fsync(fd); });
+    async([&]() { ret = sw_fsync(fd); });
 #endif
     return ret;
 #else
@@ -722,12 +722,12 @@ int swoole_coroutine_fdatasync(int fd) {
 
 int swoole_coroutine_ftruncate(int fd, off_t length) {
     if (sw_unlikely(is_no_coro())) {
-        return ftruncate(fd, length);
+        return sw_ftruncate(fd, length);
     }
 
 #if defined(SW_USE_ASYNC) || !defined(HAVE_IOURING_FTRUNCATE)
     int ret = -1;
-    async([&]() { ret = ftruncate(fd, length); });
+    async([&]() { ret = sw_ftruncate(fd, length); });
     return ret;
 #else
     return Iouring::ftruncate(fd, length);
@@ -786,11 +786,11 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
 
 int swoole_coroutine_access(const char *pathname, int mode) {
     if (sw_unlikely(is_no_coro())) {
-        return access(pathname, mode);
+        return sw_access(pathname, mode);
     }
 
     int ret = -1;
-    async([&]() { ret = access(pathname, mode); });
+    async([&]() { ret = sw_access(pathname, mode); });
     return ret;
 }
 SW_EXTERN_C_END

@@ -49,4 +49,22 @@ static inline void sw_set_errno(int e) {
 typedef int swSocketFd;
 #define SW_BAD_SOCKET ((swSocketFd) -1)
 
+#define sw_usleep usleep
+#define sw_strndup strndup
+#define sw_strdup strdup
+#define sw_pread pread
+#define sw_pwrite pwrite
+#define sw_flock flock
+#define sw_fsync fsync
+#define sw_ftruncate ftruncate
+#define sw_kill kill
+#define sw_access access
+#define sw_getrlimit getrlimit
+#define sw_setrlimit setrlimit
+#define sw_wait wait
+#define sw_waitpid waitpid
+#define sw_opendir opendir
+#define sw_readdir readdir
+#define sw_closedir closedir
+
 #endif

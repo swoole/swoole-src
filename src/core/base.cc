@@ -149,7 +149,7 @@ void swoole_init() {
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
     rlimit rlmt;
-    if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
+    if (sw_getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
     } else {
         SwooleG.max_sockets = SW_MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
@@ -284,7 +284,7 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     }
 #endif
 
-    if (access(dir.c_str(), R_OK) < 0 && !swoole_mkdir_recursive(dir)) {
+    if (sw_access(dir.c_str(), R_OK) < 0 && !swoole_mkdir_recursive(dir)) {
         swoole_warning("create task tmp dir('%s') failed", dir.c_str());
         return false;
     }
@@ -479,7 +479,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
         if (tmp[i] == '/') {
 #endif
             tmp[i] = 0;
-            if (access(tmp, R_OK) != 0) {
+            if (sw_access(tmp, R_OK) != 0) {
 #ifdef _WIN32
                 if (mkdir(tmp) == -1) {
 #else
@@ -728,7 +728,7 @@ bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms) {
         if (fn()) {
             return true;
         }
-        usleep(sleep_msec * 1000);
+        sw_usleep(sleep_msec * 1000);
         sleep_msec *= 2;
         // Align the time so that the timeout is consistent with the user settings
         if (timeout_ms > 0 && timeout_ms - sleep_msec < 0) {

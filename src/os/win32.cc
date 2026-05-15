@@ -437,7 +437,7 @@ int sw_ftruncate(int fd, off_t length) {
 // getrlimit()/setrlimit() - stubs (not supported on Windows)
 // ============================================================================
 
-int getrlimit(int /*resource*/, struct rlimit *rlim) {
+int sw_getrlimit(int /*resource*/, struct rlimit *rlim) {
     if (!rlim) {
         errno = EFAULT;
         return -1;
@@ -448,7 +448,7 @@ int getrlimit(int /*resource*/, struct rlimit *rlim) {
     return 0;
 }
 
-int setrlimit(int /*resource*/, const struct rlimit * /*rlim*/) {
+int sw_setrlimit(int /*resource*/, const struct rlimit * /*rlim*/) {
     errno = ENOSYS;
     return -1;
 }
@@ -457,11 +457,11 @@ int setrlimit(int /*resource*/, const struct rlimit * /*rlim*/) {
 // wait()/waitpid() - process waiting (limited on Windows)
 // ============================================================================
 
-pid_t wait(int *status) {
-    return waitpid(-1, status, 0);
+pid_t sw_wait(int *status) {
+    return sw_waitpid(-1, status, 0);
 }
 
-pid_t waitpid(pid_t pid, int *status, int options) {
+pid_t sw_waitpid(pid_t pid, int *status, int options) {
     if (!status) {
         errno = EFAULT;
         return -1;
@@ -651,7 +651,7 @@ int sw_open(const char *path, int oflags, int mode) {
 // Directory traversal (opendir/readdir/closedir)
 // ============================================================================
 
-DIR *opendir(const char *name) {
+DIR *sw_opendir(const char *name) {
     if (!name) {
         errno = EFAULT;
         return nullptr;
@@ -706,7 +706,7 @@ DIR *opendir(const char *name) {
     return dir;
 }
 
-struct dirent *readdir(DIR *dir) {
+struct dirent *sw_readdir(DIR *dir) {
     if (!dir || dir->handle == INVALID_HANDLE_VALUE) {
         return nullptr;
     }
@@ -733,7 +733,7 @@ struct dirent *readdir(DIR *dir) {
     return &dir->entry;
 }
 
-int closedir(DIR *dir) {
+int sw_closedir(DIR *dir) {
     if (!dir) {
         errno = EBADF;
         return -1;

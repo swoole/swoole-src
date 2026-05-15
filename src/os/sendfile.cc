@@ -29,7 +29,7 @@ ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     // requires the socket to be in a particular state
     char buf[SW_BUFFER_SIZE_BIG];
     size_t readn = size > sizeof(buf) ? sizeof(buf) : size;
-    ssize_t n = pread(in_fd, buf, readn, *offset);
+    ssize_t n = sw_pread(in_fd, buf, readn, *offset);
 
     if (n > 0) {
         ssize_t ret = ::send(out_fd, buf, n, 0);
@@ -104,7 +104,7 @@ _do_sendfile:
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     char buf[SW_BUFFER_SIZE_BIG];
     size_t readn = size > sizeof(buf) ? sizeof(buf) : size;
-    ssize_t n = pread(in_fd, buf, readn, *offset);
+    ssize_t n = sw_pread(in_fd, buf, readn, *offset);
 
     if (n > 0) {
         ssize_t ret = write(out_fd, buf, n);

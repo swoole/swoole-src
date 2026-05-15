@@ -22,7 +22,7 @@ int swoole_tmpfile(char *filename) {
         swoole_sys_warning("_mktemp_s('%s') failed", filename);
         return SW_ERR;
     }
-    
+
     // Use sw_open to create the temporary file with exclusive access
     int tmp_fd = sw_open(filename, O_RDWR | O_CREAT | O_EXCL, 0644);
     if (tmp_fd < 0) {
@@ -126,7 +126,7 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
 }
 
 bool file_exists(const std::string &filename) {
-    return access(filename.c_str(), F_OK) == 0;
+    return sw_access(filename.c_str(), F_OK) == 0;
 }
 
 File::File(const std::string &path, int oflags) {
@@ -143,7 +143,7 @@ bool File::open(const std::string &path, int oflags, int mode) {
     if (fd_ != -1) {
         sw_close_file(fd_);
     }
-    
+
 #ifdef _WIN32
     fd_ = sw_open(path.c_str(), oflags, mode);
 #else
@@ -153,7 +153,7 @@ bool File::open(const std::string &path, int oflags, int mode) {
         fd_ = ::open(path.c_str(), oflags);
     }
 #endif
-    
+
     path_ = path;
     flags_ = oflags;
     return ready();
@@ -199,7 +199,7 @@ size_t File::write_all(const void *data, size_t len) const {
         if (flags_ & APPEND) {
             n = write((char *) data + written_bytes, len - written_bytes);
         } else {
-            n = pwrite((char *) data + written_bytes, len - written_bytes, written_bytes);
+            n = sw_pwrite((char *) data + written_bytes, len - written_bytes, written_bytes);
         }
         if (n > 0) {
             written_bytes += n;
@@ -219,7 +219,7 @@ size_t File::write_all(const void *data, size_t len) const {
 size_t File::read_all(void *buf, size_t len) const {
     size_t read_bytes = 0;
     while (read_bytes < len) {
-        ssize_t n = pread((char *) buf + read_bytes, len - read_bytes, read_bytes);
+        ssize_t n = sw_pread((char *) buf + read_bytes, len - read_bytes, read_bytes);
         if (n > 0) {
             read_bytes += n;
         } else {
