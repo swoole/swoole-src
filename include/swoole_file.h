@@ -102,11 +102,11 @@ class File {
     }
 
     ssize_t pwrite(const void *_buf, size_t _n, off_t _offset) const {
-        return ::pwrite(fd_, _buf, _n, _offset);
+        return ::sw_pwrite(fd_, _buf, _n, _offset);
     }
 
     ssize_t pread(void *_buf, const size_t _n, off_t _offset) const {
-        return ::pread(fd_, _buf, _n, _offset);
+        return ::sw_pread(fd_, _buf, _n, _offset);
     }
 
     size_t write_all(const void *data, size_t len) const;
@@ -155,11 +155,11 @@ class File {
     }
 
     bool lock(int operation) const {
-        return ::flock(fd_, operation) == 0;
+        return ::sw_flock(fd_, operation) == 0;
     }
 
     bool unlock() const {
-        return ::flock(fd_, LOCK_UN) == 0;
+        return ::sw_flock(fd_, LOCK_UN) == 0;
     }
 
     ssize_t get_size() const {

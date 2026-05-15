@@ -495,6 +495,17 @@ struct rlimit {
 typedef SOCKET swSocketFd;
 #define SW_BAD_SOCKET INVALID_SOCKET
 
+// ============================================================================
+// Socket errno abstraction
+// On Windows, socket errors are retrieved via WSAGetLastError(), not errno.
+// WSAGetLastError() returns WSA error codes (e.g., WSAEINTR = 10004) which
+// differ from POSIX errno values (e.g., EINTR = 4).
+// sw_socket_errno() translates WSA error codes to POSIX-compatible errno values.
+// ============================================================================
+
+// Translate WSA error code to POSIX errno value
+int sw_socket_errno(void);
+
 // On Windows, use closesocket() for sockets
 static inline int sw_close_socket(swSocketFd fd) {
 	return ::closesocket(fd);
@@ -873,17 +884,6 @@ SW_EXTERN_C_END
 
 // strptime -> sw_strptime (implemented in src/os/win32.cc)
 #define strptime sw_strptime
-
-// ============================================================================
-// Socket errno abstraction
-// On Windows, socket errors are retrieved via WSAGetLastError(), not errno.
-// WSAGetLastError() returns WSA error codes (e.g., WSAEINTR = 10004) which
-// differ from POSIX errno values (e.g., EINTR = 4).
-// sw_socket_errno() translates WSA error codes to POSIX-compatible errno values.
-// ============================================================================
-
-// Translate WSA error code to POSIX errno value
-int sw_socket_errno(void);
 
 static inline const char *sw_win32_strerror(DWORD error) {
     static char buf[256];

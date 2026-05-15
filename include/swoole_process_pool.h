@@ -111,13 +111,13 @@ class ExitStatus {
 
 static inline ExitStatus wait_process() {
     int status = 0;
-    pid_t pid = ::wait(&status);
+    pid_t pid = ::sw_wait(&status);
     return {pid, status};
 }
 
 static inline ExitStatus wait_process(pid_t _pid, int options) {
     int status = 0;
-    pid_t pid = ::waitpid(_pid, &status, options);
+    pid_t pid = ::sw_waitpid(_pid, &status, options);
     return {pid, status};
 }
 

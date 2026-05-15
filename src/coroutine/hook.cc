@@ -691,7 +691,7 @@ int swoole_coroutine_fsync(int fd) {
 
 #ifdef SW_USE_ASYNC
     int ret = -1;
-    async([&]() { ret = fsync(fd); });
+    async([&]() { ret = sw_fsync(fd); });
     return ret;
 #else
     return Iouring::fsync(fd);

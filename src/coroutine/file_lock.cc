@@ -49,7 +49,7 @@ static inline int lock_sh(int fd) {
 }
 
 static inline int lock_release(int fd) {
-    return flock(fd, LOCK_UN);
+    return sw_flock(fd, LOCK_UN);
 }
 
 int swoole_coroutine_flock(int fd, int operation) {

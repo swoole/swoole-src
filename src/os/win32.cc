@@ -47,7 +47,7 @@ void sw_wsacleanup() {
 // uname() - get system name information
 // ============================================================================
 
-int uname(struct utsname *buf) {
+int sw_uname(struct utsname *buf) {
     if (!buf) {
         errno = EFAULT;
         return -1;
@@ -611,7 +611,7 @@ int sw_open(const char *path, int oflags, int mode) {
 	}
 
 	// Handle APPEND flag
-	if (oflags & APPEND) {
+	if (oflags & O_APPEND) {
 		dwDesiredAccess = GENERIC_WRITE;
 		dwCreationDisposition = OPEN_ALWAYS;
 	}
@@ -938,39 +938,6 @@ int sw_socket_errno(void) {
         // to avoid colliding with standard errno values
         return wsa_err;
     }
-}
-
-int sw_waitpid(pid_t pid, int *status, int options) {
-    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
-    if (!hProcess) {
-        errno = ECHILD;
-        return -1;
-    }
-
-    DWORD waitResult = WAIT_OBJECT_0;
-    if (options & WNOHANG) {
-        waitResult = WaitForSingleObject(hProcess, 0);
-    } else {
-        waitResult = WaitForSingleObject(hProcess, INFINITE);
-    }
-
-    int resultPid = -1;
-    if (waitResult == WAIT_OBJECT_0) {
-        DWORD exitCode;
-        if (GetExitCodeProcess(hProcess, &exitCode)) {
-            if (status) *status = exitCode;
-            resultPid = pid;
-        }
-    } else if (waitResult == WAIT_TIMEOUT) {
-        errno = 0;
-        resultPid = 0;
-    } else {
-        errno = ECHILD;
-        resultPid = -1;
-    }
-
-    CloseHandle(hProcess);
-    return resultPid;
 }
 
 #endif  // _WIN32

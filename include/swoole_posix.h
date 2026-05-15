@@ -27,11 +27,11 @@
 
 // POSIX platform: standard macros for cross-platform compatibility
 static inline int sw_close_socket(int fd) {
-	return ::close(fd);
+	return close(fd);
 }
 
 static inline int sw_close_file(int fd) {
-	return ::close(fd);
+	return close(fd);
 }
 
 static inline int sw_errno() {

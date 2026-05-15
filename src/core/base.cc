@@ -82,7 +82,7 @@ static void bug_report_message_init() {
     SwooleG.bug_report_message += "\n" + std::string(SWOOLE_BUG_REPORT) + "\n";
 
     utsname u;
-    if (uname(&u) != -1) {
+    if (sw_uname(&u) != -1) {
         SwooleG.bug_report_message +=
             swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
     }
@@ -124,7 +124,7 @@ void swoole_init() {
     SwooleG.dns_resolvconf_path = SW_DNS_RESOLV_CONF;
 
     // get system uname
-    uname(&SwooleG.uname);
+    sw_uname(&SwooleG.uname);
     // random seed
 #ifdef _WIN32
     srand((unsigned int) time(nullptr));

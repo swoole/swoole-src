@@ -148,7 +148,7 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
             mask(buffer->str + offset, length, SW_WEBSOCKET_MASK_DATA);
         }
     } else {
-        if (length > 0 and !(_flags & FLAG_ENCODE_HEADER_ONLY)) {
+        if (length > 0 && !(_flags & FLAG_ENCODE_HEADER_ONLY)) {
             buffer->append(data, length);
         }
     }

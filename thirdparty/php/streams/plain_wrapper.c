@@ -376,7 +376,7 @@ static php_stream_size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_
                 }
                 /* If there's nothing to read, wait in 10us periods. */
                 if (0 == avail_read) {
-                    usleep(10);
+                    sw_usleep(10);
                 }
             } while (0 == avail_read && retry++ < 3200000);
 

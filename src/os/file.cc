@@ -199,7 +199,7 @@ size_t File::write_all(const void *data, size_t len) const {
         if (flags_ & APPEND) {
             n = write((char *) data + written_bytes, len - written_bytes);
         } else {
-            n = sw_pwrite((char *) data + written_bytes, len - written_bytes, written_bytes);
+            n = pwrite((char *) data + written_bytes, len - written_bytes, written_bytes);
         }
         if (n > 0) {
             written_bytes += n;
@@ -219,7 +219,7 @@ size_t File::write_all(const void *data, size_t len) const {
 size_t File::read_all(void *buf, size_t len) const {
     size_t read_bytes = 0;
     while (read_bytes < len) {
-        ssize_t n = sw_pread((char *) buf + read_bytes, len - read_bytes, read_bytes);
+        ssize_t n = pread((char *) buf + read_bytes, len - read_bytes, read_bytes);
         if (n > 0) {
             read_bytes += n;
         } else {
