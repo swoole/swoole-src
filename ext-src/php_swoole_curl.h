@@ -37,6 +37,11 @@ SW_EXTERN_C_END
 
 #include <unordered_set>
 
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+#include "swoole_iocp.h"
+#define SW_CURL_USE_IOCP 1
+#endif
+
 CURLcode swoole_curl_easy_perform(CURL *cp);
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
 void swoole_curl_easy_reset(CURL *curl);
@@ -45,14 +50,35 @@ namespace swoole {
 namespace curl {
 
 class Multi;
+struct IocpOperation;
 
 struct Socket {
     Multi *multi;
+#ifdef SW_CURL_USE_IOCP
+    IocpOperation *read_operation;
+    IocpOperation *write_operation;
+    uint8_t pending_operations;
+#else
     network::Socket *socket;
+#endif
     int bitmask;
-    int sockfd;
+    curl_socket_t sockfd;
     int action;
     bool deleted;
+
+    Socket()
+        : multi(nullptr),
+#ifdef SW_CURL_USE_IOCP
+          read_operation(nullptr),
+          write_operation(nullptr),
+          pending_operations(0),
+#else
+          socket(nullptr),
+#endif
+          bitmask(0),
+          sockfd(CURL_SOCKET_BAD),
+          action(CURL_POLL_NONE),
+          deleted(false) {}
 };
 
 struct Handle {
@@ -95,6 +121,12 @@ class Multi {
 
     CURLcode read_info() const;
 
+#ifdef SW_CURL_USE_IOCP
+    int post_event(Socket *curl_socket, int bitmask);
+    void cancel_event(IocpOperation *operation);
+    void release_socket(Socket *curl_socket);
+    void try_free_socket(Socket *curl_socket);
+#endif
     int set_event(void *socket_ptr, curl_socket_t sockfd, int action);
     int del_event(void *socket_ptr, curl_socket_t sockfd);
     void selector_finish();

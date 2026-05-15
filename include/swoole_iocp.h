@@ -27,6 +27,53 @@
 namespace swoole {
 
 struct IocpEvent;
+typedef void (*IocpCallback)(IocpEvent *event, DWORD transferred, DWORD error);
+
+enum IocpOpcode {
+    SW_IOCP_CONNECT,
+    SW_IOCP_ACCEPT,
+    SW_IOCP_RECV,
+    SW_IOCP_SEND,
+    SW_IOCP_RECVFROM,
+    SW_IOCP_SENDTO,
+    SW_IOCP_RECVMSG,
+    SW_IOCP_SENDMSG,
+    SW_IOCP_READV,
+    SW_IOCP_WRITEV,
+    SW_IOCP_FILE_READ,
+    SW_IOCP_FILE_WRITE,
+    SW_IOCP_CUSTOM,
+};
+
+struct IocpEvent {
+    OVERLAPPED overlapped;
+    Coroutine *coroutine = nullptr;
+    sw_socket_t fd = SW_BAD_SOCKET;
+    HANDLE handle = INVALID_HANDLE_VALUE;
+    IocpOpcode opcode = SW_IOCP_RECV;
+    ssize_t result = -1;
+    int error = 0;
+    bool completed = false;
+    bool orphaned = false;
+    bool socket_event = true;
+
+    IocpCallback callback = nullptr;
+    void *private_data = nullptr;
+
+    WSABUF wsabuf = {};
+    std::vector<WSABUF> wsabufs;
+    DWORD flags = 0;
+    DWORD bytes = 0;
+
+    SOCKET accept_socket = INVALID_SOCKET;
+    sockaddr *addr = nullptr;
+    socklen_t *addrlen = nullptr;
+    socklen_t *msg_namelen = nullptr;
+    int addrlen_int = 0;
+
+    IocpEvent(IocpOpcode opcode_, sw_socket_t fd_);
+    void set_result(DWORD transferred, DWORD err);
+};
 
 class Iocp {
     HANDLE port = INVALID_HANDLE_VALUE;
@@ -62,6 +109,22 @@ class Iocp {
 
     bool wakeup();
     int wait(int timeout_msec);
+
+    bool associate_socket(sw_socket_t fd) {
+        return associate(fd);
+    }
+
+    void submit(IocpEvent *event) {
+        event->completed = false;
+        ++task_num;
+    }
+
+    void cancel_submission(IocpEvent *event) {
+        event->orphaned = true;
+        if (task_num > 0) {
+            --task_num;
+        }
+    }
 
     static int connect(sw_socket_t fd, const struct sockaddr *addr, socklen_t len, double timeout = -1);
     static int accept(sw_socket_t fd, struct sockaddr *addr, socklen_t *len, int flags = 0, double timeout = -1);

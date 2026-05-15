@@ -32,69 +32,6 @@ using swoole::coroutine::System;
 
 namespace swoole {
 
-enum IocpOpcode {
-    SW_IOCP_CONNECT,
-    SW_IOCP_ACCEPT,
-    SW_IOCP_RECV,
-    SW_IOCP_SEND,
-    SW_IOCP_RECVFROM,
-    SW_IOCP_SENDTO,
-    SW_IOCP_RECVMSG,
-    SW_IOCP_SENDMSG,
-    SW_IOCP_READV,
-    SW_IOCP_WRITEV,
-    SW_IOCP_FILE_READ,
-    SW_IOCP_FILE_WRITE,
-};
-
-struct IocpEvent {
-    OVERLAPPED overlapped;
-    Coroutine *coroutine = nullptr;
-    sw_socket_t fd = SW_BAD_SOCKET;
-    HANDLE handle = INVALID_HANDLE_VALUE;
-    IocpOpcode opcode = SW_IOCP_RECV;
-    ssize_t result = -1;
-    int error = 0;
-    bool completed = false;
-    bool orphaned = false;
-    bool socket_event = true;
-
-    WSABUF wsabuf = {};
-    std::vector<WSABUF> wsabufs;
-    DWORD flags = 0;
-    DWORD bytes = 0;
-
-    SOCKET accept_socket = INVALID_SOCKET;
-    sockaddr *addr = nullptr;
-    socklen_t *addrlen = nullptr;
-    socklen_t *msg_namelen = nullptr;
-    int addrlen_int = 0;
-
-    IocpEvent(IocpOpcode opcode_, sw_socket_t fd_) : fd(fd_), opcode(opcode_) {
-        memset(&overlapped, 0, sizeof(overlapped));
-        handle = reinterpret_cast<HANDLE>(fd_);
-    }
-
-    void set_result(DWORD transferred, DWORD err) {
-        completed = true;
-        if (err == ERROR_SUCCESS) {
-            result = static_cast<ssize_t>(transferred);
-            error = 0;
-        } else if (!socket_event && err == ERROR_HANDLE_EOF) {
-            result = 0;
-            error = 0;
-        } else {
-            result = -1;
-            if (socket_event) {
-                Iocp::set_error(err);
-            } else {
-                Iocp::set_file_error(err);
-            }
-            error = errno;
-        }
-    }
-};
-
 static LPFN_CONNECTEX fn_connect_ex = nullptr;
 static LPFN_ACCEPTEX fn_accept_ex = nullptr;
 static LPFN_GETACCEPTEXSOCKADDRS fn_get_accept_ex_sockaddrs = nullptr;
@@ -125,8 +62,34 @@ static const char *get_opcode_name(IocpOpcode opcode) {
         return "FILE_READ";
     case SW_IOCP_FILE_WRITE:
         return "FILE_WRITE";
+    case SW_IOCP_CUSTOM:
+        return "CUSTOM";
     default:
         return "UNKNOWN";
+    }
+}
+
+IocpEvent::IocpEvent(IocpOpcode opcode_, sw_socket_t fd_) : fd(fd_), opcode(opcode_) {
+    memset(&overlapped, 0, sizeof(overlapped));
+    handle = reinterpret_cast<HANDLE>(fd_);
+}
+
+void IocpEvent::set_result(DWORD transferred, DWORD err) {
+    completed = true;
+    if (err == ERROR_SUCCESS) {
+        result = static_cast<ssize_t>(transferred);
+        error = 0;
+    } else if (!socket_event && err == ERROR_HANDLE_EOF) {
+        result = 0;
+        error = 0;
+    } else {
+        result = -1;
+        if (socket_event) {
+            Iocp::set_error(err);
+        } else {
+            Iocp::set_file_error(err);
+        }
+        error = errno;
     }
 }
 
@@ -387,6 +350,15 @@ bool Iocp::dispatch(DWORD transferred, ULONG_PTR key, OVERLAPPED *overlapped, DW
     }
 
     auto *event = reinterpret_cast<IocpEvent *>(overlapped);
+    if (event->callback) {
+        event->completed = true;
+        if (task_num > 0) {
+            --task_num;
+        }
+        event->callback(event, transferred, error);
+        return true;
+    }
+
     event->set_result(transferred, error);
     swoole_trace_log(SW_TRACE_EVENT,
                      "IOCP completion opcode=%s, fd=%d, bytes=%lu, error=%lu",

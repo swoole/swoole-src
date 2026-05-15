@@ -49,27 +49,81 @@ void destroy_handle(CURL *cp) {
     delete handle;
 }
 
+#ifdef SW_CURL_USE_IOCP
+struct IocpOperation {
+    IocpEvent event;
+    Socket *curl_socket;
+    WSABUF buffer;
+    char dummy;
+    int bitmask;
+
+    IocpOperation(Socket *curl_socket_, int bitmask_)
+        : event(SW_IOCP_CUSTOM, curl_socket_->sockfd), curl_socket(curl_socket_), bitmask(bitmask_) {
+        event.callback = on_complete;
+        event.private_data = this;
+        buffer.buf = &dummy;
+        buffer.len = 0;
+        dummy = 0;
+    }
+
+    static void on_complete(IocpEvent *event, DWORD transferred, DWORD error) {
+        (void) transferred;
+        auto *operation = static_cast<IocpOperation *>(event->private_data);
+        Socket *curl_socket = operation->curl_socket;
+
+        if (curl_socket) {
+            if (operation == curl_socket->read_operation) {
+                curl_socket->read_operation = nullptr;
+            } else if (operation == curl_socket->write_operation) {
+                curl_socket->write_operation = nullptr;
+            }
+            if (curl_socket->pending_operations > 0) {
+                --curl_socket->pending_operations;
+            }
+
+            if (!curl_socket->deleted && !event->orphaned) {
+                int bitmask = error == ERROR_SUCCESS ? operation->bitmask : CURL_CSELECT_ERR;
+                curl_socket->multi->callback(curl_socket, bitmask, curl_socket->sockfd);
+            }
+
+            if (curl_socket->deleted && curl_socket->pending_operations == 0) {
+                delete curl_socket;
+            }
+        }
+
+        delete operation;
+    }
+};
+#else
 static int execute_callback(Event *event, int bitmask) {
     auto curl_socket = static_cast<Socket *>(event->socket->object);
     curl_socket->bitmask |= bitmask;
     curl_socket->multi->callback(curl_socket, bitmask, event->fd);
     return 0;
 }
+#endif
 
 Multi::Multi() {
-	multi_handle_ = curl_multi_init();
-	co = nullptr;
-	curl_multi_setopt(multi_handle_, CURLMOPT_SOCKETFUNCTION, handle_socket);
-	curl_multi_setopt(multi_handle_, CURLMOPT_TIMERFUNCTION, handle_timeout);
-	curl_multi_setopt(multi_handle_, CURLMOPT_SOCKETDATA, this);
-	curl_multi_setopt(multi_handle_, CURLMOPT_TIMERDATA, this);
+    multi_handle_ = curl_multi_init();
+    co = nullptr;
+    curl_multi_setopt(multi_handle_, CURLMOPT_SOCKETFUNCTION, handle_socket);
+    curl_multi_setopt(multi_handle_, CURLMOPT_TIMERFUNCTION, handle_timeout);
+    curl_multi_setopt(multi_handle_, CURLMOPT_SOCKETDATA, this);
+    curl_multi_setopt(multi_handle_, CURLMOPT_TIMERDATA, this);
 }
 
 Multi::~Multi() {
     del_timer();
+#ifdef SW_CURL_USE_IOCP
+    for (auto it : sockets) {
+        release_socket(it.second);
+    }
+    sockets.clear();
+#endif
     curl_multi_cleanup(multi_handle_);
 }
 
+#ifndef SW_CURL_USE_IOCP
 int Multi::cb_readable(Reactor *reactor, Event *event) {
     return execute_callback(event, CURL_CSELECT_IN);
 }
@@ -81,6 +135,7 @@ int Multi::cb_writable(Reactor *reactor, Event *event) {
 int Multi::cb_error(Reactor *reactor, Event *event) {
     return execute_callback(event, CURL_CSELECT_ERR);
 }
+#endif
 
 int Multi::handle_socket(CURL *cp, curl_socket_t sockfd, int action, void *userp, void *socketp) {
     auto *multi = static_cast<Multi *>(userp);
@@ -88,7 +143,7 @@ int Multi::handle_socket(CURL *cp, curl_socket_t sockfd, int action, void *userp
                      SW_ECHO_CYAN "curl=%p, sockfd=%d, action=%d, userp=%p, socketp=%p",
                      "[HANDLE_SOCKET]",
                      cp,
-                     sockfd,
+                     (int) sockfd,
                      action,
                      userp,
                      socketp);
@@ -105,6 +160,154 @@ int Multi::handle_socket(CURL *cp, curl_socket_t sockfd, int action, void *userp
     return 0;
 }
 
+#ifdef SW_CURL_USE_IOCP
+int Multi::post_event(Socket *curl_socket, int bitmask) {
+    if (curl_socket->deleted) {
+        return SW_ERR;
+    }
+
+    IocpOperation **operation_ptr =
+        bitmask == CURL_CSELECT_IN ? &curl_socket->read_operation : &curl_socket->write_operation;
+    if (*operation_ptr) {
+        return SW_OK;
+    }
+
+    if (sw_unlikely(!Iocp::init(sw_reactor()))) {
+        return SW_ERR;
+    }
+
+    auto iocp = SwooleTG.iocp;
+    if (sw_unlikely(!iocp->associate_socket(curl_socket->sockfd))) {
+        return SW_ERR;
+    }
+
+    auto *operation = new IocpOperation(curl_socket, bitmask);
+    *operation_ptr = operation;
+    ++curl_socket->pending_operations;
+    iocp->submit(&operation->event);
+
+    DWORD bytes = 0;
+    int retval;
+    if (bitmask == CURL_CSELECT_IN) {
+        DWORD flags = 0;
+        retval = WSARecv(curl_socket->sockfd,
+                         &operation->buffer,
+                         1,
+                         &bytes,
+                         &flags,
+                         &operation->event.overlapped,
+                         nullptr);
+    } else {
+        retval = WSASend(curl_socket->sockfd,
+                         &operation->buffer,
+                         1,
+                         &bytes,
+                         0,
+                         &operation->event.overlapped,
+                         nullptr);
+    }
+
+    if (retval == SOCKET_ERROR) {
+        int error = WSAGetLastError();
+        if (error != WSA_IO_PENDING) {
+            iocp->cancel_submission(&operation->event);
+            *operation_ptr = nullptr;
+            --curl_socket->pending_operations;
+            delete operation;
+            Iocp::set_error(error);
+            return SW_ERR;
+        }
+    }
+
+    swoole_trace_log(SW_TRACE_CO_CURL,
+                     SW_ECHO_GREEN " curl_socket=%p, fd=%d, bitmask=%d",
+                     "[IOCP_POST]",
+                     curl_socket,
+                     (int) curl_socket->sockfd,
+                     bitmask);
+    return SW_OK;
+}
+
+void Multi::cancel_event(IocpOperation *operation) {
+    if (!operation || operation->event.completed) {
+        return;
+    }
+    operation->event.orphaned = true;
+    CancelIoEx(reinterpret_cast<HANDLE>(operation->event.fd), &operation->event.overlapped);
+}
+
+void Multi::try_free_socket(Socket *curl_socket) {
+    if (!curl_socket || curl_socket->pending_operations != 0) {
+        return;
+    }
+    delete curl_socket;
+}
+
+void Multi::release_socket(Socket *curl_socket) {
+    if (!curl_socket || curl_socket->deleted) {
+        return;
+    }
+    curl_socket->deleted = true;
+    cancel_event(curl_socket->read_operation);
+    cancel_event(curl_socket->write_operation);
+    if (selector.executing && curl_socket->pending_operations == 0) {
+        selector.release_sockets.insert(curl_socket);
+    } else {
+        try_free_socket(curl_socket);
+    }
+}
+
+int Multi::del_event(void *socket_ptr, curl_socket_t sockfd) {
+    sockets.erase(sockfd);
+    curl_multi_assign(multi_handle_, sockfd, nullptr);
+
+    if (sw_unlikely(!socket_ptr)) {
+        return SW_ERR;
+    }
+
+    auto curl_socket = static_cast<Socket *>(socket_ptr);
+    swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " socket_ptr=%p, fd=%d", "[IOCP_DEL]", socket_ptr, (int) sockfd);
+    release_socket(curl_socket);
+    return SW_OK;
+}
+
+int Multi::set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
+    Socket *curl_socket;
+
+    if (socket_ptr) {
+        curl_socket = static_cast<Socket *>(socket_ptr);
+    } else {
+        curl_socket = new Socket();
+        curl_socket->sockfd = sockfd;
+        curl_socket->multi = this;
+
+        if (sw_unlikely(curl_multi_assign(multi_handle_, sockfd, curl_socket) != CURLM_OK)) {
+            delete curl_socket;
+            return SW_ERR;
+        }
+        sockets[sockfd] = curl_socket;
+    }
+
+    curl_socket->sockfd = sockfd;
+    curl_socket->action = action;
+    curl_socket->multi = this;
+
+    if (action == CURL_POLL_IN || action == CURL_POLL_NONE) {
+        cancel_event(curl_socket->write_operation);
+    }
+    if (action == CURL_POLL_OUT || action == CURL_POLL_NONE) {
+        cancel_event(curl_socket->read_operation);
+    }
+
+    swoole_trace_log(SW_TRACE_CO_CURL,
+                     SW_ECHO_GREEN " curl_socket=%p, fd=%d, action=%d",
+                     "[IOCP_SET]",
+                     curl_socket,
+                     (int) sockfd,
+                     action);
+    return SW_OK;
+}
+#else
 int Multi::del_event(void *socket_ptr, curl_socket_t sockfd) {
     sockets.erase(sockfd);
     curl_multi_assign(multi_handle_, sockfd, nullptr);
@@ -190,6 +393,7 @@ int Multi::set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
         return swoole_event_add(curl_socket->socket, events);
     }
 }
+#endif
 
 CURLMcode Multi::add_handle(Handle *handle) {
     auto retval = curl_multi_add_handle(multi_handle_, handle->cp);
@@ -223,6 +427,17 @@ CURLMcode Multi::remove_handle(Handle *handle) const {
 void Multi::selector_prepare() {
     for (auto it : sockets) {
         Socket *curl_socket = it.second;
+#ifdef SW_CURL_USE_IOCP
+        if (curl_socket->deleted) {
+            continue;
+        }
+        if (curl_socket->action != CURL_POLL_OUT) {
+            post_event(curl_socket, CURL_CSELECT_IN);
+        }
+        if (curl_socket->action != CURL_POLL_IN) {
+            post_event(curl_socket, CURL_CSELECT_OUT);
+        }
+#else
         if (curl_socket->socket->removed) {
             swoole_event_add(curl_socket->socket, get_event(curl_socket->action));
             swoole_trace_log(SW_TRACE_CO_CURL,
@@ -231,6 +446,7 @@ void Multi::selector_prepare() {
                              curl_socket->socket->get_fd(),
                              curl_socket->action);
         }
+#endif
     }
 }
 
@@ -336,7 +552,7 @@ void Multi::selector_finish() {
              */
             swoole_trace_log(SW_TRACE_CO_CURL,
                              "curl_multi_socket_action(): sockfd=%d, bitmask=%d, running_handles_=%d",
-                             curl_socket->sockfd,
+                             (int) curl_socket->sockfd,
                              curl_socket->bitmask,
                              running_handles_);
 
@@ -350,7 +566,11 @@ void Multi::selector_finish() {
 
     selector.executing = false;
     for (auto curl_socket : selector.release_sockets) {
+#ifdef SW_CURL_USE_IOCP
+        try_free_socket(curl_socket);
+#else
         delete curl_socket;
+#endif
     }
     selector.release_sockets.clear();
 }
@@ -392,7 +612,9 @@ void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {
     }
     if (!co) {
         if (curl_socket) {
+#ifndef SW_CURL_USE_IOCP
             swoole_event_del(curl_socket->socket);
+#endif
         } else {
             del_timer();
         }
