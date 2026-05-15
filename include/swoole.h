@@ -38,26 +38,11 @@
 #if defined(_WIN32) && !defined(__MINGW32__)
 #include "swoole_win32.h"
 #else
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
+#include "swoole_posix.h"
 #endif
 
 #ifndef _PTHREAD_PSHARED
 #define _PTHREAD_PSHARED
-#endif
-
-// POSIX platform: standard macros for cross-platform compatibility
-#define SW_CLOSE_SOCKET(fd) ::close(fd)
-#define SW_CLOSE_FILE(fd) ::close(fd)
-#define SW_SOCKET_ERRNO errno
-#define SW_SOCKET_SET_ERRNO(e) (errno = (e))
-
-// Cross-platform socket file descriptor type
-// On POSIX: int (same as always)
-// On Windows: SOCKET (UINT_PTR, 8 bytes on x64)
-// This avoids truncation when SOCKET values exceed int range on 64-bit Windows.
-typedef int sw_socket_t;
-#define SW_BAD_SOCKET ((sw_socket_t) -1)
 #endif
 
 /*--- C standard library ---*/
@@ -70,13 +55,6 @@ typedef int sw_socket_t;
 #include <cstring>
 #include <climits>
 #include <inttypes.h>
-
-#if !defined(_WIN32) || defined(__MINGW32__)
-#include <unistd.h>
-#include <pthread.h>
-#include <sys/uio.h>
-#include <sys/utsname.h>
-#endif
 
 #include <string>
 #include <memory>
@@ -680,7 +658,7 @@ typedef swReturnCode ReturnCode;
 typedef swResultCode ResultCode;
 
 struct Event {
-    sw_socket_t fd;
+    swSocketFd fd;
     int16_t reactor_id;
     FdType type;
     network::Socket *socket;

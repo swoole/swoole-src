@@ -62,7 +62,7 @@
 #undef SW_STACKUNDERFLOW
 
 // Windows SDK <winerror.h> defines ERROR_TIMEOUT as 1460L,
-// which conflicts with Swoole's coroutine::Channel::ErrorCode::ERROR_TIMEOUT.
+// which conflicts with coroutine::Channel::ErrorCode::ERROR_TIMEOUT.
 constexpr int SW_WIN32_ERROR_TIMEOUT = 1460L;
 #undef ERROR_TIMEOUT
 
@@ -492,11 +492,28 @@ struct rlimit {
 
 // Cross-platform socket file descriptor type
 // On Windows, SOCKET is UINT_PTR (8 bytes on x64), which cannot be safely stored in int (4 bytes).
-typedef SOCKET sw_socket_t;
+typedef SOCKET swSocketFd;
 #define SW_BAD_SOCKET INVALID_SOCKET
 
 // On Windows, use closesocket() for sockets
-#define SW_CLOSE_SOCKET(fd) closesocket(fd)
+static inline int sw_close_socket(swSocketFd fd) {
+	return ::closesocket(fd);
+}
+
+// On Windows, close() cannot be used for sockets; use closesocket() instead.
+// For file descriptors, use _close() instead of close().
+// Use sw_close_socket() for sockets (already defined above) and sw_close_file for files.
+static inline int sw_close_file(swSocketFd fd) {
+	return ::_close(fd);
+}
+
+static inline int sw_errno() {
+	return sw_socket_errno();
+}
+
+static inline void sw_set_errno(int e) {
+	WSASetLastError(e);
+}
 
 // AF_UNIX support: Windows 10 1803+ supports AF_UNIX
 // For older Windows, this will fail at runtime
@@ -606,45 +623,6 @@ struct msghdr {
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
-#endif
-
-// ============================================================================
-// MSVC does not support C++ alternative tokens (and, or, not, etc.)
-// These are standard C++ keywords but MSVC treats them as identifiers.
-// Define them as macros for compatibility.
-// ============================================================================
-#ifndef and
-#define and &&
-#endif
-#ifndef or
-#define or ||
-#endif
-#ifndef not
-#define not !
-#endif
-#ifndef bitand
-#define bitand &
-#endif
-#ifndef bitor
-#define bitor |
-#endif
-#ifndef xor
-#define xor ^
-#endif
-#ifndef and_eq
-#define and_eq &=
-#endif
-#ifndef or_eq
-#define or_eq |=
-#endif
-#ifndef xor_eq
-#define xor_eq ^=
-#endif
-#ifndef not_eq
-#define not_eq !=
-#endif
-#ifndef compl
-#define compl ~
 #endif
 
 // ============================================================================
@@ -820,7 +798,7 @@ void sw_wsastartup();
 void sw_wsacleanup();
 
 // socketpair() replacement using TCP loopback
-int sw_socketpair(int domain, int type, int protocol, sw_socket_t sv[2]);
+int sw_socketpair(int domain, int type, int protocol, swSocketFd sv[2]);
 
 // setsockopt compatibility for TCP_KEEPIDLE etc.
 int sw_setsockopt_keepalive(int sockfd, int idle, int interval, int count);
@@ -835,12 +813,12 @@ int sw_fsync(int fd);
 int sw_ftruncate(int fd, off_t length);
 
 // getrlimit/setrlimit stubs (always returns -1 on Windows)
-int getrlimit(int resource, struct rlimit *rlim);
-int setrlimit(int resource, const struct rlimit *rlim);
+int sw_getrlimit(int resource, struct rlimit *rlim);
+int sw_setrlimit(int resource, const struct rlimit *rlim);
 
 // wait()/waitpid() replacements (limited functionality on Windows)
-pid_t wait(int *status);
-pid_t waitpid(pid_t pid, int *status, int options);
+pid_t sw_wait(int *status);
+pid_t sw_waitpid(pid_t pid, int *status, int options);
 
 // kill() replacement (uses TerminateProcess on Windows)
 int sw_kill(pid_t pid, int sig);
@@ -848,10 +826,13 @@ int sw_kill(pid_t pid, int sig);
 // access() replacement (Windows uses _access with different mode values)
 int sw_access(const char *path, int mode);
 
+// open() replacement
+int sw_open(const char *path, int oflags, int mode);
+
 // Directory traversal replacements (opendir/readdir/closedir)
-DIR *opendir(const char *name);
-struct dirent *readdir(DIR *dir);
-int closedir(DIR *dir);
+DIR *sw_opendir(const char *name);
+struct dirent *sw_readdir(DIR *dir);
+int sw_closedir(DIR *dir);
 
 // nanosleep() replacement
 int sw_nanosleep(const struct timespec *req, struct timespec *rem);
@@ -903,10 +884,6 @@ SW_EXTERN_C_END
 // Translate WSA error code to POSIX errno value
 int sw_socket_errno(void);
 
-#define SW_SOCKET_ERRNO sw_socket_errno()
-#define SW_SOCKET_SET_ERRNO(e) WSASetLastError(e)
-
-
 static inline const char *sw_win32_strerror(DWORD error) {
     static char buf[256];
     buf[0] = '\0';
@@ -929,11 +906,6 @@ static inline const char *sw_win32_strerror(DWORD error) {
     return buf;
 }
 
-// On Windows, close() cannot be used for sockets; use closesocket() instead.
-// For file descriptors, use _close() instead of close().
-// Use SW_CLOSE_SOCKET() for sockets (already defined above) and SW_CLOSE_FILE for files.
-#define SW_CLOSE_FILE(fd) _close(fd)
-
 // Override POSIX functions not available in Windows CRT
 #define usleep sw_usleep
 #define strndup sw_strndup
@@ -953,6 +925,13 @@ static inline const char *sw_win32_strerror(DWORD error) {
 #endif
 #define kill sw_kill
 #define access sw_access
+#define getrlimit sw_getrlimit
+#define setrlimit sw_setrlimit
+#define wait sw_wait
+#define waitpid sw_waitpid
+#define opendir sw_opendir
+#define readdir sw_readdir
+#define closedir sw_closedir
 
 // ============================================================================
 // pthread compatibility (minimal stubs for header compilation)

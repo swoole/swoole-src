@@ -250,7 +250,7 @@ ssize_t sw_pwrite(int fd, const void *buf, size_t count, off_t offset) {
 // socketpair() - create a pair of connected sockets using TCP loopback
 // ============================================================================
 
-int sw_socketpair(int domain, int type, int protocol, sw_socket_t sv[2]) {
+int sw_socketpair(int domain, int type, int protocol, swSocketFd sv[2]) {
     SOCKET listener = INVALID_SOCKET;
     SOCKET connector = INVALID_SOCKET;
     SOCKET acceptor = INVALID_SOCKET;
@@ -572,6 +572,79 @@ int sw_access(const char *path, int mode) {
     if (mode == F_OK) win_mode = 0;
 
     return _access(path, win_mode);
+}
+
+// ============================================================================
+// open() - open file handle
+// ============================================================================
+int sw_open(const char *path, int oflags, int mode) {
+	int fd_;
+	// Convert Unix flags to Windows flags
+	DWORD dwDesiredAccess = 0;
+	DWORD dwCreationDisposition = 0;
+	DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
+
+	// Set access mode
+	if (oflags & O_WRONLY) {
+		dwDesiredAccess = GENERIC_WRITE;
+	} else if (oflags & O_RDWR) {
+		dwDesiredAccess = GENERIC_READ | GENERIC_WRITE;
+	} else {
+		dwDesiredAccess = GENERIC_READ;
+	}
+
+	// Set creation disposition
+	if (oflags & O_CREAT) {
+		if (oflags & O_EXCL) {
+			dwCreationDisposition = CREATE_NEW;
+		} else if (oflags & O_TRUNC) {
+			dwCreationDisposition = CREATE_ALWAYS;
+		} else {
+			dwCreationDisposition = OPEN_ALWAYS;
+		}
+	} else {
+		if (oflags & O_TRUNC) {
+			dwCreationDisposition = TRUNCATE_EXISTING;
+		} else {
+			dwCreationDisposition = OPEN_EXISTING;
+		}
+	}
+
+	// Handle APPEND flag
+	if (oflags & APPEND) {
+		dwDesiredAccess = GENERIC_WRITE;
+		dwCreationDisposition = OPEN_ALWAYS;
+	}
+
+	HANDLE hFile = CreateFileA(
+		path,
+		dwDesiredAccess,
+		FILE_SHARE_READ | FILE_SHARE_WRITE,
+		NULL,
+		dwCreationDisposition,
+		dwFlagsAndAttributes,
+		NULL
+	);
+
+	if (hFile == INVALID_HANDLE_VALUE) {
+		fd_ = -1;
+	} else {
+		// Convert HANDLE to file descriptor
+		int posix_flags = 0;
+		if (oflags & O_RDWR) {
+			posix_flags = _O_RDWR;
+		} else if (oflags & O_WRONLY) {
+			posix_flags = _O_WRONLY;
+		} else {
+			posix_flags = _O_RDONLY;
+		}
+
+		fd_ = _open_osfhandle((intptr_t)hFile, posix_flags);
+		if (fd_ < 0) {
+			CloseHandle(hFile);
+		}
+	}
+	return fd_;
 }
 
 // ============================================================================

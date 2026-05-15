@@ -208,7 +208,7 @@ struct Socket {
     static double default_write_timeout;
     static uint32_t default_buffer_size;
 
-    sw_socket_t fd;
+    swSocketFd fd;
     FdType fd_type;
     SocketType socket_type;
     int events;
@@ -329,7 +329,7 @@ struct Socket {
         return get_option(level, optname, optval, &optlen);
     }
 
-    sw_socket_t get_fd() const {
+    swSocketFd get_fd() const {
         return fd;
     }
 
@@ -345,8 +345,8 @@ struct Socket {
         return out_buffer ? out_buffer->length() : 0;
     }
 
-    sw_socket_t move_fd() {
-        sw_socket_t sock_fd = fd;
+    swSocketFd move_fd() {
+        swSocketFd sock_fd = fd;
         fd = SW_BAD_SOCKET;
         return sock_fd;
     }
@@ -648,7 +648,7 @@ int getaddrinfo(GetaddrinfoRequest *req);
  * When the socket is released, it will close the file descriptor (fd).
  * If you do not want the fd to be closed, use `socket->move_fd()` to relinquish ownership of the fd.
  */
-network::Socket *make_socket(sw_socket_t fd, FdType fd_type);
+network::Socket *make_socket(swSocketFd fd, FdType fd_type);
 /**
  * The following three functions will return a null pointer if the socket creation fails.
  * It is essential to check the return value;

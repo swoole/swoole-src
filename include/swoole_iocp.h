@@ -48,7 +48,7 @@ enum IocpOpcode {
 struct IocpEvent {
     OVERLAPPED overlapped;
     Coroutine *coroutine = nullptr;
-    sw_socket_t fd = SW_BAD_SOCKET;
+    swSocketFd fd = SW_BAD_SOCKET;
     HANDLE handle = INVALID_HANDLE_VALUE;
     IocpOpcode opcode = SW_IOCP_RECV;
     ssize_t result = -1;
@@ -71,7 +71,7 @@ struct IocpEvent {
     socklen_t *msg_namelen = nullptr;
     int addrlen_int = 0;
 
-    IocpEvent(IocpOpcode opcode_, sw_socket_t fd_);
+    IocpEvent(IocpOpcode opcode_, swSocketFd fd_);
     void set_result(DWORD transferred, DWORD err);
 };
 
@@ -79,12 +79,12 @@ class Iocp {
     HANDLE port = INVALID_HANDLE_VALUE;
     Reactor *reactor = nullptr;
     uint32_t task_num = 0;
-    std::unordered_set<sw_socket_t> associated_sockets;
+    std::unordered_set<swSocketFd> associated_sockets;
     std::unordered_set<int> associated_files;
     std::unordered_map<int, int> file_flags;
 
     explicit Iocp(Reactor *reactor_);
-    bool associate(sw_socket_t fd);
+    bool associate(swSocketFd fd);
     bool associate(HANDLE handle, ULONG_PTR key);
     ssize_t execute(IocpEvent *event, double timeout);
     bool dispatch(DWORD transferred, ULONG_PTR key, OVERLAPPED *overlapped, DWORD error);
@@ -110,7 +110,7 @@ class Iocp {
     bool wakeup();
     int wait(int timeout_msec);
 
-    bool associate_socket(sw_socket_t fd) {
+    bool associate_socket(swSocketFd fd) {
         return associate(fd);
     }
 
@@ -126,23 +126,23 @@ class Iocp {
         }
     }
 
-    static int connect(sw_socket_t fd, const struct sockaddr *addr, socklen_t len, double timeout = -1);
-    static int accept(sw_socket_t fd, struct sockaddr *addr, socklen_t *len, int flags = 0, double timeout = -1);
-    static ssize_t recv(sw_socket_t fd, void *buf, size_t len, int flags, double timeout = -1);
-    static ssize_t send(sw_socket_t fd, const void *buf, size_t len, int flags, double timeout = -1);
-    static ssize_t recvmsg(sw_socket_t fd, struct msghdr *message, int flags, double timeout = -1);
-    static ssize_t sendmsg(sw_socket_t fd, const struct msghdr *message, int flags, double timeout = -1);
+    static int connect(swSocketFd fd, const struct sockaddr *addr, socklen_t len, double timeout = -1);
+    static int accept(swSocketFd fd, struct sockaddr *addr, socklen_t *len, int flags = 0, double timeout = -1);
+    static ssize_t recv(swSocketFd fd, void *buf, size_t len, int flags, double timeout = -1);
+    static ssize_t send(swSocketFd fd, const void *buf, size_t len, int flags, double timeout = -1);
+    static ssize_t recvmsg(swSocketFd fd, struct msghdr *message, int flags, double timeout = -1);
+    static ssize_t sendmsg(swSocketFd fd, const struct msghdr *message, int flags, double timeout = -1);
     static ssize_t sendto(
-        sw_socket_t fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t len, double timeout = -1);
+        swSocketFd fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t len, double timeout = -1);
     static ssize_t recvfrom(
-        sw_socket_t fd, void *buf, size_t n, sockaddr *addr, socklen_t *socklen, double timeout = -1);
-    static ssize_t readv(sw_socket_t fd, const struct iovec *iovec, int count, double timeout = -1);
-    static ssize_t writev(sw_socket_t fd, const struct iovec *iovec, int count, double timeout = -1);
-    static ssize_t read(sw_socket_t fd, void *buf, size_t size, double timeout = -1);
-    static ssize_t write(sw_socket_t fd, const void *buf, size_t size, double timeout = -1);
-    static ssize_t sendfile(sw_socket_t out_fd, int in_fd, off_t *offset, size_t size, double timeout = -1);
-    static int shutdown(sw_socket_t fd, int how);
-    static int close(sw_socket_t fd);
+        swSocketFd fd, void *buf, size_t n, sockaddr *addr, socklen_t *socklen, double timeout = -1);
+    static ssize_t readv(swSocketFd fd, const struct iovec *iovec, int count, double timeout = -1);
+    static ssize_t writev(swSocketFd fd, const struct iovec *iovec, int count, double timeout = -1);
+    static ssize_t read(swSocketFd fd, void *buf, size_t size, double timeout = -1);
+    static ssize_t write(swSocketFd fd, const void *buf, size_t size, double timeout = -1);
+    static ssize_t sendfile(swSocketFd out_fd, int in_fd, off_t *offset, size_t size, double timeout = -1);
+    static int shutdown(swSocketFd fd, int how);
+    static int close(swSocketFd fd);
     static int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 
     static int open_file(const char *pathname, int flags, mode_t mode);

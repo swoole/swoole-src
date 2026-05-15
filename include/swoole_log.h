@@ -19,8 +19,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#if !defined(_WIN32) || defined(__MINGW32__)
-#include <unistd.h>
+
+#if defined(_WIN32) && !defined(__MINGW32__)
+#include "swoole_win32.h"
+#else
+#include "swoole_posix.h"
 #endif
 
 #define SW_LOG_BUFFER_SIZE (SW_ERROR_MSG_SIZE + 256)

@@ -50,9 +50,9 @@ class Socket {
     static TimeoutType timeout_type_list[4];
 
     Socket(int domain, int type, int protocol);
-    Socket(sw_socket_t _fd, int _domain, int _type, int _protocol);
+    Socket(swSocketFd _fd, int _domain, int _type, int _protocol);
     explicit Socket(SocketType type = SW_SOCK_TCP);
-    Socket(sw_socket_t _fd, SocketType _type);
+    Socket(swSocketFd _fd, SocketType _type);
     virtual ~Socket();
     /**
      * If SSL is enabled, an SSL handshake will automatically take place during the connect() method.
@@ -258,7 +258,7 @@ class Socket {
         return sock_protocol;
     }
 
-    sw_socket_t get_fd() const {
+    swSocketFd get_fd() const {
         return sock_fd;
     }
 
@@ -379,7 +379,7 @@ class Socket {
         buffer_init_size = size;
     }
 
-    sw_socket_t move_fd() {
+    swSocketFd move_fd() {
         sock_fd = SW_BAD_SOCKET;
         return socket->move_fd();
     }
@@ -406,7 +406,7 @@ class Socket {
     int sock_domain = 0;
     int sock_type = 0;
     int sock_protocol = 0;
-    sw_socket_t sock_fd = SW_BAD_SOCKET;
+    swSocketFd sock_fd = SW_BAD_SOCKET;
 
     Coroutine *read_co = nullptr;
     Coroutine *write_co = nullptr;
@@ -454,7 +454,7 @@ class Socket {
     void init_sock_type(SocketType _type);
     bool init_sock();
     bool reinit_sock(SocketType _type);
-    bool init_reactor_socket(sw_socket_t fd);
+    bool init_reactor_socket(swSocketFd fd);
 
     void check_return_value(ssize_t retval) {
         if (retval >= 0) {

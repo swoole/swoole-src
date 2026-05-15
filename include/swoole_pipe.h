@@ -37,12 +37,12 @@ class SocketPair {
      * master : socks[1], for write operation
      * worker : socks[0], for read operation
      */
-    sw_socket_t socks[2]{};
+    swSocketFd socks[2]{};
 
     network::Socket *master_socket = nullptr;
     network::Socket *worker_socket = nullptr;
 
-    void init_socket(sw_socket_t master_fd, sw_socket_t worker_fd);
+    void init_socket(swSocketFd master_fd, swSocketFd worker_fd);
 
   public:
     explicit SocketPair(bool _blocking) {

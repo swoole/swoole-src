@@ -69,7 +69,7 @@ static const char *get_opcode_name(IocpOpcode opcode) {
     }
 }
 
-IocpEvent::IocpEvent(IocpOpcode opcode_, sw_socket_t fd_) : fd(fd_), opcode(opcode_) {
+IocpEvent::IocpEvent(IocpOpcode opcode_, swSocketFd fd_) : fd(fd_), opcode(opcode_) {
     memset(&overlapped, 0, sizeof(overlapped));
     handle = reinterpret_cast<HANDLE>(fd_);
 }
@@ -105,7 +105,7 @@ static std::vector<WSABUF> make_wsabufs(const struct iovec *iov, int count) {
     return buffers;
 }
 
-static bool bind_connect_ex_socket(sw_socket_t fd, const sockaddr *addr) {
+static bool bind_connect_ex_socket(swSocketFd fd, const sockaddr *addr) {
     sockaddr_storage local_addr;
     socklen_t local_addr_len;
     memset(&local_addr, 0, sizeof(local_addr));
@@ -267,7 +267,7 @@ bool Iocp::init(Reactor *reactor) {
     return true;
 }
 
-bool Iocp::associate(sw_socket_t fd) {
+bool Iocp::associate(swSocketFd fd) {
     if (associated_sockets.find(fd) != associated_sockets.end()) {
         return true;
     }
@@ -419,7 +419,7 @@ int Iocp::wait(int timeout_msec) {
     return dispatch(transferred, key, overlapped, ok ? ERROR_SUCCESS : GetLastError()) ? 1 : 0;
 }
 
-int Iocp::connect(sw_socket_t fd, const struct sockaddr *addr, socklen_t len, double timeout) {
+int Iocp::connect(swSocketFd fd, const struct sockaddr *addr, socklen_t len, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -449,7 +449,7 @@ int Iocp::connect(sw_socket_t fd, const struct sockaddr *addr, socklen_t len, do
     return retval;
 }
 
-int Iocp::accept(sw_socket_t fd, struct sockaddr *addr, socklen_t *len, int flags, double timeout) {
+int Iocp::accept(swSocketFd fd, struct sockaddr *addr, socklen_t *len, int flags, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -515,7 +515,7 @@ int Iocp::accept(sw_socket_t fd, struct sockaddr *addr, socklen_t *len, int flag
     return static_cast<int>(accept_fd);
 }
 
-ssize_t Iocp::recv(sw_socket_t fd, void *buf, size_t len, int flags, double timeout) {
+ssize_t Iocp::recv(swSocketFd fd, void *buf, size_t len, int flags, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -533,7 +533,7 @@ ssize_t Iocp::recv(sw_socket_t fd, void *buf, size_t len, int flags, double time
     return iocp->execute(event, timeout);
 }
 
-ssize_t Iocp::send(sw_socket_t fd, const void *buf, size_t len, int flags, double timeout) {
+ssize_t Iocp::send(swSocketFd fd, const void *buf, size_t len, int flags, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -550,7 +550,7 @@ ssize_t Iocp::send(sw_socket_t fd, const void *buf, size_t len, int flags, doubl
     return iocp->execute(event, timeout);
 }
 
-ssize_t Iocp::recvmsg(sw_socket_t fd, struct msghdr *message, int flags, double timeout) {
+ssize_t Iocp::recvmsg(swSocketFd fd, struct msghdr *message, int flags, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -590,7 +590,7 @@ ssize_t Iocp::recvmsg(sw_socket_t fd, struct msghdr *message, int flags, double 
     return iocp->execute(event, timeout);
 }
 
-ssize_t Iocp::sendmsg(sw_socket_t fd, const struct msghdr *message, int flags, double timeout) {
+ssize_t Iocp::sendmsg(swSocketFd fd, const struct msghdr *message, int flags, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -627,7 +627,7 @@ ssize_t Iocp::sendmsg(sw_socket_t fd, const struct msghdr *message, int flags, d
 }
 
 ssize_t Iocp::sendto(
-    sw_socket_t fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t len, double timeout) {
+    swSocketFd fd, const void *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t len, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -645,7 +645,7 @@ ssize_t Iocp::sendto(
     return iocp->execute(event, timeout);
 }
 
-ssize_t Iocp::recvfrom(sw_socket_t fd, void *buf, size_t n, sockaddr *addr, socklen_t *socklen, double timeout) {
+ssize_t Iocp::recvfrom(swSocketFd fd, void *buf, size_t n, sockaddr *addr, socklen_t *socklen, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -673,7 +673,7 @@ ssize_t Iocp::recvfrom(sw_socket_t fd, void *buf, size_t n, sockaddr *addr, sock
     return iocp->execute(event, timeout);
 }
 
-ssize_t Iocp::readv(sw_socket_t fd, const struct iovec *iovec, int count, double timeout) {
+ssize_t Iocp::readv(swSocketFd fd, const struct iovec *iovec, int count, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -695,7 +695,7 @@ ssize_t Iocp::readv(sw_socket_t fd, const struct iovec *iovec, int count, double
     return iocp->execute(event, timeout);
 }
 
-ssize_t Iocp::writev(sw_socket_t fd, const struct iovec *iovec, int count, double timeout) {
+ssize_t Iocp::writev(swSocketFd fd, const struct iovec *iovec, int count, double timeout) {
     auto iocp = get_instance();
     if (!iocp->associate(fd)) {
         return -1;
@@ -717,11 +717,11 @@ ssize_t Iocp::writev(sw_socket_t fd, const struct iovec *iovec, int count, doubl
     return iocp->execute(event, timeout);
 }
 
-ssize_t Iocp::read(sw_socket_t fd, void *buf, size_t size, double timeout) {
+ssize_t Iocp::read(swSocketFd fd, void *buf, size_t size, double timeout) {
     return recv(fd, buf, size, 0, timeout);
 }
 
-ssize_t Iocp::write(sw_socket_t fd, const void *buf, size_t size, double timeout) {
+ssize_t Iocp::write(swSocketFd fd, const void *buf, size_t size, double timeout) {
     return send(fd, buf, size, 0, timeout);
 }
 
@@ -856,7 +856,7 @@ ssize_t Iocp::read_file(int fd, void *buf, size_t size, double timeout) {
         return -1;
     }
 
-    auto *event = new IocpEvent(SW_IOCP_FILE_READ, static_cast<sw_socket_t>(fd));
+    auto *event = new IocpEvent(SW_IOCP_FILE_READ, static_cast<swSocketFd>(fd));
     event->socket_event = false;
     event->handle = handle;
     event->overlapped.Offset = static_cast<DWORD>(offset & 0xffffffff);
@@ -915,7 +915,7 @@ ssize_t Iocp::write_file(int fd, const void *buf, size_t size, double timeout) {
         return -1;
     }
 
-    auto *event = new IocpEvent(SW_IOCP_FILE_WRITE, static_cast<sw_socket_t>(fd));
+    auto *event = new IocpEvent(SW_IOCP_FILE_WRITE, static_cast<swSocketFd>(fd));
     event->socket_event = false;
     event->handle = handle;
     event->overlapped.Offset = static_cast<DWORD>(offset & 0xffffffff);
@@ -937,7 +937,7 @@ ssize_t Iocp::write_file(int fd, const void *buf, size_t size, double timeout) {
     return n;
 }
 
-ssize_t Iocp::sendfile(sw_socket_t out_fd, int in_fd, off_t *offset, size_t size, double timeout) {
+ssize_t Iocp::sendfile(swSocketFd out_fd, int in_fd, off_t *offset, size_t size, double timeout) {
     if (size == 0) {
         return 0;
     }
@@ -963,11 +963,11 @@ ssize_t Iocp::sendfile(sw_socket_t out_fd, int in_fd, off_t *offset, size_t size
     return static_cast<ssize_t>(total);
 }
 
-int Iocp::shutdown(sw_socket_t fd, int how) {
+int Iocp::shutdown(swSocketFd fd, int how) {
     return ::shutdown(fd, how);
 }
 
-int Iocp::close(sw_socket_t fd) {
+int Iocp::close(swSocketFd fd) {
     if (SwooleTG.iocp) {
         SwooleTG.iocp->associated_sockets.erase(fd);
     }

@@ -1974,7 +1974,7 @@ static PHP_FUNCTION(swoole_time_sleep_until) {
     RETURN_TRUE;
 }
 
-static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<sw_socket_t, PollSocket> &fds, int event) {
+static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<swSocketFd, PollSocket> &fds, int event) {
     zval *elem;
     zend_ulong index;
     zend_string *key;
@@ -1989,9 +1989,9 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<sw_soc
         if (sock < (php_socket_t)0) {
             continue;
         }
-        auto i = fds.find((sw_socket_t)sock);
+        auto i = fds.find((swSocketFd)sock);
         if (i == fds.end()) {
-            fds.emplace((sw_socket_t)sock, PollSocket(event, new zend::KeyValue(index, key, elem)));
+            fds.emplace((swSocketFd)sock, PollSocket(event, new zend::KeyValue(index, key, elem)));
         } else {
             i->second.events |= event;
         }
@@ -2082,7 +2082,7 @@ static PHP_FUNCTION(swoole_stream_select) {
         timeout = (double) sec + ((double) usec / 1000000);
     }
 
-    std::unordered_map<sw_socket_t, PollSocket> fds;
+    std::unordered_map<swSocketFd, PollSocket> fds;
 
     if (r_array != nullptr) {
         stream_array_to_fd_set(r_array, fds, SW_EVENT_READ);
@@ -2228,7 +2228,7 @@ static void unhook_func(const char *name, size_t l_name) {
     rf->function->internal_function.arg_info = rf->ori_arg_info;
 }
 
-php_stream *php_swoole_create_stream_from_socket(sw_socket_t _fd, int domain, int type, int protocol STREAMS_DC) {
+php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int type, int protocol STREAMS_DC) {
     auto *abstract = new NetStream();
     abstract->socket = std::make_shared<SocketImpl>(_fd, domain, type, protocol);
     if (FG(default_socket_timeout) > 0) {
@@ -2353,7 +2353,7 @@ zif_handler php_swoole_get_original_handler(const char *name, size_t len) {
 
 static PHP_FUNCTION(swoole_stream_socket_pair) {
     zend_long domain, type, protocol;
-    sw_socket_t pair[2];
+    swSocketFd pair[2];
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
     Z_PARAM_LONG(domain)

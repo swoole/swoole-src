@@ -776,9 +776,9 @@ SW_API bool php_swoole_export_socket(zval *zobject, SocketImpl *_socket) {
     return true;
 }
 
-SW_API zend_object *php_swoole_dup_socket(sw_socket_t fd, swSocketType type) {
+SW_API zend_object *php_swoole_dup_socket(swSocketFd fd, swSocketType type) {
     php_swoole_check_reactor();
-    sw_socket_t new_fd = (sw_socket_t)dup((int)fd);
+    swSocketFd new_fd = (swSocketFd)dup((int)fd);
     if (new_fd == SW_BAD_SOCKET) {
         php_swoole_sys_error(E_WARNING, "dup(%d) failed", (int)fd);
         return nullptr;
@@ -838,11 +838,11 @@ static zend_object *socket_coro_create_object(SocketImpl *socket) {
     return object;
 }
 
-SW_API zend_object *php_swoole_create_socket_from_fd(sw_socket_t fd, swSocketType type) {
+SW_API zend_object *php_swoole_create_socket_from_fd(swSocketFd fd, swSocketType type) {
     return socket_coro_create_object(new SocketImpl(fd, type));
 }
 
-SW_API zend_object *php_swoole_create_socket_from_fd(sw_socket_t fd, int _domain, int _type, int _protocol) {
+SW_API zend_object *php_swoole_create_socket_from_fd(swSocketFd fd, int _domain, int _type, int _protocol) {
     return socket_coro_create_object(new SocketImpl(fd, _domain, _type, _protocol));
 }
 
@@ -1192,7 +1192,7 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
 
 PHP_FUNCTION(swoole_coroutine_socketpair) {
     zend_long domain, type, protocol;
-    sw_socket_t pair[2];
+    swSocketFd pair[2];
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
     Z_PARAM_LONG(domain)
@@ -2190,7 +2190,7 @@ static PHP_METHOD(swoole_socket_coro, import) {
     php_stream_from_zval(stream, zstream);
 
     swSocketType type = SW_SOCK_TCP;
-    sw_socket_t socket_fd;
+    swSocketFd socket_fd;
 
     if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, (void **) &socket_fd, 1)) {
         /* error supposedly already shown */

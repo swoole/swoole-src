@@ -50,8 +50,8 @@ class IocpSocket : public Socket {
   public:
     IocpSocket(SocketType sock_type) : Socket(sock_type) {}
     IocpSocket(int domain, int type, int protocol) : Socket(domain, type, protocol) {}
-    IocpSocket(sw_socket_t _fd, int _domain, int _type, int _protocol) : Socket(_fd, _domain, _type, _protocol) {}
-    IocpSocket(sw_socket_t _fd, SocketType _type) : Socket(_fd, _type) {}
+    IocpSocket(swSocketFd _fd, int _domain, int _type, int _protocol) : Socket(_fd, _domain, _type, _protocol) {}
+    IocpSocket(swSocketFd _fd, SocketType _type) : Socket(_fd, _type) {}
     IocpSocket(network::Socket *sock, const IocpSocket *server_sock) : Socket(sock, server_sock) {}
 
     bool connect(const std::string &_host, int _port = 0, int flags = 0) {

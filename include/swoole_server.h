@@ -63,7 +63,7 @@ typedef std::function<void(void)> WorkerFn;
 
 struct Session {
     SessionId id;
-    sw_socket_t fd;
+    swSocketFd fd;
     uint32_t reactor_id : 8;
     uint32_t reserve_ : 24;
 };
@@ -76,7 +76,7 @@ struct Connection {
      */
     uint8_t active;
     SocketType socket_type;
-    sw_socket_t fd;
+    swSocketFd fd;
     int worker_id;
     SessionId session_id;
     //--------------------------------------------------------------

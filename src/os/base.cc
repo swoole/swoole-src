@@ -268,13 +268,11 @@ int swoole_get_cpu_affinity(cpu_set_t *set) {
 #include <sys/syscall.h> /* syscall(SYS_gettid) */
 #elif defined(__FreeBSD__)
 #include <pthread_np.h> /* pthread_getthreadid_np() */
-#elif defined(__OpenBSD__)
-#include <unistd.h> /* getthrid() */
 #elif defined(_AIX)
 #include <sys/thread.h> /* thread_self() */
 #elif defined(__NetBSD__)
 #include <lwp.h> /* _lwp_self() */
-#elif defined(__CYGWIN__) || defined(WIN32)
+#elif defined(__CYGWIN__)
 #include <windows.h> /* GetCurrentThreadId() */
 #endif
 

@@ -76,7 +76,7 @@ IocpSocket *IocpSocket::accept(double timeout) {
 NetSocket *IocpSocket::iocp_accept(double timeout) {
     auto *client_socket = new NetSocket();
     client_socket->info.len = sizeof(client_socket->info.addr);
-    sw_socket_t fd = static_cast<sw_socket_t>(Iocp::accept(socket->get_fd(),
+    swSocketFd fd = static_cast<swSocketFd>(Iocp::accept(socket->get_fd(),
                                                            reinterpret_cast<sockaddr *>(&client_socket->info.addr),
                                                            &client_socket->info.len,
                                                            0,

@@ -135,10 +135,10 @@ int Socket::what_event_want(int default_event) const {
 
 #define CHECK_RETURN_VALUE(rv, be_zero_return)                                                                         \
     if (rv < 0) {                                                                                                      \
-        if (SW_SOCKET_ERRNO == EINTR || catch_error(SW_SOCKET_ERRNO) == SW_WAIT) {                                     \
+        if (sw_errno() == EINTR || catch_error(sw_errno()) == SW_WAIT) {                                     \
             return SW_CONTINUE;                                                                                        \
         }                                                                                                              \
-        swoole_set_last_error(SW_SOCKET_ERRNO);                                                                        \
+        swoole_set_last_error(sw_errno());                                                                        \
         return SW_ERROR;                                                                                               \
     } else if (rv == 0) {                                                                                              \
         return be_zero_return;                                                                                         \
@@ -180,7 +180,7 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
         }
 
         auto rv = wait_event(timeout_msec, what_event_want(event));
-        if (rv == SW_ERR && ((SW_SOCKET_ERRNO == EINTR && dont_restart) || SW_SOCKET_ERRNO != EINTR)) {
+        if (rv == SW_ERR && ((sw_errno() == EINTR && dont_restart) || sw_errno() != EINTR)) {
             return false;
         }
 
@@ -189,7 +189,7 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
             swoole_trace_log(SW_TRACE_CLIENT, "timeout_ms=%d", timeout_msec);
             if (timeout_msec <= 0) {
                 swoole_set_last_error(ETIMEDOUT);
-                SW_SOCKET_SET_ERRNO(ETIMEDOUT);
+                sw_set_errno(ETIMEDOUT);
                 return false;
             }
         }
@@ -249,11 +249,11 @@ swReturnCode Socket::connect_async(const Address &sa) {
     while (true) {
         auto ret = connect(sa);
         if (ret < 0) {
-            if (SW_SOCKET_ERRNO == EINTR) {
+            if (sw_errno() == EINTR) {
                 continue;
             }
-            swoole_set_last_error(SW_SOCKET_ERRNO);
-            return SW_SOCKET_ERRNO == EINPROGRESS ? SW_WAIT : SW_ERROR;
+            swoole_set_last_error(sw_errno());
+            return sw_errno() == EINPROGRESS ? SW_WAIT : SW_ERROR;
         }
         break;
     }
@@ -274,7 +274,7 @@ int Socket::connect_sync(const Address &sa) {
     socklen_t len = sizeof(len);
     int ret = get_option(SOL_SOCKET, SO_ERROR, &err, &len);
     if (ret < 0) {
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        swoole_set_last_error(sw_errno());
         return SW_ERR;
     }
     if (err != 0) {
@@ -310,16 +310,16 @@ int Socket::wait_event(int timeout_ms, int _events) const {
         int ret = poll(&event, 1, timeout_ms);
         if (ret == 0) {
             swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
-            SW_SOCKET_SET_ERRNO(EAGAIN);
+            sw_set_errno(EAGAIN);
             return SW_ERR;
         }
         if (ret < 0) {
-            if (SW_SOCKET_ERRNO != EINTR) {
-                swoole_set_last_error(SW_SOCKET_ERRNO);
+            if (sw_errno() != EINTR) {
+                swoole_set_last_error(sw_errno());
                 return SW_ERR;
             }
             if (dont_restart) {
-                swoole_set_last_error(SW_SOCKET_ERRNO);
+                swoole_set_last_error(sw_errno());
                 return SW_ERR;
             }
             swoole_signal_dispatch();
@@ -382,9 +382,9 @@ Socket *Socket::accept() {
     if (nonblock) {
         flags |= SOCK_NONBLOCK;
     }
-    socket->fd = (sw_socket_t)::accept4(fd, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len, flags);
+    socket->fd = (swSocketFd)::accept4(fd, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len, flags);
 #else
-    socket->fd = (sw_socket_t)::accept(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len);
+    socket->fd = (swSocketFd)::accept(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len);
     if (socket->fd != SW_BAD_SOCKET) {
         set_fd_option(nonblock, 1);
     }
@@ -419,7 +419,7 @@ ssize_t Socket::recvfrom(char *buf, size_t len, int flags, sockaddr *addr, sockl
     ssize_t n = 0;
     SW_LOOP_N(SW_SOCKET_RETRY_COUNT) {
         n = ::recvfrom(fd, buf, len, flags, addr, addr_len);
-        if (n < 0 && SW_SOCKET_ERRNO == EINTR) {
+        if (n < 0 && sw_errno() == EINTR) {
             continue;
         }
         break;
@@ -558,9 +558,9 @@ bool Socket::set_send_buffer_size(uint32_t _buffer_size) const {
 
 bool Socket::check_liveness() {
     char buf;
-    SW_SOCKET_SET_ERRNO(0);
+    sw_set_errno(0);
     ssize_t retval = peek(&buf, sizeof(buf), MSG_DONTWAIT);
-    return !(retval == 0 || (retval < 0 && catch_read_error(SW_SOCKET_ERRNO) == SW_CLOSE));
+    return !(retval == 0 || (retval < 0 && catch_read_error(sw_errno()) == SW_CLOSE));
 }
 
 bool Socket::set_tcp_nodelay(int nodelay) {
@@ -610,7 +610,7 @@ bool Socket::uncork() {
 Socket *Socket::dup() const {
     auto *_socket = new Socket();
     *_socket = *this;
-    _socket->fd = (sw_socket_t)::dup(fd);
+    _socket->fd = (swSocketFd)::dup(fd);
     return _socket;
 }
 
@@ -743,7 +743,7 @@ double Socket::get_timeout(TimeoutType type) const {
 }
 
 bool Socket::has_timedout() const {
-    return SW_SOCKET_ERRNO == EAGAIN || SW_SOCKET_ERRNO == ETIMEDOUT || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT;
+    return sw_errno() == EAGAIN || sw_errno() == ETIMEDOUT || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT;
 }
 
 bool Socket::has_kernel_nobufs() {
@@ -787,7 +787,7 @@ int Socket::handle_sendfile() {
     swoole_trace("rv=%ld|begin=%ld|sendn=%lu|end=%lu", rv, (long) task->begin, sendn, task->end);
 
     if (rv <= 0) {
-        switch (catch_write_error(SW_SOCKET_ERRNO)) {
+        switch (catch_write_error(sw_errno())) {
         case SW_ERROR:
             swoole_sys_warning("sendfile(%s, %ld, %zu) failed", task->get_filename(), (long) task->begin, sendn);
             buffer->pop();
@@ -834,7 +834,7 @@ int Socket::handle_send() {
 
     ssize_t ret = send(chunk->value.str + chunk->offset, sendn, 0);
     if (ret < 0) {
-        switch (catch_write_error(SW_SOCKET_ERRNO)) {
+        switch (catch_write_error(sw_errno())) {
         case SW_ERROR:
             swoole_sys_warning("send to fd[%d] failed", fd);
             break;
@@ -917,7 +917,7 @@ ssize_t Socket::recv(void *_buf, size_t _n, int _flags) {
         } else {
             total_bytes = ::recv(fd, static_cast<char *>(_buf), _n, _flags);
         }
-    } while (total_bytes < 0 && (SW_SOCKET_ERRNO == EINTR && !dont_restart));
+    } while (total_bytes < 0 && (sw_errno() == EINTR && !dont_restart));
 
     if (total_bytes > 0) {
         total_recv_bytes += total_bytes;
@@ -927,11 +927,11 @@ ssize_t Socket::recv(void *_buf, size_t _n, int _flags) {
     }
 
     // The POLLHUP event is triggered, but Socket::recv returns EAGAIN
-    if (total_bytes < 0 && catch_read_error(SW_SOCKET_ERRNO) == SW_WAIT && event_hup) {
+    if (total_bytes < 0 && catch_read_error(sw_errno()) == SW_WAIT && event_hup) {
         total_bytes = 0;
     }
 
-    swoole_trace_log(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, _n, SW_SOCKET_ERRNO);
+    swoole_trace_log(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, _n, sw_errno());
 
     return total_bytes;
 }
@@ -945,7 +945,7 @@ ssize_t Socket::send(const void *_buf, size_t _n, int _flags) {
         } else {
             retval = ::send(fd, static_cast<const char *>(_buf), _n, _flags);
         }
-    } while (retval < 0 && (SW_SOCKET_ERRNO == EINTR && !dont_restart));
+    } while (retval < 0 && (sw_errno() == EINTR && !dont_restart));
 
     if (retval > 0) {
         total_send_bytes += retval;
@@ -954,7 +954,7 @@ ssize_t Socket::send(const void *_buf, size_t _n, int _flags) {
         }
     }
 
-    swoole_trace_log(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, _n, SW_SOCKET_ERRNO);
+    swoole_trace_log(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, _n, sw_errno());
 
     return retval;
 }
@@ -1025,7 +1025,7 @@ ssize_t Socket::readv(IOVector *io_vector) {
 #endif
             io_vector->update_iterator(retval);
         }
-    } while (retval < 0 && SW_SOCKET_ERRNO == EINTR);
+    } while (retval < 0 && sw_errno() == EINTR);
 
     return retval;
 }
@@ -1056,7 +1056,7 @@ ssize_t Socket::writev(IOVector *io_vector) {
 #endif
             io_vector->update_iterator(retval);
         }
-    } while (retval < 0 && SW_SOCKET_ERRNO == EINTR);
+    } while (retval < 0 && sw_errno() == EINTR);
 
     return retval;
 }
@@ -1070,9 +1070,9 @@ ssize_t Socket::peek(void *_buf, size_t _n, int _flags) const {
         } else {
             retval = ::recv(fd, static_cast<char *>(_buf), _n, _flags);
         }
-    } while (retval < 0 && SW_SOCKET_ERRNO == EINTR);
+    } while (retval < 0 && sw_errno() == EINTR);
 
-    swoole_trace_log(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, _n, SW_SOCKET_ERRNO);
+    swoole_trace_log(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, _n, sw_errno());
 
     return retval;
 }
@@ -1491,14 +1491,14 @@ ReturnCode Socket::ssl_accept() {
         return SW_ERROR;
     } else if (err == SSL_ERROR_SYSCALL) {
 #ifdef SW_SUPPORT_DTLS
-        if (dtls && SW_SOCKET_ERRNO == 0) {
+        if (dtls && sw_errno() == 0) {
             ssl_want_read = 1;
             return SW_WAIT;
         }
 #endif
         return SW_ERROR;
     }
-    swoole_warning("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(SW_SOCKET_ERRNO), err, SW_SOCKET_ERRNO);
+    swoole_warning("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(sw_errno()), err, sw_errno());
     return SW_ERROR;
 }
 
@@ -1535,7 +1535,7 @@ int Socket::ssl_connect() {
         return SW_ERR;
     } else if (err == SSL_ERROR_SYSCALL) {
         if (n) {
-            swoole_set_last_error(SW_SOCKET_ERRNO);
+            swoole_set_last_error(sw_errno());
             return SW_ERR;
         }
     } else {
@@ -1564,7 +1564,7 @@ ssize_t Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
     if (n > 0) {
         ssize_t ret = ssl_send(buf, n);
         if (ret < 0) {
-            if (catch_write_error(SW_SOCKET_ERRNO) == SW_ERROR) {
+            if (catch_write_error(sw_errno()) == SW_ERROR) {
                 swoole_sys_warning("write() failed");
             }
         } else {
@@ -1718,20 +1718,20 @@ ssize_t Socket::ssl_recv(void *_buf, size_t _n) {
         switch (_errno) {
         case SSL_ERROR_WANT_READ:
             ssl_want_read = 1;
-            SW_SOCKET_SET_ERRNO(EAGAIN);
+            sw_set_errno(EAGAIN);
             return SW_ERR;
 
         case SSL_ERROR_WANT_WRITE:
             ssl_want_write = 1;
-            SW_SOCKET_SET_ERRNO(EAGAIN);
+            sw_set_errno(EAGAIN);
             return SW_ERR;
 
         case SSL_ERROR_SYSCALL:
-            return SW_SOCKET_ERRNO == 0 ? 0 : SW_ERR;
+            return sw_errno() == 0 ? 0 : SW_ERR;
 
         case SSL_ERROR_SSL:
             ssl_catch_error();
-            SW_SOCKET_SET_ERRNO(SW_ERROR_SSL_BAD_CLIENT);
+            sw_set_errno(SW_ERROR_SSL_BAD_CLIENT);
             return SW_ERR;
 
         default:
@@ -1756,21 +1756,21 @@ ssize_t Socket::ssl_send(const void *_buf, size_t _n) {
         switch (_errno) {
         case SSL_ERROR_WANT_READ:
             ssl_want_read = 1;
-            SW_SOCKET_SET_ERRNO(EAGAIN);
+            sw_set_errno(EAGAIN);
             return SW_ERR;
 
         case SSL_ERROR_WANT_WRITE:
             ssl_want_write = 1;
-            SW_SOCKET_SET_ERRNO(EAGAIN);
+            sw_set_errno(EAGAIN);
             return SW_ERR;
 
         case SSL_ERROR_SYSCALL:
-            SW_SOCKET_SET_ERRNO(SW_ERROR_SSL_RESET);
+            sw_set_errno(SW_ERROR_SSL_RESET);
             return SW_ERR;
 
         case SSL_ERROR_SSL:
             ssl_catch_error();
-            SW_SOCKET_SET_ERRNO(SW_ERROR_SSL_BAD_CLIENT);
+            sw_set_errno(SW_ERROR_SSL_BAD_CLIENT);
             return SW_ERR;
 
         default:
@@ -1844,8 +1844,8 @@ Socket *make_socket(SocketType type, FdType fd_type, int flags) {
 
     if (Socket::get_domain_and_type(type, &sock_domain, &sock_type) < 0) {
         swoole_warning("unknown socket type [%d]", type);
-        SW_SOCKET_SET_ERRNO(ESOCKTNOSUPPORT);
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        sw_set_errno(ESOCKTNOSUPPORT);
+        swoole_set_last_error(sw_errno());
         return nullptr;
     }
 
@@ -1853,9 +1853,9 @@ Socket *make_socket(SocketType type, FdType fd_type, int flags) {
 }
 
 Socket *make_socket(SocketType type, FdType fd_type, int sock_domain, int sock_type, int socket_protocol, int flags) {
-    sw_socket_t sockfd = (sw_socket_t)swoole::socket(sock_domain, sock_type, socket_protocol, flags);
+    swSocketFd sockfd = (swSocketFd)swoole::socket(sock_domain, sock_type, socket_protocol, flags);
     if (sockfd == SW_BAD_SOCKET) {
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        swoole_set_last_error(sw_errno());
         return nullptr;
     }
 
@@ -1871,7 +1871,7 @@ int socket(int sock_domain, int sock_type, int socket_protocol, int flags) {
     bool cloexec = flags & SW_SOCK_CLOEXEC;
 
 #if defined(_WIN32) && defined(SW_USE_IOCP)
-    sw_socket_t sockfd = WSASocketW(sock_domain, sock_type, socket_protocol, nullptr, 0, WSA_FLAG_OVERLAPPED);
+    swSocketFd sockfd = WSASocketW(sock_domain, sock_type, socket_protocol, nullptr, 0, WSA_FLAG_OVERLAPPED);
     if (sockfd == SW_BAD_SOCKET) {
         return -1;
     }
@@ -1889,12 +1889,12 @@ int socket(int sock_domain, int sock_type, int socket_protocol, int flags) {
     if (cloexec) {
         sock_flags |= SOCK_CLOEXEC;
     }
-    sw_socket_t sockfd = ::socket(sock_domain, sock_type | sock_flags, socket_protocol);
+    swSocketFd sockfd = ::socket(sock_domain, sock_type | sock_flags, socket_protocol);
     if (sockfd == SW_BAD_SOCKET) {
         return -1;
     }
 #else
-    sw_socket_t sockfd = ::socket(sock_domain, sock_type, socket_protocol);
+    swSocketFd sockfd = ::socket(sock_domain, sock_type, socket_protocol);
     if (sockfd == SW_BAD_SOCKET) {
         return -1;
     }
@@ -1931,7 +1931,7 @@ Socket *make_server_socket(SocketType type, const char *address, int port, int b
     return sock;
 }
 
-Socket *make_socket(sw_socket_t fd, FdType fd_type) {
+Socket *make_socket(swSocketFd fd, FdType fd_type) {
     auto *socket = new Socket();
     socket->fd = fd;
     socket->fd_type = fd_type;

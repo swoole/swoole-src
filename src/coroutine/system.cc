@@ -305,7 +305,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
 #endif
 
 struct CoroPollTask {
-    std::unordered_map<sw_socket_t, PollSocket> *fds = nullptr;
+    std::unordered_map<swSocketFd, PollSocket> *fds = nullptr;
     Coroutine *co = nullptr;
     TimerNode *timer = nullptr;
     bool success = false;
@@ -343,7 +343,7 @@ static void socket_poll_completed(void *data) {
     task->co->resume();
 }
 
-static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, sw_socket_t fd, EventType event) {
+static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, swSocketFd fd, EventType event) {
     auto i = task->fds->find(fd);
     if (event == SW_EVENT_ERROR && !(i->second.events & SW_EVENT_ERROR)) {
         if (i->second.events & SW_EVENT_READ) {
@@ -381,7 +381,7 @@ static int socket_poll_error_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-bool System::socket_poll(std::unordered_map<sw_socket_t, PollSocket> &fds, double timeout) {
+bool System::socket_poll(std::unordered_map<swSocketFd, PollSocket> &fds, double timeout) {
     if (timeout == 0) {
         auto *event_list = static_cast<struct pollfd *>(sw_calloc(fds.size(), sizeof(struct pollfd)));
         if (!event_list) {
@@ -541,7 +541,11 @@ pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
     }
 
 #if SW_USE_IOURING
-    return iouring_waitpid(_pid, _stat_loc, _options);
+    auto rs = Iouring::waitpid(_pid, _stat_loc, _options, -1);
+    if (rs < 0) {
+        swoole_set_last_error(errno);
+    }
+    return rs;
 #endif
 
     pid_t retval = -1;

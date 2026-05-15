@@ -20,7 +20,7 @@
 namespace swoole {
 using network::Socket;
 
-void SocketPair::init_socket(sw_socket_t master_fd, sw_socket_t worker_fd) {
+void SocketPair::init_socket(swSocketFd master_fd, swSocketFd worker_fd) {
     master_socket = make_socket(master_fd, SW_FD_PIPE);
     worker_socket = make_socket(worker_fd, SW_FD_PIPE);
     set_blocking(blocking);

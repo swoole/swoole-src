@@ -621,7 +621,7 @@ void php_swoole_thread_stream_create(zval *return_value, zend_long sockfd) {
 }
 
 void php_swoole_thread_co_socket_create(zval *return_value, zend_long sockfd, swSocketType type) {
-    sw_socket_t newfd = (sw_socket_t)dup((int)sockfd);
+    swSocketFd newfd = (swSocketFd)dup((int)sockfd);
     if (newfd == SW_BAD_SOCKET) {
     _error:
         object_init_ex(return_value, swoole_thread_error_ce);

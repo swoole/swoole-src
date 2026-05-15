@@ -155,8 +155,8 @@ bool Logger::redirect_stdout_and_stderr(bool enable) {
         if (dup2(stderr_fd, STDERR_FILENO) < 0) {
             swoole_sys_warning("dup2(STDERR_FILENO) failed");
         }
-        SW_CLOSE_FILE(stdout_fd);
-        SW_CLOSE_FILE(stderr_fd);
+        sw_close_file(stdout_fd);
+        sw_close_file(stderr_fd);
         stdout_fd = -1;
         stderr_fd = -1;
         redirected = false;

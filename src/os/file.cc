@@ -22,7 +22,13 @@ int swoole_tmpfile(char *filename) {
         swoole_sys_warning("_mktemp_s('%s') failed", filename);
         return SW_ERR;
     }
-    int tmp_fd = _open(filename, _O_RDWR | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
+    
+    // Use sw_open to create the temporary file with exclusive access
+    int tmp_fd = sw_open(filename, O_RDWR | O_CREAT | O_EXCL, 0644);
+    if (tmp_fd < 0) {
+        swoole_sys_warning("sw_open('%s') failed", filename);
+        return SW_ERR;
+    }
 #elif defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
     int tmp_fd = mkostemp(filename, O_WRONLY | O_CREAT);
 #else
@@ -135,21 +141,19 @@ File::File(const std::string &path, int oflags, int mode) {
 
 bool File::open(const std::string &path, int oflags, int mode) {
     if (fd_ != -1) {
-        SW_CLOSE_FILE(fd_);
+        sw_close_file(fd_);
     }
+    
+#ifdef _WIN32
+    fd_ = sw_open(path.c_str(), oflags, mode);
+#else
     if (oflags & CREATE) {
-#ifdef _WIN32
-        fd_ = ::_open(path.c_str(), oflags, mode == 0 ? 0644 : mode);
-#else
         fd_ = ::open(path.c_str(), oflags, mode == 0 ? 0644 : mode);
-#endif
     } else {
-#ifdef _WIN32
-        fd_ = ::_open(path.c_str(), oflags);
-#else
         fd_ = ::open(path.c_str(), oflags);
-#endif
     }
+#endif
+    
     path_ = path;
     flags_ = oflags;
     return ready();
@@ -161,7 +165,7 @@ bool File::close() {
     }
     int tmp_fd = fd_;
     fd_ = -1;
-    return SW_CLOSE_FILE(tmp_fd) == 0;
+    return sw_close_file(tmp_fd) == 0;
 }
 
 bool File::stat(FileStatus *_stat) const {
@@ -174,7 +178,7 @@ bool File::stat(FileStatus *_stat) const {
 
 File::~File() {
     if (fd_ >= 0) {
-        SW_CLOSE_FILE(fd_);
+        sw_close_file(fd_);
     }
 }
 

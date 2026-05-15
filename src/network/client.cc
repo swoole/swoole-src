@@ -108,7 +108,7 @@ int Client::bind(const std::string &addr, int port) const {
         swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", socket->get_fd());
     }
     if (socket->bind(addr, port) < 0) {
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        swoole_set_last_error(sw_errno());
         return SW_ERR;
     }
     return SW_OK;
@@ -169,7 +169,7 @@ int Client::sendto(const std::string &host, int port, const char *data, size_t l
     }
 
     if (socket->sendto(tmp_addr, data, len, 0) < 0) {
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        swoole_set_last_error(sw_errno());
         return SW_ERR;
     }
 
@@ -401,11 +401,11 @@ int Client::close() {
     }
 
     // Set `socket->fd` to -1 to prevent duplicate closure of file descriptors
-    const sw_socket_t fd = socket->fd;
+    const swSocketFd fd = socket->fd;
     socket->fd = SW_BAD_SOCKET;
     swoole_trace_log(SW_TRACE_CLIENT, "fd=%d", fd);
 
-    return SW_CLOSE_SOCKET(fd);
+    return sw_close_socket(fd);
 }
 
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double timeout, int nonblock) {
@@ -514,10 +514,10 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
 
     do {
         ret = cli->socket->connect(cli->server_addr);
-        if (ret < 0 && SW_SOCKET_ERRNO == EINTR) {
+        if (ret < 0 && sw_errno() == EINTR) {
             continue;
         }
-        if ((ret < 0 && SW_SOCKET_ERRNO == EINPROGRESS) || ret == 0) {
+        if ((ret < 0 && sw_errno() == EINPROGRESS) || ret == 0) {
             /**
              * A return value of 0 indicates that the connection has been successfully established,
              * and there is no need to add a timer to check for connection timeouts.
@@ -571,7 +571,7 @@ static ssize_t Client_tcp_send_sync(Client *cli, const char *data, size_t length
 
 static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t offset, size_t length) {
     if (cli->socket->sendfile_sync(filename, offset, length) < 0) {
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        swoole_set_last_error(sw_errno());
         return SW_ERR;
     }
     return SW_OK;
@@ -579,7 +579,7 @@ static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t off
 
 static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t offset, size_t length) {
     if (cli->socket->sendfile_async(filename, offset, length) < 0) {
-        swoole_set_last_error(SW_SOCKET_ERRNO);
+        swoole_set_last_error(sw_errno());
         return SW_ERR;
     }
     if (swoole_event_add_or_update(cli->socket, SW_EVENT_WRITE) == SW_ERR) {
@@ -596,7 +596,7 @@ static ssize_t Client_tcp_recv_sync(Client *cli, char *data, size_t len, int fla
      * which should be set to either EAGAIN or ETIMEDOUT.
      */
     if (rv == -1 && swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
-        SW_SOCKET_SET_ERRNO(EAGAIN);
+        sw_set_errno(EAGAIN);
     }
     return rv;
 }
@@ -809,7 +809,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
 
     n = event->socket->recv(buf, buf_size, 0);
     if (n < 0) {
-        switch (event->socket->catch_read_error(SW_SOCKET_ERRNO)) {
+        switch (event->socket->catch_read_error(sw_errno())) {
         case SW_ERROR:
             swoole_sys_warning("Read from socket[%d] failed", event->fd);
             return SW_OK;

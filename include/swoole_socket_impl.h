@@ -35,5 +35,5 @@ using SocketImpl = UringSocket;
 using SocketImpl = CoSocket;
 #endif
 
-std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object(sw_socket_t sockfd);
-std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object_ex(sw_socket_t sockfd);
+std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object(swSocketFd sockfd);
+std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object_ex(swSocketFd sockfd);
