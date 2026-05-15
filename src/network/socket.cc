@@ -322,7 +322,9 @@ int Socket::wait_event(int timeout_ms, int _events) const {
                 swoole_set_last_error(SW_SOCKET_ERRNO);
                 return SW_ERR;
             }
+#ifndef _WIN32
             swoole_signal_dispatch();
+#endif
             continue;
         }
         return SW_OK;

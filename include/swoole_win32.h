@@ -918,7 +918,6 @@ static inline const char *sw_win32_strerror(DWORD error) {
                    buf,
                    sizeof(buf),
                    NULL);
-    // 去除消息末尾的换行符
     char *p = buf;
     while (*p) {
         if (*p == '\r' || *p == '\n') {

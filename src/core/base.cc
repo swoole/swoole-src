@@ -211,7 +211,9 @@ void swoole_clean() {
         }
     }
 
+#ifndef _WIN32
     swoole_signal_clear();
+#endif
     swoole_thread_clean(true);
 
     if (SwooleG.logger) {
@@ -375,9 +377,9 @@ pid_t swoole_fork(int flags) {
         } else {
             sw_logger()->close();
         }
-        // reset signal handler
+#ifndef _WIN32
         swoole_signal_clear();
-
+#endif
         if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
             swoole_call_hook(SW_GLOBAL_HOOK_AFTER_FORK, nullptr);
         }
@@ -395,9 +397,11 @@ void swoole_thread_init(bool main_thread) {
     if (!SwooleTG.buffer_stack) {
         SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
     }
+#ifndef _WIN32
     if (!main_thread) {
         swoole_signal_block_all();
     }
+#endif
     SwooleTG.main_thread = main_thread;
 }
 

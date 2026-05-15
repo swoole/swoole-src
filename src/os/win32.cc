@@ -867,18 +867,6 @@ int sw_socket_errno(void) {
     }
 }
 
-void swoole_signal_block_all() {
-    // TODO 禁止 Windows 线程接收信号
-}
-
-void swoole_signal_clear() {
-    // TODO Windows 清理信号设置
-}
-
-void swoole_signal_dispatch() {
-    // TODO Windows 派发信号
-}
-
 int sw_waitpid(pid_t pid, int *status, int options) {
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
     if (!hProcess) {
