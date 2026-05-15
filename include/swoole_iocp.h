@@ -32,7 +32,6 @@ class Iocp {
     HANDLE port = INVALID_HANDLE_VALUE;
     Reactor *reactor = nullptr;
     uint32_t task_num = 0;
-    int original_timeout_msec = -1;
     std::unordered_set<sw_socket_t> associated_sockets;
     std::unordered_set<int> associated_files;
     std::unordered_map<int, int> file_flags;
@@ -41,6 +40,7 @@ class Iocp {
     bool associate(sw_socket_t fd);
     bool associate(HANDLE handle, ULONG_PTR key);
     ssize_t execute(IocpEvent *event, double timeout);
+    bool dispatch(DWORD transferred, ULONG_PTR key, OVERLAPPED *overlapped, DWORD error);
 
     static Iocp *get_instance();
     static bool get_extension_function(SOCKET fd, GUID guid, void **fn);
@@ -61,6 +61,7 @@ class Iocp {
     }
 
     bool wakeup();
+    int wait(int timeout_msec);
 
     static int connect(sw_socket_t fd, const struct sockaddr *addr, socklen_t len, double timeout = -1);
     static int accept(sw_socket_t fd, struct sockaddr *addr, socklen_t *len, int flags = 0, double timeout = -1);

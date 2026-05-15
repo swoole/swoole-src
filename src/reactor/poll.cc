@@ -16,6 +16,9 @@
 
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+#include "swoole_iocp.h"
+#endif
 
 namespace swoole {
 using network::Socket;
@@ -153,7 +156,31 @@ int ReactorPoll::wait() {
         reactor_->execute_begin_callback();
         const int event_num = set_events();
         int ret;
-#ifdef _WIN32
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+        if (SwooleTG.iocp && SwooleTG.iocp->get_task_num() > 0) {
+            ret = SwooleTG.iocp->wait(reactor_->get_timeout_msec());
+            if (ret < 0) {
+                if (!reactor_->catch_error()) {
+                    swoole_sys_warning("[Reactor#%d] IOCP wait(timeout=%d) failed",
+                                       reactor_->id,
+                                       reactor_->get_timeout_msec());
+                    break;
+                }
+            } else if (ret == 0) {
+                reactor_->execute_end_callbacks(true);
+                SW_REACTOR_CONTINUE;
+            } else {
+                reactor_->execute_end_callbacks(false);
+                SW_REACTOR_CONTINUE;
+            }
+        } else if (event_num == 0) {
+            int timeout = reactor_->get_timeout_msec();
+            Sleep(timeout < 0 ? 1 : timeout);
+            ret = 0;
+        } else {
+            ret = poll(events_, event_num, reactor_->get_timeout_msec());
+        }
+#elif defined(_WIN32)
         if (event_num == 0) {
             int timeout = reactor_->get_timeout_msec();
             Sleep(timeout < 0 ? 1 : timeout);

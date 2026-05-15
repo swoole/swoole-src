@@ -65,7 +65,6 @@ struct IocpEvent {
     DWORD bytes = 0;
 
     SOCKET accept_socket = INVALID_SOCKET;
-    char accept_buffer[(sizeof(sockaddr_storage) + 16) * 2] = {};
     sockaddr *addr = nullptr;
     socklen_t *addrlen = nullptr;
     socklen_t *msg_namelen = nullptr;
@@ -182,11 +181,6 @@ Iocp::Iocp(Reactor *reactor_) {
 
     swoole_trace_log(SW_TRACE_EVENT, "IOCP created: port=%p", port);
 
-    original_timeout_msec = reactor->timeout_msec;
-    if (reactor->timeout_msec < 0) {
-        reactor->set_timeout_msec(1);
-    }
-
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOCP, [](Reactor *reactor, size_t &event_num) -> bool {
         if (SwooleTG.iocp && SwooleTG.iocp->get_task_num() > 0) {
             return false;
@@ -214,9 +208,6 @@ Iocp::~Iocp() {
     if (reactor && !reactor->destroyed) {
         reactor->remove_exit_condition(Reactor::EXIT_CONDITION_IOCP);
         reactor->erase_end_callback(Reactor::PRIORITY_IOCP_WAKEUP);
-        if (original_timeout_msec < 0 && reactor->timeout_msec == 1) {
-            reactor->set_timeout_msec(original_timeout_msec);
-        }
     }
     if (port != INVALID_HANDLE_VALUE && port != nullptr) {
         CloseHandle(port);
@@ -389,6 +380,40 @@ ssize_t Iocp::execute(IocpEvent *event, double timeout) {
     return result;
 }
 
+bool Iocp::dispatch(DWORD transferred, ULONG_PTR key, OVERLAPPED *overlapped, DWORD error) {
+    (void) key;
+    if (overlapped == nullptr) {
+        return false;
+    }
+
+    auto *event = reinterpret_cast<IocpEvent *>(overlapped);
+    event->set_result(transferred, error);
+    swoole_trace_log(SW_TRACE_EVENT,
+                     "IOCP completion opcode=%s, fd=%d, bytes=%lu, error=%lu",
+                     get_opcode_name(event->opcode),
+                     (int) event->fd,
+                     transferred,
+                     error);
+
+    if (task_num > 0) {
+        --task_num;
+    }
+
+    if (event->opcode == SW_IOCP_RECVFROM && event->addrlen) {
+        *event->addrlen = static_cast<socklen_t>(event->addrlen_int);
+    } else if (event->opcode == SW_IOCP_RECVMSG && event->msg_namelen) {
+        *event->msg_namelen = static_cast<socklen_t>(event->addrlen_int);
+    }
+
+    if (event->orphaned || event->coroutine == nullptr) {
+        delete event;
+        return true;
+    }
+
+    event->coroutine->resume();
+    return true;
+}
+
 bool Iocp::wakeup() {
     DWORD transferred = 0;
     ULONG_PTR key = 0;
@@ -396,39 +421,30 @@ bool Iocp::wakeup() {
 
     while (true) {
         BOOL ok = GetQueuedCompletionStatus(port, &transferred, &key, &overlapped, 0);
-        if (overlapped == nullptr) {
+        if (!dispatch(transferred, key, overlapped, ok ? ERROR_SUCCESS : GetLastError())) {
             break;
         }
-
-        auto *event = reinterpret_cast<IocpEvent *>(overlapped);
-        DWORD err = ok ? ERROR_SUCCESS : GetLastError();
-        event->set_result(transferred, err);
-        swoole_trace_log(SW_TRACE_EVENT,
-                         "IOCP completion opcode=%s, fd=%d, bytes=%lu, error=%lu",
-                         get_opcode_name(event->opcode),
-                         (int) event->fd,
-                         transferred,
-                         err);
-
-        if (task_num > 0) {
-            --task_num;
-        }
-
-        if (event->opcode == SW_IOCP_RECVFROM && event->addrlen) {
-            *event->addrlen = static_cast<socklen_t>(event->addrlen_int);
-        } else if (event->opcode == SW_IOCP_RECVMSG && event->msg_namelen) {
-            *event->msg_namelen = static_cast<socklen_t>(event->addrlen_int);
-        }
-
-        if (event->orphaned || event->coroutine == nullptr) {
-            delete event;
-            continue;
-        }
-
-        event->coroutine->resume();
     }
 
     return true;
+}
+
+int Iocp::wait(int timeout_msec) {
+    DWORD transferred = 0;
+    ULONG_PTR key = 0;
+    OVERLAPPED *overlapped = nullptr;
+    DWORD timeout = timeout_msec < 0 ? INFINITE : static_cast<DWORD>(timeout_msec);
+    BOOL ok = GetQueuedCompletionStatus(port, &transferred, &key, &overlapped, timeout);
+    if (!ok && overlapped == nullptr) {
+        DWORD error = GetLastError();
+        if (error == WAIT_TIMEOUT) {
+            return 0;
+        }
+        set_error(error);
+        return -1;
+    }
+
+    return dispatch(transferred, key, overlapped, ok ? ERROR_SUCCESS : GetLastError()) ? 1 : 0;
 }
 
 int Iocp::connect(sw_socket_t fd, const struct sockaddr *addr, socklen_t len, double timeout) {
@@ -494,9 +510,10 @@ int Iocp::accept(sw_socket_t fd, struct sockaddr *addr, socklen_t *len, int flag
 
     auto *event = new IocpEvent(SW_IOCP_ACCEPT, fd);
     event->accept_socket = accept_fd;
+    char accept_buffer[(sizeof(sockaddr_storage) + 16) * 2] = {};
     DWORD bytes = 0;
     const DWORD address_length = sizeof(sockaddr_storage) + 16;
-    BOOL ok = fn_accept_ex(fd, accept_fd, event->accept_buffer, 0, address_length, address_length, &bytes, &event->overlapped);
+    BOOL ok = fn_accept_ex(fd, accept_fd, accept_buffer, 0, address_length, address_length, &bytes, &event->overlapped);
     if (!ok && WSAGetLastError() != ERROR_IO_PENDING) {
         set_error(WSAGetLastError());
         closesocket(accept_fd);
@@ -516,7 +533,7 @@ int Iocp::accept(sw_socket_t fd, struct sockaddr *addr, socklen_t *len, int flag
     sockaddr *remote_addr = nullptr;
     int local_len = 0;
     int remote_len = 0;
-    fn_get_accept_ex_sockaddrs(event->accept_buffer, 0, address_length, address_length, &local_addr, &local_len, &remote_addr, &remote_len);
+    fn_get_accept_ex_sockaddrs(accept_buffer, 0, address_length, address_length, &local_addr, &local_len, &remote_addr, &remote_len);
     if (addr && len && remote_addr) {
         socklen_t copy_len = std::min(*len, static_cast<socklen_t>(remote_len));
         memcpy(addr, remote_addr, copy_len);
@@ -979,6 +996,9 @@ int Iocp::shutdown(sw_socket_t fd, int how) {
 }
 
 int Iocp::close(sw_socket_t fd) {
+    if (SwooleTG.iocp) {
+        SwooleTG.iocp->associated_sockets.erase(fd);
+    }
     return closesocket(fd);
 }
 

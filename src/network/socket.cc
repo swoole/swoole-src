@@ -19,6 +19,9 @@
 #include "swoole_util.h"
 #include "swoole_string.h"
 #include "swoole_timer.h"
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+#include "swoole_iocp.h"
+#endif
 
 #include <utility>
 #include <memory>
@@ -451,7 +454,11 @@ static void socket_free_defer(void *ptr) {
     }
     if (sock->fd != SW_BAD_SOCKET &&
 #ifdef _WIN32
+#ifdef SW_USE_IOCP
+        Iocp::close(sock->fd) != 0
+#else
         closesocket(sock->fd) != 0
+#endif
 #else
         close(sock->fd) != 0
 #endif
