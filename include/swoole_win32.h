@@ -973,6 +973,8 @@ typedef void *pthread_t;
 #define swoole_jump_fcontext jump_fcontext
 #define swoole_make_fcontext make_fcontext
 
-void swoole_signal_block_all();
+#define swoole_signal_block_all()
+#define swoole_signal_clear()
+#define swoole_signal_dispatch()
 
 #endif  // _WIN32
