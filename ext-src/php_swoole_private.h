@@ -248,12 +248,16 @@ void php_swoole_event_minit(int module_number);
 PHP_FUNCTION(swoole_event_rshutdown);
 #endif
 // base
+#ifndef _WIN32
 void php_swoole_atomic_minit(int module_number);
 void php_swoole_lock_minit(int module_number);
+#endif
 int swoole_resolve_context_module_init(INIT_FUNC_ARGS);
 void php_swoole_process_minit(int module_number);
 void php_swoole_process_pool_minit(int module_number);
+#ifndef _WIN32
 void php_swoole_table_minit(int module_number);
+#endif
 void php_swoole_timer_minit(int module_number);
 // coroutine
 void php_swoole_coroutine_minit(int module_number);

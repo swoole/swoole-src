@@ -149,7 +149,6 @@ if (PHP_SWOOLE != "no") {
         "ext-src\\php_swoole.cc " +
         "ext-src\\php_swoole_cxx.cc " +
         "ext-src\\swoole_async_coro.cc " +
-        "ext-src\\swoole_atomic.cc " +
         "ext-src\\swoole_channel_coro.cc " +
         "ext-src\\swoole_client.cc " +
         "ext-src\\swoole_client_coro.cc " +
@@ -168,12 +167,10 @@ if (PHP_SWOOLE != "no") {
         "ext-src\\swoole_http_request.cc " +
         "ext-src\\swoole_http_response.cc " +
         "ext-src\\swoole_http_server_coro.cc " +
-        "ext-src\\swoole_lock.cc " +
         "ext-src\\swoole_name_resolver.cc " +
         "ext-src\\swoole_runtime.cc " +
         "ext-src\\swoole_socket_coro.cc " +
         "ext-src\\swoole_stdext.cc " +
-        "ext-src\\swoole_table.cc " +
         "ext-src\\swoole_thread.cc " +
         "ext-src\\swoole_thread_arraylist.cc " +
         "ext-src\\swoole_thread_atomic.cc " +
@@ -215,7 +212,6 @@ if (PHP_SWOOLE != "no") {
         "src\\memory\\global_memory.cc " +
         "src\\memory\\ring_buffer.cc " +
         "src\\memory\\shared_memory.cc " +
-        "src\\memory\\table.cc " +
         "src\\network\\address.cc " +
         "src\\network\\client.cc " +
         "src\\network\\dns.cc " +

@@ -1015,13 +1015,17 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_event_minit(module_number);
 #endif
     // base
+#ifndef _WIN32
     php_swoole_atomic_minit(module_number);
     php_swoole_lock_minit(module_number);
+#endif
 #ifndef _WIN32
     php_swoole_process_minit(module_number);
     php_swoole_process_pool_minit(module_number);
 #endif
+#ifndef _WIN32
     php_swoole_table_minit(module_number);
+#endif
     php_swoole_timer_minit(module_number);
     // coroutine
     php_swoole_coroutine_minit(module_number);
