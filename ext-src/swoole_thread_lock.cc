@@ -37,9 +37,9 @@ using swoole::RWLock;
 zend_class_entry *swoole_thread_lock_ce;
 static zend_object_handlers swoole_thread_lock_handlers;
 
-struct LockResource : public ThreadResource {
+struct ThreadLockResource : public ThreadResource {
     Lock *lock_;
-    LockResource(int type) : ThreadResource() {
+    ThreadLockResource(int type) : ThreadResource() {
         switch (type) {
 #ifdef HAVE_SPINLOCK
         case Lock::SPIN_LOCK:
@@ -57,13 +57,13 @@ struct LockResource : public ThreadResource {
             break;
         }
     }
-    ~LockResource() override {
+    ~ThreadLockResource() override {
         delete lock_;
     }
 };
 
 struct ThreadLockObject {
-    LockResource *lock;
+    ThreadLockResource *lock;
     zend_object std;
 };
 
@@ -107,7 +107,7 @@ ThreadResource *php_swoole_thread_lock_cast(const zval *zobject) {
 void php_swoole_thread_lock_create(zval *return_value, ThreadResource *resource) {
     auto obj = thread_lock_create_object(swoole_thread_lock_ce);
     auto lo = thread_lock_fetch_object(obj);
-    lo->lock = dynamic_cast<LockResource *>(resource);
+    lo->lock = dynamic_cast<ThreadLockResource *>(resource);
     ZVAL_OBJ(return_value, obj);
 }
 
@@ -159,7 +159,7 @@ static PHP_METHOD(swoole_thread_lock, __construct) {
     Z_PARAM_LONG(type)
     ZEND_PARSE_PARAMETERS_END();
 
-    o->lock = new LockResource(type);
+    o->lock = new ThreadLockResource(type);
 }
 
 static PHP_METHOD(swoole_thread_lock, lock) {

@@ -40,17 +40,6 @@ struct RWLockImpl {
     }
 };
 
-RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
-    if (shared) {
-        impl = new RWLockImpl(shared);
-        if (impl == nullptr) {
-            throw std::bad_alloc();
-        }
-    } else {
-        impl = new RWLockImpl(shared);
-    }
-}
-
 static int rwlock_timed_lock_rd(RWLockImpl* impl, int timeout_msec) {
     EnterCriticalSection(&impl->cs);
     while (impl->writers > 0 || impl->write_waiters > 0) {
@@ -63,7 +52,7 @@ static int rwlock_timed_lock_rd(RWLockImpl* impl, int timeout_msec) {
             if (!ok) {
                 DWORD err = GetLastError();
                 LeaveCriticalSection(&impl->cs);
-                return (err == ERROR_TIMEOUT) ? ETIMEDOUT : EAGAIN;
+                return (err == 1460L /* ERROR_TIMEOUT */) ? ETIMEDOUT : EAGAIN;
             }
         } else {
             SleepConditionVariableCS(&impl->cv_read, &impl->cs, INFINITE);
@@ -89,7 +78,7 @@ static int rwlock_timed_lock_wr(RWLockImpl* impl, int timeout_msec) {
                 DWORD err = GetLastError();
                 impl->write_waiters--;
                 LeaveCriticalSection(&impl->cs);
-                return (err == ERROR_TIMEOUT) ? ETIMEDOUT : EAGAIN;
+                return (err == SW_WIN32_ERROR_TIMEOUT) ? ETIMEDOUT : EAGAIN;
             }
         } else {
             SleepConditionVariableCS(&impl->cv_write, &impl->cs, INFINITE);
@@ -99,6 +88,14 @@ static int rwlock_timed_lock_wr(RWLockImpl* impl, int timeout_msec) {
     impl->writers = 1;
     LeaveCriticalSection(&impl->cs);
     return 0;
+}
+
+RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
+    if (shared) {
+        throw std::invalid_argument("SRWLock does not support process-shared mode on Windows");
+    } else {
+        impl = new RWLockImpl(shared);
+    }
 }
 
 int RWLock::lock(int operation, int timeout_msec) {
@@ -137,23 +134,17 @@ int RWLock::lock(int operation, int timeout_msec) {
 int RWLock::unlock() {
     EnterCriticalSection(&impl->cs);
     if (impl->writers > 0) {
-        // 写锁释放
         impl->writers = 0;
-        // 唤醒所有等待的读者（或一个写者，取决于策略）
-        // 先唤醒写者（避免写饥饿）
         if (impl->write_waiters > 0) {
             WakeConditionVariable(&impl->cv_write);
         } else {
             WakeAllConditionVariable(&impl->cv_read);
         }
     } else if (impl->readers > 0) {
-        // 读锁释放
         impl->readers--;
         if (impl->readers == 0 && impl->write_waiters > 0) {
-            // 最后一个读者离开，若有写者等待则唤醒一个写者
             WakeConditionVariable(&impl->cv_write);
         }
-        // 注意：读者释放时不会唤醒其他读者，因为读者可以并发进入
     }
     LeaveCriticalSection(&impl->cs);
     return 0;
@@ -165,20 +156,17 @@ RWLock::~RWLock() {
         impl = nullptr;
     }
 }
-#endif
+
+#else
 struct RWLockImpl {
     pthread_rwlock_t lock_;
     pthread_rwlockattr_t attr_;
 };
 
 RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
-    if (shared) {
-        impl = (RWLockImpl *) sw_mem_pool()->alloc(sizeof(*impl));
-        if (impl == nullptr) {
-            throw std::bad_alloc();
-        }
-    } else {
-        impl = new RWLockImpl();
+    impl = new RWLockImpl();
+    if (!impl) {
+        throw std::bad_alloc();
     }
 
     pthread_rwlockattr_init(&impl->attr_);
@@ -186,6 +174,7 @@ RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
         pthread_rwlockattr_setpshared(&impl->attr_, PTHREAD_PROCESS_SHARED);
     }
     if (pthread_rwlock_init(&impl->lock_, &impl->attr_) != 0) {
+        delete impl;
         throw std::system_error(errno, std::generic_category(), "pthread_rwlock_init() failed");
     }
 }
@@ -193,8 +182,13 @@ RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
 static int rwlock_timed_lock_rd(pthread_rwlock_t *rwlock, int timeout_msec) {
 #ifdef HAVE_RWLOCK_TIMEDRDLOCK
     timespec timeo;
-    realtime_get(&timeo);
-    realtime_add(&timeo, timeout_msec);
+    clock_gettime(CLOCK_REALTIME, &timeo);
+    timeo.tv_sec += timeout_msec / 1000;
+    timeo.tv_nsec += (timeout_msec % 1000) * 1000000;
+    if (timeo.tv_nsec >= 1000000000) {
+        timeo.tv_sec++;
+        timeo.tv_nsec -= 1000000000;
+    }
     return pthread_rwlock_timedrdlock(rwlock, &timeo);
 #else
     return sw_wait_for([rwlock]() { return pthread_rwlock_tryrdlock(rwlock) == 0; }, timeout_msec) ? 0 : ETIMEDOUT;
@@ -204,8 +198,13 @@ static int rwlock_timed_lock_rd(pthread_rwlock_t *rwlock, int timeout_msec) {
 static int rwlock_timed_lock_wr(pthread_rwlock_t *rwlock, int timeout_msec) {
 #ifdef HAVE_RWLOCK_TIMEDRDLOCK
     timespec timeo;
-    realtime_get(&timeo);
-    realtime_add(&timeo, timeout_msec);
+    clock_gettime(CLOCK_REALTIME, &timeo);
+    timeo.tv_sec += timeout_msec / 1000;
+    timeo.tv_nsec += (timeout_msec % 1000) * 1000000;
+    if (timeo.tv_nsec >= 1000000000) {
+        timeo.tv_sec++;
+        timeo.tv_nsec -= 1000000000;
+    }
     return pthread_rwlock_timedwrlock(rwlock, &timeo);
 #else
     return sw_wait_for([rwlock]() { return pthread_rwlock_trywrlock(rwlock) == 0; }, timeout_msec) ? 0 : ETIMEDOUT;
@@ -243,12 +242,9 @@ int RWLock::unlock() {
 RWLock::~RWLock() {
     pthread_rwlockattr_destroy(&impl->attr_);
     pthread_rwlock_destroy(&impl->lock_);
-    if (shared_) {
-        sw_mem_pool()->free(impl);
-    } else {
-        delete impl;
-    }
+    delete impl;
 }
+
 #endif
 }  // namespace swoole
 #endif

@@ -63,6 +63,7 @@
 
 // Windows SDK <winerror.h> defines ERROR_TIMEOUT as 1460L,
 // which conflicts with Swoole's coroutine::Channel::ErrorCode::ERROR_TIMEOUT.
+constexpr int SW_WIN32_ERROR_TIMEOUT = 1460L;
 #undef ERROR_TIMEOUT
 
 // PHP's php.h includes <windows.h> before this header, so NOMINMAX

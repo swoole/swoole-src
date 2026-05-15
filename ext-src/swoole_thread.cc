@@ -162,6 +162,7 @@ void php_swoole_thread_minit(int module_number) {
         swoole_thread_ce, ZEND_STRL("HARDWARE_CONCURRENCY"), std::thread::hardware_concurrency());
     zend_declare_class_constant_string(swoole_thread_ce, ZEND_STRL("API_NAME"), tsrm_api_name());
 
+#ifndef _WIN32
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_OTHER"), SCHED_OTHER);
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_FIFO"), SCHED_FIFO);
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_RR"), SCHED_RR);
@@ -176,6 +177,7 @@ void php_swoole_thread_minit(int module_number) {
 #endif
 #ifdef SCHED_DEADLINE
     zend_declare_class_constant_long(swoole_thread_ce, ZEND_STRL("SCHED_DEADLINE"), SCHED_DEADLINE);
+#endif
 #endif
 
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_thread_error, "Swoole\\Thread\\Error");
@@ -250,7 +252,11 @@ static PHP_METHOD(swoole_thread, getArguments) {
 }
 
 static PHP_METHOD(swoole_thread, getId) {
+#ifdef _WIN32
+    RETURN_LONG((zend_long) GetCurrentThreadId());
+#else
     RETURN_LONG((zend_long) pthread_self());
+#endif
 }
 
 static PHP_METHOD(swoole_thread, getExitStatus) {
@@ -307,6 +313,24 @@ static PHP_METHOD(swoole_thread, setPriority) {
     Z_PARAM_LONG(policy)
     ZEND_PARSE_PARAMETERS_END();
 
+#ifdef _WIN32
+    int winPriorities[] = {
+        THREAD_PRIORITY_IDLE,           // 0
+        THREAD_PRIORITY_LOWEST,         // 1
+        THREAD_PRIORITY_BELOW_NORMAL,   // 2
+        THREAD_PRIORITY_NORMAL,         // 3
+        THREAD_PRIORITY_ABOVE_NORMAL,   // 4
+        THREAD_PRIORITY_HIGHEST,        // 5
+        THREAD_PRIORITY_TIME_CRITICAL   // 6
+    };
+
+    int idx = priority;
+    if (idx < 0) idx = 0;
+    if (idx > 6) idx = 6;
+
+    BOOL retval = SetThreadPriority(GetCurrentThread(), winPriorities[idx]);
+    RETURN_BOOL(retval != 0);
+#else
     struct sched_param param;
     if (policy == -1) {
         pthread_setschedparam(pthread_self(), policy, &param);
@@ -320,9 +344,76 @@ static PHP_METHOD(swoole_thread, setPriority) {
         php_swoole_sys_error(E_WARNING, "pthread_setschedparam() failed");
         RETURN_FALSE;
     }
+#endif
 }
 
 static PHP_METHOD(swoole_thread, getPriority) {
+#ifdef _WIN32
+    HANDLE currentProcess = GetCurrentProcess();
+    HANDLE currentThread = GetCurrentThread();
+
+    DWORD processClass = GetPriorityClass(currentProcess);
+    int threadPriority = GetThreadPriority(currentThread);
+
+    if (threadPriority == THREAD_PRIORITY_ERROR_RETURN) {
+        php_swoole_error(E_WARNING, "GetThreadPriority() failed");
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+
+    int combinedPriority = 0;
+    switch (processClass) {
+        case REALTIME_PRIORITY_CLASS:
+            combinedPriority = 20;
+            break;
+        case HIGH_PRIORITY_CLASS:
+            combinedPriority = 10;
+            break;
+        case ABOVE_NORMAL_PRIORITY_CLASS:
+            combinedPriority = 5;
+            break;
+        case NORMAL_PRIORITY_CLASS:
+            combinedPriority = 0;
+            break;
+        case BELOW_NORMAL_PRIORITY_CLASS:
+            combinedPriority = -5;
+            break;
+        case IDLE_PRIORITY_CLASS:
+            combinedPriority = -15;
+            break;
+    }
+
+    switch (threadPriority) {
+        case THREAD_PRIORITY_TIME_CRITICAL:
+            combinedPriority += 5;
+            break;
+        case THREAD_PRIORITY_HIGHEST:
+            combinedPriority += 3;
+            break;
+        case THREAD_PRIORITY_ABOVE_NORMAL:
+            combinedPriority += 1;
+            break;
+        case THREAD_PRIORITY_NORMAL:
+            break;
+        case THREAD_PRIORITY_BELOW_NORMAL:
+            combinedPriority -= 1;
+            break;
+        case THREAD_PRIORITY_LOWEST:
+            combinedPriority -= 3;
+            break;
+        case THREAD_PRIORITY_IDLE:
+            combinedPriority -= 5;
+            break;
+    }
+
+    add_assoc_long_ex(return_value, ZEND_STRL("policy"), processClass);
+    add_assoc_long_ex(return_value, ZEND_STRL("priority"), combinedPriority);
+
+    add_assoc_long_ex(return_value, ZEND_STRL("process_priority_class"), processClass);
+    add_assoc_long_ex(return_value, ZEND_STRL("thread_priority"), threadPriority);
+
+#else
     struct sched_param param;
     int policy;
     if (pthread_getschedparam(pthread_self(), &policy, &param) != 0) {
@@ -333,6 +424,7 @@ static PHP_METHOD(swoole_thread, getPriority) {
     array_init(return_value);
     add_assoc_long_ex(return_value, ZEND_STRL("policy"), policy);
     add_assoc_long_ex(return_value, ZEND_STRL("priority"), param.sched_priority);
+#endif
 }
 
 static PHP_METHOD(swoole_thread, getNativeId) {
