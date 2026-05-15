@@ -59,6 +59,7 @@ typedef int swSocketFd;
 #define sw_ftruncate ftruncate
 #define sw_kill kill
 #define sw_access access
+#define sw_uname uname
 #define sw_getrlimit getrlimit
 #define sw_setrlimit setrlimit
 #define sw_wait wait
