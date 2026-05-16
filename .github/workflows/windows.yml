@@ -27,11 +27,16 @@ jobs:
           phpts: ts
 
       - name: Build Swoole extension
+        run: |
+          if (Test-Path ./ext/configure) { Remove-Item -Recurse -Force ./ext/configure }
+          if (Test-Path ./ext/build) { Remove-Item -Recurse -Force ./ext/build }
+          if (Test-Path ./ext/Makefile) { Remove-Item -Recurse -Force ./ext/Makefile }
+        shell: powershell
+      - name: Build Swoole extension (run)
         uses: ./.github/workflows/winext
         with:
           ext-path: ./ext
           tools-path: C:\tools\phpdev
-          conf-args: --enable-swoole --enable-swoole-curl --enable-swoole-thread
+          conf-args: --enable-swoole-curl --enable-swoole-thread
           staging-deps: '1'
           deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,brotli
-
