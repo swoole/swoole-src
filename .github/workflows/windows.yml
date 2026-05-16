@@ -2,30 +2,36 @@ name: Windows tests
 on: [push, pull_request]
 
 jobs:
-  windows:
-    runs-on: windows-2022
-    name: Windows Build
+  windows-tests:
+    name: PHP latest ${{ matrix.ts }} Test on Windows
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ 'windows-latest' ]
+        ts: [ 'nts', 'ts' ]
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          repository: swoole/windows-builder
-          ref: master
-
-      - name: Build PHP 8.4
-        uses: ./php
+          persist-credentials: false
+      - name: Setup PHP
+        uses: shivammathur/setup-php@master
         with:
-          php-version: '8.4.20'
-          arch: x64
-          ts: ts
+          php-version: '8.4'
+          # ini-values: pcov.directory=lib
+          # coverage: pcov
+          coverage: none
+          extensions: curl,openssl,pdo
         env:
-          PHP_BUILD_PROVIDER: "Swoole"
+          phpts: ts
 
       - name: Build Swoole extension
-        uses: ./extension
+        uses: ./.github/workflows/winext
         with:
-          php-version: '8.4.20'
-          arch: x64
-          ts: ts
-          extension-url: https://github.com/swoole/swoole-src
-          extension-ref: master
-          args: --enable-swoole --enable-swoole-curl --enable-swoole-thread
+          ext-path: ./ext
+          tools-path: C:\tools\phpdev
+          conf-args: --enable-swoole --enable-swoole-curl --enable-swoole-thread
+          staging-deps: '1'
+          deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,libbrotli
+
