@@ -208,9 +208,11 @@ struct Context {
     bool (*onBeforeRequest)(Context *ctx);
     void (*onAfterResponse)(Context *ctx);
 
+#ifndef _WIN32
     void init(Server *server);
-    void init(zval *zsock);
     void bind(Server *server);
+#endif
+    void init(zval *zsock);
     void bind(zval *zsock);
     void copy(const Context *ctx);
     bool init_multipart_parser(const char *boundary_str, int boundary_len);

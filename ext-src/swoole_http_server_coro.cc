@@ -729,7 +729,7 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
     if (cb) {
         if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, true))) {
             stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
-            php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
+            php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_coro_ce->name));
         }
     } else {
         ctx->response.status = SW_HTTP_NOT_FOUND;

@@ -781,6 +781,7 @@ void Request::parse_header_info() {
 }
 
 bool Request::init_multipart_parser(const Server *server) {
+#ifndef _WIN32
     char *boundary_str;
     int boundary_len;
     if (!parse_multipart_boundary(
@@ -803,6 +804,7 @@ bool Request::init_multipart_parser(const Server *server) {
     form_data_->upload_tmpfile_fmt_ = server->upload_tmp_dir + "/swoole.upfile.XXXXXX";
     form_data_->upload_tmpfile = new String(form_data_->upload_tmpfile_fmt_);
     form_data_->upload_max_filesize = server->upload_max_filesize;
+#endif  // _WIN32
 
     return true;
 }
@@ -1015,6 +1017,7 @@ const char *get_method_string(int method) {
     return method_strings[method - 1];
 }
 
+#ifndef _WIN32
 int dispatch_request(Server *serv, const Protocol *proto, Socket *_socket, const RecvData *rdata) {
     if (serv->is_unavailable()) {
         _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
@@ -1022,6 +1025,7 @@ int dispatch_request(Server *serv, const Protocol *proto, Socket *_socket, const
     }
     return Server::dispatch_task(proto, _socket, rdata);
 }
+#endif
 
 //-----------------------------------------------------------------
 static void protocol_status_error(Socket *socket, const Connection *conn) {
@@ -1057,6 +1061,7 @@ uint8_t get_package_length_size(Socket *socket) {
     }
 }
 
+#ifndef _WIN32
 int dispatch_frame(const Protocol *proto, Socket *socket, const RecvData *rdata) {
     auto *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
@@ -1068,5 +1073,6 @@ int dispatch_frame(const Protocol *proto, Socket *socket, const RecvData *rdata)
         return SW_ERR;
     }
 }
+#endif  // _WIN32
 }  // namespace http_server
 }  // namespace swoole

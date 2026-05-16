@@ -211,11 +211,11 @@ void Channel::print() const {
     printf("Channel\n{\n"
            "    off_t head = %ld;\n"
            "    off_t tail = %ld;\n"
-           "    size_t size = %ld;\n"
+           "    size_t size = %zu;\n"
            "    char head_tag = %d;\n"
            "    char tail_tag = %d;\n"
            "    int num = %d;\n"
-           "    size_t bytes = %ld;\n"
+           "    size_t bytes = %zu;\n"
            "    int flag = %d;\n"
            "    int maxlen = %d;\n"
            "\n}\n",

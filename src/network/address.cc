@@ -120,7 +120,9 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
                 return false;
             }
         }
-    } else if (Socket::is_local(_type)) {
+    }
+#ifndef _WIN32
+    else if (Socket::is_local(_type)) {
         if (_host.length() >= sizeof(addr.un.sun_path) - 1) {
             swoole_set_last_error(SW_ERROR_NAME_TOO_LONG);
             return false;
@@ -129,7 +131,9 @@ bool Address::assign(SocketType _type, const std::string &_host, int _port, bool
         swoole_strlcpy(addr.un.sun_path, host, sizeof(addr.un.sun_path));
         addr.un.sun_path[sizeof(addr.un.sun_path) - 1] = 0;
         len = sizeof(addr.un.sun_path);
-    } else {
+    }
+#endif
+    else {
         swoole_set_last_error(SW_ERROR_BAD_SOCKET_TYPE);
         return false;
     }

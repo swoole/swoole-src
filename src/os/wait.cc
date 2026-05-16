@@ -103,24 +103,6 @@ pid_t System::wait(int *_stat_loc, double timeout) {
     return System::waitpid(-1, _stat_loc, 0, timeout);
 }
 
-pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
-    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (_options & WNOHANG))) {
-        return ::waitpid(_pid, _stat_loc, _options);
-    }
-
-#if SW_USE_IOURING
-    return iouring_waitpid(_pid, _stat_loc, _options);
-#endif
-
-    pid_t retval = -1;
-    wait_for([_pid, &retval, _stat_loc]() -> bool {
-        retval = ::waitpid(_pid, _stat_loc, WNOHANG);
-        return retval != 0;
-    });
-
-    return retval;
-}
-
 /**
  * @error: errno & swoole_get_last_error()
  */
@@ -146,14 +128,14 @@ pid_t System::waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout) 
     }
 
     if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (_options & WNOHANG))) {
-        return ::waitpid(_pid, _stat_loc, _options);
+        return ::sw_waitpid(_pid, _stat_loc, _options);
     }
 
     /* try once if failed to init the task, and must register SIGCHLD before try waitpid, or may lose the SIGCHLD
      */
     WaitTask task;
     signal_init();
-    task.pid = ::waitpid(_pid, _stat_loc, _options | WNOHANG);
+    task.pid = ::sw_waitpid(_pid, _stat_loc, _options | WNOHANG);
     if (task.pid != 0) {
         return task.pid;
     }
@@ -211,7 +193,7 @@ pid_t swoole_coroutine_waitpid(pid_t _pid, int *_stat_loc, int _options) {
 pid_t swoole_waitpid(pid_t _pid, int *_stat_loc, int _options) {
     pid_t retval;
     SW_LOOP {
-        retval = waitpid(_pid, _stat_loc, _options);
+        retval = sw_waitpid(_pid, _stat_loc, _options);
         if (!(retval < 0 && errno == EINTR)) {
             break;
         }

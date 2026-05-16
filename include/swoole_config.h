@@ -56,8 +56,12 @@
 #define SW_MAX_THREAD_NCPU 4     // n * cpu_num
 #define SW_MAX_WORKER_NCPU 1000  // n * cpu_num
 
+#ifdef _WIN32
+#define SW_HOST_MAXSIZE 108  // same as sockaddr_un.sun_path on Linux
+#else
 #define SW_HOST_MAXSIZE                                                                                                \
     sizeof(((struct sockaddr_un *) NULL)->sun_path)  // Linux has 108 UNIX_PATH_MAX, but BSD/macOS limit is only 104
+#endif
 
 #define SW_CLIENT_BUFFER_SIZE 65536
 #define SW_CLIENT_CONNECT_TIMEOUT 0.5
@@ -124,7 +128,11 @@
 #define SW_TCP_KEEPINTERVAL 60
 
 #define SW_TASK_TMP_PATH_SIZE 256
+#ifdef _WIN32
+#define SW_TASK_TMP_DIR "C:\\Windows\\Temp"
+#else
 #define SW_TASK_TMP_DIR "/tmp"
+#endif
 #define SW_TASK_TMP_FILE "swoole.task.XXXXXX"
 
 #define SW_FILE_CHUNK_SIZE 65536

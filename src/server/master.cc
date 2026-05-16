@@ -1072,7 +1072,7 @@ bool Server::signal_handler_child_exit() const {
         return false;
     }
     int status;
-    pid_t pid = waitpid(-1, &status, WNOHANG);
+    pid_t pid = ::sw_waitpid(-1, &status, WNOHANG);
     if (pid > 0 && pid == gs->manager_pid) {
         swoole_warning("Fatal Error: manager process exit. status=%d, signal=[%s]",
                        WEXITSTATUS(status),

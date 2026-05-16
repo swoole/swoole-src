@@ -17,7 +17,9 @@
 #include "php_swoole_coroutine_system.h"
 
 #include "ext/standard/file.h"
+#ifndef _WIN32
 #include <sys/file.h>
+#endif
 
 #include <string>
 
@@ -47,10 +49,12 @@ static const zend_function_entry swoole_coroutine_system_methods[] =
     PHP_ME(swoole_coroutine_system, statvfs,                                 arginfo_class_Swoole_Coroutine_System_statvfs,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, readFile,                                arginfo_class_Swoole_Coroutine_System_readFile,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, writeFile,                               arginfo_class_Swoole_Coroutine_System_writeFile,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifndef _WIN32
     PHP_ME(swoole_coroutine_system, wait,                                    arginfo_class_Swoole_Coroutine_System_wait,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitPid,                                 arginfo_class_Swoole_Coroutine_System_waitPid,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitSignal,                              arginfo_class_Swoole_Coroutine_System_waitSignal,    ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitEvent,                               arginfo_class_Swoole_Coroutine_System_waitEvent,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
     PHP_FE_END
 };
 
@@ -277,6 +281,7 @@ PHP_METHOD(swoole_coroutine_system, exec) {
     add_assoc_zval(return_value, "output", &zdata);
 }
 
+#ifndef _WIN32
 static void swoole_coroutine_system_wait(INTERNAL_FUNCTION_PARAMETERS, pid_t pid, double timeout) {
     int status;
 
@@ -385,3 +390,4 @@ PHP_METHOD(swoole_coroutine_system, waitEvent) {
 
     RETURN_LONG(events);
 }
+#endif

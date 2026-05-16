@@ -59,6 +59,7 @@ static std::string handle_get_all_unix_sockets(Server *_server, const std::strin
 
     json sockets = json::array();
 
+#ifndef _WIN32
     SW_LOOP_N(worker_num) {
         auto master_socket = workers[i].pipe_object->get_socket(true);
         json master_socket_info = json::object({
@@ -80,6 +81,7 @@ static std::string handle_get_all_unix_sockets(Server *_server, const std::strin
         });
         sockets.push_back(worker_socket_info);
     }
+#endif
 
     json return_value{
         {"data", sockets},

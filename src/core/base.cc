@@ -21,7 +21,9 @@
 #include <fcntl.h>
 
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 
 #ifdef __MACH__
 #include <sys/syslimits.h>
@@ -80,7 +82,7 @@ static void bug_report_message_init() {
     SwooleG.bug_report_message += "\n" + std::string(SWOOLE_BUG_REPORT) + "\n";
 
     utsname u;
-    if (uname(&u) != -1) {
+    if (sw_uname(&u) != -1) {
         SwooleG.bug_report_message +=
             swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
     }
@@ -106,8 +108,15 @@ void swoole_init() {
     SwooleG.std_allocator = {malloc, calloc, realloc, free};
     SwooleG.stdout_ = stdout;
     SwooleG.fatal_error = swoole_fatal_error_impl;
+#ifdef _WIN32
+    SYSTEM_INFO si;
+    GetNativeSystemInfo(&si);
+    SwooleG.cpu_num = SW_MAX(1, (int) si.dwNumberOfProcessors);
+    SwooleG.pagesize = si.dwPageSize;
+#else
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
+#endif
     SwooleG.max_file_content = SW_MAX_FILE_CONTENT;
 
     // DNS options
@@ -115,9 +124,13 @@ void swoole_init() {
     SwooleG.dns_resolvconf_path = SW_DNS_RESOLV_CONF;
 
     // get system uname
-    uname(&SwooleG.uname);
+    sw_uname(&SwooleG.uname);
     // random seed
+#ifdef _WIN32
+    srand((unsigned int) time(nullptr));
+#else
     srandom(time(nullptr));
+#endif
 
     if (!SwooleG.logger) {
         SwooleG.logger = new Logger();
@@ -136,14 +149,18 @@ void swoole_init() {
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
     rlimit rlmt;
-    if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
+    if (sw_getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
     } else {
         SwooleG.max_sockets = SW_MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
+#ifdef _WIN32
+    SwooleG.task_tmpfile = SW_TASK_TMP_DIR "\\" SW_TASK_TMP_FILE;
+#else
     SwooleG.task_tmpfile = SW_TASK_TMP_DIR "/" SW_TASK_TMP_FILE;
+#endif
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
@@ -246,17 +263,37 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     std::unique_lock<std::mutex> _lock(sw_thread_lock);
 #endif
 
+#ifdef _WIN32
+    // On Windows, an absolute path can be:
+    // 1. Drive letter path: "C:\..." or "C:/..."
+    // 2. UNC path: "\\server\share\..."
+    bool is_absolute = false;
+    if (dir.length() >= 2 && ((dir[0] >= 'A' && dir[0] <= 'Z') || (dir[0] >= 'a' && dir[0] <= 'z')) && dir[1] == ':') {
+        is_absolute = true;
+    } else if (dir.length() >= 2 && dir[0] == '\\' && dir[1] == '\\') {
+        is_absolute = true;
+    }
+    if (!is_absolute) {
+        swoole_warning("wrong absolute path '%s'", dir.c_str());
+        return false;
+    }
+#else
     if (dir.at(0) != '/') {
         swoole_warning("wrong absolute path '%s'", dir.c_str());
         return false;
     }
+#endif
 
-    if (access(dir.c_str(), R_OK) < 0 && !swoole_mkdir_recursive(dir)) {
+    if (sw_access(dir.c_str(), R_OK) < 0 && !swoole_mkdir_recursive(dir)) {
         swoole_warning("create task tmp dir('%s') failed", dir.c_str());
         return false;
     }
 
+#ifdef _WIN32
+    sw_tg_buffer()->format("%s\\" SW_TASK_TMP_FILE, dir.c_str());
+#else
     sw_tg_buffer()->format("%s/" SW_TASK_TMP_FILE, dir.c_str());
+#endif
     SwooleG.task_tmpfile = sw_tg_buffer()->to_std_string();
 
     if (SwooleG.task_tmpfile.length() >= SW_TASK_TMP_PATH_SIZE) {
@@ -271,6 +308,7 @@ const std::string &swoole_get_task_tmpdir() {
     return SwooleG.task_tmpfile;
 }
 
+#ifndef _WIN32
 pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
     pid_t pid = fork();
     switch (pid) {
@@ -337,9 +375,7 @@ pid_t swoole_fork(int flags) {
         } else {
             sw_logger()->close();
         }
-        // reset signal handler
         swoole_signal_clear();
-
         if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
             swoole_call_hook(SW_GLOBAL_HOOK_AFTER_FORK, nullptr);
         }
@@ -347,6 +383,7 @@ pid_t swoole_fork(int flags) {
 
     return pid;
 }
+#endif  // _WIN32
 
 bool swoole_is_main_thread() {
     return SwooleTG.main_thread;
@@ -424,21 +461,39 @@ bool swoole_mkdir_recursive(const std::string &dir) {
     }
     swoole_strlcpy(tmp, dir.c_str(), PATH_MAX);
 
+#ifdef _WIN32
+    if (dir[len - 1] != '/' && dir[len - 1] != '\\') {
+        strcat(tmp, "\\");
+    }
+#else
     if (dir[len - 1] != '/') {
         strcat(tmp, "/");
     }
+#endif
 
     len = strlen(tmp);
     for (size_t i = 1; i < len; i++) {
+#ifdef _WIN32
+        if (tmp[i] == '/' || tmp[i] == '\\') {
+#else
         if (tmp[i] == '/') {
+#endif
             tmp[i] = 0;
-            if (access(tmp, R_OK) != 0) {
+            if (sw_access(tmp, R_OK) != 0) {
+#ifdef _WIN32
+                if (mkdir(tmp) == -1) {
+#else
                 if (mkdir(tmp, 0755) == -1) {
+#endif
                     swoole_sys_warning("mkdir('%s') failed", tmp);
                     return false;
                 }
             }
+#ifdef _WIN32
+            tmp[i] = '\\';
+#else
             tmp[i] = '/';
+#endif
         }
     }
 
@@ -673,7 +728,7 @@ bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms) {
         if (fn()) {
             return true;
         }
-        usleep(sleep_msec * 1000);
+        sw_usleep(sleep_msec * 1000);
         sleep_msec *= 2;
         // Align the time so that the timeout is consistent with the user settings
         if (timeout_ms > 0 && timeout_ms - sleep_msec < 0) {
@@ -710,6 +765,7 @@ int swoole_itoa(char *buf, long value) {
     return s_len;
 }
 
+#ifndef _WIN32
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream) {
     pid_t child_pid;
     int fds[2];
@@ -752,6 +808,21 @@ int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream) {
     }
     return fds[SW_PIPE_READ];
 }
+#else
+int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream) {
+    // Windows implementation using _popen
+    (void) get_error_stream;
+    if (!command || !pid) {
+        return SW_ERR;
+    }
+    FILE *fp = _popen(command, "r");
+    if (!fp) {
+        return SW_ERR;
+    }
+    *pid = (pid_t) _getpid();  // approximate; Windows doesn't have fork
+    return fileno(fp);
+}
+#endif
 
 char *swoole_string_format(size_t n, const char *format, ...) {
     char *buf = (char *) sw_malloc(n);
@@ -759,10 +830,10 @@ char *swoole_string_format(size_t n, const char *format, ...) {
         return nullptr;
     }
 
-    va_list va_list;
-    va_start(va_list, format);
-    int ret = vsnprintf(buf, n, format, va_list);
-    va_end(va_list);
+    va_list ap;
+    va_start(ap, format);
+    int ret = vsnprintf(buf, n, format, ap);
+    va_end(ap);
     if (ret >= 0) {
         return buf;
     }

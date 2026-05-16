@@ -1,5 +1,6 @@
 <?php
 namespace Swoole\WebSocket {
+    #ifndef _WIN32
 	class Server {
 		public function push(int $fd, \Swoole\WebSocket\Frame|string $data, int $opcode = WEBSOCKET_OPCODE_TEXT, int $flags = SWOOLE_WEBSOCKET_FLAG_FIN): bool {}
 		public function isEstablished(int $fd): bool {}
@@ -8,7 +9,7 @@ namespace Swoole\WebSocket {
 		public function disconnect(int $fd, int $code = SWOOLE_WEBSOCKET_CLOSE_NORMAL, string $reason = ""): bool {}
 		public function ping(int $fd, string $data = ""): bool {}
 	}
-
+    #endif
 	class Frame {
 		public function __toString(): string {}
 		public static function pack(\Swoole\WebSocket\Frame|string $data, int $opcode = WEBSOCKET_OPCODE_TEXT, int $flags = SWOOLE_WEBSOCKET_FLAG_FIN): string {}

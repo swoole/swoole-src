@@ -3,6 +3,11 @@
 #include <Zend/zend_llist.h>
 #include <zend_smart_str.h>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iphlpapi.h>
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -10,6 +15,7 @@
 #include <sys/un.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#endif
 
 #include <limits.h>
 #include <stdarg.h>

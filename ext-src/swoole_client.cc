@@ -62,9 +62,11 @@ static void client_set_zsocket(const zval *zobject, zval *zsocket) {
 
 static void client_free_object(zend_object *object) {
     auto client_obj = php_swoole_client_fetch_object(object);
+#ifndef _WIN32    
     if (client_obj->async) {
         php_swoole_client_async_free_object(client_obj);
     }
+#endif
     zend_object_std_dtor(object);
 }
 
@@ -1249,7 +1251,7 @@ PHP_FUNCTION(swoole_client_select) {
     RETURN_LONG(retval);
 }
 
-static inline int client_poll_get(const pollfd *fds, int maxevents, int fd) {
+static inline int client_poll_get(const pollfd *fds, int maxevents, swSocketFd fd) {
     for (int i = 0; i < maxevents; i++) {
         if (fds[i].fd == fd) {
             return i;
@@ -1277,7 +1279,7 @@ static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, 
         if (sock < 0) {
             continue;
         }
-        int poll_key = client_poll_get(fds, maxevents, sock);
+        int poll_key = client_poll_get(fds, maxevents, (swSocketFd)sock);
         if (poll_key == -1) {
             php_swoole_fatal_error(E_WARNING, "bad fd[%d]", sock);
             continue;
@@ -1319,11 +1321,11 @@ static uint32_t client_poll_add(const zval *sock_array, uint32_t index, struct p
         key = client_poll_get(fds, maxevents, sock);
     }
     if (key < 0) {
-        fds[index].fd = sock;
+        fds[index].fd = (swSocketFd)sock;
         fds[index].events = event;
         index++;
     } else {
-        fds[key].fd = sock;
+        fds[key].fd = (swSocketFd)sock;
         fds[key].events |= event;
     }
     SW_HASHTABLE_FOREACH_END();

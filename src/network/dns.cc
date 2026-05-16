@@ -528,7 +528,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
             if (events == 0) {
                 swoole_trace_log(SW_TRACE_CARES, "[del event], fd=%d", fd);
                 swoole_event_del(_socket);
-                _socket->fd = -1;
+                _socket->fd = SW_BAD_SOCKET;
                 _socket->free();
                 ctx->sockets.erase(fd);
                 return;
@@ -737,7 +737,12 @@ int gethostbyname(int flags, const char *name, char *addr) {
     std::lock_guard<std::mutex> _lock(g_gethostbyname2_lock);
 
     struct hostent *host_entry;
+#ifdef _WIN32
+    // Windows does not have gethostbyname2, use gethostbyname for IPv4 only
+    if (__af != AF_INET || !(host_entry = ::gethostbyname(name))) {
+#else
     if (!(host_entry = ::gethostbyname2(name, __af))) {
+#endif
         return SW_ERR;
     }
 

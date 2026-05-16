@@ -812,6 +812,7 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
 
 #ifdef SW_HAVE_ZLIB
         if (upgrade) {
+#ifndef _WIN32
             Server *serv = nullptr;
             Connection *conn = nullptr;
             if (!is_co_socket()) {
@@ -820,6 +821,9 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
             }
             bool enable_websocket_compression =
                 is_co_socket() ? websocket_settings.compression : serv->websocket_compression;
+#else
+            bool enable_websocket_compression = websocket_settings.compression;
+#endif
             bool accept_websocket_compression = false;
             zval *pData;
             if (enable_websocket_compression && request.zobject &&
@@ -832,9 +836,11 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
                 }
             }
             websocket_compression = accept_websocket_compression;
+#ifndef _WIN32
             if (conn) {
                 conn->websocket_compression = accept_websocket_compression;
             }
+#endif
         }
 #endif
 
@@ -872,6 +878,7 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
     }
 
 _skip_copy:
+#ifndef _WIN32
     if (upgrade && !is_co_socket()) {
         auto *serv = get_async_server();
         auto *conn = serv->get_connection_verify(fd);
@@ -886,6 +893,7 @@ _skip_copy:
             }
         }
     }
+#endif
     if (!keepalive) {
         close(this);
     }
@@ -1490,13 +1498,16 @@ static PHP_METHOD(swoole_http_response, create) {
 
     if (ZVAL_IS_OBJECT(zobject)) {
     _type_detect:
+#ifndef _WIN32
         if (instanceof_function(Z_OBJCE_P(zobject), swoole_server_ce)) {
             serv = php_swoole_server_get_and_check_server(zobject);
             if (serv->get_connection_verify(fd) == nullptr) {
                 php_swoole_fatal_error(E_WARNING, "parameter $2 (%ld) must be valid connection session_id", (long) fd);
                 RETURN_FALSE;
             }
-        } else if (sw_zval_is_co_socket(zobject)) {
+        } else
+#endif
+        if (sw_zval_is_co_socket(zobject)) {
             zsocket = zobject;
             fd = php_swoole_get_socket(zobject)->get_fd();
         } else {
@@ -1519,10 +1530,16 @@ static PHP_METHOD(swoole_http_response, create) {
         }
     } else {
         fd = zval_get_long(zobject);
+#ifndef _WIN32
         serv = sw_server();
+#endif
     }
 
-    if (serv && !serv->is_started()) {
+    if (serv
+#ifndef _WIN32
+        && !serv->is_started()
+#endif
+    ) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
@@ -1532,7 +1549,9 @@ static PHP_METHOD(swoole_http_response, create) {
         ctx->keepalive = 1;
 
         if (serv) {
+#ifndef _WIN32
             ctx->init(serv);
+#endif
         } else if (zsocket) {
             ctx->init(zsocket);
             swoole_llhttp_parser_init(&ctx->parser, HTTP_REQUEST, (void *) ctx);
@@ -1543,7 +1562,9 @@ static PHP_METHOD(swoole_http_response, create) {
         }
     } else {
         if (serv) {
+#ifndef _WIN32
             ctx->bind(serv);
+#endif
         } else if (zsocket) {
             ctx->bind(zsocket);
         } else {

@@ -140,7 +140,6 @@ void register_admin_server_commands(Server *serv);
 
 void php_swoole_server_register_callbacks(swServer *serv);
 zend::Callable *php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
-int php_swoole_create_dir(const char *path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 bool php_swoole_server_isset_callback(swServer *serv, swoole::ListenPort *port, int event_type);
 bool php_swoole_server_send_yield(swServer *serv, swoole::SessionId session_id, zend_string *sdata);
@@ -160,3 +159,10 @@ swServer *php_swoole_server_get_and_check_server(zval *zobject);
 void php_swoole_server_port_deref(zend_object *object);
 void php_swoole_server_set_websocket_option(swoole::ListenPort *port, zend_array *vht);
 swoole::ServerObject *php_swoole_server_get_zend_object(swoole::Server *serv);
+
+static inline int php_swoole_create_dir(const char *path, size_t length) {
+    if (access(path, F_OK) == 0) {
+        return 0;
+    }
+    return php_stream_mkdir(path, 0777, PHP_STREAM_MKDIR_RECURSIVE | REPORT_ERRORS, nullptr) ? 0 : -1;
+}

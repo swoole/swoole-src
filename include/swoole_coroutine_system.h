@@ -59,7 +59,7 @@ class System {
     static void clear_dns_cache();
     static float get_dns_cache_hit_ratio();
     /* multiplexing */
-    static bool socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout);
+    static bool socket_poll(std::unordered_map<swSocketFd, PollSocket> &fds, double timeout);
     /* wait */
     static pid_t wait(int *_stat_loc, double timeout = -1);
     static pid_t waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout = -1);

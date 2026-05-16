@@ -14,19 +14,28 @@
   +----------------------------------------------------------------------+
 */
 
+#ifndef _WIN32
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <netdb.h>
 #include <poll.h>
 #include <dirent.h>
+#else
+#include <sys/stat.h>
+#include <io.h>
+#endif
 
 #include <mutex>
 #include <unordered_map>
 
 #include "swoole_coroutine_system.h"
 #include "swoole_socket_impl.h"
+#ifndef _WIN32
 #include "swoole_iouring.h"
+#else
+#include "swoole_iocp.h"
+#endif
 
 using swoole::AsyncEvent;
 using swoole::Coroutine;
@@ -40,11 +49,15 @@ using swoole::coroutine::System;
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
+#elif defined(_WIN32) && defined(SW_USE_IOCP)
+using swoole::Iocp;
+#define SW_USE_IOCP_FILE 1
+#define SW_USE_ASYNC 1
 #else
 #define SW_USE_ASYNC 1
 #endif
 
-static std::unordered_map<int, std::shared_ptr<SocketImpl>> socket_map;
+static std::unordered_map<swSocketFd, std::shared_ptr<SocketImpl>> socket_map;
 static std::mutex socket_map_lock;
 
 #if defined(__APPLE__) || defined(__MACH__)
@@ -57,7 +70,7 @@ static sw_inline bool is_no_coro() {
     return SwooleTG.reactor == nullptr || !Coroutine::get_current();
 }
 
-static sw_inline std::shared_ptr<SocketImpl> get_socket(int sockfd) {
+static sw_inline std::shared_ptr<SocketImpl> get_socket(swSocketFd sockfd) {
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     auto socket_iterator = socket_map.find(sockfd);
     if (socket_iterator == socket_map.end()) {
@@ -67,7 +80,7 @@ static sw_inline std::shared_ptr<SocketImpl> get_socket(int sockfd) {
     return socket_iterator->second;
 }
 
-static sw_inline std::shared_ptr<SocketImpl> get_socket_ex(int sockfd) {
+static sw_inline std::shared_ptr<SocketImpl> get_socket_ex(swSocketFd sockfd) {
     if (sw_unlikely(is_no_coro())) {
         errno = EWOULDBLOCK;
         return nullptr;
@@ -75,34 +88,38 @@ static sw_inline std::shared_ptr<SocketImpl> get_socket_ex(int sockfd) {
     return get_socket(sockfd);
 }
 
-std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object(int sockfd) {
+std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object(swSocketFd sockfd) {
     return get_socket(sockfd);
 }
 
-std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object_ex(int sockfd) {
+std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object_ex(swSocketFd sockfd) {
     return get_socket_ex(sockfd);
 }
 
 SW_EXTERN_C_BEGIN
 int swoole_coroutine_socket(int domain, int type, int protocol) {
     if (sw_unlikely(is_no_coro())) {
-        return ::socket(domain, type, protocol);
+        return (int)::socket(domain, type, protocol);
     }
     auto socket = std::make_shared<SocketImpl>(domain, type, protocol);
-    int fd = socket->get_fd();
-    if (sw_unlikely(fd < 0)) {
+    swSocketFd fd = socket->get_fd();
+    if (sw_unlikely(fd == SW_BAD_SOCKET)) {
         return -1;
     } else {
         std::unique_lock<std::mutex> _lock(socket_map_lock);
         socket_map[fd] = socket;
     }
-    return fd;
+    return (int)fd;
 }
 
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
+#ifdef _WIN32
+        return ::send(sockfd, static_cast<const char *>(buf), static_cast<int>(len), flags);
+#else
         return ::send(sockfd, buf, len, flags);
+#endif
     }
     return socket->send(buf, len);
 }
@@ -110,7 +127,13 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
+#ifndef _WIN32
         return ::sendmsg(sockfd, msg, flags);
+#else
+        // Windows does not have sendmsg; return error
+        errno = ENOSYS;
+        return -1;
+#endif
     }
     return socket->sendmsg(msg, flags);
 }
@@ -118,7 +141,13 @@ ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags
 ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
+#ifndef _WIN32
         return ::recvmsg(sockfd, msg, flags);
+#else
+        // Windows does not have recvmsg; return error
+        errno = ENOSYS;
+        return -1;
+#endif
     }
     return socket->recvmsg(msg, flags);
 }
@@ -126,7 +155,11 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags) {
 ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags) {
     auto socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == nullptr)) {
+#ifdef _WIN32
+        return ::recv(sockfd, static_cast<char *>(buf), static_cast<int>(len), flags);
+#else
         return ::recv(sockfd, buf, len, flags);
+#endif
     }
     if (flags & MSG_PEEK) {
         return socket->peek(buf, len);
@@ -193,9 +226,9 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     }
 #endif
 
-    std::unordered_map<int, PollSocket> _fds;
+    std::unordered_map<swSocketFd, PollSocket> _fds;
     for (nfds_t i = 0; i < nfds; i++) {
-        _fds.emplace(fds[i].fd, PollSocket(translate_events_from_poll(fds[i].events), &fds[i]));
+        _fds.emplace(static_cast<swSocketFd>(fds[i].fd), PollSocket(translate_events_from_poll(fds[i].events), &fds[i]));
     }
 
     if (!System::socket_poll(_fds, (double) timeout / 1000)) {
@@ -219,14 +252,14 @@ int swoole_coroutine_socket_create(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return -1;
     }
-    auto socket = std::make_shared<SocketImpl>(fd, SW_SOCK_RAW);
-    int _fd = socket->get_fd();
-    if (sw_unlikely(_fd < 0)) {
+    auto socket = std::make_shared<SocketImpl>((swSocketFd)fd, SW_SOCK_RAW);
+    swSocketFd _fd = socket->get_fd();
+    if (sw_unlikely(_fd == SW_BAD_SOCKET)) {
         return -1;
     }
     socket->get_socket()->set_nonblock();
     std::unique_lock<std::mutex> _lock(socket_map_lock);
-    socket_map[fd] = socket;
+    socket_map[(swSocketFd)fd] = socket;
     return 0;
 }
 
@@ -234,18 +267,18 @@ int swoole_coroutine_socket_unwrap(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return -1;
     }
-    auto socket = get_socket(fd);
+    auto socket = get_socket((swSocketFd)fd);
     if (socket == nullptr) {
         return -1;
     }
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     socket->move_fd();
-    socket_map.erase(fd);
+    socket_map.erase((swSocketFd)fd);
     return 0;
 }
 
 uint8_t swoole_coroutine_socket_exists(int fd) {
-    return socket_map.find(fd) != socket_map.end();
+    return socket_map.find((swSocketFd)fd) != socket_map.end();
 }
 
 FILE *swoole_coroutine_fopen(const char *pathname, const char *mode) {
@@ -350,31 +383,31 @@ int swoole_coroutine_fclose(FILE *stream) {
 
 DIR *swoole_coroutine_opendir(const char *name) {
     if (sw_unlikely(is_no_coro())) {
-        return opendir(name);
+        return sw_opendir(name);
     }
 
     DIR *retval = nullptr;
-    async([&]() { retval = opendir(name); });
+    async([&]() { retval = sw_opendir(name); });
     return retval;
 }
 
 struct dirent *swoole_coroutine_readdir(DIR *dirp) {
     if (sw_unlikely(is_no_coro())) {
-        return readdir(dirp);
+        return sw_readdir(dirp);
     }
 
     struct dirent *retval;
-    async([&retval, dirp]() { retval = readdir(dirp); });
+    async([&retval, dirp]() { retval = sw_readdir(dirp); });
     return retval;
 }
 
 int swoole_coroutine_closedir(DIR *dirp) {
     if (sw_unlikely(is_no_coro())) {
-        return closedir(dirp);
+        return sw_closedir(dirp);
     }
 
     int retval = -1;
-    async([&]() { retval = closedir(dirp); });
+    async([&]() { retval = sw_closedir(dirp); });
     return retval;
 }
 
@@ -442,7 +475,12 @@ hostent *swoole_coroutine_gethostbyname(const char *name) {
         retval = gethostbyname(name);
         _tmp_h_errno = h_errno;
     });
+#ifdef _WIN32
+    // On Windows, h_errno is a macro that expands to a function call, not an lvalue
+    // We cannot assign to it, so skip the assignment
+#else
     h_errno = _tmp_h_errno;
+#endif
     return retval;
 }
 
@@ -451,12 +489,16 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
         return open(pathname, flags, mode);
     }
 
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+    return Iocp::open_file(pathname, flags, mode);
+#else
 #ifdef SW_USE_ASYNC
     int ret = -1;
     async([&]() { ret = open(pathname, flags, mode); });
     return ret;
 #else
     return Iouring::open(pathname, flags, mode);
+#endif
 #endif
 }
 
@@ -465,17 +507,19 @@ int swoole_coroutine_close(int sockfd) {
         return close(sockfd);
     }
 
-    auto socket = get_socket(sockfd);
+    auto socket = get_socket((swSocketFd)sockfd);
     if (socket != nullptr) {
         if (socket->close()) {
             std::unique_lock<std::mutex> _lock(socket_map_lock);
-            socket_map.erase(sockfd);
+            socket_map.erase((swSocketFd)sockfd);
             return 0;
         }
         return -1;
     }
 
-#ifdef SW_USE_ASYNC
+#ifdef SW_USE_IOCP_FILE
+    return Iocp::close_file(sockfd);
+#elif defined(SW_USE_ASYNC)
     int ret = -1;
     async([&]() { ret = close(sockfd); });
     return ret;
@@ -494,7 +538,9 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
         return socket->read(buf, count);
     }
 
-#ifdef SW_USE_ASYNC
+#ifdef SW_USE_IOCP_FILE
+    return Iocp::read_file(sockfd, buf, count);
+#elif defined(SW_USE_ASYNC)
     ssize_t ret = -1;
     NetSocket sock = {};
     sock.fd = sockfd;
@@ -517,7 +563,9 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
         return socket->write(buf, count);
     }
 
-#ifdef SW_USE_ASYNC
+#ifdef SW_USE_IOCP_FILE
+    return Iocp::write_file(sockfd, buf, count);
+#elif defined(SW_USE_ASYNC)
     ssize_t ret = -1;
     NetSocket sock = {};
     sock.fd = sockfd;
@@ -588,12 +636,20 @@ int swoole_coroutine_unlink(const char *pathname) {
 
 int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
     if (sw_unlikely(is_no_coro())) {
+#ifdef _WIN32
+        return mkdir(pathname);
+#else
         return mkdir(pathname, mode);
+#endif
     }
 
 #ifdef SW_USE_ASYNC
     int ret = -1;
+#ifdef _WIN32
+    async([&]() { ret = mkdir(pathname); });
+#else
     async([&]() { ret = mkdir(pathname, mode); });
+#endif
     return ret;
 #else
     return Iouring::mkdir(pathname, mode);
@@ -630,12 +686,12 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
 
 int swoole_coroutine_fsync(int fd) {
     if (sw_unlikely(is_no_coro())) {
-        return fsync(fd);
+        return sw_fsync(fd);
     }
 
 #ifdef SW_USE_ASYNC
     int ret = -1;
-    async([&]() { ret = fsync(fd); });
+    async([&]() { ret = sw_fsync(fd); });
     return ret;
 #else
     return Iouring::fsync(fd);
@@ -647,7 +703,7 @@ int swoole_coroutine_fdatasync(int fd) {
 #ifdef HAVE_FDATASYNC
         return fdatasync(fd);
 #else
-        return fsync(fd);
+        return sw_fsync(fd);
 #endif
     }
 
@@ -656,7 +712,7 @@ int swoole_coroutine_fdatasync(int fd) {
 #ifdef HAVE_FDATASYNC
     async([&]() { ret = fdatasync(fd); });
 #else
-    async([&]() { ret = fsync(fd); });
+    async([&]() { ret = sw_fsync(fd); });
 #endif
     return ret;
 #else
@@ -666,12 +722,12 @@ int swoole_coroutine_fdatasync(int fd) {
 
 int swoole_coroutine_ftruncate(int fd, off_t length) {
     if (sw_unlikely(is_no_coro())) {
-        return ftruncate(fd, length);
+        return sw_ftruncate(fd, length);
     }
 
 #if defined(SW_USE_ASYNC) || !defined(HAVE_IOURING_FTRUNCATE)
     int ret = -1;
-    async([&]() { ret = ftruncate(fd, length); });
+    async([&]() { ret = sw_ftruncate(fd, length); });
     return ret;
 #else
     return Iouring::ftruncate(fd, length);
@@ -690,31 +746,51 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
 
 ssize_t swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
     if (sw_unlikely(is_no_coro())) {
+#ifdef _WIN32
+        errno = ENOSYS;
+        return -1;
+#else
         return readlink(pathname, buf, len);
+#endif
     }
 
     ssize_t ret = -1;
+#ifdef _WIN32
+    errno = ENOSYS;
+    ret = -1;
+#else
     async([&]() { ret = readlink(pathname, buf, len); });
+#endif
     return ret;
 }
 
 int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
     if (sw_unlikely(is_no_coro())) {
+#ifdef _WIN32
+        errno = ENOSYS;
+        return -1;
+#else
         return statvfs(path, buf);
+#endif
     }
 
     int ret = -1;
+#ifdef _WIN32
+    errno = ENOSYS;
+    ret = -1;
+#else
     async([&]() { ret = statvfs(path, buf); });
+#endif
     return ret;
 }
 
 int swoole_coroutine_access(const char *pathname, int mode) {
     if (sw_unlikely(is_no_coro())) {
-        return access(pathname, mode);
+        return sw_access(pathname, mode);
     }
 
     int ret = -1;
-    async([&]() { ret = access(pathname, mode); });
+    async([&]() { ret = sw_access(pathname, mode); });
     return ret;
 }
 SW_EXTERN_C_END

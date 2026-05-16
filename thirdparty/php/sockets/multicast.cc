@@ -19,6 +19,9 @@
 #include "php_sockets_cxx.h"
 
 #include "php_network.h"
+#ifdef PHP_WIN32
+# include "swoole_win32.h"
+#else
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -27,7 +30,9 @@
 #endif
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#endif
 
+#include "multicast.h"
 #include "main/php_network.h"
 
 enum source_op { JOIN_SOURCE, LEAVE_SOURCE, BLOCK_SOURCE, UNBLOCK_SOURCE };
@@ -270,7 +275,7 @@ int php_do_setsockopt_ip_mcast(SocketImpl *php_sock, int level, int optname, zva
     return 1;
 
 dosockopt:
-    retval = setsockopt(php_sock->get_fd(), level, optname, opt_ptr, optlen);
+    retval = setsockopt(php_sock->get_fd(), level, optname, (char *) opt_ptr, optlen);
     if (retval != 0) {
         PHP_SWOOLE_SOCKET_ERROR(php_sock, "unable to set socket option", errno);
         return FAILURE;
@@ -330,7 +335,7 @@ int php_do_setsockopt_ipv6_mcast(SocketImpl *php_sock, int level, int optname, z
     return 1; /* not handled */
 
 dosockopt:
-    retval = setsockopt(php_sock->get_fd(), level, optname, opt_ptr, optlen);
+    retval = setsockopt(php_sock->get_fd(), level, optname, (char *) opt_ptr, optlen);
     if (retval != 0) {
         PHP_SWOOLE_SOCKET_ERROR(php_sock, "unable to set socket option", errno);
         return FAILURE;
@@ -558,12 +563,12 @@ int php_if_index_to_addr4(unsigned if_index, SocketImpl *php_sock, struct in_add
     }
 
     size = 4 * (sizeof *addr_table);
-    addr_table = emalloc(size);
+    addr_table = (MIB_IPADDRTABLE *) emalloc(size);
 retry:
     retval = GetIpAddrTable(addr_table, &size, 0);
     if (retval == ERROR_INSUFFICIENT_BUFFER) {
         efree(addr_table);
-        addr_table = emalloc(size);
+        addr_table = (MIB_IPADDRTABLE *) emalloc(size);
         goto retry;
     }
     if (retval != NO_ERROR) {
@@ -595,12 +600,12 @@ int php_add4_to_if_index(struct in_addr *addr, SocketImpl *php_sock, unsigned *i
     }
 
     size = 4 * (sizeof *addr_table);
-    addr_table = emalloc(size);
+    addr_table = (MIB_IPADDRTABLE *) emalloc(size);
 retry:
     retval = GetIpAddrTable(addr_table, &size, 0);
     if (retval == ERROR_INSUFFICIENT_BUFFER) {
         efree(addr_table);
-        addr_table = emalloc(size);
+        addr_table = (MIB_IPADDRTABLE *) emalloc(size);
         goto retry;
     }
     if (retval != NO_ERROR) {

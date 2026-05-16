@@ -19,7 +19,9 @@
 
 #include "swoole_socket.h"
 
+#ifndef _WIN32
 #include <netdb.h>
+#endif
 
 namespace swoole {
 struct SendData {
@@ -105,6 +107,9 @@ struct Protocol {
 #define SW_BYTE_ORDER _BYTE_ORDER
 #elif defined(BYTE_ORDER)
 #define SW_BYTE_ORDER BYTE_ORDER
+#elif defined(_WIN32)
+// Windows on x86/x64/ARM is always little-endian
+#define SW_BYTE_ORDER 1234
 #else
 #error "Unable to determine machine byte order"
 #endif
@@ -115,6 +120,8 @@ struct Protocol {
 #define SW_LITTLE_ENDIAN _LITTLE_ENDIAN
 #elif defined(LITTLE_ENDIAN)
 #define SW_LITTLE_ENDIAN LITTLE_ENDIAN
+#elif defined(_WIN32)
+#define SW_LITTLE_ENDIAN 1234
 #else
 #error "No LITTLE_ENDIAN macro"
 #endif

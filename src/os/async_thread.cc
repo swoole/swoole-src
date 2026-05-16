@@ -350,7 +350,12 @@ AsyncThreads::AsyncThreads() {
         throw Exception(SW_ERROR_WRONG_OPERATION);
     }
 
-    pipe = new UnixSocket(false, SOCK_STREAM);
+    pipe =
+#ifdef _WIN32
+        new Pipe(false);
+#else
+        new UnixSocket(false, SOCK_STREAM);
+#endif
     if (!pipe->ready()) {
         delete pipe;
         pipe = nullptr;

@@ -37,12 +37,12 @@ class SocketPair {
      * master : socks[1], for write operation
      * worker : socks[0], for read operation
      */
-    int socks[2]{};
+    swSocketFd socks[2]{};
 
     network::Socket *master_socket = nullptr;
     network::Socket *worker_socket = nullptr;
 
-    void init_socket(int master_fd, int worker_fd);
+    void init_socket(swSocketFd master_fd, swSocketFd worker_fd);
 
   public:
     explicit SocketPair(bool _blocking) {
@@ -78,6 +78,7 @@ class Pipe : public SocketPair {
     explicit Pipe(bool blocking);
 };
 
+#ifndef _WIN32
 class UnixSocket : public SocketPair {
     int protocol_;
 
@@ -85,5 +86,6 @@ class UnixSocket : public SocketPair {
     UnixSocket(bool blocking, int _protocol);
     bool set_buffer_size(size_t _size) const;
 };
+#endif
 
 }  // namespace swoole

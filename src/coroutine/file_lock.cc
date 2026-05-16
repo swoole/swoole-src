@@ -14,7 +14,9 @@
   +----------------------------------------------------------------------+
 */
 
+#ifndef _WIN32
 #include <sys/file.h>
+#endif
 
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_api.h"
@@ -25,7 +27,7 @@ using swoole::coroutine::wait_for;
 static inline int do_lock(int fd, int operation) {
     int retval = 0;
     auto success = wait_for([&retval, operation, fd]() {
-        auto rv = flock(fd, operation | LOCK_NB);
+        auto rv = sw_flock(fd, operation | LOCK_NB);
         if (rv == 0) {
             retval = 0;
         } else if (rv == -1 && errno == EWOULDBLOCK) {
@@ -47,16 +49,16 @@ static inline int lock_sh(int fd) {
 }
 
 static inline int lock_release(int fd) {
-    return flock(fd, LOCK_UN);
+    return sw_flock(fd, LOCK_UN);
 }
 
 int swoole_coroutine_flock(int fd, int operation) {
     Coroutine *co = Coroutine::get_current();
     if (sw_unlikely(SwooleTG.reactor == nullptr || !co)) {
-        return ::flock(fd, operation);
+        return sw_flock(fd, operation);
     }
     if (operation & LOCK_NB) {
-        return ::flock(fd, operation);
+        return sw_flock(fd, operation);
     }
     switch (operation) {
     case LOCK_EX:

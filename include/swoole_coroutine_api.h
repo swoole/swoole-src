@@ -22,15 +22,28 @@ extern "C" {
 #endif
 
 #include <sys/stat.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#ifdef _WIN32
+// Windows: winsock2.h, ws2tcpip.h, and compatibility types are provided
+// via swoole_win32.h (included through swoole.h)
+// The following POSIX headers are NOT available on Windows:
+//   <sys/socket.h> -> replaced by <winsock2.h> + <ws2tcpip.h>
+//   <sys/wait.h>   -> not available, pid_t/waitpid defined elsewhere
+//   <sys/statvfs.h> -> struct statvfs defined in swoole_win32.h
+//   <netdb.h>      -> replaced by <ws2tcpip.h> (getaddrinfo, addrinfo etc.)
+//   <poll.h>       -> replaced by WSAPoll (pollfd, nfds_t defined in swoole_win32.h)
+//   <dirent.h>     -> DIR, struct dirent defined in swoole_win32.h
+#else
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/statvfs.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <netdb.h>
 #include <poll.h>
 #include <dirent.h>
+#endif
 
 /**
  * basic API

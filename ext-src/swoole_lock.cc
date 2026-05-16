@@ -20,7 +20,9 @@
 #include "swoole_util.h"
 #include "swoole_timer.h"
 
+#ifndef _WIN32
 #include <sys/file.h>
+#endif
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_lock_arginfo.h"

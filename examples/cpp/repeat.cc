@@ -28,9 +28,9 @@ int main(int argc, char **argv) {
                 [serv](Timer *, TimerNode *tnode) {
                     printf("timer=%p\n", tnode);
                     if (serv->is_base_mode()) {
-                        kill(getpid(), SIGTERM);
+                        sw_kill(getpid(), SIGTERM);
                     } else {
-                        kill(serv->gs->master_pid, SIGTERM);
+                        sw_kill(serv->gs->master_pid, SIGTERM);
                     }
                 },
                 nullptr);

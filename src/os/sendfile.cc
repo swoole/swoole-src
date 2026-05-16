@@ -16,7 +16,37 @@
 
 #include "swoole_socket.h"
 
-#if defined(__linux__)
+#ifdef _WIN32
+// Windows: use TransmitFile for zero-copy sendfile
+ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
+    HANDLE hFile = reinterpret_cast<HANDLE>(_get_osfhandle(in_fd));
+    if (hFile == INVALID_HANDLE_VALUE) {
+        errno = EBADF;
+        return -1;
+    }
+
+    // For now, use read+send as a fallback since TransmitFile
+    // requires the socket to be in a particular state
+    char buf[SW_BUFFER_SIZE_BIG];
+    size_t readn = size > sizeof(buf) ? sizeof(buf) : size;
+    ssize_t n = sw_pread(in_fd, buf, readn, *offset);
+
+    if (n > 0) {
+        ssize_t ret = ::send(out_fd, buf, n, 0);
+        if (ret < 0) {
+            swoole_sys_warning("send() in sendfile failed");
+        } else {
+            *offset += ret;
+        }
+        return ret;
+    } else if (n == 0) {
+        return 0;
+    } else {
+        swoole_sys_warning("pread() in sendfile failed");
+        return SW_ERR;
+    }
+}
+#elif defined(__linux__)
 #include <sys/sendfile.h>
 
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
@@ -74,7 +104,7 @@ _do_sendfile:
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     char buf[SW_BUFFER_SIZE_BIG];
     size_t readn = size > sizeof(buf) ? sizeof(buf) : size;
-    ssize_t n = pread(in_fd, buf, readn, *offset);
+    ssize_t n = sw_pread(in_fd, buf, readn, *offset);
 
     if (n > 0) {
         ssize_t ret = write(out_fd, buf, n);

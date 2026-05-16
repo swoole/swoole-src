@@ -44,7 +44,7 @@ void Barrier::wait() {
         if (barrier_ == count_) {
             break;
         }
-        usleep(BARRIER_USEC);
+        sw_usleep(BARRIER_USEC);
         sw_atomic_memory_barrier();
     }
 #endif

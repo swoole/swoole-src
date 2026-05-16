@@ -148,7 +148,7 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
             mask(buffer->str + offset, length, SW_WEBSOCKET_MASK_DATA);
         }
     } else {
-        if (length > 0 and !(_flags & FLAG_ENCODE_HEADER_ONLY)) {
+        if (length > 0 && !(_flags & FLAG_ENCODE_HEADER_ONLY)) {
             buffer->append(data, length);
         }
     }
@@ -232,6 +232,7 @@ void print_frame(const Frame *frame) {
     }
 }
 
+#ifndef _WIN32
 int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata) {
     auto *serv = (Server *) proto->private_data_2;
     auto *conn = (Connection *) _socket->object;
@@ -356,5 +357,6 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
     }
     return SW_OK;
 }
+#endif  // _WIN32
 }  // namespace websocket
 }  // namespace swoole
