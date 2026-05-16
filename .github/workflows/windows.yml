@@ -1,12 +1,31 @@
 name: Windows tests
-run-name: Windows tests for ${{ inputs.tag || github.ref_name }}
 on: [push, pull_request]
 
 jobs:
   windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-2022
     name: Windows Build
     steps:
-      - name: Build
-        run: |
-          gh workflow run php.yml -R swoole/windows-builder -f tag="php-8.4"
+      - uses: actions/checkout@v6
+        with:
+          repository: swoole/windows-builder
+          ref: master
+
+      - name: Build PHP 8.4
+        uses: ./php
+        with:
+          php-version: '8.4'
+          arch: x64
+          ts: ts
+        env:
+          PHP_BUILD_PROVIDER: "Swoole"
+
+      - name: Build Swoole extension
+        uses: ./extension
+        with:
+          php-version: '8.4'
+          arch: x64
+          ts: ts
+          extension-url: https://github.com/swoole/swoole-src
+          extension-ref: master
+          args: --enable-swoole --enable-swoole-curl --enable-swoole-thread
