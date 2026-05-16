@@ -246,7 +246,7 @@ ssize_t sw_pwrite(int fd, const void *buf, size_t count, off_t offset) {
     return static_cast<ssize_t>(bytes_written);
 }
 
-ssize_t sw_readv(swSocketFd __fd, const struct iovec *iov, int count) {
+ssize_t sw_readv(swSocketFd fd, const struct iovec *iov, int count) {
 	ssize_t retval = 0;
     for (int i = 0; i < count; i++) {
         ssize_t n = ::recv(fd, (char *) iov[i].iov_base, iov[i].iov_len, 0);

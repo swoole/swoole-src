@@ -804,6 +804,8 @@ char *sw_strndup(const char *s, size_t n);
 // pread/pwrite replacements
 ssize_t sw_pread(int fd, void *buf, size_t count, off_t offset);
 ssize_t sw_pwrite(int fd, const void *buf, size_t count, off_t offset);
+ssize_t sw_readv(swSocketFd fd, const struct iovec *iov, int count);
+ssize_t sw_writev(swSocketFd fd, const struct iovec *iov, int iovcnt);
 
 // WSA initialization/cleanup
 void sw_wsastartup();
