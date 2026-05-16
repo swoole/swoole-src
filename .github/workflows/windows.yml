@@ -1,0 +1,27 @@
+name: Unit Tests
+
+on: [push, pull_request]
+
+jobs:
+  linux:
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[windows]')"
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4']
+        os: [ ubuntu-24.04, ubuntu-24.04-arm ]
+    name: ${{ matrix.php }}-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v6
+    - uses: swoole/windows-builder/extension@v1
+      with:
+        php-version: ${{ matrix.php-version }}
+        arch: ${{ matrix.arch }}
+        ts: ${{ matrix.ts }}
+        extension-url: https://github.com/swoole/swoole-src
+        extension-ref: master
+        args: --enable-swoole --enable-swoole-curl --enable-swoole-thread
+
+
