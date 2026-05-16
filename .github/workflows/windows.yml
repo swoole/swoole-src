@@ -9,7 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ 'windows-latest' ]
-        ts: [ 'nts', 'ts' ]
+        ts: [ 'ts' ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,5 +33,5 @@ jobs:
           tools-path: C:\tools\phpdev
           conf-args: --enable-swoole --enable-swoole-curl --enable-swoole-thread
           staging-deps: '1'
-          deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,libbrotli
+          deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,brotli
 
