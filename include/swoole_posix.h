@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <sys/uio.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
