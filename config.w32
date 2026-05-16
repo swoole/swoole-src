@@ -256,29 +256,16 @@ if (PHP_SWOOLE != "no") {
 
     AC_DEFINE("HAVE_SWOOLE", 1, "Define to 1 if the PHP extension 'swoole' is available.");
 
-    // Add include directories
-    // SWOOLE_INCLUDE_PREFIX is set by build.ps1 based on ExtPath:
-    // - From project root ("."): "ext\swoole"
-    // - From subdirectory ("ext\swoole"): "."
-    // Read from config file if available
-    var $include_prefix = "ext\swoole";
-    try {
-        var $fso = new ActiveXObject("Scripting.FileSystemObject");
-        var $deps_path = "C:\\tools\\phpdev\\deps\\swoole_include_prefix.txt";
-        if ($fso.FileExists($deps_path)) {
-            var $file = $fso.OpenTextFile($deps_path, 1);
-            $include_prefix = $file.ReadLine().replace(/[\r\n]+$/, "");
-            $file.Close();
-        }
-    } catch (e) {
-        // Use default value
-    }
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\ext-src\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\include\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\\php\\sockets\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\\php\\standard\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\\llhttp\"");
+    // Add include directories using configure_module_dirname (auto-set by PHP SDK)
+    // When building from project root, configure_module_dirname = "ext\swoole"
+    // When building from ext\swoole directory, configure_module_dirname = "."
+    var $base_dir = configure_module_dirname;
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\ext-src\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\include\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\thirdparty\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\thirdparty\\php\\sockets\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\thirdparty\\php\\standard\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\thirdparty\\llhttp\"");
 
     // Add compiler flags
     ADD_FLAG("CFLAGS_SWOOLE", "/D PHP_SWOOLE_EXPORTS=1");
