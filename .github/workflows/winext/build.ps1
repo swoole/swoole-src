@@ -13,6 +13,19 @@ $scriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
 info "Start building php extension"
 $origwd = (Get-Location).Path
+$extPathResolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ExtPath)
+
+# Determine include path prefix based on ExtPath:
+# - If ExtPath is "." or project root, use "ext\swoole" prefix
+# - Otherwise (e.g., "ext\swoole"), use ".\" prefix (current directory)
+if ($ExtPath -eq ".") {
+    $env:SWOOLE_INCLUDE_PREFIX = "ext\swoole"
+    info "Building from project root, using include prefix: $env:SWOOLE_INCLUDE_PREFIX"
+} else {
+    $env:SWOOLE_INCLUDE_PREFIX = "."
+    info "Building from subdirectory, using include prefix: $env:SWOOLE_INCLUDE_PREFIX"
+}
+
 Set-Location $ExtPath
 
 info "Phpize it"
