@@ -55,6 +55,8 @@ typedef int swSocketFd;
 #define sw_strdup strdup
 #define sw_pread pread
 #define sw_pwrite pwrite
+#define sw_readv readv
+#define sw_writev writev
 #define sw_flock flock
 #define sw_fsync fsync
 #define sw_ftruncate ftruncate

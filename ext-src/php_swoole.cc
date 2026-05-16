@@ -521,15 +521,12 @@ void php_swoole_set_global_option(HashTable *vht) {
 }
 
 SW_API bool php_swoole_is_enable_coroutine() {
-    if (sw_server()
 #ifndef _WIN32
-        && sw_server()->is_enable_coroutine()
-#endif
-    ) {
-        return true;
-    } else {
-        return SwooleG.enable_coroutine;
+    if (sw_server()) {
+        return sw_server()->is_enable_coroutine();
     }
+#endif
+    return SwooleG.enable_coroutine;
 }
 
 SW_API zend_long php_swoole_parse_to_size(zval *zv) {

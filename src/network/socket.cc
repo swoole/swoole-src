@@ -1006,23 +1006,7 @@ ssize_t Socket::readv(IOVector *io_vector) {
         if (ssl) {
             retval = ssl_readv(io_vector);
         } else {
-#ifdef _WIN32
-            // Windows doesn't have readv(); read each iov element sequentially
-            retval = 0;
-            struct iovec *iov = io_vector->get_iterator();
-            int count = io_vector->get_remain_count();
-            for (int i = 0; i < count; i++) {
-                ssize_t n = ::recv(fd, (char *) iov[i].iov_base, iov[i].iov_len, 0);
-                if (n < 0) {
-                    retval = (retval == 0) ? -1 : retval;
-                    break;
-                }
-                retval += n;
-                if ((size_t) n < iov[i].iov_len) break;
-            }
-#else
-            retval = ::readv(fd, io_vector->get_iterator(), io_vector->get_remain_count());
-#endif
+            retval = ::sw_readv(fd, io_vector->get_iterator(), io_vector->get_remain_count());
             io_vector->update_iterator(retval);
         }
     } while (retval < 0 && sw_errno() == EINTR);
@@ -1037,23 +1021,7 @@ ssize_t Socket::writev(IOVector *io_vector) {
         if (ssl) {
             retval = ssl_writev(io_vector);
         } else {
-#ifdef _WIN32
-            // Windows doesn't have writev(); write each iov element sequentially
-            retval = 0;
-            struct iovec *iov = io_vector->get_iterator();
-            int count = io_vector->get_remain_count();
-            for (int i = 0; i < count; i++) {
-                ssize_t n = ::send(fd, (const char *) iov[i].iov_base, iov[i].iov_len, 0);
-                if (n < 0) {
-                    retval = (retval == 0) ? -1 : retval;
-                    break;
-                }
-                retval += n;
-                if ((size_t) n < iov[i].iov_len) break;
-            }
-#else
-            retval = ::writev(fd, io_vector->get_iterator(), io_vector->get_remain_count());
-#endif
+            retval = ::sw_writev(fd, io_vector->get_iterator(), io_vector->get_remain_count());
             io_vector->update_iterator(retval);
         }
     } while (retval < 0 && sw_errno() == EINTR);

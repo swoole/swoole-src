@@ -157,8 +157,6 @@ static bool timer_if_use_reactor() {
     if (server) {
         return server->is_user_worker() || (server->is_task_worker() && server->task_enable_coroutine);
     }
-#endif
-#ifndef _WIN32
     auto process_pool = sw_process_pool();
     if (process_pool) {
         return !process_pool->is_master();
@@ -185,7 +183,7 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
         RETURN_FALSE;
     }
 
-    if (UNEXPECTED(!sw_reactor() && timer_if_use_reactor())) {
+    if (UNEXPECTED(!sw_timer() && !sw_reactor() && timer_if_use_reactor())) {
         php_swoole_check_reactor();
     }
 

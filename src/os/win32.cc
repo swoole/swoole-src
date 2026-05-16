@@ -246,6 +246,33 @@ ssize_t sw_pwrite(int fd, const void *buf, size_t count, off_t offset) {
     return static_cast<ssize_t>(bytes_written);
 }
 
+ssize_t sw_readv(swSocketFd __fd, const struct iovec *iov, int count) {
+	ssize_t retval = 0;
+    for (int i = 0; i < count; i++) {
+        ssize_t n = ::recv(fd, (char *) iov[i].iov_base, iov[i].iov_len, 0);
+        if (n < 0) {
+            retval = (retval == 0) ? -1 : retval;
+            break;
+        }
+        retval += n;
+        if ((size_t) n < iov[i].iov_len) break;
+    }
+    return retval;
+}
+
+ssize_t sw_writev(swSocketFd fd, const struct iovec *iov, int iovcnt) {
+	DWORD bytes_sent = 0;
+	WSABUF *wsabuf = reinterpret_cast<WSABUF *>(_alloca(iovcnt * sizeof(WSABUF)));
+	for (size_t i = 0; i < iovcnt; i++) {
+		wsabuf[i].buf = static_cast<char *>(iov[i].iov_base);
+		wsabuf[i].len = static_cast<ULONG>(iov[i].iov_len);
+	}
+	if (WSASend(fd, wsabuf, static_cast<DWORD>(iovcnt), &bytes_sent, 0, nullptr, nullptr) == SOCKET_ERROR) {
+		return -1;
+	}
+	return static_cast<ssize_t>(bytes_sent);
+}
+
 // ============================================================================
 // socketpair() - create a pair of connected sockets using TCP loopback
 // ============================================================================
