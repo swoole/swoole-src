@@ -261,7 +261,7 @@ bool StaticHandler::get_dir_files() {
         dir_files.insert(ptr->d_name);
     }
 
-    sw_closedir(dir);
+    ::sw_closedir(dir);
 
     return true;
 }
