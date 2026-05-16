@@ -156,7 +156,6 @@ RWLock::~RWLock() {
         impl = nullptr;
     }
 }
-
 #else
 struct RWLockImpl {
     pthread_rwlock_t lock_;
@@ -164,9 +163,13 @@ struct RWLockImpl {
 };
 
 RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
-    impl = new RWLockImpl();
-    if (!impl) {
-        throw std::bad_alloc();
+    if (shared) {
+        impl = (RWLockImpl *) sw_mem_pool()->alloc(sizeof(*impl));
+        if (impl == nullptr) {
+            throw std::bad_alloc();
+        }
+    } else {
+        impl = new RWLockImpl();
     }
 
     pthread_rwlockattr_init(&impl->attr_);
@@ -174,7 +177,6 @@ RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
         pthread_rwlockattr_setpshared(&impl->attr_, PTHREAD_PROCESS_SHARED);
     }
     if (pthread_rwlock_init(&impl->lock_, &impl->attr_) != 0) {
-        delete impl;
         throw std::system_error(errno, std::generic_category(), "pthread_rwlock_init() failed");
     }
 }
@@ -182,13 +184,8 @@ RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
 static int rwlock_timed_lock_rd(pthread_rwlock_t *rwlock, int timeout_msec) {
 #ifdef HAVE_RWLOCK_TIMEDRDLOCK
     timespec timeo;
-    clock_gettime(CLOCK_REALTIME, &timeo);
-    timeo.tv_sec += timeout_msec / 1000;
-    timeo.tv_nsec += (timeout_msec % 1000) * 1000000;
-    if (timeo.tv_nsec >= 1000000000) {
-        timeo.tv_sec++;
-        timeo.tv_nsec -= 1000000000;
-    }
+    realtime_get(&timeo);
+    realtime_add(&timeo, timeout_msec);
     return pthread_rwlock_timedrdlock(rwlock, &timeo);
 #else
     return sw_wait_for([rwlock]() { return pthread_rwlock_tryrdlock(rwlock) == 0; }, timeout_msec) ? 0 : ETIMEDOUT;
@@ -198,13 +195,8 @@ static int rwlock_timed_lock_rd(pthread_rwlock_t *rwlock, int timeout_msec) {
 static int rwlock_timed_lock_wr(pthread_rwlock_t *rwlock, int timeout_msec) {
 #ifdef HAVE_RWLOCK_TIMEDRDLOCK
     timespec timeo;
-    clock_gettime(CLOCK_REALTIME, &timeo);
-    timeo.tv_sec += timeout_msec / 1000;
-    timeo.tv_nsec += (timeout_msec % 1000) * 1000000;
-    if (timeo.tv_nsec >= 1000000000) {
-        timeo.tv_sec++;
-        timeo.tv_nsec -= 1000000000;
-    }
+    realtime_get(&timeo);
+    realtime_add(&timeo, timeout_msec);
     return pthread_rwlock_timedwrlock(rwlock, &timeo);
 #else
     return sw_wait_for([rwlock]() { return pthread_rwlock_trywrlock(rwlock) == 0; }, timeout_msec) ? 0 : ETIMEDOUT;
@@ -242,7 +234,11 @@ int RWLock::unlock() {
 RWLock::~RWLock() {
     pthread_rwlockattr_destroy(&impl->attr_);
     pthread_rwlock_destroy(&impl->lock_);
-    delete impl;
+    if (shared_) {
+        sw_mem_pool()->free(impl);
+    } else {
+        delete impl;
+    }
 }
 
 #endif
