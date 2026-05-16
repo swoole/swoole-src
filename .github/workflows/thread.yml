@@ -39,5 +39,5 @@ jobs:
         export SWOOLE_CI_TYPE=THREAD
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
         export SWOOLE_BUILD_DIR=$(realpath .)
-        export PHP_VERSION=${{ matrix.php }}
+        export PHP_VERSION=${{ matrix.php }}-zts
         ${SWOOLE_BUILD_DIR}/scripts/route.sh
