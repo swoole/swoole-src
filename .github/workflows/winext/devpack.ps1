@@ -51,6 +51,18 @@ if(
     exit 1
 }
 
+# Check if devpack directory already exists (e.g., restored from cache)
+$sa = New-Object -ComObject Shell.Application
+$devpackPattern = "php-" + $PhpVer + ".*-devel-" + $PhpVCVer + "-" + $PhpArch
+$existingDevpack = Get-ChildItem $ToolsPath -Directory | Where-Object { $_.Name -like $devpackPattern } | Select-Object -First 1
+if ($existingDevpack -And (Test-Path "$ToolsPath\$($existingDevpack.Name)\script\phpize.js")) {
+    info "Found existing devpack directory: $($existingDevpack.Name), skipping download."
+    $dirname = $existingDevpack.Name
+    if($DryRun){
+        return
+    }
+    goto :generate_env
+}
 
 function fetchdevpack(){
     if ($info.$PhpVer.$phpvar) {
@@ -159,6 +171,7 @@ try{
 $sa = New-Object -ComObject Shell.Application
 $dirname = ($sa.NameSpace($zipdest).Items() | Select-Object -Index 0).Name
 
+:generate_env
 info "Try patch phpize.js for newer wscript"
 # see https://github.com/php/php-src/commit/7f6c05116e83e75353f27f5333cc860c3a6f64f7
 $phpizejs = Get-Content "$ToolsPath\$dirname\script\phpize.js"

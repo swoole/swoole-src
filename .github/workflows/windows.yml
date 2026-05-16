@@ -26,16 +26,17 @@ jobs:
         env:
           phpts: ts
 
-      - name: Cache PHP deps
-        id: cache-deps
+      - name: Cache PHP deps and devpack
+        id: cache-php
         uses: actions/cache@v4
         with:
-          path: C:\tools\phpdev\deps
-          key: phpdeps-${{ runner.os }}-php84-${{ matrix.ts }}-v1
+          path: |
+            C:\tools\phpdev\deps
+            C:\tools\phpdev\php-*-devel-*-*
+          key: php84-${{ runner.os }}-${{ matrix.ts }}-v2
           restore-keys: |
-            phpdeps-${{ runner.os }}-php84-${{ matrix.ts }}-
-            phpdeps-${{ runner.os }}-php84-
-            phpdeps-${{ runner.os }}-
+            php84-${{ runner.os }}-${{ matrix.ts }}-
+            php84-${{ runner.os }}-
 
       - name: Build Swoole extension
         uses: ./.github/workflows/winext
