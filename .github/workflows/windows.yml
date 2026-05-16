@@ -1,19 +1,11 @@
 name: Windows tests
 run-name: Windows tests for ${{ inputs.tag || github.ref_name }}
-on:
-  push:
-    tags:
-      - 'php-*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag version'
-        required: true
+on: [push, pull_request]
 
 jobs:
-  publish:
+  windows:
     runs-on: ubuntu-latest
-    name: Build
+    name: Windows Build
     steps:
       - name: Build
         run: |
