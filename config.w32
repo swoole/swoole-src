@@ -261,7 +261,6 @@ if (PHP_SWOOLE != "no") {
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\ext-src\"");
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\include\"");
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\thirdparty\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \".\"");
     // Note: When using system nghttp2, CHECK_HEADER_ADD_INCLUDE adds the
     // system include path BEFORE thirdparty, so <nghttp2/nghttp2.h> will
     // find the system version first.

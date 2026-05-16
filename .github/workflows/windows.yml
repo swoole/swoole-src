@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   windows-tests:
-    name: Swoole Unit Test on Windows
+    name: Unit Test on Windows
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -26,16 +26,21 @@ jobs:
         env:
           phpts: ts
 
+      - name: Cache PHP deps
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: C:\tools\phpdev\deps
+          key: phpdeps-${{ runner.os }}-php84-${{ matrix.ts }}-v1
+          restore-keys: |
+            phpdeps-${{ runner.os }}-php84-${{ matrix.ts }}-
+            phpdeps-${{ runner.os }}-php84-
+            phpdeps-${{ runner.os }}-
+
       - name: Build Swoole extension
-        run: |
-          if (Test-Path ./ext/configure) { Remove-Item -Recurse -Force ./ext/configure }
-          if (Test-Path ./ext/build) { Remove-Item -Recurse -Force ./ext/build }
-          if (Test-Path ./ext/Makefile) { Remove-Item -Recurse -Force ./ext/Makefile }
-        shell: powershell
-      - name: Build Swoole extension (run)
         uses: ./.github/workflows/winext
         with:
-          ext-path: ./ext
+          ext-path: .
           tools-path: C:\tools\phpdev
           conf-args: --enable-swoole-curl --enable-swoole-thread
           staging-deps: '1'
