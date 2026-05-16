@@ -563,8 +563,8 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
 _startup_error:
     zend_string_release(file);
     thread->exit(EG(exit_status));
-    ts_free_thread();
     swoole_thread_clean(false);
+    ts_free_thread();
     thread_num.fetch_sub(1);
 }
 

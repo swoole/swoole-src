@@ -224,8 +224,8 @@ int php_swoole_reactor_init() {
         return SW_ERR;
     }
 
-    if (sw_server()) {
 #ifndef _WIN32
+    if (sw_server()) {
         if (sw_server()->is_task_worker() && !sw_server()->task_enable_coroutine) {
             php_swoole_fatal_error(
                 E_ERROR, "Unable to use async-io in task processes, please set `task_enable_coroutine` to true");
@@ -235,8 +235,9 @@ int php_swoole_reactor_init() {
             php_swoole_fatal_error(E_ERROR, "Unable to use async-io in manager process");
             return SW_ERR;
         }
-#endif
     }
+#endif
+
     if (!sw_reactor()) {
         swoole_trace_log(SW_TRACE_PHP, "init reactor");
 
