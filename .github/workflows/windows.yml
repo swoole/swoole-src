@@ -1,27 +1,23 @@
-name: Unit Tests
-
-on: [push, pull_request]
+name: Windows tests
+run-name: Windows tests for ${{ inputs.tag || github.ref_name }}
+on:
+  push:
+    tags:
+      - 'php-*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag version'
+        required: true
 
 jobs:
-  linux:
-    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[windows]')"
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        php: ['8.4']
-        os: [ ubuntu-24.04, ubuntu-24.04-arm ]
-    name: ${{ matrix.php }}-${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  publish:
+    runs-on: ubuntu-latest
+    name: Build
     steps:
-    - uses: actions/checkout@v6
-    - uses: swoole/windows-builder/extension@v1
-      with:
-        php-version: ${{ matrix.php-version }}
-        arch: ${{ matrix.arch }}
-        ts: ${{ matrix.ts }}
-        extension-url: https://github.com/swoole/swoole-src
-        extension-ref: master
-        args: --enable-swoole --enable-swoole-curl --enable-swoole-thread
-
-
+      - name: Build
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINDOWS_BUILDS_TOKEN }}
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          gh workflow run php.yml -R swoole/windows-builder -f php-version="${TAG#php-}"
