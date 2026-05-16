@@ -257,13 +257,17 @@ if (PHP_SWOOLE != "no") {
     AC_DEFINE("HAVE_SWOOLE", 1, "Define to 1 if the PHP extension 'swoole' is available.");
 
     // Add include directories
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\ext-src\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\include\"");
-    ADD_FLAG("CFLAGS_SWOOLE", "/I \"ext\\swoole\\thirdparty\"");
-    // Note: When using system nghttp2, CHECK_HEADER_ADD_INCLUDE adds the
-    // system include path BEFORE thirdparty, so <nghttp2/nghttp2.h> will
-    // find the system version first.
+    // SWOOLE_INCLUDE_PREFIX is set by build.ps1 based on ExtPath:
+    // - From project root ("."): "ext\swoole"
+    // - From subdirectory ("ext\swoole"): "."
+    var $include_prefix = ENV("SWOOLE_INCLUDE_PREFIX");
+    if ($include_prefix == "") $include_prefix = "ext\swoole";
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\ext-src\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\include\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\\php\\sockets\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\\php\\standard\"");
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\\llhttp\"");
 
     // Add compiler flags
     ADD_FLAG("CFLAGS_SWOOLE", "/D PHP_SWOOLE_EXPORTS=1");
