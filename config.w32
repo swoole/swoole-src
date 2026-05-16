@@ -260,6 +260,7 @@ if (PHP_SWOOLE != "no") {
     // When building from project root, configure_module_dirname = "ext\swoole"
     // When building from ext\swoole directory, configure_module_dirname = "."
     var $base_dir = configure_module_dirname;
+    ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\"");
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\ext-src\"");
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\include\"");
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $base_dir + "\\thirdparty\"");
