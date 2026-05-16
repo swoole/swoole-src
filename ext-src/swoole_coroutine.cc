@@ -198,6 +198,10 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
     ) {
         flags |= SW_EXIT_IN_SERVER;
     }
+    if (flags) {
+        const zend_op *opline = EX(opline);
+        zval _exit_status{};
+        zval *exit_status = nullptr;
 
         if (opline->op1_type != IS_UNUSED) {
             if (opline->op1_type == IS_CONST) {
