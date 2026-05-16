@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   windows-tests:
-    name: PHP latest ${{ matrix.ts }} Test on Windows
+    name: Swoole Unit Test on Windows
     runs-on: windows-latest
     strategy:
       fail-fast: false

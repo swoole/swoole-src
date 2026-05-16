@@ -90,16 +90,16 @@ if (PHP_SWOOLE != "no") {
 
 	// Check for cURL
 	if (PHP_SWOOLE_CURL == "yes") {
-		if (CHECK_LIB("libcurl_a.lib;libcurl.lib", "swoole", PHP_CURL_DIR) &&
-			CHECK_HEADER_ADD_INCLUDE("curl/curl.h", "CFLAGS_SWOOLE", PHP_CURL_DIR)) {
+		if (CHECK_LIB("libcurl_a.lib;libcurl.lib", "swoole", null) &&
+			CHECK_HEADER_ADD_INCLUDE("curl/curl.h", "CFLAGS_SWOOLE", null)) {
 			AC_DEFINE("SW_USE_CURL", 1, "Enable cURL native client");
 		}
 	}
 
 	// Check for SQLite
 	if (PHP_SWOOLE_SQLITE == "yes") {
-		if (CHECK_LIB("sqlite3.lib", "swoole", PHP_SQLITE_DIR) &&
-			CHECK_HEADER_ADD_INCLUDE("sqlite3.h", "CFLAGS_SWOOLE", PHP_SQLITE_DIR)) {
+		if (CHECK_LIB("sqlite3.lib", "swoole", null) &&
+			CHECK_HEADER_ADD_INCLUDE("sqlite3.h", "CFLAGS_SWOOLE", null)) {
 			AC_DEFINE("HAVE_SW_PDO_SQLITELIB", 1, "Define to 1 if you have the pdo_sqlite extension enabled");
 			AC_DEFINE("SW_USE_SQLITE", 1, "Enable SQLite support");
 		}
