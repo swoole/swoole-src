@@ -46,3 +46,6 @@ jobs:
           conf-args: --enable-swoole-curl --enable-swoole-thread
           staging-deps: '1'
           deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,brotli
+
+      - name: Show Swoole extension info
+        run: php --ri swoole

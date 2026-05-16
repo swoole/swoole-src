@@ -93,6 +93,8 @@ if (PHP_SWOOLE != "no") {
 		if (CHECK_LIB("libcurl_a.lib;libcurl.lib", "swoole", null) &&
 			CHECK_HEADER_ADD_INCLUDE("curl/curl.h", "CFLAGS_SWOOLE", null)) {
 			AC_DEFINE("SW_USE_CURL", 1, "Enable cURL native client");
+			ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + configure_module_dirname + "\\thirdparty\\php84\\curl\"");
+			ADD_SOURCES(configure_module_dirname + "\\thirdparty\\php84\\curl", "interface.cc multi.cc", "swoole");
 		}
 	}
 
