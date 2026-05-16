@@ -260,8 +260,19 @@ if (PHP_SWOOLE != "no") {
     // SWOOLE_INCLUDE_PREFIX is set by build.ps1 based on ExtPath:
     // - From project root ("."): "ext\swoole"
     // - From subdirectory ("ext\swoole"): "."
-    var $include_prefix = ENV["SWOOLE_INCLUDE_PREFIX"];
-    if ($include_prefix == "") $include_prefix = "ext\swoole";
+    // Read from config file if available
+    var $include_prefix = "ext\swoole";
+    try {
+        var $fso = new ActiveXObject("Scripting.FileSystemObject");
+        var $deps_path = "C:\\tools\\phpdev\\deps\\swoole_include_prefix.txt";
+        if ($fso.FileExists($deps_path)) {
+            var $file = $fso.OpenTextFile($deps_path, 1);
+            $include_prefix = $file.ReadLine().replace(/[\r\n]+$/, "");
+            $file.Close();
+        }
+    } catch (e) {
+        // Use default value
+    }
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\ext-src\"");
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\include\"");
     ADD_FLAG("CFLAGS_SWOOLE", "/I \"" + $include_prefix + "\\thirdparty\"");

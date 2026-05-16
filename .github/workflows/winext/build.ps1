@@ -19,12 +19,14 @@ $extPathResolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPath
 # - If ExtPath is "." or project root, use "ext\swoole" prefix
 # - Otherwise (e.g., "ext\swoole"), use ".\" prefix (current directory)
 if ($ExtPath -eq ".") {
-    $env:SWOOLE_INCLUDE_PREFIX = "ext\swoole"
-    info "Building from project root, using include prefix: $env:SWOOLE_INCLUDE_PREFIX"
+    $includePrefix = "ext\swoole"
+    info "Building from project root, using include prefix: $includePrefix"
 } else {
-    $env:SWOOLE_INCLUDE_PREFIX = "."
-    info "Building from subdirectory, using include prefix: $env:SWOOLE_INCLUDE_PREFIX"
+    $includePrefix = "."
+    info "Building from subdirectory, using include prefix: $includePrefix"
 }
+# Write include prefix to a config file for config.w32 to read
+$includePrefix | Out-File -FilePath "$ToolsPath\deps\swoole_include_prefix.txt" -Encoding ASCII
 
 Set-Location $ExtPath
 
