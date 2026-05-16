@@ -537,7 +537,7 @@ int System::wait_event(int fd, int events, double timeout) {
 
 pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
     if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (_options & WNOHANG))) {
-        return sw_waitpid(_pid, _stat_loc, _options);
+        return ::sw_waitpid(_pid, _stat_loc, _options);
     }
 
 #if SW_USE_IOURING
@@ -550,7 +550,7 @@ pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
 
     pid_t retval = -1;
     wait_for([_pid, &retval, _stat_loc]() -> bool {
-        retval = sw_waitpid(_pid, _stat_loc, WNOHANG);
+        retval = ::sw_waitpid(_pid, _stat_loc, WNOHANG);
         return retval != 0;
     });
 
