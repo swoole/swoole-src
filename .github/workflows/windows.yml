@@ -16,8 +16,5 @@ jobs:
     name: Build
     steps:
       - name: Build
-        env:
-          GITHUB_TOKEN: ${{ secrets.WINDOWS_BUILDS_TOKEN }}
         run: |
-          TAG="${{ inputs.tag || github.ref_name }}"
-          gh workflow run php.yml -R swoole/windows-builder -f php-version="${TAG#php-}"
+          gh workflow run php.yml -R swoole/windows-builder -f tag="php-8.4"
