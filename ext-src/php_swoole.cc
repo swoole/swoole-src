@@ -59,6 +59,7 @@ END_EXTERN_C()
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <ifaddrs.h>
+#include <sys/ioctl.h>
 #endif
 
 #ifdef SW_USE_CURL
@@ -67,10 +68,6 @@ END_EXTERN_C()
 
 #if defined(__MACH__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
-#endif
-
-#ifdef __linux__
-#include <sys/ioctl.h>
 #endif
 
 #ifdef SW_HAVE_ZLIB
@@ -963,17 +960,6 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_SOCKET", SW_IPC_SOCKET);
 
     /**
-     * server mode (SWOOLE_PROCESS not available on WIN32)
-     */
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_BASE", swoole::Server::MODE_BASE);
-#ifndef _WIN32
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_PROCESS", swoole::Server::MODE_PROCESS);
-#endif
-#ifdef SW_THREAD
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_THREAD", swoole::Server::MODE_THREAD);
-#endif
-
-    /**
      * limit
      */
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IOV_MAX", IOV_MAX);
@@ -1053,13 +1039,15 @@ PHP_MINIT_FUNCTION(swoole) {
 #ifndef _WIN32
     php_swoole_server_minit(module_number);
     php_swoole_server_port_minit(module_number);
-    php_swoole_redis_server_minit(module_number);
-    php_swoole_http_server_minit(module_number);
 #endif
     php_swoole_http_request_minit(module_number);
     php_swoole_http_response_minit(module_number);
     php_swoole_http_cookie_minit(module_number);
+#ifndef _WIN32
+    php_swoole_http_server_minit(module_number);
     php_swoole_websocket_server_minit(module_number);
+    php_swoole_redis_server_minit(module_number);
+#endif
     php_swoole_http_server_coro_minit(module_number);
     php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
@@ -1733,6 +1721,7 @@ static PHP_FUNCTION(swoole_get_local_ip) {
         if (ifa->ifa_addr == nullptr || !(ifa->ifa_flags & IFF_UP)) {
             continue;
         }
+
         if (ifa->ifa_addr->sa_family != family) {
             continue;
         }
