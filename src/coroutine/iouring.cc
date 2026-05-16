@@ -805,7 +805,7 @@ pid_t Iouring::wait(int *stat_loc, double timeout) {
 
 pid_t Iouring::waitpid(pid_t _pid, int *stat_loc, int options, double timeout) {
     if (options & WNOHANG) {
-        return sw_waitpid(_pid, stat_loc, options);
+        return ::sw_waitpid(_pid, stat_loc, options);
     }
 
     INIT_EVENT(IORING_OP_WAITID);
