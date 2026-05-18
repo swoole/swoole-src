@@ -50,10 +50,4 @@ jobs:
       - name: Show Swoole extension info
         shell: powershell
         run: |
-          $dumpbin = (Get-Command dumpbin.exe -ErrorAction SilentlyContinue).Source
-          if ($dumpbin) {
-            & $dumpbin /dependents C:\tools\php\ext\php_swoole.dll
-          } else {
-            Write-Host "dumpbin not found, skipping dependency listing"
-          }
-          php --ri swoole
+          php -d extension=php_swoole --ri swoole
