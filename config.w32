@@ -272,6 +272,7 @@ if (PHP_SWOOLE != "no") {
             AC_DEFINE("SW_USE_CURL", 1, "Enable cURL native client");
             ADD_FLAG("CFLAGS_SWOOLE", "/D SW_USE_CURL");
             ADD_FLAG("CFLAGS_SWOOLE", "/D CURL_STATICLIB");
+            ADD_FLAG("CFLAGS_SWOOLE", "/D SW_USE_PHP_CURL_IMPORT");
 		}
         CHECK_LIB("winmm.lib", "swoole", null);
         CHECK_LIB("wldap32.lib", "swoole", null);
