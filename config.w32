@@ -217,11 +217,7 @@ if (PHP_SWOOLE != "no") {
 	CHECK_LIB("iphlpapi.lib", "swoole", null);
 	CHECK_LIB("libssl.lib;ssleay32.lib", "swoole", null);
 	CHECK_LIB("libcrypto.lib;libeay32.lib", "swoole", null);
-	CHECK_LIB("libzstd.lib", "swoole", null);
 	CHECK_LIB("zlib_a.lib;zlib.lib", "swoole", null);
-	CHECK_LIB("brotlienc.lib", "swoole", null);
-	CHECK_LIB("brotlidec.lib", "swoole", null);
-	CHECK_LIB("brotlicommon.lib", "swoole", null);
 
 	CHECK_HEADER_ADD_INCLUDE("nghttp2/nghttp2.h", "CFLAGS_SWOOLE", null);
 	CHECK_LIB("nghttp2.lib", "swoole", null);
@@ -332,6 +328,13 @@ if (PHP_SWOOLE != "no") {
 	if (PHP_THREAD_CONTEXT != "no") {
 		AC_DEFINE("SW_USE_THREAD_CONTEXT", 1, "Use thread context");
 	}
+
+	// Add zstd and brotli libraries AFTER all other libraries (especially libcurl)
+	// to ensure proper link order: consumers first, dependencies last
+	CHECK_LIB("libzstd.lib", "swoole", null);
+	CHECK_LIB("brotlienc.lib", "swoole", null);
+	CHECK_LIB("brotlidec.lib", "swoole", null);
+	CHECK_LIB("brotlicommon.lib", "swoole", null);
 
 	// Register the extension
 	EXTENSION("swoole", swoole_source_files, PHP_SWOOLE_SHARED, "/D ENABLE_PHP_SWOOLE /D SW_USE_ASM_CONTEXT /D SW_USE_IOCP /D SW_USE_IOCP_SOCKET /DHAVE_RWLOCK /EHsc");
