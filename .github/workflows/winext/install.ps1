@@ -39,6 +39,74 @@ if(-Not (Test-Path $extdir -PathType Container)){
 info "Copy $env:BUILD_DIR\php_$ExtName.dll to $extdir"
 Copy-Item "$env:BUILD_DIR\php_$ExtName.dll" $extdir | Out-Null
 
+# Resolve and copy dependency DLLs to PHP directory.
+# When PHP loads php_swoole.dll, Windows must find all imported DLLs.
+# They are in the deps directory (PHP_BUILD) but not on the runtime PATH.
+info "Resolving DLL dependencies for php_$ExtName.dll"
+
+$depsRoot = $env:PHP_BUILD
+if (-not $depsRoot) { $depsRoot = "$ToolsPath\deps" }
+$searchDirs = @(
+    if ($depsRoot -and (Test-Path $depsRoot)) { $depsRoot }
+    if (Test-Path "$ToolsPath\deps") { "$ToolsPath\deps" }
+    $phppath
+    $extdir
+) + ($env:PATH -split ';' | Where-Object { $_ -and (Test-Path $_) })
+
+$systemDllPatterns = @(
+    "KERNEL32.dll", "ADVAPI32.dll", "SHELL32.dll", "ole32.dll", "OLEAUT32.dll",
+    "USER32.dll", "GDI32.dll", "WS2_32.dll", "IPHLPAPI.DLL", "CRYPT32.dll",
+    "VCRUNTIME*.dll", "MSVCP*.dll", "CONCRT*.dll", "VCOMP*.dll",
+    "api-ms-win-*", "ext-ms-win-*", "ntdll.dll", "bcrypt.dll", "Secur32.dll",
+    "VERSION.dll", "WINMM.dll", "WLDAP32.dll", "NORMALIZ.dll", "NETAPI32.dll",
+    "ucrtbase.dll", "bcryptprimitives.dll", "MSVCR*.dll"
+)
+
+filter IsSystemDll { foreach ($p in $systemDllPatterns) { if ($_ -like $p) { return $true } } return $false }
+
+function FindAndCopyDll($dllName) {
+    foreach ($dir in $script:searchDirs) {
+        if (-not (Test-Path $dir)) { continue }
+        $found = Get-ChildItem -Path $dir -Recurse -Filter $dllName -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($found -and -not (Test-Path "$script:phppath\$dllName")) {
+            info "Copy dep DLL: $($found.Name) -> $script:phppath"
+            Copy-Item $found.FullName $script:phppath
+            return $true
+        }
+    }
+    return $false
+}
+
+$dumpbin = (Get-Command dumpbin.exe -ErrorAction SilentlyContinue).Source
+$copiedCount = 0
+if ($dumpbin) {
+    $importsRaw = & $dumpbin /dependents "$extdir\php_$ExtName.dll" 2>&1
+    $imports = ($importsRaw | Select-String '^\s+(\S+\.dll)' -AllMatches).Matches |
+        ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+    $notFound = @()
+    foreach ($dll in $imports) {
+        if ($dll | IsSystemDll) { continue }
+        if (Test-Path "$phppath\$dll") { continue }
+        if (FindAndCopyDll $dll) { $copiedCount++ } else { $notFound += $dll }
+    }
+    if ($copiedCount -gt 0) {
+        info "Copied $copiedCount dependency DLL(s)"
+    }
+    if ($notFound.Count -gt 0) {
+        warn "DLL(s) not found in deps: $($notFound -join ', ')"
+    }
+} else {
+    warn "dumpbin not available, copying all non-system DLLs from deps directory"
+    foreach ($dir in $searchDirs) {
+        Get-ChildItem -Path $dir -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+            if (($_.Name | IsSystemDll) -or (Test-Path "$phppath\$($_.Name)")) { return }
+            info "Copy dep DLL: $($_.Name) -> $phppath"
+            Copy-Item $_.FullName $phppath
+            $script:copiedCount++
+        }
+    }
+}
+
 $ext_ini = ""
 if($Enable){
     $ext_ini = "extension=$ExtName"
@@ -62,206 +130,51 @@ $ext_ini
     $content | Out-File -Encoding utf8 -Append $inipath
 }
 
-# Swoole DLL Load Diagnostic Script
-$ErrorActionPreference = "Continue"
-$OutputDir = "$env:TEMP\swoole_debug"
-$ProcMonLog = "$OutputDir\procmon_log.pml"
-$ProcMonCsv = "$OutputDir\procmon_log.csv"
-
-New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
-
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "SWOOLE DLL LOADING DIAGNOSTIC" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-
-Write-Host "`n[1/5] Downloading Process Monitor..." -ForegroundColor Yellow
-$ProcMonUrl = "https://download.sysinternals.com/files/ProcessMonitor.zip"
-$ProcMonZip = "$OutputDir\ProcessMonitor.zip"
-$ProcMonExe = "$OutputDir\Procmon.exe"
-
-try {
-    Invoke-WebRequest -Uri $ProcMonUrl -OutFile $ProcMonZip -ErrorAction Stop
-    Expand-Archive -Path $ProcMonZip -DestinationPath $OutputDir -Force
-    Write-Host "  ✓ Process Monitor downloaded" -ForegroundColor Green
-} catch {
-    Write-Host "  ✗ Failed to download Process Monitor: $_" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "`n[2/5] Starting Process Monitor capture..." -ForegroundColor Yellow
-
-& $ProcMonExe /AcceptEula /Quiet /Minimized /BackingFile $ProcMonLog
-Start-Sleep -Seconds 2
-
-$ProcMonProcess = Get-Process -Name "Procmon" -ErrorAction SilentlyContinue
-if ($ProcMonProcess) {
-    Write-Host "  ✓ Process Monitor started (PID: $($ProcMonProcess.Id))" -ForegroundColor Green
-} else {
-    Write-Host "  ✗ Process Monitor failed to start" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "`n[3/5] Attempting to load PHP with Swoole extension..." -ForegroundColor Yellow
-try {
-    $PhpOutput = & php -d display_startup_errors=1 -d error_reporting=-1 -d extension=swoole -r "echo 'SWOOLE_LOAD_SUCCESS';" 2>&1
-    Write-Host "  PHP Output: $PhpOutput" -ForegroundColor $(if ($PhpOutput -match "SUCCESS") { "Green" } else { "Red" })
-} catch {
-    Write-Host "  PHP Error: $_" -ForegroundColor Red
-}
-
-Start-Sleep -Seconds 3
-
-Write-Host "`n[4/5] Stopping Process Monitor and analyzing logs..." -ForegroundColor Yellow
-& $ProcMonExe /Terminate
-Start-Sleep -Seconds 2
-
-if (Test-Path $ProcMonLog) {
-    $LogSize = (Get-Item $ProcMonLog).Length / 1MB
-    Write-Host "  ✓ Process Monitor log saved ($([math]::Round($LogSize, 2)) MB)" -ForegroundColor Green
-} else {
-    Write-Host "  ✗ Process Monitor log not found" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "`n[5/5] Analyzing DLL loading events..." -ForegroundColor Yellow
-
-Write-Host "  Converting log to CSV format..."
-try {
-    & $ProcMonExe /OpenLog $ProcMonLog /SaveAs $ProcMonCsv
-    Start-Sleep -Seconds 5
-
-    if (Test-Path $ProcMonCsv) {
-        Write-Host "  ✓ CSV export completed" -ForegroundColor Green
-    } else {
-        Write-Host "  ⚠ CSV export may have failed, trying alternative analysis..." -ForegroundColor Yellow
-    }
-} catch {
-    Write-Host "  ⚠ CSV conversion error: $_" -ForegroundColor Yellow
-}
-
+# Verify DLL dependencies are resolvable
 Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "ANALYSIS RESULTS" -ForegroundColor Cyan
+Write-Host "DLL DEPENDENCY VERIFICATION" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-if (Test-Path $ProcMonCsv) {
-    Write-Host "`n--- DLL Load Events ---" -ForegroundColor Green
+$checkOk = $true
+if ($dumpbin) {
+    # Re-read imports for verification (list may differ after copies)
+    $verifyRaw = & $dumpbin /dependents "$extdir\php_$ExtName.dll" 2>&1
+    $allImports = ($verifyRaw | Select-String '^\s+(\S+\.dll)' -AllMatches).Matches |
+        ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 
-    $Events = Import-Csv $ProcMonCsv | Where-Object {
-        $_.Operation -match "Load Image|CreateFile" -and
-        ($_.Path -match "swoole|php8ts|libssl|libcrypto|nghttp2|libzstd|brotli|MSVCP|VCRUNTIME") -and
-        ($_.ProcessName -match "php")
-    }
-
-    $FailedLoads = $Events | Where-Object { $_.Result -ne "SUCCESS" }
-
-    if ($FailedLoads) {
-        Write-Host "`n✗ FAILED DLL LOADS:" -ForegroundColor Red
-        $FailedLoads | Select-Object "Time of Day", Path, Result, Detail | Format-Table -AutoSize
-
-        Write-Host "`nMissing DLLs:" -ForegroundColor Yellow
-        $FailedLoads | ForEach-Object {
-            $dllName = Split-Path $_.Path -Leaf
-            if ($_.Result -match "NAME NOT FOUND|PATH NOT FOUND") {
-                Write-Host "  • $dllName (searched in $(Split-Path $_.Path))" -ForegroundColor Red
+    $foundDlls = @()
+    $missingDlls = @()
+    foreach ($dll in $allImports) {
+        if ($dll | IsSystemDll) { continue }
+        $located = Test-Path "$phppath\$dll"
+        if (-not $located) {
+            foreach ($dir in ($env:PATH -split ';')) {
+                if ($dir -and (Test-Path "$dir\$dll")) { $located = $true; break }
             }
         }
+        if ($located) { $foundDlls += $dll } else { $missingDlls += $dll }
+    }
+
+    if ($foundDlls.Count) {
+        Write-Host "`nResolved DLLs:" -ForegroundColor Green
+        $foundDlls | ForEach-Object { Write-Host "  $_" -ForegroundColor Green }
+    }
+    if ($missingDlls.Count) {
+        Write-Host "`nMISSING DLLs:" -ForegroundColor Red
+        $missingDlls | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+        err "Cannot load swoole: $($missingDlls.Count) DLL(s) not found. Check PATH or deps."
+        $checkOk = $false
     } else {
-        Write-Host "  ✓ No failed DLL loads detected" -ForegroundColor Green
+        Write-Host "`nAll dependency DLLs resolved" -ForegroundColor Green
     }
-
-    $SuccessfulLoads = $Events | Where-Object { $_.Result -eq "SUCCESS" }
-    if ($SuccessfulLoads) {
-        Write-Host "`n✓ SUCCESSFUL DLL LOADS:" -ForegroundColor Green
-        $SuccessfulLoads | Select-Object "Time of Day", Path | Format-Table -AutoSize
-    }
-
-    $ReportFile = "$OutputDir\swoole_dll_report.txt"
-    Write-Host "`n--- Generating Detailed Report ---" -ForegroundColor Yellow
-
-    @"
-=====================================
-SWOOLE DLL LOADING DIAGNOSTIC REPORT
-=====================================
-Generated: $(Get-Date)
-
-FAILED DLL LOADS:
-------------------
-$($FailedLoads | ForEach-Object { "$($_.'Time of Day') - $($_.Path) - $($_.Result) - $($_.Detail)" } | Out-String)
-
-SUCCESSFUL DLL LOADS:
----------------------
-$($SuccessfulLoads | ForEach-Object { "$($_.'Time of Day') - $($_.Path)" } | Out-String)
-
-ALL PHP-RELATED EVENTS:
-----------------------
-$($Events | Select-Object "Time of Day", Operation, Path, Result | Format-Table -AutoSize | Out-String)
-"@ | Out-File -FilePath $ReportFile -Encoding UTF8
-
-    Write-Host "  ✓ Detailed report saved to: $ReportFile" -ForegroundColor Green
-}
-else {
-    Write-Host "`nAttempting alternative analysis..." -ForegroundColor Yellow
-
-    Write-Host "`n--- Manual DLL Check ---" -ForegroundColor Yellow
-
-    $RequiredDlls = @(
-        "libssl-3-x64.dll",
-        "libcrypto-3-x64.dll",
-        "nghttp2.dll",
-        "libzstd.dll",
-        "brotlienc.dll",
-        "brotlidec.dll",
-        "php8ts.dll",
-        "MSVCP140.dll",
-        "VCRUNTIME140.dll"
-    )
-
-    $PhpDir = "C:\tools\php"
-    $MissingDlls = @()
-
-    foreach ($dll in $RequiredDlls) {
-        $Found = $false
-        $Locations = @(
-            "$PhpDir\$dll",
-            "$PhpDir\ext\$dll",
-            "C:\Windows\System32\$dll",
-            "C:\Windows\SysWOW64\$dll",
-            "C:\tools\phpdev\$dll"
-        )
-
-        foreach ($loc in $Locations) {
-            if (Test-Path $loc) {
-                Write-Host "  ✓ $dll found at: $loc" -ForegroundColor Green
-                $Found = $true
-                break
-            }
-        }
-
-        if (-not $Found) {
-            Write-Host "  ✗ $dll MISSING" -ForegroundColor Red
-            $MissingDlls += $dll
-        }
-    }
-
-    if ($MissingDlls.Count -gt 0) {
-        Write-Host "`Warning CRITICAL: Missing $( $MissingDlls.Count ) required DLL(s)!" -ForegroundColor Red
-        Write-Host "Missing files:" -ForegroundColor Red
-        $MissingDlls | ForEach-Object { Write-Host "  • $_" -ForegroundColor Red }
-    }
+} else {
+    Write-Host "dumpbin not available, skipping dependency verification" -ForegroundColor Yellow
 }
 
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "DIAGNOSTIC COMPLETE" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "All diagnostic files saved to: $OutputDir" -ForegroundColor Yellow
-Write-Host "  - Process Monitor log: $ProcMonLog" -ForegroundColor Gray
-if (Test-Path $ProcMonCsv) {
-    Write-Host "  - CSV export: $ProcMonCsv" -ForegroundColor Gray
+if (!$checkOk) {
+    Set-Location $origwd
+    exit 1
 }
-Write-Host "  - Detailed report: $ReportFile" -ForegroundColor Gray
-
-Write-Host "`nℹ To view the Process Monitor log interactively:" -ForegroundColor Cyan
-Write-Host "  $ProcMonExe /OpenLog $ProcMonLog" -ForegroundColor White
 
 $define = ""
 if (!$Enable){
