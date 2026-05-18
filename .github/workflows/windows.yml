@@ -48,4 +48,6 @@ jobs:
           deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,brotli
 
       - name: Show Swoole extension info
-        run: php --ri swoole
+        run: |
+          dumpbin /dependents C:\tools\php\ext\php_swoole.dll
+          php --ri swoole
