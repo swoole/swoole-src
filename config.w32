@@ -281,7 +281,10 @@ if (PHP_SWOOLE != "no") {
         CHECK_LIB("normaliz.lib", "swoole", null);
         CHECK_LIB("libssh2.lib", "swoole", null);
         CHECK_LIB("nghttp2.lib", "swoole", null);
-        ADD_FLAG("CFLAGS_SWOOLE", "/D CURL_STATICLIB");
+        CHECK_LIB("crypt32.lib", "swoole", null);
+        ADD_FLAG("CFLAGS_SWOOLE", "/D CURL_STATICLIB /D SW_USE_PHP_CURL_IMPORT");
+        // Delay load php_curl.dll - symbols will be resolved at runtime
+        ADD_FLAG("LDFLAGS_SWOOLE", "/DelayLoad:php_curl.dll");
 	}
 
 	// Check for SQLite
@@ -337,6 +340,26 @@ if (PHP_SWOOLE != "no") {
 	EXTENSION("swoole", swoole_source_files, PHP_SWOOLE_SHARED, "/D ENABLE_PHP_SWOOLE /D SW_USE_ASM_CONTEXT /D SW_USE_IOCP /D SW_USE_IOCP_SOCKET /DHAVE_RWLOCK /EHsc");
 
 	ADD_EXTENSION_DEP("swoole", "spl");
+
+	if (PHP_SWOOLE_CURL == "yes") {
+		ADD_EXTENSION_DEP("swoole", "curl");
+	}
+
+	if (PHP_SWOOLE_SQLITE == "yes") {
+		ADD_EXTENSION_DEP("swoole", "pdo");
+	}
+
+	if (PHP_SWOOLE_PGSQL == "yes") {
+		ADD_EXTENSION_DEP("swoole", "pdo");
+	}
+
+	if (PHP_SWOOLE_ORACLE != "no") {
+		ADD_EXTENSION_DEP("swoole", "pdo");
+	}
+
+	if (PHP_SWOOLE_ODBC == "yes") {
+		ADD_EXTENSION_DEP("swoole", "pdo");
+	}
 
 	AC_DEFINE("HAVE_SWOOLE", 1, "Define to 1 if the PHP extension 'swoole' is available.");
 

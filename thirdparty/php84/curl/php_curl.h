@@ -28,8 +28,11 @@
 #ifdef PHP_WIN32
 #ifdef PHP_CURL_EXPORTS
 #define PHP_CURL_API __declspec(dllexport)
-#else
+#elif defined(SW_USE_PHP_CURL_IMPORT)
+/* swoole importing symbols from php_curl.dll */
 #define PHP_CURL_API __declspec(dllimport)
+#else
+#define PHP_CURL_API
 #endif
 #elif defined(__GNUC__) && __GNUC__ >= 4
 #define PHP_CURL_API __attribute__((visibility("default")))
