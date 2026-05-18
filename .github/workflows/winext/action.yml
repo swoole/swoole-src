@@ -1,0 +1,161 @@
+name: 'Windows PHP Extension Build'
+description: 'Build windows extension via php offical devpack according to php varient.'
+inputs:
+  max-try:
+    description: 'max retry for downloading things'
+    required: false
+    default: "3"
+  tools-path:
+    description: 'downloaded file path'
+    required: true
+    default: 'C:\tools\phpdev'
+  ext-path:
+    description: 'extension path'
+    required: false
+    default: .
+  conf-args:
+    description: 'configure options'
+    required: false
+    default: ""
+  ext-name:
+    description: 'extension name'
+    required: true
+    default: ""
+  deps:
+    description: 'deps, comma splited'
+    required: false
+    default: ""
+  install:
+    description: 'if we install it, 0 for not install, 1 for install'
+    required: false
+    default: "1"
+  phpver:
+    description: 'php version that we used in format like "8.0", or "php" for auto-detect using php in %PATH%'
+    required: false
+    default: "php"
+  phpts:
+    description: 'php zend ts enabled, 0 for nts, 1 for ts'
+    required: false
+    default: "0"
+  phparch:
+    description: 'php arch we used, now there are x64 and x86'
+    required: false
+    default: "x64"
+  staging-deps:
+    description: 'use staging dependencies'
+    required: false
+    default: "0"
+  fix-pickle:
+    description: 'fix pickle.h definitions duplicates'
+    required: false
+    default: "1"
+outputs:
+  vcver:
+    description: 'max retry for downloading things'
+    value: "${{ steps.devpack-prepare.outputs.vcver }}"
+runs:
+  using: 'composite'
+  steps:
+    - name: Prepare php-sdk-binary-tools
+      shell: cmd
+      id: phpsdk-prepare
+      run: |
+        IF NOT EXIST ${{ inputs.tools-path }} ( MKDIR ${{ inputs.tools-path }} )
+        IF NOT EXIST ${{ inputs.tools-path }}\php-sdk-binary-tools (
+          ECHO ::group::Fetching php-sdk-binary-tools from Github
+          git clone --single-branch --depth=1 https://github.com/php/php-sdk-binary-tools ${{ inputs.tools-path }}\php-sdk-binary-tools || EXIT /B 1
+          ECHO ::endgroup::
+        )
+        git --git-dir=${{ inputs.tools-path }}\php-sdk-binary-tools\.git --work-tree=${{ inputs.tools-path }}\php-sdk-binary-tools pull || EXIT /B 1
+
+    - name: Prepare PHP devel-pack and deps
+      shell: powershell
+      id: devpack-prepare
+      env:
+        UNIX_COLOR: "1"
+      run: |
+        if ("${{ inputs.phpver }}".Equals("php")) {
+          $PhpBin = "php"
+          $PhpVer = ""
+        } else {
+          $PhpBin = ""
+          $PhpVer = "${{ inputs.phpver }}"
+        }
+        $master = $PhpVer
+        if ($PhpVer.Equals("8.5")) {
+          # using master
+          $master = "master"
+        }
+        if ($PhpVer.Equals("8.5") -Or $PhpVer.Equals("8.4")) {
+          $PhpVCVer = "vs17"
+        } elseif ($PhpVer.Equals("8.3") -Or $PhpVer.Equals("8.2") -Or $PhpVer.Equals("8.1") -Or $PhpVer.Equals("8.0")) {
+          $PhpVCVer = "vs16"
+        } else {
+          $PhpVCVer = "vc15"
+        }
+        Write-Output "vcver=$PhpVCVer" | Out-File "${env:GITHUB_OUTPUT}" -Append
+        Write-Host "::group::Fetching deps from https://downloads.php.net/~windows"
+        ${{github.action_path}}/deps.ps1 `
+          ${{ inputs.deps }} `
+          -MaxTry ${{ inputs.max-try }} `
+          -ToolsPath ${{ inputs.tools-path }} `
+          -PhpBin $PhpBin `
+          -PhpVer $master `
+          -PhpTs ${{ inputs.phpts }} `
+          -PhpArch ${{ inputs.phparch }} `
+          -PhpVCVer $PhpVCVer `
+          -Staging ${{ inputs.staging-deps }}
+        $ret = $lastexitcode
+        Write-Host "::endgroup::"
+        if (0 -Ne $ret) {
+            exit 1
+        }
+        if ($master.Equals("master")) {
+          Write-Host "::group::Fetching devel-pack from shivammathur/php-builder-windows"
+          ${{github.action_path}}/devpack_master.ps1 `
+            -MaxTry ${{ inputs.max-try }} `
+            -ToolsPath ${{ inputs.tools-path }} `
+            -PhpTs ${{ inputs.phpts }} `
+            -PhpArch ${{ inputs.phparch }} `
+            -PhpVCVer $PhpVCVer
+          $ret = $lastexitcode
+          Write-Host "::endgroup::"
+        } else {
+          Write-Host "::group::Fetching devel-pack from https://downloads.php.net/~windows"
+          ${{github.action_path}}/devpack.ps1 `
+            -MaxTry ${{ inputs.max-try }} `
+            -ToolsPath ${{ inputs.tools-path }} `
+            -PhpBin $PhpBin `
+            -PhpVer $PhpVer `
+            -PhpTs ${{ inputs.phpts }} `
+            -PhpArch ${{ inputs.phparch }} `
+            -PhpVCVer $PhpVCVer
+          $ret = $lastexitcode
+          Write-Host "::endgroup::"
+        }
+        exit $ret
+
+    - name: Build extension
+      shell: cmd /c ECHO ::group::Start build extension && %TOOLS_PATH%\env.bat {0}
+      env:
+        TOOLS_PATH: ${{ inputs.tools-path }}
+        UNIX_COLOR: "1"
+        FIX_PICKLE: ${{ inputs.fix-pickle != '0' && '1' || '0' }}
+      run: |
+        powershell ${{github.action_path}}\build.ps1 ^
+          -ExtPath ${{ inputs.ext-path }} ^
+          -ToolsPath ${{ inputs.tools-path }} ^
+          -ExtName swoole ^
+          ${{ inputs.conf-args }} || EXIT /b 1
+        ECHO ::endgroup::
+
+    - name: Install extension
+      shell: cmd /c ECHO ::group::Start install extension && %TOOLS_PATH%\env.bat {0}
+      env:
+        TOOLS_PATH: ${{ inputs.tools-path }}
+        UNIX_COLOR: "1"
+      run: |
+        IF 1==${{ inputs.install }} ( powershell ${{github.action_path}}\install.ps1 ^
+          -ExtPath ${{ inputs.ext-path }} ^
+          -ExtName swoole ) || EXIT /b 1
+        ECHO ::endgroup::

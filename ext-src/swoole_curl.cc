@@ -19,8 +19,33 @@
 
 #ifdef SW_USE_CURL
 
+SW_EXTERN_C_BEGIN
+zend_class_entry *php_curl_ce = NULL;
+zend_class_entry *php_curl_multi_ce = NULL;
+zend_class_entry *php_curl_share_ce = NULL;
+#if PHP_VERSION_ID >= 80500
+zend_class_entry *php_curl_share_persistent_ce = NULL;
+#endif
+zend_class_entry *php_curl_CURLFile_ce = NULL;
+zend_class_entry *php_curl_CURLStringFile_ce = NULL;
+
+zend_class_entry *swoole_coroutine_curl_handle_ce;
+zend_class_entry *swoole_coroutine_curl_multi_handle_ce;
+SW_EXTERN_C_END
+
 namespace swoole {
 namespace curl {
+
+void minit() {
+    php_curl_ce = (zend_class_entry *) zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("curlhandle"));
+    php_curl_multi_ce = (zend_class_entry *) zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("curlmultihandle"));
+    php_curl_share_ce = (zend_class_entry *) zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("curlsharehandle"));
+#if PHP_VERSION_ID >= 80500
+    php_curl_share_persistent_ce = (zend_class_entry *) zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("curlsharepersistenthandle"));
+#endif
+    php_curl_CURLFile_ce = (zend_class_entry *) zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("curlfile"));
+    php_curl_CURLStringFile_ce = (zend_class_entry *) zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("curlstringfile"));
+}
 
 Handle *get_handle(CURL *cp) {
     Handle *handle;

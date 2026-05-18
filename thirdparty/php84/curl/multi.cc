@@ -48,8 +48,6 @@ bool swoole_curl_multi_is_in_coroutine(php_curlm *mh) {
 }
 
 /* CurlMultiHandle class */
-zend_class_entry *swoole_coroutine_curl_multi_handle_ce;
-
 static inline php_curlm *curl_multi_from_obj(zend_object *obj) {
     return (php_curlm *) ((char *) (obj) -XtOffsetOf(php_curlm, std));
 }
@@ -631,7 +629,7 @@ static HashTable *swoole_curl_multi_get_gc(zend_object *object, zval **table, in
 }
 
 void curl_multi_register_class(const zend_function_entry *method_entries) {
-    swoole_coroutine_curl_multi_handle_ce = curl_multi_ce;
+    swoole_coroutine_curl_multi_handle_ce = php_curl_multi_ce;
     swoole_coroutine_curl_multi_handle_ce->create_object = swoole_curl_multi_create_object;
 
     memcpy(&swoole_coroutine_curl_multi_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
