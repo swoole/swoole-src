@@ -70,6 +70,22 @@ if (!$Enable){
 php -m
 dumpbin /dependents C:\tools\php\ext\php_swoole.dll
 
+echo [3] Attempting to load Swoole with verbose output...
+php -d display_startup_errors=1 -d error_reporting=-1 -d extension=swoole -r "echo 'OK';" 2>&1
+
+echo [4] Environment...
+echo PATH=%PATH%
+echo PHP_EXTENSION_DIR=%PHP_DIR%\ext
+
+echo [5] Missing dependencies...
+for /f "skip=1 tokens=*" %%d in ('dumpbin /dependents %PHP_DIR%\ext\php_swoole.dll ^| findstr /i "\.dll"') do (
+  set dll=%%d
+  set dll=!dll: =!
+  if not exist %PHP_DIR%\!dll! if not exist C:\Windows\System32\!dll! (
+    echo MISSING: !dll!
+  )
+)
+
 info "Run 'php $define --ri $ExtName'"
 & $PhpBin $define --ri $ExtName
 if(0 -Ne $lastexitcode){
