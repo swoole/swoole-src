@@ -55,9 +55,7 @@ struct IocpOperation;
 struct Socket {
     Multi *multi;
 #ifdef SW_CURL_USE_IOCP
-    IocpOperation *read_operation;
-    IocpOperation *write_operation;
-    uint8_t pending_operations;
+    IocpOperation *operation;
 #else
     network::Socket *socket;
 #endif
@@ -69,9 +67,7 @@ struct Socket {
     Socket()
         : multi(nullptr),
 #ifdef SW_CURL_USE_IOCP
-          read_operation(nullptr),
-          write_operation(nullptr),
-          pending_operations(0),
+          operation(nullptr),
 #else
           socket(nullptr),
 #endif
@@ -84,6 +80,7 @@ struct Socket {
 struct Handle {
     CURL *cp;
     Multi *multi;
+    curl_slist *resolve;
     /**
      * This is only for the swoole_curl_easy_perform function,
      * and it has a one-to-one relationship with the curl handle.
@@ -94,7 +91,26 @@ struct Handle {
     explicit Handle(CURL *_cp) {
         cp = _cp;
         multi = nullptr;
+        resolve = nullptr;
         easy_multi = nullptr;
+    }
+
+    ~Handle() {
+        clear_resolve();
+    }
+
+    void clear_resolve() {
+        if (resolve) {
+            curl_easy_setopt(cp, CURLOPT_RESOLVE, nullptr);
+            curl_slist_free_all(resolve);
+            resolve = nullptr;
+        }
+    }
+
+    void set_resolve(curl_slist *resolve_) {
+        clear_resolve();
+        resolve = resolve_;
+        curl_easy_setopt(cp, CURLOPT_RESOLVE, resolve);
     }
 };
 
@@ -102,6 +118,7 @@ void minit();
 Handle *get_handle(CURL *cp);
 Handle *create_handle(CURL *ch);
 void destroy_handle(CURL *ch);
+void prepare_resolve(Handle *handle);
 
 struct Selector {
     bool timer_callback = false;

@@ -267,11 +267,14 @@ if (PHP_SWOOLE != "no") {
 
 	// Check for cURL
 	if (PHP_SWOOLE_CURL == "yes") {
-		if (CHECK_LIB("libcurl_a.lib;libcurl.lib", "swoole", null) &&
+	    var curl_location = CHECK_LIB("libcurl_a.lib;libcurl.lib", "swoole", null);
+		if (curl_location &&
 			CHECK_HEADER_ADD_INCLUDE("curl/curl.h", "CFLAGS_SWOOLE", null)) {
             AC_DEFINE("SW_USE_CURL", 1, "Enable cURL native client");
             ADD_FLAG("CFLAGS_SWOOLE", "/D SW_USE_CURL");
-            ADD_FLAG("CFLAGS_SWOOLE", "/D CURL_STATICLIB");
+            if (curl_location.match(/libcurl_a\.lib$/)) {
+                ADD_FLAG("CFLAGS_SWOOLE", "/D CURL_STATICLIB");
+            }
 		}
         CHECK_LIB("winmm.lib", "swoole", null);
         CHECK_LIB("wldap32.lib", "swoole", null);

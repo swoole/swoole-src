@@ -216,6 +216,7 @@ void swoole_curl_verify_handlers(php_curl *ch, bool reporterror) /* {{{ */
 
 /* CurlHandle class */
 static zend_object_handlers swoole_coroutine_curl_handle_handlers;
+static const zend_object_handlers *php_curl_object_handlers;
 
 static zend_object *swoole_curl_create_object(zend_class_entry *class_type);
 static void swoole_curl_free_obj(zend_object *object);
@@ -254,6 +255,7 @@ void swoole_native_curl_minit(int module_number) {
 
     swoole_coroutine_curl_handle_ce = php_curl_ce;
     swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
+    php_curl_object_handlers = php_curl_ce->default_object_handlers;
     swoole_coroutine_curl_handle_ce->default_object_handlers = &swoole_coroutine_curl_handle_handlers;
 
     memcpy(&swoole_coroutine_curl_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
@@ -2632,7 +2634,12 @@ static void swoole_curl_free_obj(zend_object *object) {
     swoole_curl_verify_handlers(ch, /* reporterror */ false);
 
     swoole::curl::Handle *handle = swoole::curl::get_handle(ch->cp);
-    if (handle && handle->multi) {
+    if (!handle) {
+        php_curl_object_handlers->free_obj(object);
+        return;
+    }
+
+    if (handle->multi) {
         handle->multi->remove_handle(handle);
     }
 
