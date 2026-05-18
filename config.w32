@@ -275,12 +275,12 @@ if (PHP_SWOOLE != "no") {
 			CHECK_HEADER_ADD_INCLUDE("curl/curl.h", "CFLAGS_SWOOLE", null)) {
 			AC_DEFINE("SW_USE_CURL", 1, "Enable cURL native client");
 		}
-        CHECK_LIB("winmm.lib", "swoole", null)
-        CHECK_LIB("wldap32.lib", "swoole", null)
-        CHECK_LIB("zlib_a.lib;zlib.lib", "swoole", null)
-        CHECK_LIB("normaliz.lib", "swoole", null)
-        CHECK_LIB("libssh2.lib", "swoole", null)
-        CHECK_LIB("nghttp2.lib", "swoole", null))
+        CHECK_LIB("winmm.lib", "swoole", null);
+        CHECK_LIB("wldap32.lib", "swoole", null);
+        CHECK_LIB("zlib_a.lib;zlib.lib", "swoole", null);
+        CHECK_LIB("normaliz.lib", "swoole", null);
+        CHECK_LIB("libssh2.lib", "swoole", null);
+        CHECK_LIB("nghttp2.lib", "swoole", null);
         ADD_FLAG("CFLAGS_SWOOLE", "/D CURL_STATICLIB");
 	}
 
