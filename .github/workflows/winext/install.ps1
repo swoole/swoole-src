@@ -67,6 +67,9 @@ if (!$Enable){
     $define = "-dextension=$ExtName"
 }
 
+php -m
+dumpbin /dependents C:\tools\php\ext\php_swoole.dll
+
 info "Run 'php $define --ri $ExtName'"
 & $PhpBin $define --ri $ExtName
 if(0 -Ne $lastexitcode){
