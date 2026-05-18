@@ -19,6 +19,7 @@
 
 #ifdef SW_USE_CURL
 
+SW_EXTERN_C_BEGIN
 zend_class_entry *php_curl_ce = NULL;
 zend_class_entry *php_curl_multi_ce = NULL;
 zend_class_entry *php_curl_share_ce = NULL;
@@ -30,6 +31,7 @@ zend_class_entry *php_curl_CURLStringFile_ce = NULL;
 
 zend_class_entry *swoole_coroutine_curl_handle_ce;
 zend_class_entry *swoole_coroutine_curl_multi_handle_ce;
+SW_EXTERN_C_END
 
 namespace swoole {
 namespace curl {
