@@ -98,6 +98,7 @@ struct Handle {
     }
 };
 
+void minit();
 Handle *get_handle(CURL *cp);
 Handle *create_handle(CURL *ch);
 void destroy_handle(CURL *ch);
