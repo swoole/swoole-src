@@ -291,8 +291,10 @@ void php_swoole_runtime_minit(int module_number) {
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TCP", PHPCoroutine::HOOK_TCP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UDP", PHPCoroutine::HOOK_UDP);
+#ifndef _WIN32
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UNIX", PHPCoroutine::HOOK_UNIX);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UDG", PHPCoroutine::HOOK_UDG);
+#endif
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SSL", PHPCoroutine::HOOK_SSL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TLS", PHPCoroutine::HOOK_TLS);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_FUNCTION", PHPCoroutine::HOOK_STREAM_FUNCTION);
@@ -397,8 +399,10 @@ void php_swoole_runtime_rinit() {
     HashTable *xport_hash = php_stream_xport_get_hash();
     ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
     ori_factory.udp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udp"));
+#ifndef _WIN32
     ori_factory._unix = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("unix"));
     ori_factory.udg = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("udg"));
+#endif
     ori_factory.ssl = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("ssl"));
     ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
 
@@ -1209,10 +1213,12 @@ static php_stream *socket_create_original(const char *proto,
         factory = ori_factory.ssl;
     } else if (SW_STREQ(proto, protolen, "tls")) {
         factory = ori_factory.tls;
+#ifndef _WIN32
     } else if (SW_STREQ(proto, protolen, "unix")) {
         factory = ori_factory._unix;
     } else if (SW_STREQ(proto, protolen, "udp")) {
         factory = ori_factory.udp;
+#endif
     } else if (SW_STREQ(proto, protolen, "udg")) {
         factory = ori_factory.udg;
     }
@@ -1254,10 +1260,12 @@ static php_stream *socket_create(const char *proto,
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
         sock = new SocketImpl(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->enable_ssl_encrypt();
+#ifndef _WIN32
     } else if (SW_STREQ(proto, protolen, "unix")) {
         sock = new SocketImpl(SW_SOCK_UNIX_STREAM);
     } else if (SW_STREQ(proto, protolen, "udp")) {
         sock = new SocketImpl(SW_SOCK_UDP);
+#endif
     } else if (SW_STREQ(proto, protolen, "udg")) {
         sock = new SocketImpl(SW_SOCK_UNIX_DGRAM);
     } else {
@@ -1391,6 +1399,7 @@ static void hook_stream_factory(uint32_t *flags_ptr) {
             php_stream_xport_register("udp", ori_factory.udp);
         }
     }
+#ifndef _WIN32
     if (flags & PHPCoroutine::HOOK_UNIX) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_UNIX)) {
             if (php_stream_xport_register("unix", socket_create) != SUCCESS) {
@@ -1415,6 +1424,7 @@ static void hook_stream_factory(uint32_t *flags_ptr) {
             php_stream_xport_register("udg", ori_factory.udg);
         }
     }
+#endif
     if (flags & PHPCoroutine::HOOK_SSL) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SSL)) {
             if (php_stream_xport_register("ssl", socket_create) != SUCCESS) {
