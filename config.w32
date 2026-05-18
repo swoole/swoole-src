@@ -283,8 +283,6 @@ if (PHP_SWOOLE != "no") {
         CHECK_LIB("nghttp2.lib", "swoole", null);
         CHECK_LIB("crypt32.lib", "swoole", null);
         ADD_FLAG("CFLAGS_SWOOLE", "/D CURL_STATICLIB /D SW_USE_PHP_CURL_IMPORT");
-        // Delay load php_curl.dll - symbols will be resolved at runtime
-        ADD_FLAG("LDFLAGS_SWOOLE", "/DelayLoad:php_curl.dll");
 	}
 
 	// Check for SQLite
