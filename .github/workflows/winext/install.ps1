@@ -45,13 +45,7 @@ Copy-Item "$env:BUILD_DIR\php_$ExtName.dll" $extdir | Out-Null
 info "Resolving DLL dependencies for php_$ExtName.dll"
 
 $depsRoot = $env:PHP_BUILD
-if (-not $depsRoot) { $depsRoot = "$ToolsPath\deps" }
-$searchDirs = @(
-    if ($depsRoot -and (Test-Path $depsRoot)) { $depsRoot }
-    if (Test-Path "$ToolsPath\deps") { "$ToolsPath\deps" }
-    $phppath
-    $extdir
-) + ($env:PATH -split ';' | Where-Object { $_ -and (Test-Path $_) })
+if (-not $depsRoot) { $depsRoot = "$env:TOOLS_PATH\deps" }
 
 $systemDllPatterns = @(
     "KERNEL32.dll", "ADVAPI32.dll", "SHELL32.dll", "ole32.dll", "OLEAUT32.dll",
@@ -64,30 +58,41 @@ $systemDllPatterns = @(
 
 filter IsSystemDll { foreach ($p in $systemDllPatterns) { if ($_ -like $p) { return $true } } return $false }
 
-function FindAndCopyDll($dllName) {
-    foreach ($dir in $script:searchDirs) {
-        if (-not (Test-Path $dir)) { continue }
-        $found = Get-ChildItem -Path $dir -Recurse -Filter $dllName -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found -and -not (Test-Path "$script:phppath\$dllName")) {
-            info "Copy dep DLL: $($found.Name) -> $script:phppath"
-            Copy-Item $found.FullName $script:phppath
-            return $true
+# Build DLL index from deps directory with a SINGLE recursive scan (max depth 4).
+# Never scan PATH — it includes C:\Windows\system32 and VS dirs which
+# would make Get-ChildItem -Recurse hang or take minutes.
+$dllIndex = @{}
+foreach ($baseDir in @($depsRoot, "$env:TOOLS_PATH\deps")) {
+    if (-not $baseDir -or -not (Test-Path $baseDir)) { continue }
+    Get-ChildItem -Path $baseDir -Recurse -Depth 3 -Filter "*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+        if (-not $dllIndex.ContainsKey($_.Name)) {
+            $dllIndex[$_.Name] = $_.FullName
         }
     }
-    return $false
+}
+if ($dllIndex.Count -gt 0) {
+    info "Found $($dllIndex.Count) DLLs in deps directory"
 }
 
-$dumpbin = (Get-Command dumpbin.exe -ErrorAction SilentlyContinue).Source
+# Use dumpbin to list imports, then copy matching non-system DLLs from the index
+$dumpbinPath = (Get-Command dumpbin.exe -ErrorAction SilentlyContinue).Source
 $copiedCount = 0
-if ($dumpbin) {
-    $importsRaw = & $dumpbin /dependents "$extdir\php_$ExtName.dll" 2>&1
+if ($dumpbinPath) {
+    info "Using dumpbin to analyze imports"
+    $importsRaw = & $dumpbinPath /dependents "$extdir\php_$ExtName.dll" 2>&1
     $imports = ($importsRaw | Select-String '^\s+(\S+\.dll)' -AllMatches).Matches |
         ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
     $notFound = @()
     foreach ($dll in $imports) {
         if ($dll | IsSystemDll) { continue }
         if (Test-Path "$phppath\$dll") { continue }
-        if (FindAndCopyDll $dll) { $copiedCount++ } else { $notFound += $dll }
+        if ($dllIndex.ContainsKey($dll)) {
+            info "Copy dep DLL: $dll -> $phppath"
+            Copy-Item $dllIndex[$dll] $phppath
+            $copiedCount++
+        } else {
+            $notFound += $dll
+        }
     }
     if ($copiedCount -gt 0) {
         info "Copied $copiedCount dependency DLL(s)"
@@ -96,14 +101,12 @@ if ($dumpbin) {
         warn "DLL(s) not found in deps: $($notFound -join ', ')"
     }
 } else {
-    warn "dumpbin not available, copying all non-system DLLs from deps directory"
-    foreach ($dir in $searchDirs) {
-        Get-ChildItem -Path $dir -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
-            if (($_.Name | IsSystemDll) -or (Test-Path "$phppath\$($_.Name)")) { return }
-            info "Copy dep DLL: $($_.Name) -> $phppath"
-            Copy-Item $_.FullName $phppath
-            $script:copiedCount++
-        }
+    warn "dumpbin not available, copying all non-system DLLs from index"
+    foreach ($kv in $dllIndex.GetEnumerator()) {
+        if (($kv.Key | IsSystemDll) -or (Test-Path "$phppath\$($kv.Key)")) { continue }
+        info "Copy dep DLL: $($kv.Key) -> $phppath"
+        Copy-Item $kv.Value $phppath
+        $copiedCount++
     }
 }
 
@@ -136,36 +139,26 @@ Write-Host "DLL DEPENDENCY VERIFICATION" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
 $checkOk = $true
-if ($dumpbin) {
-    # Re-read imports for verification (list may differ after copies)
-    $verifyRaw = & $dumpbin /dependents "$extdir\php_$ExtName.dll" 2>&1
+if ($dumpbinPath) {
+    $verifyRaw = & $dumpbinPath /dependents "$extdir\php_$ExtName.dll" 2>&1
     $allImports = ($verifyRaw | Select-String '^\s+(\S+\.dll)' -AllMatches).Matches |
         ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 
-    $foundDlls = @()
     $missingDlls = @()
     foreach ($dll in $allImports) {
         if ($dll | IsSystemDll) { continue }
-        $located = Test-Path "$phppath\$dll"
-        if (-not $located) {
-            foreach ($dir in ($env:PATH -split ';')) {
-                if ($dir -and (Test-Path "$dir\$dll")) { $located = $true; break }
-            }
+        if (-not (Test-Path "$phppath\$dll")) {
+            $missingDlls += $dll
         }
-        if ($located) { $foundDlls += $dll } else { $missingDlls += $dll }
     }
 
-    if ($foundDlls.Count) {
-        Write-Host "`nResolved DLLs:" -ForegroundColor Green
-        $foundDlls | ForEach-Object { Write-Host "  $_" -ForegroundColor Green }
-    }
     if ($missingDlls.Count) {
         Write-Host "`nMISSING DLLs:" -ForegroundColor Red
         $missingDlls | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
-        err "Cannot load swoole: $($missingDlls.Count) DLL(s) not found. Check PATH or deps."
+        err "Cannot load swoole: $($missingDlls.Count) DLL(s) not found in $phppath"
         $checkOk = $false
     } else {
-        Write-Host "`nAll dependency DLLs resolved" -ForegroundColor Green
+        Write-Host "`nAll $($allImports.Count) dependency DLLs resolved" -ForegroundColor Green
     }
 } else {
     Write-Host "dumpbin not available, skipping dependency verification" -ForegroundColor Yellow
