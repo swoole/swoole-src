@@ -105,9 +105,20 @@ class AsyncThreads {
 
     size_t get_queue_size() const;
     size_t get_worker_num() const;
+    size_t get_idle_worker_num() const;
+    size_t get_pending_release_worker_num() const;
+    size_t get_peak_worker_num() const;
+    size_t get_created_worker_num() const;
+    size_t get_released_worker_num() const;
+    size_t get_scale_up_count() const;
+    size_t get_scale_down_count() const;
     void notify_one() const;
 
     static int callback(Reactor *reactor, Event *event);
+
+  private:
+    AsyncEvent *completed_events[SW_AIO_EVENT_NUM] = {};
+    size_t completed_event_bytes = 0;
 };
 
 namespace async {
