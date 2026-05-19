@@ -40,10 +40,10 @@ ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
 ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
 #endif
 
-ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
-
 #if defined(_WIN32) && defined(SW_USE_IOCP)
 ReactorImpl *make_reactor_iocp(Reactor *_reactor, int max_events);
+#else
+ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
 #endif
 
 void ReactorImpl::after_removal_failure(const Socket *_socket) const {
@@ -98,9 +98,15 @@ Reactor::Reactor(int max_event, Type _type) {
         impl = make_reactor_kqueue(this, max_event);
         break;
 #endif
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+    default:
+        impl = make_reactor_iocp(this, max_event);
+        break;
+#else
     default:
         impl = make_reactor_poll(this, max_event);
         break;
+#endif
     }
 
     ready_ = impl->ready();
