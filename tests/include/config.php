@@ -24,12 +24,13 @@ require_once __DIR__ . '/functions.php';
 
 /* ============== Env =============== */
 define('IS_MAC_OS', stripos(PHP_OS, 'Darwin') !== false);
+define('IS_WIN', stripos(PHP_OS, 'WIN') === 0);
 define('IS_IN_CI', (bool) getenv('GITHUB_ACTIONS') or file_exists('/.cienv'));
 define('IS_PHPTESTSING', (bool) getenv('PHPT'));
 define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined('SWOOLE_SSL'));
 define('HAS_HTTP2', class_exists('Swoole\Http2\Request', false));
-define('DEV_NULL', '/dev/null');
+define('DEV_NULL', IS_WIN ? 'NUL' : '/dev/null');
 
 /* ============== Files ============== */
 define('SOURCE_ROOT_PATH', realpath(__DIR__ . '/../../'));
@@ -40,8 +41,8 @@ define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
 define('TEST_LINK_IMAGE', __DIR__ . '/../../examples/test_link.jpg');
 define('TEST_IMAGE2', __DIR__ . '/../../docs/swoole-logo.svg');
-define('TEST_LOG_FILE', '/tmp/swoole.log');
-define('TEST_PID_FILE', '/tmp/swoole.pid');
+define('TEST_LOG_FILE', IS_WIN ? sys_get_temp_dir() . '/swoole.log' : '/tmp/swoole.log');
+define('TEST_PID_FILE', IS_WIN ? sys_get_temp_dir() . '/swoole.pid' : '/tmp/swoole.pid');
 define('SSL_FILE_DIR', __DIR__ . '/ssl_certs/');
 define('DOCUMENT_ROOT', __DIR__ . '/../../examples/www');
 define('TEST_USER_AGENT', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36');
@@ -57,7 +58,7 @@ if (IS_MAC_OS) {
 if (defined('SWOOLE_BASE') && defined('SWOOLE_PROCESS')) {
     define('SERVER_MODE_RANDOM', array_random([SWOOLE_BASE, SWOOLE_PROCESS]));
 }
-define('UNIXSOCK_PATH', '/tmp/unix-sock-test.sock');
+define('UNIXSOCK_PATH', IS_WIN ? sys_get_temp_dir() . '/unix-sock-test.sock' : '/tmp/unix-sock-test.sock');
 
 define('TCP_SERVER_HOST', '127.0.0.1');
 define('TCP_SERVER_PORT', 9001);

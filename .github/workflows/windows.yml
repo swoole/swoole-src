@@ -20,7 +20,7 @@ jobs:
         with:
           php-version: '8.4'
           coverage: none
-          extensions: curl,openssl,pdo
+          extensions: curl,openssl,pdo,sockets
         env:
           phpts: ts
 
@@ -31,7 +31,7 @@ jobs:
           path: |
             C:\tools\phpdev\deps
             C:\tools\phpdev\php-*-devel-*-*
-          key: php84-${{ runner.os }}-${{ matrix.ts }}-v2
+          key: php84-${{ runner.os }}-${{ matrix.ts }}-v3
           restore-keys: |
             php84-${{ runner.os }}-${{ matrix.ts }}-
             php84-${{ runner.os }}-
@@ -63,4 +63,5 @@ jobs:
           set PHPT=1
           set TEST_PHP_EXECUTABLE=php
           set SKIP_ONLINE_TESTS=1
-          php -d extension=php_swoole -d swoole.use_shortname=On tests\run-tests -P -q --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 120 tests\swoole_function tests\swoole_channel_coro tests\swoole_client_coro tests\swoole_coroutine tests\swoole_coroutine_lock tests\swoole_coroutine_scheduler tests\swoole_coroutine_system tests\swoole_coroutine_util tests\swoole_coroutine_wait_group tests\swoole_curl tests\swoole_global tests\swoole_http2_client_coro tests\swoole_http_client_coro tests\swoole_runtime tests\swoole_socket_coro tests\swoole_timer
+          set NO_INTERACTION=1
+          php -d extension=php_swoole -d swoole.use_shortname=On tests\run-tests -P -q --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 300 tests\swoole_function tests\swoole_channel_coro tests\swoole_client_coro tests\swoole_coroutine tests\swoole_coroutine_lock tests\swoole_coroutine_scheduler tests\swoole_coroutine_system tests\swoole_coroutine_util tests\swoole_coroutine_wait_group tests\swoole_curl tests\swoole_event tests\swoole_global tests\swoole_http2_client_coro tests\swoole_http_client_coro tests\swoole_runtime tests\swoole_socket_coro tests\swoole_timer
