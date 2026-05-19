@@ -254,13 +254,6 @@ int php_swoole_reactor_init() {
             return SW_ERR;
         }
 
-#if defined(_WIN32) && defined(SW_USE_IOCP)
-        if (!Iocp::init(sw_reactor())) {
-            php_swoole_fatal_error(E_ERROR, "Unable to create IOCP instance");
-            return SW_ERR;
-        }
-#endif
-
         php_swoole_register_shutdown_function("swoole_event_rshutdown");
     }
 
