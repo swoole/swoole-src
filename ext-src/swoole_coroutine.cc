@@ -24,6 +24,9 @@
 #include "swoole_signal.h"
 #include "swoole_async.h"
 #include "swoole_iouring.h"
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+#include "swoole_iocp.h"
+#endif
 
 BEGIN_EXTERN_C()
 #include "zend_builtin_functions.h"
@@ -1175,6 +1178,12 @@ static PHP_METHOD(swoole_coroutine, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("iouring_sq_usage_percent"), iouring->get_sq_usage_percent());
         add_assoc_long_ex(return_value, ZEND_STRL("iouring_waiting_task_num"), iouring->get_waiting_task_num());
     }
+#endif
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+    add_assoc_long_ex(return_value, ZEND_STRL("iocp_task_num"), SwooleTG.iocp ? SwooleTG.iocp->get_task_num() : 0);
+    add_assoc_long_ex(return_value,
+                      ZEND_STRL("iocp_blocking_task_num"),
+                      SwooleTG.iocp ? SwooleTG.iocp->get_blocking_task_num() : 0);
 #endif
 }
 

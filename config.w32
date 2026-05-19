@@ -122,6 +122,7 @@ if (PHP_SWOOLE != "no") {
 	swoole_source_files += "src\\protocol\\ssl.cc ";
 	swoole_source_files += "src\\protocol\\websocket.cc ";
 	swoole_source_files += "src\\reactor\\base.cc ";
+	swoole_source_files += "src\\reactor\\reactor_iocp.cc ";
 	swoole_source_files += "src\\reactor\\poll.cc ";
 	swoole_source_files += "src\\wrapper\\event.cc ";
 	swoole_source_files += "src\\wrapper\\timer.cc ";

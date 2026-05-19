@@ -55,6 +55,8 @@ struct IocpEvent {
     int error = 0;
     bool completed = false;
     bool orphaned = false;
+    bool submitted = false;
+    bool exit_blocking = true;
     bool socket_event = true;
 
     IocpCallback callback = nullptr;
@@ -79,6 +81,7 @@ class Iocp {
     HANDLE port = INVALID_HANDLE_VALUE;
     Reactor *reactor = nullptr;
     uint32_t task_num = 0;
+    uint32_t blocking_task_num = 0;
     std::unordered_set<swSocketFd> associated_sockets;
     std::unordered_set<int> associated_files;
     std::unordered_map<int, int> file_flags;
@@ -88,6 +91,18 @@ class Iocp {
     bool associate(HANDLE handle, ULONG_PTR key);
     ssize_t execute(IocpEvent *event, double timeout);
     bool dispatch(DWORD transferred, ULONG_PTR key, OVERLAPPED *overlapped, DWORD error);
+    void finish_submission(IocpEvent *event) {
+        if (!event->submitted) {
+            return;
+        }
+        event->submitted = false;
+        if (task_num > 0) {
+            --task_num;
+        }
+        if (event->exit_blocking && blocking_task_num > 0) {
+            --blocking_task_num;
+        }
+    }
 
     static Iocp *get_instance();
     static bool get_extension_function(SOCKET fd, GUID guid, void **fn);
@@ -107,6 +122,10 @@ class Iocp {
         return task_num;
     }
 
+    uint64_t get_blocking_task_num() const {
+        return blocking_task_num;
+    }
+
     bool wakeup();
     int wait(int timeout_msec);
 
@@ -116,14 +135,18 @@ class Iocp {
 
     void submit(IocpEvent *event) {
         event->completed = false;
-        ++task_num;
+        if (!event->submitted) {
+            event->submitted = true;
+            ++task_num;
+            if (event->exit_blocking) {
+                ++blocking_task_num;
+            }
+        }
     }
 
     void cancel_submission(IocpEvent *event) {
         event->orphaned = true;
-        if (task_num > 0) {
-            --task_num;
-        }
+        finish_submission(event);
     }
 
     static int connect(swSocketFd fd, const struct sockaddr *addr, socklen_t len, double timeout = -1);

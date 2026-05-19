@@ -15,6 +15,7 @@
  */
 
 #include "php_swoole_curl.h"
+#include "swoole_afd.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_socket.h"
 
@@ -24,9 +25,16 @@
 #include <cstdlib>
 #include <cstring>
 
-#define SW_CURL_DEBUG 0
+#ifdef SW_CURL_USE_IOCP
+static bool curl_iocp_debug_enabled() {
+    static int enabled = -1;
+    if (enabled < 0) {
+        const char *value = getenv("SWOOLE_CURL_IOCP_DEBUG");
+        enabled = value && value[0] != '\0' && !(value[0] == '0' && value[1] == '\0');
+    }
+    return enabled != 0;
+}
 
-#if defined(SW_CURL_USE_IOCP) && SW_CURL_DEBUG
 #define CURL_IOCP_DEBUG(fmt, ...)                                                                                     \
     do {                                                                                                              \
         if (curl_iocp_debug_enabled()) {                                                                              \
@@ -173,36 +181,14 @@ cleanup:
 }
 
 #ifdef SW_CURL_USE_IOCP
-static constexpr DWORD IOCTL_AFD_POLL = 0x00012024;
-static constexpr ULONG AFD_POLL_RECEIVE = 0x0001;
-static constexpr ULONG AFD_POLL_RECEIVE_EXPEDITED = 0x0002;
-static constexpr ULONG AFD_POLL_SEND = 0x0004;
-static constexpr ULONG AFD_POLL_DISCONNECT = 0x0008;
-static constexpr ULONG AFD_POLL_ABORT = 0x0010;
-static constexpr ULONG AFD_POLL_LOCAL_CLOSE = 0x0020;
-static constexpr ULONG AFD_POLL_CONNECT_FAIL = 0x0100;
-
-struct AfdPollHandleInfo {
-    HANDLE handle;
-    ULONG events;
-    LONG status;
-};
-
-struct AfdPollInfo {
-    LARGE_INTEGER timeout;
-    ULONG number_of_handles;
-    ULONG exclusive;
-    AfdPollHandleInfo handles[1];
-};
-
 static ULONG curl_action_to_afd_events(int action) {
-    ULONG events = AFD_POLL_DISCONNECT | AFD_POLL_ABORT | AFD_POLL_LOCAL_CLOSE | AFD_POLL_CONNECT_FAIL;
+    ULONG events = afd::POLL_DISCONNECT | afd::POLL_ABORT | afd::POLL_LOCAL_CLOSE | afd::POLL_CONNECT_FAIL;
 
     if (action != CURL_POLL_OUT) {
-        events |= AFD_POLL_RECEIVE | AFD_POLL_RECEIVE_EXPEDITED;
+        events |= afd::POLL_RECEIVE | afd::POLL_RECEIVE_EXPEDITED;
     }
     if (action != CURL_POLL_IN) {
-        events |= AFD_POLL_SEND;
+        events |= afd::POLL_SEND;
     }
 
     return events;
@@ -211,14 +197,14 @@ static ULONG curl_action_to_afd_events(int action) {
 static int afd_events_to_curl_bitmask(ULONG events, LONG status) {
     int bitmask = 0;
 
-    if (events & (AFD_POLL_RECEIVE | AFD_POLL_RECEIVE_EXPEDITED | AFD_POLL_DISCONNECT | AFD_POLL_ABORT |
-                  AFD_POLL_LOCAL_CLOSE)) {
+    if (events & (afd::POLL_RECEIVE | afd::POLL_RECEIVE_EXPEDITED | afd::POLL_DISCONNECT | afd::POLL_ABORT |
+                  afd::POLL_LOCAL_CLOSE)) {
         bitmask |= CURL_CSELECT_IN;
     }
-    if (events & AFD_POLL_SEND) {
+    if (events & afd::POLL_SEND) {
         bitmask |= CURL_CSELECT_OUT;
     }
-    if (status != 0 || (events & (AFD_POLL_CONNECT_FAIL | AFD_POLL_ABORT | AFD_POLL_LOCAL_CLOSE))) {
+    if (status != 0 || (events & (afd::POLL_CONNECT_FAIL | afd::POLL_ABORT | afd::POLL_LOCAL_CLOSE))) {
         bitmask |= CURL_CSELECT_ERR;
     }
 
@@ -228,19 +214,14 @@ static int afd_events_to_curl_bitmask(ULONG events, LONG status) {
 struct IocpOperation {
     IocpEvent event;
     Socket *curl_socket;
-    AfdPollInfo poll_info;
+    afd::PollInfo poll_info;
 
     explicit IocpOperation(Socket *curl_socket_)
         : event(SW_IOCP_CUSTOM, curl_socket_->sockfd), curl_socket(curl_socket_) {
         event.callback = on_complete;
         event.private_data = this;
 
-        poll_info.timeout.QuadPart = INT64_MAX;
-        poll_info.number_of_handles = 1;
-        poll_info.exclusive = TRUE;
-        poll_info.handles[0].handle = reinterpret_cast<HANDLE>(curl_socket_->sockfd);
-        poll_info.handles[0].events = curl_action_to_afd_events(curl_socket_->action);
-        poll_info.handles[0].status = 0;
+        afd::init_poll_info(&poll_info, curl_socket_->sockfd, curl_action_to_afd_events(curl_socket_->action));
     }
 
     static void on_complete(IocpEvent *event, DWORD transferred, DWORD error) {
@@ -381,7 +362,7 @@ int Multi::post_event(Socket *curl_socket, int bitmask) {
 
     DWORD bytes = 0;
     BOOL retval = DeviceIoControl(reinterpret_cast<HANDLE>(curl_socket->sockfd),
-                                  IOCTL_AFD_POLL,
+                                  afd::IOCTL_POLL,
                                   &operation->poll_info,
                                   sizeof(operation->poll_info),
                                   &operation->poll_info,
@@ -421,7 +402,11 @@ void Multi::cancel_event(IocpOperation *operation) {
         return;
     }
     CURL_IOCP_DEBUG("cancel_event fd=%d", (int) operation->event.fd);
-    operation->event.orphaned = true;
+    if (SwooleTG.iocp) {
+        SwooleTG.iocp->cancel_submission(&operation->event);
+    } else {
+        operation->event.orphaned = true;
+    }
     CancelIoEx(reinterpret_cast<HANDLE>(operation->event.fd), &operation->event.overlapped);
 }
 
@@ -735,11 +720,7 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
         return -1;
     }
     if (timeout_ms < 0) {
-        if (multi->timer) {
-            multi->del_timer();
-        } else {
-            multi->add_timer(1000);
-        }
+        multi->del_timer();
     } else {
         if (timeout_ms == 0) {
             timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in a bit */

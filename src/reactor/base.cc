@@ -42,6 +42,10 @@ ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
 
 ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
 
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+ReactorImpl *make_reactor_iocp(Reactor *_reactor, int max_events);
+#endif
+
 void ReactorImpl::after_removal_failure(const Socket *_socket) const {
     if (!_socket->silent_remove) {
         swoole_error_log(SW_LOG_WARNING,
@@ -58,7 +62,9 @@ void ReactorImpl::after_removal_failure(const Socket *_socket) const {
 
 Reactor::Reactor(int max_event, Type _type) {
     if (_type == TYPE_AUTO) {
-#ifdef HAVE_EPOLL
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+        type_ = TYPE_IOCP;
+#elif defined(HAVE_EPOLL)
         type_ = TYPE_EPOLL;
 #else
         type_ = TYPE_POLL;
@@ -77,6 +83,11 @@ Reactor::Reactor(int max_event, Type _type) {
     }
 
     switch (type_) {
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+    case TYPE_IOCP:
+        impl = make_reactor_iocp(this, max_event);
+        break;
+#endif
 #ifdef HAVE_EPOLL
     case TYPE_EPOLL:
         impl = make_reactor_epoll(this, max_event);

@@ -175,9 +175,6 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_substr_unserialize, arginfo_swoole_substr_unserialize)
     PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_internal_call_user_shutdown_begin)
-#ifdef _WIN32
-    PHP_FE(swoole_event_rshutdown,    arginfo_swoole_event_rshutdown)
-#endif
     // for test
     PHP_FE(swoole_implicit_fn,           arginfo_swoole_implicit_fn)
     // for admin server
@@ -743,10 +740,8 @@ PHP_MINIT_FUNCTION(swoole) {
     /**
      * Register event constants
      */
-#ifndef _WIN32
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EVENT_READ", SW_EVENT_READ);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_EVENT_WRITE", SW_EVENT_WRITE);
-#endif
 
     /**
      * Register ERROR types
@@ -994,9 +989,7 @@ PHP_MINIT_FUNCTION(swoole) {
         swoole_error, "Swoole\\Error", nullptr, nullptr, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
-#ifndef _WIN32
     php_swoole_event_minit(module_number);
-#endif
     // base
 #ifndef _WIN32
     php_swoole_atomic_minit(module_number);

@@ -145,7 +145,7 @@ Iocp::Iocp(Reactor *reactor_) {
     swoole_trace_log(SW_TRACE_EVENT, "IOCP created: port=%p", port);
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOCP, [](Reactor *reactor, size_t &event_num) -> bool {
-        if (SwooleTG.iocp && SwooleTG.iocp->get_task_num() > 0) {
+        if (SwooleTG.iocp && SwooleTG.iocp->get_blocking_task_num() > 0) {
             return false;
         }
         return true;
@@ -290,7 +290,7 @@ bool Iocp::associate(HANDLE handle, ULONG_PTR key) {
 
 ssize_t Iocp::execute(IocpEvent *event, double timeout) {
     event->coroutine = Coroutine::get_current_safe();
-    ++task_num;
+    submit(event);
     swoole_trace_log(SW_TRACE_SOCKET,
                      "IOCP submit opcode=%s, fd=%d, timeout=%f, task_num=%u",
                      get_opcode_name(event->opcode),
@@ -310,7 +310,7 @@ ssize_t Iocp::execute(IocpEvent *event, double timeout) {
     }
 
     if (!event->completed) {
-        event->orphaned = true;
+        cancel_submission(event);
         CancelIoEx(event->handle, &event->overlapped);
         if (event->coroutine->is_timedout()) {
             errno = ETIMEDOUT;
@@ -352,9 +352,7 @@ bool Iocp::dispatch(DWORD transferred, ULONG_PTR key, OVERLAPPED *overlapped, DW
     auto *event = reinterpret_cast<IocpEvent *>(overlapped);
     if (event->callback) {
         event->completed = true;
-        if (task_num > 0) {
-            --task_num;
-        }
+        finish_submission(event);
         event->callback(event, transferred, error);
         return true;
     }
@@ -367,9 +365,7 @@ bool Iocp::dispatch(DWORD transferred, ULONG_PTR key, OVERLAPPED *overlapped, DW
                      transferred,
                      error);
 
-    if (task_num > 0) {
-        --task_num;
-    }
+    finish_submission(event);
 
     if (event->opcode == SW_IOCP_RECVFROM && event->addrlen) {
         *event->addrlen = static_cast<socklen_t>(event->addrlen_int);

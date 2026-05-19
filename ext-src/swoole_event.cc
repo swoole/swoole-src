@@ -21,6 +21,7 @@
 #ifndef _WIN32
 #include "swoole_server.h"
 #include "swoole_signal.h"
+#endif
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_event_arginfo.h"
@@ -218,6 +219,7 @@ static void event_cycle_callback(void *data) {
     }
 }
 
+#ifndef _WIN32
 int php_swoole_reactor_init() {
     if (!SWOOLE_G(cli)) {
         php_swoole_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode");
@@ -284,6 +286,15 @@ void php_swoole_event_wait() {
     swoole_event_free();
 }
 
+void php_swoole_event_exit() {
+    if (sw_reactor()) {
+        php_swoole_timer_clear_all();
+        sw_reactor()->running = false;
+    }
+}
+#endif
+
+#ifdef _WIN32
 void php_swoole_event_exit() {
     if (sw_reactor()) {
         php_swoole_timer_clear_all();
@@ -391,7 +402,6 @@ php_socket *php_swoole_convert_to_socket(int sock) {
 }
 #endif
 
-#ifndef _WIN32
 static void event_check_reactor() {
     php_swoole_check_reactor();
 
@@ -723,4 +733,3 @@ static PHP_FUNCTION(swoole_event_isset) {
         RETURN_FALSE;
     }
 }
-#endif
