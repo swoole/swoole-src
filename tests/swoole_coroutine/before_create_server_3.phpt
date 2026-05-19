@@ -1,7 +1,7 @@
 --TEST--
 swoole_coroutine: co::create before server create [2]
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; skip_if_win(); ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

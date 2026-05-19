@@ -54,7 +54,9 @@ if (IS_MAC_OS) {
 }
 
 /* ============ Servers ============ */
-define('SERVER_MODE_RANDOM', array_random([SWOOLE_BASE, SWOOLE_PROCESS]));
+if (defined('SWOOLE_BASE') && defined('SWOOLE_PROCESS')) {
+    define('SERVER_MODE_RANDOM', array_random([SWOOLE_BASE, SWOOLE_PROCESS]));
+}
 define('UNIXSOCK_PATH', '/tmp/unix-sock-test.sock');
 
 define('TCP_SERVER_HOST', '127.0.0.1');

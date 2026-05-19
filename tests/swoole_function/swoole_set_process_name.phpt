@@ -5,6 +5,7 @@ swoole_function: set process name
 require __DIR__ . '/../include/skipif.inc';
 skip_if_darwin();
 skip_if_in_valgrind();
+skip_if_win();
 ?>
 --FILE--
 <?php

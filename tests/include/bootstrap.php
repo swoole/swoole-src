@@ -24,8 +24,10 @@ swoole_async_set([
 ]);
 
 // Run default remote object server
-swoole_library_set_option('default_remote_object_server_worker_num', 2);
-swoole_init_default_remote_object_server();
+if (!is_win()) {
+    swoole_library_set_option('default_remote_object_server_worker_num', 2);
+    swoole_init_default_remote_object_server();
+}
 
 Co::set([
     'socket_timeout' => 5
@@ -56,8 +58,10 @@ if ($traceFlags) {
 // Components
 require __DIR__ . '/lib/vendor/autoload.php';
 
-class_alias(SwooleTest\ProcessManager::class, ProcessManager::class);
-class_alias(SwooleTest\ServerManager::class, ServerManager::class);
+if (!is_win()) {
+    class_alias(SwooleTest\ProcessManager::class, ProcessManager::class);
+    class_alias(SwooleTest\ServerManager::class, ServerManager::class);
+}
 class_alias(SwooleTest\RandStr::class, RandStr::class);
 class_alias(SwooleTest\TcpStat::class, TcpStat::class);
 

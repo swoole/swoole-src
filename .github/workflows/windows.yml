@@ -19,8 +19,6 @@ jobs:
         uses: shivammathur/setup-php@master
         with:
           php-version: '8.4'
-          # ini-values: pcov.directory=lib
-          # coverage: pcov
           coverage: none
           extensions: curl,openssl,pdo
         env:
@@ -51,3 +49,18 @@ jobs:
         shell: powershell
         run: |
           php -d extension=php_swoole --ri swoole
+
+      - name: Install test dependencies
+        shell: cmd
+        run: |
+          php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+          php composer-setup.php --quiet
+          php composer.phar install --working-dir=tests\include\lib --no-interaction
+
+      - name: Run unit tests
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          php -d extension=php_swoole -d swoole.use_shortname=On tests\run-tests -P -q --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 120 tests\swoole_function tests\swoole_channel_coro tests\swoole_client_coro tests\swoole_coroutine tests\swoole_coroutine_lock tests\swoole_coroutine_scheduler tests\swoole_coroutine_system tests\swoole_coroutine_util tests\swoole_coroutine_wait_group tests\swoole_curl tests\swoole_global tests\swoole_http2_client_coro tests\swoole_http_client_coro tests\swoole_runtime tests\swoole_socket_coro tests\swoole_timer
