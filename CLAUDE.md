@@ -123,7 +123,7 @@ Examples:
 
 - **Linux** (primary): epoll, io_uring, signalfd, eventfd, sendfile. Full feature set.
 - **macOS**: kqueue. Some features unavailable (io_uring, signalfd, eventfd).
-- **Windows/Cygwin** (experimental): IOCP reactor. See `config.w32`, `ext-src/swoole_windows.cc`.
+- **Windows/Cygwin** (experimental): IOCP reactor. See `config.w32`, `ext-src/swoole_event.cc`.
 - **Architectures**: x86_64, ARM64, ARM32, MIPS32/64, RISC-V 64, LoongArch 64 (each needs matching ASM context in `thirdparty/boost/asm/`).
 
 ## include/ Structure

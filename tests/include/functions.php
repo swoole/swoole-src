@@ -87,6 +87,13 @@ function is_musl_libc(): bool
     return $bool;
 }
 
+function is_win(): bool
+{
+    static $bool;
+    $bool = $bool ?? (stripos(PHP_OS, 'WIN') === 0);
+    return $bool;
+}
+
 function get_server_ips(): array
 {
     $ips = [];

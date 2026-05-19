@@ -22,6 +22,9 @@
 #include "swoole_server.h"
 #include "swoole_signal.h"
 #endif
+#ifdef _WIN32
+#include "swoole_iocp.h"
+#endif
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_event_arginfo.h"
@@ -219,7 +222,6 @@ static void event_cycle_callback(void *data) {
     }
 }
 
-#ifndef _WIN32
 int php_swoole_reactor_init() {
     if (!SWOOLE_G(cli)) {
         php_swoole_fatal_error(E_ERROR, "async-io must be used in PHP CLI mode");
@@ -241,12 +243,23 @@ int php_swoole_reactor_init() {
 #endif
 
     if (!sw_reactor()) {
+#ifdef _WIN32
+        swoole_trace_log(SW_TRACE_PHP, "init Windows reactor");
+#else
         swoole_trace_log(SW_TRACE_PHP, "init reactor");
+#endif
 
         if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
             php_swoole_fatal_error(E_ERROR, "Unable to create event-loop reactor");
             return SW_ERR;
         }
+
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+        if (!Iocp::init(sw_reactor())) {
+            php_swoole_fatal_error(E_ERROR, "Unable to create IOCP instance");
+            return SW_ERR;
+        }
+#endif
 
         php_swoole_register_shutdown_function("swoole_event_rshutdown");
     }
@@ -268,6 +281,12 @@ void php_swoole_event_wait() {
         return;
     }
     if (!sw_reactor()->if_exit() && !sw_reactor()->bailout) {
+#ifdef _WIN32
+        swoole_trace_log(SW_TRACE_PHP, "wait Windows reactor");
+        if (sw_reactor()->wait() < 0) {
+            php_swoole_sys_error(E_ERROR, "reactor wait failed");
+        }
+#else
         // Don't disable object slot reuse while running shutdown functions:
         // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac
 #if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
@@ -282,6 +301,7 @@ void php_swoole_event_wait() {
             EG(flags) |= EG_FLAGS_IN_SHUTDOWN;
         }
 #endif
+#endif
     }
     swoole_event_free();
 }
@@ -292,16 +312,6 @@ void php_swoole_event_exit() {
         sw_reactor()->running = false;
     }
 }
-#endif
-
-#ifdef _WIN32
-void php_swoole_event_exit() {
-    if (sw_reactor()) {
-        php_swoole_timer_clear_all();
-        sw_reactor()->running = false;
-    }
-}
-#endif
 
 int php_swoole_convert_to_fd(zval *zsocket) {
     int fd = -1;
@@ -420,6 +430,14 @@ static Socket *event_get_socket(swSocketFd socket_fd) {
     return i->second;
 }
 
+#if defined(_WIN32)
+static bool event_is_winsock_socket(swSocketFd fd) {
+    int type = 0;
+    int type_len = sizeof(type);
+    return getsockopt(static_cast<SOCKET>(fd), SOL_SOCKET, SO_TYPE, reinterpret_cast<char *>(&type), &type_len) == 0;
+}
+#endif
+
 static PHP_FUNCTION(swoole_event_add) {
     zval *zfd;
     zend_long events = SW_EVENT_READ;
@@ -477,11 +495,18 @@ static PHP_FUNCTION(swoole_event_add) {
     peo->writable_callback = writable_callback;
 
     Socket *socket = make_socket((swSocketFd)socket_fd, SW_FD_USER);
+#if defined(_WIN32)
+    if (event_is_winsock_socket(socket->fd)) {
+        socket->set_nonblock();
+    }
+#else
     socket->set_nonblock();
+#endif
     socket->object = peo;
 
     if (swoole_event_add(socket, events) < 0) {
         php_swoole_fatal_error(E_WARNING, "swoole_event_add failed");
+        socket->fd = SW_BAD_SOCKET;
         socket->free();
         event_object_free(peo);
         RETURN_FALSE;
@@ -684,9 +709,11 @@ static PHP_FUNCTION(swoole_event_rshutdown) {
     zend_try {
         // when throw Exception, do not show the info
         if (!php_swoole_is_fatal_error() && sw_reactor()) {
+#ifndef _WIN32
             if (!sw_reactor()->bailout) {
                 php_swoole_fatal_error(E_DEPRECATED, "Event::wait() in shutdown function is deprecated");
             }
+#endif
             php_swoole_event_wait();
         }
     }
