@@ -207,6 +207,36 @@ bool Reactor::if_exit() {
     return true;
 }
 
+int16_t translate_events_to_poll(int events) {
+    int16_t poll_events = 0;
+
+    if (events & SW_EVENT_READ) {
+        poll_events |= POLLIN;
+    }
+    if (events & SW_EVENT_WRITE) {
+        poll_events |= POLLOUT;
+    }
+
+    return poll_events;
+}
+
+int translate_events_from_poll(int16_t events) {
+    int sw_events = 0;
+
+    if (events & POLLIN) {
+        sw_events |= SW_EVENT_READ;
+    }
+    if (events & POLLOUT) {
+        sw_events |= SW_EVENT_WRITE;
+    }
+    // ignore ERR and HUP, because event is already processed at IN and OUT handler.
+    if ((events & POLLERR || events & POLLHUP) && !(events & POLLIN || events & POLLOUT)) {
+        sw_events |= SW_EVENT_ERROR;
+    }
+
+    return sw_events;
+}
+
 int Reactor::_close(Reactor *reactor, Socket *socket) {
     swoole_trace_log(SW_TRACE_CLOSE, "fd=%d", socket->fd);
     socket->free();
