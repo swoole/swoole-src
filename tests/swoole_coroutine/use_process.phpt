@@ -2,7 +2,7 @@
 swoole_coroutine: user process
 --SKIPIF--
 <?php
-require __DIR__ . '/../../include/skipif.inc';
+require __DIR__ . '/../include/skipif.inc';
 skip_if_win();
 ?>
 --FILE--
