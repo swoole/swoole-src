@@ -1156,10 +1156,25 @@ static PHP_METHOD(swoole_coroutine, stats) {
     if (sw_async_threads()) {
         add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), sw_async_threads()->get_task_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), sw_async_threads()->get_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_idle_worker_num"), sw_async_threads()->get_idle_worker_num());
+        add_assoc_long_ex(
+            return_value, ZEND_STRL("aio_pending_release_worker_num"), sw_async_threads()->get_pending_release_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_peak_worker_num"), sw_async_threads()->get_peak_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_created_worker_num"), sw_async_threads()->get_created_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_released_worker_num"), sw_async_threads()->get_released_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_up_count"), sw_async_threads()->get_scale_up_count());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_down_count"), sw_async_threads()->get_scale_down_count());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_queue_size"), sw_async_threads()->get_queue_size());
     } else {
         add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), 0);
         add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_idle_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_pending_release_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_peak_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_created_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_released_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_up_count"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_down_count"), 0);
         add_assoc_long_ex(return_value, ZEND_STRL("aio_queue_size"), 0);
     }
 

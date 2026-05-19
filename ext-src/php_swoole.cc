@@ -49,10 +49,14 @@ BEGIN_EXTERN_C()
 END_EXTERN_C()
 
 #include "swoole_coroutine.h"
+#include "swoole_async.h"
 #include "swoole_mime_type.h"
 #include "swoole_server.h"
 #include "swoole_util.h"
 #include "swoole_http2.h"
+
+#include <chrono>
+#include <thread>
 
 #ifndef _WIN32
 #include <netinet/in.h>
@@ -2023,6 +2027,25 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
  * The implicit functions are intended solely for internal testing and will not be documented.
  * These functions are unsafe, do not use if you are not an internal developer.
  */
+struct ImplicitAioTask : swoole::AsyncRequest {
+    Coroutine *co = nullptr;
+    double sleep_time = 0;
+};
+
+static void implicit_aio_task_handler(swoole::AsyncEvent *event) {
+    auto *task = static_cast<ImplicitAioTask *>(event->object);
+    if (task->sleep_time > 0) {
+        std::this_thread::sleep_for(std::chrono::duration<double>(task->sleep_time));
+    }
+    event->error = 0;
+    event->retval = 0;
+}
+
+static void implicit_aio_task_callback(swoole::AsyncEvent *event) {
+    auto *task = static_cast<ImplicitAioTask *>(event->object);
+    task->co->resume();
+}
+
 static PHP_FUNCTION(swoole_implicit_fn) {
     char *fn;
     size_t l_fn;
@@ -2051,6 +2074,38 @@ static PHP_FUNCTION(swoole_implicit_fn) {
             RETURN_FALSE;
         }
         printf("zif_handler=%p\n", zf->internal_function.handler);
+    } else if (SW_STRCASEEQ(fn, l_fn, "aio_task")) {
+        double sleep_time = 0;
+        if (zargs) {
+            if (Z_TYPE_P(zargs) == IS_ARRAY) {
+                zval *ztmp = nullptr;
+                if (php_swoole_array_get_value(Z_ARRVAL_P(zargs), "sleep", ztmp) ||
+                    php_swoole_array_get_value(Z_ARRVAL_P(zargs), "time", ztmp)) {
+                    sleep_time = zval_get_double(ztmp);
+                }
+            } else {
+                sleep_time = zval_get_double(zargs);
+            }
+        }
+
+        Coroutine *co = Coroutine::get_current_safe();
+        auto task = std::make_shared<ImplicitAioTask>();
+        task->co = co;
+        task->sleep_time = sleep_time;
+
+        swoole::AsyncEvent event{};
+        event.data = task;
+        event.object = task.get();
+        event.handler = implicit_aio_task_handler;
+        event.callback = implicit_aio_task_callback;
+
+        swoole::AsyncEvent *submitted_event = swoole::async::dispatch(&event);
+        if (submitted_event == nullptr) {
+            RETURN_FALSE;
+        }
+
+        co->yield();
+        RETURN_BOOL(submitted_event->retval == 0 && submitted_event->error == 0);
     } else {
         zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "unknown fn '%s'", fn);
     }
