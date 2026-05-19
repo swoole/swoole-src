@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 const LOG_FILE = __DIR__ . '/log';
 if (is_file(LOG_FILE)) {
-    unlink(LOG_FILE);
+    @unlink(LOG_FILE);
 }
 
 const ERROR_1 = 888888;
@@ -26,6 +26,6 @@ Assert::contains($content, 'hello 1');
 Assert::contains($content, 'hello 2');
 Assert::contains($content, '(ERRNO ' . ERROR_1 . ')');
 Assert::notContains($content, 'hello 3');
-unlink(LOG_FILE);
+@unlink(LOG_FILE);
 ?>
 --EXPECT--
