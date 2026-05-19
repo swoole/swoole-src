@@ -37,6 +37,30 @@ using swoole::coroutine::System;
 using swoole::network::Address;
 
 SW_API bool swoole_load_resolv_conf() {
+#ifdef _WIN32
+    FIXED_INFO *fixed_info = nullptr;
+    ULONG buf_len = 0;
+
+    if (GetNetworkParams(fixed_info, &buf_len) != ERROR_BUFFER_OVERFLOW) {
+        return false;
+    }
+
+    fixed_info = (FIXED_INFO *) malloc(buf_len);
+    if (fixed_info == nullptr) {
+        return false;
+    }
+
+    if (GetNetworkParams(fixed_info, &buf_len) == NO_ERROR) {
+        if (fixed_info->DnsServerList.IpAddress.String[0] != '\0') {
+            swoole_set_dns_server(fixed_info->DnsServerList.IpAddress.String);
+            free(fixed_info);
+            return true;
+        }
+    }
+
+    free(fixed_info);
+    return false;
+#else
     FILE *fp;
     char line[100];
     char buf[16] = {};
@@ -60,6 +84,7 @@ SW_API bool swoole_load_resolv_conf() {
     }
     swoole_set_dns_server(buf);
     return true;
+#endif
 }
 
 SW_API void swoole_set_dns_server(const std::string &server) {
