@@ -253,7 +253,7 @@ bool Iocp::init(Reactor *reactor) {
     if (!reactor) {
         reactor = sw_reactor();
     }
-    if (!reactor || !swoole_event_is_available()) {
+    if (!reactor || reactor->destroyed) {
         swoole_error("The event loop is unavailable, unable to initialize IOCP.");
         return false;
     }
