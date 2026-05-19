@@ -38,7 +38,7 @@ provided by the native port:
 - POSIX signals
 - POSIX message queues
 - POSIX process manager semantics
-- The public reactor/event-loop module
+- POSIX file descriptor reactor semantics
 
 ## Supported Modules
 
@@ -128,8 +128,26 @@ enabled according to the build configuration:
 - File operations supported by the Windows coroutine backend
 - cURL hooks when cURL hook support is enabled
 
-Hooks that depend on POSIX process, signal, Unix socket, or reactor APIs are not
-available on native Windows.
+Hooks that depend on POSIX process, signal, Unix socket, or Linux-only reactor
+primitives are not available on native Windows.
+
+### Event and Reactor APIs
+
+The public event API is available with native Windows limitations:
+
+- `Swoole\Event`
+- Public event-loop add/delete/set/write/defer/cycle APIs for supported
+  Winsock sockets
+- `Swoole\Event::wait()` as an explicit entry point for the Windows event loop
+
+The Windows reactor backend is implemented with IOCP and AFD readiness polling.
+It is intended to provide readiness notifications for Winsock sockets, similar
+to the Linux `poll`/`epoll` surface used by Swoole's existing event API.
+
+This is not a full POSIX reactor compatibility layer. POSIX file descriptors,
+Unix sockets, process pipes, signals, and Linux-specific descriptors such as
+eventfd, signalfd, and timerfd are not supported by `Swoole\Event` on native
+Windows.
 
 ## Optional Modules
 
@@ -249,18 +267,6 @@ Use the optional thread module for native Windows shared-state coordination:
 - `Swoole\Thread\Map`
 - `Swoole\Thread\ArrayList`
 
-### Event and Reactor APIs
-
-The public event/reactor module is not supported:
-
-- `Swoole\Event`
-- Public event-loop add/delete/set/write/defer/cycle APIs
-- Reactor APIs that expose Linux-style readiness events
-
-The native Windows build uses IOCP internally for supported coroutine I/O, but
-that does not expose the Linux `Swoole\Event` API as a public compatibility
-layer.
-
 ### Non-Coroutine Client Modules
 
 The classic client modules are not supported:
@@ -321,7 +327,7 @@ Windows:
 | `Swoole\Server` | Coroutine sockets, coroutine clients, or an application-specific Windows service model |
 | `Swoole\Client` | `Swoole\Coroutine\Client` |
 | `Swoole\Async\Client` | `Swoole\Coroutine\Client` or `Swoole\Coroutine\Socket` |
-| `Swoole\Event` | Coroutine scheduling and supported runtime hooks |
+| `Swoole\Event` | Native Windows `Swoole\Event` for supported Winsock sockets, or coroutine scheduling and supported runtime hooks |
 | `Swoole\Process` / `Swoole\Process\Pool` | Optional `Swoole\Thread`, PHP Windows process APIs, or Windows services |
 | `Swoole\Atomic` / `Swoole\Atomic\Long` | Optional `Swoole\Thread\Atomic` / `Swoole\Thread\Atomic\Long` |
 | `Swoole\Lock` | Optional `Swoole\Thread\Lock` or coroutine synchronization primitives |
@@ -337,6 +343,8 @@ Important build characteristics:
 
 - `SW_USE_IOCP` enables the Windows IOCP backend.
 - `SW_USE_IOCP_SOCKET` enables IOCP-backed coroutine socket support.
+- The Windows reactor source is compiled as a separate implementation unit and
+  uses AFD readiness polling on top of IOCP for `Swoole\Event`.
 - OpenSSL, zlib, brotli, zstd, nghttp2, c-ares, and other dependencies are
   enabled only when found and configured for the Windows build.
 - Optional Swoole modules must be explicitly enabled through their Windows build
