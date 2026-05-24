@@ -766,9 +766,6 @@ Server::~Server() {
         delete port;
     }
 
-    local_addr_v4_map.clear();
-    local_addr_v6_map.clear();
-
     sw_shm_free(gs);
 }
 
