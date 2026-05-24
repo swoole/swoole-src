@@ -29,3 +29,4 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Server_onAccept, 0, 1, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, conn, Swoole\\Coroutine\\Socket, 0)
 ZEND_END_ARG_INFO()
+

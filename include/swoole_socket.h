@@ -22,6 +22,11 @@
 #include "swoole_buffer.h"
 #include "swoole_file.h"
 
+#include <string>
+#include <vector>
+
+#ifdef _WIN32
+#else
 #include <poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -33,12 +38,14 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <arpa/inet.h>
-
-#include <string>
-#include <vector>
+#endif
 
 #ifndef SOCK_NONBLOCK
+#ifdef _WIN32
+#define SOCK_NONBLOCK 0
+#else
 #define SOCK_NONBLOCK O_NONBLOCK
+#endif
 #endif
 
 #ifdef __sun
@@ -48,10 +55,6 @@
 #endif
 
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
-
-enum {
-    SW_BAD_SOCKET = -1,
-};
 
 namespace swoole {
 struct GethostbynameRequest;
@@ -71,7 +74,12 @@ struct SendfileRequest {
     off_t end;
 
   public:
-    SendfileRequest(const char *filename, off_t _offset) : file(filename, O_RDONLY) {
+    SendfileRequest(const char *filename, off_t _offset)
+#ifdef _WIN32
+        : file(filename, _O_RDONLY | _O_BINARY) {
+#else
+        : file(filename, O_RDONLY) {
+#endif
         begin = _offset;
         end = 0;
         corked = 0;
@@ -200,7 +208,7 @@ struct Socket {
     static double default_write_timeout;
     static uint32_t default_buffer_size;
 
-    int fd;
+    swSocketFd fd;
     FdType fd_type;
     SocketType socket_type;
     int events;
@@ -237,6 +245,7 @@ struct Socket {
      * the caller must explicitly handle this error.
      */
     uchar dont_restart : 1;
+    uchar close_notified : 1;
 
     // memory buffer size [user space]
     uint32_t buffer_size;
@@ -304,15 +313,15 @@ struct Socket {
     bool set_fd_option(int _nonblock, int _cloexec);
 
     int set_option(int level, int optname, int optval) const {
-        return setsockopt(fd, level, optname, &optval, sizeof(optval));
+        return setsockopt(fd, level, optname, reinterpret_cast<const char *>(&optval), sizeof(optval));
     }
 
     int set_option(int level, int optname, const void *optval, socklen_t optlen) const {
-        return setsockopt(fd, level, optname, optval, optlen);
+        return setsockopt(fd, level, optname, static_cast<const char *>(optval), optlen);
     }
 
     int get_option(int level, int optname, void *optval, socklen_t *optlen) const {
-        return getsockopt(fd, level, optname, optval, optlen);
+        return getsockopt(fd, level, optname, static_cast<char *>(optval), optlen);
     }
 
     int get_option(int level, int optname, int *optval) const {
@@ -320,7 +329,7 @@ struct Socket {
         return get_option(level, optname, optval, &optlen);
     }
 
-    int get_fd() const {
+    swSocketFd get_fd() const {
         return fd;
     }
 
@@ -336,8 +345,8 @@ struct Socket {
         return out_buffer ? out_buffer->length() : 0;
     }
 
-    int move_fd() {
-        int sock_fd = fd;
+    swSocketFd move_fd() {
+        swSocketFd sock_fd = fd;
         fd = SW_BAD_SOCKET;
         return sock_fd;
     }
@@ -374,7 +383,22 @@ struct Socket {
     ssize_t writev(IOVector *io_vector);
 
     ssize_t writev(const iovec *iov, size_t iovcnt) const {
+#ifdef _WIN32
+        // Windows does not have writev(), use WSASend with WSABUF
+        // This inline implementation converts iovec to WSABUF and calls WSASend
+        DWORD bytes_sent = 0;
+        WSABUF *wsabuf = reinterpret_cast<WSABUF *>(_alloca(iovcnt * sizeof(WSABUF)));
+        for (size_t i = 0; i < iovcnt; i++) {
+            wsabuf[i].buf = static_cast<char *>(iov[i].iov_base);
+            wsabuf[i].len = static_cast<ULONG>(iov[i].iov_len);
+        }
+        if (WSASend(fd, wsabuf, static_cast<DWORD>(iovcnt), &bytes_sent, 0, nullptr, nullptr) == SOCKET_ERROR) {
+            return -1;
+        }
+        return static_cast<ssize_t>(bytes_sent);
+#else
         return ::writev(fd, iov, iovcnt);
+#endif
     }
 
     /**
@@ -535,11 +559,19 @@ struct Socket {
     }
 
     ssize_t write(const void *_buf, size_t _len) const {
+#ifdef _WIN32
+        return ::send(fd, static_cast<const char *>(_buf), _len, 0);
+#else
         return ::write(fd, _buf, _len);
+#endif
     }
 
     ssize_t read(void *_buf, size_t _len) const {
+#ifdef _WIN32
+        return ::recv(fd, static_cast<char *>(_buf), _len, 0);
+#else
         return ::read(fd, _buf, _len);
+#endif
     }
 
     /**
@@ -569,7 +601,7 @@ struct Socket {
     }
 
     ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags = 0) const {
-        return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
+        return ::sendto(fd, static_cast<const char *>(data), len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
     int catch_error(int err);
@@ -616,7 +648,7 @@ int getaddrinfo(GetaddrinfoRequest *req);
  * When the socket is released, it will close the file descriptor (fd).
  * If you do not want the fd to be closed, use `socket->move_fd()` to relinquish ownership of the fd.
  */
-network::Socket *make_socket(int fd, FdType fd_type);
+network::Socket *make_socket(swSocketFd fd, FdType fd_type);
 /**
  * The following three functions will return a null pointer if the socket creation fails.
  * It is essential to check the return value;

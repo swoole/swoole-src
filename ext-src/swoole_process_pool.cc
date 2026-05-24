@@ -381,8 +381,14 @@ static PHP_METHOD(swoole_process_pool, __construct) {
         RETURN_FALSE;
     }
 
-    if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK) {
+    if (enable_coroutine && ipc_type > 0
+#ifndef _WIN32
+        && ipc_type != SW_IPC_UNIXSOCK
+#endif
+        ) {
+#ifndef _WIN32
         ipc_type = SW_IPC_UNIXSOCK;
+#endif
         zend_throw_error(nullptr, "the parameter $ipc_type must be SWOOLE_IPC_UNIXSOCK when enable coroutine");
         RETURN_FALSE;
     }
@@ -555,10 +561,15 @@ static PHP_METHOD(swoole_process_pool, sendMessage) {
         php_swoole_fatal_error(E_WARNING, "process pool is not started.");
         RETURN_FALSE;
     }
+#ifndef _WIN32
     if (pool->ipc_mode != SW_IPC_UNIXSOCK) {
-        php_swoole_fatal_error(E_WARNING, "unsupported ipc type[%d]", pool->ipc_mode);
+        php_swoole_fatal_error(E_WARNING, "unsupported ipc type[%d], sendMessage requires SWOOLE_IPC_UNIXSOCK", pool->ipc_mode);
         RETURN_FALSE;
     }
+#else
+    php_swoole_fatal_error(E_WARNING, "sendMessage is not supported on Windows");
+    RETURN_FALSE;
+#endif
 
     char *message;
     size_t l_message;
@@ -690,6 +701,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         object_init_ex(zprocess, swoole_process_ce);
         zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), swoole_get_worker_id());
         zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pid"), worker->pid);
+#ifndef _WIN32
         if (current_pool->ipc_mode == SW_IPC_UNIXSOCK) {
             // current process
             if (worker->id == swoole_get_worker_id()) {
@@ -704,6 +716,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
             zend_update_property_long(
                 swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pipe"), worker->pipe_current->fd);
         }
+#endif
         /**
          * The message bus is enabled and forbid to read/write/close the pipeline in the php layer
          */

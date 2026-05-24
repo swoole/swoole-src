@@ -20,7 +20,11 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #elif defined(ENABLE_PHP_SWOOLE)
+#ifdef _WIN32
+#include "config.w32.h"
+#else
 #include "php_config.h"
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -31,8 +35,10 @@
 #define SW_EXTERN_C_END
 #endif
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
+#if defined(_WIN32) && !defined(__MINGW32__)
+#include "swoole_win32.h"
+#else
+#include "swoole_posix.h"
 #endif
 
 #ifndef _PTHREAD_PSHARED
@@ -48,12 +54,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <climits>
-#include <unistd.h>
-#include <pthread.h>
 #include <inttypes.h>
-
-#include <sys/uio.h>
-#include <sys/utsname.h>
 
 #include <string>
 #include <memory>
@@ -85,29 +86,37 @@ typedef unsigned long ulong_t;
 #define __builtin_expect(x, expected_value) (x)
 #endif
 
+#if defined(__GNUC__)
 #define sw_likely(x) __builtin_expect(!!(x), 1)
 #define sw_unlikely(x) __builtin_expect(!!(x), 0)
+#elif defined(_MSC_VER)
+#define sw_likely(x) (x)
+#define sw_unlikely(x) (x)
+#else
+#define sw_likely(x) (x)
+#define sw_unlikely(x) (x)
+#endif
 
 #define SW_START_LINE "-------------------------START----------------------------"
 #define SW_END_LINE "--------------------------END-----------------------------"
-#define SW_ECHO_RED "\e[31m%s\e[0m"
-#define SW_ECHO_GREEN "\e[32m%s\e[0m"
-#define SW_ECHO_YELLOW "\e[33m%s\e[0m"
-#define SW_ECHO_BLUE "\e[34m%s\e[0m"
-#define SW_ECHO_MAGENTA "\e[35m%s\e[0m"
-#define SW_ECHO_CYAN "\e[36m%s\e[0m"
-#define SW_ECHO_WHITE "\e[37m%s\e[0m"
+#define SW_ECHO_RED "\x1b[31m%s\x1b[0m"
+#define SW_ECHO_GREEN "\x1b[32m%s\x1b[0m"
+#define SW_ECHO_YELLOW "\x1b[33m%s\x1b[0m"
+#define SW_ECHO_BLUE "\x1b[34m%s\x1b[0m"
+#define SW_ECHO_MAGENTA "\x1b[35m%s\x1b[0m"
+#define SW_ECHO_CYAN "\x1b[36m%s\x1b[0m"
+#define SW_ECHO_WHITE "\x1b[37m%s\x1b[0m"
 
-#define SW_ECHO_LEN_RED "\e[31m%.*s\e[0m"
-#define SW_ECHO_LEN_GREEN "\e[32m%.*s\e[0m"
-#define SW_ECHO_LEN_YELLOW "\e[33m%.*s\e[0m"
-#define SW_ECHO_LEN_BLUE "\e[34m%.*s\e[0m"
-#define SW_ECHO_LEN_MAGENTA "\e[35m%.*s\e[0m"
-#define SW_ECHO_LEN_CYAN "\e[36m%.*s\e[0m"
-#define SW_ECHO_LEN_WHITE "\e[37m%.*s\e[0m"
+#define SW_ECHO_LEN_RED "\x1b[31m%.*s\x1b[0m"
+#define SW_ECHO_LEN_GREEN "\x1b[32m%.*s\x1b[0m"
+#define SW_ECHO_LEN_YELLOW "\x1b[33m%.*s\x1b[0m"
+#define SW_ECHO_LEN_BLUE "\x1b[34m%.*s\x1b[0m"
+#define SW_ECHO_LEN_MAGENTA "\x1b[35m%.*s\x1b[0m"
+#define SW_ECHO_LEN_CYAN "\x1b[36m%.*s\x1b[0m"
+#define SW_ECHO_LEN_WHITE "\x1b[37m%.*s\x1b[0m"
 
-#define SW_ECHO_RED_BG "\e[41m%s\e[0m"
-#define SW_ECHO_GREEN_BG "\e[42m%s\e[0m"
+#define SW_ECHO_RED_BG "\x1b[41m%s\x1b[0m"
+#define SW_ECHO_GREEN_BG "\x1b[42m%s\x1b[0m"
 
 #define SW_COLOR_RED 1
 #define SW_COLOR_GREEN 2
@@ -169,6 +178,12 @@ typedef unsigned long ulong_t;
 #endif
 #define SW_START_SLEEP usleep(100000)  // sleep 0.1s, wait fork and pthread_create
 
+#ifdef _MSC_VER
+#define SW_ALLOCA(size) _alloca(size)
+#else
+#define SW_ALLOCA(size) alloca(size)
+#endif
+
 #ifdef SW_THREAD
 #define SW_THREAD_LOCAL thread_local
 extern std::mutex sw_thread_lock;
@@ -204,7 +219,9 @@ class String;
 class Timer;
 struct TimerNode;
 struct Event;
+class SocketPair;
 class Pipe;
+class UnixSocket;
 class MessageBus;
 class Server;
 namespace network {
@@ -214,6 +231,9 @@ struct Address;
 class AsyncThreads;
 #ifdef SW_USE_IOURING
 class Iouring;
+#endif
+#ifdef SW_USE_IOCP
+class Iocp;
 #endif
 namespace async {
 class ThreadPool;
@@ -242,13 +262,14 @@ typedef swoole::DataHead swDataHead;
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
 #define sw_strdup swoole_strdup
 #define sw_strndup swoole_strndup
-#else
-#define sw_strdup strdup
-#define sw_strndup strndup
 #endif
 
 /** always return less than size, zero termination  */
+#ifdef __GNUC__
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...) __attribute__((format(printf, 3, 4)));
+#else
+size_t sw_snprintf(char *buf, size_t size, const char *format, ...);
+#endif
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 int sw_printf(const char *format, ...);
 bool sw_wait_for(const std::function<bool()> &fn, int timeout_ms);
@@ -262,7 +283,7 @@ static inline int sw_atoi(const char *str) {
 }
 
 static inline void sw_memset_zero(void *s, size_t n) {
-    memset(s, '\0', n);
+    memset(s, 0, n);
 }
 
 #define sw_unset_bit(val, bit) val &= ~bit
@@ -275,7 +296,7 @@ static inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t
 static inline size_t swoole_strlcpy(char *dest, const char *src, size_t size) {
     const size_t len = strlen(src);
     if (size != 0) {
-        const size_t n = std::min(len, size - 1);
+        const size_t n = (std::min)(len, size - 1);
         memcpy(dest, src, n);
         dest[n] = '\0';
     }
@@ -291,6 +312,7 @@ static inline char *swoole_strdup(const char *s) {
     return p;
 }
 
+#ifndef _WIN32
 static inline char *swoole_strndup(const char *s, const size_t n) {
     char *p = static_cast<char *>(sw_malloc(n + 1));
     if (sw_likely(p)) {
@@ -298,6 +320,11 @@ static inline char *swoole_strndup(const char *s, const size_t n) {
     }
     return p;
 }
+#else
+// On Windows, swoole_strndup is provided by src/os/win32.cc (as sw_strndup)
+// and the strndup macro maps to it. Avoid duplicate definition here.
+#define swoole_strndup sw_strndup
+#endif
 
 /* string equal */
 static inline unsigned int swoole_streq(const char *str1, size_t len1, const char *str2, size_t len2) {
@@ -578,8 +605,10 @@ int swoole_get_systemd_listen_fds();
 void swoole_init();
 void swoole_clean();
 void swoole_exit(int _status);
+#ifndef _WIN32
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void()> &child_fn);
+#endif
 pid_t swoole_waitpid(pid_t _pid, int *_stat_loc, int _options);
 void swoole_thread_init(bool main_thread = false);
 void swoole_thread_clean(bool main_thread = false);
@@ -600,6 +629,11 @@ int swoole_tmpfile(char *filename);
 #include <sys/cpuset.h>
 #include <pthread_np.h>
 typedef cpuset_t cpu_set_t;
+#elif defined(_WIN32)
+// Windows CPU affinity uses DWORD_PTR bitmask, provide compatibility typedef
+typedef struct {
+    unsigned long __bits[16];  // support up to 1024 CPUs
+} cpu_set_t;
 #endif
 int swoole_set_cpu_affinity(cpu_set_t *set);
 int swoole_get_cpu_affinity(cpu_set_t *set);
@@ -618,7 +652,7 @@ typedef swReturnCode ReturnCode;
 typedef swResultCode ResultCode;
 
 struct Event {
-    int fd;
+    swSocketFd fd;
     int16_t reactor_id;
     FdType type;
     network::Socket *socket;
@@ -664,6 +698,9 @@ struct ThreadGlobal {
     AsyncThreads *async_threads;
 #ifdef SW_USE_IOURING
     Iouring *iouring;
+#endif
+#ifdef SW_USE_IOCP
+    Iocp *iocp;
 #endif
     bool signal_blocking_all;
 };

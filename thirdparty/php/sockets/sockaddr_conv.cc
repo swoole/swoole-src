@@ -1,7 +1,12 @@
 #include "php_sockets_cxx.h"
 
+#ifndef _WIN32
 #include <netdb.h>
 #include <arpa/inet.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
 
 /* Sets addr by hostname, or by ip in string form (AF_INET6) */
 int php_set_inet6_addr(struct sockaddr_in6 *sin6, char *string, SocketImpl *php_sock) /* {{{ */

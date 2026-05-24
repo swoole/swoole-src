@@ -24,7 +24,9 @@
 #include "swoole_msg_queue.h"
 #include "swoole_message_bus.h"
 
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 
 #include <csignal>
 #include <unordered_map>
@@ -48,8 +50,10 @@ enum swWorkerType {
 
 enum swIPCMode {
     SW_IPC_NONE = 0,
+#ifndef _WIN32
     SW_IPC_UNIXSOCK = 1,
     SW_IPC_MSGQUEUE = 2,
+#endif
     SW_IPC_SOCKET = 3,
 };
 
@@ -107,13 +111,13 @@ class ExitStatus {
 
 static inline ExitStatus wait_process() {
     int status = 0;
-    pid_t pid = ::wait(&status);
+    pid_t pid = ::sw_wait(&status);
     return {pid, status};
 }
 
 static inline ExitStatus wait_process(pid_t _pid, int options) {
     int status = 0;
-    pid_t pid = ::waitpid(_pid, &status, options);
+    pid_t pid = ::sw_waitpid(_pid, &status, options);
     return {pid, status};
 }
 
@@ -146,7 +150,9 @@ struct Worker {
     pid_t pid;
     WorkerId id;
     ProcessPool *pool;
+#ifndef _WIN32
     MsgQueue *queue;
+#endif
     bool shared;
 
     bool redirect_stdout;
@@ -170,7 +176,9 @@ struct Worker {
     size_t coroutine_num;
 
     Mutex *lock;
+#ifndef _WIN32
     UnixSocket *pipe_object;
+#endif
 
     network::Socket *pipe_master;
     network::Socket *pipe_worker;
@@ -256,7 +264,9 @@ struct ProcessPool {
     bool reload_init;
     bool read_message;
     bool started;
+#ifndef _WIN32
     bool schedule_by_sysvmsg;
+#endif
     bool async;
 
     uint8_t ipc_mode;
@@ -279,7 +289,9 @@ struct ProcessPool {
     /**
      * use message queue IPC
      */
+#ifndef _WIN32
     uint8_t use_msgqueue;
+#endif
 
     /**
      * use stream socket IPC
@@ -292,7 +304,9 @@ struct ProcessPool {
     /**
      * message queue key
      */
+#ifndef _WIN32
     key_t msgqueue_key;
+#endif
 
     uint32_t worker_num;
     uint32_t max_request;
@@ -321,9 +335,11 @@ struct ProcessPool {
     sw_atomic_t round_id;
 
     Worker *workers;
+#ifndef _WIN32
     std::vector<std::shared_ptr<UnixSocket>> *pipes;
-    std::unordered_map<pid_t, Worker *> *map_;
     MsgQueue *queue;
+#endif
+    std::unordered_map<pid_t, Worker *> *map_;
     StreamInfo *stream_info_;
     Channel *message_box = nullptr;
     MessageBus *message_bus = nullptr;
@@ -395,7 +411,9 @@ struct ProcessPool {
     void set_start_id(int _start_id);
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
     bool detach();
+#ifndef _WIN32
     int wait();
+#endif
     int start_check();
     int start();
     bool shutdown();
@@ -406,7 +424,9 @@ struct ProcessPool {
         read_message = true;
     }
 
+#ifndef _WIN32
     pid_t spawn(Worker *worker);
+#endif
     void stop(Worker *worker);
     void kill_all_workers(int signo = SIGKILL);
     swResultCode dispatch(EventData *data, int *worker_id);
@@ -444,7 +464,7 @@ struct ProcessPool {
 };  // namespace swoole
 
 static sw_inline int swoole_kill(pid_t _pid, int _sig) {
-    return kill(_pid, _sig);
+    return sw_kill(_pid, _sig);
 }
 
 typedef swoole::ProtocolType swProtocolType;

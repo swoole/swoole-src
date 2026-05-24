@@ -69,7 +69,7 @@ int swoole_event_del(Socket *socket) {
 int swoole_event_wait() {
     Reactor *reactor = SwooleTG.reactor;
     int retval = 0;
-    if (!reactor->wait_exit or !reactor->if_exit()) {
+    if (!reactor->wait_exit || !reactor->if_exit()) {
         retval = reactor->wait();
     }
     swoole_event_free();

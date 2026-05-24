@@ -138,7 +138,7 @@ ssize_t MessageBus::read(Socket *sock) {
     struct iovec buffers[2];
 
 _read_from_pipe:
-    recv_n = recv(sock->get_fd(), info, sizeof(buffer_->info), MSG_PEEK);
+    recv_n = recv(sock->get_fd(), reinterpret_cast<char *>(info), sizeof(buffer_->info), MSG_PEEK);
     if (recv_n < 0) {
         if (sock->catch_read_error(errno) == SW_WAIT) {
             return SW_OK;
@@ -162,7 +162,7 @@ _read_from_pipe:
                          sock->get_fd(),
                          info->reactor_id);
         // Read data from the socket buffer and discard it.
-        recv(sock->get_fd(), info, sizeof(buffer_->info), 0);
+        recv(sock->get_fd(), reinterpret_cast<char *>(info), sizeof(buffer_->info), 0);
         return SW_OK;
     }
 
@@ -172,7 +172,20 @@ _read_from_pipe:
     buffers[1].iov_base = packet_buffer->str + packet_buffer->length;
     buffers[1].iov_len = SW_MIN(buffer_size_ - sizeof(buffer_->info), remain_len);
 
+#ifdef _WIN32
+    // Windows: use two separate recv() calls instead of readv
+    recv_n = recv(sock->get_fd(), reinterpret_cast<char *>(info), sizeof(buffer_->info), 0);
+    if (recv_n > 0 && remain_len > 0) {
+        ssize_t n2 = recv(sock->get_fd(),
+                          packet_buffer->str + packet_buffer->length,
+                          SW_MIN(buffer_size_ - sizeof(buffer_->info), remain_len), 0);
+        if (n2 > 0) {
+            recv_n += n2;
+        }
+    }
+#else
     recv_n = readv(sock->get_fd(), buffers, 2);
+#endif
     if (recv_n == 0) {
         swoole_warning("receive pipeline data error, pipe_fd=%d, reactor_id=%d", sock->get_fd(), info->reactor_id);
         return SW_ERR;
@@ -358,7 +371,7 @@ void MessageBus::init_pipe_socket(const Socket *sock) {
 MessageBus::~MessageBus() {
     for (auto _socket : pipe_sockets_) {
         if (_socket) {
-            _socket->fd = -1;
+            _socket->fd = SW_BAD_SOCKET;
             _socket->free();
         }
     }

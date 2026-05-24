@@ -21,3 +21,4 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Http_Request_getMethod arginfo_class_Swoole_Http_Request_getData
 
 #define arginfo_class_Swoole_Http_Request_getContent arginfo_class_Swoole_Http_Request_getData
+

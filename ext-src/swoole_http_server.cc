@@ -15,7 +15,10 @@
 */
 
 #include "php_swoole_http_server.h"
+
+#ifndef _WIN32
 #include "swoole_process_pool.h"
+#endif
 
 BEGIN_EXTERN_C()
 #include "rfc1867.h"
@@ -33,6 +36,7 @@ using swoole::SessionId;
 
 namespace WebSocket = swoole::websocket;
 
+#ifndef _WIN32
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
@@ -199,6 +203,7 @@ void php_swoole_http_server_rshutdown() {
         zval_ptr_dtor(ctx->response.zobject);
     }
 }
+#endif
 
 HttpContext *swoole_http_context_new(SessionId fd) {
     auto *ctx = new HttpContext();
@@ -229,6 +234,7 @@ HttpContext *swoole_http_context_new(SessionId fd) {
     return ctx;
 }
 
+#ifndef _WIN32
 void HttpContext::init(Server *serv) {
     parse_cookie = serv->http_parse_cookie;
     parse_body = serv->http_parse_post;
@@ -250,6 +256,7 @@ void HttpContext::bind(Server *serv) {
     close = http_context_disconnect;
     ZVAL_NULL(&zsocket);
 }
+#endif
 
 void HttpContext::copy(const HttpContext *ctx) {
     parse_cookie = ctx->parse_cookie;
@@ -279,11 +286,13 @@ bool HttpContext::is_available() const {
     if (is_co_socket()) {
         return !php_swoole_socket_is_closed(&zsocket);
     } else {
+#ifndef _WIN32
         auto *serv = get_async_server();
         auto *conn = serv->get_connection_by_session_id(fd);
         if (!conn || conn->closed || conn->peer_closed) {
             return false;
         }
+#endif
     }
     return true;
 }
@@ -327,6 +336,7 @@ void HttpContext::free() {
     delete this;
 }
 
+#ifndef _WIN32
 bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     auto *serv = ctx->get_async_server();
     bool retval = serv->send(ctx->fd, data, length);
@@ -466,3 +476,4 @@ void swoole_http_server_populate_ip_and_port(
         }
     }
 }
+#endif

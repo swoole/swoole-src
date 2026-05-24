@@ -63,9 +63,10 @@ if ($load_firebird) {
 }
 
 swoole_library_set_option('default_remote_object_server_worker_num', 8);
-swoole_init_default_remote_object_server();
+swoole_library_set_option('default_remote_object_server_verbose', false);
 
 Swoole\Coroutine\run(function () use ($load_mysql, $load_firebird, $load_odbc_mysql) {
+    swoole_init_default_remote_object_server();
     echo "[SSH2-init] Setting up SSH2 test environment...\n";
 
     $ssh_user = TEST_SSH2_USER ;

@@ -22,6 +22,7 @@ using namespace swoole;
 
 SW_EXTERN_C_BEGIN
 #define ZEND_INCLUDE_FULL_WINDOWS_HEADERS
+#define SW_CURL_COROUTINE_FILE 1
 #include "swoole_curl_interface.h"
 #include "curl_arginfo.h"
 
@@ -214,8 +215,8 @@ void swoole_curl_verify_handlers(php_curl *ch, bool reporterror) /* {{{ */
 /* }}} */
 
 /* CurlHandle class */
-zend_class_entry *swoole_coroutine_curl_handle_ce;
 static zend_object_handlers swoole_coroutine_curl_handle_handlers;
+static const zend_object_handlers *php_curl_object_handlers;
 
 static zend_object *swoole_curl_create_object(zend_class_entry *class_type);
 static void swoole_curl_free_obj(zend_object *object);
@@ -229,6 +230,8 @@ void swoole_native_curl_minit(int module_number) {
     if (!SWOOLE_G(cli)) {
         return;
     }
+
+    swoole::curl::minit();
 
 #if PHP_VERSION_ID < 80500
 #ifdef PHP_CURL_NEED_OPENSSL_TSL
@@ -250,8 +253,9 @@ void swoole_native_curl_minit(int module_number) {
 #endif
 #endif
 
-    swoole_coroutine_curl_handle_ce = curl_ce;
+    swoole_coroutine_curl_handle_ce = php_curl_ce;
     swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
+    php_curl_object_handlers = php_curl_ce->default_object_handlers;
     swoole_coroutine_curl_handle_ce->default_object_handlers = &swoole_coroutine_curl_handle_handlers;
 
     memcpy(&swoole_coroutine_curl_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
@@ -301,7 +305,7 @@ static zend_object *swoole_curl_clone_obj(zend_object *object) {
     zend_object *clone_object;
     php_curl *clone_ch;
 
-    clone_object = swoole_curl_create_object(curl_ce);
+    clone_object = swoole_curl_create_object(php_curl_ce);
     clone_ch = curl_from_obj(clone_object);
     swoole_curl_init_handle(clone_ch);
 
@@ -1174,7 +1178,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
         }
 
         ZVAL_DEREF(current);
-        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), curl_CURLFile_class)) {
+        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), php_curl_CURLFile_ce)) {
             /* new-style file upload */
             zval *prop, rv;
             char *type = NULL, *filename = NULL;
@@ -1184,7 +1188,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
             curl_seek_callback seekfunc = seek_cb;
 
             prop = zend_read_property_ex(
-                curl_CURLFile_class, Z_OBJ_P(current), ZSTR_KNOWN(ZEND_STR_NAME), /* silent */ false, &rv);
+                php_curl_CURLFile_ce, Z_OBJ_P(current), ZSTR_KNOWN(ZEND_STR_NAME), /* silent */ false, &rv);
             ZVAL_DEREF(prop);
             if (Z_TYPE_P(prop) != IS_STRING) {
                 php_error_docref(NULL, E_WARNING, "Invalid filename for key %s", ZSTR_VAL(string_key));
@@ -1195,13 +1199,13 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
                     goto out_string;
                 }
 
-                prop = zend_read_property(curl_CURLFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
+                prop = zend_read_property(php_curl_CURLFile_ce, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
                 ZVAL_DEREF(prop);
                 if (Z_TYPE_P(prop) == IS_STRING && Z_STRLEN_P(prop) > 0) {
                     type = Z_STRVAL_P(prop);
                 }
                 prop = zend_read_property(
-                    curl_CURLFile_class, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
+                    php_curl_CURLFile_ce, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
                 ZVAL_DEREF(prop);
                 if (Z_TYPE_P(prop) == IS_STRING && Z_STRLEN_P(prop) > 0) {
                     filename = Z_STRVAL_P(prop);
@@ -1244,13 +1248,13 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
             continue;
         }
 
-        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), curl_CURLStringFile_class)) {
+        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), php_curl_CURLStringFile_ce)) {
             /* new-style file upload from string */
             zval *prop, rv;
             char *type = NULL, *filename = NULL;
 
             prop = zend_read_property(
-                curl_CURLStringFile_class, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
+                php_curl_CURLStringFile_ce, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
             if (EG(exception)) {
                 goto out_string;
             }
@@ -1259,7 +1263,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
 
             filename = Z_STRVAL_P(prop);
 
-            prop = zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
+            prop = zend_read_property(php_curl_CURLStringFile_ce, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
             if (EG(exception)) {
                 goto out_string;
             }
@@ -1268,7 +1272,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
 
             type = Z_STRVAL_P(prop);
 
-            prop = zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "data", sizeof("data") - 1, 0, &rv);
+            prop = zend_read_property(php_curl_CURLStringFile_ce, Z_OBJ_P(current), "data", sizeof("data") - 1, 0, &rv);
             if (EG(exception)) {
                 goto out_string;
             }
@@ -2067,11 +2071,11 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
             break;
         }
 
-        if (Z_OBJCE_P(zvalue) != curl_share_ce && Z_OBJCE_P(zvalue) != curl_share_persistent_ce) {
+        if (Z_OBJCE_P(zvalue) != php_curl_share_ce && Z_OBJCE_P(zvalue) != php_curl_share_persistent_ce) {
             break;
         }
 #else
-        if (Z_TYPE_P(zvalue) == IS_OBJECT && Z_OBJCE_P(zvalue) == curl_share_ce) {
+        if (Z_TYPE_P(zvalue) == IS_OBJECT && Z_OBJCE_P(zvalue) == php_curl_share_ce) {
 #endif
         php_curlsh *sh = Z_CURL_SHARE_P(zvalue);
         curl_easy_setopt(ch->cp, CURLOPT_SHARE, sh->share);
@@ -2138,7 +2142,7 @@ PHP_FUNCTION(swoole_native_curl_setopt) {
     php_curl *ch;
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
-    Z_PARAM_OBJECT_OF_CLASS(zid, curl_ce)
+    Z_PARAM_OBJECT_OF_CLASS(zid, php_curl_ce)
     Z_PARAM_LONG(options)
     Z_PARAM_ZVAL(zvalue)
     ZEND_PARSE_PARAMETERS_END();
@@ -2557,7 +2561,7 @@ PHP_FUNCTION(swoole_native_curl_error) {
     php_curl *ch;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_OBJECT_OF_CLASS(zid, curl_ce)
+    Z_PARAM_OBJECT_OF_CLASS(zid, php_curl_ce)
     ZEND_PARSE_PARAMETERS_END();
 
     if ((ch = swoole_curl_get_handle(zid)) == NULL) {
@@ -2583,7 +2587,7 @@ PHP_FUNCTION(swoole_native_curl_errno) {
     php_curl *ch;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_OBJECT_OF_CLASS(zid, curl_ce)
+    Z_PARAM_OBJECT_OF_CLASS(zid, php_curl_ce)
     ZEND_PARSE_PARAMETERS_END();
 
     if ((ch = swoole_curl_get_handle(zid)) == NULL) {
@@ -2600,7 +2604,7 @@ PHP_FUNCTION(swoole_native_curl_close) {
     php_curl *ch;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_OBJECT_OF_CLASS(zid, curl_ce)
+    Z_PARAM_OBJECT_OF_CLASS(zid, php_curl_ce)
     ZEND_PARSE_PARAMETERS_END();
 
     if ((ch = swoole_curl_get_handle(zid)) == NULL) {
@@ -2630,7 +2634,12 @@ static void swoole_curl_free_obj(zend_object *object) {
     swoole_curl_verify_handlers(ch, /* reporterror */ false);
 
     swoole::curl::Handle *handle = swoole::curl::get_handle(ch->cp);
-    if (handle && handle->multi) {
+    if (!handle) {
+        php_curl_object_handlers->free_obj(object);
+        return;
+    }
+
+    if (handle->multi) {
         handle->multi->remove_handle(handle);
     }
 
@@ -2776,7 +2785,7 @@ PHP_FUNCTION(swoole_native_curl_reset) {
     php_curl *ch;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_OBJECT_OF_CLASS(zid, curl_ce)
+    Z_PARAM_OBJECT_OF_CLASS(zid, php_curl_ce)
     ZEND_PARSE_PARAMETERS_END();
 
     if ((ch = swoole_curl_get_handle(zid)) == NULL) {
@@ -2860,7 +2869,7 @@ PHP_FUNCTION(swoole_native_curl_pause) {
     php_curl *ch;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
-    Z_PARAM_OBJECT_OF_CLASS(zid, curl_ce)
+    Z_PARAM_OBJECT_OF_CLASS(zid, php_curl_ce)
     Z_PARAM_LONG(bitmask)
     ZEND_PARSE_PARAMETERS_END();
 
@@ -2880,7 +2889,7 @@ PHP_FUNCTION(swoole_native_curl_upkeep) {
     php_curl *ch;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_OBJECT_OF_CLASS(zid, curl_ce)
+    Z_PARAM_OBJECT_OF_CLASS(zid, php_curl_ce)
     ZEND_PARSE_PARAMETERS_END();
 
     if ((ch = swoole_curl_get_handle(zid)) == NULL) {

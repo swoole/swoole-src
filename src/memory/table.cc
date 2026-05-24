@@ -244,7 +244,7 @@ void TableRow::lock() {
          * indicating that OOM occurred during the locking process,
          * forced to unlock
          */
-        if (kill(lock_pid, 0) < 0 && errno == ESRCH) {
+        if (sw_kill(lock_pid, 0) < 0 && errno == ESRCH) {
             *lock = 1;
             swoole_warning("lock process[%d] not exists, force unlock", lock_pid);
             goto _success;

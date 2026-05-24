@@ -1,0 +1,53 @@
+name: Windows tests
+on: [push, pull_request]
+
+jobs:
+  windows-tests:
+    name: Unit Test on Windows
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ 'windows-latest' ]
+        ts: [ 'ts' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Setup PHP
+        uses: shivammathur/setup-php@master
+        with:
+          php-version: '8.4'
+          # ini-values: pcov.directory=lib
+          # coverage: pcov
+          coverage: none
+          extensions: curl,openssl,pdo
+        env:
+          phpts: ts
+
+      - name: Cache PHP deps and devpack
+        id: cache-php
+        uses: actions/cache@v5
+        with:
+          path: |
+            C:\tools\phpdev\deps
+            C:\tools\phpdev\php-*-devel-*-*
+          key: php84-${{ runner.os }}-${{ matrix.ts }}-v2
+          restore-keys: |
+            php84-${{ runner.os }}-${{ matrix.ts }}-
+            php84-${{ runner.os }}-
+
+      - name: Build Swoole extension
+        uses: ./.github/workflows/winext
+        with:
+          ext-path: .
+          tools-path: C:\tools\phpdev
+          conf-args: --enable-swoole-curl --enable-swoole-thread
+          staging-deps: '1'
+          deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,brotli
+
+      - name: Show Swoole extension info
+        shell: powershell
+        run: |
+          php -d extension=php_swoole --ri swoole

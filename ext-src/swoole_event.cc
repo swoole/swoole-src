@@ -17,6 +17,8 @@
  */
 
 #include "php_swoole_cxx.h"
+
+#ifndef _WIN32
 #include "swoole_server.h"
 #include "swoole_signal.h"
 
@@ -27,7 +29,7 @@ END_EXTERN_C()
 using namespace swoole;
 using swoole::network::Socket;
 
-static std::unordered_map<int, Socket *> event_socket_map;
+static std::unordered_map<swSocketFd, Socket *> event_socket_map;
 
 zend_class_entry *swoole_event_ce;
 static zend_object_handlers swoole_event_handlers;
@@ -222,6 +224,7 @@ int php_swoole_reactor_init() {
         return SW_ERR;
     }
 
+#ifndef _WIN32
     if (sw_server()) {
         if (sw_server()->is_task_worker() && !sw_server()->task_enable_coroutine) {
             php_swoole_fatal_error(
@@ -233,6 +236,8 @@ int php_swoole_reactor_init() {
             return SW_ERR;
         }
     }
+#endif
+
     if (!sw_reactor()) {
         swoole_trace_log(SW_TRACE_PHP, "init reactor");
 
@@ -285,6 +290,7 @@ void php_swoole_event_exit() {
         sw_reactor()->running = false;
     }
 }
+#endif
 
 int php_swoole_convert_to_fd(zval *zsocket) {
     int fd = -1;
@@ -316,8 +322,10 @@ int php_swoole_convert_to_fd(zval *zsocket) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_FD), 0);
         } else if (sw_zval_is_client(zsocket)) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_SOCK), 0);
+#ifndef _WIN32
         } else if (sw_zval_is_process(zsocket)) {
             zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_PIPE), 0);
+#endif
 #ifdef SWOOLE_SOCKETS_SUPPORT
         } else if (sw_zval_is_php_socket(zsocket)) {
             php_socket *php_sock = SW_Z_SOCKET_P(zsocket);
@@ -383,6 +391,7 @@ php_socket *php_swoole_convert_to_socket(int sock) {
 }
 #endif
 
+#ifndef _WIN32
 static void event_check_reactor() {
     php_swoole_check_reactor();
 
@@ -393,7 +402,7 @@ static void event_check_reactor() {
     }
 }
 
-static Socket *event_get_socket(int socket_fd) {
+static Socket *event_get_socket(swSocketFd socket_fd) {
     auto i = event_socket_map.find(socket_fd);
     if (i == event_socket_map.end()) {
         return nullptr;
@@ -426,7 +435,7 @@ static PHP_FUNCTION(swoole_event_add) {
         php_swoole_fatal_error(E_WARNING, "invalid socket fd [%d]", socket_fd);
         RETURN_FALSE;
     }
-    if (event_socket_map.find(socket_fd) != event_socket_map.end()) {
+    if (event_socket_map.find((swSocketFd)socket_fd) != event_socket_map.end()) {
         php_swoole_fatal_error(E_WARNING, "already exist");
         RETURN_FALSE;
     }
@@ -457,7 +466,7 @@ static PHP_FUNCTION(swoole_event_add) {
     peo->readable_callback = readable_callback;
     peo->writable_callback = writable_callback;
 
-    Socket *socket = make_socket(socket_fd, SW_FD_USER);
+    Socket *socket = make_socket((swSocketFd)socket_fd, SW_FD_USER);
     socket->set_nonblock();
     socket->object = peo;
 
@@ -468,7 +477,7 @@ static PHP_FUNCTION(swoole_event_add) {
         RETURN_FALSE;
     }
 
-    event_socket_map[socket_fd] = socket;
+    event_socket_map[(swSocketFd)socket_fd] = socket;
 
     RETURN_LONG(socket_fd);
 }
@@ -494,7 +503,7 @@ static PHP_FUNCTION(swoole_event_write) {
         RETURN_FALSE;
     }
 
-    Socket *socket = event_get_socket(socket_fd);
+    Socket *socket = event_get_socket((swSocketFd)socket_fd);
     if (socket == nullptr) {
         php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
         RETURN_FALSE;
@@ -532,7 +541,7 @@ static PHP_FUNCTION(swoole_event_set) {
         RETURN_FALSE;
     }
 
-    Socket *socket = event_get_socket(socket_fd);
+    Socket *socket = event_get_socket((swSocketFd)socket_fd);
     if (socket == nullptr) {
         php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
         RETURN_FALSE;
@@ -589,14 +598,14 @@ static PHP_FUNCTION(swoole_event_del) {
         RETURN_FALSE;
     }
 
-    Socket *socket = event_get_socket(socket_fd);
+    Socket *socket = event_get_socket((swSocketFd)socket_fd);
     if (!socket) {
         RETURN_FALSE;
     }
     swoole_event_defer(event_object_free, socket->object);
     int retval = swoole_event_del(socket);
-    event_socket_map.erase(socket_fd);
-    socket->fd = -1;
+    event_socket_map.erase((swSocketFd)socket_fd);
+    socket->fd = SW_BAD_SOCKET;
     socket->free();
     RETURN_BOOL(retval == SW_OK);
 }
@@ -704,7 +713,7 @@ static PHP_FUNCTION(swoole_event_isset) {
         RETURN_FALSE;
     }
 
-    Socket *_socket = event_get_socket(socket_fd);
+    Socket *_socket = event_get_socket((swSocketFd)socket_fd);
     if (_socket == nullptr || _socket->removed) {
         RETURN_FALSE;
     }
@@ -714,3 +723,4 @@ static PHP_FUNCTION(swoole_event_isset) {
         RETURN_FALSE;
     }
 }
+#endif

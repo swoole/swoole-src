@@ -23,7 +23,11 @@
 using CoSocket = swoole::coroutine::Socket;
 using NetSocket = swoole::network::Socket;
 
-#ifdef SW_USE_URING_SOCKET
+#ifdef SW_USE_IOCP_SOCKET
+#include "swoole_iocp_socket.h"
+using swoole::coroutine::IocpSocket;
+using SocketImpl = IocpSocket;
+#elif defined(SW_USE_URING_SOCKET)
 #include "swoole_uring_socket.h"
 using swoole::coroutine::UringSocket;
 using SocketImpl = UringSocket;
@@ -31,5 +35,5 @@ using SocketImpl = UringSocket;
 using SocketImpl = CoSocket;
 #endif
 
-std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object(int sockfd);
-std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object_ex(int sockfd);
+std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object(swSocketFd sockfd);
+std::shared_ptr<SocketImpl> swoole_coroutine_get_socket_object_ex(swSocketFd sockfd);

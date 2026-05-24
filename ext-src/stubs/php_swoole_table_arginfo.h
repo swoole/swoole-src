@@ -62,3 +62,4 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Table_key arginfo_class_Swoole_Table_current
 
 #define arginfo_class_Swoole_Table_valid arginfo_class_Swoole_Table_create
+

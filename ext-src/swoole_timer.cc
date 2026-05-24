@@ -17,13 +17,14 @@
  */
 
 #include "php_swoole_cxx.h"
+#ifndef _WIN32
 #include "php_swoole_process.h"
+#endif
 
 #include "swoole_server.h"
 
-#include "ext/spl/spl_array.h"
-
 BEGIN_EXTERN_C()
+#include "ext/spl/spl_array.h"
 #include "stubs/php_swoole_timer_arginfo.h"
 END_EXTERN_C()
 
@@ -151,6 +152,7 @@ static void timer_callback(Timer *timer, TimerNode *tnode) {
 }
 
 static bool timer_if_use_reactor() {
+#ifndef _WIN32
     auto server = sw_server();
     if (server) {
         return server->is_user_worker() || (server->is_task_worker() && server->task_enable_coroutine);
@@ -159,6 +161,7 @@ static bool timer_if_use_reactor() {
     if (process_pool) {
         return !process_pool->is_master();
     }
+#endif
     return true;
 }
 
@@ -180,7 +183,7 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
         RETURN_FALSE;
     }
 
-    if (UNEXPECTED(!sw_reactor() && timer_if_use_reactor())) {
+    if (UNEXPECTED(!sw_timer() && !sw_reactor() && timer_if_use_reactor())) {
         php_swoole_check_reactor();
     }
 

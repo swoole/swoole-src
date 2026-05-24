@@ -160,10 +160,12 @@ static const zend_function_entry swoole_coroutine_methods[] =
     PHP_ME(swoole_coroutine_system, statvfs,                                 arginfo_class_Swoole_Coroutine_System_statvfs,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, readFile,                                arginfo_class_Swoole_Coroutine_System_readFile,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, writeFile,                               arginfo_class_Swoole_Coroutine_System_writeFile,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifndef _WIN32
     PHP_ME(swoole_coroutine_system, wait,                                    arginfo_class_Swoole_Coroutine_System_wait,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitPid,                                 arginfo_class_Swoole_Coroutine_System_waitPid,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitSignal,                              arginfo_class_Swoole_Coroutine_System_waitSignal,    ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitEvent,                               arginfo_class_Swoole_Coroutine_System_waitEvent,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
     PHP_FE_END
 };
 // clang-format on
@@ -189,7 +191,11 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
     if (Coroutine::get_current()) {
         flags |= SW_EXIT_IN_COROUTINE;
     }
-    if (sw_server() && sw_server()->is_started()) {
+    if (sw_server()
+#ifndef _WIN32
+        && sw_server()->is_started()
+#endif
+    ) {
         flags |= SW_EXIT_IN_SERVER;
     }
     if (flags) {
@@ -234,7 +240,11 @@ PHP_FUNCTION(swoole_exit) {
         flags |= SW_EXIT_IN_COROUTINE;
     }
 
-    if (sw_server() && sw_server()->is_started()) {
+    if (sw_server()
+#ifndef _WIN32
+        && sw_server()->is_started()
+#endif
+    ) {
         flags |= SW_EXIT_IN_SERVER;
     }
 
@@ -490,7 +500,7 @@ void PHPCoroutine::deadlock_check() {
         zend::function::call(R"(\Swoole\Coroutine\deadlock_check)", 0, nullptr);
     } else {
         printf("\n ==================================================================="
-               "\n  [FATAL ERROR]: all coroutines (count: %lu) are asleep - deadlock! "
+               "\n  [FATAL ERROR]: all coroutines (count: %zu) are asleep - deadlock! "
                "\n ==================================================================="
                "\n",
                Coroutine::count());
@@ -1139,15 +1149,32 @@ static PHP_METHOD(swoole_coroutine, stats) {
     array_init(return_value);
 
     add_assoc_long_ex(return_value, ZEND_STRL("event_num"), sw_reactor() ? sw_reactor()->get_event_num() : 0);
+#ifndef _WIN32
     add_assoc_long_ex(return_value, ZEND_STRL("signal_listener_num"), swoole_signal_get_listener_num());
+#endif
 
     if (sw_async_threads()) {
         add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), sw_async_threads()->get_task_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), sw_async_threads()->get_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_idle_worker_num"), sw_async_threads()->get_idle_worker_num());
+        add_assoc_long_ex(
+            return_value, ZEND_STRL("aio_pending_release_worker_num"), sw_async_threads()->get_pending_release_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_peak_worker_num"), sw_async_threads()->get_peak_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_created_worker_num"), sw_async_threads()->get_created_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_released_worker_num"), sw_async_threads()->get_released_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_up_count"), sw_async_threads()->get_scale_up_count());
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_down_count"), sw_async_threads()->get_scale_down_count());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_queue_size"), sw_async_threads()->get_queue_size());
     } else {
         add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), 0);
         add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_idle_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_pending_release_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_peak_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_created_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_released_worker_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_up_count"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_down_count"), 0);
         add_assoc_long_ex(return_value, ZEND_STRL("aio_queue_size"), 0);
     }
 

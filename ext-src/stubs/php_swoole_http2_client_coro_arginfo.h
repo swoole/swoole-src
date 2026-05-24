@@ -49,3 +49,4 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Http2_Cli
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Coroutine_Http2_Client_close arginfo_class_Swoole_Coroutine_Http2_Client_connect
+

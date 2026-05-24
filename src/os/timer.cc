@@ -18,24 +18,32 @@
 #include "swoole_signal.h"
 
 #include <csignal>
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 
 namespace swoole {
 static int SystemTimer_set(Timer *timer, long next_msec);
 
 void Timer::init_with_system_timer() {
+#ifndef _WIN32
     set = SystemTimer_set;
     close = [](Timer *timer) { SystemTimer_set(timer, -1); };
     swoole_signal_set(SIGALRM, [](int sig) { SwooleG.signal_alarm = true; });
+#endif
 }
 
 static int SystemTimer_set(Timer *timer, long next_msec) {
+#ifndef _WIN32
     itimerval timer_set{};
     if (next_msec > 0) {
         timer_set.it_interval = {next_msec / 1000, static_cast<int>((next_msec % 1000) * 1000)};
         timer_set.it_value = timer_set.it_interval;
     }
     return setitimer(ITIMER_REAL, &timer_set, nullptr) < 0 ? SW_ERR : SW_OK;
+#else
+    return SW_ERR;
+#endif
 }
 
 void realtime_get(timespec *time) {

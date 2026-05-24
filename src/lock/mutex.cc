@@ -18,6 +18,65 @@
 
 namespace swoole {
 
+#ifdef _WIN32
+struct MutexImpl {
+    SRWLOCK lock_;
+    bool exclusive_;
+};
+
+Mutex::Mutex(bool shared) : Lock(MUTEX, shared) {
+    if (shared) {
+        impl = (MutexImpl *) sw_mem_pool()->alloc(sizeof(*impl));
+        if (impl == nullptr) {
+            throw std::bad_alloc();
+        }
+    } else {
+        impl = new MutexImpl();
+    }
+    InitializeSRWLock(&impl->lock_);
+    impl->exclusive_ = false;
+}
+
+int Mutex::lock(int operation, int timeout_msec) {
+    if (operation & LOCK_NB) {
+        // TryAcquireSRWLockExclusive returns TRUE if acquired
+        if (TryAcquireSRWLockExclusive(&impl->lock_)) {
+            impl->exclusive_ = true;
+            return 0;
+        }
+        return EBUSY;
+    }
+    if (timeout_msec > 0) {
+        return sw_wait_for([this]() {
+            if (TryAcquireSRWLockExclusive(&impl->lock_)) {
+                impl->exclusive_ = true;
+                return true;
+            }
+            return false;
+        }, timeout_msec) ? 0 : ETIMEDOUT;
+    }
+    AcquireSRWLockExclusive(&impl->lock_);
+    impl->exclusive_ = true;
+    return 0;
+}
+
+int Mutex::unlock() {
+    if (impl->exclusive_) {
+        ReleaseSRWLockExclusive(&impl->lock_);
+        impl->exclusive_ = false;
+    }
+    return 0;
+}
+
+Mutex::~Mutex() {
+    // SRWLOCK does not need explicit destruction
+    if (shared_) {
+        sw_mem_pool()->free(impl);
+    } else {
+        delete impl;
+    }
+}
+#else
 struct MutexImpl {
     pthread_mutex_t lock_;
     pthread_mutexattr_t attr_;
@@ -72,5 +131,6 @@ Mutex::~Mutex() {
         delete impl;
     }
 }
+#endif
 
 }  // namespace swoole

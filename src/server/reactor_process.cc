@@ -60,7 +60,10 @@ int Server::start_reactor_processes() {
     pool->max_wait_time = max_wait_time;
     pool->use_msgqueue = 0;
     pool->main_loop = reactor_process_main_loop;
-    pool->onWorkerNotFound = wait_other_worker;
+    pool->onWorkerNotFound = [](ProcessPool *pool, const ExitStatus &exit_status) -> int {
+        auto serv = static_cast<Server *>(pool->ptr);
+        return serv->restart_worker_process(exit_status);
+    };
     memcpy(workers, pool->workers, sizeof(*workers) * worker_num);
     pool->workers = workers;
 

@@ -152,7 +152,18 @@ int ReactorPoll::wait() {
     while (reactor_->running) {
         reactor_->execute_begin_callback();
         const int event_num = set_events();
-        int ret = poll(events_, event_num, reactor_->get_timeout_msec());
+        int ret;
+#if defined(_WIN32)
+        if (event_num == 0) {
+            int timeout = reactor_->get_timeout_msec();
+            Sleep(timeout < 0 ? 1 : timeout);
+            ret = 0;
+        } else {
+            ret = poll(events_, event_num, reactor_->get_timeout_msec());
+        }
+#else
+        ret = poll(events_, event_num, reactor_->get_timeout_msec());
+#endif
         if (ret < 0) {
             if (!reactor_->catch_error()) {
                 swoole_sys_warning("[Reactor#%d] poll(nfds=%d, timeout=%d) failed",

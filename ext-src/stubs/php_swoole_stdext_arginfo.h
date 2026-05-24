@@ -104,3 +104,4 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_array_replace_str, 0, 3, 
 ZEND_END_ARG_INFO()
 
 #define arginfo_swoole_array_ireplace_str arginfo_swoole_array_replace_str
+

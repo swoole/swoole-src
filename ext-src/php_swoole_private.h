@@ -168,11 +168,14 @@ enum php_swoole_hook_type {
 };
 //---------------------------------------------------------
 
+#ifndef _WIN32
 extern zend_class_entry *swoole_event_ce;
+#endif
 extern zend_class_entry *swoole_timer_ce;
 extern zend_class_entry *swoole_socket_coro_ce;
 extern zend_class_entry *swoole_client_ce;
 extern zend_object_handlers swoole_client_handlers;
+#ifndef _WIN32
 extern zend_class_entry *swoole_server_ce;
 extern zend_object_handlers swoole_server_handlers;
 extern zend_class_entry *swoole_redis_server_ce;
@@ -184,6 +187,16 @@ extern zend_object_handlers swoole_http_server_handlers;
 extern zend_class_entry *swoole_websocket_server_ce;
 extern zend_class_entry *swoole_websocket_frame_ce;
 extern zend_class_entry *swoole_server_port_ce;
+#else
+// Server module is not available on WIN32, provide stub class entry pointers
+// so that code which references them conditionally still compiles.
+extern zend_class_entry *swoole_server_ce;
+extern zend_class_entry *swoole_http_server_ce;
+extern zend_class_entry *swoole_websocket_server_ce;
+extern zend_class_entry *swoole_redis_server_ce;
+extern zend_class_entry *swoole_server_port_ce;
+extern zend_class_entry *swoole_websocket_frame_ce;
+#endif
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
 extern zend_class_entry *swoole_error_ce;
@@ -229,14 +242,22 @@ PHP_FUNCTION(swoole_tracer_prof_end);
  * MINIT <Sort by dependency>
  * ==============================================================
  */
+#ifndef _WIN32
 void php_swoole_event_minit(int module_number);
+#else
+PHP_FUNCTION(swoole_event_rshutdown);
+#endif
 // base
+#ifndef _WIN32
 void php_swoole_atomic_minit(int module_number);
 void php_swoole_lock_minit(int module_number);
+#endif
 int swoole_resolve_context_module_init(INIT_FUNC_ARGS);
 void php_swoole_process_minit(int module_number);
 void php_swoole_process_pool_minit(int module_number);
+#ifndef _WIN32
 void php_swoole_table_minit(int module_number);
+#endif
 void php_swoole_timer_minit(int module_number);
 // coroutine
 void php_swoole_coroutine_minit(int module_number);
@@ -248,7 +269,9 @@ void php_swoole_runtime_minit(int module_number);
 // client
 void php_swoole_socket_coro_minit(int module_number);
 void php_swoole_client_minit(int module_number);
+#ifndef _WIN32
 void php_swoole_client_async_minit(int module_number);
+#endif
 void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
 void php_swoole_http2_client_coro_minit(int module_number);
@@ -268,15 +291,19 @@ void php_swoole_sqlite_minit(int module_number);
 void php_swoole_firebird_minit(int module_number);
 #endif
 // server
+#ifndef _WIN32
 void php_swoole_server_minit(int module_number);
 void php_swoole_server_port_minit(int module_number);
+#endif
 void php_swoole_http_request_minit(int module_number);
 void php_swoole_http_response_minit(int module_number);
 void php_swoole_http_cookie_minit(int module_number);
+#ifndef _WIN32
 void php_swoole_http_server_minit(int module_number);
-void php_swoole_http_server_coro_minit(int module_number);
-void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
+#endif
+void php_swoole_websocket_server_minit(int module_number);
+void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_name_resolver_minit(int module_number);
 #ifdef SW_THREAD
 void php_swoole_thread_minit(int module_number);
@@ -309,16 +336,18 @@ void php_swoole_tracer_rinit();
  * RSHUTDOWN
  * ==============================================================
  */
-void php_swoole_http_server_rshutdown();
 void php_swoole_http_response_rshutdown();
 void php_swoole_async_coro_rshutdown();
-void php_swoole_redis_server_rshutdown();
 void php_swoole_coroutine_rshutdown();
-void php_swoole_process_rshutdown();
 void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_timer_rshutdown();
+#ifndef _WIN32
+void php_swoole_http_server_rshutdown();
+void php_swoole_redis_server_rshutdown();
+void php_swoole_process_rshutdown();
 void php_swoole_server_rshutdown();
+#endif
 #ifdef SW_THREAD
 void php_swoole_thread_rshutdown();
 #endif
@@ -471,9 +500,11 @@ static inline bool sw_zval_is_client(zval *val) {
     return instanceof_function(Z_OBJCE_P(val), swoole_client_ce);
 }
 
+#ifndef _WIN32
 static inline bool sw_zval_is_process(zval *val) {
     return instanceof_function(Z_OBJCE_P(val), swoole_process_ce);
 }
+#endif
 
 bool sw_zval_is_serializable(const zval *struc);
 

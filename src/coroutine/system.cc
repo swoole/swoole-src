@@ -17,7 +17,11 @@
 #include "swoole_coroutine_system.h"
 #include "swoole_lru_cache.h"
 #include "swoole_signal.h"
+#ifndef _WIN32
 #include "swoole_iouring.h"
+#else
+#include "swoole_iocp.h"
+#endif
 #include "swoole_socket_impl.h"
 
 namespace swoole {
@@ -218,6 +222,7 @@ std::vector<std::string> System::getaddrinfo(
     return retval;
 }
 
+#ifndef _WIN32
 struct SignalListener {
     Coroutine *co;
     int signo;
@@ -297,9 +302,10 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
 
     return retval ? listener.signo : -1;
 }
+#endif
 
 struct CoroPollTask {
-    std::unordered_map<int, PollSocket> *fds = nullptr;
+    std::unordered_map<swSocketFd, PollSocket> *fds = nullptr;
     Coroutine *co = nullptr;
     TimerNode *timer = nullptr;
     bool success = false;
@@ -337,7 +343,7 @@ static void socket_poll_completed(void *data) {
     task->co->resume();
 }
 
-static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, int fd, EventType event) {
+static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, swSocketFd fd, EventType event) {
     auto i = task->fds->find(fd);
     if (event == SW_EVENT_ERROR && !(i->second.events & SW_EVENT_ERROR)) {
         if (i->second.events & SW_EVENT_READ) {
@@ -375,7 +381,7 @@ static int socket_poll_error_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout) {
+bool System::socket_poll(std::unordered_map<swSocketFd, PollSocket> &fds, double timeout) {
     if (timeout == 0) {
         auto *event_list = static_cast<struct pollfd *>(sw_calloc(fds.size(), sizeof(struct pollfd)));
         if (!event_list) {
@@ -454,7 +460,7 @@ struct EventWaiter {
 
         swoole_event_del(socket);
     _done:
-        socket->fd = -1; /* skip close */
+        socket->fd = SW_BAD_SOCKET; /* skip close */
         socket->free();
     }
 };
@@ -529,6 +535,28 @@ int System::wait_event(int fd, int events, double timeout) {
     return revents;
 }
 
+pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
+    if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (_options & WNOHANG))) {
+        return ::sw_waitpid(_pid, _stat_loc, _options);
+    }
+
+#if SW_USE_IOURING
+    auto rs = Iouring::waitpid(_pid, _stat_loc, _options, -1);
+    if (rs < 0) {
+        swoole_set_last_error(errno);
+    }
+    return rs;
+#endif
+
+    pid_t retval = -1;
+    wait_for([_pid, &retval, _stat_loc]() -> bool {
+        retval = ::sw_waitpid(_pid, _stat_loc, WNOHANG);
+        return retval != 0;
+    });
+
+    return retval;
+}
+
 bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<String> buffer, int *status) {
     Coroutine::get_current_safe();
 
@@ -539,7 +567,13 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
         return false;
     }
 
-    SocketImpl socket(fd, SW_SOCK_UNIX_STREAM);
+    SocketImpl socket(fd,
+#ifndef _WIN32
+        SW_SOCK_UNIX_STREAM
+#else
+        SW_SOCK_TCP
+#endif
+    );
     while (true) {
         ssize_t retval = socket.read(buffer->str + buffer->length, buffer->size - buffer->length);
         if (retval > 0) {

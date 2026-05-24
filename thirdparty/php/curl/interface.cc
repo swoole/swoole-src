@@ -23,6 +23,7 @@
 using namespace swoole;
 
 SW_EXTERN_C_BEGIN
+#define SW_CURL_COROUTINE_FILE 1
 #include "swoole_curl_interface.h"
 #include "curl_arginfo.h"
 
@@ -204,7 +205,6 @@ void swoole_curl_verify_handlers(php_curl *ch, bool reporterror) /* {{{ */
 /* CurlHandle class */
 static const zend_function_entry swoole_coroutine_curl_handle_methods[] = {ZEND_FE_END};
 
-zend_class_entry *swoole_coroutine_curl_handle_ce;
 static zend_object_handlers swoole_coroutine_curl_handle_handlers;
 
 static zend_object *swoole_curl_create_object(zend_class_entry *class_type);
@@ -221,6 +221,8 @@ void swoole_native_curl_minit(int module_number) {
     if (!SWOOLE_G(cli)) {
         return;
     }
+
+    swoole::curl::minit();
 
 #ifdef PHP_CURL_NEED_OPENSSL_TSL
     if (!CRYPTO_get_id_callback()) {
@@ -240,7 +242,7 @@ void swoole_native_curl_minit(int module_number) {
     }
 #endif
 
-    swoole_coroutine_curl_handle_ce = curl_ce;
+    swoole_coroutine_curl_handle_ce = php_curl_ce;
     swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
 #if PHP_VERSION_ID >= 80300
     swoole_coroutine_curl_handle_ce->default_object_handlers = &swoole_coroutine_curl_handle_handlers;
@@ -296,7 +298,7 @@ static zend_object *swoole_curl_clone_obj(zend_object *object) {
     zend_object *clone_object;
     php_curl *clone_ch;
 
-    clone_object = swoole_curl_create_object(curl_ce);
+    clone_object = swoole_curl_create_object(php_curl_ce);
     clone_ch = curl_from_obj(clone_object);
 
     ch = curl_from_obj(object);
@@ -1220,7 +1222,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
         }
 
         ZVAL_DEREF(current);
-        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), curl_CURLFile_class)) {
+        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), php_curl_CURLFile_ce)) {
             /* new-style file upload */
             zval *prop, rv;
             char *type = NULL, *filename = NULL;
@@ -1231,9 +1233,9 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
             curl_seek_callback seekfunc = seek_cb;
 #if PHP_VERSION_ID >= 80300
             prop = zend_read_property_ex(
-                curl_CURLFile_class, Z_OBJ_P(current), ZSTR_KNOWN(ZEND_STR_NAME), /* silent */ false, &rv);
+                php_curl_CURLFile_ce, Z_OBJ_P(current), ZSTR_KNOWN(ZEND_STR_NAME), /* silent */ false, &rv);
 #else
-            prop = zend_read_property(curl_CURLFile_class, Z_OBJ_P(current), "name", sizeof("name") - 1, 0, &rv);
+            prop = zend_read_property(php_curl_CURLFile_ce, Z_OBJ_P(current), "name", sizeof("name") - 1, 0, &rv);
 #endif
             ZVAL_DEREF(prop);
             if (Z_TYPE_P(prop) != IS_STRING) {
@@ -1245,13 +1247,13 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
                     goto out_string;
                 }
 
-                prop = zend_read_property(curl_CURLFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
+                prop = zend_read_property(php_curl_CURLFile_ce, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
                 ZVAL_DEREF(prop);
                 if (Z_TYPE_P(prop) == IS_STRING && Z_STRLEN_P(prop) > 0) {
                     type = Z_STRVAL_P(prop);
                 }
                 prop = zend_read_property(
-                    curl_CURLFile_class, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
+                    php_curl_CURLFile_ce, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
                 ZVAL_DEREF(prop);
                 if (Z_TYPE_P(prop) == IS_STRING && Z_STRLEN_P(prop) > 0) {
                     filename = Z_STRVAL_P(prop);
@@ -1293,13 +1295,13 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
             continue;
         }
 
-        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), curl_CURLStringFile_class)) {
+        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), php_curl_CURLStringFile_ce)) {
             /* new-style file upload from string */
             zval *prop, rv;
             char *type = NULL, *filename = NULL;
 
             prop = zend_read_property(
-                curl_CURLStringFile_class, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
+                php_curl_CURLStringFile_ce, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
             if (EG(exception)) {
                 goto out_string;
             }
@@ -1308,7 +1310,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
 
             filename = Z_STRVAL_P(prop);
 
-            prop = zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
+            prop = zend_read_property(php_curl_CURLStringFile_ce, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
             if (EG(exception)) {
                 goto out_string;
             }
@@ -1317,7 +1319,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
 
             type = Z_STRVAL_P(prop);
 
-            prop = zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "data", sizeof("data") - 1, 0, &rv);
+            prop = zend_read_property(php_curl_CURLStringFile_ce, Z_OBJ_P(current), "data", sizeof("data") - 1, 0, &rv);
             if (EG(exception)) {
                 goto out_string;
             }
@@ -1412,7 +1414,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
         }
 
         ZVAL_DEREF(current);
-        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), curl_CURLFile_class)) {
+        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), php_curl_CURLFile_ce)) {
             /* new-style file upload */
             zval *prop, rv;
             char *type = NULL, *filename = NULL;
@@ -1422,7 +1424,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
             size_t filesize = -1;
             curl_seek_callback seekfunc = seek_cb;
 
-            prop = zend_read_property(curl_CURLFile_class, Z_OBJ_P(current), "name", sizeof("name") - 1, 0, &rv);
+            prop = zend_read_property(php_curl_CURLFile_ce, Z_OBJ_P(current), "name", sizeof("name") - 1, 0, &rv);
             ZVAL_DEREF(prop);
             if (Z_TYPE_P(prop) != IS_STRING) {
                 php_error_docref(NULL, E_WARNING, "Invalid filename for key %s", ZSTR_VAL(string_key));
@@ -1433,13 +1435,13 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
                     return FAILURE;
                 }
 
-                prop = zend_read_property(curl_CURLFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
+                prop = zend_read_property(php_curl_CURLFile_ce, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
                 ZVAL_DEREF(prop);
                 if (Z_TYPE_P(prop) == IS_STRING && Z_STRLEN_P(prop) > 0) {
                     type = Z_STRVAL_P(prop);
                 }
                 prop = zend_read_property(
-                    curl_CURLFile_class, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
+                    php_curl_CURLFile_ce, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
                 ZVAL_DEREF(prop);
                 if (Z_TYPE_P(prop) == IS_STRING && Z_STRLEN_P(prop) > 0) {
                     filename = Z_STRVAL_P(prop);
@@ -1478,13 +1480,13 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
             continue;
         }
 
-        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), curl_CURLStringFile_class)) {
+        if (Z_TYPE_P(current) == IS_OBJECT && instanceof_function(Z_OBJCE_P(current), php_curl_CURLStringFile_ce)) {
             /* new-style file upload from string */
             zval *prop, rv;
             char *type = NULL, *filename = NULL;
 
             prop = zend_read_property(
-                curl_CURLStringFile_class, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
+                php_curl_CURLStringFile_ce, Z_OBJ_P(current), "postname", sizeof("postname") - 1, 0, &rv);
             if (EG(exception)) {
                 zend_string_release_ex(string_key, 0);
                 return FAILURE;
@@ -1494,7 +1496,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
 
             filename = Z_STRVAL_P(prop);
 
-            prop = zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
+            prop = zend_read_property(php_curl_CURLStringFile_ce, Z_OBJ_P(current), "mime", sizeof("mime") - 1, 0, &rv);
             if (EG(exception)) {
                 zend_string_release_ex(string_key, 0);
                 return FAILURE;
@@ -1504,7 +1506,7 @@ static inline zend_result build_mime_structure_from_hash(php_curl *ch, zval *zpo
 
             type = Z_STRVAL_P(prop);
 
-            prop = zend_read_property(curl_CURLStringFile_class, Z_OBJ_P(current), "data", sizeof("data") - 1, 0, &rv);
+            prop = zend_read_property(php_curl_CURLStringFile_ce, Z_OBJ_P(current), "data", sizeof("data") - 1, 0, &rv);
             if (EG(exception)) {
                 zend_string_release_ex(string_key, 0);
                 return FAILURE;
@@ -2292,7 +2294,7 @@ static zend_result _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue
         break;
 
     case CURLOPT_SHARE: {
-        if (Z_TYPE_P(zvalue) == IS_OBJECT && Z_OBJCE_P(zvalue) == curl_share_ce) {
+        if (Z_TYPE_P(zvalue) == IS_OBJECT && Z_OBJCE_P(zvalue) == php_curl_share_ce) {
             php_curlsh *sh = Z_CURL_SHARE_P(zvalue);
             curl_easy_setopt(ch->cp, CURLOPT_SHARE, sh->share);
 

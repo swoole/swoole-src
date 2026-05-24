@@ -25,28 +25,6 @@
 
 #define PHP_CURL_DEBUG 0
 
-#ifdef PHP_WIN32
-#ifdef PHP_CURL_EXPORTS
-#define PHP_CURL_API __declspec(dllexport)
-#else
-#define PHP_CURL_API __declspec(dllimport)
-#endif
-#elif defined(__GNUC__) && __GNUC__ >= 4
-#define PHP_CURL_API __attribute__((visibility("default")))
-#else
-#define PHP_CURL_API
-#endif
-
-PHP_CURL_API extern zend_class_entry *curl_ce;
-PHP_CURL_API extern zend_class_entry *curl_share_ce;
-PHP_CURL_API extern zend_class_entry *curl_multi_ce;
-#if PHP_VERSION_ID >= 80500
-PHP_CURL_API extern zend_class_entry *curl_share_persistent_ce;
-#endif
-PHP_CURL_API extern zend_class_entry *swoole_coroutine_curl_handle_ce;
-PHP_CURL_API extern zend_class_entry *swoole_coroutine_curl_multi_handle_ce;
-PHP_CURL_API extern zend_class_entry *curl_CURLFile_class;
-PHP_CURL_API extern zend_class_entry *curl_CURLStringFile_class;
-
 #endif /* _PHP_CURL_H */
+
 #endif

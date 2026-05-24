@@ -215,7 +215,7 @@ PHP_FUNCTION(swoole_proc_terminate) {
 #ifdef PHP_WIN32
     RETURN_BOOL(TerminateProcess(proc->childHandle, 255));
 #else
-    RETURN_BOOL(kill(proc->child, sig_no) == 0);
+    RETURN_BOOL(sw_kill(proc->child, sig_no) == 0);
 #endif
 }
 /* }}} */

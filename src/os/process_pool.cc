@@ -472,12 +472,11 @@ bool ProcessPool::shutdown() {
 }
 
 pid_t ProcessPool::spawn(Worker *worker) {
+    map_->erase(worker->pid);
     pid_t pid = swoole_fork(0);
     int ret_code = 0;
 
-    switch (pid) {
-    // child
-    case 0:
+    if (pid == 0) {
         worker->init();
         worker->pid = getpid();
         swoole_set_worker_type(SW_WORKER);
@@ -500,21 +499,12 @@ pid_t ProcessPool::spawn(Worker *worker) {
             onWorkerStop(this, worker);
         }
         exit(ret_code);
-        break;
-    case -1:
-        swoole_sys_warning("fork() failed");
-        break;
-        // parent
-    default:
-        // remove old process
-        if (worker->pid) {
-            map_->erase(worker->pid);
-        }
+    } else {
         worker->pid = pid;
         // insert new process
         map_->emplace(std::make_pair(pid, worker));
-        break;
     }
+
     return pid;
 }
 
@@ -918,11 +908,7 @@ int ProcessPool::wait() {
                 if (exit_worker == nullptr) {
                     continue;
                 }
-                pid_t new_pid = spawn(exit_worker);
-                if (new_pid < 0) {
-                    swoole_sys_warning("fork worker process failed");
-                    return SW_ERR;
-                }
+                spawn(exit_worker);
                 detached_workers.insert(worker_stop_msg.pid);
                 map_->erase(worker_stop_msg.pid);
             }
@@ -966,11 +952,8 @@ int ProcessPool::wait() {
                     onWorkerError(this, exit_worker, exit_status);
                 }
             }
-            pid_t new_pid = spawn(exit_worker);
-            if (new_pid < 0) {
-                swoole_sys_warning("Fork worker process failed");
-                return SW_ERR;
-            }
+
+            spawn(exit_worker);
             map_->erase(exit_status.get_pid());
             if (reload_task) {
                 reload_task->remove(exit_status.get_pid());

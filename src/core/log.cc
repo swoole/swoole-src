@@ -27,7 +27,7 @@ namespace swoole {
 std::string Logger::get_pretty_name(const std::string &pretty_function, bool strip) {
     const size_t brackets = pretty_function.find_first_of('(');
     if (brackets == std::string::npos) {
-        return "";
+        return pretty_function;
     }
 
     const size_t begin = pretty_function.substr(0, brackets).rfind(' ') + 1;
@@ -155,8 +155,8 @@ bool Logger::redirect_stdout_and_stderr(bool enable) {
         if (dup2(stderr_fd, STDERR_FILENO) < 0) {
             swoole_sys_warning("dup2(STDERR_FILENO) failed");
         }
-        ::close(stdout_fd);
-        ::close(stderr_fd);
+        sw_close_file(stdout_fd);
+        sw_close_file(stderr_fd);
         stdout_fd = -1;
         stderr_fd = -1;
         redirected = false;
@@ -305,12 +305,18 @@ void Logger::put(int level, const char *content, size_t length) {
             date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%lld>", (long long) now_us - now_sec * 1000000);
     }
 
+#ifdef _WIN32
+    int worker_id = 0;
+    pid_t worker_pid = GetCurrentProcessId();
+    char worker_symbol = '*';
+#else
     int worker_id = swoole_get_worker_id();
     pid_t worker_pid = swoole_get_worker_pid();
     if (worker_pid == 0) {
         worker_pid = getpid();
     }
     char worker_symbol = swoole_get_worker_symbol();
+#endif
 
     size_t n = sw_snprintf(log_str,
                            SW_LOG_BUFFER_SIZE,
@@ -326,12 +332,16 @@ void Logger::put(int level, const char *content, size_t length) {
 
     lock.lock();
     if (opened) {
+#ifndef _WIN32
         flockfile(log_fp);
+#endif
     }
     fwrite(log_str, n, 1, log_fp);
     fflush(log_fp);
     if (opened) {
+#ifndef _WIN32
         funlockfile(log_fp);
+#endif
     }
     lock.unlock();
 

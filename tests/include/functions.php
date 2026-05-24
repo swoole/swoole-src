@@ -87,6 +87,35 @@ function is_musl_libc(): bool
     return $bool;
 }
 
+function get_server_ips(): array
+{
+    $ips = [];
+
+    switch(PHP_OS_FAMILY) {
+        case 'Darwin':
+            $output = shell_exec('ifconfig');
+            preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)/', $output, $matches);
+            $ips = $matches[1];
+            break;
+        default:
+            $output = shell_exec('ip addr show');
+            preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)\//', $output, $matches);
+            $ips = $matches[1];
+            break;
+    }
+
+    $ips = array_filter($ips, function($ip) {
+        if ($ip == "127.0.0.1") {
+            return false;
+        }
+        return true;
+    });
+
+    $ips = array_merge(["127.0.0.1"], $ips);
+
+    return $ips;
+}
+
 function get_one_free_port(): int
 {
     /**

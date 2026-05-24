@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.2-zts', '8.3-zts', '8.4-zts', '8.5-zts']
+        php: ['8.4']
         os: [ ubuntu-24.04, ubuntu-24.04-arm ]
     name: ${{ matrix.php }}-thread-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -39,5 +39,5 @@ jobs:
         export SWOOLE_CI_TYPE=THREAD
         export SWOOLE_BRANCH=${GITHUB_REF##*/}
         export SWOOLE_BUILD_DIR=$(realpath .)
-        export PHP_VERSION=${{ matrix.php }}
+        export PHP_VERSION=${{ matrix.php }}-zts
         ${SWOOLE_BUILD_DIR}/scripts/route.sh

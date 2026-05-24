@@ -37,6 +37,11 @@ SW_EXTERN_C_END
 
 #include <unordered_set>
 
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+#include "swoole_iocp.h"
+#define SW_CURL_USE_IOCP 1
+#endif
+
 CURLcode swoole_curl_easy_perform(CURL *cp);
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
 void swoole_curl_easy_reset(CURL *curl);
@@ -45,19 +50,37 @@ namespace swoole {
 namespace curl {
 
 class Multi;
+struct IocpOperation;
 
 struct Socket {
     Multi *multi;
+#ifdef SW_CURL_USE_IOCP
+    IocpOperation *operation;
+#else
     network::Socket *socket;
+#endif
     int bitmask;
-    int sockfd;
+    curl_socket_t sockfd;
     int action;
     bool deleted;
+
+    Socket()
+        : multi(nullptr),
+#ifdef SW_CURL_USE_IOCP
+          operation(nullptr),
+#else
+          socket(nullptr),
+#endif
+          bitmask(0),
+          sockfd(CURL_SOCKET_BAD),
+          action(CURL_POLL_NONE),
+          deleted(false) {}
 };
 
 struct Handle {
     CURL *cp;
     Multi *multi;
+    curl_slist *resolve;
     /**
      * This is only for the swoole_curl_easy_perform function,
      * and it has a one-to-one relationship with the curl handle.
@@ -68,13 +91,34 @@ struct Handle {
     explicit Handle(CURL *_cp) {
         cp = _cp;
         multi = nullptr;
+        resolve = nullptr;
         easy_multi = nullptr;
+    }
+
+    ~Handle() {
+        clear_resolve();
+    }
+
+    void clear_resolve() {
+        if (resolve) {
+            curl_easy_setopt(cp, CURLOPT_RESOLVE, nullptr);
+            curl_slist_free_all(resolve);
+            resolve = nullptr;
+        }
+    }
+
+    void set_resolve(curl_slist *resolve_) {
+        clear_resolve();
+        resolve = resolve_;
+        curl_easy_setopt(cp, CURLOPT_RESOLVE, resolve);
     }
 };
 
+void minit();
 Handle *get_handle(CURL *cp);
 Handle *create_handle(CURL *ch);
 void destroy_handle(CURL *ch);
+void prepare_resolve(Handle *handle);
 
 struct Selector {
     bool timer_callback = false;
@@ -95,6 +139,12 @@ class Multi {
 
     CURLcode read_info() const;
 
+#ifdef SW_CURL_USE_IOCP
+    int post_event(Socket *curl_socket, int bitmask);
+    void cancel_event(IocpOperation *operation);
+    void release_socket(Socket *curl_socket);
+    void try_free_socket(Socket *curl_socket);
+#endif
     int set_event(void *socket_ptr, curl_socket_t sockfd, int action);
     int del_event(void *socket_ptr, curl_socket_t sockfd);
     void selector_finish();

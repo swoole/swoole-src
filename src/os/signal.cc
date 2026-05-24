@@ -136,10 +136,16 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
     if (restart) {
         act.sa_flags |= SA_RESTART;
     }
+#ifdef _WIN32
+    // On Windows, use signal() instead of sigaction()
+    auto old_handler = signal(signo, func);
+    return old_handler == SIG_ERR ? nullptr : old_handler;
+#else
     if (sigaction(signo, &act, &oact) < 0) {
         return nullptr;
     }
     return oact.sa_handler;
+#endif
 }
 
 SW_API bool swoole_signal_isset(int signo) {
@@ -292,7 +298,7 @@ static void swoole_signalfd_close() {
     if (!swoole_signalfd_is_available()) {
         return;
     }
-    signal_socket->fd = -1;
+    signal_socket->fd = SW_BAD_SOCKET;
     signal_socket->free();
     close(signal_fd);
     signal_socket = nullptr;

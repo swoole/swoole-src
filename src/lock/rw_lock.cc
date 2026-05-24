@@ -19,7 +19,144 @@
 #ifdef HAVE_RWLOCK
 
 namespace swoole {
+#ifdef _WIN32
+struct RWLockImpl {
+    CRITICAL_SECTION cs;
+    CONDITION_VARIABLE cv_read;
+    CONDITION_VARIABLE cv_write;
+    int readers;
+    int writers;
+    int write_waiters;
+    bool shared;
 
+    RWLockImpl(bool shared_flag) : readers(0), writers(0), write_waiters(0), shared(shared_flag) {
+        InitializeCriticalSection(&cs);
+        InitializeConditionVariable(&cv_read);
+        InitializeConditionVariable(&cv_write);
+    }
+
+    ~RWLockImpl() {
+        DeleteCriticalSection(&cs);
+    }
+};
+
+static int rwlock_timed_lock_rd(RWLockImpl* impl, int timeout_msec) {
+    EnterCriticalSection(&impl->cs);
+    while (impl->writers > 0 || impl->write_waiters > 0) {
+        if (timeout_msec == 0) {
+            LeaveCriticalSection(&impl->cs);
+            return EBUSY;
+        }
+        if (timeout_msec > 0) {
+            BOOL ok = SleepConditionVariableCS(&impl->cv_read, &impl->cs, timeout_msec);
+            if (!ok) {
+                DWORD err = GetLastError();
+                LeaveCriticalSection(&impl->cs);
+                return (err == 1460L /* ERROR_TIMEOUT */) ? ETIMEDOUT : EAGAIN;
+            }
+        } else {
+            SleepConditionVariableCS(&impl->cv_read, &impl->cs, INFINITE);
+        }
+    }
+    impl->readers++;
+    LeaveCriticalSection(&impl->cs);
+    return 0;
+}
+
+static int rwlock_timed_lock_wr(RWLockImpl* impl, int timeout_msec) {
+    EnterCriticalSection(&impl->cs);
+    impl->write_waiters++;
+    while (impl->readers > 0 || impl->writers > 0) {
+        if (timeout_msec == 0) {
+            impl->write_waiters--;
+            LeaveCriticalSection(&impl->cs);
+            return EBUSY;
+        }
+        if (timeout_msec > 0) {
+            BOOL ok = SleepConditionVariableCS(&impl->cv_write, &impl->cs, timeout_msec);
+            if (!ok) {
+                DWORD err = GetLastError();
+                impl->write_waiters--;
+                LeaveCriticalSection(&impl->cs);
+                return (err == SW_WIN32_ERROR_TIMEOUT) ? ETIMEDOUT : EAGAIN;
+            }
+        } else {
+            SleepConditionVariableCS(&impl->cv_write, &impl->cs, INFINITE);
+        }
+    }
+    impl->write_waiters--;
+    impl->writers = 1;
+    LeaveCriticalSection(&impl->cs);
+    return 0;
+}
+
+RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
+    if (shared) {
+        throw std::invalid_argument("SRWLock does not support process-shared mode on Windows");
+    } else {
+        impl = new RWLockImpl(shared);
+    }
+}
+
+int RWLock::lock(int operation, int timeout_msec) {
+    bool nonblock = (operation & LOCK_NB) != 0;
+    bool shared = (operation & LOCK_SH) != 0;
+
+    if (nonblock) {
+        if (shared) {
+            EnterCriticalSection(&impl->cs);
+            if (impl->writers > 0 || impl->write_waiters > 0) {
+                LeaveCriticalSection(&impl->cs);
+                return EBUSY;
+            }
+            impl->readers++;
+            LeaveCriticalSection(&impl->cs);
+            return 0;
+        } else {
+            EnterCriticalSection(&impl->cs);
+            if (impl->readers > 0 || impl->writers > 0) {
+                LeaveCriticalSection(&impl->cs);
+                return EBUSY;
+            }
+            impl->writers = 1;
+            LeaveCriticalSection(&impl->cs);
+            return 0;
+        }
+    } else {
+        if (shared) {
+            return rwlock_timed_lock_rd(impl, timeout_msec);
+        } else {
+            return rwlock_timed_lock_wr(impl, timeout_msec);
+        }
+    }
+}
+
+int RWLock::unlock() {
+    EnterCriticalSection(&impl->cs);
+    if (impl->writers > 0) {
+        impl->writers = 0;
+        if (impl->write_waiters > 0) {
+            WakeConditionVariable(&impl->cv_write);
+        } else {
+            WakeAllConditionVariable(&impl->cv_read);
+        }
+    } else if (impl->readers > 0) {
+        impl->readers--;
+        if (impl->readers == 0 && impl->write_waiters > 0) {
+            WakeConditionVariable(&impl->cv_write);
+        }
+    }
+    LeaveCriticalSection(&impl->cs);
+    return 0;
+}
+
+RWLock::~RWLock() {
+    if (impl) {
+        delete impl;
+        impl = nullptr;
+    }
+}
+#else
 struct RWLockImpl {
     pthread_rwlock_t lock_;
     pthread_rwlockattr_t attr_;
@@ -104,5 +241,6 @@ RWLock::~RWLock() {
     }
 }
 
+#endif
 }  // namespace swoole
 #endif

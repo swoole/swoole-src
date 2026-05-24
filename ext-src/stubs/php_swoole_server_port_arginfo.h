@@ -23,3 +23,4 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Server_Port_getSocket, 0, 0, Socket, MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
 #endif
+

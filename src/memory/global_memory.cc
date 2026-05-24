@@ -93,7 +93,7 @@ void *GlobalMemory::alloc(uint32_t size) {
         return nullptr;
     }
 
-    if (impl->shared and impl->create_pid != getpid()) {
+    if (impl->shared && impl->create_pid != getpid()) {
         GlobalMemoryImpl *old_impl = impl;
         impl = new GlobalMemoryImpl(old_impl->pagesize, old_impl->shared);
     }

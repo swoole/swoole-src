@@ -43,3 +43,4 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_ArrayList_to
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_ArrayList_sort arginfo_class_Swoole_Thread_ArrayList_clean
+

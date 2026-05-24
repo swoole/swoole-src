@@ -49,10 +49,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2026-03-10</date>
+    <date>2026-05-14</date>
     <time>22:00:00</time>
     <version>
-        <release>6.2.0</release>
+        <release>6.2.1</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,38 +61,18 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Added coroutine-based `FTP` client. By including the `--enable-swoole-ftp` option during compilation, coroutine support for `FTP` operations can be enabled to avoid network blocking.
-        - Added coroutine-based `SSH` client. By including the `--enable-swoole-ssh` option during compilation, coroutine support for `SSH` operations can be enabled to improve concurrency efficiency.
-        - Added support for `io_uring` in the `HTTP` coroutine server. The `HTTP` coroutine server can now utilize the high-performance `io_uring` event mechanism. Enable it by adding the `--enable-uring_socket` option during compilation for better I/O performance.
-        - Added the `Swoole\RemoteObject\Server` module, providing transparent coroutine operation support for `MongoDB`.
-        - Added the `Swoole\Coroutine::setTimeLimit()` function to control coroutine execution timeout, preventing coroutines from occupying resources for extended periods.
-        - Added `URL` rewriting support for the `HTTP` static file server.
-        - Added coroutine support for `pdo_firebird`.
-        - Added support for `PHP 8.5`.
-        - Added coroutine support for the `gethostbyname` function.
-        - Swoole\Coroutine::cancel now supports canceling iouring operations.
-        - Optimized the implementation of `Server::shutdown()`, replacing signal communication with pipe communication in `Process` mode.
-        - In the callback functions of Swoole's HTTP servers (including Swoole\Http\Server, Swoole\Http2\Server, and Swoole\Coroutine\Http\Server), the `server` property of the `Swoole\Http\Request` object now includes a new `server_addr` field, which identifies the server's IP address.
-        - `SSH` and `FTP` coroutine clients cannot coexist with PHP's `ext-ssh` and `ext-ftp`. To enable these features, the PHP `ssh` and `ftp` extensions must be disabled.
-        - Fixed an issue where the HTTP2 server session was released multiple times in a multi-threaded environment.
-        - Fixed an issue in version `8.5` where `refresh_memory_manager()` must be executed after forking a child process or creating a child thread; otherwise, the program would crash.
-        - Fixed an issue where the `swoole_get_local_mac` function did not work correctly on `macOS` systems.
-        - Fixed a potential crash issue that could occur when users manually suspended coroutines in a multi-threaded environment.
-        - Fixed compilation errors on Alpine systems.
-        - Fixed a memory leak issue when function hooking failed.
-        - Fixed thread safety issues during the coroutinization process of `pdo_sqlite` and `pdo_oci`.
-        - Fixed the `sw_php_print_backtrace` function to ensure its output format matches the backtrace information format of PHP's built-in functions.
-        - Fixed compilation failures caused by enabling --enable-uring-socket, --enable-trace-log, and --enable-error-log.
-        - Fixed the issue where `pdo_firebird` could not be compiled due to undefined macros.
-        - Executing `php --ri swoole` now outputs version information for `libpq`.
-        - Optimized logic related to `io_uring` in file coroutine operations.
-        - Added PHP call stack information output when event addition fails.
-        - Optimized the implementation code for the `swoole_get_local_ip` and `swoole_get_local_mac` functions.
-        - Optimized the coroutine waiting time for file locks to prevent exponentially increasing sleep times from making locks increasingly difficult to acquire.
-        - Improved compatibility with the `Android` platform.
-        - Removed the `--enable-openssl` compilation option; support for `OpenSSL` is now included by default.
-        - `--enable-uring-socket` requires explicitly specifying either `--enable-iouring` or `--with-liburing-dir`.
-        - `PHP 8.1` is no longer supported.
+        - Fix timeout configuration error: Fixed an issue where the write timeout incorrectly reused the read timeout when `max_idle_time` was set.
+        - Fix async reload warning: Eliminated invalid warnings triggered by the exit of old processes during asynchronous reloads.
+        - Refactor process management: Refactored the server process management logic.
+        - Optimize fork failure handling: Improved the handling mechanism after child process `fork` failures. Added retry logic that waits 1 second before each retry to avoid generating excessive error logs.
+        - Fix data race issue: Changed the `closed` field in the underlying `Connection` struct to an atomic operation, eliminating a potential data race risk.
+        - Fix integer overflow: Fixed an integer overflow issue in the Redis server.
+        - Replace communication mechanism: Replaced the communication method between child threads and the main thread in the thread pool from `Pipe` to `UnixSocket`.
+        - Support curl coroutine mode: In `curl` coroutine scenarios, file upload and download operations have been replaced with coroutine implementations.
+        - Optimize blocking function detection: Enhanced the `tracker observer`'s ability to detect blocking functions.
+        - Adapt unit tests: Updated the IP address lookup functionality in unit tests for different operating system families.
+        - Add PDO asynchronous method: Added the asynchronous method `PQsendClosePrepared` for `pdo_pgsql` to close existing prepared statements.
+        - Database connection pool optimization: Added recognition and handling for various error messages indicating that database connections have been disconnected and require reconnection.
     </notes>
     <contents>
         <dir name="/">
@@ -1316,6 +1296,9 @@
             <file role="test" name="tests/swoole_coroutine_scheduler/start_in_server_shutdown.phpt" />
             <file role="test" name="tests/swoole_coroutine_scheduler/start_in_server_worker_stop.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/aio_thread_num.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/empty_path.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/empty_path1.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/empty_path2.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/getaddrinfo.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/getaddrinfo_timeout.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/gethostbyname.phpt" />
@@ -1368,6 +1351,9 @@
             <file role="test" name="tests/swoole_curl/cancel.phpt" />
             <file role="test" name="tests/swoole_curl/close_before_resume.phpt" />
             <file role="test" name="tests/swoole_curl/concurrent.phpt" />
+            <file role="test" name="tests/swoole_curl/coro_read.phpt" />
+            <file role="test" name="tests/swoole_curl/coro_write.phpt" />
+            <file role="test" name="tests/swoole_curl/coro_write_header.phpt" />
             <file role="test" name="tests/swoole_curl/error.phpt" />
             <file role="test" name="tests/swoole_curl/event_exit.phpt" />
             <file role="test" name="tests/swoole_curl/exec_twice.phpt" />

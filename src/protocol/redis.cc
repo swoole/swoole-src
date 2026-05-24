@@ -50,6 +50,7 @@ const char *get_number(const char *p, int *_ret) {
     }
 }
 
+#ifndef _WIN32
 int recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
     const char *p, *pe;
     int ret;
@@ -182,6 +183,7 @@ _failed:
     swoole_warning("redis protocol error");
     return SW_ERR;
 }
+#endif  // _WIN32
 
 void format_nil(String *buf) {
     buf->append(SW_STRL(SW_REDIS_RETURN_NIL));

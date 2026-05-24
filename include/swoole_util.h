@@ -76,8 +76,13 @@ static inline long get_timezone() {
     using namespace std::chrono;
     auto now_time_t = system_clock::to_time_t(system_clock::now());
     std::tm local_tm{};
+#ifdef _WIN32
+    localtime_s(&local_tm, &now_time_t);
+    return _timezone;
+#else
     localtime_r(&now_time_t, &local_tm);
     return local_tm.tm_gmtoff;
+#endif
 }
 
 class DeferTask {

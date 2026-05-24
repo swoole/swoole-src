@@ -98,6 +98,8 @@ class StaticHandler {
     time_t get_file_mtime() const {
 #ifdef __MACH__
         return file_stat.st_mtimespec.tv_sec;
+#elif defined(_WIN32)
+        return file_stat.st_mtime;
 #else
         return file_stat.st_mtim.tv_sec;
 #endif

@@ -6,9 +6,7 @@ swoole_http_server: add server addr
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$output = shell_exec('ip addr show');
-preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)\//', $output, $matches);
-$ips = $matches[1];
+$ips = get_server_ips();
 
 $pm = new ProcessManager;
 $pm->initRandomData(1);
