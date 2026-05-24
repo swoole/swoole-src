@@ -110,6 +110,15 @@ void php_swoole_sqlite_minit(int module_id) {
 
     php_pdo_unregister_driver(&swoole_pdo_sqlite_driver);
     php_pdo_register_driver(&swoole_pdo_sqlite_driver);
+
+#if PHP_VERSION_ID >= 80400
+    zend_string *class_name = zend_string_init(SW_STRL(ZEND_NS_NAME("Pdo", "Sqlite")), 0);
+    zend_class_entry *pdosqlite_ce = (zend_class_entry *) zend_hash_find_ptr_lc(CG(class_table), class_name);
+    if (pdosqlite_ce) {
+        php_pdo_register_driver_specific_ce(&swoole_pdo_sqlite_driver, pdosqlite_ce);
+    }
+    zend_string_release(class_name);
+#endif
 }
 
 void php_swoole_sqlite_mshutdown() {
