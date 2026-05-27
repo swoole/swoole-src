@@ -1381,6 +1381,7 @@ EOF
             ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_statement.c"
         if test "$SW_PHP_VERSION_ID" -ge "84"; then
             swoole_source_file="$swoole_source_file \
+                ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pdo_pgsql.c \
                 ${SW_PHP_THIRDPARTY_DIR}/pdo_pgsql/pgsql_sql_parser.c"
         fi
     fi

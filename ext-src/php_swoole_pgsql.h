@@ -54,6 +54,10 @@ PGresult *swoole_pgsql_exec_params(PGconn *conn, const char *command, int n_para
 PGresult * swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName);
 #endif
 
+#if PHP_VERSION_ID >= 80400
+bool swoole_pgsql_coroutine_call(zend_fcall_info_cache *fcc, zval *retval_ptr, uint32_t param_count, zval *params, HashTable *named_params);
+#endif
+
 #ifdef SW_USE_PGSQL_HOOK
 #define PQconnectdb  swoole_pgsql_connectdb
 #define PQprepare  swoole_pgsql_prepare
@@ -62,6 +66,11 @@ PGresult * swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName);
 #define PQexecParams  swoole_pgsql_exec_params
 #ifdef HAVE_PQCLOSEPREPARED
 #define PQclosePrepared  swoole_pgsql_close_prepared
+#endif
+
+#if PHP_VERSION_ID >= 80400
+#define zend_call_known_fcc swoole_pgsql_coroutine_call
+#define php_pollfd_for_ms php_async_socket_poll
 #endif
 #endif
 

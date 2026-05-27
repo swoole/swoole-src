@@ -17,12 +17,25 @@
  */
 
 #include "php_swoole_pgsql.h"
+#include "php_swoole_cxx.h"
 #include "php_swoole_private.h"
 #include "php_swoole_coroutine.h"
 
 #include "swoole_socket_impl.h"
 
 #ifdef SW_USE_PGSQL
+
+#if PHP_VERSION_ID >= 80400
+static zend_class_entry *swoole_pdo_pgsql_ce = nullptr;
+
+BEGIN_EXTERN_C()
+#if PHP_VERSION_ID < 80500
+#include "thirdparty/php84/pdo_pgsql/pdo_pgsql_arginfo.h"
+#else
+#include "thirdparty/php85/pdo_pgsql/pdo_pgsql_arginfo.h"
+#endif
+END_EXTERN_C()
+#endif
 
 using swoole::Coroutine;
 using swoole::EventType;
@@ -37,8 +50,7 @@ static bool swoole_pgsql_blocking = true;
  */
 static const double swoole_pgsql_poll_timeout = 0.1;
 
-void swoole_libpq_version(char *buf, size_t len)
-{
+void swoole_libpq_version(char *buf, size_t len) {
     int version = PQlibVersion();
     int major = version / 10000;
     if (major >= 10) {
@@ -247,6 +259,13 @@ void swoole_pgsql_set_blocking(bool blocking) {
     swoole_pgsql_blocking = blocking;
 }
 
+#if PHP_VERSION_ID >= 80400
+bool swoole_pgsql_coroutine_call(
+    zend_fcall_info_cache *fcc, zval *retval_ptr, uint32_t param_count, zval *params, HashTable *named_params) {
+    return zend::function::call(fcc, param_count, params, retval_ptr, Coroutine::get_current() != nullptr);
+}
+#endif
+
 void php_swoole_pgsql_minit(int module_id) {
     if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("PGSQL_ATTR_DISABLE_PREPARES")) ==
         nullptr) {
@@ -268,10 +287,27 @@ void php_swoole_pgsql_minit(int module_id) {
     }
     php_pdo_unregister_driver(&swoole_pdo_pgsql_driver);
     php_pdo_register_driver(&swoole_pdo_pgsql_driver);
+
+#if PHP_VERSION_ID >= 80400
+    zend_string *class_name = zend_string_init(SW_STRL(ZEND_NS_NAME("Pdo", "Pgsql")), 0);
+    swoole_pdo_pgsql_ce = (zend_class_entry *) zend_hash_find_ptr_lc(CG(class_table), class_name);
+    zend_string_release(class_name);
+
+    if (swoole_pdo_pgsql_ce) {
+        zend_unregister_functions(class_Swoole_Pdo_Pgsql_methods, -1, &swoole_pdo_pgsql_ce->function_table);
+        zend_register_functions(swoole_pdo_pgsql_ce,
+                                class_Swoole_Pdo_Pgsql_methods,
+                                &swoole_pdo_pgsql_ce->function_table,
+                                MODULE_PERSISTENT);
+    } else {
+        swoole_pdo_pgsql_ce = register_class_Swoole_Pdo_Pgsql(pdo_dbh_ce);
+        swoole_pdo_pgsql_ce->create_object = pdo_dbh_new;
+    }
+    php_pdo_register_driver_specific_ce(&swoole_pdo_pgsql_driver, swoole_pdo_pgsql_ce);
+#endif
 }
 
 void php_swoole_pgsql_mshutdown(void) {
     php_pdo_unregister_driver(&swoole_pdo_pgsql_driver);
 }
-
 #endif
