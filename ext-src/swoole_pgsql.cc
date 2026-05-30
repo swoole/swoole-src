@@ -24,6 +24,17 @@
 
 #ifdef SW_USE_PGSQL
 
+#if PHP_VERSION_ID >= 80400
+#include "php_swoole_cxx.h"
+BEGIN_EXTERN_C()
+#if PHP_VERSION_ID < 80500
+#include "thirdparty/php84/pdo_pgsql/pdo_pgsql_arginfo.h"
+#else
+#include "thirdparty/php85/pdo_pgsql/pdo_pgsql_arginfo.h"
+#endif
+END_EXTERN_C()
+#endif
+
 using swoole::Coroutine;
 using swoole::EventType;
 using swoole::Reactor;
@@ -37,8 +48,11 @@ static bool swoole_pgsql_blocking = true;
  */
 static const double swoole_pgsql_poll_timeout = 0.1;
 
-void swoole_libpq_version(char *buf, size_t len)
-{
+#if PHP_VERSION_ID >= 80400
+static zend_class_entry *swoole_pdo_pgsql_ce = nullptr;
+#endif
+
+void swoole_libpq_version(char *buf, size_t len) {
     int version = PQlibVersion();
     int major = version / 10000;
     if (major >= 10) {
@@ -111,6 +125,11 @@ static PGresult *swoole_pgsql_get_result(PGconn *conn) {
     while ((result = PQgetResult(conn))) {
         PQclear(last_result);
         last_result = result;
+
+        ExecStatusType status = PQresultStatus(last_result);
+        if (status == PGRES_COPY_IN || status == PGRES_COPY_OUT) {
+            return last_result;
+        }
     }
 
     return last_result;
@@ -247,6 +266,99 @@ void swoole_pgsql_set_blocking(bool blocking) {
     swoole_pgsql_blocking = blocking;
 }
 
+#if PHP_VERSION_ID >= 80400
+bool swoole_pgsql_call_known_fcc(
+    zend_fcall_info_cache *fcc, zval *retval_ptr, uint32_t param_count, zval *params, HashTable *named_params) {
+    return zend::function::call(fcc, param_count, params, retval_ptr, Coroutine::get_current() != nullptr);
+}
+
+PGresult *swoole_pgsql_get_result_once(PGconn *conn) {
+    // PQgetResult will block the process; it is necessary to forcibly check if the data is ready.
+    int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_READ, true);
+    if (sw_unlikely(poll_ret < 0)) {
+        return nullptr;
+    }
+
+    swoole_trace_log(SW_TRACE_CO_PGSQL, "PQgetResult once(conn=%p)", conn);
+    return PQgetResult(conn);
+}
+
+int swoole_pgsql_put_copy_data(PGconn *conn, const char *buffer, int nbytes) {
+    swoole_trace_log(SW_TRACE_CO_PGSQL, "PQputCopyData(conn=%p)", conn);
+    while (true) {
+        int result = PQputCopyData(conn, buffer, nbytes);
+        if (sw_likely(result == 1)) {
+            return 1;
+        }
+
+        if (sw_unlikely(result == -1)) {
+            return -1;
+        }
+
+        int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_WRITE);
+        if (sw_unlikely(poll_ret < 0)) {
+            return -1;
+        }
+    }
+}
+
+int swoole_pgsql_put_copy_end(PGconn *conn, const char *errormsg) {
+    swoole_trace_log(SW_TRACE_CO_PGSQL, "PQputCopyEnd(conn=%p)", conn);
+    while (true) {
+        int result = PQputCopyEnd(conn, errormsg);
+        if (sw_likely(result == 1)) {
+            if (!swoole_pgsql_blocking && Coroutine::get_current() && swoole_pgsql_flush(conn) == -1) {
+                return -1;
+            }
+            return result;
+        }
+
+        if (sw_unlikely(result == -1)) {
+            return result;
+        }
+
+        int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_WRITE);
+        if (sw_unlikely(poll_ret < 0)) {
+            return -1;
+        }
+    }
+}
+
+int swoole_pgsql_get_copy_data(PGconn *conn, char **buffer, int async) {
+    swoole_trace_log(SW_TRACE_CO_PGSQL, "PQgetCopyData(conn=%p)", conn);
+
+    int result;
+    while (true) {
+        result = PQgetCopyData(conn, buffer, 1);
+        if (sw_unlikely(result != 0)) {
+            break;
+        }
+
+        int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_READ, true);
+        if (sw_unlikely(poll_ret == -1)) {
+            return -2;
+        }
+    }
+
+    return result;
+}
+
+int swoole_async_socket_poll(php_socket_t fd, int events, int timeout) {
+    if (!(!swoole_pgsql_blocking && Coroutine::get_current())) {
+        return php_pollfd_for_ms(fd, events, timeout);
+    }
+
+    int result = swoole_coroutine_socket_create(fd);
+    if (sw_likely(result == SW_OK)) {
+        result = php_async_socket_poll(fd, events, timeout);
+        swoole_coroutine_socket_unwrap(fd);
+        return result;
+    }
+
+    return php_pollfd_for_ms(fd, events, timeout);
+}
+#endif
+
 void php_swoole_pgsql_minit(int module_id) {
     if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("PGSQL_ATTR_DISABLE_PREPARES")) ==
         nullptr) {
@@ -268,6 +380,22 @@ void php_swoole_pgsql_minit(int module_id) {
     }
     php_pdo_unregister_driver(&swoole_pdo_pgsql_driver);
     php_pdo_register_driver(&swoole_pdo_pgsql_driver);
+
+#if PHP_VERSION_ID >= 80400
+    zend_string *class_name = zend_string_init(SW_STRL(ZEND_NS_NAME("Pdo", "Pgsql")), 0);
+    swoole_pdo_pgsql_ce = (zend_class_entry *) zend_hash_find_ptr_lc(CG(class_table), class_name);
+    zend_string_release(class_name);
+
+    if (swoole_pdo_pgsql_ce) {
+        zend_unregister_functions(class_Pdo_Pgsql_methods, -1, &swoole_pdo_pgsql_ce->function_table);
+        zend_register_functions(
+            swoole_pdo_pgsql_ce, class_Pdo_Pgsql_methods, &swoole_pdo_pgsql_ce->function_table, MODULE_PERSISTENT);
+    } else {
+        swoole_pdo_pgsql_ce = register_class_Pdo_Pgsql(pdo_dbh_ce);
+        swoole_pdo_pgsql_ce->create_object = pdo_dbh_new;
+    }
+    php_pdo_register_driver_specific_ce(&swoole_pdo_pgsql_driver, swoole_pdo_pgsql_ce);
+#endif
 }
 
 void php_swoole_pgsql_mshutdown(void) {

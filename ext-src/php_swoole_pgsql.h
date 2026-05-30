@@ -35,7 +35,6 @@ BEGIN_EXTERN_C()
 #include "thirdparty/php85/pdo_pgsql/php_pdo_pgsql_int.h"
 #endif
 
-
 extern const pdo_driver_t swoole_pdo_pgsql_driver;
 
 #include <libpq-fe.h>
@@ -44,24 +43,55 @@ extern const pdo_driver_t swoole_pdo_pgsql_driver;
 void swoole_pgsql_set_blocking(bool blocking);
 
 PGconn *swoole_pgsql_connectdb(const char *conninfo);
-PGresult *swoole_pgsql_prepare(PGconn *conn, const char *stmt_name, const char *query, int n_params, const Oid *param_types);
-PGresult *swoole_pgsql_exec_prepared(PGconn *conn, const char *stmt_name, int n_params,
-    const char *const *param_values, const int *param_lengths, const int *param_formats, int result_format);
+PGresult *swoole_pgsql_prepare(
+    PGconn *conn, const char *stmt_name, const char *query, int n_params, const Oid *param_types);
+PGresult *swoole_pgsql_exec_prepared(PGconn *conn,
+                                     const char *stmt_name,
+                                     int n_params,
+                                     const char *const *param_values,
+                                     const int *param_lengths,
+                                     const int *param_formats,
+                                     int result_format);
 PGresult *swoole_pgsql_exec(PGconn *conn, const char *query);
-PGresult *swoole_pgsql_exec_params(PGconn *conn, const char *command, int n_params,
-    const Oid *param_types, const char *const *param_values, const int *param_lengths, const int *param_formats, int result_format);
+PGresult *swoole_pgsql_exec_params(PGconn *conn,
+                                   const char *command,
+                                   int n_params,
+                                   const Oid *param_types,
+                                   const char *const *param_values,
+                                   const int *param_lengths,
+                                   const int *param_formats,
+                                   int result_format);
 #ifdef HAVE_PQCLOSEPREPARED
-PGresult * swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName);
+PGresult *swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName);
+#endif
+
+#if PHP_VERSION_ID >= 80400
+bool swoole_pgsql_call_known_fcc(
+    zend_fcall_info_cache *fcc, zval *retval_ptr, uint32_t param_count, zval *params, HashTable *named_params);
+PGresult *swoole_pgsql_get_result_once(PGconn *conn);
+int swoole_pgsql_put_copy_data(PGconn *conn, const char *buffer, int nbytes);
+int swoole_pgsql_put_copy_end(PGconn *conn, const char *errormsg);
+int swoole_pgsql_get_copy_data(PGconn *conn, char **buffer, int async);
+int swoole_async_socket_poll(php_socket_t fd, int events, int timeout);
 #endif
 
 #ifdef SW_USE_PGSQL_HOOK
-#define PQconnectdb  swoole_pgsql_connectdb
-#define PQprepare  swoole_pgsql_prepare
-#define PQexecPrepared  swoole_pgsql_exec_prepared
-#define PQexec  swoole_pgsql_exec
-#define PQexecParams  swoole_pgsql_exec_params
+#define PQconnectdb swoole_pgsql_connectdb
+#define PQprepare swoole_pgsql_prepare
+#define PQexecPrepared swoole_pgsql_exec_prepared
+#define PQexec swoole_pgsql_exec
+#define PQexecParams swoole_pgsql_exec_params
 #ifdef HAVE_PQCLOSEPREPARED
-#define PQclosePrepared  swoole_pgsql_close_prepared
+#define PQclosePrepared swoole_pgsql_close_prepared
+#endif
+
+#if PHP_VERSION_ID >= 80400
+#define php_pollfd_for_ms swoole_async_socket_poll
+#define zend_call_known_fcc swoole_pgsql_call_known_fcc
+#define PQgetResult swoole_pgsql_get_result_once
+#define PQputCopyData swoole_pgsql_put_copy_data
+#define PQputCopyEnd swoole_pgsql_put_copy_end
+#define PQgetCopyData swoole_pgsql_get_copy_data
 #endif
 #endif
 

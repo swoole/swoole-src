@@ -25,7 +25,9 @@ swoole_async_set([
 
 // Run default remote object server
 swoole_library_set_option('default_remote_object_server_worker_num', 2);
-swoole_init_default_remote_object_server();
+Swoole\Coroutine\run(function() {
+    swoole_init_default_remote_object_server();
+});
 
 Co::set([
     'socket_timeout' => 5
