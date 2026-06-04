@@ -777,6 +777,7 @@ struct Global {
 
     //-----------------------[System]--------------------------
     uint16_t cpu_num;
+    uint16_t container_cpu_num;
     uint32_t pagesize;
     struct utsname uname;
     uint32_t max_sockets;

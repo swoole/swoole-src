@@ -18,17 +18,39 @@
 
 #include <cstdarg>
 #include <cassert>
-#include <fcntl.h>
 
-#include <sys/stat.h>
-#ifndef _WIN32
-#include <sys/resource.h>
+#if defined(__linux__)
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
-
-#ifdef __MACH__
+#include <dirent.h>
+#include <sched.h>
+#include <sys/vfs.h>
+#elif defined(__FreeBSD__)
+#include <sys/param.h>
+#include <sys/cpuset.h>
+#if __FreeBSD_version >= 1000510
+#include <sys/rctl.h>
+#endif
+#elif defined(__MACH__)
 #include <sys/syslimits.h>
+#include <sys/sysctl.h>
 #endif
 
+#if !defined(_MSC_VER)
+#include <sys/stat.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#include <fcntl.h>
+#else
+#include <windows.h>
+#endif
+
+#include <string>
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <limits>
 #include <list>
 #include <set>
 #include <chrono>
@@ -50,6 +72,293 @@ using swoole::Logger;
 using swoole::NameResolver;
 using swoole::String;
 using swoole::coroutine::System;
+
+static inline uint16_t available_cpu_num() {
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+# if defined(__linux__) || defined(__DragonFly__)
+#  define cpuset_type cpu_set_t
+#  define getaffinity(p_mask) sched_getaffinity(0, sizeof(cpu_set_t), p_mask)
+# elif defined(__FreeBSD__)
+#  define cpuset_type cpuset_t
+#  define getaffinity(p_mask) cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpuset_t), p_mask)
+# elif defined(__NetBSD__)
+#  define cpuset_type cpuset_t
+#  define getaffinity(p_mask) _sched_getaffinity(0, sizeof(cpuset_t), p_mask)
+# endif
+    // for linux and some BSDs, use sched_getaffinity to
+    // get the number of available CPUs in current process's CPU affinity mask
+    cpuset_type mask;
+    CPU_ZERO(&mask);
+    if (getaffinity(&mask) == 0) {
+        // count the number of set bits in the mask
+        uint16_t count = 0;
+        for (size_t i = 0; i < sizeof(cpuset_type) * 8; i++) {
+            if (CPU_ISSET(i, &mask)) {
+                count++;
+            }
+        }
+        return count;
+    }
+# undef cpuset_type
+# undef getaffinity
+#elif defined(__MACH__)
+    // for macOS, use sysctl to get the number of available CPUs
+    int mib[2] = {CTL_HW, HW_AVAILCPU};
+    uint32_t cpu_count;
+    size_t len = sizeof(cpu_count);
+    if (sysctl(mib, 2, &cpu_count, &len, nullptr, 0) == 0 && cpu_count > 0) {
+        return cpu_count;
+    }
+#endif
+
+#if defined(_WIN32_WINNT)
+# if defined(_WIN32_WINNT_WINXP) && (_WIN32_WINNT >= _WIN32_WINNT_WINXP)
+    // for Windows, use GetProcessAffinityMask to get the number of available CPUs
+    DWORD_PTR process_mask, system_mask;
+    if (GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask)) {
+        uint16_t count = 0;
+        for (size_t i = 0; i < sizeof(DWORD_PTR) * 8; i++) {
+            if ((process_mask >> i) & 1) {
+                count++;
+            }
+        }
+        return count;
+    }
+    fprintf(stderr, "GetProcessAffinityMask failed with error %08x\n", GetLastError());
+# endif
+    // failed to get affinity, assume at least 1 CPU is available
+    return 1;
+#else
+    // fallback to sysconf
+    long ret = sysconf(_SC_NPROCESSORS_ONLN);
+    if (ret > 0) {
+        return (uint16_t)ret;
+    } else {
+        return 1;
+    }
+#endif
+}
+
+#if defined(__linux__)
+static inline std::string find_cgroup(const std::string subsystem) {
+    std::string source, target, type, options;
+    int dump, pass;
+    std::ifstream mounts("/proc/self/mounts");
+    if (!mounts.is_open()) {
+        // try /proc/mounts
+        mounts.open("/proc/mounts");
+        if (!mounts.is_open()) {
+            return "";
+        }
+    };
+
+    while (mounts >> source >> target >> type >> options >> dump >> pass) {
+        if (type == "cgroup2") {
+            // cgroup v2 had unified resource
+            return target;
+        } else if (type == "cgroup") {
+            // cgroup v1 needs options have subsystem
+            size_t start = 0;
+            while (start <= options.size()) {
+                size_t end = options.find(',', start);
+                std::string item = options.substr(
+                    start,
+                    end == std::string::npos ? std::string::npos : end - start
+                );
+
+                if (item == subsystem) {
+                    return target;
+                }
+
+                if (end == std::string::npos) {
+                    break;
+                }
+                start = end + 1;
+            }
+        }
+    }
+    return "";
+}
+
+static inline std::string find_self_cgroup(const std::string root) {
+    // find the cgroup path
+    // if cgroup.procs exists in the current path, return the path
+    if (root.empty()) {
+        return "";
+    }
+
+    std::vector<std::string> queue;
+    size_t head = 0;
+    queue.push_back(root);
+
+    while (head < queue.size()) {
+        std::string current = queue[head++];
+        // trim trailing slash
+        if (current.length() > 1 && current[current.length() - 1] == '/') {
+            current = current.substr(0, current.length() - 1);
+        }
+
+        struct stat st;
+        if (stat(current.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+            continue;
+        }
+
+        std::fstream procs(current + "/cgroup.procs");
+        if (procs.is_open()) {
+            pid_t pid = getpid();
+            std::string line;
+            while (std::getline(procs, line)) {
+                if (line == std::to_string(pid)) {
+                    return current; 
+                }
+            }
+        }
+
+        DIR *dir = opendir(current.c_str());
+        if (dir == nullptr) {
+            continue;
+        }
+
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            const char *name = entry->d_name;
+            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+                continue;
+            }
+
+            const std::string child = current + "/" + name;
+
+            struct stat child_st;
+            if (stat(child.c_str(), &child_st) == 0 && S_ISDIR(child_st.st_mode)) {
+                queue.push_back(child);
+            }
+        }
+
+        closedir(dir);
+    }
+
+    // not found, but the pid must be in one of the cgroups, so return the root as fallback
+    return root;
+}
+
+static inline float container_aware_cpu_num() {
+    float cpu_util_max = std::numeric_limits<float>::infinity();
+    // find cgroupfs first
+    std::string cgroup_path_cpu = find_cgroup("cpu");
+
+    // check cpu cgroup
+    if (!cgroup_path_cpu.empty()) {
+        std::string self_cgroup = find_self_cgroup(cgroup_path_cpu);
+        if (!self_cgroup.empty()) {
+            // cgroup v2
+            std::ifstream cpu_max(self_cgroup + "/cpu.max");
+            if (cpu_max.is_open()) {
+                std::string quota, period;
+                cpu_max >> quota >> period;
+                if (quota != "max") {
+                    int cpu_quota = strtol(quota.c_str(), nullptr, 10);
+                    int cpu_period = strtol(period.c_str(), nullptr, 10);
+                    if (cpu_quota > 0 && cpu_period > 0) {
+                        cpu_util_max = (float) cpu_quota / cpu_period;
+                    }
+                }
+            } else {
+                // try cgroup v1 cpu.cfs_quota_us and cpu.cfs_period_us
+                std::ifstream cpu_quota(self_cgroup + "/cpu.cfs_quota_us");
+                std::ifstream cpu_period(self_cgroup + "/cpu.cfs_period_us");
+                if (cpu_quota.is_open() && cpu_period.is_open()) {
+                    int quota, period;
+                    cpu_quota >> quota;
+                    cpu_period >> period;
+                    if (quota > 0 && period > 0) {
+                        cpu_util_max = (float) quota / period;
+                    }
+                }
+            }
+        }
+    }
+
+    return SW_MIN(cpu_util_max, (float) available_cpu_num());
+}
+#elif defined(__FreeBSD__) && __FreeBSD_version >= 1000510
+// this is not really work in freebsd jails
+// rctl_get_limits is limited in jails
+// but we can still try best effort to get the cpu limit from rctl_get_limits if the process is rctled
+static inline float container_aware_cpu_num() {
+    float cpu_util_max = std::numeric_limits<float>::infinity();
+    // for freebsd, use rctl_get_limits pcpu to get the CPU limit as container-aware cpu num
+    std::string target = "process:" + std::to_string(getpid());
+    std::vector<char> buf(4096, 0); 
+    while (true) {
+        int ret = rctl_get_limits(target.c_str(), target.length() + 1, buf.data(), buf.size());
+        
+        if (ret < 0) {
+            if (errno == ERANGE) {
+                buf.resize(buf.size() * 2);
+                continue;
+            }
+            return (float) available_cpu_num();
+        }
+        break;
+    }
+
+    std::string rules(buf.data());
+    size_t start = 0;
+
+    // Parse the comma-separated output text
+    while (start < rules.size()) {
+        size_t end = rules.find(',', start);
+        std::string rule = rules.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        size_t pcpu_pos = rule.find(":pcpu:deny=");
+        if (pcpu_pos != std::string::npos) {
+            size_t eq_pos = rule.find('=', pcpu_pos);
+            if (eq_pos != std::string::npos) {
+                int pcpu = strtol(rule.substr(eq_pos + 1).c_str(), nullptr, 10);
+                if (pcpu > 0) {
+                    cpu_util_max = (float) pcpu / 100.0f;
+                }
+            }
+        }
+        if (end == std::string::npos) {
+            break;
+        }
+        start = end + 1;
+    }
+
+    return SW_MIN(cpu_util_max, (float) available_cpu_num());
+}
+#elif defined(_WIN32_WINNT) && defined(_WIN32_WINNT_WIN8) && (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+static inline float container_aware_cpu_num() {
+    float cpu_util_max = std::numeric_limits<float>::infinity();
+    // for Windows, use QueryInformationJobObject
+    JOBOBJECT_CPU_RATE_CONTROL_INFORMATION cpuInfo;
+    if (QueryInformationJobObject(
+        NULL,
+        JobObjectCpuRateControlInformation,
+        &cpuInfo,
+        sizeof(cpuInfo),
+        nullptr
+    )) {
+        if (cpuInfo.ControlFlags & JOB_OBJECT_CPU_RATE_CONTROL_ENABLE) {
+            fprintf(stderr, "CPU rate control enabled with rate %u%%\n", cpuInfo.CpuRate);
+            // rates is percentage * 100, so divide it by 10000 to get ratio
+            if (cpuInfo.ControlFlags & JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP) {
+                // JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP
+                cpu_util_max = (float) cpuInfo.CpuRate / 10000.0f * (float) available_cpu_num();
+            } else {
+                // JOB_OBJECT_CPU_RATE_CONTROL_MIN_MAX_RATE mode
+                cpu_util_max = (float) cpuInfo.MaxRate / 10000.0f * (float) available_cpu_num();
+            }
+        }
+    }
+    return SW_MIN(cpu_util_max, (float) available_cpu_num());
+}
+#else
+// fallback to available_cpu_num for non-linux platforms, as they may not have cgroups
+static inline float container_aware_cpu_num() {
+    return (float) available_cpu_num();
+}
+#endif
 
 swoole::Global SwooleG = {};
 thread_local swoole::ThreadGlobal SwooleTG = {};
@@ -108,13 +417,13 @@ void swoole_init() {
     SwooleG.std_allocator = {malloc, calloc, realloc, free};
     SwooleG.stdout_ = stdout;
     SwooleG.fatal_error = swoole_fatal_error_impl;
+    SwooleG.cpu_num = SW_MAX(1, available_cpu_num());
+    SwooleG.container_cpu_num = SW_MAX(1, container_aware_cpu_num());
 #ifdef _WIN32
     SYSTEM_INFO si;
     GetNativeSystemInfo(&si);
-    SwooleG.cpu_num = SW_MAX(1, (int) si.dwNumberOfProcessors);
     SwooleG.pagesize = si.dwPageSize;
 #else
-    SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
 #endif
     SwooleG.max_file_content = SW_MAX_FILE_CONTENT;

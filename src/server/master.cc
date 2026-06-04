@@ -728,8 +728,8 @@ int Server::start() {
  * initializing server config, set default
  */
 Server::Server(Mode _mode) {
-    reactor_num = SW_CPU_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_CPU_NUM;
-    worker_num = SW_CPU_NUM;
+    reactor_num = SwooleG.container_cpu_num > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SwooleG.container_cpu_num;
+    worker_num = SwooleG.container_cpu_num;
     max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
     mode_ = _mode;
 
@@ -872,7 +872,7 @@ int Server::create() {
             "reactor_num == %d, Too many threads, reset to max value %d", reactor_num, SW_CPU_NUM * SW_MAX_THREAD_NCPU);
         reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     } else if (reactor_num == 0) {
-        reactor_num = SW_CPU_NUM;
+        reactor_num = SwooleG.container_cpu_num;
     }
     if (single_thread) {
         reactor_num = 1;

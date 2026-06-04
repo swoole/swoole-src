@@ -2062,7 +2062,7 @@ static PHP_METHOD(swoole_server, set) {
         zend_long v = zval_get_long(ztmp);
         serv->reactor_num = SW_MAX(0, SW_MIN(v, UINT16_MAX));
         if (serv->reactor_num == 0) {
-            serv->reactor_num = SW_CPU_NUM;
+            serv->reactor_num = SwooleG.container_cpu_num;
         }
     }
     if (php_swoole_array_get_value(vht, "single_thread", ztmp)) {
@@ -2072,7 +2072,7 @@ static PHP_METHOD(swoole_server, set) {
         zend_long v = zval_get_long(ztmp);
         serv->worker_num = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         if (serv->worker_num == 0) {
-            serv->worker_num = SW_CPU_NUM;
+            serv->worker_num = SwooleG.container_cpu_num;
         }
     }
     if (php_swoole_array_get_value(vht, "max_wait_time", ztmp)) {
