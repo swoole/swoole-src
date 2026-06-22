@@ -17,7 +17,7 @@ jobs:
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -92,7 +92,7 @@ jobs:
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }} - macOS
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
