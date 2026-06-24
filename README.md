@@ -581,7 +581,7 @@ Compile and install at the source folder:
 ```shell
 phpize && \
 ./configure && \
-make && make install
+make && sudo make install
 ```
 
 #### Enable extension in PHP
