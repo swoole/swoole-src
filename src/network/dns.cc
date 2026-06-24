@@ -91,7 +91,7 @@ SW_API void swoole_set_dns_server(const std::string &server) {
     char *_port;
     int dns_server_port = SW_DNS_SERVER_PORT;
     char dns_server_host[32];
-    strcpy(dns_server_host, server.c_str());
+    swoole_strlcpy(dns_server_host, server.c_str(), sizeof(dns_server_host));
     if ((_port = strchr(const_cast<char *>(server.c_str()), ':'))) {
         dns_server_port = sw_atoi(_port + 1);
         if (!Address::verify_port(dns_server_port, true)) {
@@ -124,12 +124,14 @@ SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) 
 
 SW_API void swoole_name_resolver_each(
     const std::function<swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
-    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); ++iter) {
+    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end();) {
         const swTraverseOperation op = fn(iter);
         if (op == SW_TRAVERSE_REMOVE) {
-            SwooleG.name_resolvers.erase(iter++);
+            iter = SwooleG.name_resolvers.erase(iter);
         } else if (op == SW_TRAVERSE_STOP) {
             break;
+        } else {
+            ++iter;
         }
     }
 }
@@ -200,8 +202,6 @@ struct RR_FLAGS {
     uint32_t ttl;
     uint16_t rdlength;
 };
-
-static uint16_t dns_request_id = 1;
 
 static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
@@ -290,8 +290,13 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         return result;
     }
 
-    header = reinterpret_cast<RecordHeader *>(packet);
+    static SW_THREAD_LOCAL uint16_t dns_request_id = 1;
     int _request_id = dns_request_id++;
+    if (dns_request_id == 65535) {
+    	dns_request_id = 1;
+    }
+
+    header = reinterpret_cast<RecordHeader *>(packet);
     header->id = htons(_request_id);
     header->qr = 0;
     header->opcode = 0;
@@ -577,20 +582,17 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
 
     if (!SwooleG.dns_server.host.empty()) {
 #if (ARES_VERSION >= 0x010b00)
-        struct ares_addr_port_node servers;
+        struct ares_addr_port_node servers = {};
         servers.family = AF_INET;
-        servers.next = nullptr;
-        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
-        servers.tcp_port = 0;
         servers.udp_port = SwooleG.dns_server.port;
+        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
         ares_set_servers_ports(ctx.channel, &servers);
 #elif (ARES_VERSION >= 0x010701)
-        struct ares_addr_node servers;
+        struct ares_addr_node servers = {};
         servers.family = AF_INET;
-        servers.next = nullptr;
-        inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
+        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
         ares_set_servers(ctx.channel, &servers);
-        if (SwooleG.dns_server_port != SW_DNS_SERVER_PORT) {
+        if (SwooleG.dns_server.port != SW_DNS_SERVER_PORT) {
             swoole_warning("not support to set port of dns server");
         }
 #else

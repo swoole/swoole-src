@@ -751,8 +751,8 @@ bool Socket::has_kernel_nobufs() {
 }
 
 bool Socket::set_kernel_read_timeout(double timeout) {
-    if (_set_timeout(fd, SO_SNDTIMEO, timeout)) {
-        write_timeout = timeout;
+    if (_set_timeout(fd, SO_RCVTIMEO, timeout)) {
+        read_timeout = timeout;
         return true;
     } else {
         return false;
@@ -760,8 +760,8 @@ bool Socket::set_kernel_read_timeout(double timeout) {
 }
 
 bool Socket::set_kernel_write_timeout(double timeout) {
-    if (_set_timeout(fd, SO_RCVTIMEO, timeout)) {
-        read_timeout = timeout;
+    if (_set_timeout(fd, SO_SNDTIMEO, timeout)) {
+        write_timeout = timeout;
         return true;
     } else {
         return false;
@@ -1352,7 +1352,7 @@ static int _ssl_read_x509_file(X509 *cert, char *buffer, size_t length) {
     }
 
     int len = BIO_pending(bio);
-    if (len < 0 && len > static_cast<int>(length)) {
+    if (len < 0 || len > static_cast<int>(length)) {
         swoole_warning("certificate length[%d] is too big", len);
         return -1;
     }

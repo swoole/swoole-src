@@ -160,25 +160,30 @@ bool Address::assign(const std::string &url) {
     static const std::regex inet6_pattern(R"(^(tcp|udp)://\[([^\]]+)\]:(\d+)$)");
     std::smatch match;
 
-    if (std::regex_match(url, match, unix_pattern)) {
-        std::string proto = match[1];
-        std::string path = match[2];
-        type = proto == "unix" ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-        return assign(type, path, 0);
-    }
-    if (std::regex_match(url, match, inet4_pattern)) {
-        std::string proto = match[1];
-        std::string host = match[2];
-        int port = std::stoi(match[3]);
-        type = proto == "tcp" ? SW_SOCK_TCP : SW_SOCK_UDP;
-        return assign(type, host, port);
-    }
-    if (std::regex_match(url, match, inet6_pattern)) {
-        std::string proto = match[1];
-        std::string host = match[2];
-        int port = std::stoi(match[3]);
-        type = proto == "tcp" ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
-        return assign(type, host, port);
+    try {
+        if (std::regex_match(url, match, unix_pattern)) {
+            std::string proto = match[1];
+            std::string path = match[2];
+            type = proto == "unix" ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
+            return assign(type, path, 0);
+        }
+        if (std::regex_match(url, match, inet4_pattern)) {
+            std::string proto = match[1];
+            std::string host = match[2];
+            int port = std::stoi(match[3]);
+            type = proto == "tcp" ? SW_SOCK_TCP : SW_SOCK_UDP;
+            return assign(type, host, port);
+        }
+        if (std::regex_match(url, match, inet6_pattern)) {
+            std::string proto = match[1];
+            std::string host = match[2];
+            int port = std::stoi(match[3]);
+            type = proto == "tcp" ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
+            return assign(type, host, port);
+        }
+    } catch (const std::exception &) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_BAD_HOST_ADDR, "Invalid address '%s'", url.c_str());
+        return false;
     }
     swoole_error_log(SW_LOG_NOTICE, SW_ERROR_BAD_HOST_ADDR, "Invalid address '%s'", url.c_str());
     return false;
