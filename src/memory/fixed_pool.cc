@@ -22,7 +22,7 @@ struct FixedPoolSlice {
     uint8_t lock;
     FixedPoolSlice *next;
     FixedPoolSlice *prev;
-    char data[0];
+    char data[];
 };
 
 struct FixedPoolImpl {

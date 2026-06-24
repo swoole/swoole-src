@@ -107,7 +107,7 @@ void *RingBuffer::alloc(uint32_t size) {
     }
 
     if (impl->status == 0) {
-        if (impl->alloc_offset + alloc_size >= (impl->size - sizeof(RingBufferItem))) {
+        if (impl->alloc_offset + alloc_size > (impl->size - sizeof(RingBufferItem))) {
             uint32_t skip_n = impl->size - impl->alloc_offset;
             if (skip_n >= sizeof(RingBufferItem)) {
                 item = impl->get_item(impl->alloc_offset);

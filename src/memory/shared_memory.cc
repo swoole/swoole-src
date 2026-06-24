@@ -99,6 +99,7 @@ void *sw_shm_malloc(size_t size) {
 }
 
 void *sw_shm_calloc(size_t num, size_t _size) {
+    // mmap MAP_ANONYMOUS / VirtualAlloc guarantee zero-filled pages, so no explicit memset needed
     return SharedMemory::alloc(num * _size);
 }
 
@@ -130,7 +131,7 @@ void *sw_shm_realloc(void *ptr, size_t new_size) {
     if (new_ptr == nullptr) {
         return nullptr;
     }
-    memcpy(new_ptr, ptr, object->size_);
+    memcpy(new_ptr, ptr, object->size_ - sizeof(SharedMemory));
     SharedMemory::free(ptr);
     return new_ptr;
 }
