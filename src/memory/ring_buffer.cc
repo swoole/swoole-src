@@ -152,14 +152,13 @@ void RingBuffer::free(void *ptr) {
 
     if (item->lock != 1) {
         swoole_debug("invalid free: index=%d, ptr=%p", item->index, (void *) (item->data - (char *) impl->memory));
-    } else {
-        item->lock = 0;
+        return;
     }
+    item->lock = 0;
 
     swoole_debug("free: ptr=%p", (void *) (item->data - (char *) impl->memory));
 
-    sw_atomic_t *free_count = &impl->free_count;
-    sw_atomic_fetch_add(free_count, 1);
+    sw_atomic_fetch_add(&impl->free_count, 1);
 }
 
 RingBuffer::~RingBuffer() {
