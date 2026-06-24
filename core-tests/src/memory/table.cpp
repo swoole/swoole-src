@@ -393,3 +393,86 @@ TEST(table, lock_race) {
 
     test::wait_all_child_processes();
 }
+
+TEST(table, exhaustion) {
+    table_t table(4, 1.0);
+    auto ptr = table.ptr();
+    // All keys hash to same bucket — deterministic collision chain
+    ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    // Capacity: 1 static row + N conflict slices
+    size_t capacity = 1 + ptr->get_total_slice_num();
+    ASSERT_GT(capacity, 1);
+
+    for (size_t i = 0; i < capacity; i++) {
+        char key[16];
+        snprintf(key, sizeof(key), "k%zu", i);
+        ASSERT_TRUE(table.set(key, {key, (long) i, (double) i})) << "insert k" << i;
+    }
+    ASSERT_EQ(table.count(), capacity);
+    ASSERT_EQ(ptr->get_available_slice_num(), 0);
+
+    // Conflict pool exhausted — next set should fail
+    ASSERT_FALSE(table.set("overflow", {"overflow", 999, 999.0}));
+
+    // Delete the last conflict row (not the head) to free a FixedPool slice
+    char last_key[16];
+    snprintf(last_key, sizeof(last_key), "k%zu", capacity - 1);
+    ASSERT_TRUE(table.del(last_key));
+    ASSERT_EQ(ptr->get_available_slice_num(), 1);
+
+    // Re-insert succeeds
+    ASSERT_TRUE(table.set("new_key", {"new_key", 999, 999.0}));
+    ASSERT_TRUE(table.exists("new_key"));
+    ASSERT_EQ(table.count(), capacity);
+}
+
+TEST(table, collision_chain_ops) {
+    table_t table(128);
+    auto ptr = table.ptr();
+    ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    // build chain: head + 5 collisions
+    ASSERT_TRUE(table.set("k1", {"k1", 1, 1.0}));
+    ASSERT_TRUE(table.set("k2", {"k2", 2, 2.0}));
+    ASSERT_TRUE(table.set("k3", {"k3", 3, 3.0}));
+    ASSERT_TRUE(table.set("k4", {"k4", 4, 4.0}));
+    ASSERT_TRUE(table.set("k5", {"k5", 5, 5.0}));
+    ASSERT_TRUE(table.set("k6", {"k6", 6, 6.0}));
+    ASSERT_EQ(table.count(), 6);
+
+    // delete middle element
+    ASSERT_TRUE(table.del("k3"));
+    ASSERT_FALSE(table.exists("k3"));
+    ASSERT_EQ(table.count(), 5);
+
+    // all other keys intact
+    ASSERT_TRUE(table.exists("k1"));
+    ASSERT_TRUE(table.exists("k2"));
+    ASSERT_TRUE(table.exists("k4"));
+    ASSERT_TRUE(table.exists("k5"));
+    ASSERT_TRUE(table.exists("k6"));
+
+    // delete head — triggers memcpy of k2 into head, then free k2's old slot
+    ASSERT_TRUE(table.del("k1"));
+    ASSERT_FALSE(table.exists("k1"));
+    ASSERT_TRUE(table.exists("k2"));  // k2's data moved to head slot
+    ASSERT_EQ(table.count(), 4);
+
+    // delete tail
+    ASSERT_TRUE(table.del("k6"));
+    ASSERT_FALSE(table.exists("k6"));
+    ASSERT_EQ(table.count(), 3);
+
+    // remaining keys {k2, k4, k5} should be reachable via iteration
+    ptr->rewind();
+    int iter_count = 0;
+    while (true) {
+        ptr->forward();
+        auto row = ptr->current();
+        if (row->key_len == 0) break;
+        ASSERT_TRUE(table.exists(std::string(row->key, row->key_len)));
+        iter_count++;
+    }
+    ASSERT_EQ(iter_count, 3);
+}

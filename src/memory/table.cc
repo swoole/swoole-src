@@ -385,14 +385,13 @@ bool Table::del(const char *key, uint16_t keylen) {
     check_key_length(&keylen);
 
     TableRow *row = hash(key, keylen);
-    // no exists
-    if (!row->active) {
-        return false;
-    }
-
     TableRow *tmp, *prev = nullptr;
 
     row->lock();
+    if (!row->active) {
+        row->unlock();
+        return false;
+    }
     if (row->next == nullptr) {
         if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
             row->clear();
