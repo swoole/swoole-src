@@ -70,11 +70,7 @@ int Mutex::unlock() {
 
 Mutex::~Mutex() {
     // SRWLOCK does not need explicit destruction
-    if (shared_) {
-        sw_mem_pool()->free(impl);
-    } else {
-        delete impl;
-    }
+    free_ptr(impl);
 }
 #else
 struct MutexImpl {
@@ -98,11 +94,7 @@ Mutex::Mutex(bool shared) : Lock(MUTEX, shared) {
     }
     if (pthread_mutex_init(&impl->lock_, &impl->attr_) != 0) {
         pthread_mutexattr_destroy(&impl->attr_);
-        if (shared) {
-            sw_mem_pool()->free(impl);
-        } else {
-            delete impl;
-        }
+        free_ptr(impl);
         throw std::system_error(errno, std::generic_category(), "pthread_mutex_init() failed");
     }
 }
@@ -131,11 +123,7 @@ int Mutex::unlock() {
 Mutex::~Mutex() {
     pthread_mutexattr_destroy(&impl->attr_);
     pthread_mutex_destroy(&impl->lock_);
-    if (shared_) {
-        sw_mem_pool()->free(impl);
-    } else {
-        delete impl;
-    }
+    free_ptr(impl);
 }
 #endif
 

@@ -48,6 +48,14 @@ class Lock {
         type_ = type;
         shared_ = shared;
     }
+    template <typename T>
+    void free_ptr(T *ptr) {
+        if (shared_) {
+            sw_mem_pool()->free((void *) ptr);
+        } else {
+            delete ptr;
+        }
+    }
     Type type_;
     bool shared_;
 };

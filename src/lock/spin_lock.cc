@@ -29,11 +29,7 @@ SpinLock::SpinLock(bool shared) : Lock(SPIN_LOCK, shared) {
     }
 
     if (pthread_spin_init(impl, shared) != 0) {
-        if (shared) {
-            sw_mem_pool()->free(impl);
-        } else {
-            delete impl;
-        }
+        free_ptr(impl);
         throw std::system_error(errno, std::generic_category(), "pthread_spin_init() failed");
     }
 }
@@ -54,11 +50,7 @@ int SpinLock::unlock() {
 
 SpinLock::~SpinLock() {
     pthread_spin_destroy(impl);
-    if (shared_) {
-        sw_mem_pool()->free((void *) impl);
-    } else {
-        delete impl;
-    }
+    free_ptr(impl);
 }
 }  // namespace swoole
 #endif
