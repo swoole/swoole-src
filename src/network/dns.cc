@@ -479,7 +479,8 @@ static int domain_encode(const char *src, int n, char *dest) {
  */
 static void domain_decode(char *str) {
     size_t i;
-    for (i = 0; i < strlen(str); i++) {
+    size_t n = strlen(str);
+    for (i = 0; i < n; i++) {
         uint32_t len = str[i];
         for (size_t j = 0; j < len; j++) {
             str[i] = str[i + 1];
