@@ -146,7 +146,7 @@ uint32_t FixedPool::get_slice_size() const {
 
 void *FixedPool::alloc(uint32_t size) {
     FixedPoolSlice *slice = impl->head;
-    if (slice->lock) {
+    if (slice == nullptr || slice->lock) {
         swoole_set_last_error(SW_ERROR_MALLOC_FAIL);
         assert(get_number_of_spare_slice() == 0);
         return nullptr;
@@ -157,7 +157,9 @@ void *FixedPool::alloc(uint32_t size) {
 
     // move next slice to head (idle list)
     impl->head = slice->next;
-    impl->head->prev = nullptr;
+    if (impl->head != nullptr) {
+        impl->head->prev = nullptr;
+    }
 
     // move this slice to tail (busy list)
     impl->tail->next = slice;
@@ -192,7 +194,9 @@ void FixedPool::free(void *ptr) {
     // move slice to head (idle)
     slice->prev = nullptr;
     slice->next = impl->head;
-    impl->head->prev = slice;
+    if (impl->head != nullptr) {
+        impl->head->prev = slice;
+    }
     impl->head = slice;
 }
 
