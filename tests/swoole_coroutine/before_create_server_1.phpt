@@ -2,7 +2,7 @@
 swoole_coroutine: co::create before server create [1]
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../include/skipif.inc'; skip_if_win();
 skip_unsupported();
 ?>
 --FILE--

@@ -1,7 +1,7 @@
 --TEST--
 swoole_coroutine: exit
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc';
+<?php require __DIR__ . '/../include/skipif.inc'; skip_if_win();
 skip_if_php_version_lower_than('8.4');
 ?>
 --FILE--

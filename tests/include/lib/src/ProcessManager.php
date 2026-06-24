@@ -50,7 +50,7 @@ class ProcessManager
 
     protected $childPid;
     protected $childExitStatus = 255;
-    protected $expectExitSignal = [0, SIGTERM];
+    protected $expectExitSignal;
     protected $parentFirst = false;
     protected $killed = false;
     /**
@@ -62,6 +62,7 @@ class ProcessManager
     public function __construct()
     {
         $this->atomic = new Atomic(0);
+        $this->expectExitSignal = [0, defined('SIGTERM') ? SIGTERM : 0];
     }
 
     public function setParent(callable $func)

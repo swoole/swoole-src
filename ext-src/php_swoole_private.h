@@ -242,11 +242,7 @@ PHP_FUNCTION(swoole_tracer_prof_end);
  * MINIT <Sort by dependency>
  * ==============================================================
  */
-#ifndef _WIN32
 void php_swoole_event_minit(int module_number);
-#else
-PHP_FUNCTION(swoole_event_rshutdown);
-#endif
 // base
 #ifndef _WIN32
 void php_swoole_atomic_minit(int module_number);

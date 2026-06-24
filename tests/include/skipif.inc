@@ -8,11 +8,6 @@ define('SWOOLE_COLOR_CYAN', 6);
 define('SWOOLE_COLOR_WHITE', 7);
 
 skip(
-    'Linux only',
-    str_starts_with(PHP_OS, 'WIN'),
-    SWOOLE_COLOR_RED
-);
-skip(
     'Swoole extension is required',
     !extension_loaded('swoole'),
     SWOOLE_COLOR_RED
@@ -164,6 +159,16 @@ function skip_if_darwin()
 function skip_if_darwin_todo($msg = 'Need to review')
 {
     skip($msg, getenv('MACOS_DEV') === false && stripos(PHP_OS, 'Darwin') !== false);
+}
+
+function skip_if_win()
+{
+    skip('not support on Windows', stripos(PHP_OS, 'WIN') === 0);
+}
+
+function skip_if_not_win()
+{
+    skip('only support Windows', stripos(PHP_OS, 'WIN') !== 0);
 }
 
 function skip_if_not_darwin()

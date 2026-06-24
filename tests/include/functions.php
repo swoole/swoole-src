@@ -35,6 +35,9 @@ function switch_process(): void
 
 function clear_php()
 {
+    if (is_win()) {
+        return;
+    }
     shell_exec("ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1");
 }
 
@@ -45,6 +48,9 @@ function puts($msg)
 
 function top(int $pid)
 {
+    if (is_win()) {
+        return false;
+    }
     static $available;
     $available = $available ?? !(IS_MAC_OS || empty(shell_exec('top help 2>&1 | grep -i usage')));
     if (!$available) {
@@ -65,6 +71,9 @@ function top(int $pid)
 
 function is_busybox_ps(): bool
 {
+    if (is_win()) {
+        return false;
+    }
     static $bool;
     $bool = $bool ?? !empty(shell_exec('ps --help 2>&1 | grep -i busybox'));
     return $bool;
@@ -72,18 +81,34 @@ function is_busybox_ps(): bool
 
 function kill_process_by_name(string $name)
 {
+    if (is_win()) {
+        return;
+    }
     shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_busybox_ps() ? '1' : '2') . '}\' | xargs kill');
 }
 
 function get_process_pid_by_name(string $name): int
 {
+    if (is_win()) {
+        return 0;
+    }
     return (int) shell_exec('ps aux | grep "' . $name . '" | grep -v grep | awk \'{ print $' . (is_busybox_ps() ? '1' : '2') . '}\'');
 }
 
 function is_musl_libc(): bool
 {
+    if (is_win()) {
+        return false;
+    }
     static $bool;
     $bool = $bool ?? !empty(shell_exec('ldd 2>&1 | grep -i musl'));
+    return $bool;
+}
+
+function is_win(): bool
+{
+    static $bool;
+    $bool = $bool ?? (stripos(PHP_OS, 'WIN') === 0);
     return $bool;
 }
 
@@ -91,17 +116,25 @@ function get_server_ips(): array
 {
     $ips = [];
 
-    switch(PHP_OS_FAMILY) {
-        case 'Darwin':
-            $output = shell_exec('ifconfig');
-            preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)/', $output, $matches);
-            $ips = $matches[1];
-            break;
-        default:
-            $output = shell_exec('ip addr show');
-            preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)\//', $output, $matches);
-            $ips = $matches[1];
-            break;
+    if (is_win()) {
+        $output = shell_exec('ipconfig');
+        if ($output) {
+            preg_match_all('/IPv4 Address[.\s]*: (\d+\.\d+\.\d+\.\d+)/', $output, $matches);
+            $ips = $matches[1] ?? [];
+        }
+    } else {
+        switch(PHP_OS_FAMILY) {
+            case 'Darwin':
+                $output = shell_exec('ifconfig');
+                preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)/', $output, $matches);
+                $ips = $matches[1];
+                break;
+            default:
+                $output = shell_exec('ip addr show');
+                preg_match_all('/inet (\d+\.\d+\.\d+\.\d+)\//', $output, $matches);
+                $ips = $matches[1];
+                break;
+        }
     }
 
     $ips = array_filter($ips, function($ip) {

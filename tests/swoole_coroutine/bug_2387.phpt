@@ -2,7 +2,7 @@
 swoole_coroutine: call_user_func_array
 --SKIPIF--
 <?php 
-require __DIR__ . '/../include/skipif.inc';
+require __DIR__ . '/../include/skipif.inc'; skip_if_win();
 skip_if_no_database();
 ?>
 --FILE--

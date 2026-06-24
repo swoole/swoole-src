@@ -65,7 +65,6 @@ if (PHP_SWOOLE != "no") {
 	swoole_source_files += "ext-src\\swoole_thread_queue.cc ";
 	swoole_source_files += "ext-src\\swoole_timer.cc ";
 	swoole_source_files += "ext-src\\swoole_tracer.cc ";
-	swoole_source_files += "ext-src\\swoole_windows.cc ";
 
 	// Add src files
 	swoole_source_files += "src\\core\\base.cc ";
@@ -122,7 +121,7 @@ if (PHP_SWOOLE != "no") {
 	swoole_source_files += "src\\protocol\\ssl.cc ";
 	swoole_source_files += "src\\protocol\\websocket.cc ";
 	swoole_source_files += "src\\reactor\\base.cc ";
-	swoole_source_files += "src\\reactor\\poll.cc ";
+	swoole_source_files += "src\\reactor\\reactor_iocp.cc ";
 	swoole_source_files += "src\\wrapper\\event.cc ";
 	swoole_source_files += "src\\wrapper\\timer.cc ";
 
