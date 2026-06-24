@@ -97,7 +97,7 @@ void String::write(off_t _offset, const String &write_str) {
 void String::write(off_t _offset, const char *write_str, size_t _length) {
     size_t new_length = _offset + _length;
     if (new_length > size) {
-        reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
+        reserve(new_length);
     }
 
     memcpy(str + _offset, write_str, _length);

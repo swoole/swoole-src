@@ -61,6 +61,11 @@ static signed char base64de[] = {
 // clang-format on
 
 size_t base64_encode(const unsigned char *in, size_t inlen, char *out) {
+    if (inlen == 0) {
+        out[0] = '\0';
+        return 0;
+    }
+
     size_t i, j;
 
     for (i = j = 0; i < inlen; i++) {
