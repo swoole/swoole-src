@@ -966,8 +966,7 @@ void *PHPCoroutine::stack_base(PHPContext *ctx) {
 #endif /* ZEND_CHECK_STACK_LIMIT */
 
 /* hook autoload */
-
-static zend_class_entry *(*original_zend_autoload)(zend_string *name, zend_string *lc_name);
+zend_class_entry *(*swoole_hook_zend_autoload)(zend_string *name, zend_string *lc_name) = nullptr;
 
 struct AutoloadContext {
     Coroutine *coroutine;
@@ -982,7 +981,7 @@ struct AutoloadQueue {
 static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_string *lc_name) {
     auto current = Coroutine::get_current();
     if (!current) {
-        return original_zend_autoload(name, lc_name);
+        return swoole_hook_zend_autoload(name, lc_name);
     }
 
     ZEND_ASSERT(EG(in_autoload) != nullptr);
@@ -1011,7 +1010,7 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
     queue.queue = &queue_object;
 
     zend_hash_add_ptr(SWOOLE_G(in_autoload), lc_name, &queue);
-    zend_class_entry *ce = original_zend_autoload(name, lc_name);
+    zend_class_entry *ce = swoole_hook_zend_autoload(name, lc_name);
     zend_hash_del(SWOOLE_G(in_autoload), lc_name);
 
     AutoloadContext *pending_context = nullptr;
@@ -1079,7 +1078,7 @@ void php_swoole_coroutine_minit(int module_number) {
     }
 
     /* hook autoload */
-    original_zend_autoload = zend_autoload;
+    swoole_hook_zend_autoload = zend_autoload;
     zend_autoload = swoole_coroutine_autoload;
     SWOOLE_G(in_autoload) = nullptr;
 }
