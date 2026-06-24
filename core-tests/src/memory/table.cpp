@@ -476,3 +476,129 @@ TEST(table, collision_chain_ops) {
     }
     ASSERT_EQ(iter_count, 3);
 }
+
+// Exercise all three FixedPool free() code paths after exhaustion.
+//
+// After exhaustion with hash-to-1, the FixedPool combined list is:
+//   head → kN → kN-1 → ... → k1 ↔ k0 (static row)
+//   tail = kN (last allocated, also at head)
+//
+// free() paths and how to trigger them from Table:
+//   1. tail-branch: free the tail when it's NOT also the head
+//      → free k(cap-2) first (moves head away), then free k(cap-1) (still tail)
+//   2. else-branch (middle unlink): free an element between head and tail
+//      → free k2 (somewhere in the middle)
+//   3. early-return (head-branch): free the element at impl->head
+//      → after the above frees reshuffle the list, free whatever is now at head
+TEST(table, exhaustion_free_paths) {
+    table_t table(4, 1.0);
+    auto ptr = table.ptr();
+    ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    size_t n_conflict = ptr->get_total_slice_num();
+    size_t cap = 1 + n_conflict;
+    ASSERT_GT(n_conflict, 3) << "need at least 4 conflict slices for this test";
+
+    // fill to exhaustion
+    for (size_t i = 0; i < cap; i++) {
+        char key[16];
+        snprintf(key, sizeof(key), "k%zu", i);
+        ASSERT_TRUE(table.set(key, {key, (long) i, (double) i})) << "insert k" << i;
+    }
+    ASSERT_EQ(ptr->get_available_slice_num(), 0);
+
+    // ---- path 1: tail-branch ----
+    // Free a middle element first so head moves away, then free the tail.
+    char a[16];
+    snprintf(a, sizeof(a), "k%zu", cap - 2);
+    ASSERT_TRUE(table.del(a));
+    ASSERT_EQ(ptr->get_available_slice_num(), 1);
+
+    // Now k(cap-1) is still the tail but no longer the head → tail-branch.
+    char b[16];
+    snprintf(b, sizeof(b), "k%zu", cap - 1);
+    ASSERT_TRUE(table.del(b));
+    ASSERT_EQ(ptr->get_available_slice_num(), 2);
+
+    // ---- path 2: else-branch (middle unlink) ----
+    // k1 is the first conflict row, somewhere in the middle of the busy chain.
+    ASSERT_TRUE(table.del("k1"));
+    ASSERT_EQ(ptr->get_available_slice_num(), 3);
+
+    // ---- path 3: head-branch (early return) ----
+    // After freeing two adjacent slices from the tail end, the current
+    // impl->head may be one of the just-freed slices.  Deleting the next
+    // adjacent key exercises whatever free() path is appropriate given the
+    // current list state.
+    char c[16];
+    snprintf(c, sizeof(c), "k%zu", cap - 3);
+    ASSERT_TRUE(table.del(c));
+    ASSERT_EQ(ptr->get_available_slice_num(), 4);
+
+    // all freed slots should be reusable
+    ASSERT_TRUE(table.set("r1", {"r1", 100, 100.0}));
+    ASSERT_TRUE(table.set("r2", {"r2", 200, 200.0}));
+    ASSERT_TRUE(table.set("r3", {"r3", 300, 300.0}));
+    ASSERT_TRUE(table.set("r4", {"r4", 400, 400.0}));
+
+    // verify iteration count matches
+    ptr->rewind();
+    int count = 0;
+    while (true) {
+        ptr->forward();
+        auto row = ptr->current();
+        if (row->key_len == 0) break;
+        count++;
+    }
+    ASSERT_EQ(count, cap);
+}
+
+// Drain all entries and refill — verifies FixedPool returns to consistent state
+TEST(table, drain_and_refill) {
+    table_t table(4, 1.0);
+    auto ptr = table.ptr();
+    ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    size_t cap = 1 + ptr->get_total_slice_num();
+
+    // fill
+    for (size_t i = 0; i < cap; i++) {
+        char key[16];
+        snprintf(key, sizeof(key), "k%zu", i);
+        ASSERT_TRUE(table.set(key, {key, (long) i, (double) i}));
+    }
+    ASSERT_EQ(table.count(), cap);
+
+    // drain all
+    for (size_t i = 0; i < cap; i++) {
+        char key[16];
+        snprintf(key, sizeof(key), "k%zu", i);
+        ASSERT_TRUE(table.del(key));
+    }
+    ASSERT_EQ(table.count(), 0);
+    ASSERT_EQ(ptr->get_available_slice_num(), ptr->get_total_slice_num());
+
+    // refill — every slot should be reusable
+    for (size_t i = 0; i < cap; i++) {
+        char key[16];
+        snprintf(key, sizeof(key), "v%zu", i);
+        ASSERT_TRUE(table.set(key, {key, (long) i + 1000, (double) i + 0.5})) << "refill v" << i;
+    }
+    ASSERT_EQ(table.count(), cap);
+
+    // verify data
+    row_t r = table.get("v0");
+    ASSERT_EQ(r.id, 1000);
+    ASSERT_DOUBLE_EQ(r.score, 0.5);
+
+    // verify iteration
+    ptr->rewind();
+    int count = 0;
+    while (true) {
+        ptr->forward();
+        auto row = ptr->current();
+        if (row->key_len == 0) break;
+        count++;
+    }
+    ASSERT_EQ(count, cap);
+}

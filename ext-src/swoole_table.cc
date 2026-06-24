@@ -103,6 +103,18 @@ static Table *table_get_and_check_ptr2(const zval *zobject) {
     return table;
 }
 
+static inline bool table_check_key_length(size_t keylen) {
+    if (keylen == 0) {
+        php_swoole_fatal_error(E_WARNING, "key must not be empty");
+        return false;
+    }
+    if (keylen >= SW_TABLE_KEY_SIZE) {
+        php_swoole_fatal_error(E_WARNING, "key length exceeds the limit of %d bytes", SW_TABLE_KEY_SIZE - 1);
+        return false;
+    }
+    return true;
+}
+
 static void table_set_ptr(const zval *zobject, Table *ptr) {
     table_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
 }
@@ -278,15 +290,17 @@ static PHP_METHOD(swoole_table, set) {
         RETURN_FALSE;
     }
 
-    if (keylen >= SW_TABLE_KEY_SIZE) {
-        php_swoole_fatal_error(E_WARNING, "key[%s] is too long", key);
+    if (!table_check_key_length(keylen)) {
+        RETURN_FALSE;
     }
 
     int out_flags;
     TableRow *_rowlock = nullptr;
     TableRow *row = table->set(key, keylen, &_rowlock, &out_flags);
     if (!row) {
-        _rowlock->unlock();
+        if (_rowlock) {
+            _rowlock->unlock();
+        }
         php_swoole_error(E_WARNING, "failed to set('%*s'), unable to allocate memory", (int) keylen, key);
         RETURN_FALSE;
     }
@@ -355,19 +369,28 @@ static PHP_METHOD(swoole_table, incr) {
         RETURN_FALSE;
     }
 
-    int out_flags;
-    TableRow *_rowlock = nullptr;
-    TableRow *row = table->set(key, key_len, &_rowlock, &out_flags);
-    if (!row) {
-        _rowlock->unlock();
-        php_swoole_fatal_error(E_WARNING, "unable to allocate memory");
+    if (!table_check_key_length(key_len)) {
         RETURN_FALSE;
     }
 
     TableColumn *column = table->get_column(std::string(col, col_len));
     if (column == nullptr) {
-        _rowlock->unlock();
         php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", col);
+        RETURN_FALSE;
+    }
+    if (column->type == TableColumn::TYPE_STRING) {
+        php_swoole_fatal_error(E_WARNING, "can't execute 'incr' on a string type column");
+        RETURN_FALSE;
+    }
+
+    int out_flags;
+    TableRow *_rowlock = nullptr;
+    TableRow *row = table->set(key, key_len, &_rowlock, &out_flags);
+    if (!row) {
+        if (_rowlock) {
+            _rowlock->unlock();
+        }
+        php_swoole_fatal_error(E_WARNING, "unable to allocate memory");
         RETURN_FALSE;
     }
 
@@ -375,11 +398,7 @@ static PHP_METHOD(swoole_table, incr) {
         table->clear_row(row);
     }
 
-    if (column->type == TableColumn::TYPE_STRING) {
-        _rowlock->unlock();
-        php_swoole_fatal_error(E_WARNING, "can't execute 'incr' on a string type column");
-        RETURN_FALSE;
-    } else if (column->type == TableColumn::TYPE_FLOAT) {
+    if (column->type == TableColumn::TYPE_FLOAT) {
         double set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (incrby) {
@@ -415,19 +434,28 @@ static PHP_METHOD(swoole_table, decr) {
         RETURN_FALSE;
     }
 
-    int out_flags;
-    TableRow *_rowlock = nullptr;
-    TableRow *row = table->set(key, key_len, &_rowlock, &out_flags);
-    if (!row) {
-        _rowlock->unlock();
-        php_swoole_fatal_error(E_WARNING, "unable to allocate memory");
+    if (!table_check_key_length(key_len)) {
         RETURN_FALSE;
     }
 
     TableColumn *column = table->get_column(std::string(col, col_len));
     if (column == nullptr) {
-        _rowlock->unlock();
         php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", col);
+        RETURN_FALSE;
+    }
+    if (column->type == TableColumn::TYPE_STRING) {
+        php_swoole_fatal_error(E_WARNING, "can't execute 'decr' on a string type column");
+        RETURN_FALSE;
+    }
+
+    int out_flags;
+    TableRow *_rowlock = nullptr;
+    TableRow *row = table->set(key, key_len, &_rowlock, &out_flags);
+    if (!row) {
+        if (_rowlock) {
+            _rowlock->unlock();
+        }
+        php_swoole_fatal_error(E_WARNING, "unable to allocate memory");
         RETURN_FALSE;
     }
 
@@ -435,11 +463,7 @@ static PHP_METHOD(swoole_table, decr) {
         table->clear_row(row);
     }
 
-    if (column->type == TableColumn::TYPE_STRING) {
-        _rowlock->unlock();
-        php_swoole_fatal_error(E_WARNING, "can't execute 'decr' on a string type column");
-        RETURN_FALSE;
-    } else if (column->type == TableColumn::TYPE_FLOAT) {
+    if (column->type == TableColumn::TYPE_FLOAT) {
         double set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (decrby) {
@@ -475,6 +499,10 @@ static PHP_METHOD(swoole_table, get) {
     Z_PARAM_STR_OR_NULL(field)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (!table_check_key_length(keylen)) {
+        RETURN_FALSE;
+    }
+
     TableRow *_rowlock = nullptr;
     TableRow *row = table->get(key, keylen, &_rowlock);
     if (!row) {
@@ -484,7 +512,9 @@ static PHP_METHOD(swoole_table, get) {
     } else {
         table_row2array(table, row, return_value);
     }
-    _rowlock->unlock();
+    if (_rowlock) {
+        _rowlock->unlock();
+    }
 }
 
 static PHP_METHOD(swoole_table, exists) {
@@ -493,6 +523,9 @@ static PHP_METHOD(swoole_table, exists) {
     size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE) {
+        RETURN_FALSE;
+    }
+    if (!table_check_key_length(keylen)) {
         RETURN_FALSE;
     }
     RETURN_BOOL(table->exists(key, keylen));
@@ -507,6 +540,9 @@ static PHP_METHOD(swoole_table, del) {
     Z_PARAM_STRING(key, keylen)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (!table_check_key_length(keylen)) {
+        RETURN_FALSE;
+    }
     RETURN_BOOL(table->del(key, keylen));
 }
 
@@ -550,7 +586,7 @@ static PHP_METHOD(swoole_table, getSize) {
 
 static PHP_METHOD(swoole_table, stats) {
     Table *table = table_get_ptr(ZEND_THIS);
-    if (!table) {
+    if (!table || !table->ready()) {
         RETURN_FALSE;
     }
     array_init(return_value);
