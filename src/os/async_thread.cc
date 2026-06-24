@@ -221,8 +221,7 @@ class ThreadPool {
 
     void release_thread(std::thread::id tid) {
         std::thread *_thread = nullptr;
-        size_t remaining_thread_num = 0;
-        {
+        do {
             std::lock_guard<std::mutex> lock(threads_mutex);
             auto i = threads.find(tid);
             if (i == threads.end()) {
@@ -231,14 +230,14 @@ class ThreadPool {
             }
             _thread = i->second;
             threads.erase(i);
-            remaining_thread_num = threads.size();
-        }
+        } while (0);
+
         released_worker_num.fetch_add(1, std::memory_order_acq_rel);
         scale_down_count.fetch_add(1, std::memory_order_acq_rel);
         swoole_trace_log(SW_TRACE_AIO,
                          "release idle thread#%s, we have %zu now",
                          swoole_thread_id_to_str(tid).c_str(),
-                         remaining_thread_num);
+                         get_worker_num());
         if (_thread->joinable()) {
             _thread->join();
         }
@@ -408,9 +407,11 @@ int AsyncThreads::callback(Reactor *reactor, Event *event) {
     const size_t buffer_size = sizeof(async_threads->completed_events);
     ssize_t n = event->socket->read(buffer + async_threads->completed_event_bytes,
                                     buffer_size - async_threads->completed_event_bytes);
-    if (n < 0) {
+    if (sw_unlikely(n < 0)) {
         swoole_sys_warning("read() aio events failed");
         return SW_ERR;
+    } else if (sw_unlikely(n == 0)) {
+        swoole_throw_error(SW_ERROR_SOCKET_CLOSED);
     }
 
     async_threads->completed_event_bytes += n;
@@ -499,7 +500,9 @@ AsyncThreads::AsyncThreads() {
     read_socket->fd_type = SW_FD_AIO;
     write_socket->fd_type = SW_FD_AIO;
 
-    swoole_event_add(read_socket, SW_EVENT_READ);
+    if (swoole_event_add(read_socket, SW_EVENT_READ) < 0) {
+        goto _cleanup_pipe;
+    }
 
     sw_reactor()->add_destroy_callback([](void *data) {
         if (!SwooleTG.async_threads) {
@@ -527,13 +530,7 @@ AsyncThreads::AsyncThreads() {
         if (!async_thread_pool->start()) {
             async_thread_lock.unlock();
             swoole_event_del(read_socket);
-            pipe->close();
-            read_socket = nullptr;
-            write_socket = nullptr;
-            delete pipe;
-            pipe = nullptr;
-            swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
-            return;
+            goto _cleanup_pipe;
         }
     }
     pool = async_thread_pool;
@@ -541,6 +538,15 @@ AsyncThreads::AsyncThreads() {
 
     SwooleG.aio_default_socket = write_socket;
     SwooleTG.async_threads = this;
+    return;
+
+_cleanup_pipe:
+    pipe->close();
+    read_socket = nullptr;
+    write_socket = nullptr;
+    delete pipe;
+    pipe = nullptr;
+    swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
 }
 
 AsyncThreads::~AsyncThreads() {
