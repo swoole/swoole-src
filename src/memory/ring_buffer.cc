@@ -33,7 +33,7 @@ struct RingBufferImpl {
 };
 
 struct RingBufferItem {
-    uint16_t lock;
+	volatile uint16_t lock;
     uint16_t index;
     uint32_t length;
     char data[0];
@@ -150,11 +150,10 @@ void RingBuffer::free(void *ptr) {
     assert(static_cast<char *>(ptr) <= static_cast<char *>(impl->memory) + impl->size);
     assert(item->lock == 1);
 
-    if (item->lock != 1) {
+    if (!sw_atomic_cmp_set(&item->lock, 1, 0)) {
         swoole_debug("invalid free: index=%d, ptr=%p", item->index, (void *) (item->data - (char *) impl->memory));
         return;
     }
-    item->lock = 0;
 
     swoole_debug("free: ptr=%p", (void *) (item->data - (char *) impl->memory));
 
