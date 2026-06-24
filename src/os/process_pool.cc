@@ -1001,7 +1001,6 @@ int ProcessPool::wait() {
         if (swoole_waitpid(worker->pid, &status, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", worker->pid);
         }
-        break;
     }
     started = false;
 
