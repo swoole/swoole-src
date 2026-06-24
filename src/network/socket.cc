@@ -271,7 +271,7 @@ int Socket::connect_sync(const Address &sa) {
         return SW_ERR;
     }
     int err;
-    socklen_t len = sizeof(len);
+    socklen_t len = sizeof(err);
     int ret = get_option(SOL_SOCKET, SO_ERROR, &err, &len);
     if (ret < 0) {
         swoole_set_last_error(sw_errno());
@@ -386,7 +386,7 @@ Socket *Socket::accept() {
 #else
     socket->fd = (swSocketFd)::accept(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len);
     if (socket->fd != SW_BAD_SOCKET) {
-        set_fd_option(nonblock, 1);
+        socket->set_fd_option(nonblock, 1);
     }
 #endif
     if (socket->fd == SW_BAD_SOCKET) {
@@ -649,6 +649,7 @@ static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
 
         if (opts < 0) {
             swoole_sys_warning("fcntl(%d, GETFL) failed", sock);
+            return false;
         }
 
         if (nonblock) {
@@ -674,7 +675,8 @@ static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
         } while (opts < 0 && errno == EINTR);
 
         if (opts < 0) {
-            swoole_sys_warning("fcntl(%d, GETFL) failed", sock);
+            swoole_sys_warning("fcntl(%d, GETFD) failed", sock);
+            return false;
         }
 
         if (cloexec) {
