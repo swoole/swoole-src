@@ -755,6 +755,39 @@ TEST(client, shutdown_all) {
     ASSERT_EQ(retval, 0);
 }
 
+TEST(client, shutdown_all_state) {
+    signal(SIGPIPE, SIG_IGN);
+    mutex m;
+    m.lock();
+    int port = swoole::test::get_random_port();
+
+    thread server_thread([&m, port]() {
+        auto server = swoole::make_server_socket(SW_SOCK_TCP, TEST_HOST, port);
+        m.unlock();
+        ASSERT_NE(server, nullptr);
+        server->set_block();
+
+        auto client_sock = server->accept();
+        ASSERT_NE(client_sock, nullptr);
+        char buf[16];
+        client_sock->recv(buf, sizeof(buf), 0);
+        client_sock->free();
+        server->free();
+    });
+
+    Client cli(SW_SOCK_TCP, false);
+    m.lock();
+    m.unlock();
+    ASSERT_EQ(cli.connect(TEST_HOST, port, 1, 0), SW_OK);
+    ASSERT_EQ(cli.shutdown(SHUT_RDWR), SW_OK);
+    ASSERT_EQ(cli.shutdown(SHUT_RD), SW_ERR);
+    ASSERT_EQ(cli.shutdown(SHUT_WR), SW_ERR);
+    ASSERT_EQ(cli.shutdown(SHUT_RDWR), SW_ERR);
+    cli.close();
+
+    server_thread.join();
+}
+
 static void test_ssl_http_get() {
     bool connected = false;
     bool closed = false;

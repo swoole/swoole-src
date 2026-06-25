@@ -209,6 +209,8 @@ int Client::shutdown(int _how) {
             return SW_ERR;
         } else {
             shutdown_read = true;
+            shutdown_write = true;
+            shutdown_rw = true;
             return SW_OK;
         }
     } else {

@@ -145,9 +145,9 @@ int Socket::what_event_want(int default_event) const {
     }
 
 bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec) {
-    double began_at = 0;
+    double deadline = 0;
     if (timeout_msec > 0) {
-        began_at = microtime();
+        deadline = microtime() + msec2sec(timeout_msec);
     }
 
     if (!nonblock) {
@@ -171,6 +171,11 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
              * only recourse is to sleep for 10 milliseconds while awaiting kernel memory recovery.
              */
             if (has_kernel_nobufs()) {
+                if (timeout_msec > 0 && microtime() >= deadline) {
+                    swoole_set_last_error(ETIMEDOUT);
+                    sw_set_errno(ETIMEDOUT);
+                    return false;
+                }
                 sw_usleep(10 * 1000);
                 continue;
             }
@@ -179,19 +184,20 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
             break;
         }
 
-        auto rv = wait_event(timeout_msec, what_event_want(event));
-        if (rv == SW_ERR && ((sw_errno() == EINTR && dont_restart) || sw_errno() != EINTR)) {
-            return false;
-        }
-
+        int current_timeout_msec = timeout_msec;
         if (timeout_msec > 0) {
-            timeout_msec -= sec2msec(microtime() - began_at);
-            swoole_trace_log(SW_TRACE_CLIENT, "timeout_ms=%d", timeout_msec);
-            if (timeout_msec <= 0) {
+            current_timeout_msec = sec2msec(deadline - microtime());
+            swoole_trace_log(SW_TRACE_CLIENT, "timeout_ms=%d", current_timeout_msec);
+            if (current_timeout_msec <= 0) {
                 swoole_set_last_error(ETIMEDOUT);
                 sw_set_errno(ETIMEDOUT);
                 return false;
             }
+        }
+
+        auto rv = wait_event(current_timeout_msec, what_event_want(event));
+        if (rv == SW_ERR && ((sw_errno() == EINTR && dont_restart) || sw_errno() != EINTR)) {
+            return false;
         }
     }
 

@@ -68,6 +68,45 @@ TEST(socket, connect_sync) {
     sock->free();
 }
 
+TEST(socket, connect_bad_port) {
+    auto *sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+
+    ASSERT_EQ(sock->connect(TEST_HOST, 65536), SW_ERR);
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_BAD_PORT);
+
+    sock->free();
+}
+
+#ifndef _WIN32
+TEST(socket, recv_sync_waitall_deadline) {
+    int pairs[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pairs), 0);
+
+    auto *reader = make_socket(pairs[0], SW_FD_STREAM);
+    ASSERT_NE(reader, nullptr);
+    reader->set_timeout(0.35, SW_TIMEOUT_READ);
+
+    thread writer([&]() {
+        const char data[] = {'a', 'b', 'c'};
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        ASSERT_EQ(::send(pairs[1], &data[0], 1, 0), 1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(90));
+        ASSERT_EQ(::send(pairs[1], &data[1], 1, 0), 1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(90));
+        ASSERT_EQ(::send(pairs[1], &data[2], 1, 0), 1);
+        close(pairs[1]);
+    });
+
+    char buf[3];
+    ASSERT_EQ(reader->recv_sync(buf, sizeof(buf), MSG_WAITALL), static_cast<ssize_t>(sizeof(buf)));
+    ASSERT_EQ(memcmp(buf, "abc", sizeof(buf)), 0);
+
+    writer.join();
+    reader->free();
+}
+#endif
+
 TEST(socket, fail) {
     auto *sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
     ASSERT_NE(sock, nullptr);
