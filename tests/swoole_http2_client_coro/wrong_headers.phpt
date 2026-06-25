@@ -7,7 +7,7 @@ skip_if_offline();
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-go(function () {
+Co\run(function () {
     $domain = 'mail.qq.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
     $cli->set([
@@ -23,8 +23,8 @@ go(function () {
     Assert::assert(is_array($req->headers)); // check array
     /**@var $response swoole_http2_response */
     $response = $cli->recv();
-    echo $response->statusCode;
-    Assert::assert(stripos($response->data, 'tencent') !== false);
+    echo $response->statusCode . "\n";
+    Assert::assert(stripos($response->data, 'QQ邮箱') !== false);
 });
 ?>
 --EXPECT--
