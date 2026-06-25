@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 4b0c3b46c7cd0316efa3d7a779bb4ab60569b35c */
+/* $Id: 9816f0a6f82068c372424b88a74107943fb9abfd */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -11175,7 +11175,6 @@ static const char* swoole_library_source_functions =
     "        }\n"
     "    };\n"
     "\n"
-    "\n"
     "    if (!is_dir($dir)) {\n"
     "        mkdir($dir, 0755, true);\n"
     "        $print_log(\"create dir[{$dir}]\");\n"
@@ -11189,12 +11188,14 @@ static const char* swoole_library_source_functions =
     "\n"
     "    $options = swoole_library_get_option('default_remote_object_server_options');\n"
     "    if (!$options) {\n"
-    "        $worker_num = swoole_library_get_option('default_remote_object_server_worker_num') ?: 128;\n"
+    "        $default_worker_num = defined('SWOOLE_THREAD') ? 128 : 8;\n"
+    "        $worker_num = swoole_library_get_option('default_remote_object_server_worker_num') ?: $default_worker_num;\n"
     "        $options    = [\n"
     "            'worker_num'  => $worker_num,\n"
     "            'server_mode' => defined('SWOOLE_THREAD') ? SWOOLE_THREAD : SWOOLE_BASE,\n"
     "        ];\n"
     "    }\n"
+    "\n"
     "    $print_log(\"remote object server options: \" . var_export($options, true));\n"
     "\n"
     "    $php_file                    = $dir . '/remote-object-server.php';\n"
@@ -11277,7 +11278,12 @@ static const char* swoole_library_source_functions =
     "    }\n"
     "    $print_log(\"remote object server pid: {$status['pid']}\");\n"
     "\n"
-    "    $exitStatus = Swoole\\Coroutine\\System::waitpid($status['pid']);\n"
+    "    if (function_exists('pcntl_waitpid')) {\n"
+    "        pcntl_waitpid($status['pid'], $status);\n"
+    "        $exitStatus['code'] = $status;\n"
+    "    } else {\n"
+    "        $exitStatus = Swoole\\Coroutine\\System::waitpid($status['pid']);\n"
+    "    }\n"
     "    if ($exitStatus['code'] !== 0) {\n"
     "        $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);\n"
     "        throw new RuntimeException(\"failed to start remote object server: exit code {$exitStatus['code']}, output: \" . $output);\n"

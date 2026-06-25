@@ -10,7 +10,7 @@ use Swoole\Table;
 
 define('N',  IS_IN_CI ? 10000 : 100000);
 
-$table = new Table(N);
+$table = new Table(N, 0.3);
 $table->column('string', Table::TYPE_STRING, 256);
 $table->create();
 
@@ -19,11 +19,14 @@ $keys = [];
 
 $n = N;
 while ($n--) {
-    $key = base64_decode(RandStr::getBytes(rand(10, 30)));
+    $key = base64_encode(RandStr::getBytes(rand(10, 30)));
     $value = RandStr::getBytes(rand(100, 250));
     if ($table->set($key, ['string' => $value])) {
         $map[$key] = $value;
         $keys[] = $key;
+    } else {
+        var_dump($table->stats());
+        exit(100);
     }
 }
 
