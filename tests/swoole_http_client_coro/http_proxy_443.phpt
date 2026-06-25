@@ -11,7 +11,7 @@ skip_if_offline();
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    go(function () use ($pm) {
+    Co\run(function () use ($pm) {
         $domain = 'mail.qq.com';
         $cli = new Swoole\Coroutine\Http\Client($domain, 443, true);
         $cli->setHeaders(['Host' => $domain]);
@@ -22,7 +22,7 @@ $pm->parentFunc = function () use ($pm) {
         ]);
         $result = $cli->get('/');
         Assert::assert($result);
-        Assert::assert(stripos($cli->body, 'tencent') !== false);
+        Assert::assert(stripos($cli->body, 'QQ邮箱') !== false);
         $pm->kill();
     });
 };
