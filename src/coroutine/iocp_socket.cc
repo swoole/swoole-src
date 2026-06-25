@@ -473,10 +473,8 @@ bool IocpSocket::ssl_bio_perform(int rc, const char *fn) {
 
     int error = SSL_get_error(socket->ssl, rc);
     if (error == SSL_ERROR_WANT_WRITE) {
-        if (ssl_bio_write()) {
-        _error:
-            check_return_value(-1);
-            return false;
+        if (!ssl_bio_write()) {
+            goto _error;
         }
         return true;
     } else if (error == SSL_ERROR_WANT_READ) {
@@ -509,6 +507,9 @@ bool IocpSocket::ssl_bio_perform(int rc, const char *fn) {
         }
         return false;
     }
+    _error:
+    check_return_value(-1);
+    return false;
 }
 
 bool IocpSocket::ssl_handshake() {
