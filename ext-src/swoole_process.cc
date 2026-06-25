@@ -332,7 +332,8 @@ static PHP_METHOD(swoole_process, __construct) {
             if (!_pipe->ready()) {
                 zend_throw_exception(swoole_exception_ce, "failed to create unix soccket", errno);
                 delete _pipe;
-                efree(process);
+                delete process;
+                po->worker = nullptr;
                 RETURN_FALSE;
             }
 
