@@ -294,7 +294,11 @@ const char *swoole_strerror(int code) {
     case SW_ERROR_CO_SOCKET_CLOSE_WAIT:
         return "Coroutine socket close wait";
     default:
+#ifndef __MACH__
         snprintf(buffer, sizeof(buffer), "Unknown error %d", code);
+#else
+        snprintf(buffer, sizeof(buffer), "Unknown error: %d", code);
+#endif
         return buffer;
     }
     /*}}}*/
