@@ -73,6 +73,7 @@ extern void php_swoole_load_library();
 
 static SW_THREAD_LOCAL zend_atomic_bool *zend_vm_interrupt = nullptr;
 static SW_THREAD_LOCAL unordered_map<long, Coroutine *> user_yield_coros;
+static zend_function swoole_coroutine_internal_function;
 
 #if PHP_VERSION_ID < 80400
 static user_opcode_handler_t ori_exit_handler = nullptr;
@@ -325,7 +326,6 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(vm_stack_end) = EG(vm_stack)->end;
     EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
 
-    zend_function *func = EG(current_execute_data)->func;
     auto *call = reinterpret_cast<zend_execute_data *>((EG(vm_stack_top)));
     EG(current_execute_data) = call;
     memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
@@ -335,7 +335,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(exception) = nullptr;
     EG(jit_trace_num) = 0;
 
-    call->func = func;
+    call->func = static_cast<zend_function *>(&swoole_coroutine_internal_function);
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
 
 #ifdef ZEND_CHECK_STACK_LIMIT
@@ -1066,6 +1066,9 @@ void php_swoole_coroutine_minit(int module_number) {
     original_zend_autoload = zend_autoload;
     zend_autoload = swoole_coroutine_autoload;
     SWOOLE_G(in_autoload) = nullptr;
+
+    memset(&swoole_coroutine_internal_function, 0, sizeof(swoole_coroutine_internal_function));
+    swoole_coroutine_internal_function.common.type = ZEND_INTERNAL_FUNCTION;
 }
 
 void php_swoole_coroutine_rinit() {
