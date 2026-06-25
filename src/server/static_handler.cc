@@ -617,7 +617,7 @@ bool Server::select_static_handler(const http_server::Request *request, const Co
     if (SW_HTTP_HEAD != request->method) {
         if (!tasks.empty()) {
             size_t task_size = sizeof(network::SendfileTask) + strlen(handler.get_filename()) + 1;
-            auto task = static_cast<network::SendfileTask *>(sw_malloc(task_size));
+            auto task = static_cast<network::SendfileTask *>(::operator new(task_size));
             strcpy(task->filename, handler.get_filename());
             if (tasks.size() > 1) {
                 for (const auto &i : tasks) {
@@ -646,7 +646,7 @@ bool Server::select_static_handler(const http_server::Request *request, const Co
                 response.data = reinterpret_cast<char *>(task);
                 send_to_connection(&response);
             }
-            sw_free(task);
+            ::operator delete(task);
         }
     }
 

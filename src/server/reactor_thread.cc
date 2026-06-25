@@ -178,8 +178,8 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     }
 
     if (conn->websocket_buffer) {
-    	delete conn->websocket_buffer;
-    	conn->websocket_buffer = nullptr;
+        delete conn->websocket_buffer;
+        conn->websocket_buffer = nullptr;
     }
 
     if (!socket->removed && reactor->del(socket) < 0) {
@@ -870,6 +870,7 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
 
     Reactor *reactor = sw_reactor();
     if (thread->init(serv, reactor, reactor_id) < 0) {
+        swoole_event_free();
         return;
     }
 
