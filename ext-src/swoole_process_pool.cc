@@ -531,9 +531,14 @@ static PHP_METHOD(swoole_process_pool, listen) {
     } else {
         ret = pool->listen(host, port, backlog);
     }
-    pool->stream_info_->socket->set_fd_option(0, 1);
-
-    SW_CHECK_RETURN(ret);
+    if (ret < 0) {
+        RETURN_FALSE;
+    }
+    if (!pool->stream_info_->socket->set_fd_option(0, 1)) {
+        zend_throw_exception(swoole_exception_ce, "failed to set socket nonblock", errno);
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_process_pool, write) {

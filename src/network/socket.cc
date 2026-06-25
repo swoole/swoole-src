@@ -135,10 +135,10 @@ int Socket::what_event_want(int default_event) const {
 
 #define CHECK_RETURN_VALUE(rv, be_zero_return)                                                                         \
     if (rv < 0) {                                                                                                      \
-        if (sw_errno() == EINTR || catch_error(sw_errno()) == SW_WAIT) {                                     \
+        if (sw_errno() == EINTR || catch_error(sw_errno()) == SW_WAIT) {                                               \
             return SW_CONTINUE;                                                                                        \
         }                                                                                                              \
-        swoole_set_last_error(sw_errno());                                                                        \
+        swoole_set_last_error(sw_errno());                                                                             \
         return SW_ERROR;                                                                                               \
     } else if (rv == 0) {                                                                                              \
         return be_zero_return;                                                                                         \
@@ -1829,7 +1829,7 @@ Socket *make_socket(SocketType type, FdType fd_type, int flags) {
 }
 
 Socket *make_socket(SocketType type, FdType fd_type, int sock_domain, int sock_type, int socket_protocol, int flags) {
-    swSocketFd sockfd = (swSocketFd)swoole::socket(sock_domain, sock_type, socket_protocol, flags);
+    swSocketFd sockfd = (swSocketFd) swoole::socket(sock_domain, sock_type, socket_protocol, flags);
     if (sockfd == SW_BAD_SOCKET) {
         swoole_set_last_error(sw_errno());
         return nullptr;
@@ -1875,13 +1875,13 @@ int socket(int sock_domain, int sock_type, int socket_protocol, int flags) {
         return -1;
     }
     if (nonblock || cloexec) {
-        if (!network::_fcntl_set_option((int)sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1)) {
-            close((int)sockfd);
+        if (!network::_fcntl_set_option((int) sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1)) {
+            close((int) sockfd);
             return -1;
         }
     }
 #endif
-    return (int)sockfd;
+    return (int) sockfd;
 }
 
 Socket *make_server_socket(SocketType type, const char *address, int port, int backlog) {

@@ -695,14 +695,16 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 
     zend_ulong index;
     zval *zconn;
-    ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARRVAL_P(&hs->zclients), index, zconn) {
+    zend_hash_internal_pointer_reset(Z_ARRVAL_P(&hs->zclients));
+    while ((zconn = zend_hash_get_current_data(Z_ARRVAL_P(&hs->zclients))) != nullptr) {
+        zend_hash_get_current_key(Z_ARRVAL_P(&hs->zclients), nullptr, &index);
+        zend_hash_move_forward(Z_ARRVAL_P(&hs->zclients));
         SocketImpl *sock = php_swoole_get_socket(zconn);
         if (sock->get_socket()->recv_wait) {
             sock->cancel(SW_EVENT_READ);
             zend_hash_index_del(Z_ARRVAL_P(&hs->zclients), index);
         }
     }
-    ZEND_HASH_FOREACH_END();
 }
 
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
@@ -718,9 +720,11 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
         if (ZVAL_IS_STRING(zvalue)) {
             Z_TRY_ADDREF_P(zvalue);
         }
-    } ZEND_HASH_FOREACH_END();
+    }
+    ZEND_HASH_FOREACH_END();
 
-    http_server_add_server_array(Z_ARRVAL_P(zserver_http2), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP2));
+    http_server_add_server_array(
+        Z_ARRVAL_P(zserver_http2), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP2));
 
     const auto *hs = static_cast<HttpServer *>(session->private_data);
     zend::Callable *cb = hs->get_handler(ctx);

@@ -905,8 +905,12 @@ static PHP_METHOD(swoole_process, exec) {
     exec_args[0] = sw_strdup(execfile);
     int i = 1;
 
+    std::vector<zend_string *> zstr_args;
+    zstr_args.reserve(exec_argc);
+
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args), value) {
-        auto arg_str = zval_get_string(value);
+        zend_string *arg_str = zval_get_string(value);
+        zstr_args.push_back(arg_str);
         exec_args[i] = ZSTR_VAL(arg_str);
         i++;
     }
@@ -916,6 +920,11 @@ static PHP_METHOD(swoole_process, exec) {
 
     if (execv(execfile, exec_args) < 0) {
         php_swoole_sys_error(E_WARNING, "execv(%s) failed", execfile);
+        sw_free(exec_args[0]);
+        for (auto *s : zstr_args) {
+            zend_string_release(s);
+        }
+        efree(exec_args);
         RETURN_FALSE;
     } else {
         RETURN_TRUE;
