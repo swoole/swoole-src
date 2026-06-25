@@ -125,7 +125,15 @@ void Heap::change_priority(uint64_t new_priority, HeapNode *node) const {
 
 void Heap::remove(HeapNode *node) {
     uint32_t pos = node->position;
-    nodes[pos] = nodes[--num];
+    uint32_t last = --num;
+
+    if (sw_unlikely(pos == last)) {
+        nodes[pos] = nullptr;
+        delete node;
+        return;
+    }
+
+    nodes[pos] = nodes[last];
 
     if (compare(node->priority, nodes[pos]->priority)) {
         bubble_up(pos);

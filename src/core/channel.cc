@@ -67,9 +67,17 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
 
     if (flags & SW_CHAN_NOTIFY) {
         object->notify_pipe = new Pipe(true);
-        if (!object->notify_pipe->ready()) {
+        if (sw_unlikely(!object->notify_pipe->ready())) {
             swoole_warning("notify_fd init failed");
             delete object->notify_pipe;
+            if (object->lock) {
+                delete object->lock;
+            }
+            if (flags & SW_CHAN_SHM) {
+                sw_shm_free(object);
+            } else {
+                sw_free(object);
+            }
             return nullptr;
         }
     }
@@ -81,8 +89,11 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
  * push data(no lock)
  */
 int Channel::in(const void *in_data, int data_length) {
+    if (sw_unlikely(data_length < 0 || data_length > maxlen)) {
+        return SW_ERR;
+    }
     assert(data_length <= maxlen);
-    if (full()) {
+    if (sw_unlikely(full())) {
         return SW_ERR;
     }
     ChannelSlice *item;
@@ -90,7 +101,7 @@ int Channel::in(const void *in_data, int data_length) {
 
     if (tail < head) {
         // no enough memory space
-        if ((head - tail) < msize) {
+        if (sw_unlikely((head - tail) < msize)) {
             return SW_ERR;
         }
         item = reinterpret_cast<ChannelSlice *>(static_cast<char *>(mem) + tail);
@@ -114,11 +125,14 @@ int Channel::in(const void *in_data, int data_length) {
  * pop data(no lock)
  */
 int Channel::out(void *out_buf, int buffer_length) {
-    if (empty()) {
+    if (sw_unlikely(empty())) {
         return SW_ERR;
     }
 
     auto *item = reinterpret_cast<ChannelSlice *>(static_cast<char *>(mem) + head);
+    if (sw_unlikely(buffer_length < item->length)) {
+        return SW_ERR;
+    }
     assert(buffer_length >= item->length);
     memcpy(out_buf, item->data, item->length);
     head += (item->length + sizeof(item->length));
@@ -135,12 +149,21 @@ int Channel::out(void *out_buf, int buffer_length) {
  * peek data
  */
 int Channel::peek(void *out, int buffer_length) const {
-    if (empty()) {
+    assert(flags & SW_CHAN_LOCK);
+    if (sw_unlikely(!(flags & SW_CHAN_LOCK) || lock == nullptr)) {
         return SW_ERR;
     }
 
     lock->lock();
+    if (sw_unlikely(empty())) {
+        lock->unlock();
+        return SW_ERR;
+    }
     auto *item = reinterpret_cast<ChannelSlice *>(static_cast<char *>(mem) + head);
+    if (sw_unlikely(buffer_length < item->length)) {
+        lock->unlock();
+        return SW_ERR;
+    }
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
     int length = item->length;

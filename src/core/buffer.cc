@@ -46,7 +46,7 @@ BufferChunk *Buffer::alloc(BufferChunk::Type type, uint32_t size) {
 
 void Buffer::pop() {
     BufferChunk *chunk = queue_.front();
-    total_length -= chunk->size;
+    total_length -= chunk->length;
     delete chunk;
     queue_.pop();
 }
@@ -85,10 +85,18 @@ void Buffer::append(const char *data, uint32_t size) {
 void Buffer::append(const iovec *iov, size_t iovcnt, off_t offset) {
     size_t _length = 0;
 
+    if (sw_unlikely(iovcnt == 0)) {
+        return;
+    }
+
     SW_LOOP_N(iovcnt) {
         assert(iov[i].iov_len > 0);
         assert(iov[i].iov_base != nullptr);
         _length += iov[i].iov_len;
+    }
+
+    if (sw_unlikely(offset < 0 || (size_t) offset >= _length)) {
+        return;
     }
 
     auto pos = static_cast<char *>(iov[0].iov_base);
@@ -108,11 +116,13 @@ void Buffer::append(const iovec *iov, size_t iovcnt, off_t offset) {
             if (offset > 0) {
                 if (offset >= (off_t) iov[i].iov_len) {
                     offset -= iov[i].iov_len;
+                    _length -= iov[i].iov_len;
                     i++;
                     continue;
                 } else {
                     pos = static_cast<char *>(iov[i].iov_base) + offset;
                     iov_remain_len = iov[i].iov_len - offset;
+                    _length -= offset;
                     offset = 0;
                 }
             }

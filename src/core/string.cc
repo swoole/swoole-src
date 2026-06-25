@@ -108,8 +108,8 @@ void String::write(off_t _offset, const char *write_str, size_t _length) {
 
 void String::grow(size_t incr_value) {
     length += incr_value;
-    if (length == size) {
-        reserve(size * 2);
+    if (sw_unlikely(incr_value > 0 && length >= size)) {
+        reserve(SW_MAX(size * 2, length));
     }
 }
 
