@@ -154,6 +154,7 @@ _recv_data:
                 } else {
                     p += request->n_bytes_total + SW_CRLF_LEN;
                     request->n_bytes_total = 0;
+                    request->n_bytes_received = 0;
                     request->n_lines_received++;
                     request->state = STATE_RECEIVE_LENGTH;
                     buffer->offset = buffer->length;

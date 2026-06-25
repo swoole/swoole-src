@@ -251,6 +251,17 @@ TEST(protocol, socks5_strerror) {
     }
 }
 
+TEST(protocol, socks5_dns_tunnel_target_host_length) {
+    auto proxy = Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", "");
+    ASSERT_NE(proxy, nullptr);
+    proxy->dns_tunnel = 1;
+    proxy->target_host = std::string(500, 'a');
+    proxy->target_port = 80;
+    // pack_connect_request should validate target_host (not proxy host) in DNS tunnel mode
+    ASSERT_EQ(proxy->pack_connect_request(), -1);
+    delete proxy;
+}
+
 TEST(protocol, swap_byte_order) {
     {
         EXPECT_EQ(swoole_swap_endian16(0x1234), 0x3412);
