@@ -28,9 +28,10 @@ SpinLock::SpinLock(bool shared) : Lock(SPIN_LOCK, shared) {
         impl = new pthread_spinlock_t();
     }
 
-    if (pthread_spin_init(impl, shared) != 0) {
+    int err = pthread_spin_init(impl, shared);
+    if (err != 0) {
         free_ptr(impl);
-        throw std::system_error(errno, std::generic_category(), "pthread_spin_init() failed");
+        throw std::system_error(err, std::generic_category(), "pthread_spin_init() failed");
     }
 }
 

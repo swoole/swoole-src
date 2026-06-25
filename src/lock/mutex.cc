@@ -88,14 +88,24 @@ Mutex::Mutex(bool shared) : Lock(MUTEX, shared) {
         impl = new MutexImpl();
     }
 
-    pthread_mutexattr_init(&impl->attr_);
-    if (shared) {
-        pthread_mutexattr_setpshared(&impl->attr_, PTHREAD_PROCESS_SHARED);
+    int err = pthread_mutexattr_init(&impl->attr_);
+    if (err != 0) {
+        free_ptr(impl);
+        throw std::system_error(err, std::generic_category(), "pthread_mutexattr_init() failed");
     }
-    if (pthread_mutex_init(&impl->lock_, &impl->attr_) != 0) {
+    if (shared) {
+        err = pthread_mutexattr_setpshared(&impl->attr_, PTHREAD_PROCESS_SHARED);
+        if (err != 0) {
+            pthread_mutexattr_destroy(&impl->attr_);
+            free_ptr(impl);
+            throw std::system_error(err, std::generic_category(), "pthread_mutexattr_setpshared() failed");
+        }
+    }
+    err = pthread_mutex_init(&impl->lock_, &impl->attr_);
+    if (err != 0) {
         pthread_mutexattr_destroy(&impl->attr_);
         free_ptr(impl);
-        throw std::system_error(errno, std::generic_category(), "pthread_mutex_init() failed");
+        throw std::system_error(err, std::generic_category(), "pthread_mutex_init() failed");
     }
 }
 

@@ -16,6 +16,8 @@
 
 #include "swoole_memory.h"
 
+#include <limits>
+
 namespace swoole {
 struct RingBufferItem;
 struct RingBufferImpl {
@@ -55,7 +57,13 @@ static void swRingBuffer_print(swRingBuffer *object, char *prefix) {
 #endif
 
 RingBuffer::RingBuffer(uint32_t size, bool shared) {
+    if (sw_unlikely(size > std::numeric_limits<uint32_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     size = SW_MEM_ALIGNED_SIZE(size);
+    if (sw_unlikely(size <= sizeof(RingBufferImpl) + sizeof(RingBufferItem))) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     void *mem = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
     if (mem == nullptr) {
         throw std::bad_alloc();
@@ -99,7 +107,13 @@ void *RingBuffer::alloc(uint32_t size) {
     RingBufferItem *item;
     uint32_t capacity;
 
+    if (sw_unlikely(size == 0 || size > std::numeric_limits<uint32_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
+        return nullptr;
+    }
     size = SW_MEM_ALIGNED_SIZE(size);
+    if (sw_unlikely(size > std::numeric_limits<uint32_t>::max() - sizeof(RingBufferItem))) {
+        return nullptr;
+    }
     uint32_t alloc_size = size + sizeof(RingBufferItem);
 
     if (impl->free_count > 0) {

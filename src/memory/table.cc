@@ -377,9 +377,11 @@ void Table::forward() const {
 }
 
 TableRow *Table::get(const char *key, size_t keylen, TableRow **rowlock) const {
-    if (rowlock) {
-        *rowlock = nullptr;
+    // The caller owns the returned bucket lock and must pass a non-null rowlock to release it.
+    if (sw_unlikely(rowlock == nullptr)) {
+        return nullptr;
     }
+    *rowlock = nullptr;
     if (!is_valid_key_length(keylen)) {
         return nullptr;
     }
@@ -407,9 +409,11 @@ TableRow *Table::get(const char *key, size_t keylen, TableRow **rowlock) const {
 }
 
 TableRow *Table::set(const char *key, size_t keylen, TableRow **rowlock, int *out_flags) {
-    if (rowlock) {
-        *rowlock = nullptr;
+    // The caller owns the returned bucket lock and must pass a non-null rowlock to release it.
+    if (sw_unlikely(rowlock == nullptr)) {
+        return nullptr;
     }
+    *rowlock = nullptr;
     if (out_flags) {
         *out_flags = 0;
     }

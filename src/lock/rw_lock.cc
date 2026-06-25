@@ -172,14 +172,24 @@ RWLock::RWLock(bool shared) : Lock(RW_LOCK, shared) {
         impl = new RWLockImpl();
     }
 
-    pthread_rwlockattr_init(&impl->attr_);
-    if (shared) {
-        pthread_rwlockattr_setpshared(&impl->attr_, PTHREAD_PROCESS_SHARED);
+    int err = pthread_rwlockattr_init(&impl->attr_);
+    if (err != 0) {
+        free_ptr(impl);
+        throw std::system_error(err, std::generic_category(), "pthread_rwlockattr_init() failed");
     }
-    if (pthread_rwlock_init(&impl->lock_, &impl->attr_) != 0) {
+    if (shared) {
+        err = pthread_rwlockattr_setpshared(&impl->attr_, PTHREAD_PROCESS_SHARED);
+        if (err != 0) {
+            pthread_rwlockattr_destroy(&impl->attr_);
+            free_ptr(impl);
+            throw std::system_error(err, std::generic_category(), "pthread_rwlockattr_setpshared() failed");
+        }
+    }
+    err = pthread_rwlock_init(&impl->lock_, &impl->attr_);
+    if (err != 0) {
         pthread_rwlockattr_destroy(&impl->attr_);
         free_ptr(impl);
-        throw std::system_error(errno, std::generic_category(), "pthread_rwlock_init() failed");
+        throw std::system_error(err, std::generic_category(), "pthread_rwlock_init() failed");
     }
 }
 

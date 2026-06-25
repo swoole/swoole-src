@@ -16,6 +16,8 @@
 
 #include "swoole_memory.h"
 
+#include <limits>
+
 namespace swoole {
 
 struct FixedPoolSlice {
@@ -53,8 +55,18 @@ FixedPool::FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared) {
     if (slice_num < 2) {
         throw Exception(SW_ERROR_INVALID_PARAMS);
     }
+    if (sw_unlikely(slice_size > std::numeric_limits<uint32_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     slice_size = SW_MEM_ALIGNED_SIZE(slice_size);
-    size_t size = slice_num * (sizeof(FixedPoolSlice) + slice_size);
+    size_t slice_memory_size = sizeof(FixedPoolSlice) + slice_size;
+    if (sw_unlikely(slice_memory_size > std::numeric_limits<size_t>::max() / slice_num)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
+    size_t size = slice_num * slice_memory_size;
+    if (sw_unlikely(size > std::numeric_limits<size_t>::max() - sizeof(*impl))) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     size_t alloc_size = size + sizeof(*impl);
     void *memory = shared ? ::sw_shm_malloc(alloc_size) : ::sw_malloc(alloc_size);
     if (!memory) {
@@ -79,6 +91,9 @@ FixedPool::FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared) {
  */
 FixedPool::FixedPool(uint32_t slice_size, void *memory, size_t size, bool shared) {
     if (memory == nullptr || size <= sizeof(FixedPoolImpl)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
+    if (sw_unlikely(slice_size > std::numeric_limits<uint32_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
         throw Exception(SW_ERROR_INVALID_PARAMS);
     }
     impl = (FixedPoolImpl *) memory;

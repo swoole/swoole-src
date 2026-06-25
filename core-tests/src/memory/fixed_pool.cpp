@@ -21,6 +21,8 @@
 #include "swoole_memory.h"
 #include "swoole_util.h"
 
+#include <limits>
+
 using namespace std;
 
 TEST(fixed_pool, alloc) {
@@ -59,6 +61,31 @@ TEST(fixed_pool, realloc) {
         sw_shm_free(new_memory);
     };
     ASSERT_NE(new_memory, nullptr);
+}
+
+TEST(shared_memory, realloc_shrink_disallowed) {
+    void *memory = sw_shm_malloc(128);
+    ASSERT_NE(memory, nullptr);
+    memset(memory, 0xAB, 128);
+
+    void *new_memory = sw_shm_realloc(memory, 64);
+    ASSERT_EQ(new_memory, nullptr);
+
+    auto *buffer = static_cast<unsigned char *>(memory);
+    ASSERT_EQ(buffer[0], 0xAB);
+    ASSERT_EQ(buffer[127], 0xAB);
+    sw_shm_free(memory);
+}
+
+TEST(shared_memory, calloc_overflow) {
+    ASSERT_EQ(sw_shm_calloc(std::numeric_limits<size_t>::max(), 2), nullptr);
+}
+
+TEST(fixed_pool, constructor_overflow) {
+    ASSERT_THROW(swoole::FixedPool(std::numeric_limits<uint32_t>::max(),
+                                   std::numeric_limits<uint32_t>::max(),
+                                   false),
+                 swoole::Exception);
 }
 
 TEST(fixed_pool, exhaustion) {
