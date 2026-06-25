@@ -63,6 +63,27 @@ TEST(file, read_line_no_crlf) {
     remove(filename.c_str());
 }
 
+TEST(file, read_line_no_crlf_chunks) {
+    std::string content = "abcdefghijklmnopqrstuvwxyz";
+    std::string filename = "/tmp/swoole_file_read_line_no_crlf_chunks.txt";
+    ASSERT_TRUE(file_put_contents(filename, content.c_str(), content.length()));
+
+    File file(filename, File::READ);
+    char rbuf[5];
+    std::string actual;
+
+    while (true) {
+        ssize_t n = file.read_line(rbuf, sizeof(rbuf));
+        if (n <= 0) {
+            break;
+        }
+        actual.append(rbuf, n);
+    }
+
+    ASSERT_EQ(actual, content);
+    remove(filename.c_str());
+}
+
 TEST(file, file_put_contents) {
     std::string filename = "/tmp/not-exists-dir/test.txt";
 

@@ -253,7 +253,7 @@ ssize_t File::read_line(void *_buf, size_t _n) const {
         }
     }
     buf[read_bytes] = '\0';
-    set_offset(offset + read_bytes + 1);
+    set_offset(offset + read_bytes);
     return read_bytes;
 }
 
