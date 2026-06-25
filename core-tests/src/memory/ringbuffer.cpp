@@ -2,6 +2,8 @@
 #include "swoole_memory.h"
 #include "swoole_pipe.h"
 
+#include <limits>
+
 using namespace swoole;
 
 #include <thread>
@@ -56,6 +58,15 @@ static void test_ringbuffer(bool shared) {
 TEST(ringbuffer, thread) {
     test_ringbuffer(true);
     test_ringbuffer(false);
+}
+
+TEST(ringbuffer, invalid_size) {
+    ASSERT_THROW(RingBuffer(1, false), Exception);
+}
+
+TEST(ringbuffer, alloc_overflow) {
+    RingBuffer pool(1024, false);
+    ASSERT_EQ(pool.alloc(std::numeric_limits<uint32_t>::max()), nullptr);
 }
 
 static void thread_write() {

@@ -303,8 +303,12 @@ class ReactorIocp final : public ReactorImpl {
 
     ~ReactorIocp() override {
         for (auto &kv : states_) {
-            cancel(kv.second.operation);
-            kv.second.operation = nullptr;
+            if (kv.second.operation) {
+                cancel(kv.second.operation);
+                kv.second.operation->reactor = nullptr;
+                delete kv.second.operation;
+                kv.second.operation = nullptr;
+            }
         }
     }
 

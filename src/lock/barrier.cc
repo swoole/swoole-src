@@ -23,6 +23,7 @@ namespace swoole {
 void Barrier::init(bool shared, int count) {
 #ifdef SW_USE_PTHREAD_BARRIER
     if (shared) {
+        pthread_barrierattr_init(&barrier_attr_);
         pthread_barrierattr_setpshared(&barrier_attr_, PTHREAD_PROCESS_SHARED);
         pthread_barrier_init(&barrier_, &barrier_attr_, count);
     } else {

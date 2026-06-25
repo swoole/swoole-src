@@ -139,7 +139,7 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
     if (header->MASK) {
         buffer->append(SW_WEBSOCKET_MASK_DATA, SW_WEBSOCKET_MASK_LEN);
         if (_flags & FLAG_ENCODE_HEADER_ONLY) {
-            return false;
+            return true;
         }
         if (length > 0) {
             size_t offset = buffer->length;

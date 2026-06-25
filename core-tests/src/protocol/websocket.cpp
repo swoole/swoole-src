@@ -17,39 +17,19 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
-#include "swoole_hash.h"
+#include "test_core.h"
+#include "swoole_websocket.h"
 
-static constexpr int CRC32_TABLE_SIZE = 256;
-static uint32_t crc32_table[CRC32_TABLE_SIZE];
-static bool generated = false;
+using namespace swoole;
 
-static void generate_table(uint32_t (&table)[CRC32_TABLE_SIZE]) {
-    uint32_t polynomial = 0xEDB88320;
-    for (uint32_t i = 0; i < CRC32_TABLE_SIZE; i++) {
-        uint32_t c = i;
-        for (size_t j = 0; j < 8; j++) {
-            if (c & 1) {
-                c = polynomial ^ (c >> 1);
-            } else {
-                c >>= 1;
-            }
-        }
-        table[i] = c;
-    }
-    generated = true;
-}
+TEST(websocket, encode_mask_with_header_only) {
+    String buffer(64);
+    uint8_t flags = websocket::FLAG_FIN | websocket::FLAG_MASK | websocket::FLAG_ENCODE_HEADER_ONLY;
 
-uint32_t swoole_crc32(const char *data, size_t size) {
-    if (sw_unlikely(!generated)) {
-        generate_table(crc32_table);
-    }
+    // With MASK + HEADER_ONLY, should return true (consistent with non-MASK behavior)
+    // BUG: currently returns false when MASK is set with HEADER_ONLY
+    ASSERT_TRUE(websocket::encode(&buffer, "hello", 5, websocket::OPCODE_TEXT, flags));
 
-    uint32_t crcinit = 0;
-    uint32_t crc = crcinit ^ 0xffffffff;
-    for (; size--; ++data) {
-        crc = ((crc >> 8) & 0x00ffffff) ^ crc32_table[(crc ^ (*data)) & 0xff];
-    }
-
-    return (crc ^ 0xffffffff);
+    // Should have appended header (2 bytes) + mask key (4 bytes) only, no body
+    ASSERT_EQ(buffer.length, 2 + SW_WEBSOCKET_MASK_LEN);
 }

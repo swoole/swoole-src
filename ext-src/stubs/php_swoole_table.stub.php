@@ -8,8 +8,8 @@ namespace Swoole {
         public function get(string $key, ?string $field = null): array|false|string|float|int {}
         public function del(string $key): bool {}
         public function exists(string $key): bool {}
-        public function incr(string $key, string $column, int|float $incrby = 1): float|int {}
-        public function decr(string $key, string $column, int|float $incrby = 1): float|int {}
+        public function incr(string $key, string $column, int|float $incrby = 1): false|float|int {}
+        public function decr(string $key, string $column, int|float $incrby = 1): false|float|int {}
         public function count(): int {}
         public function destroy(): bool {}
         public function getSize(): int {}

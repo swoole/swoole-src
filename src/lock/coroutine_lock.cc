@@ -34,11 +34,7 @@ CoroutineLock::CoroutineLock(bool shared) : Lock(COROUTINE_LOCK, shared) {
 }
 
 CoroutineLock::~CoroutineLock() {
-    if (shared_) {
-        sw_mem_pool()->free((void *) value);
-    } else {
-        delete value;
-    }
+    free_ptr(value);
     value = nullptr;
 }
 

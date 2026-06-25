@@ -48,6 +48,14 @@ class Lock {
         type_ = type;
         shared_ = shared;
     }
+    template <typename T>
+    void free_ptr(T *ptr) {
+        if (shared_) {
+            sw_mem_pool()->free((void *) ptr);
+        } else {
+            delete ptr;
+        }
+    }
     Type type_;
     bool shared_;
 };
@@ -100,6 +108,7 @@ class CoroutineLock final : public Lock {
     long cid = 0;
     sw_atomic_t *value = nullptr;
     void *coroutine = nullptr;
+    int recursion_count = 0;
 
     int lock_impl(bool blocking = true);
 
@@ -122,6 +131,7 @@ struct Barrier {
 #else
     sw_atomic_t count_;
     sw_atomic_t barrier_;
+    sw_atomic_t generation_;
 #endif
     void init(bool shared, int count);
     void wait();

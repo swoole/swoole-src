@@ -55,8 +55,9 @@ static void signal_handler(int signo) {
         }
 
         WaitTask *task = nullptr;
-        if (waitpid_map.find(exit_status.get_pid()) != waitpid_map.end()) {
-            task = waitpid_map[exit_status.get_pid()];
+        auto iter = waitpid_map.find(exit_status.get_pid());
+        if (iter != waitpid_map.end()) {
+            task = iter->second;
         } else if (!wait_list.empty()) {
             task = wait_list.front();
         } else {

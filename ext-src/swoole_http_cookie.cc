@@ -66,6 +66,7 @@ static zend_object *php_swoole_http_cookie_create_object(zend_class_entry *ce) {
 static void php_swoole_http_cookie_free_object(zend_object *object) {
     auto *httpCookieObject = php_swoole_http_cookie_fetch_object(object);
     delete httpCookieObject->cookie;
+    zend_object_std_dtor(object);
 }
 
 SW_EXTERN_C_BEGIN

@@ -52,7 +52,7 @@ ssize_t file_get_size(FILE *fp) {
 
 ssize_t file_get_size(const std::string &filename) {
     File file(filename, File::READ);
-    if (!file.ready()) {
+    if (sw_unlikely(!file.ready())) {
         swoole_set_last_error(errno);
         return -1;
     }
@@ -74,13 +74,13 @@ ssize_t file_get_size(int fd) {
 
 std::shared_ptr<String> file_get_contents(const std::string &filename) {
     File fp(filename, O_RDONLY);
-    if (!fp.ready()) {
+    if (sw_unlikely(!fp.ready())) {
         swoole_sys_warning("open('%s') failed", filename.c_str());
         return nullptr;
     }
 
     ssize_t filesize = fp.get_size();
-    if (filesize < 0) {
+    if (sw_unlikely(filesize < 0)) {
         return nullptr;
     } else if (filesize == 0) {
         swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "file[%s] is empty", filename.c_str());
@@ -101,7 +101,7 @@ File make_tmpfile() {
     char *tmpfile = sw_tg_buffer()->str;
     size_t l = swoole_strlcpy(tmpfile, SwooleG.task_tmpfile.c_str(), SW_TASK_TMP_PATH_SIZE);
     int tmp_fd = swoole_tmpfile(tmpfile);
-    if (tmp_fd < 0) {
+    if (sw_unlikely(tmp_fd < 0)) {
         return File(-1);
     } else {
         return {tmp_fd, std::string(tmpfile, l)};
@@ -118,7 +118,7 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
         return false;
     }
     File file(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
-    if (!file.ready()) {
+    if (sw_unlikely(!file.ready())) {
         swoole_sys_warning("open('%s') failed", filename.c_str());
         return false;
     }
@@ -236,6 +236,9 @@ size_t File::read_all(void *buf, size_t len) const {
 }
 
 ssize_t File::read_line(void *_buf, size_t _n) const {
+    if (sw_unlikely(_n <= 1)) {
+        return 0;
+    }
     char *buf = (char *) _buf;
     auto offset = get_offset();
     ssize_t read_bytes = read(buf, _n - 1);
@@ -250,7 +253,7 @@ ssize_t File::read_line(void *_buf, size_t _n) const {
         }
     }
     buf[read_bytes] = '\0';
-    set_offset(offset + read_bytes + 1);
+    set_offset(offset + read_bytes);
     return read_bytes;
 }
 

@@ -98,6 +98,20 @@ TEST(channel, peek) {
     c->destroy();
 }
 
+TEST(channel, invalid_length) {
+    char buf[4];
+    auto *c = Channel::make(128 * 1024, 8, SW_CHAN_LOCK | SW_CHAN_NOTIFY);
+
+    ASSERT_EQ(c->push("012345678", 9), SW_ERR);
+    ASSERT_EQ(c->push("01234567", 8), SW_OK);
+    ASSERT_EQ(c->peek(buf, sizeof(buf)), SW_ERR);
+    ASSERT_EQ(c->pop(buf, sizeof(buf)), SW_ERR);
+
+    char enough[8];
+    ASSERT_EQ(c->pop(enough, sizeof(enough)), 8);
+    c->destroy();
+}
+
 TEST(channel, notify) {
     auto *c = Channel::make(128 * 1024, 8192, SW_CHAN_LOCK | SW_CHAN_NOTIFY);
     thread t1([&]() {

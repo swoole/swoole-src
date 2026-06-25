@@ -100,6 +100,18 @@ TEST(process_pool, unix_sock) {
     test_func_task_protocol(pool);
 }
 
+TEST(process_pool, push_message_too_large) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+
+    EventData msg{};
+    std::string payload(sizeof(msg.data) + 1, 'A');
+    ASSERT_EQ(pool.push_message(SW_WORKER_MESSAGE_STOP, payload.data(), payload.length()), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
+
+    pool.destroy();
+}
+
 TEST(process_pool, tcp_raw) {
     ProcessPool pool{};
     constexpr int size = 2 * 1024 * 1024;

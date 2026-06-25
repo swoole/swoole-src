@@ -1033,7 +1033,6 @@ void ZendArray::intkey_incr(zend_long index, zval *zvalue, zval *return_value) {
         incr_update(item, zvalue, return_value);
     } else {
         item = incr_create(zvalue, return_value);
-        item = new ArrayItem(zvalue);
         zend_hash_index_update_ptr(&ht, index, item);
     }
     lock_.unlock();

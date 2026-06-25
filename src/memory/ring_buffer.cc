@@ -16,6 +16,8 @@
 
 #include "swoole_memory.h"
 
+#include <limits>
+
 namespace swoole {
 struct RingBufferItem;
 struct RingBufferImpl {
@@ -33,7 +35,7 @@ struct RingBufferImpl {
 };
 
 struct RingBufferItem {
-    uint16_t lock;
+	volatile uint16_t lock;
     uint16_t index;
     uint32_t length;
     char data[0];
@@ -55,7 +57,13 @@ static void swRingBuffer_print(swRingBuffer *object, char *prefix) {
 #endif
 
 RingBuffer::RingBuffer(uint32_t size, bool shared) {
+    if (sw_unlikely(size > std::numeric_limits<uint32_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     size = SW_MEM_ALIGNED_SIZE(size);
+    if (sw_unlikely(size <= sizeof(RingBufferImpl) + sizeof(RingBufferItem))) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     void *mem = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
     if (mem == nullptr) {
         throw std::bad_alloc();
@@ -99,7 +107,13 @@ void *RingBuffer::alloc(uint32_t size) {
     RingBufferItem *item;
     uint32_t capacity;
 
+    if (sw_unlikely(size == 0 || size > std::numeric_limits<uint32_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
+        return nullptr;
+    }
     size = SW_MEM_ALIGNED_SIZE(size);
+    if (sw_unlikely(size > std::numeric_limits<uint32_t>::max() - sizeof(RingBufferItem))) {
+        return nullptr;
+    }
     uint32_t alloc_size = size + sizeof(RingBufferItem);
 
     if (impl->free_count > 0) {
@@ -107,7 +121,7 @@ void *RingBuffer::alloc(uint32_t size) {
     }
 
     if (impl->status == 0) {
-        if (impl->alloc_offset + alloc_size >= (impl->size - sizeof(RingBufferItem))) {
+        if (impl->alloc_offset + alloc_size > (impl->size - sizeof(RingBufferItem))) {
             uint32_t skip_n = impl->size - impl->alloc_offset;
             if (skip_n >= sizeof(RingBufferItem)) {
                 item = impl->get_item(impl->alloc_offset);
@@ -150,16 +164,14 @@ void RingBuffer::free(void *ptr) {
     assert(static_cast<char *>(ptr) <= static_cast<char *>(impl->memory) + impl->size);
     assert(item->lock == 1);
 
-    if (item->lock != 1) {
+    if (!sw_atomic_cmp_set(&item->lock, 1, 0)) {
         swoole_debug("invalid free: index=%d, ptr=%p", item->index, (void *) (item->data - (char *) impl->memory));
-    } else {
-        item->lock = 0;
+        return;
     }
 
     swoole_debug("free: ptr=%p", (void *) (item->data - (char *) impl->memory));
 
-    sw_atomic_t *free_count = &impl->free_count;
-    sw_atomic_fetch_add(free_count, 1);
+    sw_atomic_fetch_add(&impl->free_count, 1);
 }
 
 RingBuffer::~RingBuffer() {

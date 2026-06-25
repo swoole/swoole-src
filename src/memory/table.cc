@@ -18,9 +18,26 @@
 #include "swoole_hash.h"
 #include "swoole_util.h"
 
+#include <limits>
 #include <thread>
 
 namespace swoole {
+
+static bool size_mul_overflow(size_t a, size_t b, size_t *result) {
+    if (a != 0 && b > std::numeric_limits<size_t>::max() / a) {
+        return true;
+    }
+    *result = a * b;
+    return false;
+}
+
+static bool size_add_overflow(size_t a, size_t b, size_t *result) {
+    if (b > std::numeric_limits<size_t>::max() - a) {
+        return true;
+    }
+    *result = a + b;
+    return false;
+}
 
 Table *Table::make(uint32_t rows_size, float conflict_proportion) {
     if (rows_size >= SW_TABLE_MAX_ROW_SIZE) {
@@ -60,12 +77,29 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
 }
 
 bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, size_t _size) {
+    if (created) {
+        swoole_warning("unable to add column after table has been created");
+        return false;
+    }
     if (_type < TableColumn::TYPE_INT || _type > TableColumn::TYPE_STRING) {
         swoole_warning("unknown column type");
         return false;
     }
+    if (column_map->find(_name) != column_map->end()) {
+        swoole_warning("column[%s] already exists", _name.c_str());
+        return false;
+    }
+    if (_type == TableColumn::TYPE_STRING && _size > std::numeric_limits<uint32_t>::max() - sizeof(TableStringLength)) {
+        swoole_warning("column[%s] size is too large", _name.c_str());
+        return false;
+    }
 
     auto col = new TableColumn(_name, _type, _size);
+    if (col->size > std::numeric_limits<size_t>::max() - item_size) {
+        delete col;
+        swoole_warning("table row size overflow");
+        return false;
+    }
     col->index = item_size;
     item_size += col->size;
     column_map->emplace(_name, col);
@@ -83,10 +117,12 @@ TableColumn *Table::get_column(const std::string &key) const {
     }
 }
 
-bool Table::exists(const char *key, uint16_t keylen) const {
+bool Table::exists(const char *key, size_t keylen) const {
     TableRow *_rowlock = nullptr;
     const TableRow *row = get(key, keylen, &_rowlock);
-    _rowlock->unlock();
+    if (_rowlock) {
+        _rowlock->unlock();
+    }
     return row != nullptr;
 }
 
@@ -117,27 +153,52 @@ size_t Table::calc_memory_size() const {
     /**
      * table size + conflict size
      */
-    size_t _row_num = size * (1 + conflict_proportion);
+    size_t conflict_row_num = size * conflict_proportion;
+    size_t _row_num = 0;
+    if (size_add_overflow(size, conflict_row_num, &_row_num)) {
+        swoole_warning("table row number overflow");
+        return 0;
+    }
 
     /*
      * header + data
      */
-    size_t _row_memory_size = sizeof(TableRow) + item_size;
+    size_t _row_memory_size = 0;
+    if (size_add_overflow(sizeof(TableRow), item_size, &_row_memory_size)) {
+        swoole_warning("table row memory size overflow");
+        return 0;
+    }
+    _row_memory_size = SW_MEM_ALIGNED_SIZE(_row_memory_size);
 
     /**
      * row data & header
      */
-    size_t _memory_size = _row_num * _row_memory_size;
+    size_t _memory_size = 0;
+    if (size_mul_overflow(_row_num, _row_memory_size, &_memory_size)) {
+        swoole_warning("table memory size overflow");
+        return 0;
+    }
 
     /**
      * memory pool for conflict rows
      */
-    _memory_size += FixedPool::sizeof_struct_impl() + ((_row_num - size) * FixedPool::sizeof_struct_slice());
+    size_t conflict_pool_size = 0;
+    if (size_mul_overflow(_row_num - size, FixedPool::sizeof_struct_slice(), &conflict_pool_size) ||
+        size_add_overflow(conflict_pool_size, FixedPool::sizeof_struct_impl(), &conflict_pool_size) ||
+        size_add_overflow(_memory_size, conflict_pool_size, &_memory_size)) {
+        swoole_warning("table conflict pool memory size overflow");
+        return 0;
+    }
 
     /**
      * for iterator, Iterate through all the elements
      */
-    _memory_size += size * sizeof(TableRow *);
+    size_t rows_index_size = 0;
+    if (size_mul_overflow(size, sizeof(TableRow *), &rows_index_size) ||
+        size_add_overflow(_memory_size, rows_index_size, &_memory_size)) {
+        swoole_warning("table rows index memory size overflow");
+        return 0;
+    }
 
     swoole_trace("_memory_size=%lu, _row_num=%lu, _row_memory_size=%lu", _memory_size, _row_num, _row_memory_size);
 
@@ -165,7 +226,15 @@ bool Table::create() {
     }
 
     size_t _memory_size = calc_memory_size();
-    size_t _row_memory_size = sizeof(TableRow) + item_size;
+    if (_memory_size == 0) {
+        return false;
+    }
+    const size_t _total_memory_size = _memory_size;
+    size_t _row_memory_size = SW_MEM_ALIGNED_SIZE(sizeof(TableRow) + item_size);
+    if (_row_memory_size > std::numeric_limits<uint32_t>::max()) {
+        swoole_warning("table row memory size is too large");
+        return false;
+    }
 
     void *_memory = sw_shm_malloc(_memory_size);
     if (_memory == nullptr) {
@@ -184,9 +253,9 @@ bool Table::create() {
 
     _memory = static_cast<char *>(_memory) + _row_memory_size * size;
     _memory_size -= _row_memory_size * size;
-    pool = new FixedPool(_row_memory_size, _memory, _memory_size, true);
+    pool = new FixedPool(static_cast<uint32_t>(_row_memory_size), _memory, _memory_size, true);
     iterator = new TableIterator(_row_memory_size);
-    memory_size = _memory_size;
+    memory_size = _total_memory_size;
     created = true;
 
     return true;
@@ -307,8 +376,15 @@ void Table::forward() const {
     iterator->unlock();
 }
 
-TableRow *Table::get(const char *key, uint16_t keylen, TableRow **rowlock) const {
-    check_key_length(&keylen);
+TableRow *Table::get(const char *key, size_t keylen, TableRow **rowlock) const {
+    // The caller owns the returned bucket lock and must pass a non-null rowlock to release it.
+    if (sw_unlikely(rowlock == nullptr)) {
+        return nullptr;
+    }
+    *rowlock = nullptr;
+    if (!is_valid_key_length(keylen)) {
+        return nullptr;
+    }
 
     TableRow *row = hash(key, keylen);
 
@@ -332,8 +408,18 @@ TableRow *Table::get(const char *key, uint16_t keylen, TableRow **rowlock) const
     return row;
 }
 
-TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *out_flags) {
-    check_key_length(&keylen);
+TableRow *Table::set(const char *key, size_t keylen, TableRow **rowlock, int *out_flags) {
+    // The caller owns the returned bucket lock and must pass a non-null rowlock to release it.
+    if (sw_unlikely(rowlock == nullptr)) {
+        return nullptr;
+    }
+    *rowlock = nullptr;
+    if (out_flags) {
+        *out_flags = 0;
+    }
+    if (!is_valid_key_length(keylen)) {
+        return nullptr;
+    }
 
     TableRow *row = hash(key, keylen);
     *rowlock = row;
@@ -381,18 +467,19 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
     return row;
 }
 
-bool Table::del(const char *key, uint16_t keylen) {
-    check_key_length(&keylen);
-
-    TableRow *row = hash(key, keylen);
-    // no exists
-    if (!row->active) {
+bool Table::del(const char *key, size_t keylen) {
+    if (!is_valid_key_length(keylen)) {
         return false;
     }
 
+    TableRow *row = hash(key, keylen);
     TableRow *tmp, *prev = nullptr;
 
     row->lock();
+    if (!row->active) {
+        row->unlock();
+        return false;
+    }
     if (row->next == nullptr) {
         if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
             row->clear();

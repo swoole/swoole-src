@@ -61,28 +61,31 @@ SW_API bool swoole_load_resolv_conf() {
     free(fixed_info);
     return false;
 #else
-    FILE *fp;
-    char line[100];
-    char buf[16] = {};
+    std::ifstream file(SwooleG.dns_resolvconf_path);
+    std::string dns_server_host;
 
-    if ((fp = fopen(SwooleG.dns_resolvconf_path.c_str(), "rt")) == nullptr) {
+    if (!file.is_open()) {
         swoole_sys_warning("fopen(%s) failed", SwooleG.dns_resolvconf_path.c_str());
         return false;
     }
 
-    while (fgets(line, 100, fp)) {
-        if (strncmp(line, "nameserver", 10) == 0) {
-            strcpy(buf, strtok(line, " "));
-            strcpy(buf, strtok(nullptr, "\n"));
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream stream(line);
+        std::string key;
+        std::string value;
+
+        stream >> key;
+        if (key == "nameserver" && stream >> value) {
+            dns_server_host = value;
             break;
         }
     }
-    fclose(fp);
 
-    if (strlen(buf) == 0) {
+    if (sw_unlikely(dns_server_host.empty())) {
         return false;
     }
-    swoole_set_dns_server(buf);
+    swoole_set_dns_server(dns_server_host);
     return true;
 #endif
 }
@@ -91,7 +94,7 @@ SW_API void swoole_set_dns_server(const std::string &server) {
     char *_port;
     int dns_server_port = SW_DNS_SERVER_PORT;
     char dns_server_host[32];
-    strcpy(dns_server_host, server.c_str());
+    swoole_strlcpy(dns_server_host, server.c_str(), sizeof(dns_server_host));
     if ((_port = strchr(const_cast<char *>(server.c_str()), ':'))) {
         dns_server_port = sw_atoi(_port + 1);
         if (!Address::verify_port(dns_server_port, true)) {
@@ -124,12 +127,14 @@ SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) 
 
 SW_API void swoole_name_resolver_each(
     const std::function<swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
-    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); ++iter) {
+    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end();) {
         const swTraverseOperation op = fn(iter);
         if (op == SW_TRAVERSE_REMOVE) {
-            SwooleG.name_resolvers.erase(iter++);
+            iter = SwooleG.name_resolvers.erase(iter);
         } else if (op == SW_TRAVERSE_STOP) {
             break;
+        } else {
+            ++iter;
         }
     }
 }
@@ -193,19 +198,10 @@ struct Q_FLAGS {
     uint16_t qclass;
 };
 
-/* Struct for the flags for the DNS RRs */
-struct RR_FLAGS {
-    uint16_t type;
-    uint16_t rdclass;
-    uint32_t ttl;
-    uint16_t rdlength;
-};
-
-static uint16_t dns_request_id = 1;
-
-static int domain_encode(const char *src, int n, char *dest);
-static void domain_decode(char *str);
-static std::string parse_ip_address(void *vaddr, int type);
+static int domain_encode(const char *src, int n, char *dest, size_t dest_len);
+static bool dns_skip_name(const char *packet, size_t packet_len, size_t offset, size_t *consumed);
+static bool dns_read_uint16(const char *packet, size_t packet_len, size_t offset, uint16_t *value);
+static std::string parse_ip_address(const void *vaddr, int type);
 
 std::string get_ip_by_hosts(const std::string &search_domain) {
     std::ifstream file(SwooleG.dns_hosts_path.empty() ? SW_PATH_HOSTS : SwooleG.dns_hosts_path);
@@ -256,8 +252,8 @@ std::string get_ip_by_hosts(const std::string &search_domain) {
     return "";
 }
 
-static std::string parse_ip_address(void *vaddr, int type) {
-    auto addr = static_cast<unsigned char *>(vaddr);
+static std::string parse_ip_address(const void *vaddr, int type) {
+    auto addr = static_cast<const unsigned char *>(vaddr);
     std::string ip_addr;
     if (type == AF_INET) {
         char buff[4 * 4 + 3 + 1];
@@ -282,7 +278,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     Q_FLAGS *qflags = nullptr;
     char packet[SW_BUFFER_SIZE_STD];
     RecordHeader *header = nullptr;
-    int steps = 0;
+    size_t steps = 0;
     std::vector<std::string> result;
 
     if (SwooleG.dns_server.host.empty() && !swoole_load_resolv_conf()) {
@@ -290,8 +286,13 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         return result;
     }
 
-    header = reinterpret_cast<RecordHeader *>(packet);
+    static SW_THREAD_LOCAL uint16_t dns_request_id = 1;
     int _request_id = dns_request_id++;
+    if (dns_request_id == 65535) {
+    	dns_request_id = 1;
+    }
+
+    header = reinterpret_cast<RecordHeader *>(packet);
     header->id = htons(_request_id);
     header->qr = 0;
     header->opcode = 0;
@@ -311,12 +312,18 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     char *_domain_name = &packet[steps];
 
     const int len = strlen(domain);
-    if (domain_encode(domain, len, _domain_name) < 0) {
+    int domain_name_len = domain_encode(domain, len, _domain_name, sizeof(packet) - steps);
+    if (domain_name_len < 0) {
         swoole_warning("invalid domain[%s]", domain);
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
 
-    steps += (strlen((const char *) _domain_name) + 1);
+    steps += domain_name_len;
+    if (sw_unlikely(steps + sizeof(Q_FLAGS) > sizeof(packet))) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+        return result;
+    }
 
     qflags = reinterpret_cast<Q_FLAGS *>(&packet[steps]);
     qflags->qtype = htons(family == AF_INET6 ? SW_DNS_AAAA_RECORD : SW_DNS_A_RECORD);
@@ -335,154 +342,204 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     /**
      * response
      */
-    header = nullptr;
-    qflags = nullptr;
-    RR_FLAGS *rrflags = nullptr;
-
-    uchar rdata[10][254];
-    uint32_t type[10];
-    sw_memset_zero(rdata, sizeof(rdata));
-
-    steps = 0;
-
-    char name[10][254];
-    int i;
-
     auto ret = _sock.recv(packet, sizeof(packet) - 1);
     if (ret <= 0) {
         swoole_set_last_error(_sock.errCode == ECANCELED ? SW_ERROR_CO_CANCELED : SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
 
-    packet[ret] = 0;
-    header = reinterpret_cast<RecordHeader *>(packet);
-    steps = sizeof(RecordHeader);
-
-    _domain_name = &packet[steps];
-    domain_decode(_domain_name);
-    steps = steps + (strlen(_domain_name) + 2);
-
-    qflags = reinterpret_cast<Q_FLAGS *>(&packet[steps]);
-    (void) qflags;
-    steps = steps + sizeof(Q_FLAGS);
-
-    int ancount = ntohs(header->ancount);
-    if (ancount > 10) {
-        ancount = 10;
-    }
-    /* Parsing the RRs from the reply packet */
-    for (i = 0; i < ancount; ++i) {
-        type[i] = 0;
-        /* Parsing the NAME portion of the RR */
-        char *temp = &packet[steps];
-        int j = 0;
-        while (*temp != 0) {
-            if ((uchar) (*temp) == 0xc0) {
-                ++temp;
-                temp = &packet[(uint8_t) *temp];
-            } else {
-                name[i][j] = *temp;
-                ++j;
-                ++temp;
-            }
-        }
-        name[i][j] = '\0';
-
-        domain_decode(name[i]);
-        steps = steps + 2;
-
-        /* Parsing the RR flags of the RR */
-        rrflags = (RR_FLAGS *) &packet[steps];
-        steps = steps + sizeof(RR_FLAGS) - 2;
-
-        /* Parsing the IPv4 address in the RR */
-        type[i] = ntohs(rrflags->type);
-        for (j = 0; j < ntohs(rrflags->rdlength); ++j) {
-            rdata[i][j] = (uchar) packet[steps + j];
-        }
-
-        /* Parsing the canonical name in the RR */
-        if (ntohs(rrflags->type) == 5) {
-            temp = &packet[steps];
-            j = 0;
-            while (*temp != 0) {
-                if ((uchar) (*temp) == 0xc0) {
-                    ++temp;
-                    temp = &packet[(uint8_t) *temp];
-                } else {
-                    rdata[i][j] = *temp;
-                    ++j;
-                    ++temp;
-                }
-            }
-            rdata[i][j] = '\0';
-            domain_decode((char *) rdata[i]);
-            type[i] = ntohs(rrflags->type);
-        }
-        steps = steps + ntohs(rrflags->rdlength);
-    }
-
-    int request_id = ntohs(header->id);
-    // bad response
-    if (request_id != _request_id) {
+    const size_t packet_len = ret;
+    if (sw_unlikely(packet_len < sizeof(RecordHeader))) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
-    for (i = 0; i < ancount; i++) {
-        if (type[i] != SW_DNS_A_RECORD && type[i] != SW_DNS_AAAA_RECORD) {
-            continue;
-        }
-        result.push_back(parse_ip_address(rdata[i], type[i] == SW_DNS_A_RECORD ? AF_INET : AF_INET6));
+
+    header = reinterpret_cast<RecordHeader *>(packet);
+    int request_id = ntohs(header->id);
+    if (sw_unlikely(request_id != _request_id)) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+        return result;
     }
+
+    steps = sizeof(RecordHeader);
+
+    const uint16_t qdcount = ntohs(header->qdcount);
+    const uint16_t ancount = ntohs(header->ancount);
+    for (uint16_t i = 0; i < qdcount; i++) {
+        size_t consumed = 0;
+        if (sw_unlikely(!dns_skip_name(packet, packet_len, steps, &consumed))) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return result;
+        }
+        steps += consumed;
+        if (sw_unlikely(steps + sizeof(Q_FLAGS) > packet_len)) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return result;
+        }
+        steps += sizeof(Q_FLAGS);
+    }
+
+    for (uint16_t i = 0; i < ancount; i++) {
+        size_t consumed = 0;
+        uint16_t rr_type = 0;
+        uint16_t rdlength = 0;
+
+        if (sw_unlikely(!dns_skip_name(packet, packet_len, steps, &consumed))) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return result;
+        }
+        steps += consumed;
+
+        // RR fixed fields: TYPE(2) + CLASS(2) + TTL(4) + RDLENGTH(2).
+        if (sw_unlikely(steps + 10 > packet_len ||
+                        !dns_read_uint16(packet, packet_len, steps, &rr_type) ||
+                        !dns_read_uint16(packet, packet_len, steps + 8, &rdlength))) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return result;
+        }
+        steps += 10;
+
+        if (sw_unlikely(steps + rdlength > packet_len)) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return result;
+        }
+
+        if (rr_type == SW_DNS_A_RECORD) {
+            if (sw_unlikely(rdlength != sizeof(in_addr))) {
+                swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+                return result;
+            }
+            result.push_back(parse_ip_address(packet + steps, AF_INET));
+        } else if (rr_type == SW_DNS_AAAA_RECORD) {
+            if (sw_unlikely(rdlength != sizeof(in6_addr))) {
+                swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+                return result;
+            }
+            result.push_back(parse_ip_address(packet + steps, AF_INET6));
+        } else if (rr_type == 5) {
+            size_t cname_consumed = 0;
+            if (sw_unlikely(!dns_skip_name(packet, packet_len, steps, &cname_consumed) || cname_consumed > rdlength)) {
+                swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+                return result;
+            }
+        }
+
+        steps += rdlength;
+        if (result.size() >= 10) {
+            break;
+        }
+    }
+
     if (result.empty()) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
     }
     return result;
 }
 
+static bool dns_read_uint16(const char *packet, size_t packet_len, size_t offset, uint16_t *value) {
+    if (sw_unlikely(offset + sizeof(uint16_t) > packet_len)) {
+        return false;
+    }
+    uint16_t tmp;
+    memcpy(&tmp, packet + offset, sizeof(tmp));
+    *value = ntohs(tmp);
+    return true;
+}
+
+static bool dns_skip_name(const char *packet, size_t packet_len, size_t offset, size_t *consumed) {
+    size_t pos = offset;
+    size_t read_bytes = 0;
+    bool jumped = false;
+
+    *consumed = 0;
+
+    for (size_t depth = 0; depth < packet_len; depth++) {
+        if (sw_unlikely(pos >= packet_len)) {
+            return false;
+        }
+
+        const auto length = static_cast<unsigned char>(packet[pos]);
+        const auto label_type = length & 0xc0;
+
+        if (label_type == 0xc0) {
+            if (sw_unlikely(pos + 1 >= packet_len)) {
+                return false;
+            }
+            const size_t pointer = ((length & 0x3f) << 8) | static_cast<unsigned char>(packet[pos + 1]);
+            if (sw_unlikely(pointer >= packet_len)) {
+                return false;
+            }
+            if (!jumped) {
+                read_bytes += 2;
+                *consumed = read_bytes;
+            }
+            jumped = true;
+            pos = pointer;
+            continue;
+        }
+
+        if (sw_unlikely(label_type != 0 || length > 63)) {
+            return false;
+        }
+
+        pos++;
+        if (!jumped) {
+            read_bytes++;
+        }
+
+        if (length == 0) {
+            if (!jumped) {
+                *consumed = read_bytes;
+            }
+            return true;
+        }
+
+        if (sw_unlikely(pos + length > packet_len)) {
+            return false;
+        }
+        pos += length;
+        if (!jumped) {
+            read_bytes += length;
+        }
+    }
+
+    return false;
+}
+
 /**
  * The function converts the dot-based hostname into the DNS format
  * (i.e. www.apple.com into 3www5apple3com0)
  */
-static int domain_encode(const char *src, int n, char *dest) {
-    if (src[n] == '.') {
+static int domain_encode(const char *src, int n, char *dest, size_t dest_len) {
+    if (sw_unlikely(n <= 0 || src[n] == '.' || static_cast<size_t>(n) > 253)) {
         return SW_ERR;
     }
 
-    int pos = 0;
-    int len = 0;
-    memcpy(dest + 1, src, n + 1);
-    dest[n + 1] = '.';
-    dest[n + 2] = 0;
-    src = dest + 1;
-    n++;
+    size_t dest_pos = 0;
+    size_t label_start = 0;
+    const size_t src_len = n;
 
-    for (int i = 0; i < n; i++) {
-        if (src[i] == '.') {
-            len = i - pos;
-            dest[pos] = len;
-            pos += len + 1;
+    for (size_t i = 0; i <= src_len; i++) {
+        if (i != src_len && src[i] != '.') {
+            continue;
         }
-    }
-    dest[pos] = 0;
-    return SW_OK;
-}
 
-/**
- * This function converts a DNS-based hostname into dot-based format
- * (i.e. 3www5apple3com0 into www.apple.com)
- */
-static void domain_decode(char *str) {
-    size_t i;
-    for (i = 0; i < strlen(str); i++) {
-        uint32_t len = str[i];
-        for (size_t j = 0; j < len; j++) {
-            str[i] = str[i + 1];
-            i++;
+        const size_t label_len = i - label_start;
+        if (sw_unlikely(label_len == 0 || label_len > 63 || dest_pos + label_len + 1 >= dest_len)) {
+            return SW_ERR;
         }
-        str[i] = '.';
+
+        dest[dest_pos++] = static_cast<char>(label_len);
+        memcpy(dest + dest_pos, src + label_start, label_len);
+        dest_pos += label_len;
+        label_start = i + 1;
     }
-    str[i - 1] = '\0';
+
+    if (sw_unlikely(dest_pos >= dest_len)) {
+        return SW_ERR;
+    }
+    dest[dest_pos++] = 0;
+    return dest_pos;
 }
 
 #ifdef SW_USE_CARES
@@ -577,20 +634,17 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
 
     if (!SwooleG.dns_server.host.empty()) {
 #if (ARES_VERSION >= 0x010b00)
-        struct ares_addr_port_node servers;
+        struct ares_addr_port_node servers = {};
         servers.family = AF_INET;
-        servers.next = nullptr;
-        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
-        servers.tcp_port = 0;
         servers.udp_port = SwooleG.dns_server.port;
+        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
         ares_set_servers_ports(ctx.channel, &servers);
 #elif (ARES_VERSION >= 0x010701)
-        struct ares_addr_node servers;
+        struct ares_addr_node servers = {};
         servers.family = AF_INET;
-        servers.next = nullptr;
-        inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
+        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
         ares_set_servers(ctx.channel, &servers);
-        if (SwooleG.dns_server_port != SW_DNS_SERVER_PORT) {
+        if (SwooleG.dns_server.port != SW_DNS_SERVER_PORT) {
             swoole_warning("not support to set port of dns server");
         }
 #else
@@ -815,7 +869,7 @@ int getaddrinfo(GetaddrinfoRequest *req) {
     hints.ai_protocol = req->protocol;
 
     int ret = ::getaddrinfo(req->hostname.c_str(), req->service.c_str(), &hints, &result);
-    if (ret != 0) {
+    if (sw_unlikely(ret != 0)) {
         req->error = ret;
         return SW_ERR;
     }
@@ -826,7 +880,7 @@ int getaddrinfo(GetaddrinfoRequest *req) {
     req->count = SW_MIN(i, SW_DNS_HOST_BUFFER_SIZE);
     req->results.resize(req->count);
 
-    for (ptr = result, i = 0; ptr != nullptr; ptr = ptr->ai_next, i++) {
+    for (ptr = result, i = 0; ptr != nullptr && i < req->count; ptr = ptr->ai_next, i++) {
         switch (ptr->ai_family) {
         case AF_INET:
             memcpy(&req->results[i], ptr->ai_addr, sizeof(struct sockaddr_in));
@@ -836,9 +890,6 @@ int getaddrinfo(GetaddrinfoRequest *req) {
             break;
         default:
             swoole_warning("unknown socket family[%d]", ptr->ai_family);
-            break;
-        }
-        if (i == SW_DNS_HOST_BUFFER_SIZE) {
             break;
         }
     }

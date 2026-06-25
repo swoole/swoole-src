@@ -30,6 +30,7 @@ const char *swoole_strerror(int code) {
     if (code < SW_ERROR_BEGIN) {
         return strerror(code);
     }
+	static thread_local char buffer[32];
     /* swstrerror {{{*/
     switch (code) {
     case SW_ERROR_MALLOC_FAIL:
@@ -293,7 +294,6 @@ const char *swoole_strerror(int code) {
     case SW_ERROR_CO_SOCKET_CLOSE_WAIT:
         return "Coroutine socket close wait";
     default:
-        static char buffer[32];
 #ifndef __MACH__
         snprintf(buffer, sizeof(buffer), "Unknown error %d", code);
 #else

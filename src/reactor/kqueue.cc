@@ -94,11 +94,10 @@ ReactorKqueue::~ReactorKqueue() {
 }
 
 int ReactorKqueue::add(Socket *socket, int events) {
-    struct kevent e;
-    int ret;
+    struct kevent changelist[2];
+    int n = 0;
 
     int fd = socket->fd;
-    int fflags = 0;
 
 #if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
     auto sobj = socket;
@@ -107,36 +106,27 @@ int ReactorKqueue::add(Socket *socket, int events) {
 #endif
 
     if (Reactor::isset_read_event(events)) {
+        int fflags = 0;
 #ifdef NOTE_EOF
         fflags = NOTE_EOF;
 #endif
-        EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
-        ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
-        if (ret < 0) {
-            swoole_error_log(SW_LOG_WARNING,
-                             SW_ERROR_EVENT_ADD_FAILED,
-                             "add events[fd=%d, reactor_id=%d, type=%d, events=read] failed",
-                             fd,
-                             reactor_->id,
-                             socket->fd_type);
-            swoole_print_backtrace_on_error();
-            return SW_ERR;
-        }
+        EV_SET(&changelist[n++], fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
     }
 
     if (Reactor::isset_write_event(events)) {
-        EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
-        ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
-        if (ret < 0) {
-            swoole_error_log(SW_LOG_WARNING,
-                             SW_ERROR_EVENT_ADD_FAILED,
-                             "add events[fd=%d, reactor_id=%d, type=%d, events=write] failed",
-                             fd,
-                             reactor_->id,
-                             socket->fd_type);
-            swoole_print_backtrace_on_error();
-            return SW_ERR;
-        }
+        EV_SET(&changelist[n++], fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
+    }
+
+    if (n > 0 && ::kevent(epfd_, changelist, n, nullptr, 0, nullptr) < 0) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_EVENT_ADD_FAILED,
+                         "add events[fd=%d, reactor_id=%d, type=%d, events=%d] failed",
+                         fd,
+                         reactor_->id,
+                         socket->fd_type,
+                         events);
+        swoole_print_backtrace_on_error();
+        return SW_ERR;
     }
 
     reactor_->_add(socket, events);
@@ -146,11 +136,11 @@ int ReactorKqueue::add(Socket *socket, int events) {
 }
 
 int ReactorKqueue::set(Socket *socket, int events) {
-    struct kevent e;
-    int ret;
+    struct kevent changelist[2];
+    int n = 0;
 
     int fd = socket->fd;
-    int fflags = 0;
+    int old_events = socket->events;
 
 #if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
     auto sobj = socket;
@@ -158,56 +148,39 @@ int ReactorKqueue::set(Socket *socket, int events) {
     auto sobj = reinterpret_cast<intptr_t>(socket);
 #endif
 
+    reactor_->_set(socket, events);
+
     if (Reactor::isset_read_event(events)) {
+        int fflags = 0;
 #ifdef NOTE_EOF
         fflags = NOTE_EOF;
 #endif
-        EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
-        ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
-        if (ret < 0) {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, SW_EVENT_READ) failed", fd);
-            swoole_print_backtrace_on_error();
-            return SW_ERR;
-        }
-    } else {
-        EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
-        ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
-        if (ret < 0) {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_REMOVE_FAILED, "kqueue->del(%d, SW_EVENT_READ) failed", fd);
-            swoole_print_backtrace_on_error();
-            return SW_ERR;
-        }
+        EV_SET(&changelist[n++], fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
+    } else if (Reactor::isset_read_event(old_events)) {
+        EV_SET(&changelist[n++], fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
     }
 
     if (Reactor::isset_write_event(events)) {
-        EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
-        ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
-        if (ret < 0) {
-            swoole_error_log(
-                SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
-            swoole_print_backtrace_on_error();
-            return SW_ERR;
-        }
-    } else {
-        EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
-        ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
-        if (ret < 0) {
-            swoole_error_log(
-                SW_LOG_WARNING, SW_ERROR_EVENT_REMOVE_FAILED, "kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
-            swoole_print_backtrace_on_error();
-            return SW_ERR;
-        }
+        EV_SET(&changelist[n++], fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
+    } else if (Reactor::isset_write_event(old_events)) {
+        EV_SET(&changelist[n++], fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
     }
 
-    reactor_->_set(socket, events);
+    if (n > 0 && ::kevent(epfd_, changelist, n, nullptr, 0, nullptr) < 0) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, events=%d) failed", fd, events);
+        swoole_print_backtrace_on_error();
+        return SW_ERR;
+    }
+
     swoole_trace_log(SW_TRACE_EVENT, "[THREAD #%d]epfd=%d, fd=%d, events=%d", SwooleTG.id, epfd_, fd, socket->events);
 
     return SW_OK;
 }
 
 int ReactorKqueue::del(Socket *socket) {
-    struct kevent e;
-    int ret;
+    struct kevent changelist[2];
+    int n = 0;
     int fd = socket->fd;
 
 #if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
@@ -224,24 +197,17 @@ int ReactorKqueue::del(Socket *socket) {
     }
 
     if (socket->events & SW_EVENT_READ) {
-        EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
-        ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
-        if (ret < 0) {
-            after_removal_failure(socket);
-            if (errno != EBADF && errno != ENOENT) {
-                return SW_ERR;
-            }
-        }
+        EV_SET(&changelist[n++], fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
     }
 
     if (socket->events & SW_EVENT_WRITE) {
-        EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
-        ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
-        if (ret < 0) {
-            after_removal_failure(socket);
-            if (errno != EBADF && errno != ENOENT) {
-                return SW_ERR;
-            }
+        EV_SET(&changelist[n++], fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
+    }
+
+    if (n > 0 && ::kevent(epfd_, changelist, n, nullptr, 0, nullptr) < 0) {
+        after_removal_failure(socket);
+        if (errno != EBADF && errno != ENOENT) {
+            return SW_ERR;
         }
     }
 

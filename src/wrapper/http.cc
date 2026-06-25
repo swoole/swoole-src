@@ -209,6 +209,9 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         };
         parse_cookie(at, length, cb);
         auto name = info.find("name");
+        if (name == info.end()) {
+            return 0;
+        }
         auto filename = info.find("filename");
         if (filename == info.end()) {
             impl->current_form_data_name = name->second;

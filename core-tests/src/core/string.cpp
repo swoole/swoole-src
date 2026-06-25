@@ -93,6 +93,14 @@ TEST(string, write) {
     ASSERT_MEMEQ(s3.str, TEST_STR, s3.length);
 }
 
+TEST(string, grow_should_reserve_when_crossing_capacity) {
+    String s1(8);
+    s1.append("hello", 5);
+    s1.grow(4);
+
+    ASSERT_GE(s1.capacity(), s1.get_length());
+}
+
 TEST(string, repeat) {
     auto end_str = "[end]";
     String s1;

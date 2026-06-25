@@ -97,7 +97,7 @@ void String::write(off_t _offset, const String &write_str) {
 void String::write(off_t _offset, const char *write_str, size_t _length) {
     size_t new_length = _offset + _length;
     if (new_length > size) {
-        reserve(swoole_size_align(new_length * 2, swoole_pagesize()));
+        reserve(new_length);
     }
 
     memcpy(str + _offset, write_str, _length);
@@ -108,8 +108,8 @@ void String::write(off_t _offset, const char *write_str, size_t _length) {
 
 void String::grow(size_t incr_value) {
     length += incr_value;
-    if (length == size) {
-        reserve(size * 2);
+    if (sw_unlikely(incr_value > 0 && length >= size)) {
+        reserve(SW_MAX(size * 2, length));
     }
 }
 

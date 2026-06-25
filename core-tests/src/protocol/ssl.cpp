@@ -73,3 +73,9 @@ TEST(ssl, password) {
     ctx.cert_file = swoole::test::get_ssl_dir() + "/passwd.crt";
     ASSERT_TRUE(ctx.create());
 }
+
+TEST(ssl, create_with_invalid_cert_file) {
+    SSLContext ctx;
+    ctx.cert_file = "/nonexistent/cert_file.pem";
+    ASSERT_FALSE(ctx.create());
+}

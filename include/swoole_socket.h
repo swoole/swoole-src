@@ -429,7 +429,9 @@ struct Socket {
 
     int connect(const std::string &host, int port) const {
         Address addr;
-        addr.assign(socket_type, host, port);
+        if (sw_unlikely(!addr.assign(socket_type, host, port))) {
+            return SW_ERR;
+        }
         return connect(addr);
     }
 

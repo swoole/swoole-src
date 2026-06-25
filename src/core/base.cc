@@ -313,7 +313,7 @@ pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
     pid_t pid = fork();
     switch (pid) {
     case -1:
-        return false;
+        return -1;
     case 0:
         fn();
         exit(0);
@@ -577,6 +577,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
 int swoole_system_random(int min, int max) {
     static int dev_random_fd = -1;
     unsigned random_value;
+    unsigned range = max - min + 1;
 
     assert(max > min);
 
@@ -590,11 +591,16 @@ int swoole_system_random(int min, int max) {
     auto next_random_byte = (char *) &random_value;
     constexpr int bytes_to_read = sizeof(random_value);
 
-    if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read) {
-        swoole_sys_warning("read() from /dev/urandom failed");
-        return SW_ERR;
-    }
-    return min + (random_value % (max - min + 1));
+    // rejection sampling to avoid modulo bias
+    unsigned limit = UINT_MAX - UINT_MAX % range;
+    do {
+        if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read) {
+            swoole_sys_warning("read() from /dev/urandom failed");
+            return SW_ERR;
+        }
+    } while (random_value >= limit);
+
+    return min + (random_value % range);
 }
 
 void swoole_redirect_stdout(int new_fd) {
@@ -654,15 +660,12 @@ int swoole_version_compare(const char *version1, const char *version2) {
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v) {
     assert(u > 0);
     assert(v > 0);
-    while (u > 0) {
-        if (u < v) {
-            uint32_t t = u;
-            u = v;
-            v = t;
-        }
-        u = u - v;
+    while (v != 0) {
+        uint32_t t = u % v;
+        u = v;
+        v = t;
     }
-    return v;
+    return u;
 }
 
 /**
@@ -723,6 +726,9 @@ int sw_printf(const char *format, ...) {
 }
 
 bool sw_wait_for(const std::function<bool(void)> &fn, int timeout_ms) {
+    if (timeout_ms < 0) {
+        timeout_ms = INT_MAX;
+    }
     int sleep_msec = 1;
     while (timeout_ms >= 0) {
         if (fn()) {

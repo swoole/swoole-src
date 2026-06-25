@@ -16,6 +16,7 @@
 
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "test_coroutine.h"
 #include "swoole_file.h"
 
@@ -50,5 +51,37 @@ TEST(coroutine_async_file, async_file) {
         struct stat statbuf {};
         ASSERT_EQ(file->stat(&statbuf), true);
         ASSERT_TRUE(statbuf.st_size > 0);
+    });
+}
+
+TEST(coroutine_async_file, close_state_and_fd_zero) {
+    coroutine::run([](void *arg) {
+        string filename = "/tmp/async_file_fd0.txt";
+        auto file = new AsyncFile(filename, O_CREAT | O_RDWR, 0666);
+        ON_SCOPE_EXIT {
+            if (file->ready()) {
+                file->close();
+            }
+            delete file;
+            unlink(filename.c_str());
+        };
+
+        ASSERT_TRUE(file->ready());
+        ASSERT_TRUE(file->close());
+        ASSERT_FALSE(file->ready());
+        ASSERT_FALSE(file->close());
+
+        int stdin_backup = dup(STDIN_FILENO);
+        ASSERT_GE(stdin_backup, 0);
+        ON_SCOPE_EXIT {
+            dup2(stdin_backup, STDIN_FILENO);
+            close(stdin_backup);
+        };
+
+        ASSERT_EQ(close(STDIN_FILENO), 0);
+
+        ASSERT_TRUE(file->open(filename, O_CREAT | O_RDWR, 0666));
+        ASSERT_TRUE(file->ready());
+        ASSERT_EQ(file->get_fd(), 0);
     });
 }

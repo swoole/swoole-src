@@ -96,7 +96,7 @@ bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) const {
 #ifndef __NetBSD__
         *queue_bytes = _stat.msg_cbytes;
 #else
-        *queue_bytes = __stat._msg_cbytes;
+        *queue_bytes = _stat._msg_cbytes;
 #endif
         return true;
     }

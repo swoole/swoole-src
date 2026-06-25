@@ -16,6 +16,8 @@
 
 #include "swoole_memory.h"
 
+#include <limits>
+
 #ifndef _WIN32
 #include <sys/mman.h>
 
@@ -41,7 +43,13 @@ void *SharedMemory::alloc(size_t size) {
     void *mem;
     SharedMemory object;
 
+    if (sw_unlikely(size > std::numeric_limits<size_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
+        return nullptr;
+    }
     size = SW_MEM_ALIGNED_SIZE(size);
+    if (sw_unlikely(size > std::numeric_limits<size_t>::max() - sizeof(SharedMemory))) {
+        return nullptr;
+    }
     size += sizeof(SharedMemory);
 
 #ifdef _WIN32
@@ -99,6 +107,10 @@ void *sw_shm_malloc(size_t size) {
 }
 
 void *sw_shm_calloc(size_t num, size_t _size) {
+    if (sw_unlikely(num != 0 && _size > std::numeric_limits<size_t>::max() / num)) {
+        return nullptr;
+    }
+    // mmap MAP_ANONYMOUS / VirtualAlloc guarantee zero-filled pages, so no explicit memset needed
     return SharedMemory::alloc(num * _size);
 }
 
@@ -126,11 +138,16 @@ void sw_shm_free(void *ptr) {
 
 void *sw_shm_realloc(void *ptr, size_t new_size) {
     SharedMemory *object = SharedMemory::fetch_object(ptr);
+    size_t old_size = object->size_ - sizeof(SharedMemory);
+    if (sw_unlikely(new_size < old_size)) {
+        // Shared memory realloc is grow-only; callers must allocate/copy/free explicitly to shrink.
+        return nullptr;
+    }
     void *new_ptr = sw_shm_malloc(new_size);
     if (new_ptr == nullptr) {
         return nullptr;
     }
-    memcpy(new_ptr, ptr, object->size_);
+    memcpy(new_ptr, ptr, old_size);
     SharedMemory::free(ptr);
     return new_ptr;
 }

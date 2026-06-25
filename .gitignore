@@ -76,6 +76,7 @@ tests/.idea
 /tests/swoole_library/curl/skip
 /core-tests/server/*.log
 cmake-build-debug/
+cmake-build-test/
 *.cbp
 /.vscode
 /.vs

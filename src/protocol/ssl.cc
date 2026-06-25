@@ -106,8 +106,7 @@ static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
 
     if (where & SSL_CB_HANDSHAKE_START) {
         sock = (Socket *) SSL_get_ex_data(ssl, ssl_connection_index);
-
-        if (sock->ssl_state == SW_SSL_STATE_READY) {
+        if (sock && sock->ssl_state == SW_SSL_STATE_READY) {
             sock->ssl_renegotiation = 1;
             swoole_debug("SSL renegotiation");
         }
@@ -115,8 +114,7 @@ static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
 
     if ((where & SSL_CB_ACCEPT_LOOP) == SSL_CB_ACCEPT_LOOP) {
         sock = (Socket *) SSL_get_ex_data(ssl, ssl_connection_index);
-
-        if (!sock->ssl_handshake_buffer_set) {
+        if (sock && !sock->ssl_handshake_buffer_set) {
             /*
              * By default, OpenSSL uses 4k buffer during a handshake,
              * which is too low for long certificate chains and might
@@ -312,7 +310,7 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_file(context, cert_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             ssl_error("SSL_CTX_use_certificate_file(%s) failed", cert_file.c_str());
-            return true;
+            return false;
         }
         /*
          * if the crt file have many certificate entry ,means certificate chain
@@ -715,6 +713,7 @@ static int swoole_ssl_set_default_dhparam(SSL_CTX *ssl_context) {
 
     if (dh->p == nullptr || dh->g == nullptr) {
         DH_free(dh);
+        return SW_ERR;
     }
     SSL_CTX_set_tmp_dh(ssl_context, dh);
     DH_free(dh);

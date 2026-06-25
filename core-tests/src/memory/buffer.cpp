@@ -80,3 +80,27 @@ TEST(buffer, append_iov) {
         offset = 0;
     }
 }
+
+TEST(buffer, append_iov_with_offset_pop_length) {
+    Buffer buf(64);
+
+    char s1[50];
+    char s2[50];
+    memset(s1, 'A', sizeof(s1));
+    memset(s2, 'B', sizeof(s2));
+
+    iovec v[2];
+    v[0].iov_base = s1;
+    v[0].iov_len = sizeof(s1);
+    v[1].iov_base = s2;
+    v[1].iov_len = sizeof(s2);
+
+    buf.append(v, 2, 60);
+    ASSERT_EQ(buf.length(), 40);
+
+    while (!buf.empty()) {
+        buf.pop();
+    }
+
+    ASSERT_EQ(buf.length(), 0);
+}

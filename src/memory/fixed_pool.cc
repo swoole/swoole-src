@@ -16,13 +16,15 @@
 
 #include "swoole_memory.h"
 
+#include <limits>
+
 namespace swoole {
 
 struct FixedPoolSlice {
     uint8_t lock;
     FixedPoolSlice *next;
     FixedPoolSlice *prev;
-    char data[0];
+    char data[];
 };
 
 struct FixedPoolImpl {
@@ -53,8 +55,18 @@ FixedPool::FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared) {
     if (slice_num < 2) {
         throw Exception(SW_ERROR_INVALID_PARAMS);
     }
+    if (sw_unlikely(slice_size > std::numeric_limits<uint32_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     slice_size = SW_MEM_ALIGNED_SIZE(slice_size);
-    size_t size = slice_num * (sizeof(FixedPoolSlice) + slice_size);
+    size_t slice_memory_size = sizeof(FixedPoolSlice) + slice_size;
+    if (sw_unlikely(slice_memory_size > std::numeric_limits<size_t>::max() / slice_num)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
+    size_t size = slice_num * slice_memory_size;
+    if (sw_unlikely(size > std::numeric_limits<size_t>::max() - sizeof(*impl))) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     size_t alloc_size = size + sizeof(*impl);
     void *memory = shared ? ::sw_shm_malloc(alloc_size) : ::sw_malloc(alloc_size);
     if (!memory) {
@@ -78,13 +90,19 @@ FixedPool::FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared) {
  * create new FixedPool, Using the given memory
  */
 FixedPool::FixedPool(uint32_t slice_size, void *memory, size_t size, bool shared) {
+    if (memory == nullptr || size <= sizeof(FixedPoolImpl)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
+    if (sw_unlikely(slice_size > std::numeric_limits<uint32_t>::max() - SW_DEFAULT_ALIGNMENT + 1)) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     impl = (FixedPoolImpl *) memory;
     memory = (char *) memory + sizeof(*impl);
     sw_memset_zero(impl, sizeof(*impl));
     impl->shared = shared;
-    impl->slice_size = slice_size;
+    impl->slice_size = SW_MEM_ALIGNED_SIZE(slice_size);
     impl->size = size - sizeof(*impl);
-    uint32_t slice_num = impl->size / (slice_size + sizeof(FixedPoolSlice));
+    uint32_t slice_num = impl->size / (impl->slice_size + sizeof(FixedPoolSlice));
     if (slice_num < 2) {
         throw Exception(SW_ERROR_INVALID_PARAMS);
     }
@@ -107,8 +125,7 @@ size_t FixedPool::sizeof_struct_impl() {
  */
 void FixedPoolImpl::init() {
     void *cur = memory;
-    void *max = (char *) memory + size;
-    do {
+    for (uint32_t i = 0; i < slice_num; i++) {
         auto *slice = static_cast<FixedPoolSlice *>(cur);
         sw_memset_zero(slice, sizeof(FixedPoolSlice));
 
@@ -121,15 +138,7 @@ void FixedPoolImpl::init() {
 
         head = slice;
         cur = (char *) cur + (sizeof(FixedPoolSlice) + slice_size);
-
-        if (cur < max) {
-            slice->prev = static_cast<FixedPoolSlice *>(cur);
-        } else {
-            slice->prev = nullptr;
-            break;
-        }
-
-    } while (true);
+    }
 }
 
 uint32_t FixedPool::get_number_of_spare_slice() const {
@@ -145,8 +154,12 @@ uint32_t FixedPool::get_slice_size() const {
 }
 
 void *FixedPool::alloc(uint32_t size) {
+    if (size > impl->slice_size) {
+        swoole_set_last_error(SW_ERROR_MALLOC_FAIL);
+        return nullptr;
+    }
     FixedPoolSlice *slice = impl->head;
-    if (slice->lock) {
+    if (slice == nullptr || slice->lock) {
         swoole_set_last_error(SW_ERROR_MALLOC_FAIL);
         assert(get_number_of_spare_slice() == 0);
         return nullptr;
@@ -157,7 +170,9 @@ void *FixedPool::alloc(uint32_t size) {
 
     // move next slice to head (idle list)
     impl->head = slice->next;
-    impl->head->prev = nullptr;
+    if (impl->head != nullptr) {
+        impl->head->prev = nullptr;
+    }
 
     // move this slice to tail (busy list)
     impl->tail->next = slice;
@@ -192,7 +207,9 @@ void FixedPool::free(void *ptr) {
     // move slice to head (idle)
     slice->prev = nullptr;
     slice->next = impl->head;
-    impl->head->prev = slice;
+    if (impl->head != nullptr) {
+        impl->head->prev = slice;
+    }
     impl->head = slice;
 }
 

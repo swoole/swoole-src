@@ -64,12 +64,14 @@ class SocketPair {
         return master_socket != nullptr && worker_socket != nullptr;
     }
 
+    // Contract: only call after ready() is true; constructors leave sockets null when OS setup fails.
     void set_timeout(double _timeout) {
         timeout = _timeout;
         master_socket->set_timeout(timeout);
         worker_socket->set_timeout(timeout);
     }
 
+    // Contract: only call after ready() is true; constructors leave sockets null when OS setup fails.
     void set_blocking(bool _blocking);
 };
 

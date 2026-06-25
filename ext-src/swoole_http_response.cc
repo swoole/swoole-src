@@ -1082,6 +1082,9 @@ static PHP_METHOD(swoole_http_response, status) {
     }
 
     ctx->response.status = http_status;
+    if (ctx->response.reason) {
+        efree(ctx->response.reason);
+    }
     ctx->response.reason = reason_len > 0 ? estrndup(reason, reason_len) : nullptr;
     RETURN_TRUE;
 }

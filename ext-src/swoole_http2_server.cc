@@ -1039,6 +1039,8 @@ static int http2_server_parse_header(
                     zend_long content_length = std::strtol((char *) nv.value, &end, 10);
                     if (end != (char *) nv.value + nv.valuelen || content_length > client->max_body_size) {
                         http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE);
+                        swoole_http2_server_goaway(ctx, SW_HTTP2_ERROR_NO_ERROR, nullptr);
+                        return SW_ERR;
                     }
                 }
 #ifdef SW_HAVE_COMPRESSION
@@ -1299,9 +1301,12 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     zval zdata;
     php_swoole_get_recv_data(serv, &zdata, req);
     int retval = swoole_http2_server_parse(client, Z_STRVAL(zdata));
+    if (retval < 0) {
+    	client->default_ctx->close(client->default_ctx);
+    }
     zval_ptr_dtor(&zdata);
 
-    return retval;
+    return SW_OK;
 }
 
 void php_swoole_http2_server_onClose(Server *serv, SessionId session_id) {

@@ -209,6 +209,8 @@ int Client::shutdown(int _how) {
             return SW_ERR;
         } else {
             shutdown_read = true;
+            shutdown_write = true;
+            shutdown_rw = true;
             return SW_OK;
         }
     } else {
@@ -756,7 +758,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
             goto _connect_fail;
         }
         cli->buffer->length += n;
-        if (!cli->socks5_handshake(buf, buf_size)) {
+        if (!cli->socks5_handshake(buf, n)) {
             swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
             goto _connect_fail;
         }

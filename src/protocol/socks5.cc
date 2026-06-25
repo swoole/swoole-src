@@ -174,7 +174,7 @@ ssize_t Socks5Proxy::pack_connect_request() {
     p += 3;
 
     if (dns_tunnel) {
-        if (host.length() > 480) {
+        if (target_host.length() > 480) {
             swoole_error_log(
                 SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS5 host is too long, max length is 480 bytes");
             return -1;

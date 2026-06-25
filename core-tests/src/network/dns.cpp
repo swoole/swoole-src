@@ -23,6 +23,8 @@
 
 #include "swoole_util.h"
 
+#include <atomic>
+
 using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
@@ -138,6 +140,129 @@ TEST(dns, load_resolv_conf) {
     dns_server = swoole_get_dns_server();
     ASSERT_EQ(dns_server.host, ori_dns_server.host);
     ASSERT_EQ(dns_server.port, ori_dns_server.port);
+}
+
+TEST(dns, load_resolv_conf_empty_nameserver) {
+    std::string resolv_conf = "/tmp/swoole_resolv_conf_empty." + std::to_string(getpid());
+    std::ofstream file(resolv_conf);
+    ASSERT_TRUE(file.is_open());
+    file << "nameserver\n";
+    file.close();
+
+    auto ori_path = SwooleG.dns_resolvconf_path;
+    auto ori_dns_server = SwooleG.dns_server;
+    ON_SCOPE_EXIT {
+        SwooleG.dns_resolvconf_path = ori_path;
+        SwooleG.dns_server = ori_dns_server;
+        unlink(resolv_conf.c_str());
+    };
+
+    SwooleG.dns_resolvconf_path = resolv_conf;
+    ASSERT_FALSE(swoole_load_resolv_conf());
+}
+
+TEST(dns, load_resolv_conf_long_nameserver) {
+    std::string resolv_conf = "/tmp/swoole_resolv_conf_long." + std::to_string(getpid());
+    std::ofstream file(resolv_conf);
+    ASSERT_TRUE(file.is_open());
+    file << "nameserver " << std::string(256, '1') << "\n";
+    file.close();
+
+    auto ori_path = SwooleG.dns_resolvconf_path;
+    auto ori_dns_server = SwooleG.dns_server;
+    ON_SCOPE_EXIT {
+        SwooleG.dns_resolvconf_path = ori_path;
+        SwooleG.dns_server = ori_dns_server;
+        unlink(resolv_conf.c_str());
+    };
+
+    SwooleG.dns_resolvconf_path = resolv_conf;
+    ASSERT_TRUE(swoole_load_resolv_conf());
+    ASSERT_LT(SwooleG.dns_server.host.size(), 32);
+}
+
+TEST(dns, getaddrinfo_result_limit) {
+    GetaddrinfoRequest req("localhost", AF_UNSPEC, SOCK_STREAM, 0, "http");
+    ASSERT_EQ(network::getaddrinfo(&req), 0);
+    ASSERT_LE(req.count, SW_DNS_HOST_BUFFER_SIZE);
+    ASSERT_EQ(req.results.size(), static_cast<size_t>(req.count));
+}
+
+TEST(dns, lookup_with_too_long_label) {
+    auto ori_dns_server = SwooleG.dns_server;
+    ON_SCOPE_EXIT {
+        SwooleG.dns_server = ori_dns_server;
+    };
+
+    SwooleG.dns_server.host = "127.0.0.1";
+    SwooleG.dns_server.port = get_random_port();
+
+    auto result = swoole::coroutine::dns_lookup_impl_with_socket((std::string(64, 'a') + ".com").c_str(), AF_INET, 1);
+    ASSERT_TRUE(result.empty());
+    ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+}
+
+TEST(dns, lookup_with_malformed_response) {
+    auto ori_dns_server = SwooleG.dns_server;
+    int port = get_random_port();
+    std::atomic<bool> server_error{false};
+    std::mutex m;
+    m.lock();
+
+    std::thread server_thread([&]() {
+        int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if (fd < 0) {
+            server_error = true;
+            m.unlock();
+            return;
+        }
+
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(port);
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+        if (::bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
+            server_error = true;
+            m.unlock();
+            close(fd);
+            return;
+        }
+        m.unlock();
+
+        char buf[512];
+        sockaddr_in client_addr{};
+        socklen_t client_addr_len = sizeof(client_addr);
+        ssize_t n = ::recvfrom(fd, buf, sizeof(buf), 0, reinterpret_cast<sockaddr *>(&client_addr), &client_addr_len);
+        if (n > 0) {
+            const char malformed_response[2] = {};
+            ::sendto(fd,
+                     malformed_response,
+                     sizeof(malformed_response),
+                     0,
+                     reinterpret_cast<sockaddr *>(&client_addr),
+                     client_addr_len);
+        }
+        close(fd);
+    });
+
+    ON_SCOPE_EXIT {
+        SwooleG.dns_server = ori_dns_server;
+        server_thread.join();
+    };
+
+    m.lock();
+    m.unlock();
+    ASSERT_FALSE(server_error);
+
+    SwooleG.dns_server.host = "127.0.0.1";
+    SwooleG.dns_server.port = port;
+
+    test::coroutine::run([](void *) {
+        auto result = swoole::coroutine::dns_lookup_impl_with_socket("example.com", AF_INET, 1);
+        ASSERT_TRUE(result.empty());
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    });
 }
 
 TEST(dns, gethosts) {

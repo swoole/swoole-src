@@ -201,7 +201,7 @@ class AsyncFile {
     ~AsyncFile();
 
     bool open(const std::string &path, int flags, mode_t mode);
-    bool close() const;
+    bool close();
 
     ssize_t read(void *buf, size_t count) const;
     ssize_t write(const void *buf, size_t count) const;
@@ -218,6 +218,10 @@ class AsyncFile {
 
     bool ready() const {
         return fd != -1;
+    }
+
+    int get_fd() const {
+        return fd;
     }
 };
 }  // namespace swoole

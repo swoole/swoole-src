@@ -36,6 +36,7 @@ static inline swReturnCode catch_system_error(int error) {
     case SW_SUCCESS:
     case EAGAIN:
     case EINTR:
+    case ETIMEDOUT:
         return SW_CONTINUE;
     default:
         return SW_ERROR;
@@ -322,12 +323,17 @@ int ProcessPool::push_message(uint8_t _type, const void *data, size_t length) co
     }
 
     EventData msg;
-    assert(length < sizeof(msg.data));
+    if (sw_unlikely((data == nullptr && length > 0) || length > sizeof(msg.data))) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        return SW_ERR;
+    }
 
     msg.info = {};
     msg.info.type = _type;
     msg.info.len = length;
-    memcpy(msg.data, data, length);
+    if (length > 0) {
+        memcpy(msg.data, data, length);
+    }
 
     return push_message(&msg);
 }
@@ -620,8 +626,12 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
 int ProcessPool::recv_packet(Reactor *reactor, Event *event) {
     auto *pool = static_cast<ProcessPool *>(reactor->ptr);
     ssize_t n = event->socket->read(pool->packet_buffer, pool->max_packet_size_);
-    if (n < 0 && errno != EINTR) {
-        swoole_sys_warning("failed to read(%d) pipe", event->fd);
+    if (sw_unlikely(n < 0)) {
+        if (errno != EINTR && errno != EAGAIN) {
+            swoole_sys_warning("failed to read(%d) pipe", event->fd);
+            return SW_ERR;
+        }
+        return SW_OK;
     }
     RecvData msg{};
     msg.info.reactor_id = -1;
@@ -1001,7 +1011,6 @@ int ProcessPool::wait() {
         if (swoole_waitpid(worker->pid, &status, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", worker->pid);
         }
-        break;
     }
     started = false;
 

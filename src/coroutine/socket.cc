@@ -305,17 +305,18 @@ bool Socket::reinit_sock(SocketType _type) {
 
     auto new_sock = make_socket(
         _type, SW_FD_CO_SOCKET, _sock_domain, _sock_type, sock_protocol, SW_SOCK_NONBLOCK | SW_SOCK_CLOEXEC);
-    if (socket == nullptr) {
+    if (sw_unlikely(new_sock == nullptr)) {
         return false;
     }
 
+    // Switch to the new socket only after allocation succeeds.
     socket->free();
     socket = new_sock;
     socket->object = this;
-    socket->info.type = type;
     sock_domain = _sock_domain;
     sock_type = _sock_type;
     type = _type;
+    socket->info.type = type;
     sock_fd = socket->fd;
     return true;
 }
