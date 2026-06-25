@@ -33,15 +33,17 @@ bool AsyncFile::open(const std::string &path, int flags, mode_t mode) {
     mode_ = mode;
     path_ = path;
     fd = swoole_coroutine_open(path.c_str(), flags, mode);
-    return fd > 0;
+    return fd >= 0;
 }
 
-bool AsyncFile::close() const {
+bool AsyncFile::close() {
     if (sw_unlikely(fd == -1)) {
         return false;
     }
 
-    return swoole_coroutine_close(fd) == 0;
+    int tmp_fd = fd;
+    fd = -1;
+    return swoole_coroutine_close(tmp_fd) == 0;
 }
 
 ssize_t AsyncFile::read(void *buf, size_t count) const {
