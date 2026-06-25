@@ -709,27 +709,22 @@ PHP_FUNCTION(swoole_tracer_prof_end) {
     zend::array_set(&json, ZEND_STRL("viztracer_metadata"), &metadata);
 
     smart_str buf = {};
-    if (php_json_encode(&buf, &json, 0) == FAILURE) {
-    _fail:
-        zval_ptr_dtor(&TracerG.prof_events);
-        RETURN_FALSE;
+    bool rv = false;
+    if (php_json_encode(&buf, &json, 0) != FAILURE) {
+        std::ofstream outputFile(ZSTR_VAL(file), std::ios::binary);
+        if (outputFile.is_open()) {
+            outputFile.write(buf.s->val, buf.s->len);
+            outputFile.close();
+            rv = true;
+        }
     }
-
-    std::ofstream outputFile(ZSTR_VAL(file), std::ios::binary);
-    if (!outputFile.is_open()) {
-        goto _fail;
-    }
-
-    outputFile.write(buf.s->val, buf.s->len);
-    outputFile.close();
 
     zval_ptr_dtor(&metadata);
     zval_ptr_dtor(&json);
-
     smart_str_free(&buf);
     profiling_clear();
 
-    RETURN_TRUE;
+    RETURN_BOOL(rv);
 }
 
 void php_swoole_tracer_minit(int module_number) {
