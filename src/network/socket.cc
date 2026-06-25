@@ -186,13 +186,14 @@ bool Socket::wait_for(const std::function<ReturnCode()> &fn, int event, int time
 
         int current_timeout_msec = timeout_msec;
         if (timeout_msec > 0) {
-            current_timeout_msec = sec2msec(deadline - microtime());
-            swoole_trace_log(SW_TRACE_CLIENT, "timeout_ms=%d", current_timeout_msec);
-            if (current_timeout_msec <= 0) {
+            double remaining = deadline - microtime();
+            if (remaining <= 0) {
                 swoole_set_last_error(ETIMEDOUT);
                 sw_set_errno(ETIMEDOUT);
                 return false;
             }
+            current_timeout_msec = sec2msec(remaining);
+            swoole_trace_log(SW_TRACE_CLIENT, "timeout_ms=%d", current_timeout_msec);
         }
 
         auto rv = wait_event(current_timeout_msec, what_event_want(event));
