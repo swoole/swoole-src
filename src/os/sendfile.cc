@@ -60,21 +60,31 @@ ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     ssize_t ret;
 
 #ifdef __MACH__
-    off_t remaining = (off_t) size;
-    struct sf_hdtr hdtr = {};
-_do_sendfile:
-    ret = sendfile(in_fd, out_fd, *offset, &remaining, &hdtr, 0);
-    *offset += size - remaining;
-    size = (size_t) remaining;
+    struct sf_hdtr hdtr;
+    hdtr.headers = nullptr;
+    hdtr.hdr_cnt = 0;
+    hdtr.trailers = nullptr;
+    hdtr.trl_cnt = 0;
 #else
     off_t sent_bytes;
-_do_sendfile:
-    ret = sendfile(in_fd, out_fd, *offset, size, 0, &sent_bytes, 0);
-    *offset += sent_bytes;
 #endif
 
+_do_sendfile:
+#ifdef __MACH__
+    ret = sendfile(in_fd, out_fd, *offset, (off_t *) &size, &hdtr, 0);
+#else
+    ret = sendfile(in_fd, out_fd, *offset, size, 0, &sent_bytes, 0);
+#endif
+
+    // sent_bytes = (off_t)size;
     swoole_trace(
         "send file, ret: %zd, out_fd:%d, in_fd:%d, offset:%jd, size:%zu", ret, out_fd, in_fd, (intmax_t) *offset, size);
+
+#ifdef __MACH__
+    *offset += size;
+#else
+    *offset += sent_bytes;
+#endif
 
     if (ret == -1) {
         if (errno == EINTR) {
@@ -88,6 +98,7 @@ _do_sendfile:
         swoole_sys_warning("sendfile failed");
         return SW_ERR;
     }
+    return SW_OK;
 }
 #elif !defined(HAVE_SENDFILE)
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
