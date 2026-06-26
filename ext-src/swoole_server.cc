@@ -642,12 +642,12 @@ void php_swoole_server_minit(int module_number) {
 
 zend::Callable *php_swoole_server_get_callback(Server *serv, int server_fd, int event_type) {
     ListenPort *port = serv->get_port_by_server_fd(server_fd);
-    ServerPortProperty *property = php_swoole_server_get_port_property(port);
-    zend::Callable *cb;
-
     if (sw_unlikely(!port)) {
         return nullptr;
     }
+
+    ServerPortProperty *property = php_swoole_server_get_port_property(port);
+    zend::Callable *cb;
     if (property && ((cb = property->callbacks[event_type]))) {
         return cb;
     } else {
@@ -2325,7 +2325,9 @@ static PHP_METHOD(swoole_server, set) {
             php_swoole_fatal_error(E_ERROR, "The length of document_root must be less than %d", PATH_MAX);
             return;
         }
-        serv->set_document_root(std::string(str_v.val(), str_v.len()));
+        if (sw_unlikely(!serv->set_document_root(std::string(str_v.val(), str_v.len())))) {
+            RETURN_FALSE;
+        }
     }
     if (php_swoole_array_get_value(vht, "http_autoindex", ztmp)) {
         serv->http_autoindex = zval_is_true(ztmp);
