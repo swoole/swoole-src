@@ -116,13 +116,13 @@ Iouring::Iouring(Reactor *_reactor) {
     parse_kernel_version(SwooleG.uname.release, &major, &minor);
 
 #ifdef HAVE_IOURING_FUTEX
-    if (!(major >= 6 && minor >= 7)) {
+    if (!((major > 6) || (major == 6 && minor >= 7))) {
         swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
     }
 #endif
 
 #ifdef HAVE_IOURING_FTRUNCATE
-    if (!(major >= 6 && minor >= 9)) {
+    if (!((major > 6) || (major == 6 && minor >= 9))) {
         swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
     }
 #endif
