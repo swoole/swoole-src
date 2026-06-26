@@ -57,7 +57,8 @@ void put_default_setting(enum swHttp2SettingId id, uint32_t value) {
         default_settings.max_header_list_size = value;
         break;
     default:
-        assert(0);
+        // Unknown HTTP/2 settings must be ignored by the core.
+        swoole_trace_log(SW_TRACE_HTTP2, "ignore unknown setting id=%u", id);
         break;
     }
 }
@@ -77,18 +78,16 @@ uint32_t get_default_setting(enum swHttp2SettingId id) {
     case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
         return default_settings.max_header_list_size;
     default:
-        assert(0);
+        swoole_trace_log(SW_TRACE_HTTP2, "query unknown setting id=%u", id);
         return 0;
     }
 }
 
 static inline void pack_setting_item(char *_buf, enum swHttp2SettingId _id, uint32_t _value) {
-    uint16_t id;
-    uint32_t value;
-    id = htons(_id);
+    const uint16_t id = htons(_id);
+    const uint32_t value = htonl(_value);
     memcpy(_buf, &id, sizeof(id));
-    value = htonl(_value);
-    memcpy(_buf + 2, &value, sizeof(value));
+    memcpy(_buf + sizeof(id), &value, sizeof(value));
 }
 
 size_t pack_setting_frame(char *buf, const Settings &settings, bool server_side) {
@@ -127,8 +126,10 @@ ReturnCode unpack_setting_data(const char *buf,
     uint32_t value = 0;
 
     while (length > 0) {
-        id = ntohs(*(uint16_t *) (buf));
-        value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
+        memcpy(&id, buf, sizeof(id));
+        memcpy(&value, buf + sizeof(id), sizeof(value));
+        id = ntohs(id);
+        value = ntohl(value);
 
         auto rc = cb(id, value);
         if (rc != SW_SUCCESS) {
