@@ -323,6 +323,15 @@ void HttpContext::free() {
         multipart_parser_free(mt_parser);
         mt_parser = nullptr;
     }
+    if (current_form_data_name) {
+        efree(current_form_data_name);
+        current_form_data_name = nullptr;
+        current_form_data_name_len = 0;
+    }
+    if (current_multipart_header) {
+        sw_zval_free(current_multipart_header);
+        current_multipart_header = nullptr;
+    }
     if (form_data_buffer) {
         delete form_data_buffer;
         form_data_buffer = nullptr;
