@@ -1735,13 +1735,13 @@ class Server {
 #ifndef _WIN32
     void store_pipe_fd(UnixSocket *p);
 #endif
-    void destroy_base_factory() const;
+    void destroy_base_factory();
     void destroy_thread_factory() const;
 #ifndef _WIN32
     void destroy_process_factory();
 #endif
     void destroy_worker(Worker *worker);
-    void destroy_task_workers() const;
+    void destroy_task_workers();
     int start_reactor_threads();
 #ifndef _WIN32
     int start_reactor_processes();

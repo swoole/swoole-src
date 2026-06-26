@@ -1740,6 +1740,22 @@ TEST(server, task_wait_multi_dispatch_fail_restores_tasking_num) {
     serv.workers[0].lock = nullptr;
 }
 
+TEST(server, create_task_workers_failure_cleans_partial_state) {
+    Server serv;
+    serv.worker_num = 1;
+    serv.task_worker_num = 1;
+    serv.task_enable_coroutine = true;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+    ASSERT_EQ(serv.create(), SW_ERR);
+
+    EXPECT_EQ(serv.task_results, nullptr);
+    EXPECT_TRUE(serv.task_notify_pipes.empty());
+    EXPECT_EQ(serv.get_task_worker_pool()->workers, nullptr);
+    EXPECT_EQ(serv.get_task_worker_pool()->map_, nullptr);
+}
+
 TEST(server, task_worker2) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;

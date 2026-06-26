@@ -533,8 +533,13 @@ bool Server::create_task_workers() {
 
     ProcessPool *pool = get_task_worker_pool();
     *pool = {};
+    auto cleanup = [this, pool]() {
+        destroy_task_workers();
+        *pool = {};
+    };
     if (pool->create(task_worker_num, key, ipc_mode) < 0) {
         swoole_warning("[Master] create task_workers failed");
+        cleanup();
         return false;
     }
 
@@ -546,6 +551,7 @@ bool Server::create_task_workers() {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
         if (get_task_worker_pool()->listen(sockfile, 2048) < 0) {
+            cleanup();
             return false;
         }
     }
@@ -556,29 +562,33 @@ bool Server::create_task_workers() {
     task_results = static_cast<EventData *>(sw_shm_calloc(worker_num, sizeof(EventData)));
     if (!task_results) {
         swoole_warning("sw_shm_calloc(%d, %zu) for task_result failed", worker_num, sizeof(EventData));
+        cleanup();
         return false;
     }
     SW_LOOP_N(worker_num) {
         auto _pipe = new Pipe(true);
         if (!_pipe->ready()) {
-            sw_shm_free(task_results);
             delete _pipe;
+            cleanup();
             return false;
         }
         task_notify_pipes.emplace_back(_pipe);
     }
 
     if (!init_task_workers()) {
+        cleanup();
         return false;
     }
 
     return true;
 }
 
-void Server::destroy_task_workers() const {
+void Server::destroy_task_workers() {
     if (task_results) {
         sw_shm_free(task_results);
+        task_results = nullptr;
     }
+    task_notify_pipes.clear();
     get_task_worker_pool()->destroy();
 }
 
