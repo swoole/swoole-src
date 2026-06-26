@@ -3627,13 +3627,13 @@ static PHP_METHOD(swoole_server, getClientInfo) {
 
     zend_long fd;
     zend_long reactor_id = -1;
-    zend_bool dont_check_connection = false;
+    zend_bool ignore_error = false;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_LONG(fd)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(reactor_id)
-    Z_PARAM_BOOL(dont_check_connection)
+    Z_PARAM_BOOL(ignore_error)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     ClientInfoSnapshot info;
