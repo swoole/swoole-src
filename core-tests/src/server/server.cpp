@@ -1703,6 +1703,43 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.gs->task_count, 2);
 }
 
+TEST(server, task_wait_multi_dispatch_fail_restores_tasking_num) {
+    Server serv;
+    serv.worker_num = 1;
+    serv.task_worker_num = 1;
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.get_event_worker_pool()->workers = serv.workers;
+    serv.get_event_worker_pool()->worker_num = serv.worker_num;
+    serv.workers[0].lock = new Mutex(true);
+
+    WorkerId old_worker_id = swoole_get_worker_id();
+    swoole_set_worker_id(0);
+
+    auto *task_worker = &serv.get_task_worker_pool()->workers[0];
+    ASSERT_NE(task_worker->pipe_master, nullptr);
+    ASSERT_GE(task_worker->pipe_master->fd, 0);
+    close(task_worker->pipe_master->fd);
+    task_worker->pipe_master->fd = SW_BAD_SOCKET;
+
+    uint16_t fail_count = 0;
+    Server::MultiTask mt(1);
+    mt.pack = [](uint16_t, EventData *buf) -> TaskId {
+        return Server::task_pack(buf, SW_STRL("task")) ? buf->info.fd : -1;
+    };
+    mt.unpack = [](uint16_t, EventData *) {};
+    mt.fail = [&fail_count](uint16_t) { fail_count++; };
+
+    ASSERT_FALSE(serv.task_sync(mt, 0.01));
+    EXPECT_EQ(fail_count, 1);
+    EXPECT_EQ(serv.get_tasking_num(), 0);
+
+    swoole_set_worker_id(old_worker_id);
+    delete serv.workers[0].lock;
+    serv.workers[0].lock = nullptr;
+}
+
 TEST(server, task_worker2) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
