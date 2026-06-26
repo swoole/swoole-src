@@ -212,9 +212,10 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         if (name == info.end()) {
             return 0;
         }
+        impl->current_form_data_name = name->second;
         auto filename = info.find("filename");
         if (filename == info.end()) {
-            impl->current_form_data_name = name->second;
+            impl->current_input_name.clear();
         } else {
             impl->current_input_name = filename->second;
         }
@@ -273,6 +274,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         swoole_sys_warning("fopen(%s) failed", file_path);
+        ::close(tmpfile);
         return 0;
     }
     p->fp = fp;
