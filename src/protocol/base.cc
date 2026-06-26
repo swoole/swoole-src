@@ -55,6 +55,8 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
         return SW_ERR;
     }
     swoole_debug("length=%ld", protocol->package_body_offset + body_length);
+    // header_len is kept as the length-field width on the success path.
+    // Incomplete-header callers use the 0-return branch above when they need the full header span.
     pl->header_len = protocol->package_length_size;
 
     // total package length

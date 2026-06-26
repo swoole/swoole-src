@@ -70,6 +70,14 @@ ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength 
             return SW_MQTT_RECV_LEN_AGAIN;
         }
     }
+    if (sw_unlikely(length > SW_MQTT_MAX_PAYLOAD_SIZE)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                         "bad request, the remaining length %zd exceeds the MQTT limit %d",
+                         length,
+                         SW_MQTT_MAX_PAYLOAD_SIZE);
+        return SW_ERR;
+    }
     // payload_length + variable_header_byte_count + length_offset(1)
     return length + variable_header_byte_count + 1;
 }
