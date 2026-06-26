@@ -3252,6 +3252,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     TaskId task_id;
     int i = 0;
     uint32_t n_task = php_swoole_array_length(ztasks);
+    uint32_t dispatched_task_num = 0;
 
     if (n_task >= SW_MAX_CONCURRENT_TASK) {
         php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
@@ -3267,8 +3268,11 @@ static PHP_METHOD(swoole_server, taskCo) {
         RETURN_FALSE;
     }
 
-    TaskCo task_co;
+    TaskCo task_co{};
     task_co.co = Coroutine::get_current_safe();
+    task_co.result = return_value;
+    task_co.list = list;
+    task_co.count = n_task;
 
     array_init_size(return_value, n_task);
 
@@ -3286,23 +3290,20 @@ static PHP_METHOD(swoole_server, taskCo) {
             task_id = -1;
         _fail:
             add_index_bool(return_value, i, false);
-            n_task--;
         } else {
             server_object->property->task_coroutine_map[task_id] = &task_co;
+            dispatched_task_num++;
         }
         list[i] = task_id;
         i++;
     }
     SW_HASHTABLE_FOREACH_END();
 
-    if (n_task == 0) {
+    if (dispatched_task_num == 0) {
+        efree(list);
         swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
         RETURN_FALSE;
     }
-
-    task_co.result = return_value;
-    task_co.list = list;
-    task_co.count = n_task;
 
     if (!task_co.co->yield_ex(timeout)) {
         bool is_called_in_taskCo = strcasecmp(EX(func)->internal_function.function_name->val, "taskCo") == 0;
@@ -3311,10 +3312,13 @@ static PHP_METHOD(swoole_server, taskCo) {
                 if (is_called_in_taskCo) {
                     add_index_bool(return_value, j, false);
                 }
-                server_object->property->task_coroutine_map.erase(list[j]);
+                if (list[j] >= 0) {
+                    server_object->property->task_coroutine_map.erase(list[j]);
+                }
             }
         }
     }
+    efree(list);
 }
 
 static PHP_METHOD(swoole_server, task) {
@@ -3362,6 +3366,13 @@ static PHP_METHOD(swoole_server, task) {
     if (serv->task(&buf, (int *) &dst_worker_id)) {
         RETURN_LONG(task_id);
     } else {
+        if (buf.info.ext_flags & SW_TASK_CALLBACK) {
+            auto i = server_object->property->task_callbacks.find(task_id);
+            if (i != server_object->property->task_callbacks.end()) {
+                sw_callable_free(i->second);
+                server_object->property->task_callbacks.erase(i);
+            }
+        }
         RETURN_FALSE;
     }
 }
