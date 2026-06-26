@@ -144,6 +144,31 @@ struct Connection {
     int server_fd;
 };
 
+// Snapshot data consumed by the PHP wrapper without exposing Connection internals.
+struct ClientInfoSnapshot {
+    SessionId session_id = 0;
+    swSocketFd server_fd = 0;
+    swSocketFd socket_fd = 0;
+    SocketType socket_type = SW_SOCK_TCP;
+    ReactorId reactor_id = 0;
+    int worker_id = 0;
+    uint32_t uid = 0;
+    uint8_t websocket_status = 0;
+    int close_errno = 0;
+    sw_atomic_t recv_queued_bytes = 0;
+    uint32_t send_queued_bytes = 0;
+    double connect_time = 0;
+    double last_recv_time = 0;
+    double last_send_time = 0;
+    double last_dispatch_time = 0;
+    uint16_t remote_port = 0;
+    uint16_t server_port = 0;
+    std::string remote_ip;
+    std::string ssl_client_cert;
+    bool has_server_port = false;
+    bool has_ssl_client_cert = false;
+};
+
 //------------------------------------ReactorThread-------------------------------------------
 struct ReactorThread {
     int id;
@@ -1464,6 +1489,9 @@ class Server {
     }
 
     bool is_healthy_connection(double now, const Connection *conn) const;
+    std::vector<SessionId> heartbeat(bool close_connection) const;
+    bool get_client_info(SessionId session_id, ClientInfoSnapshot &snapshot) const;
+    bool get_client_list(SessionId start_session_id, int find_count, std::vector<SessionId> &sessions) const;
 
     static bool is_dgram_event(uint8_t type) {
         return type == SW_SERVER_EVENT_RECV_DGRAM;

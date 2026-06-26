@@ -1988,6 +1988,108 @@ void Server::foreach_connection(const std::function<void(Connection *)> &callbac
     }
 }
 
+std::vector<SessionId> Server::heartbeat(bool close_connection) const {
+    std::vector<SessionId> expired_sessions;
+    double now = microtime();
+
+    foreach_connection([this, now, close_connection, &expired_sessions](Connection *conn) {
+        SessionId session_id = conn->session_id;
+        if (session_id <= 0) {
+            return;
+        }
+        swoole_trace("heartbeat check fd=%d", conn->fd);
+        if (is_healthy_connection(now, conn)) {
+            return;
+        }
+        if (close_connection) {
+            conn->close_force = 1;
+            close(session_id, false);
+        }
+        expired_sessions.push_back(session_id);
+    });
+
+    return expired_sessions;
+}
+
+bool Server::get_client_info(SessionId session_id, ClientInfoSnapshot &snapshot) const {
+    Connection *conn = get_connection_verify(session_id);
+    if (!conn) {
+        return false;
+    }
+
+    snapshot.session_id = session_id;
+    snapshot.server_fd = conn->server_fd;
+    snapshot.socket_fd = conn->fd;
+    snapshot.socket_type = conn->socket_type;
+    snapshot.reactor_id = conn->reactor_id;
+    snapshot.worker_id = conn->worker_id;
+    snapshot.uid = conn->uid;
+    snapshot.websocket_status = conn->websocket_status;
+    snapshot.close_errno = conn->close_errno;
+    snapshot.recv_queued_bytes = conn->recv_queued_bytes;
+    snapshot.send_queued_bytes = conn->send_queued_bytes;
+    snapshot.connect_time = conn->connect_time;
+    snapshot.last_recv_time = conn->last_recv_time;
+    snapshot.last_send_time = conn->last_send_time;
+    snapshot.last_dispatch_time = conn->last_dispatch_time;
+    snapshot.remote_port = conn->info.get_port();
+    snapshot.remote_ip = conn->info.get_addr();
+
+    if (conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
+        snapshot.ssl_client_cert = std::string(conn->ssl_client_cert->str, conn->ssl_client_cert->length);
+        snapshot.has_ssl_client_cert = true;
+    } else {
+        snapshot.ssl_client_cert.clear();
+        snapshot.has_ssl_client_cert = false;
+    }
+
+    Connection *server_socket = get_connection(conn->server_fd);
+    if (server_socket) {
+        snapshot.server_port = server_socket->info.get_port();
+        snapshot.has_server_port = true;
+    } else {
+        snapshot.server_port = 0;
+        snapshot.has_server_port = false;
+    }
+
+    return true;
+}
+
+bool Server::get_client_list(SessionId start_session_id, int find_count, std::vector<SessionId> &sessions) const {
+    sessions.clear();
+    sessions.reserve(find_count > 0 ? find_count : 0);
+
+    int serv_max_fd = get_maxfd();
+    int start_fd;
+
+    if (start_session_id == 0) {
+        start_fd = get_minfd();
+    } else {
+        Connection *conn = get_connection_verify(start_session_id);
+        if (!conn) {
+            return false;
+        }
+        start_fd = conn->fd;
+    }
+
+    if (start_fd >= serv_max_fd) {
+        return true;
+    }
+
+    for (int fd = start_fd + 1; fd <= serv_max_fd; fd++) {
+        Connection *conn = get_connection_for_iterator(fd);
+        if (conn && conn->session_id > 0) {
+            sessions.push_back(conn->session_id);
+            find_count--;
+        }
+        if (find_count <= 0) {
+            break;
+        }
+    }
+
+    return true;
+}
+
 void Server::abort_connection(Reactor *reactor, const ListenPort *ls, Socket *_socket) const {
     sw_atomic_fetch_add(&gs->abort_count, 1);
     sw_atomic_fetch_add(&ls->gs->abort_count, 1);

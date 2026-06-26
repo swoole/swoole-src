@@ -3110,23 +3110,9 @@ static PHP_METHOD(swoole_server, heartbeat) {
     }
 
     array_init(return_value);
-    double now = microtime();
-
-    serv->foreach_connection([serv, now, close_connection, return_value](Connection *conn) {
-        SessionId session_id = conn->session_id;
-        if (session_id <= 0) {
-            return;
-        }
-        swoole_trace("heartbeat check fd=%d", conn->fd);
-        if (serv->is_healthy_connection(now, conn)) {
-            return;
-        }
-        if (close_connection) {
-            conn->close_force = 1;
-            serv->close(session_id, false);
-        }
+    for (auto session_id : serv->heartbeat(close_connection)) {
         add_next_index_long(return_value, session_id);
-    });
+    }
 }
 
 static PHP_METHOD(swoole_server, taskwait) {
@@ -3650,47 +3636,46 @@ static PHP_METHOD(swoole_server, getClientInfo) {
     Z_PARAM_BOOL(dont_check_connection)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Connection *conn = serv->get_connection_verify(fd);
-    if (!conn) {
+    ClientInfoSnapshot info;
+    if (!serv->get_client_info(fd, info)) {
         RETURN_FALSE;
     }
 
     array_init(return_value);
 
-    if (conn->uid > 0 || serv->dispatch_mode == Server::DISPATCH_UIDMOD) {
-        add_assoc_long(return_value, "uid", conn->uid);
+    if (info.uid > 0 || serv->dispatch_mode == Server::DISPATCH_UIDMOD) {
+        add_assoc_long(return_value, "uid", info.uid);
     }
-    if (conn->worker_id > 0 || serv->dispatch_mode == Server::DISPATCH_CO_CONN_LB) {
-        add_assoc_long(return_value, "worker_id", conn->worker_id);
+    if (info.worker_id > 0 || serv->dispatch_mode == Server::DISPATCH_CO_CONN_LB) {
+        add_assoc_long(return_value, "worker_id", info.worker_id);
     }
 
-    ListenPort *port = serv->get_port_by_fd(conn->fd);
+    ListenPort *port = serv->get_port_by_fd(info.socket_fd);
     if (port && port->open_websocket_protocol) {
-        add_assoc_long(return_value, "websocket_status", conn->websocket_status);
+        add_assoc_long(return_value, "websocket_status", info.websocket_status);
     }
 
-    if (conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
-        add_assoc_stringl(return_value, "ssl_client_cert", conn->ssl_client_cert->str, conn->ssl_client_cert->length);
+    if (info.has_ssl_client_cert) {
+        add_assoc_stringl(return_value, "ssl_client_cert", info.ssl_client_cert.c_str(), info.ssl_client_cert.length());
     }
     // server socket
-    Connection *server_socket = serv->get_connection(conn->server_fd);
-    if (server_socket) {
-        add_assoc_long(return_value, "server_port", server_socket->info.get_port());
+    if (info.has_server_port) {
+        add_assoc_long(return_value, "server_port", info.server_port);
     }
-    add_assoc_long(return_value, "server_fd", conn->server_fd);
-    add_assoc_long(return_value, "socket_fd", conn->fd);
-    add_assoc_long(return_value, "socket_type", conn->socket_type);
-    add_assoc_long(return_value, "remote_port", conn->info.get_port());
-    add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_addr());
-    add_assoc_long(return_value, "reactor_id", conn->reactor_id);
-    add_assoc_long(return_value, "connect_time", conn->connect_time);
-    add_assoc_long(return_value, "last_time", (int) conn->last_recv_time);
-    add_assoc_double(return_value, "last_recv_time", conn->last_recv_time);
-    add_assoc_double(return_value, "last_send_time", conn->last_send_time);
-    add_assoc_double(return_value, "last_dispatch_time", conn->last_dispatch_time);
-    add_assoc_long(return_value, "close_errno", conn->close_errno);
-    add_assoc_long(return_value, "recv_queued_bytes", conn->recv_queued_bytes);
-    add_assoc_long(return_value, "send_queued_bytes", conn->send_queued_bytes);
+    add_assoc_long(return_value, "server_fd", info.server_fd);
+    add_assoc_long(return_value, "socket_fd", info.socket_fd);
+    add_assoc_long(return_value, "socket_type", info.socket_type);
+    add_assoc_long(return_value, "remote_port", info.remote_port);
+    add_assoc_stringl(return_value, "remote_ip", info.remote_ip.c_str(), info.remote_ip.length());
+    add_assoc_long(return_value, "reactor_id", info.reactor_id);
+    add_assoc_long(return_value, "connect_time", info.connect_time);
+    add_assoc_long(return_value, "last_time", (int) info.last_recv_time);
+    add_assoc_double(return_value, "last_recv_time", info.last_recv_time);
+    add_assoc_double(return_value, "last_send_time", info.last_send_time);
+    add_assoc_double(return_value, "last_dispatch_time", info.last_dispatch_time);
+    add_assoc_long(return_value, "close_errno", info.close_errno);
+    add_assoc_long(return_value, "recv_queued_bytes", info.recv_queued_bytes);
+    add_assoc_long(return_value, "send_queued_bytes", info.send_queued_bytes);
 }
 
 static PHP_METHOD(swoole_server, getClientList) {
@@ -3715,46 +3700,14 @@ static PHP_METHOD(swoole_server, getClientList) {
         RETURN_FALSE;
     }
 
-    // copy it out to avoid being overwritten by other processes
-    int serv_max_fd = serv->get_maxfd();
-    int start_fd;
-
-    if (start_session_id == 0) {
-        start_fd = serv->get_minfd();
-    } else {
-        Connection *conn = serv->get_connection_verify(start_session_id);
-        if (!conn) {
-            RETURN_FALSE;
-        }
-        start_fd = conn->fd;
-    }
-
-    if ((int) start_fd >= serv_max_fd) {
+    std::vector<SessionId> sessions;
+    if (!serv->get_client_list(start_session_id, (int) find_count, sessions)) {
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    int fd = start_fd + 1;
-
-    for (; fd <= serv_max_fd; fd++) {
-        swoole_trace("maxfd=%d, fd=%d, find_count=" ZEND_LONG_FMT ", start_fd=" ZEND_LONG_FMT,
-                     serv_max_fd,
-                     fd,
-                     find_count,
-                     start_session_id);
-        Connection *conn = serv->get_connection_for_iterator(fd);
-        if (conn) {
-            SessionId session_id = conn->session_id;
-            if (session_id <= 0) {
-                continue;
-            }
-            add_next_index_long(return_value, session_id);
-            find_count--;
-        }
-        // finish fetch
-        if (find_count <= 0) {
-            break;
-        }
+    for (auto session_id : sessions) {
+        add_next_index_long(return_value, session_id);
     }
 }
 
