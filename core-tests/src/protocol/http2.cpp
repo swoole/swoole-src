@@ -131,6 +131,10 @@ TEST(http2, get_type_color) {
     }
 }
 
+TEST(http2, get_flag_string_empty) {
+    ASSERT_EQ(http2::get_flag_string(0), "none");
+}
+
 struct Http2Session {
     SessionId fd;
     nghttp2_session *session;

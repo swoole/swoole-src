@@ -25,6 +25,24 @@ using swoole::network::Socket;
 
 namespace swoole {
 namespace websocket {
+static inline uint16_t load_uint16(const char *buf) {
+    uint16_t value;
+    memcpy(&value, buf, sizeof(value));
+    return value;
+}
+
+static inline uint32_t load_uint32(const char *buf) {
+    uint32_t value;
+    memcpy(&value, buf, sizeof(value));
+    return value;
+}
+
+static inline uint64_t load_uint64(const char *buf) {
+    uint64_t value;
+    memcpy(&value, buf, sizeof(value));
+    return value;
+}
+
 /*  The following is websocket data frame:
  +-+-+-+-+-------+-+-------------+-------------------------------+
  0                   1                   2                   3   |
@@ -64,7 +82,7 @@ static ssize_t get_package_length_impl(PacketLength *pl) {
         if (pl->buf_size < pl->header_len) {
             return 0;
         }
-        payload_length = ntohs(*((uint16_t *) buf));
+        payload_length = ntohs(load_uint16(buf));
     }
     // uint64_t, 8byte
     else if (payload_length == SW_WEBSOCKET_EXT64_LENGTH) {
@@ -72,7 +90,7 @@ static ssize_t get_package_length_impl(PacketLength *pl) {
         if (pl->buf_size < pl->header_len) {
             return 0;
         }
-        payload_length = swoole_ntoh64(*((uint64_t *) buf));
+        payload_length = swoole_ntoh64(load_uint64(buf));
     }
     if (mask) {
         pl->header_len += SW_WEBSOCKET_MASK_LEN;
@@ -95,11 +113,14 @@ ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength 
 
 void mask(char *data, size_t len, const char *mask_key) {
     size_t n = len / 8;
-    uint64_t mask_key64 = ((uint64_t) (*((uint32_t *) mask_key)) << 32) | *((uint32_t *) mask_key);
+    uint32_t mask_value = load_uint32(mask_key);
+    uint64_t mask_key64 = ((uint64_t) mask_value << 32) | mask_value;
     size_t i;
 
     for (i = 0; i < n; i++) {
-        ((uint64_t *) data)[i] ^= mask_key64;
+        uint64_t block = load_uint64(data + i * sizeof(uint64_t));
+        block ^= mask_key64;
+        memcpy(data + i * sizeof(uint64_t), &block, sizeof(block));
     }
 
     for (i = n * 8; i < len; i++) {
@@ -123,14 +144,14 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
         header->LENGTH = length;
     } else if (length <= SW_WEBSOCKET_EXT16_MAX_LEN) {
         header->LENGTH = SW_WEBSOCKET_EXT16_LENGTH;
-        auto *length_ptr = (uint16_t *) (frame_header + pos);
-        *length_ptr = htons(length);
-        pos += sizeof(*length_ptr);
+        uint16_t ext_length = htons(length);
+        memcpy(frame_header + pos, &ext_length, sizeof(ext_length));
+        pos += sizeof(ext_length);
     } else {
         header->LENGTH = SW_WEBSOCKET_EXT64_LENGTH;
-        auto *length_ptr = (uint64_t *) (frame_header + pos);
-        *length_ptr = swoole_hton64(length);
-        pos += sizeof(*length_ptr);
+        uint64_t ext_length = swoole_hton64(length);
+        memcpy(frame_header + pos, &ext_length, sizeof(ext_length));
+        pos += sizeof(ext_length);
     }
     buffer->append(frame_header, pos);
     /**

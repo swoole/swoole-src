@@ -181,6 +181,9 @@ static inline std::string get_flag_string(int _flags) {
     if (_flags & SW_HTTP2_FLAG_PRIORITY) {
         str.append("PRIORITY|");
     }
+    if (str.empty()) {
+        return {"none"};
+    }
     if (str.back() == '|') {
         return str.substr(0, str.length() - 1);
     } else {
@@ -205,7 +208,8 @@ static sw_inline void set_frame_header(char *buffer, uint8_t type, uint32_t leng
     buffer[2] = length;
     buffer[3] = type;
     buffer[4] = flags;
-    *(uint32_t *) (buffer + 5) = htonl(stream_id);
+    uint32_t net_stream_id = htonl(stream_id);
+    memcpy(buffer + 5, &net_stream_id, sizeof(net_stream_id));
 }
 
 }  // namespace http2
