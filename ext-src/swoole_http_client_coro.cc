@@ -78,24 +78,26 @@ static constexpr llhttp_settings_t http_parser_settings =
 };
 // clang-format on
 
+static zend_class_entry *swoole_http_client_coro_ce;
+static zend_object_handlers swoole_http_client_coro_handlers;
+
+static zend_class_entry *swoole_http_client_coro_exception_ce;
+static zend_object_handlers swoole_http_client_coro_exception_handlers;
+
 static bool websocket_verify_server_handshake(zval *zobject) {
     zend_class_entry *ce = Z_OBJCE_P(zobject);
-    zval *zrequest_headers = sw_zend_read_property_ex(
-        ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_HEADERS), 0);
-    zval *zresponse_headers = sw_zend_read_property_ex(
-        ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
+    zval *zrequest_headers = sw_zend_read_property_ex(ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_HEADERS), 0);
+    zval *zresponse_headers = sw_zend_read_property_ex(ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
     if (!ZVAL_IS_ARRAY(zrequest_headers) || !ZVAL_IS_ARRAY(zresponse_headers)) {
         return false;
     }
 
-    zval *zkey =
-        zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("Sec-WebSocket-Key"));
+    zval *zkey = zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("Sec-WebSocket-Key"));
     if (zkey == nullptr || Z_TYPE_P(zkey) != IS_STRING || Z_STRLEN_P(zkey) == 0) {
         return false;
     }
 
-    zval *zaccept =
-        zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("Sec-WebSocket-Accept"));
+    zval *zaccept = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("Sec-WebSocket-Accept"));
     if (zaccept == nullptr) {
         zaccept = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("sec-websocket-accept"));
     }
@@ -104,15 +106,13 @@ static bool websocket_verify_server_handshake(zval *zobject) {
     }
 
     char sec_buf[128];
-    size_t sec_len = sw_snprintf(
-        sec_buf, sizeof(sec_buf), "%s%s", Z_STRVAL_P(zkey), SW_WEBSOCKET_GUID);
+    size_t sec_len = sw_snprintf(sec_buf, sizeof(sec_buf), "%s%s", Z_STRVAL_P(zkey), SW_WEBSOCKET_GUID);
     unsigned char sha1_str[20];
     php_swoole_sha1(sec_buf, sec_len, sha1_str);
 
     char accept_buf[64];
     int accept_len = swoole::base64_encode(sha1_str, sizeof(sha1_str), accept_buf);
-    return accept_len == (int) Z_STRLEN_P(zaccept) &&
-           memcmp(accept_buf, Z_STRVAL_P(zaccept), accept_len) == 0;
+    return accept_len == (int) Z_STRLEN_P(zaccept) && memcmp(accept_buf, Z_STRVAL_P(zaccept), accept_len) == 0;
 }
 
 namespace swoole {
@@ -185,6 +185,16 @@ class Client {
             return false;
         }
         return true;
+    }
+
+    bool header_too_large(String *buffer) {
+        if (sw_unlikely(buffer->length > SW_HTTP_HEADER_MAX_SIZE)) {
+            zend_throw_exception_ex(
+                swoole_http_client_coro_exception_ce, SW_ERROR_INVALID_PARAMS, "HTTP/1 header block is too large");
+            close();
+            return true;
+        }
+        return false;
     }
 
   private:
@@ -316,12 +326,6 @@ class Client {
 }  // namespace http
 }  // namespace coroutine
 }  // namespace swoole
-
-static zend_class_entry *swoole_http_client_coro_ce;
-static zend_object_handlers swoole_http_client_coro_handlers;
-
-static zend_class_entry *swoole_http_client_coro_exception_ce;
-static zend_object_handlers swoole_http_client_coro_exception_handlers;
 
 using swoole::coroutine::http::Client;
 
@@ -1130,6 +1134,11 @@ bool Client::send_request() {
             if (str_value.len() == 0) {
                 continue;
             }
+            if (keylen + str_value.len() + 1 > SW_HTTP_COOKIE_MAX_SIZE) {
+                zend_throw_exception_ex(
+                    swoole_http_client_coro_exception_ce, SW_ERROR_INVALID_PARAMS, "HTTP cookie header is too large");
+                return false;
+            }
             buffer->append(key, keylen);
             buffer->append("=", 1);
 
@@ -1219,6 +1228,9 @@ bool Client::send_request() {
         }
 
         add_content_length(buffer, content_length + sizeof(boundary_str) - 1 + 6);
+        if (header_too_large(buffer)) {
+            return false;
+        }
 
         // ============ form-data body ============
         if (zbody && ZVAL_IS_ARRAY(zbody)) {
@@ -1346,14 +1358,25 @@ bool Client::send_request() {
                     return false;
                 }
                 add_content_length(buffer, len);
+                if (header_too_large(buffer)) {
+                    smart_str_free(&formstr_s);
+                    return false;
+                }
                 buffer->append(formstr, len);
                 smart_str_free(&formstr_s);
             } else {
                 add_content_length(buffer, 0);
+                if (header_too_large(buffer)) {
+                    return false;
+                }
             }
         } else {
             auto sdata = zval_get_string(zbody);
             add_content_length(buffer, ZSTR_LEN(sdata));
+            if (header_too_large(buffer)) {
+                zend_string_release(sdata);
+                return false;
+            }
             buffer->append(ZSTR_VAL(sdata), ZSTR_LEN(sdata));
             zend_string_release(sdata);
         }
@@ -1364,6 +1387,10 @@ bool Client::send_request() {
             add_content_length(buffer, 0);
         } else {
             buffer->append(ZEND_STRL("\r\n"));
+        }
+        if (header_too_large(buffer)) {
+            close();
+            return false;
         }
     }
 

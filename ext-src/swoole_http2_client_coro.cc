@@ -1016,6 +1016,11 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, char *buffer) {
                 continue;
             }
             zend::String str_value(zvalue);
+            if (sw_unlikely(ZSTR_LEN(key) + str_value.len() + 1 > SW_HTTP_COOKIE_MAX_SIZE)) {
+                zend_throw_exception_ex(
+                    swoole_http2_client_coro_exception_ce, SW_ERROR_INVALID_PARAMS, "HTTP cookie header is too large");
+                return -1;
+            }
             header_buffer->clear();
             header_buffer->append(ZSTR_VAL(key), ZSTR_LEN(key));
             header_buffer->append("=", 1);
@@ -1030,14 +1035,11 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, char *buffer) {
     }
 
     size_t buflen = nghttp2_hd_deflate_bound(h2c->deflater, headers.get(), headers.len());
-#if 0
-    if (buflen > h2c->remote_settings.max_header_list_size) {
-        php_swoole_error(E_WARNING,
-                         "header cannot bigger than remote max_header_list_size %u",
-                         client->remote_settings.max_header_list_size);
+    if (sw_unlikely(buflen > SW_HTTP_HEADER_MAX_SIZE)) {
+        zend_throw_exception_ex(
+            swoole_http2_client_coro_exception_ce, SW_ERROR_INVALID_PARAMS, "HTTP/2 header block is too large");
         return -1;
     }
-#endif
     ssize_t rv = nghttp2_hd_deflate_hd(h2c->deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
     if (rv < 0) {
         h2c->nghttp2_error(rv, "nghttp2_hd_deflate_hd() failed");
