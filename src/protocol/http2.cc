@@ -34,6 +34,7 @@ static Settings default_settings = {
     SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE,
     SW_HTTP2_DEFAULT_MAX_FRAME_SIZE,
     SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE,
+    SW_HTTP2_DEFAULT_MAX_HEADERS,
 };
 
 void put_default_setting(enum swHttp2SettingId id, uint32_t value) {
@@ -56,6 +57,9 @@ void put_default_setting(enum swHttp2SettingId id, uint32_t value) {
     case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
         default_settings.max_header_list_size = value;
         break;
+    case SW_HTTP2_SETTINGS_MAX_HEADERS:
+        default_settings.max_headers = value;
+        break;
     default:
         assert(0);
         break;
@@ -76,6 +80,8 @@ uint32_t get_default_setting(enum swHttp2SettingId id) {
         return default_settings.max_frame_size;
     case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
         return default_settings.max_header_list_size;
+    case SW_HTTP2_SETTINGS_MAX_HEADERS:
+        return default_settings.max_headers;
     default:
         assert(0);
         return 0;

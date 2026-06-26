@@ -519,6 +519,9 @@ void php_swoole_set_global_option(HashTable *vht) {
     if (php_swoole_array_get_value(vht, "http2_max_header_list_size", ztmp)) {
         swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, php_swoole_parse_to_size(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "http2_max_headers", ztmp)) {
+        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADERS, zval_get_long(ztmp));
+    }
 }
 
 SW_API bool php_swoole_is_enable_coroutine() {
