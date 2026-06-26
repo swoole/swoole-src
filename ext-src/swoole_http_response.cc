@@ -1520,12 +1520,13 @@ static PHP_METHOD(swoole_http_response, create) {
         }
     } else if (ZVAL_IS_ARRAY(zobject)) {
         zrequest = zend_hash_index_find(Z_ARR_P(zobject), 1);
-        if (!ZVAL_IS_OBJECT(zrequest) || !instanceof_function(Z_OBJCE_P(zrequest), swoole_http_request_ce)) {
+        if (zrequest == nullptr || !ZVAL_IS_OBJECT(zrequest) ||
+            !instanceof_function(Z_OBJCE_P(zrequest), swoole_http_request_ce)) {
             php_swoole_fatal_error(E_WARNING, "parameter $1.second must be instanceof Http\\Request");
             RETURN_FALSE;
         }
         zobject = zend_hash_index_find(Z_ARR_P(zobject), 0);
-        if (!ZVAL_IS_OBJECT(zobject)) {
+        if (zobject == nullptr || !ZVAL_IS_OBJECT(zobject)) {
             goto _bad_type;
         } else {
             ctx = php_swoole_http_request_get_context(zrequest);
