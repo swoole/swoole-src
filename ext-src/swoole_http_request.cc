@@ -703,6 +703,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
 
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
+        close(tmpfile);
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         swoole_sys_warning("fopen(%s) failed", file_path);
         return 0;

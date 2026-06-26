@@ -996,6 +996,9 @@ static PHP_METHOD(swoole_http_response, sendfile) {
 
 static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
     HttpContext *ctx = http_response_get_and_check_context(zobject);
+    if (ctx == nullptr || cookie == nullptr) {
+        return false;
+    }
 
     zend_string *cookie_str = cookie->toString();
     if (!cookie_str) {
@@ -1047,10 +1050,14 @@ static void http_response_set_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool en
             ->withPartitioned(partitioned);
         result = http_response_create_cookie(&cookie, ZEND_THIS);
     } else if (ZVAL_IS_OBJECT(name_or_object)) {
+        if (!instanceof_function(Z_OBJCE_P(name_or_object), swoole_http_cookie_ce)) {
+            php_swoole_error(E_WARNING, "The first argument must be a string or a Http\\Cookie object");
+            RETURN_FALSE;
+        }
         HttpCookie *cookie = php_swoole_http_get_cooke_safety(name_or_object);
         result = http_response_create_cookie(cookie, ZEND_THIS);
     } else {
-        php_swoole_error(E_WARNING, "The first argument must be a string or an cookie object");
+        php_swoole_error(E_WARNING, "The first argument must be a string or a Http\\Cookie object");
         result = false;
     }
 
@@ -1530,6 +1537,11 @@ static PHP_METHOD(swoole_http_response, create) {
             goto _bad_type;
         } else {
             ctx = php_swoole_http_request_get_context(zrequest);
+            if (ctx == nullptr) {
+                zend_throw_exception_ex(
+                    swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "parameter $1.second has no valid Http\\Request context");
+                RETURN_FALSE;
+            }
             goto _type_detect;
         }
     } else {
@@ -1561,7 +1573,8 @@ static PHP_METHOD(swoole_http_response, create) {
             swoole_llhttp_parser_init(&ctx->parser, HTTP_REQUEST, (void *) ctx);
         } else {
             delete ctx;
-            assert(0);
+            zend_throw_exception_ex(
+                swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "failed to create Http\\Response from the given arguments");
             RETURN_FALSE;
         }
     } else {
@@ -1572,7 +1585,8 @@ static PHP_METHOD(swoole_http_response, create) {
         } else if (zsocket) {
             ctx->bind(zsocket);
         } else {
-            assert(0);
+            zend_throw_exception_ex(
+                swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "failed to bind Http\\Response to the given context");
             RETURN_FALSE;
         }
     }
