@@ -34,5 +34,10 @@ $data4 = [
 ];
 $packed4 = Task::pack($data4);
 Assert::same($data4, Task::unpack($packed4));
+
+Assert::false(@Task::unpack(''));
+Assert::false(@Task::unpack(substr($packed1, 0, 1)));
+Assert::false(@Task::unpack(substr($packed1, 0, -1)));
+Assert::false(@Task::unpack(substr($packed2, 0, 64)));
 ?>
 --EXPECT--

@@ -756,6 +756,29 @@ static bool php_swoole_server_task_unpack(zval *zresult, EventData *task_result)
     return true;
 }
 
+static bool php_swoole_server_task_validate_pack(const char *data, size_t length) {
+    if (sw_unlikely(length < sizeof(DataHead))) {
+        return false;
+    }
+
+    auto *info = reinterpret_cast<const DataHead *>(data);
+    if (sw_unlikely(info->len > SW_IPC_BUFFER_SIZE)) {
+        return false;
+    }
+
+    size_t expected_size;
+    if (info->ext_flags & SW_TASK_TMPFILE) {
+        if (sw_unlikely(info->len < sizeof(PacketTask))) {
+            return false;
+        }
+        expected_size = sizeof(DataHead) + sizeof(PacketTask);
+    } else {
+        expected_size = sizeof(DataHead) + info->len;
+    }
+
+    return length >= expected_size;
+}
+
 extern ListenPort *php_swoole_server_port_get_and_check_ptr(zval *zobject);
 extern void php_swoole_server_port_set_ptr(zval *zobject, ListenPort *port);
 extern ServerPortProperty *php_swoole_server_port_get_property(zval *zobject);
@@ -2806,8 +2829,9 @@ static PHP_METHOD(swoole_server, send) {
 
     // UNIX DGRAM SOCKET
     if (serv->have_dgram_sock && Z_TYPE_P(zfd) == IS_STRING && Z_STRVAL_P(zfd)[0] == '/') {
-        network::Socket *sock = server_socket == -1 ? serv->dgram_socket : serv->get_server_socket(server_socket);
-        if (sock == nullptr) {
+        network::Socket *sock =
+            server_socket == -1 ? serv->dgram_socket : serv->get_server_socket(server_socket, SW_SOCK_UNIX_DGRAM);
+        if (sw_unlikely(sock == nullptr)) {
             RETURN_FALSE;
         }
         RETURN_BOOL(sock->sendto(Z_STRVAL_P(zfd), 0, data, length) > 0);
@@ -2871,7 +2895,8 @@ static PHP_METHOD(swoole_server, sendto) {
             php_swoole_fatal_error(E_WARNING, "UDP listener has to be added before executing sendto");
             RETURN_FALSE;
         } else {
-            server_socket = server_socket_fd < 0 ? serv->udp_socket_ipv4 : serv->get_server_socket(server_socket_fd);
+            server_socket =
+                server_socket_fd < 0 ? serv->udp_socket_ipv4 : serv->get_server_socket(server_socket_fd, SW_SOCK_UDP);
         }
         break;
     case SW_SOCK_UDP6:
@@ -2879,7 +2904,8 @@ static PHP_METHOD(swoole_server, sendto) {
             php_swoole_fatal_error(E_WARNING, "UDP6 listener has to be added before executing sendto");
             RETURN_FALSE;
         } else {
-            server_socket = server_socket_fd < 0 ? serv->udp_socket_ipv6 : serv->get_server_socket(server_socket_fd);
+            server_socket =
+                server_socket_fd < 0 ? serv->udp_socket_ipv6 : serv->get_server_socket(server_socket_fd, SW_SOCK_UDP6);
         }
         break;
     case SW_SOCK_UNIX_DGRAM:
@@ -2887,12 +2913,16 @@ static PHP_METHOD(swoole_server, sendto) {
             php_swoole_fatal_error(E_WARNING, "UnixDgram listener has to be added before executing sendto");
             RETURN_FALSE;
         } else {
-            server_socket = server_socket_fd < 0 ? serv->dgram_socket : serv->get_server_socket(server_socket_fd);
+            server_socket = server_socket_fd < 0 ? serv->dgram_socket
+                                                 : serv->get_server_socket(server_socket_fd, SW_SOCK_UNIX_DGRAM);
         }
         break;
     default:
         abort();
         break;
+    }
+    if (sw_unlikely(server_socket == nullptr)) {
+        RETURN_FALSE;
     }
     SW_CHECK_RETURN(server_socket->sendto(addr, port, data, len));
 }
@@ -3528,12 +3558,17 @@ static PHP_METHOD(swoole_server_task, pack) {
 }
 
 static PHP_METHOD(swoole_server_task, unpack) {
-    zval *zdata;
+    zend_string *zdata;
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_ZVAL(zdata)
+    Z_PARAM_STR(zdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    auto *buf = reinterpret_cast<EventData *>(Z_STRVAL_P(zdata));
+    if (sw_unlikely(!php_swoole_server_task_validate_pack(ZSTR_VAL(zdata), ZSTR_LEN(zdata)))) {
+        php_swoole_fatal_error(E_WARNING, "invalid task package");
+        RETURN_FALSE;
+    }
+
+    auto *buf = reinterpret_cast<EventData *>(ZSTR_VAL(zdata));
     if (!php_swoole_server_task_unpack(return_value, buf)) {
         RETURN_FALSE;
     }

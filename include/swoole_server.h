@@ -991,7 +991,22 @@ class Server {
     }
 
     network::Socket *get_server_socket(int fd) const {
-        return connection_list[fd].socket;
+        Connection *conn = get_connection(fd);
+        if (sw_unlikely(!conn || conn->fd != fd || !conn->socket)) {
+            return nullptr;
+        }
+        if (sw_unlikely(conn->socket->fd_type != SW_FD_STREAM_SERVER && conn->socket->fd_type != SW_FD_DGRAM_SERVER)) {
+            return nullptr;
+        }
+        return conn->socket;
+    }
+
+    network::Socket *get_server_socket(int fd, SocketType expected_type) const {
+        network::Socket *socket = get_server_socket(fd);
+        if (sw_unlikely(!socket || socket->socket_type != expected_type)) {
+            return nullptr;
+        }
+        return socket;
     }
 
     network::Socket *get_command_reply_socket() const {
