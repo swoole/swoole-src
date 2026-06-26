@@ -565,6 +565,41 @@ TEST(http_server, static_files) {
     });
 }
 
+TEST(http_server, static_files_autoindex_escape) {
+    test_base_server([](Server *serv) {
+        char dir_template[] = "/tmp/swoole-autoindex-XXXXXX";
+        char *document_root = mkdtemp(dir_template);
+        ASSERT_NE(document_root, nullptr);
+
+        std::string filename = "evil\"><img src=x onerror=alert(1)>&.txt";
+        std::string filepath = std::string(document_root) + "/" + filename;
+        FILE *fp = fopen(filepath.c_str(), "w");
+        ASSERT_NE(fp, nullptr);
+        ASSERT_GT(fputs("ok", fp), 0);
+        ASSERT_EQ(fclose(fp), 0);
+
+        serv->http_autoindex = true;
+        serv->add_static_handler_location("");
+        ASSERT_TRUE(serv->set_document_root(document_root));
+
+        swoole_signal_block_all();
+        auto port = serv->get_primary_port();
+        httplib::Client cli(TEST_HOST, port->port);
+
+        auto resp = cli.Get("/");
+        ASSERT_TRUE(resp != nullptr);
+        EXPECT_EQ(resp->status, 200);
+        EXPECT_EQ(resp->body.find("<img src=x onerror=alert(1)>"), std::string::npos);
+        EXPECT_NE(resp->body.find("evil&quot;&gt;&lt;img src=x onerror=alert(1)&gt;&amp;.txt"), std::string::npos);
+        EXPECT_NE(resp->body.find("href=\"/evil%22%3E%3Cimg%20src%3Dx%20onerror%3Dalert%281%29%3E%26.txt\""),
+                  std::string::npos);
+
+        unlink(filepath.c_str());
+        rmdir(document_root);
+        kill(getpid(), SIGTERM);
+    });
+}
+
 static void request_with_header(const char *date_format, httplib::Client *cli) {
     char temp[128] = {0};
     time_t raw_time = time(NULL) + 7 * 24 * 60 * 60;
