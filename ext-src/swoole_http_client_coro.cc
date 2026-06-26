@@ -45,6 +45,7 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 static int http_parser_on_headers_complete(llhttp_t *parser);
 static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length);
 static int http_parser_on_message_complete(llhttp_t *parser);
+static bool websocket_verify_server_handshake(zval *zobject);
 
 // clang-format off
 static constexpr llhttp_settings_t http_parser_settings =
@@ -76,6 +77,43 @@ static constexpr llhttp_settings_t http_parser_settings =
     nullptr,                                // on_reset
 };
 // clang-format on
+
+static bool websocket_verify_server_handshake(zval *zobject) {
+    zend_class_entry *ce = Z_OBJCE_P(zobject);
+    zval *zrequest_headers = sw_zend_read_property_ex(
+        ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_HEADERS), 0);
+    zval *zresponse_headers = sw_zend_read_property_ex(
+        ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
+    if (!ZVAL_IS_ARRAY(zrequest_headers) || !ZVAL_IS_ARRAY(zresponse_headers)) {
+        return false;
+    }
+
+    zval *zkey =
+        zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("Sec-WebSocket-Key"));
+    if (zkey == nullptr || Z_TYPE_P(zkey) != IS_STRING || Z_STRLEN_P(zkey) == 0) {
+        return false;
+    }
+
+    zval *zaccept =
+        zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("Sec-WebSocket-Accept"));
+    if (zaccept == nullptr) {
+        zaccept = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("sec-websocket-accept"));
+    }
+    if (zaccept == nullptr || Z_TYPE_P(zaccept) != IS_STRING || Z_STRLEN_P(zaccept) == 0) {
+        return false;
+    }
+
+    char sec_buf[128];
+    size_t sec_len = sw_snprintf(
+        sec_buf, sizeof(sec_buf), "%s%s", Z_STRVAL_P(zkey), SW_WEBSOCKET_GUID);
+    unsigned char sha1_str[20];
+    php_swoole_sha1(sec_buf, sec_len, sha1_str);
+
+    char accept_buf[64];
+    int accept_len = swoole::base64_encode(sha1_str, sizeof(sha1_str), accept_buf);
+    return accept_len == (int) Z_STRLEN_P(zaccept) &&
+           memcmp(accept_buf, Z_STRVAL_P(zaccept), accept_len) == 0;
+}
 
 namespace swoole {
 namespace coroutine {
@@ -1154,6 +1192,10 @@ bool Client::send_request() {
         {
             // upload files
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, zvalue) {
+                if (sw_unlikely(!ZVAL_IS_ARRAY(zvalue))) {
+                    php_swoole_error(E_WARNING, "uploadFiles[%s] must be an array", key ? key : "<numeric>");
+                    return false;
+                }
                 HashTable *ht = Z_ARRVAL_P(zvalue);
                 if (!((zname = zend_hash_str_find(ht, ZEND_STRL("name"))))) {
                     continue;
@@ -1206,6 +1248,10 @@ bool Client::send_request() {
         {
             // upload files
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zupload_files), key, keylen, keytype, zvalue) {
+                if (sw_unlikely(!ZVAL_IS_ARRAY(zvalue))) {
+                    php_swoole_error(E_WARNING, "uploadFiles[%s] must be an array", key ? key : "<numeric>");
+                    return false;
+                }
                 if (!((zname = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("name"))))) {
                     continue;
                 }
@@ -1465,10 +1511,14 @@ bool Client::recv_response(double timeout) {
         close();
         return false;
     }
-    /**
-     * TODO: Sec-WebSocket-Accept check
-     */
     if (websocket) {
+        if (sw_unlikely(!websocket_verify_server_handshake(zobject))) {
+            set_error(SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED,
+                      "websocket handshake failed: invalid Sec-WebSocket-Accept",
+                      HTTP_ESTATUS_SERVER_RESET);
+            close();
+            return false;
+        }
         socket->open_length_check = true;
         socket->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         socket->protocol.package_length_offset = 0;
