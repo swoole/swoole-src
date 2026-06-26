@@ -2240,6 +2240,8 @@ TEST(server, max_connection) {
 
     serv.create();
 
+    ASSERT_EQ(serv.get_connection(serv.get_max_connection()), nullptr);
+
     serv.set_max_connection(100);
     ASSERT_EQ(serv.get_max_connection(), last_value);
 }

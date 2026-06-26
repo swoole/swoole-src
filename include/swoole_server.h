@@ -1497,7 +1497,7 @@ class Server {
     }
 
     Connection *get_connection(const int fd) const {
-        if (static_cast<uint32_t>(fd) > max_connection) {
+        if (sw_unlikely(static_cast<uint32_t>(fd) >= max_connection)) {
             return nullptr;
         }
         return &connection_list[fd];
