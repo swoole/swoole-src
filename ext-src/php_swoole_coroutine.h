@@ -74,11 +74,8 @@ struct PHPContext {
         struct php_unserialize_data *data;
         unsigned level;
     } unserialize;
-    /* for error control `@` */
-    bool in_silence;
     bool enable_scheduler;
-    int ori_error_reporting;
-    int tmp_error_reporting;
+    int error_reporting;
     Coroutine *co;
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;

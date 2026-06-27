@@ -79,9 +79,6 @@ static zend_function swoole_coroutine_internal_function;
 #if PHP_VERSION_ID < 80400
 static user_opcode_handler_t ori_exit_handler = nullptr;
 #endif
-static user_opcode_handler_t ori_begin_silence_handler = nullptr;
-static user_opcode_handler_t ori_end_silence_handler = nullptr;
-
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 
 static zend_class_entry *swoole_coroutine_util_ce;
@@ -283,19 +280,6 @@ PHP_FUNCTION(swoole_exit) {
 SW_EXTERN_C_END
 #endif
 
-static int coro_begin_silence_handler(zend_execute_data *execute_data) {
-    PHPContext *task = PHPCoroutine::get_context();
-    task->in_silence = true;
-    task->ori_error_reporting = EG(error_reporting);
-    return ZEND_USER_OPCODE_DISPATCH;
-}
-
-static int coro_end_silence_handler(zend_execute_data *execute_data) {
-    PHPContext *task = PHPCoroutine::get_context();
-    task->in_silence = false;
-    return ZEND_USER_OPCODE_DISPATCH;
-}
-
 static void coro_interrupt_resume(void *data) {
     auto *co = static_cast<Coroutine *>(data);
     if (co && !co->is_end()) {
@@ -321,7 +305,6 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->serialize_lock = 0;
     ctx->serialize = {};
     ctx->unserialize = {};
-    ctx->in_silence = false;
 
     ctx->co = Coroutine::get_current();
     ctx->co->set_task((void *) ctx);
@@ -550,13 +533,10 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->vm_stack_page_size = EG(vm_stack_page_size);
     ctx->execute_data = EG(current_execute_data);
     ctx->jit_trace_num = EG(jit_trace_num);
+    ctx->error_reporting = EG(error_reporting);
     ctx->error_handling = EG(error_handling);
     ctx->exception_class = EG(exception_class);
     ctx->exception = EG(exception);
-    if (UNEXPECTED(ctx->in_silence)) {
-        ctx->tmp_error_reporting = EG(error_reporting);
-        EG(error_reporting) = ctx->ori_error_reporting;
-    }
 #ifdef ZEND_CHECK_STACK_LIMIT
     ctx->stack_base = EG(stack_base);
     ctx->stack_limit = EG(stack_limit);
@@ -571,12 +551,10 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
     EG(vm_stack_page_size) = ctx->vm_stack_page_size;
     EG(current_execute_data) = ctx->execute_data;
     EG(jit_trace_num) = ctx->jit_trace_num;
+    EG(error_reporting) = ctx->error_reporting;
     EG(error_handling) = ctx->error_handling;
     EG(exception_class) = ctx->exception_class;
     EG(exception) = ctx->exception;
-    if (UNEXPECTED(ctx->in_silence)) {
-        EG(error_reporting) = ctx->tmp_error_reporting;
-    }
 #ifdef ZEND_CHECK_STACK_LIMIT
     EG(stack_base) = ctx->stack_base;
     EG(stack_limit) = ctx->stack_limit;
@@ -1070,12 +1048,6 @@ void php_swoole_coroutine_minit(int module_number) {
         ori_exit_handler = zend_get_user_opcode_handler(ZEND_EXIT);
         zend_set_user_opcode_handler(ZEND_EXIT, coro_exit_handler);
 #endif
-
-        ori_begin_silence_handler = zend_get_user_opcode_handler(ZEND_BEGIN_SILENCE);
-        zend_set_user_opcode_handler(ZEND_BEGIN_SILENCE, coro_begin_silence_handler);
-
-        ori_end_silence_handler = zend_get_user_opcode_handler(ZEND_END_SILENCE);
-        zend_set_user_opcode_handler(ZEND_END_SILENCE, coro_end_silence_handler);
     }
 
     /* hook autoload */
