@@ -1327,6 +1327,7 @@ void WebSocket::recv_frame(const WebSocketSettings &settings,
                            zval *return_value,
                            double timeout) {
     zval zpayload;
+    const size_t max_frame_size = sock->protocol.package_max_length;
 
     do {
         ssize_t retval = sock->recv_packet(timeout);
@@ -1389,6 +1390,11 @@ void WebSocket::recv_frame(const WebSocketSettings &settings,
                 RETURN_NULL();
             }
 
+            if (sw_unlikely(continue_frame_buffer->length + frame.payload_length > max_frame_size)) {
+                swoole_set_last_error(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+                RETURN_NULL();
+            }
+
             if (sw_likely(frame.payload)) {
                 continue_frame_buffer->append(frame.payload, frame.payload_length);
             }
@@ -1442,6 +1448,10 @@ void WebSocket::recv_frame(const WebSocketSettings &settings,
                 zval_ptr_dtor(&zpayload);
                 return;
             } else {
+                if (sw_unlikely(frame.payload_length > max_frame_size)) {
+                    swoole_set_last_error(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+                    RETURN_NULL();
+                }
                 continue_frame_buffer = std::make_shared<String>(
                     (frame.payload_length > 0 ? frame.payload_length : SW_WEBSOCKET_DEFAULT_BUFFER),
                     sw_zend_string_allocator());
