@@ -27,7 +27,9 @@
 #define SW_WEBSOCKET_EXT16_LENGTH 0x7E
 #define SW_WEBSOCKET_EXT64_LENGTH 0x7F
 #define SW_WEBSOCKET_CLOSE_CODE_LEN 2
-#define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN 125
+#define SW_WEBSOCKET_CONTROL_FRAME_PAYLOAD_MAX_LEN 125
+#define SW_WEBSOCKET_CLOSE_REASON_MAX_LEN \
+    (SW_WEBSOCKET_CONTROL_FRAME_PAYLOAD_MAX_LEN - SW_WEBSOCKET_CLOSE_CODE_LEN)
 #define SW_WEBSOCKET_OPCODE_MAX swoole::websocket::OPCODE_PONG
 #define SW_WEBSOCKET_FRAME_HEADER_SIZE (SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t))
 #define SW_WEBSOCKET_DEFAULT_PAYLOAD_SIZE 1024
@@ -131,6 +133,10 @@ enum CloseReason {
     CLOSE_BAD_GATEWAY = 1014,
     CLOSE_TLS = 1015,
 };
+
+static inline bool is_control_frame(uchar opcode) {
+    return opcode == OPCODE_CLOSE || opcode == OPCODE_PING || opcode == OPCODE_PONG;
+}
 
 static inline uint16_t get_ext_flags(uchar opcode, uchar flags) {
     uint16_t ext_flags = opcode;
