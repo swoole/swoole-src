@@ -285,14 +285,15 @@ NO_PROC_OPEN_ERROR;
     }
 
     if (!getenv('TEST_PHPDBG_EXECUTABLE')) {
-        if (IS_WINDOWS && file_exists(dirname($php) . "/phpdbg.exe")) {
-            $phpdbg = realpath(dirname($php) . "/phpdbg.exe");
-        } elseif (file_exists(dirname($php) . "/../../sapi/phpdbg/phpdbg")) {
-            $phpdbg = realpath(dirname($php) . "/../../sapi/phpdbg/phpdbg");
+        $php_bin_dir = is_string($php) && $php !== '' ? dirname($php) : null;
+        if ($php_bin_dir && IS_WINDOWS && file_exists($php_bin_dir . "/phpdbg.exe")) {
+            $phpdbg = realpath($php_bin_dir . "/phpdbg.exe");
+        } elseif ($php_bin_dir && file_exists($php_bin_dir . "/../../sapi/phpdbg/phpdbg")) {
+            $phpdbg = realpath($php_bin_dir . "/../../sapi/phpdbg/phpdbg");
         } elseif (file_exists("./sapi/phpdbg/phpdbg")) {
             $phpdbg = realpath("./sapi/phpdbg/phpdbg");
-        } elseif (file_exists(dirname($php) . "/phpdbg")) {
-            $phpdbg = realpath(dirname($php) . "/phpdbg");
+        } elseif ($php_bin_dir && file_exists($php_bin_dir . "/phpdbg")) {
+            $phpdbg = realpath($php_bin_dir . "/phpdbg");
         } else {
             $phpdbg = null;
         }
