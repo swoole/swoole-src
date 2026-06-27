@@ -92,15 +92,24 @@ static bool websocket_verify_server_handshake(zval *zobject) {
         return false;
     }
 
-    zval *zkey = zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("Sec-WebSocket-Key"));
+    zval *zkey = zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("sec-websocket-key"));
     if (zkey == nullptr || Z_TYPE_P(zkey) != IS_STRING || Z_STRLEN_P(zkey) == 0) {
         return false;
     }
 
-    zval *zaccept = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("Sec-WebSocket-Accept"));
-    if (zaccept == nullptr) {
-        zaccept = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("sec-websocket-accept"));
+    zval *zupgrade = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("upgrade"));
+    if (zupgrade == nullptr || Z_TYPE_P(zupgrade) != IS_STRING ||
+        !swoole_http_token_list_contains_value(Z_STRVAL_P(zupgrade), Z_STRLEN_P(zupgrade), "websocket")) {
+        return false;
     }
+
+    zval *zconnection = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("connection"));
+    if (zconnection == nullptr || Z_TYPE_P(zconnection) != IS_STRING ||
+        !swoole_http_token_list_contains_value(Z_STRVAL_P(zconnection), Z_STRLEN_P(zconnection), "Upgrade")) {
+        return false;
+    }
+
+    zval *zaccept = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("sec-websocket-accept"));
     if (zaccept == nullptr || Z_TYPE_P(zaccept) != IS_STRING || Z_STRLEN_P(zaccept) == 0) {
         return false;
     }
@@ -1541,7 +1550,7 @@ bool Client::recv_response(double timeout) {
     if (websocket) {
         if (sw_unlikely(!websocket_verify_server_handshake(zobject))) {
             set_error(SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED,
-                      "websocket handshake failed: invalid Sec-WebSocket-Accept",
+                      "websocket handshake failed: invalid Upgrade/Connection/Sec-WebSocket-Accept headers",
                       HTTP_ESTATUS_SERVER_RESET);
             close();
             return false;
