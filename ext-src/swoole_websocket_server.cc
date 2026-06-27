@@ -163,10 +163,6 @@ bool FrameObject::pack(String *buffer) {
         return false;
     }
 
-#ifndef SW_HAVE_ZLIB
-    swoole_warning("Unable to compress websocket data frame, the `zlib` supports is required");
-    return false;
-#else
     bool need_compress = ((flags & WebSocket::FLAG_COMPRESS) && len > 0);
     if (opcode == WebSocket::OPCODE_CLOSE || opcode == WebSocket::OPCODE_PING || opcode == WebSocket::OPCODE_PONG) {
         sw_unset_bit(flags, WebSocket::FLAG_COMPRESS | WebSocket::FLAG_RSV1);
@@ -177,6 +173,12 @@ bool FrameObject::pack(String *buffer) {
         need_compress = false;
     }
 
+#ifndef SW_HAVE_ZLIB
+    if (sw_unlikely(need_compress)) {
+        swoole_warning("Unable to compress websocket data frame, the `zlib` supports is required");
+        return false;
+    }
+#else
     if (need_compress) {
         String *zlib_buffer = sw_tg_buffer();
         zlib_buffer->clear();
@@ -304,6 +306,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
     zval *header = ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
+    zval *zprotocol;
     zval retval;
 
     if (!((pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key"))))) {
@@ -350,7 +353,15 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
         conn->websocket_status = WebSocket::STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port && !port->websocket_settings.protocol.empty()) {
-            ctx->set_header(ZEND_STRL("Sec-WebSocket-Protocol"), port->websocket_settings.protocol, false);
+            zprotocol = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-protocol"));
+            if (zprotocol) {
+                zend::String client_protocols(zprotocol);
+                if (swoole_http_token_list_contains_value(client_protocols.val(),
+                                                          client_protocols.len(),
+                                                          port->websocket_settings.protocol.c_str())) {
+                    ctx->set_header(ZEND_STRL("Sec-WebSocket-Protocol"), port->websocket_settings.protocol, false);
+                }
+            }
         }
         swoole_websocket_onBeforeHandshakeResponse(serv, conn->server_fd, ctx);
     } else {
