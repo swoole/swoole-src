@@ -878,7 +878,7 @@ static PHP_METHOD(swoole_websocket_server, unpack) {
         RETURN_FALSE;
     }
 
-    if (!WebSocket::decode(&frame, data, length)) {
+    if (!WebSocket::parse_frame(&frame, data, length)) {
         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
         RETURN_FALSE;
     }
@@ -893,6 +893,9 @@ static PHP_METHOD(swoole_websocket_server, unpack) {
         }
     } else {
         ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
+        if (frame.header.MASK && frame.payload_length > 0) {
+            WebSocket::mask(Z_STRVAL(zpayload), frame.payload_length, frame.mask_key);
+        }
     }
 
     WebSocket::construct_frame(return_value, frame.header.OPCODE, &zpayload, flags);

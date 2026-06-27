@@ -177,7 +177,7 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
     return true;
 }
 
-bool decode(Frame *frame, char *data, size_t length) {
+bool parse_frame(Frame *frame, const char *data, size_t length) {
     frame->header.OPCODE = data[0] & 0xf;
     frame->header.RSV1 = (data[0] >> 6) & 0x1;
     frame->header.RSV2 = (data[0] >> 5) & 0x1;
@@ -209,11 +209,22 @@ bool decode(Frame *frame, char *data, size_t length) {
     if (frame->payload_length == 0) {
         frame->payload = nullptr;
     } else {
-        frame->payload = data + frame->header_length;
+        frame->payload = const_cast<char *>(data) + frame->header_length;
         if (frame->header.MASK) {
             memcpy(frame->mask_key, frame->payload - SW_WEBSOCKET_MASK_LEN, SW_WEBSOCKET_MASK_LEN);
-            mask(frame->payload, frame->payload_length, frame->mask_key);
         }
+    }
+
+    return true;
+}
+
+bool decode(Frame *frame, char *data, size_t length) {
+    if (!parse_frame(frame, data, length)) {
+        return false;
+    }
+
+    if (frame->header.MASK && frame->payload_length > 0) {
+        mask(frame->payload, frame->payload_length, frame->mask_key);
     }
 
     return true;
