@@ -321,7 +321,8 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     } else {
         ctx->fiber_context = nullptr;
     }
-    ctx->fiber_init_notified = false;
+    ctx->current_fiber_context = ctx->fiber_context ? ctx->fiber_context : EG(current_fiber_context);
+    ctx->active_fiber = EG(active_fiber);
 
     EG(vm_stack) = zend_vm_stack_new_page(SW_DEFAULT_PHP_STACK_PAGE_SIZE, nullptr);
     EG(vm_stack_top) = EG(vm_stack)->top + ZEND_CALL_FRAME_SLOT;
@@ -534,6 +535,8 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->execute_data = EG(current_execute_data);
     ctx->jit_trace_num = EG(jit_trace_num);
     ctx->error_reporting = EG(error_reporting);
+    ctx->current_fiber_context = EG(current_fiber_context);
+    ctx->active_fiber = EG(active_fiber);
     ctx->error_handling = EG(error_handling);
     ctx->exception_class = EG(exception_class);
     ctx->exception = EG(exception);
@@ -552,6 +555,8 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
     EG(current_execute_data) = ctx->execute_data;
     EG(jit_trace_num) = ctx->jit_trace_num;
     EG(error_reporting) = ctx->error_reporting;
+    EG(current_fiber_context) = ctx->current_fiber_context;
+    EG(active_fiber) = ctx->active_fiber;
     EG(error_handling) = ctx->error_handling;
     EG(exception_class) = ctx->exception_class;
     EG(exception) = ctx->exception;
@@ -751,14 +756,24 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
-        if (UNEXPECTED(ctx->fiber_context && ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
-            zend_execute_data *tmp = EG(current_execute_data);
+        if (UNEXPECTED(ctx->fiber_context)) {
+            zend_execute_data *tmp = nullptr;
             zend_execute_data call = {};
-            EG(current_execute_data) = &call;
-            EG(current_execute_data)->opline = ctx->fci_cache.function_handler->op_array.opcodes;
-            call.func = ctx->fci_cache.function_handler;
+
+            if (ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION) {
+                tmp = EG(current_execute_data);
+                EG(current_execute_data) = &call;
+                EG(current_execute_data)->opline = ctx->fci_cache.function_handler->op_array.opcodes;
+                call.func = ctx->fci_cache.function_handler;
+            }
+
             fiber_context_switch_try_notify(get_origin_context(ctx), ctx);
-            EG(current_execute_data) = tmp;
+
+            if (tmp) {
+                EG(current_execute_data) = tmp;
+            }
+            EG(current_fiber_context) = ctx->current_fiber_context;
+            EG(active_fiber) = ctx->active_fiber;
         }
 
         zend_call_function(&ctx->fci, &ctx->fci_cache);
@@ -839,11 +854,12 @@ void PHPCoroutine::defer(zend::Function *fci) {
 }
 
 void PHPCoroutine::fiber_context_init(PHPContext *ctx) {
-    auto *fiber_context = static_cast<zend_fiber_context *>(emalloc(sizeof(zend_fiber_context)));
+    auto *fiber_context = static_cast<zend_fiber_context *>(ecalloc(1, sizeof(zend_fiber_context)));
     fiber_context->handle = reinterpret_cast<void *>(INVALID_PTR);
     fiber_context->kind = reinterpret_cast<void *>(INVALID_PTR);
     fiber_context->function = reinterpret_cast<zend_fiber_coroutine>(INVALID_PTR);
     fiber_context->stack = reinterpret_cast<zend_fiber_stack *>(INVALID_PTR);
+    fiber_context->status = ZEND_FIBER_STATUS_INIT;
     ctx->fiber_context = fiber_context;
 
     zend_observer_fiber_init_notify(fiber_context);
@@ -862,42 +878,22 @@ void PHPCoroutine::fiber_context_try_destroy(const PHPContext *ctx, PHPContext *
     }
 }
 
-zend_fiber_status PHPCoroutine::fiber_get_status(const PHPContext *ctx) {
-    // main_context
-    if (ctx->fiber_context == EG(main_fiber_context)) {
-        return ZEND_FIBER_STATUS_RUNNING;
-    }
-
-    switch (ctx->co->get_state()) {
-    case Coroutine::STATE_INIT:
-        return ZEND_FIBER_STATUS_INIT;
-    case Coroutine::STATE_WAITING:
-        return ZEND_FIBER_STATUS_SUSPENDED;
-    case Coroutine::STATE_RUNNING:
-        return ZEND_FIBER_STATUS_RUNNING;
-    case Coroutine::STATE_END:
-        return ZEND_FIBER_STATUS_DEAD;
-    default:
-        php_swoole_fatal_error(E_ERROR, "Unexpected state when get fiber status");
-        return ZEND_FIBER_STATUS_DEAD;
-    }
-}
-
 void PHPCoroutine::fiber_context_switch_notify(const PHPContext *from, PHPContext *to) {
     zend_fiber_context *from_context = from->fiber_context;
     zend_fiber_context *to_context = to->fiber_context;
 
-    from_context->status = fiber_get_status(from);
-    to_context->status = fiber_get_status(to);
+    /*
+     * Mirror the native fiber status transitions for observers. The coroutine
+     * scheduler state cannot be used here because the resumed parent coroutine
+     * remains runnable while the child coroutine is executing, whereas the
+     * corresponding fiber context must be observed as suspended.
+     */
+    zend_observer_fiber_switch_notify(from_context, to_context);
 
-    if (!to->fiber_init_notified) {
-        to_context->status = ZEND_FIBER_STATUS_INIT;
-        zend_observer_fiber_switch_notify(from_context, to_context);
-        to_context->status = fiber_get_status(to);
-        to->fiber_init_notified = true;
-    } else {
-        zend_observer_fiber_switch_notify(from_context, to_context);
+    if (from_context->status == ZEND_FIBER_STATUS_RUNNING) {
+        from_context->status = ZEND_FIBER_STATUS_SUSPENDED;
     }
+    to_context->status = ZEND_FIBER_STATUS_RUNNING;
 }
 
 void PHPCoroutine::fiber_context_switch_try_notify(const PHPContext *from, PHPContext *to) {

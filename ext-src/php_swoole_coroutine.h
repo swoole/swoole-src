@@ -81,7 +81,8 @@ struct PHPContext {
     zend_fcall_info_cache fci_cache;
     zval return_value;
     zend_fiber_context *fiber_context;
-    bool fiber_init_notified;
+    zend_fiber_context *current_fiber_context;
+    zend_fiber *active_fiber;
 #ifdef ZEND_CHECK_STACK_LIMIT
     void *stack_base;
     void *stack_limit;
@@ -258,7 +259,8 @@ class PHPCoroutine {
     static inline void init_main_context() {
         main_context.co = nullptr;
         main_context.fiber_context = EG(main_fiber_context);
-        main_context.fiber_init_notified = true;
+        main_context.current_fiber_context = EG(current_fiber_context);
+        main_context.active_fiber = EG(active_fiber);
         save_context(&main_context);
     }
 
@@ -292,7 +294,6 @@ class PHPCoroutine {
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
-    static zend_fiber_status fiber_get_status(const PHPContext *ctx);
     static void fiber_context_init(PHPContext *ctx);
     static void fiber_context_try_destroy(const PHPContext *ctx, PHPContext *origin_ctx);
     static void fiber_context_switch_notify(const PHPContext *from, PHPContext *to);
