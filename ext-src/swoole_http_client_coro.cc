@@ -797,6 +797,7 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             defer = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "lowercase_header", ztmp)) {
+            // TODO: Deprecate or remove this option in a future version and always normalize header keys to lowercase.
             lowercase_header = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp)) {
