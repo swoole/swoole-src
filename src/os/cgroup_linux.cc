@@ -19,12 +19,14 @@
 #include <cerrno>
 #include <cmath>
 #include <fstream>
+#include <limits>
 #include <sstream>
+#include <string>
+#include <sys/syscall.h>
 #include <vector>
 
 #ifdef __linux__
 namespace {
-
 struct CgroupInfo {
     int version = 0;
     std::string path;
@@ -63,12 +65,80 @@ static bool read_first_line(const std::string &path, std::string *line) {
     return static_cast<bool>(std::getline(file, *line));
 }
 
-static int get_affinity_cpu_num() {
-    cpu_set_t cpu_set;
+static bool has_path_prefix(const std::string &path, const std::string &prefix) {
+    auto size = prefix.length();
+    if (size == 1 && prefix[0] == '/') {
+        return true;
+    }
+    if (path.length() < size || path.compare(0, size, prefix) != 0) {
+        return false;
+    }
+    return path.length() == size || path[size] == '/';
+}
 
-    CPU_ZERO(&cpu_set);
-    if (sched_getaffinity(getpid(), sizeof(cpu_set), &cpu_set) == 0) {
-        auto count = CPU_COUNT(&cpu_set);
+static size_t unescaped_len(const std::string &path) {
+    size_t count = 0;
+
+    for (size_t i = 0; i < path.length(); i++) {
+        if (path[i] == '\\' && i + 3 < path.length()) {
+            count += 1;
+            i += 3;
+        } else {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+static bool unescape_path(const std::string &input, std::string *output) {
+    output->clear();
+    output->reserve(unescaped_len(input));
+
+    for (size_t i = 0; i < input.length();) {
+        auto c = input[i];
+        if (c != '\\') {
+            output->push_back(c);
+            i++;
+            continue;
+        }
+
+        if (i + 3 >= input.length()) {
+            return false;
+        }
+
+        int value = 0;
+        for (size_t j = 1; j <= 3; j++) {
+            auto digit = input[i + j];
+            if (digit < '0' || digit > '7') {
+                return false;
+            }
+            value = value * 8 + (digit - '0');
+        }
+
+        output->push_back(static_cast<char>(value));
+        i += 4;
+    }
+
+    return true;
+}
+
+static int get_affinity_cpu_num() {
+    // Match Go runtime getCPUCount: scan a large affinity bitmask so high-CPU
+    // systems are not truncated by cpu_set_t / CPU_SETSIZE.
+    constexpr size_t kMaxCPUs = 64 * 1024;
+    unsigned char buf[kMaxCPUs / 8];
+
+    auto size = syscall(SYS_sched_getaffinity, 0, sizeof(buf), buf);
+    if (size > 0) {
+        int count = 0;
+
+        for (long i = 0; i < size; i++) {
+            auto value = buf[i];
+            while (value != 0) {
+                count += value & 1;
+                value >>= 1;
+            }
+        }
         if (count > 0) {
             return count;
         }
@@ -138,32 +208,58 @@ static bool get_mount_info(const CgroupInfo &cgroup, MountInfo *mount_info) {
     std::string line;
 
     while (std::getline(file, line)) {
-        auto separator = line.find(" - ");
-        if (separator == std::string::npos) {
+        auto fields = split(line, ' ');
+        if (fields.size() < 10) {
             continue;
         }
 
-        auto left = split(line.substr(0, separator), ' ');
-        auto right = split(line.substr(separator + 3), ' ');
-        if (left.size() < 5 || right.size() < 3) {
+        size_t sep = std::numeric_limits<size_t>::max();
+        for (size_t i = 6; i < fields.size(); i++) {
+            if (fields[i] == "-") {
+                sep = i;
+                break;
+            }
+        }
+        if (sep == std::numeric_limits<size_t>::max() || sep + 3 >= fields.size()) {
             continue;
         }
 
-        auto &fs_type = right[0];
-        auto &super_options = right[2];
+        auto root = fields[3];
+        auto mount_point = fields[4];
+        auto fs_type = fields[sep + 1];
 
+        if (root.empty() || root[0] != '/') {
+            continue;
+        }
         if (cgroup.version == 2) {
             if (fs_type != "cgroup2") {
                 continue;
             }
         } else {
-            if (fs_type != "cgroup" || !has_controller(super_options, "cpu")) {
+            if (fs_type != "cgroup" || !has_controller(fields[sep + 3], "cpu")) {
                 continue;
             }
         }
 
-        mount_info->root = left[3];
-        mount_info->mount_point = left[4];
+        std::string unescaped_root;
+        std::string unescaped_mount_point;
+        if (!unescape_path(root, &unescaped_root) || !unescape_path(mount_point, &unescaped_mount_point)) {
+            continue;
+        }
+        if (!has_path_prefix(cgroup.path, unescaped_root)) {
+            continue;
+        }
+
+        auto relative = cgroup.path.substr(unescaped_root.length());
+        if (unescaped_root == "/" && cgroup.path != "/") {
+            relative = cgroup.path;
+        }
+        if (has_path_prefix(relative, "/..")) {
+            continue;
+        }
+
+        mount_info->root = std::move(unescaped_root);
+        mount_info->mount_point = std::move(unescaped_mount_point);
         return true;
     }
 
@@ -171,25 +267,18 @@ static bool get_mount_info(const CgroupInfo &cgroup, MountInfo *mount_info) {
 }
 
 static std::string get_cgroup_dir(const CgroupInfo &cgroup, const MountInfo &mount_info) {
-    std::string relative = cgroup.path;
-
-    if (relative.empty()) {
+    if (!has_path_prefix(cgroup.path, mount_info.root)) {
         return "";
     }
-    if (relative[0] != '/') {
-        relative.insert(relative.begin(), '/');
-    }
-    if (mount_info.root != "/" && !mount_info.root.empty()) {
-        if (relative.compare(0, mount_info.root.length(), mount_info.root) != 0) {
-            return "";
-        }
-        relative.erase(0, mount_info.root.length());
-        if (relative.empty()) {
-            relative = "/";
-        }
-    }
 
-    if (relative == "/") {
+    auto relative = cgroup.path.substr(mount_info.root.length());
+    if (mount_info.root == "/" && cgroup.path != "/") {
+        relative = cgroup.path;
+    }
+    if (has_path_prefix(relative, "/..")) {
+        return "";
+    }
+    if (relative.empty() || relative == "/") {
         return mount_info.mount_point;
     }
     return mount_info.mount_point + relative;
@@ -210,10 +299,9 @@ static int quota_to_cpu_num(int64_t quota, int64_t period) {
     if (quota <= 0 || period <= 0) {
         return 0;
     }
-
-    // Be conservative for default worker/thread sizing: 1.9 CPUs still maps to 1.
-    auto cpu_num = static_cast<int>(quota / period);
-    return cpu_num > 0 ? cpu_num : 1;
+    auto cpu_limit = static_cast<double>(quota) / static_cast<double>(period);
+    auto cpu_num = static_cast<int>(std::ceil(cpu_limit));
+    return SW_MAX(cpu_num, 2);
 }
 
 static int get_cgroup_cpu_num_v1(const std::string &dir) {
@@ -299,3 +387,4 @@ int swoole_get_available_cpu_num() {
     return cpu_num > 0 ? static_cast<int>(cpu_num) : 1;
 #endif
 }
+
