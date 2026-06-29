@@ -617,6 +617,7 @@ void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_is_root_user();
+int swoole_get_available_cpu_num();
 void swoole_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
 bool swoole_set_task_tmpdir(const std::string &dir);
 void swoole_set_process_death_signal(int signal);
