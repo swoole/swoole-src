@@ -1311,6 +1311,12 @@ static PHP_METHOD(swoole_coroutine, join) {
 
     std::set<PHPContext *> co_set;
     std::shared_ptr<bool> canceled = std::make_shared<bool>(false);
+    auto clean_join_callbacks = [&co_set]() {
+        for (auto ctx : co_set) {
+            ctx->on_close = nullptr;
+        }
+        co_set.clear();
+    };
 
     PHPContext::SwapCallback join_fn = [&co_set, canceled, co](PHPContext *task) {
         co_set.erase(task);
@@ -1331,6 +1337,7 @@ static PHP_METHOD(swoole_coroutine, join) {
         long cid = zval_get_long(zcid);
         if (co->get_cid() == cid) {
             php_swoole_error_ex(E_WARNING, SW_ERROR_WRONG_OPERATION, "can not join self");
+            clean_join_callbacks();
             RETURN_FALSE;
         }
         auto ctx = PHPCoroutine::get_context_by_cid(cid);
@@ -1339,6 +1346,7 @@ static PHP_METHOD(swoole_coroutine, join) {
         }
         if (ctx->on_close) {
             swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
+            clean_join_callbacks();
             RETURN_FALSE;
         }
         ctx->on_close = &join_fn;
@@ -1353,9 +1361,7 @@ static PHP_METHOD(swoole_coroutine, join) {
 
     if (!co->yield_ex(timeout)) {
         if (!co_set.empty()) {
-            for (auto ctx : co_set) {
-                ctx->on_close = nullptr;
-            }
+            clean_join_callbacks();
         }
         *canceled = true;
         RETURN_FALSE;

@@ -238,16 +238,20 @@ static PHP_METHOD(swoole_coroutine_scheduler, add) {
     if (s->started) {
         php_swoole_fatal_error(
             E_WARNING, "scheduler is running, unable to execute %s->add", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
+        return;
     }
 
-    auto *task = static_cast<SchedulerTask *>(ecalloc(1, sizeof(SchedulerTask)));
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
-    Z_PARAM_FUNC(task->fci, task->fci_cache)
-    Z_PARAM_VARIADIC('*', task->fci.params, task->fci.param_count)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    Z_PARAM_FUNC(fci, fci_cache)
+    Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
+    ZEND_PARSE_PARAMETERS_END_EX(return);
 
+    auto *task = static_cast<SchedulerTask *>(ecalloc(1, sizeof(SchedulerTask)));
+    task->fci = fci;
+    task->fci_cache = fci_cache;
     task->count = 1;
     scheduler_add_task(s, task);
 }
@@ -257,18 +261,22 @@ static PHP_METHOD(swoole_coroutine_scheduler, parallel) {
     if (s->started) {
         php_swoole_fatal_error(
             E_WARNING, "scheduler is running, unable to execute %s->parallel", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
+        return;
     }
 
-    auto *task = static_cast<SchedulerTask *>(ecalloc(1, sizeof(SchedulerTask)));
     zend_long count;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
 
     ZEND_PARSE_PARAMETERS_START(2, -1)
     Z_PARAM_LONG(count)
-    Z_PARAM_FUNC(task->fci, task->fci_cache)
-    Z_PARAM_VARIADIC('*', task->fci.params, task->fci.param_count)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    Z_PARAM_FUNC(fci, fci_cache)
+    Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
+    ZEND_PARSE_PARAMETERS_END_EX(return);
 
+    auto *task = static_cast<SchedulerTask *>(ecalloc(1, sizeof(SchedulerTask)));
+    task->fci = fci;
+    task->fci_cache = fci_cache;
     task->count = count;
     scheduler_add_task(s, task);
 }
@@ -285,12 +293,12 @@ static PHP_METHOD(swoole_coroutine_scheduler, start) {
         RETURN_FALSE;
     }
 
-    s->started = true;
-
     if (!s->list) {
         php_swoole_fatal_error(E_WARNING, "no coroutine task");
         RETURN_FALSE;
     }
+
+    s->started = true;
 
     while (!s->list->empty()) {
         SchedulerTask *task = s->list->front();

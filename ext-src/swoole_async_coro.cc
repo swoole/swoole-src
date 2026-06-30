@@ -38,6 +38,7 @@ void php_swoole_async_coro_rshutdown() {
     for (auto i = request_cache_map.begin(); i != request_cache_map.end(); ++i) {
         efree(i->second);
     }
+    request_cache_map.clear();
 }
 
 void php_swoole_set_aio_option(const HashTable *vht) {
@@ -148,7 +149,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     }
 
     // find cache
-    std::string key(Z_STRVAL_P(domain), Z_STRLEN_P(domain));
+    std::string key = std::to_string(type) + ":" + std::string(Z_STRVAL_P(domain), Z_STRLEN_P(domain));
     DNSCacheEntity *cache;
 
     if (request_cache_map.find(key) != request_cache_map.end()) {

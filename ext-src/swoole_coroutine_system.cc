@@ -234,7 +234,9 @@ PHP_METHOD(swoole_coroutine_system, statvfs) {
     }
 
     struct statvfs _stat;
-    swoole_coroutine_statvfs(path, &_stat);
+    if (swoole_coroutine_statvfs(path, &_stat) < 0) {
+        RETURN_FALSE;
+    }
 
     array_init(return_value);
     add_assoc_long(return_value, "bsize", _stat.f_bsize);

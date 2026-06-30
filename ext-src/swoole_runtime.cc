@@ -175,11 +175,13 @@ static constexpr zend_function_entry swoole_runtime_methods[] = {
 static php_stream_wrapper ori_php_plain_files_wrapper;
 static php_stream_ops ori_php_stream_stdio_ops;
 
+struct PhpFunc;
 static void hook_func(const char *name,
                       size_t l_name,
                       zif_handler handler = nullptr,
                       zend_internal_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
+static void init_php_func_cache(PhpFunc *rf, zend_string *fn_str);
 
 static bool extension_loaded(const char *name) {
     zend_string *extension_name = zend_string_init(name, strlen(name), false);
@@ -2188,6 +2190,9 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
         if (arg_info) {
             rf->function->internal_function.arg_info = arg_info;
         }
+        if (use_php_func) {
+            init_php_func_cache(rf, rf->function->common.function_name);
+        }
         return;
     }
 
@@ -2218,12 +2223,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
 
     if (use_php_func) {
-        char func[128];
-        memcpy(func, ZEND_STRL("swoole_"));
-        memcpy(func + 7, fn_str->val, fn_str->len);
-
-        ZVAL_STRINGL(&rf->name, func, fn_str->len + 7);
-        rf->fci_cache = sw_callable_create(&rf->name);
+        init_php_func_cache(rf, fn_str);
     }
 
     zend_hash_add_ptr(hook_function_table, fn_str, rf);
@@ -2415,6 +2415,17 @@ static PHP_FUNCTION(swoole_user_func_handler) {
     fci.named_params = nullptr;
     ZVAL_UNDEF(&fci.function_name);
     zend_call_function(&fci, rf->fci_cache->ptr());
+}
+
+static void init_php_func_cache(PhpFunc *rf, zend_string *fn_str) {
+    if (rf->fci_cache) {
+        return;
+    }
+
+    std::string func("swoole_");
+    func.append(ZSTR_VAL(fn_str), ZSTR_LEN(fn_str));
+    ZVAL_STRINGL(&rf->name, func.c_str(), func.length());
+    rf->fci_cache = sw_callable_create(&rf->name);
 }
 
 zend_class_entry *find_class_entry(const char *name, size_t length) {
