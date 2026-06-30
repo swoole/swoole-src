@@ -712,7 +712,7 @@ static PHP_METHOD(swoole_process, start) {
     } else if (pid > 0) {
         process->pid = pid;
         process->child_process = 0;
-        zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pid"), process->pid);
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pid"), process->pid);
         RETURN_LONG(pid);
     } else {
         process->child_process = 1;
@@ -728,6 +728,11 @@ static PHP_METHOD(swoole_process, read) {
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(buf_size)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (buf_size <= 0) {
+        php_swoole_fatal_error(E_WARNING, "size must be greater than 0");
+        RETURN_FALSE;
+    }
 
     const Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (process->pipe_current == nullptr) {

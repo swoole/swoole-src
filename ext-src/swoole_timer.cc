@@ -70,9 +70,9 @@ void php_swoole_timer_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator, "Swoole\\Timer\\Iterator", nullptr, nullptr, spl_ce_ArrayIterator);
 
     SW_FUNCTION_ALIAS(
-        &swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after", arginfo_swoole_timer_tick);
+        &swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after", arginfo_swoole_timer_after);
     SW_FUNCTION_ALIAS(
-        &swoole_timer_ce->function_table, "tick", CG(function_table), "swoole_timer_tick", arginfo_swoole_timer_after);
+        &swoole_timer_ce->function_table, "tick", CG(function_table), "swoole_timer_tick", arginfo_swoole_timer_tick);
     SW_FUNCTION_ALIAS(
         &swoole_timer_ce->function_table, "info", CG(function_table), "swoole_timer_info", arginfo_swoole_timer_info);
     SW_FUNCTION_ALIAS(

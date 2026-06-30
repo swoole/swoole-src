@@ -140,6 +140,26 @@ static void event_object_free(void *data) {
     efree(peo);
 }
 
+static int event_remove_socket(Socket *socket, bool defer_object_free) {
+    auto *peo = static_cast<EventObject *>(socket->object);
+    socket->object = nullptr;
+
+    if (peo) {
+        if (defer_object_free) {
+            swoole_event_defer(event_object_free, peo);
+        } else {
+            event_object_free(peo);
+        }
+    }
+
+    swSocketFd fd = socket->fd;
+    int retval = swoole_event_del(socket);
+    event_socket_map.erase(fd);
+    socket->fd = SW_BAD_SOCKET;
+    socket->free();
+    return retval;
+}
+
 static int event_readable_callback(Reactor *reactor, Event *event) {
     auto *peo = static_cast<EventObject *>(event->socket->object);
 
@@ -152,9 +172,7 @@ static int event_readable_callback(Reactor *reactor, Event *event) {
                                "%s: readable callback handler error, fd [%d] will be removed from reactor",
                                ZSTR_VAL(swoole_event_ce->name),
                                php_swoole_convert_to_fd(&peo->zsocket));
-        event->socket->object = nullptr;
-        swoole_event_defer(event_object_free, peo);
-        swoole_event_del(event->socket);
+        event_remove_socket(event->socket, true);
         return SW_ERR;
     }
 
@@ -173,9 +191,7 @@ static int event_writable_callback(Reactor *reactor, Event *event) {
                                "%s: writable callback handler error, fd [%d] will be removed from reactor",
                                ZSTR_VAL(swoole_event_ce->name),
                                php_swoole_convert_to_fd(&peo->zsocket));
-        event->socket->object = nullptr;
-        swoole_event_defer(event_object_free, peo);
-        swoole_event_del(event->socket);
+        event_remove_socket(event->socket, true);
         return SW_ERR;
     }
 
@@ -201,8 +217,7 @@ static int event_error_callback(Reactor *reactor, Event *event) {
             E_WARNING, "swoole_event->onError[1]: socket error. Error: %s [%d]", strerror(error), error);
     }
 
-    event_object_free(event->socket->object);
-    swoole_event_del(event->socket);
+    event_remove_socket(event->socket, false);
 
     return SW_OK;
 }
@@ -630,11 +645,7 @@ static PHP_FUNCTION(swoole_event_del) {
     if (!socket) {
         RETURN_FALSE;
     }
-    swoole_event_defer(event_object_free, socket->object);
-    int retval = swoole_event_del(socket);
-    event_socket_map.erase((swSocketFd)socket_fd);
-    socket->fd = SW_BAD_SOCKET;
-    socket->free();
+    int retval = event_remove_socket(socket, true);
     RETURN_BOOL(retval == SW_OK);
 }
 
