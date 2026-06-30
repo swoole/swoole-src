@@ -92,7 +92,7 @@ static bool websocket_verify_server_handshake(zval *zobject) {
         return false;
     }
 
-    zval *zkey = zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("sec-websocket-key"));
+    zval *zkey = zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("Sec-WebSocket-Key"));
     if (zkey == nullptr || Z_TYPE_P(zkey) != IS_STRING || Z_STRLEN_P(zkey) == 0) {
         return false;
     }
