@@ -95,7 +95,7 @@ void WebSocket::construct_frame(zval *zframe, zend_long opcode, zval *zpayload, 
             zend_update_property_long(swoole_websocket_closeframe_ce,
                                       SW_Z8_OBJ_P(zframe),
                                       ZEND_STRL("code"),
-                                      (payload[0] << 8) ^ (payload[1] & 0xFF));
+                                      WebSocket::parse_close_code(payload));
             if (payload_length > SW_WEBSOCKET_CLOSE_CODE_LEN) {
                 // WebSocket Close reason message
                 zend_update_property_stringl(swoole_websocket_closeframe_ce,
@@ -137,8 +137,8 @@ bool FrameObject::pack(String *buffer) {
     const char *ptr = nullptr;
     size_t len = 0;
 
-    if (sw_unlikely(opcode > SW_WEBSOCKET_OPCODE_MAX)) {
-        php_swoole_fatal_error(E_WARNING, "the maximum value of opcode is %d", SW_WEBSOCKET_OPCODE_MAX);
+    if (sw_unlikely(opcode < 0 || opcode > SW_WEBSOCKET_OPCODE_MAX)) {
+        php_swoole_fatal_error(E_WARNING, "opcode must be between 0 and %d", SW_WEBSOCKET_OPCODE_MAX);
         return false;
     }
 

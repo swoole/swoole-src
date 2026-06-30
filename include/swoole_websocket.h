@@ -134,6 +134,11 @@ enum CloseReason {
     CLOSE_TLS = 1015,
 };
 
+static inline uint16_t parse_close_code(const char *payload) {
+    return (static_cast<uint16_t>(static_cast<unsigned char>(payload[0])) << 8) |
+           static_cast<unsigned char>(payload[1]);
+}
+
 static inline bool is_control_frame(uchar opcode) {
     return opcode == OPCODE_CLOSE || opcode == OPCODE_PING || opcode == OPCODE_PONG;
 }
