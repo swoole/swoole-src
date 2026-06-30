@@ -114,7 +114,7 @@ static sw_inline void client_execute_callback(zval *zobject, AsyncClientCallback
         cb = client_obj->async->onSSLReady;
         break;
     default:
-        abort();
+        php_swoole_fatal_error(E_WARNING, "unknown async client callback type[%d]", type);
         return;
     }
 

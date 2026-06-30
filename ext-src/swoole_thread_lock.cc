@@ -81,7 +81,7 @@ static Lock *thread_lock_get_ptr(const zval *zobject) {
 
 static Lock *thread_lock_get_and_check_ptr(const zval *zobject) {
     Lock *lock = thread_lock_get_ptr(zobject);
-    if (!lock) {
+    if (UNEXPECTED(!lock)) {
         php_swoole_fatal_error(E_ERROR, "must call constructor first");
     }
     return lock;
