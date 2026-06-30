@@ -249,7 +249,7 @@ class Client {
 #ifdef SW_HAVE_COMPRESSION
     bool decompress_response(const char *in, size_t in_len);
 #endif
-    void apply_setting(zval *zset, bool check_all = true);
+    bool apply_setting(zval *zset, bool check_all = true);
     void set_basic_auth(const std::string &username, const std::string &password);
     bool exec(const std::string &_path);
     bool recv_response(double timeout = 0);
@@ -776,9 +776,9 @@ bool Client::decompress_response(const char *in, size_t in_len) {
 }
 #endif
 
-void Client::apply_setting(zval *zset, const bool check_all) {
+bool Client::apply_setting(zval *zset, const bool check_all) {
     if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0) {
-        return;
+        return true;
     }
     if (check_all) {
         zval *ztmp;
@@ -810,8 +810,12 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             body_decompression = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "write_func", ztmp)) {
+            auto cb = sw_callable_create(ztmp);
+            if (!cb) {
+                return false;
+            }
             delete write_func;
-            write_func = sw_callable_create(ztmp);
+            write_func = cb;
         }
         WebSocket::apply_setting(websocket_settings, vht, false);
     }
@@ -821,6 +825,7 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             socket->http_proxy->dont_handshake = 1;
         }
     }
+    return true;
 }
 
 void Client::set_basic_auth(const std::string &username, const std::string &password) {
@@ -1864,8 +1869,7 @@ static PHP_METHOD(swoole_http_client_coro, set) {
         zval *zsettings =
             sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
-        phc->apply_setting(zset);
-        RETURN_TRUE;
+        RETURN_BOOL(phc->apply_setting(zset));
     }
 }
 

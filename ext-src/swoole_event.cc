@@ -658,6 +658,9 @@ static PHP_FUNCTION(swoole_event_defer) {
 
     php_swoole_check_reactor();
     auto fn = sw_callable_create(zfn);
+    if (!fn) {
+        RETURN_FALSE;
+    }
     swoole_event_defer(event_defer_callback, fn);
 
     RETURN_TRUE;
@@ -686,10 +689,13 @@ static PHP_FUNCTION(swoole_event_cycle) {
             defer_task->data = nullptr;
         }
     } else {
+        auto callback = sw_callable_create(zcallback);
+        if (!callback) {
+            RETURN_FALSE;
+        }
         if (defer_task->data != nullptr) {
             swoole_event_defer(sw_callable_free, defer_task->data);
         }
-        auto callback = sw_callable_create(zcallback);
         defer_task->callback = event_cycle_callback;
         defer_task->data = callback;
     }
