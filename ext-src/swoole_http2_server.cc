@@ -1035,10 +1035,7 @@ static int http2_server_parse_header(
                         nv.valuelen);
                     continue;
                 } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-length")) {
-                    char *end;
-                    zend_long content_length = std::strtol((char *) nv.value, &end, 10);
-                    if (end != (char *) nv.value + nv.valuelen || content_length < 0 ||
-                        content_length > client->max_body_size) {
+                    if (!Http2::parse_content_length((char *) nv.value, nv.valuelen, client->max_body_size, nullptr)) {
                         http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE);
                         swoole_http2_server_goaway(ctx, SW_HTTP2_ERROR_NO_ERROR, nullptr);
                         return SW_ERR;

@@ -20,6 +20,8 @@
 #include "swoole_http2.h"
 #include "swoole_protocol.h"
 
+#include <limits>
+
 using swoole::PacketLength;
 using swoole::Protocol;
 using swoole::network::Socket;
@@ -147,6 +149,34 @@ int send_setting_frame(Protocol *protocol, Socket *_socket) {
     char setting_frame[SW_HTTP2_SETTING_FRAME_SIZE];
     size_t n = pack_setting_frame(setting_frame, default_settings, true);
     return _socket->send(setting_frame, n, 0);
+}
+
+bool parse_content_length(const char *value, size_t length, uint64_t max_body_size, uint64_t *out) {
+    if (length == 0) {
+        return false;
+    }
+
+    uint64_t content_length = 0;
+    for (size_t i = 0; i < length; i++) {
+        const auto ch = static_cast<unsigned char>(value[i]);
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+
+        const uint64_t digit = ch - '0';
+        if (content_length > (std::numeric_limits<uint64_t>::max() - digit) / 10) {
+            return false;
+        }
+        content_length = content_length * 10 + digit;
+        if (content_length > max_body_size) {
+            return false;
+        }
+    }
+
+    if (out) {
+        *out = content_length;
+    }
+    return true;
 }
 
 /**

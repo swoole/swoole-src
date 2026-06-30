@@ -152,6 +152,7 @@ ReturnCode unpack_setting_data(const char *buf,
                                const std::function<ReturnCode(uint16_t, uint32_t)> &cb);
 ssize_t get_frame_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 int send_setting_frame(Protocol *protocol, network::Socket *conn);
+bool parse_content_length(const char *value, size_t length, uint64_t max_body_size, uint64_t *out);
 const char *get_type(int type);
 int get_type_color(int type);
 
