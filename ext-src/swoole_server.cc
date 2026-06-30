@@ -3621,8 +3621,6 @@ static PHP_METHOD(swoole_server, getSocket) {
         RETURN_FALSE;
     }
     SW_ZVAL_SOCKET(return_value, socket_object);
-    zval *zsocket = sw_zval_dup(return_value);
-    Z_TRY_ADDREF_P(zsocket);
 }
 #endif
 
