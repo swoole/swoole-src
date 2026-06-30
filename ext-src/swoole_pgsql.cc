@@ -148,9 +148,8 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
             event = SW_EVENT_WRITE;
             break;
         default:
-            // should not be here including PGRES_POLLING_ACTIVE
-            abort();
-            break;
+            swoole_warning("unexpected PQconnectPoll() status[%d]", r);
+            return conn;
         }
 
         if (swoole_pgsql_socket_poll(conn, event) < 0) {

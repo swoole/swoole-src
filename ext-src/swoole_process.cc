@@ -401,6 +401,7 @@ static PHP_METHOD(swoole_process, useQueue) {
     if (capacity > 0) {
         queue->set_capacity(capacity);
     }
+    delete process->queue;
     process->queue = queue;
     process->msgqueue_mode = mode;
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueId"), queue->get_id());
@@ -761,10 +762,6 @@ static PHP_METHOD(swoole_process, read) {
 static PHP_METHOD(swoole_process, write) {
     char *data = nullptr;
     size_t data_len = 0;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE) {
-        RETURN_FALSE;
-    }
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_STRING(data, data_len)

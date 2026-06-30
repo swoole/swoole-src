@@ -322,9 +322,9 @@ int Multi::handle_socket(CURL *cp, curl_socket_t sockfd, int action, void *userp
     case CURL_POLL_REMOVE:
         return multi->del_event(socketp, sockfd);
     default:
-        abort();
+        swoole_warning("unexpected curl socket action[%d]", action);
+        return 0;
     }
-    return 0;
 }
 
 #ifdef SW_CURL_USE_IOCP

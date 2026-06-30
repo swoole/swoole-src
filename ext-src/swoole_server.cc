@@ -2918,8 +2918,8 @@ static PHP_METHOD(swoole_server, sendto) {
         }
         break;
     default:
-        abort();
-        break;
+        php_swoole_fatal_error(E_WARNING, "unsupported socket type[%d]", type);
+        RETURN_FALSE;
     }
     if (sw_unlikely(server_socket == nullptr)) {
         RETURN_FALSE;
