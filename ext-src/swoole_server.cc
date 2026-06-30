@@ -2512,6 +2512,11 @@ static PHP_METHOD(swoole_server, on) {
         RETURN_BOOL(Z_BVAL_P(&retval));
     } else {
         int event_type = i->second.type;
+        auto fci_cache = sw_callable_create(cb);
+        if (!fci_cache) {
+            RETURN_FALSE;
+        }
+
         std::string property_name = "on" + i->second.name;
 
         zend_update_property(
@@ -2519,11 +2524,6 @@ static PHP_METHOD(swoole_server, on) {
 
         if (server_object->property->callbacks[event_type]) {
             sw_callable_free(server_object->property->callbacks[event_type]);
-        }
-
-        auto fci_cache = sw_callable_create(cb);
-        if (!fci_cache) {
-            RETURN_FALSE;
         }
 
         server_object->property->callbacks[event_type] = fci_cache;

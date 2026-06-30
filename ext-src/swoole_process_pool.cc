@@ -66,6 +66,18 @@ static sw_inline ProcessPool *process_pool_get_and_check_pool(const zval *zobjec
     return pool;
 }
 
+static sw_inline bool process_pool_set_callback(zend::Callable **target, zval *zfn) {
+    auto cb = sw_callable_create(zfn);
+    if (!cb) {
+        return false;
+    }
+    if (*target) {
+        sw_callable_free(*target);
+    }
+    *target = cb;
+    return true;
+}
+
 static void process_pool_free_object(zend_object *object) {
     ProcessPoolObject *pp = process_pool_fetch_object(object);
 
@@ -462,40 +474,34 @@ static PHP_METHOD(swoole_process_pool, on) {
     ProcessPoolObject *pp = process_pool_fetch_object(ZEND_THIS);
 
     if (SW_STRCASEEQ(name, l_name, "WorkerStart")) {
-        if (pp->onWorkerStart) {
-            sw_callable_free(pp->onWorkerStart);
+        if (!process_pool_set_callback(&pp->onWorkerStart, zfn)) {
+            RETURN_FALSE;
         }
-        pp->onWorkerStart = sw_callable_create(zfn);
     } else if (SW_STRCASEEQ(name, l_name, "Message")) {
         if (pool->ipc_mode == SW_IPC_NONE) {
             zend_throw_exception(
                 swoole_exception_ce, "cannot set `onMessage` event with ipc_type=0", SW_ERROR_INVALID_PARAMS);
             RETURN_FALSE;
         }
-        if (pp->onMessage) {
-            sw_callable_free(pp->onMessage);
+        if (!process_pool_set_callback(&pp->onMessage, zfn)) {
+            RETURN_FALSE;
         }
-        pp->onMessage = sw_callable_create(zfn);
     } else if (SW_STRCASEEQ(name, l_name, "WorkerStop")) {
-        if (pp->onWorkerStop) {
-            sw_callable_free(pp->onWorkerStop);
+        if (!process_pool_set_callback(&pp->onWorkerStop, zfn)) {
+            RETURN_FALSE;
         }
-        pp->onWorkerStop = sw_callable_create(zfn);
     } else if (SW_STRCASEEQ(name, l_name, "WorkerExit")) {
-        if (pp->onWorkerExit) {
-            sw_callable_free(pp->onWorkerExit);
+        if (!process_pool_set_callback(&pp->onWorkerExit, zfn)) {
+            RETURN_FALSE;
         }
-        pp->onWorkerExit = sw_callable_create(zfn);
     } else if (SW_STRCASEEQ(name, l_name, "Start")) {
-        if (pp->onStart) {
-            sw_callable_free(pp->onStart);
+        if (!process_pool_set_callback(&pp->onStart, zfn)) {
+            RETURN_FALSE;
         }
-        pp->onStart = sw_callable_create(zfn);
     } else if (SW_STRCASEEQ(name, l_name, "Shutdown")) {
-        if (pp->onShutdown) {
-            sw_callable_free(pp->onShutdown);
+        if (!process_pool_set_callback(&pp->onShutdown, zfn)) {
+            RETURN_FALSE;
         }
-        pp->onShutdown = sw_callable_create(zfn);
     } else {
         php_swoole_error(E_WARNING, "unknown event type[%s]", name);
         RETURN_FALSE;
