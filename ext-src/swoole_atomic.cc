@@ -41,7 +41,6 @@ static sw_atomic_t *atomic_get_ptr(const zval *zobject) {
 }
 
 static void atomic_free_object(zend_object *object) {
-    sw_mem_pool()->free((void *) atomic_fetch_object(object)->ptr);
     zend_object_std_dtor(object);
 }
 
@@ -76,7 +75,6 @@ static sw_atomic_long_t *atomic_long_get_ptr(const zval *zobject) {
 }
 
 static void atomic_long_free_object(zend_object *object) {
-    sw_mem_pool()->free((void *) atomic_long_fetch_object(object)->ptr);
     zend_object_std_dtor(object);
 }
 
