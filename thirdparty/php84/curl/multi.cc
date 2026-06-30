@@ -88,6 +88,10 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
 
     mh = Z_CURL_MULTI_P(z_mh);
     ch = swoole_curl_get_handle(z_ch);
+    if (!ch) {
+        SAVE_CURLM_ERROR(mh, CURLM_BAD_EASY_HANDLE);
+        RETURN_LONG(CURLM_BAD_EASY_HANDLE);
+    }
 
     if (!(swoole_curl_multi_is_in_coroutine(mh))) {
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION,
@@ -169,7 +173,7 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle) {
 
     ch = Z_CURL_P(z_ch);
     auto handle = swoole::curl::get_handle(ch->cp);
-    if (handle && handle->multi) {
+    if (handle && handle->multi == mh->multi) {
         error = mh->multi->remove_handle(handle);
     } else {
         error = curl_multi_remove_handle(mh->multi, ch->cp);
