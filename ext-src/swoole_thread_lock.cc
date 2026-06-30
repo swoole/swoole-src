@@ -72,7 +72,11 @@ static sw_inline ThreadLockObject *thread_lock_fetch_object(zend_object *obj) {
 }
 
 static Lock *thread_lock_get_ptr(const zval *zobject) {
-    return thread_lock_fetch_object(Z_OBJ_P(zobject))->lock->lock_;
+    ThreadLockResource *lock = thread_lock_fetch_object(Z_OBJ_P(zobject))->lock;
+    if (UNEXPECTED(!lock)) {
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    }
+    return lock->lock_;
 }
 
 static Lock *thread_lock_get_and_check_ptr(const zval *zobject) {
@@ -101,7 +105,11 @@ static zend_object *thread_lock_create_object(zend_class_entry *ce) {
 }
 
 ThreadResource *php_swoole_thread_lock_cast(const zval *zobject) {
-    return thread_lock_fetch_object(Z_OBJ_P(zobject))->lock;
+    ThreadLockResource *lock = thread_lock_fetch_object(Z_OBJ_P(zobject))->lock;
+    if (UNEXPECTED(!lock)) {
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    }
+    return lock;
 }
 
 void php_swoole_thread_lock_create(zval *return_value, ThreadResource *resource) {

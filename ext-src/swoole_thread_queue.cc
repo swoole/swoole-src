@@ -151,7 +151,7 @@ ThreadQueueObject *queue_fetch_object_check(const zval *zobject) {
 }
 
 ThreadResource *php_swoole_thread_queue_cast(const zval *zobject) {
-    return queue_fetch_object(Z_OBJ_P(zobject))->queue;
+    return queue_fetch_object_check(zobject)->queue;
 }
 
 void php_swoole_thread_queue_create(zval *return_value, ThreadResource *resource) {
