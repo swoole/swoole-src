@@ -179,6 +179,29 @@ bool parse_content_length(const char *value, size_t length, uint64_t max_body_si
     return true;
 }
 
+bool parse_status_code(const char *value, size_t length, uint16_t *out) {
+    if (length != 3) {
+        return false;
+    }
+
+    uint16_t status_code = 0;
+    for (size_t i = 0; i < length; i++) {
+        const auto ch = static_cast<unsigned char>(value[i]);
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+        status_code = status_code * 10 + (ch - '0');
+    }
+
+    if (status_code < 100 || status_code > 599) {
+        return false;
+    }
+    if (out) {
+        *out = status_code;
+    }
+    return true;
+}
+
 /**
  +-----------------------------------------------+
  |                 Length (24)                   |

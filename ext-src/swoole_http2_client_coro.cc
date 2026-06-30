@@ -656,7 +656,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         return SW_CONTINUE;
     }
     if (type == SW_HTTP2_TYPE_HEADERS) {
-        parse_header(stream, flags, buf, length);
+        if (parse_header(stream, flags, buf, length) < 0) {
+            return SW_ERROR;
+        }
     } else if (type == SW_HTTP2_TYPE_DATA) {
         if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {
             stream->flags |= SW_HTTP2_STREAM_PIPELINE_RESPONSE;
@@ -912,7 +914,11 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
             if (nv.name[0] == ':') {
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status")) {
-                    zend::object_set(zresponse, ZEND_STRL("statusCode"), sw_atol((char *) nv.value));
+                    uint16_t status_code = 0;
+                    if (!Http2::parse_status_code((char *) nv.value, nv.valuelen, &status_code)) {
+                        return SW_ERR;
+                    }
+                    zend::object_set(zresponse, ZEND_STRL("statusCode"), status_code);
                 }
             } else {
 #ifdef SW_HAVE_ZLIB
