@@ -1976,10 +1976,12 @@ static PHP_METHOD(swoole_http_client_coro, addFile) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (offset < 0) {
-        offset = 0;
+        php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] must be greater than or equal to 0", offset);
+        RETURN_FALSE;
     }
     if (length < 0) {
-        length = 0;
+        php_swoole_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] must be greater than or equal to 0", length);
+        RETURN_FALSE;
     }
     struct stat file_stat;
     if (stat(path, &file_stat) < 0) {
@@ -2126,6 +2128,11 @@ static PHP_METHOD(swoole_http_client_coro, download) {
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(offset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (offset < 0) {
+        php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] must be greater than or equal to 0", offset);
+        RETURN_FALSE;
+    }
 
     zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("downloadFile"), download_file);
     zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("downloadOffset"), offset);
