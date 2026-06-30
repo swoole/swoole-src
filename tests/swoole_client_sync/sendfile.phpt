@@ -11,6 +11,8 @@ $pm->parentFunc = function ($pid) use ($port) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $r = $client->connect(TCP_SERVER_HOST, $port, 0.5);
     Assert::assert($r);
+    Assert::false(@$client->sendfile(TEST_IMAGE, -1));
+    Assert::false(@$client->sendfile(TEST_IMAGE, 0, -1));
     $client->send(pack('N', filesize(TEST_IMAGE)));
     $ret = $client->sendfile(TEST_IMAGE);
     Assert::assert($ret);

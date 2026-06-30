@@ -1725,6 +1725,14 @@ static PHP_METHOD(swoole_socket_coro, sendFile) {
         php_swoole_fatal_error(E_WARNING, "file to send is empty");
         RETURN_FALSE;
     }
+    if (offset < 0) {
+        php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] must be greater than or equal to 0", offset);
+        RETURN_FALSE;
+    }
+    if (length < 0) {
+        php_swoole_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] must be greater than or equal to 0", length);
+        RETURN_FALSE;
+    }
 
     swoole_get_socket_coro(sock, ZEND_THIS);
     if (!sock->socket->sendfile(file, offset, length)) {
