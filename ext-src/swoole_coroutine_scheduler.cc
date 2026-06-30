@@ -193,7 +193,8 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
         System::set_dns_cache_expire((time_t) zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "dns_cache_capacity", ztmp)) {
-        System::set_dns_cache_capacity((size_t) zval_get_long(ztmp));
+        zend_long capacity = zval_get_long(ztmp);
+        System::set_dns_cache_capacity(capacity <= 0 ? 0 : (size_t) capacity);
     }
     /* Reactor can exit */
     if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition")))) {

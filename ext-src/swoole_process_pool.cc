@@ -446,7 +446,13 @@ static PHP_METHOD(swoole_process_pool, set) {
         pp->enable_message_bus = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "max_package_size", ztmp)) {
-        pool->set_max_packet_size(php_swoole_parse_to_size(ztmp));
+        zend_long v = php_swoole_parse_to_size(ztmp);
+        if (v < 0) {
+            php_swoole_fatal_error(
+                E_WARNING, "max_package_size must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+        } else {
+            pool->set_max_packet_size(SW_MIN(v, UINT32_MAX));
+        }
     }
     if (php_swoole_array_get_value(vht, "max_wait_time", ztmp)) {
         zend_long v = zval_get_long(ztmp);
