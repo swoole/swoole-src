@@ -197,22 +197,18 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
     }
     /* Reactor can exit */
     if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition")))) {
+        auto exit_condition = sw_callable_create(ztmp);
+        if (!exit_condition) {
+            return;
+        }
         if (exit_condition_fci_cache) {
             sw_callable_free(exit_condition_fci_cache);
         }
 
-        exit_condition_fci_cache = sw_callable_create(ztmp);
-        if (exit_condition_fci_cache) {
-            SwooleG.user_exit_condition = php_swoole_coroutine_reactor_can_exit;
-            if (sw_reactor()) {
-                sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_USER_AFTER_DEFAULT,
-                                                 SwooleG.user_exit_condition);
-            }
-        } else {
-            if (sw_reactor()) {
-                sw_reactor()->remove_exit_condition(Reactor::EXIT_CONDITION_USER_AFTER_DEFAULT);
-                SwooleG.user_exit_condition = nullptr;
-            }
+        exit_condition_fci_cache = exit_condition;
+        SwooleG.user_exit_condition = php_swoole_coroutine_reactor_can_exit;
+        if (sw_reactor()) {
+            sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_USER_AFTER_DEFAULT, SwooleG.user_exit_condition);
         }
     }
 }

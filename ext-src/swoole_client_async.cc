@@ -513,12 +513,22 @@ static PHP_METHOD(swoole_client_async, enableSSL) {
     if (!cli) {
         RETURN_FALSE;
     }
+    auto cb = sw_callable_create(zcallback);
+    if (!cb) {
+        RETURN_FALSE;
+    }
+
     if (!php_swoole_client_enable_ssl_encryption(cli, ZEND_THIS)) {
+        sw_callable_free(cb);
         RETURN_FALSE;
     }
 
     auto client_obj = php_swoole_client_fetch_object(ZEND_THIS);
+    if (!client_obj->async) {
+        client_obj->async = new AsyncClientObject();
+    }
     if (swoole_event_set(cli->socket, SW_EVENT_WRITE) < 0) {
+        sw_callable_free(cb);
         RETURN_FALSE;
     }
 
@@ -526,10 +536,6 @@ static PHP_METHOD(swoole_client_async, enableSSL) {
         sw_callable_free(client_obj->async->onSSLReady);
     }
 
-    auto cb = sw_callable_create(zcallback);
-    if (!cb) {
-        RETURN_FALSE;
-    }
     zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onSSLReady"), zcallback);
     client_obj->async->onSSLReady = cb;
     cli->ssl_wait_handshake = true;
