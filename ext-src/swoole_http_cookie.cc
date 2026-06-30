@@ -354,6 +354,11 @@ static PHP_METHOD(swoole_http_cookie, __construct) {
     zend_string *field;                                                                                                \
     HttpCookie *cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);                                                  \
                                                                                                                        \
+    if (UNEXPECTED(!cookie)) {                                                                                         \
+        zend_throw_error(nullptr, "Swoole\\Http\\Cookie is not initialized");                                          \
+        RETURN_THROWS();                                                                                               \
+    }                                                                                                                  \
+                                                                                                                       \
     ZEND_PARSE_PARAMETERS_START(1, 1)                                                                                  \
     Z_PARAM_STR(field)                                                                                                 \
     ZEND_PARSE_PARAMETERS_END();                                                                                       \
@@ -364,6 +369,11 @@ static PHP_METHOD(swoole_http_cookie, __construct) {
 #define PHP_METHOD_HTTP_COOKIE_WITH_BOOL(field)                                                                        \
     zend_bool field = false;                                                                                           \
     HttpCookie *cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);                                                  \
+                                                                                                                       \
+    if (UNEXPECTED(!cookie)) {                                                                                         \
+        zend_throw_error(nullptr, "Swoole\\Http\\Cookie is not initialized");                                          \
+        RETURN_THROWS();                                                                                               \
+    }                                                                                                                  \
                                                                                                                        \
     ZEND_PARSE_PARAMETERS_START(0, 1)                                                                                  \
     Z_PARAM_OPTIONAL                                                                                                   \
@@ -384,6 +394,10 @@ static PHP_METHOD(swoole_http_cookie, withValue) {
 static PHP_METHOD(swoole_http_cookie, withExpires) {
     zend_long expires = 0;
     HttpCookie *cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);
+    if (UNEXPECTED(!cookie)) {
+        zend_throw_error(nullptr, "Swoole\\Http\\Cookie is not initialized");
+        RETURN_THROWS();
+    }
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
@@ -424,6 +438,9 @@ static PHP_METHOD(swoole_http_cookie, withPartitioned) {
 
 static PHP_METHOD(swoole_http_cookie, toString) {
     auto cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);
+    if (UNEXPECTED(!cookie)) {
+        RETURN_FALSE;
+    }
     auto cookie_str = cookie->toString();
     if (!cookie_str) {
         cookie->reset();
@@ -433,9 +450,18 @@ static PHP_METHOD(swoole_http_cookie, toString) {
 }
 
 static PHP_METHOD(swoole_http_cookie, toArray) {
-    php_swoole_http_get_cooke_safety(ZEND_THIS)->toArray(return_value);
+    auto cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);
+    if (UNEXPECTED(!cookie)) {
+        zend_throw_error(nullptr, "Swoole\\Http\\Cookie is not initialized");
+        RETURN_THROWS();
+    }
+    cookie->toArray(return_value);
 }
 
 static PHP_METHOD(swoole_http_cookie, reset) {
-    php_swoole_http_get_cooke_safety(ZEND_THIS)->reset();
+    auto cookie = php_swoole_http_get_cooke_safety(ZEND_THIS);
+    if (UNEXPECTED(!cookie)) {
+        return;
+    }
+    cookie->reset();
 }
