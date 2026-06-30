@@ -135,14 +135,14 @@ int ProcessPool::create_message_bus() {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "the message bus has been created");
         return SW_ERR;
     }
-    auto *msg_id = static_cast<sw_atomic_long_t *>(sw_mem_pool()->alloc(sizeof(sw_atomic_long_t)));
-    if (msg_id == nullptr) {
+    message_bus_msg_id = static_cast<sw_atomic_long_t *>(sw_mem_pool()->alloc(sizeof(sw_atomic_long_t)));
+    if (message_bus_msg_id == nullptr) {
         swoole_sys_warning("malloc[1] failed");
         return SW_ERR;
     }
-    *msg_id = 1;
+    *message_bus_msg_id = 1;
     message_bus = new MessageBus();
-    message_bus->set_id_generator([msg_id]() { return sw_atomic_fetch_add(msg_id, 1); });
+    message_bus->set_id_generator([this]() { return sw_atomic_fetch_add(message_bus_msg_id, 1); });
     size_t ipc_max_size;
 #ifndef __linux__
     ipc_max_size = SW_IPC_MAX_SIZE;
@@ -158,6 +158,10 @@ int ProcessPool::create_message_bus() {
 #endif
     message_bus->set_buffer_size(ipc_max_size);
     if (!message_bus->alloc_buffer()) {
+        delete message_bus;
+        message_bus = nullptr;
+        sw_mem_pool()->free((void *) message_bus_msg_id);
+        message_bus_msg_id = nullptr;
         return SW_ERR;
     }
     return SW_OK;
@@ -1060,6 +1064,10 @@ void ProcessPool::destroy() {
     if (message_bus) {
         delete message_bus;
         message_bus = nullptr;
+    }
+    if (message_bus_msg_id) {
+        sw_mem_pool()->free((void *) message_bus_msg_id);
+        message_bus_msg_id = nullptr;
     }
 
     sw_mem_pool()->free(workers);

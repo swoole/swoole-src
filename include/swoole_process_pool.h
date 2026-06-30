@@ -343,6 +343,7 @@ struct ProcessPool {
     StreamInfo *stream_info_;
     Channel *message_box = nullptr;
     MessageBus *message_bus = nullptr;
+    sw_atomic_long_t *message_bus_msg_id = nullptr;
     ReloadTask *reload_task = nullptr;
 
     void *ptr;

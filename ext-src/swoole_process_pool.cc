@@ -608,9 +608,15 @@ static PHP_METHOD(swoole_process_pool, start) {
 #ifdef SIGRTMIN
     ori_handlers[SIGRTMIN] = swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
 #endif
+    auto restore_signal_handlers = [&ori_handlers]() {
+        for (auto &ori_handler : ori_handlers) {
+            swoole_signal_set(ori_handler.first, ori_handler.second);
+        }
+    };
 
     if (pp->enable_message_bus) {
         if (pool->create_message_bus() != SW_OK) {
+            restore_signal_handlers();
             RETURN_FALSE;
         }
         pool->message_bus->set_allocator(sw_zend_string_allocator());
@@ -621,9 +627,11 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     if (pp->onWorkerStart == nullptr && pp->onMessage == nullptr) {
         if (pool->async) {
+            restore_signal_handlers();
             php_swoole_fatal_error(E_ERROR, "require 'onWorkerStart' callback");
             RETURN_FALSE;
         } else if (pool->ipc_mode != SW_IPC_NONE && pp->onMessage == nullptr) {
+            restore_signal_handlers();
             php_swoole_fatal_error(E_ERROR, "require 'onMessage' callback");
             RETURN_FALSE;
         }
@@ -632,6 +640,7 @@ static PHP_METHOD(swoole_process_pool, start) {
     if (pp->onWorkerExit && !pp->enable_coroutine) {
         zend_throw_exception(
             swoole_exception_ce, "cannot set `onWorkerExit` without enable_coroutine", SW_ERROR_INVALID_PARAMS);
+        restore_signal_handlers();
         RETURN_FALSE;
     }
 
@@ -653,6 +662,8 @@ static PHP_METHOD(swoole_process_pool, start) {
     }
 
     if (pool->start() < 0) {
+        current_pool = nullptr;
+        restore_signal_handlers();
         RETURN_FALSE;
     }
 
@@ -660,9 +671,7 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     current_pool = nullptr;
 
-    for (auto &ori_handler : ori_handlers) {
-        swoole_signal_set(ori_handler.first, ori_handler.second);
-    }
+    restore_signal_handlers();
 }
 
 static PHP_METHOD(swoole_process_pool, detach) {
@@ -704,7 +713,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         *worker = current_pool->workers[worker_id];
 
         object_init_ex(zprocess, swoole_process_ce);
-        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), swoole_get_worker_id());
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), worker->id);
         zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pid"), worker->pid);
 #ifndef _WIN32
         if (current_pool->ipc_mode == SW_IPC_UNIXSOCK) {
