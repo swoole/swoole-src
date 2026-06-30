@@ -27,6 +27,7 @@
 
 #include "thirdparty/php/sockets/php_sockets_cxx.h"
 
+#include <limits>
 #include <string>
 
 BEGIN_EXTERN_C()
@@ -1652,7 +1653,13 @@ static void socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all
             free_func(iov.get(), 0, iov_index);
             RETURN_FALSE;
         }
-        size_t iov_len = Z_LVAL_P(zelement);
+        const size_t iov_len = Z_LVAL_P(zelement);
+        if (iov_len > static_cast<size_t>(std::numeric_limits<ssize_t>::max() - total_length)) {
+            zend_throw_exception_ex(
+                swoole_socket_coro_exception_ce, EINVAL, "The total length of the io vector is too large");
+            free_func(iov.get(), 0, iov_index);
+            RETURN_FALSE;
+        }
 
         iov[iov_index].iov_base = zend_string_alloc(iov_len, false)->val;
         iov[iov_index].iov_len = iov_len;

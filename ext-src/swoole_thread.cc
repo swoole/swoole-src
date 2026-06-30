@@ -1115,7 +1115,7 @@ bool ZendArray::index_offsetSet(zend_long index, zval *zvalue) {
     auto item = new ArrayItem(zvalue);
     bool success = true;
     lock_.lock();
-    if (index > zend_hash_num_elements(&ht)) {
+    if (index < -1 || index > zend_hash_num_elements(&ht)) {
         success = false;
         delete item;
     } else if (index == -1 || index == zend_hash_num_elements(&ht)) {
@@ -1136,11 +1136,13 @@ bool ZendArray::index_incr(zval *zkey, zval *zvalue, zval *return_value) {
 
     bool success = true;
     lock_.lock();
-    if (index > zend_hash_num_elements(&ht)) {
+    if (index < -1 || index > zend_hash_num_elements(&ht)) {
         success = false;
     } else if (index == -1 || index == zend_hash_num_elements(&ht)) {
         auto item = incr_create(zvalue, return_value);
         zend_hash_next_index_insert_ptr(&ht, item);
+    } else if (!index_exists(index)) {
+        success = false;
     } else {
         auto item = static_cast<ArrayItem *>(zend_hash_index_find_ptr(&ht, index));
         incr_update(item, zvalue, return_value);
@@ -1157,6 +1159,10 @@ void ZendArray::index_offsetExists(zend_long index, zval *return_value) {
 
 void ZendArray::index_offsetUnset(zend_long index) {
     lock_.lock();
+    if (!index_exists(index)) {
+        lock_.unlock();
+        return;
+    }
     zend_long i = index;
     zend_long n = zend_hash_num_elements(&ht);
     HT_FLAGS(&ht) |= HASH_FLAG_PACKED | HASH_FLAG_STATIC_KEYS;
