@@ -802,7 +802,11 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len == 0) {
-        zend_throw_exception(swoole_http2_client_coro_exception_ce, "host is empty", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_http2_client_coro_exception_ce, "The host is empty", SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
+    if (!swoole::network::Address::verify_port(port, true)) {
+        zend_throw_exception(swoole_http2_client_coro_exception_ce, "The port is invalid", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
@@ -1435,6 +1439,10 @@ static PHP_METHOD(swoole_http2_client_coro, write) {
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(end);
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (stream_id < 0) {
+        RETURN_FALSE;
+    }
 
     SW_CLIENT_PRESERVE_SOCKET(&h2c->zsocket);
 
