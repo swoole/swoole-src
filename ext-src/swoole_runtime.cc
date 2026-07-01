@@ -787,14 +787,18 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
 #endif
         auto abstract = new NetStream();
         abstract->socket = clisock;
+        abstract->stream.socket = (int) clisock->get_fd();
         abstract->blocking = true;
 
         xparam->outputs.client = php_stream_alloc_rel(stream->ops, abstract, nullptr, "r+");
-        if (xparam->outputs.client) {
-            xparam->outputs.client->ctx = stream->ctx;
-            if (stream->ctx) {
-                GC_ADDREF(stream->ctx);
-            }
+        if (xparam->outputs.client == nullptr) {
+            delete abstract;
+            return FAILURE;
+        }
+
+        xparam->outputs.client->ctx = stream->ctx;
+        if (stream->ctx) {
+            GC_ADDREF(stream->ctx);
         }
         return SUCCESS;
     }
@@ -1916,6 +1920,10 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
     }
     if (tv_nsec < 0) {
         zend_argument_value_error(2, "must be greater than or equal to 0");
+        RETURN_THROWS();
+    }
+    if (tv_nsec > 999999999) {
+        zend_value_error("Nanoseconds was not in the range 0 to 999 999 999 or seconds was negative");
         RETURN_THROWS();
     }
 
