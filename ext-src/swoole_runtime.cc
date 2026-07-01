@@ -2372,18 +2372,26 @@ static PHP_FUNCTION(swoole_stream_socket_pair) {
         RETURN_FALSE;
     }
 
-    array_init(return_value);
-
     php_swoole_check_reactor();
 
     php_stream *s1 = php_swoole_create_stream_from_socket(pair[0], domain, type, protocol STREAMS_CC);
     php_stream *s2 = php_swoole_create_stream_from_socket(pair[1], domain, type, protocol STREAMS_CC);
+    if (s1 == nullptr || s2 == nullptr) {
+        if (s1) {
+            php_stream_close(s1);
+        }
+        if (s2) {
+            php_stream_close(s2);
+        }
+        RETURN_FALSE;
+    }
 
     /* set the __exposed flag.
      * php_stream_to_zval() does, add_next_index_resource() does not */
     php_stream_auto_cleanup(s1);
     php_stream_auto_cleanup(s2);
 
+    array_init(return_value);
     add_next_index_resource(return_value, s1->res);
     add_next_index_resource(return_value, s2->res);
 }
