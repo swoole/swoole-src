@@ -13,7 +13,7 @@ use function Swoole\Coroutine\run;
 use function Swoole\Coroutine\go;
 
 run(function () {
-    $client = new Client('httpbin.org', 443, true);
+    $client = new Client('httpbingo.org', 443, true);
     $chan = new Channel(1);
     go(function () use ($client, $chan) {
         $client->connect();

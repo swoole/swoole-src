@@ -18,7 +18,7 @@ use function Swoole\Coroutine\run;
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
 run(function () {
-    $client = new Client(['base_uri' => 'https://httpbin.org']);
+    $client = new Client(['base_uri' => 'https://httpbingo.org']);
 
     // Initiate each request but do not block
     $promises = [

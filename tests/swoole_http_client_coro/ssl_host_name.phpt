@@ -9,10 +9,10 @@ skip_if_offline();
 require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
-    $c = new Co\Http\Client('httpbin.org', 443, true);
+    $c = new Co\Http\Client('httpbingo.org', 443, true);
     $c->set([
         'timeout' => 5,
-        'ssl_host_name' => 'httpbin.org'
+        'ssl_host_name' => 'httpbingo.org'
     ]);
     $c->get('/');
     Assert::assert(strlen($c->body) > 0);
