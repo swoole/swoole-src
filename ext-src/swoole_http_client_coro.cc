@@ -791,7 +791,13 @@ bool Client::apply_setting(zval *zset, const bool check_all) {
             response_timeout = zval_get_double(ztmp);
         }
         if (php_swoole_array_get_value(vht, "max_retries", ztmp)) {
-            max_retries = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
+            zend_long v = zval_get_long(ztmp);
+            if (v < 0) {
+                php_swoole_fatal_error(
+                    E_WARNING, "max_retries must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+                return false;
+            }
+            max_retries = (uint8_t) SW_MIN(v, UINT8_MAX);
         }
         if (php_swoole_array_get_value(vht, "defer", ztmp)) {
             defer = zval_is_true(ztmp);
