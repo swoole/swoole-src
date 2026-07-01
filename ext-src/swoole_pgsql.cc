@@ -55,7 +55,8 @@ static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_no
     if (swoole_pgsql_blocking) {
         struct pollfd fds[1];
         fds[0].fd = PQsocket(conn);
-        fds[0].events |= translate_events_to_poll(event);
+        fds[0].events = translate_events_to_poll(event);
+        fds[0].revents = 0;
 
         int result = 0;
         do {
@@ -235,6 +236,9 @@ PGresult *swoole_pgsql_exec_params(PGconn *conn,
 PGresult *swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName) {
     int result = PQsendClosePrepared(conn, stmtName);
     if (sw_likely(result)) {
+        if (swoole_pgsql_flush(conn) == -1) {
+            return nullptr;
+        }
         return swoole_pgsql_get_result(conn);
     }
 
