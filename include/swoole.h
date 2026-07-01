@@ -608,6 +608,7 @@ void swoole_exit(int _status);
 #ifndef _WIN32
 pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void()> &child_fn);
+int swoole_get_available_cpu_num();
 #endif
 pid_t swoole_waitpid(pid_t _pid, int *_stat_loc, int _options);
 void swoole_thread_init(bool main_thread = false);

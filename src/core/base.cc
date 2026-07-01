@@ -114,7 +114,7 @@ void swoole_init() {
     SwooleG.cpu_num = SW_MAX(1, (int) si.dwNumberOfProcessors);
     SwooleG.pagesize = si.dwPageSize;
 #else
-    SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
+    SwooleG.cpu_num = SW_MAX(1, swoole_get_available_cpu_num());
     SwooleG.pagesize = getpagesize();
 #endif
     SwooleG.max_file_content = SW_MAX_FILE_CONTENT;
