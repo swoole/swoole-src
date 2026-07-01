@@ -210,15 +210,11 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 }
 
 static zend_internal_arg_info *copy_arginfo(const zend_internal_function *function, zend_internal_arg_info *_arg_info) {
-    uint32_t num_args = function->num_args + 1;
+    uint32_t num_args = function->num_args + 1 + ((function->fn_flags & ZEND_ACC_VARIADIC) ? 1 : 0);
     zend_internal_arg_info *arg_info = _arg_info - 1;
 
     auto new_arg_info = static_cast<zend_internal_arg_info *>(pemalloc(sizeof(zend_internal_arg_info) * num_args, 1));
     memcpy(new_arg_info, arg_info, sizeof(zend_internal_arg_info) * num_args);
-
-    if (function->fn_flags & ZEND_ACC_VARIADIC) {
-        num_args++;
-    }
 
     for (uint32_t i = 0; i < num_args; i++) {
         if (ZEND_TYPE_HAS_LIST(arg_info[i].type)) {
@@ -757,8 +753,6 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
     int *error_code = &xparam->outputs.error_code;
 
     int error = 0;
-    php_sockaddr_storage sa;
-    socklen_t sl = sizeof(sa);
 
     if (timeout) {
         sock->set_timeout(timeout, SW_TIMEOUT_READ);
@@ -783,7 +777,9 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
         }
         return FAILURE;
     } else {
-        php_network_populate_name_from_sockaddr((sockaddr *) &sa, sl, textaddr, addr, addrlen);
+        if (textaddr || addr) {
+            php_network_get_peer_name(clisock->get_fd(), textaddr, addr, addrlen);
+        }
 #ifdef TCP_NODELAY
         if (tcp_nodelay) {
             clisock->get_socket()->set_tcp_nodelay(tcp_nodelay);
@@ -1295,7 +1291,7 @@ static php_stream *socket_create(const char *proto,
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
     if (stream == nullptr) {
         delete abstract;
-        goto _failed;
+        return nullptr;
     }
 
     if (!socket_ssl_set_options(sock, context)) {
