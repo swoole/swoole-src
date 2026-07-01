@@ -551,13 +551,7 @@ int Multi::set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
     curl_socket->sockfd = sockfd;
     curl_socket->action = action;
 
-    int events = 0;
-    if (action != CURL_POLL_IN) {
-        events |= SW_EVENT_WRITE;
-    }
-    if (action != CURL_POLL_OUT) {
-        events |= SW_EVENT_READ;
-    }
+    int events = get_event(action);
 
     swoole_trace_log(SW_TRACE_CO_CURL,
                      SW_ECHO_GREEN " curl_socket=%p, fd=%d, events=%d",
