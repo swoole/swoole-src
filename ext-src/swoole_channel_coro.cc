@@ -141,7 +141,7 @@ static PHP_METHOD(swoole_channel_coro, __construct) {
         RETURN_FALSE;
     }
     chan_t->chan = new PHPChannel(capacity);
-    zend_update_property_long(swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("capacity"), capacity);
+    zend::object_set(ZEND_THIS, ZEND_STRL("capacity"), capacity);
 }
 
 static PHP_METHOD(swoole_channel_coro, push) {
@@ -162,14 +162,9 @@ static PHP_METHOD(swoole_channel_coro, push) {
             RETURN_TRUE;
         }
         zval_ptr_dtor(&data);
-        zend_update_property_long(
-            swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), chan->get_error());
-        RETURN_FALSE;
-    } else {
-        zend_update_property_long(
-            swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), chan->get_error());
-        RETURN_FALSE;
     }
+    zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), chan->get_error());
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_channel_coro, pop) {
@@ -183,12 +178,10 @@ static PHP_METHOD(swoole_channel_coro, pop) {
 
     zval zdata;
     if (EXPECTED(chan->pop(&zdata, timeout))) {
-        RETVAL_ZVAL(&zdata, 0, 0);
-    } else {
-        zend_update_property_long(
-            swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), chan->get_error());
-        RETURN_FALSE;
+        RETURN_ZVAL(&zdata, 0, 0);
     }
+    zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), chan->get_error());
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_channel_coro, close) {
