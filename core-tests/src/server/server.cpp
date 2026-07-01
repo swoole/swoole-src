@@ -3604,7 +3604,11 @@ TEST(server, no_idle_worker) {
         });
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock->unlock();
+        }
+    };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         usleep(10000);
@@ -3662,7 +3666,11 @@ TEST(server, no_idle_task_worker) {
         });
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock->unlock();
+        }
+    };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         SW_LOOP_N(1024) {
