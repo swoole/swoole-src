@@ -22,11 +22,50 @@
 #include <limits>
 #include <sstream>
 #include <string>
-#include <sys/syscall.h>
+#include <thread>
 #include <vector>
 
+static int get_hardware_cpu_num() {
+    auto cpu_num = std::thread::hardware_concurrency();
+    return cpu_num > 0 ? static_cast<int>(cpu_num) : 1;
+}
+
+#ifdef HAVE_CPU_AFFINITY
+static int count_cpu_set(const cpu_set_t *cpu_set) {
+#ifdef CPU_COUNT
+    auto count = CPU_COUNT(cpu_set);
+    return count > 0 ? count : 0;
+#else
+    int count = 0;
+    for (int i = 0; i < CPU_SETSIZE; i++) {
+        if (CPU_ISSET(i, cpu_set)) {
+            count++;
+        }
+    }
+    return count;
+#endif
+}
+
+static int get_affinity_cpu_num() {
+    cpu_set_t cpu_set;
+    CPU_ZERO(&cpu_set);
+
+    if (swoole_get_cpu_affinity(&cpu_set) == 0) {
+        auto count = count_cpu_set(&cpu_set);
+        if (count > 0) {
+            return count;
+        }
+    }
+
+    return get_hardware_cpu_num();
+}
+#else
+static int get_affinity_cpu_num() {
+    return get_hardware_cpu_num();
+}
+#endif
+
 #ifdef __linux__
-namespace {
 struct CgroupInfo {
     int version = 0;
     std::string path;
@@ -120,32 +159,6 @@ static bool unescape_path(const std::string &input, std::string *output) {
     }
 
     return true;
-}
-
-static int get_affinity_cpu_num() {
-    // Match Go runtime getCPUCount: scan a large affinity bitmask so high-CPU
-    // systems are not truncated by cpu_set_t / CPU_SETSIZE.
-    constexpr size_t kMaxCPUs = 64 * 1024;
-    unsigned char buf[kMaxCPUs / 8];
-
-    auto size = syscall(SYS_sched_getaffinity, 0, sizeof(buf), buf);
-    if (size > 0) {
-        int count = 0;
-
-        for (long i = 0; i < size; i++) {
-            auto value = buf[i];
-            while (value != 0) {
-                count += value & 1;
-                value >>= 1;
-            }
-        }
-        if (count > 0) {
-            return count;
-        }
-    }
-
-    auto cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
-    return cpu_num > 0 ? static_cast<int>(cpu_num) : 1;
 }
 
 static bool get_cgroup_v2(CgroupInfo *info) {
@@ -369,22 +382,18 @@ static int get_cgroup_cpu_num() {
     }
     return 0;
 }
-
-}  // namespace
 #endif
 
 int swoole_get_available_cpu_num() {
 #ifdef __linux__
-    auto cpu_num = get_affinity_cpu_num();
     auto cgroup_cpu_num = get_cgroup_cpu_num();
-
-    if (cgroup_cpu_num > 0) {
-        cpu_num = SW_MIN(cpu_num, cgroup_cpu_num);
+    if (cgroup_cpu_num <= 0) {
+        return get_hardware_cpu_num();
     }
-    return SW_MAX(1, cpu_num);
+    return SW_MAX(1, SW_MIN(get_affinity_cpu_num(), cgroup_cpu_num));
+#elif defined(__FreeBSD__)
+    return get_affinity_cpu_num();
 #else
-    auto cpu_num = sysconf(_SC_NPROCESSORS_ONLN);
-    return cpu_num > 0 ? static_cast<int>(cpu_num) : 1;
+    return get_hardware_cpu_num();
 #endif
 }
-
