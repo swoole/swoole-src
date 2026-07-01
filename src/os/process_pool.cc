@@ -1153,6 +1153,10 @@ void Worker::report_error(const ExitStatus &exit_status) const {
 
 void ReloadTask::add_workers(Worker *list, size_t n) {
     SW_LOOP_N(n) {
+        if (list[i].pid <= 0) {
+            swoole_warning("skip invalid worker(pid=%d, id=%d) for reload", list[i].pid, list[i].id);
+            continue;
+        }
         workers[list[i].pid] = &list[i];
         kill_queue.push(list[i].pid);
     }
@@ -1183,15 +1187,17 @@ ReloadTask::~ReloadTask() {
 }
 
 void ReloadTask::kill_all(int signal_number) {
-    for (auto &kv : workers) {
-        if (swoole_kill(kv.first, signal_number) < 0) {
+    for (auto iter = workers.begin(); iter != workers.end();) {
+        if (swoole_kill(iter->first, signal_number) < 0) {
             if (errno == ECHILD || errno == ESRCH) {
+                iter = workers.erase(iter);
                 continue;
             }
-            swoole_sys_warning("failed to kill(%d, SIGTERM) worker#[%d]", kv.first, kv.second->id);
+            swoole_sys_warning("failed to kill(%d, %d) worker#[%d]", iter->first, signal_number, iter->second->id);
         } else if (signal_number == SIGKILL) {
-            swoole_warning("force kill worker process(pid=%d, id=%d)", kv.first, kv.second->id);
+            swoole_warning("force kill worker process(pid=%d, id=%d)", iter->first, iter->second->id);
         }
+        iter++;
     }
 
     clear_queue();
@@ -1210,7 +1216,7 @@ void ReloadTask::kill_one(int signal_number) {
                 workers.erase(iter);
                 continue;
             }
-            swoole_sys_warning("kill(%d, SIGTERM) [%d] failed", pid, iter->second->id);
+            swoole_sys_warning("kill(%d, %d) [%d] failed", pid, signal_number, iter->second->id);
         }
         break;
     }

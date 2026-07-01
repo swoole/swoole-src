@@ -113,9 +113,11 @@ void ThreadFactory::push_to_wait_queue(Worker *worker) {
 void ThreadFactory::at_thread_exit(Worker *worker) {
     if (worker) {
         push_to_wait_queue(worker);
+        swoole_trace_log(SW_TRACE_THREAD, "at_thread_exit=%d", worker->id);
+    } else {
+        swoole_trace_log(SW_TRACE_THREAD, "at_thread_exit=null");
     }
 
-    swoole_trace_log(SW_TRACE_THREAD, "at_thread_exit=%d", worker->id);
     swoole_thread_clean(false);
 }
 
@@ -285,6 +287,7 @@ void ThreadFactory::wait() {
                 abort();
                 break;
             }
+            finish_reload_worker(exited_worker);
         }
 
         if (sw_timer()) {
@@ -299,9 +302,10 @@ void ThreadFactory::wait() {
 
 ThreadReloadTask::ThreadReloadTask(Server *_server, bool _reload_all_workers) {
     server_ = _server;
-    worker_num = server_->get_core_worker_num();
+    start_worker_id = _reload_all_workers ? 0 : server_->worker_num;
     // If only reloading task workers, skip the event workers.
-    reloaded_num = _reload_all_workers ? 0 : server_->worker_num;
+    worker_num = server_->get_core_worker_num() - start_worker_id;
+    next_worker_id = start_worker_id;
 }
 
 void ThreadFactory::do_reload() {
@@ -311,7 +315,29 @@ void ThreadFactory::do_reload() {
             server_->onBeforeReload(server_);
         }
     }
-    server_->kill_worker(reload_task->reloaded_num++);
+
+    while (reload_task->has_next()) {
+        auto worker_id = reload_task->next_worker_id++;
+        if (server_->kill_worker(worker_id)) {
+            break;
+        }
+        reload_task->mark_completed(worker_id);
+    }
+    if (reload_task->is_completed()) {
+        reload_task.reset();
+        reloading = 0;
+        if (server_->onAfterReload) {
+            server_->onAfterReload(server_);
+        }
+    }
+}
+
+void ThreadFactory::finish_reload_worker(Worker *worker) {
+    if (!reloading || !reload_task || !reload_task->contains(worker->id)) {
+        return;
+    }
+
+    reload_task->mark_completed(worker->id);
     if (reload_task->is_completed()) {
         reload_task.reset();
         reloading = 0;

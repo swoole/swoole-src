@@ -43,7 +43,7 @@ run(function () {
     });
 
     go(function () use ($barrier, &$result) {
-        $client = new Client(['base_uri' => 'https://httpbin.org/']);
+        $client = new Client(['base_uri' => 'https://httpcan.org/']);
         $n = N;
         $data = $promises = [];
         while ($n--) {

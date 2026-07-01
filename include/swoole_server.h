@@ -601,11 +601,25 @@ class ProcessFactory : public Factory {
 
 struct ThreadReloadTask {
     Server *server_;
+    uint16_t start_worker_id;
     uint16_t worker_num;
-    uint16_t reloaded_num;
+    uint16_t next_worker_id;
+    std::unordered_set<WorkerId> completed_workers;
 
     bool is_completed() const {
-        return reloaded_num == worker_num;
+        return completed_workers.size() == worker_num;
+    }
+
+    bool has_next() const {
+        return next_worker_id < start_worker_id + worker_num;
+    }
+
+    bool contains(WorkerId worker_id) const {
+        return worker_id >= start_worker_id && worker_id < start_worker_id + worker_num;
+    }
+
+    bool mark_completed(WorkerId worker_id) {
+        return contains(worker_id) && completed_workers.emplace(worker_id).second;
     }
 
     ThreadReloadTask(Server *_server, bool _reload_all_workers);
@@ -625,6 +639,7 @@ class ThreadFactory : public BaseFactory {
     void create_message_bus() const;
     void destroy_message_bus();
     void do_reload();
+    void finish_reload_worker(Worker *worker);
     void push_to_wait_queue(Worker *worker);
 
   public:

@@ -25,6 +25,7 @@
 #include "swoole_lock.h"
 #include "swoole_util.h"
 
+#include <condition_variable>
 #include <numeric>
 
 using namespace std;
@@ -985,6 +986,15 @@ TEST(server, reload_all_workers) {
     const int initial_worker_num = serv.worker_num + serv.task_worker_num;
 
     test::counter_init();
+    mutex watchdog_lock;
+    condition_variable watchdog_cv;
+    bool watchdog_done = false;
+    thread watchdog([&]() {
+        unique_lock<mutex> lock(watchdog_lock);
+        if (!watchdog_cv.wait_for(lock, chrono::seconds(10), [&]() { return watchdog_done; })) {
+            serv.shutdown();
+        }
+    });
 
     swoole_set_log_level(SW_LOG_WARNING);
 
@@ -1031,6 +1041,12 @@ TEST(server, reload_all_workers) {
     };
 
     ASSERT_EQ(serv.start(), 0);
+    {
+        lock_guard<mutex> lock(watchdog_lock);
+        watchdog_done = true;
+    }
+    watchdog_cv.notify_one();
+    watchdog.join();
     ASSERT_EQ(test::counter_get(10), 2);  // onBeforeReload called
     ASSERT_EQ(test::counter_get(11), 2);  // onAfterReload called
     ASSERT_GE(test::counter_get(0), initial_worker_num * 2);
