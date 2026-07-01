@@ -22,7 +22,10 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_table_arginfo.h"
 END_EXTERN_C()
 
-using namespace swoole;
+using swoole::Table;
+using swoole::TableColumn;
+using swoole::TableRow;
+using swoole::TableStringLength;
 
 static inline void table_row2array(const Table *table, TableRow *row, zval *return_value) {
     array_init(return_value);

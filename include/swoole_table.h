@@ -29,6 +29,11 @@
 #define SW_TABLE_USE_PHP_HASH
 #define SW_TABLE_MAX_ROW_SIZE 0x80000000
 
+enum TableFlag {
+    SW_TABLE_FLAG_NEW_ROW = 1,
+    SW_TABLE_FLAG_CONFLICT = 1u << 1,
+};
+
 namespace swoole {
 typedef uint32_t TableStringLength;
 typedef uint64_t (*HashFunc)(const char *key, size_t len);
@@ -88,11 +93,6 @@ struct TableIterator {
     void unlock() const {
         mutex_->unlock();
     }
-};
-
-enum TableFlag {
-    SW_TABLE_FLAG_NEW_ROW = 1,
-    SW_TABLE_FLAG_CONFLICT = 1u << 1,
 };
 
 struct TableColumn {

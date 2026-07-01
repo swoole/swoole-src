@@ -30,8 +30,12 @@ END_EXTERN_C()
 
 #define HTTP2_CLIENT_HOST_HEADER_INDEX 3
 
-using namespace swoole;
+using swoole::ReturnCode;
+using swoole::SocketType;
+using swoole::String;
 using swoole::http2::get_default_setting;
+using swoole::network::Address;
+using swoole::network::Socket;
 
 namespace Http2 = swoole::http2;
 
@@ -73,7 +77,7 @@ class Client {
     std::string host;
     int port;
     bool open_ssl;
-    double timeout = network::Socket::default_read_timeout;
+    double timeout = NetSocket::default_read_timeout;
 
     uint32_t stream_id = 0;       // the next send stream id
     uint32_t last_stream_id = 0;  // the last received stream id
@@ -811,8 +815,8 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
         RETURN_FALSE;
     }
     std::string host_string(host, host_len);
-    auto type = network::Socket::convert_to_type(host_string);
-    if (port != 0 && !network::Socket::is_local(type) && !network::Address::verify_port(port, true)) {
+    auto type = Socket::convert_to_type(host_string);
+    if (port != 0 && !Socket::is_local(type) && !Address::verify_port(port, true)) {
         zend_throw_exception(swoole_http2_client_coro_exception_ce, "The port is invalid", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }

@@ -201,7 +201,7 @@ int ProcessPool::listen(const char *host, int port, int backlog) const {
     return SW_OK;
 }
 
-void ProcessPool::set_protocol(ProtocolType _protocol_type) {
+void ProcessPool::set_protocol(swProtocolType _protocol_type) {
     switch (_protocol_type) {
     case SW_PROTOCOL_TASK:
         main_loop = run_with_task_protocol;

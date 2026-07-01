@@ -23,13 +23,12 @@
 #include <sys/types.h>
 #endif
 
-namespace swoole {
-
 enum {
     SW_MSGQUEUE_ORIENT = 1,
     SW_MSGQUEUE_BALANCE = 2,
 };
 
+namespace swoole {
 struct QueueNode {
     long mtype;                    /* type of received/sent message */
     char mdata[sizeof(EventData)]; /* text of the message */

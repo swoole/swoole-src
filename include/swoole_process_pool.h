@@ -57,6 +57,16 @@ enum swIPCMode {
     SW_IPC_SOCKET = 3,
 };
 
+enum swWorkerMessageType {
+    SW_WORKER_MESSAGE_STOP = 1,
+};
+
+enum swProtocolType {
+    SW_PROTOCOL_TASK = 1,
+    SW_PROTOCOL_STREAM,
+    SW_PROTOCOL_MESSAGE,
+};
+
 SW_API swoole::WorkerId swoole_get_worker_id();
 SW_API pid_t swoole_get_worker_pid();
 SW_API int swoole_get_worker_type();
@@ -66,16 +76,6 @@ SW_API void swoole_set_worker_type(int type);
 SW_API char swoole_get_worker_symbol();
 
 namespace swoole {
-enum WorkerMessageType {
-    SW_WORKER_MESSAGE_STOP = 1,
-};
-
-enum ProtocolType {
-    SW_PROTOCOL_TASK = 1,
-    SW_PROTOCOL_STREAM,
-    SW_PROTOCOL_MESSAGE,
-};
-
 struct WorkerStopMessage {
     pid_t pid;
     uint16_t worker_id;
@@ -270,7 +270,7 @@ struct ProcessPool {
     bool async;
 
     uint8_t ipc_mode;
-    ProtocolType protocol_type_;
+    swProtocolType protocol_type_;
     pid_t master_pid;
     uint32_t max_wait_time;
     uint64_t reload_count;
@@ -411,7 +411,7 @@ struct ProcessPool {
      *  Please note that sufficient memory space must be allocated for the payload,
      *  for example, `payload = malloc(payload_len)`.
      */
-    void set_protocol(ProtocolType _protocol_type);
+    void set_protocol(swProtocolType _protocol_type);
     void set_type(int _type);
     void set_start_id(int _start_id);
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
@@ -471,8 +471,6 @@ struct ProcessPool {
 static sw_inline int swoole_kill(pid_t _pid, int _sig) {
     return sw_kill(_pid, _sig);
 }
-
-typedef swoole::ProtocolType swProtocolType;
 
 extern SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG;
 

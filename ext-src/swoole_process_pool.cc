@@ -24,8 +24,10 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_process_pool_arginfo.h"
 END_EXTERN_C()
 
-using namespace swoole;
-
+using swoole::ProcessPool;
+using swoole::RecvData;
+using swoole::Worker;
+using swoole::coroutine::System;
 static zend_class_entry *swoole_process_pool_ce;
 static zend_object_handlers swoole_process_pool_handlers;
 static ProcessPool *current_pool = nullptr;
@@ -397,7 +399,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 #ifndef _WIN32
         && ipc_type != SW_IPC_UNIXSOCK
 #endif
-        ) {
+    ) {
 #ifndef _WIN32
         ipc_type = SW_IPC_UNIXSOCK;
 #endif
@@ -580,7 +582,8 @@ static PHP_METHOD(swoole_process_pool, sendMessage) {
     }
 #ifndef _WIN32
     if (pool->ipc_mode != SW_IPC_UNIXSOCK) {
-        php_swoole_fatal_error(E_WARNING, "unsupported ipc type[%d], sendMessage requires SWOOLE_IPC_UNIXSOCK", pool->ipc_mode);
+        php_swoole_fatal_error(
+            E_WARNING, "unsupported ipc type[%d], sendMessage requires SWOOLE_IPC_UNIXSOCK", pool->ipc_mode);
         RETURN_FALSE;
     }
 #else
@@ -744,6 +747,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
              * Forbidden to close pipe in the php layer
              */
             worker->pipe_object = nullptr;
+            worker->shared = true;
             zend_update_property_long(
                 swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pipe"), worker->pipe_current->fd);
         }
@@ -754,6 +758,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         if (current_pool->message_bus) {
             worker->pipe_current = nullptr;
             worker->pipe_object = nullptr;
+            worker->shared = true;
         }
         /**
          * The onMessage callback is not set, use getProcess()->push()/pop() to operate msgqueue
@@ -761,6 +766,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         if (current_pool->ipc_mode == SW_IPC_MSGQUEUE && current_pool->onMessage == nullptr) {
             worker->queue = current_pool->queue;
             worker->msgqueue_mode = SW_MSGQUEUE_BALANCE;
+            worker->shared = true;
         }
         php_swoole_process_set_worker(zprocess, worker, PIPE_TYPE_STREAM, current_pool->async);
         (void) add_index_zval(zworkers, worker_id, zprocess);

@@ -23,8 +23,13 @@
 
 #include "main/php_variables.h"
 
-using namespace swoole;
-using std::string;
+using swoole::Connection;
+using swoole::Coroutine;
+using swoole::File;
+using swoole::RecvData;
+using swoole::Server;
+using swoole::SessionId;
+using swoole::String;
 using swoole::coroutine::System;
 using swoole::http2::get_default_setting;
 using swoole::http_server::StaticHandler;
@@ -229,7 +234,8 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
 
         zval *zdate_if_modified_since = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-modified-since"));
         if (zdate_if_modified_since) {
-            string date_if_modified_since(Z_STRVAL_P(zdate_if_modified_since), Z_STRLEN_P(zdate_if_modified_since));
+            std::string date_if_modified_since(Z_STRVAL_P(zdate_if_modified_since),
+                                               Z_STRLEN_P(zdate_if_modified_since));
             if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since)) {
                 ctx->response.status = SW_HTTP_NOT_MODIFIED;
                 return true;
@@ -293,7 +299,7 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
         HashTable *ht = Z_ARR_P(zserver);
         swoole_http_server_populate_ip_and_port(serv, ht, conn, client->fd, ctx->keepalive);
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (zend_long) time(nullptr));
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
+        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), swoole::microtime());
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->last_recv_time);
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP2));
     } while (false);
@@ -986,8 +992,8 @@ static int http2_server_parse_header(
                     char *v_str = strchr((char *) nv.value, '?');
                     zend_string *zstr_path;
                     if (v_str) {
+                        int k_len = v_str - (char *) nv.value;
                         v_str++;
-                        int k_len = v_str - (char *) nv.value - 1;
                         int v_len = nv.valuelen - k_len - 1;
                         memcpy(pathbuf, nv.value, k_len);
                         pathbuf[k_len] = 0;
@@ -1300,7 +1306,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     php_swoole_get_recv_data(serv, &zdata, req);
     int retval = swoole_http2_server_parse(client, Z_STRVAL(zdata));
     if (retval < 0) {
-    	client->default_ctx->close(client->default_ctx);
+        client->default_ctx->close(client->default_ctx);
     }
     zval_ptr_dtor(&zdata);
 

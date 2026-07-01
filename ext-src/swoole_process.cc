@@ -28,7 +28,12 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_process_arginfo.h"
 END_EXTERN_C()
 
-using namespace swoole;
+using swoole::MsgQueue;
+using swoole::QueueNode;
+using swoole::Reactor;
+using swoole::Server;
+using swoole::UnixSocket;
+using swoole::Worker;
 
 zend_class_entry *swoole_process_ce;
 static zend_object_handlers swoole_process_handlers;
@@ -83,7 +88,9 @@ static void php_swoole_process_free_object(zend_object *object) {
         if (_pipe && !worker->shared) {
             delete _pipe;
         }
-        delete worker->queue;
+        if (worker->queue && !worker->shared) {
+            delete worker->queue;
+        }
         delete worker;
     }
 

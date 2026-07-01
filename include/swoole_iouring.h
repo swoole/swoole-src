@@ -21,15 +21,12 @@
 #ifdef SW_USE_IOURING
 #include <liburing.h>
 
-using swoole::Coroutine;
-
 enum swIouringFlag {
     SW_IOURING_DEFAULT = 0,
     SW_IOURING_SQPOLL = IORING_SETUP_SQPOLL,
 };
 
 namespace swoole {
-
 struct IouringEvent;
 
 struct IouringTimeout {
