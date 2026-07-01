@@ -19,7 +19,16 @@
 namespace swoole {
 namespace coroutine {
 
-void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
+ChannelBase::~ChannelBase() {
+    if (sw_unlikely(!producer_queue.empty())) {
+        log_discarded("producers", producer_queue.size());
+    }
+    if (sw_unlikely(!consumer_queue.empty())) {
+        log_discarded("consumers", consumer_queue.size());
+    }
+}
+
+void ChannelBase::timer_callback(Timer *timer, TimerNode *tnode) {
     auto *msg = static_cast<TimeoutMessage *>(tnode->data);
     msg->error = true;
     msg->timer = nullptr;
@@ -31,7 +40,21 @@ void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
     msg->co->resume();
 }
 
-void Channel::yield(Opcode type) {
+void ChannelBase::log_discarded(const char *type, size_t count) {
+    swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_DISCARDED);
+    if (sw_unlikely(SW_LOG_WARNING >= swoole_get_log_level() &&
+                    !swoole_is_ignored_error(SW_ERROR_CO_HAS_BEEN_DISCARDED))) {
+        size_t len = sw_snprintf(sw_error,
+                                 SW_ERROR_MSG_SIZE,
+                                 "Channel::~Channel() (ERRNO %d): channel is destroyed, %zu %s will be discarded",
+                                 SW_ERROR_CO_HAS_BEEN_DISCARDED,
+                                 count,
+                                 type);
+        sw_logger()->put(SW_LOG_WARNING, sw_error, len);
+    }
+}
+
+void ChannelBase::yield(Opcode type) {
     Coroutine *co = Coroutine::get_current_safe();
     if (type == PRODUCER) {
         producer_queue.push_back(co);
@@ -52,13 +75,13 @@ void Channel::yield(Opcode type) {
     co->yield(&cancel_fn);
 }
 
-void *Channel::pop(double timeout) {
+bool ChannelBase::wait_pop(bool empty, double timeout) {
     Coroutine *current_co = Coroutine::get_current_safe();
-    if (closed && is_empty()) {
+    if (sw_unlikely(closed && empty)) {
         error_ = ERROR_CLOSED;
-        return nullptr;
+        return false;
     }
-    if (is_empty() || !consumer_queue.empty()) {
+    if (empty || !consumer_queue.empty()) {
         TimeoutMessage msg;
         msg.error = false;
         msg.timer = nullptr;
@@ -74,41 +97,25 @@ void *Channel::pop(double timeout) {
         if (msg.timer) {
             swoole_timer_del(msg.timer);
         }
-        if (current_co->is_canceled()) {
+        if (sw_unlikely(current_co->is_canceled())) {
             error_ = ERROR_CANCELED;
-            return nullptr;
+            return false;
         }
-        if (msg.error) {
+        if (sw_unlikely(msg.error)) {
             error_ = ERROR_TIMEOUT;
-            return nullptr;
-        }
-        if (closed && is_empty()) {
-            error_ = ERROR_CLOSED;
-            return nullptr;
+            return false;
         }
     }
-    /**
-     * pop data
-     */
-    void *data = data_queue.front();
-    data_queue.pop();
-    /**
-     * notify producer
-     */
-    if (!producer_queue.empty()) {
-        Coroutine *co = pop_coroutine(PRODUCER);
-        co->resume();
-    }
-    return data;
+    return true;
 }
 
-bool Channel::push(void *data, double timeout) {
+bool ChannelBase::wait_push(bool full, double timeout) {
     Coroutine *current_co = Coroutine::get_current_safe();
-    if (closed) {
+    if (sw_unlikely(closed)) {
         error_ = ERROR_CLOSED;
         return false;
     }
-    if (is_full() || !producer_queue.empty()) {
+    if (full || !producer_queue.empty()) {
         TimeoutMessage msg;
         msg.error = false;
         msg.timer = nullptr;
@@ -124,36 +131,38 @@ bool Channel::push(void *data, double timeout) {
         if (msg.timer) {
             swoole_timer_del(msg.timer);
         }
-        if (current_co->is_canceled()) {
+        if (sw_unlikely(current_co->is_canceled())) {
             error_ = ERROR_CANCELED;
             return false;
         }
-        if (msg.error) {
+        if (sw_unlikely(msg.error)) {
             error_ = ERROR_TIMEOUT;
             return false;
         }
-        if (closed) {
+        if (sw_unlikely(closed)) {
             error_ = ERROR_CLOSED;
             return false;
         }
     }
-    /**
-     * push data
-     */
-    data_queue.push(data);
-    swoole_trace_log(SW_TRACE_CHANNEL, "push data to channel, count=%ld", length());
-    /**
-     * notify consumer
-     */
+    return true;
+}
+
+void ChannelBase::notify_consumer() {
     if (!consumer_queue.empty()) {
         Coroutine *co = pop_coroutine(CONSUMER);
         co->resume();
     }
-    return true;
 }
 
-bool Channel::close() {
-    if (closed) {
+void ChannelBase::notify_producer() {
+    if (!producer_queue.empty()) {
+        Coroutine *co = pop_coroutine(PRODUCER);
+        co->resume();
+    }
+}
+
+bool ChannelBase::close() {
+    if (sw_unlikely(closed)) {
         return false;
     }
     swoole_trace_log(SW_TRACE_CHANNEL, "channel closed");
