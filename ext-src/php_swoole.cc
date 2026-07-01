@@ -373,6 +373,10 @@ PHP_INI_END()
 // clang-format on
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
+    #if defined(COMPILE_DL_SWOOLE) && defined(ZTS)
+	ZEND_TSRMLS_CACHE_UPDATE();
+    #endif
+
     swoole_globals->enable_library = true;
     swoole_globals->enable_fiber_mock = false;
     swoole_globals->enable_preemptive_scheduler = false;
