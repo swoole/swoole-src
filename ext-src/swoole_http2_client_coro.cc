@@ -95,7 +95,11 @@ class Client {
     zval zsocket;
 
     Client(SocketType _socket_type, std::string &&_host, int _port, bool _ssl, const zval *zobj)
-        : socket_type(_socket_type), host(std::move(_host)), port(_port), open_ssl(_ssl) {
+        : socket_type(_socket_type), host(std::move(_host)), open_ssl(_ssl) {
+        if (_port == 0) {
+            _port = _ssl ? 443 : 80;
+        }
+        port = _port;
         _zobject = *zobj;
         zobject = &_zobject;
         Http2::init_settings(&local_settings);
@@ -808,7 +812,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
     }
     std::string host_string(host, host_len);
     auto type = network::Socket::convert_to_type(host_string);
-    if (!network::Socket::is_local(type) && !network::Address::verify_port(port, true)) {
+    if (port != 0 && !network::Socket::is_local(type) && !network::Address::verify_port(port, true)) {
         zend_throw_exception(swoole_http2_client_coro_exception_ce, "The port is invalid", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
@@ -818,7 +822,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
 
     zend_update_property_stringl(
         swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), port);
+    zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), client->port);
     zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
 }
 

@@ -982,8 +982,7 @@ TEST(server, reload_all_workers) {
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
     serv.task_enable_coroutine = true;
-    const auto worker_pid_file = "/tmp/swoole-core-reload-all-workers-" + std::to_string(getpid()) + ".pid";
-    unlink(worker_pid_file.c_str());
+    const int initial_worker_num = serv.worker_num + serv.task_worker_num;
 
     test::counter_init();
 
@@ -1002,42 +1001,39 @@ TEST(server, reload_all_workers) {
 
     serv.onAfterReload = [](Server *serv) {
         DEBUG() << "onAfterReload: master_pid=" << beforeReloadPid << "\n";
-        test::counter_incr(11);
+        if (test::counter_incr(11) == 2) {
+            swoole_timer_after(200, [serv](TIMER_PARAMS) { serv->shutdown(); });
+        }
     };
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
-        if (worker->id == 1) {
-            if (access(worker_pid_file.c_str(), R_OK) == -1) {
-                ofstream file(worker_pid_file);
-                file << getpid();
-                file.close();
-                kill(serv->gs->manager_pid, SIGUSR2);
-                sleep(1);
-                kill(serv->gs->manager_pid, SIGUSR1);
-            } else {
-                char buf[10] = {0};
-                ifstream file(worker_pid_file.c_str());
-                file >> buf;
-                file.close();
-
-                int oldPid = 0;
-                stringstream stringPid(buf);
-                stringPid >> oldPid;
-
-                EXPECT_TRUE(oldPid != getpid());
-
-                sleep(1);
-                remove(worker_pid_file.c_str());
-                kill(serv->gs->master_pid, SIGTERM);
-            }
-        }
-
+        test::counter_incr(0);
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+    };
+
+    serv.onManagerStart = [initial_worker_num](Server *serv) {
+        swoole_timer_tick(100, [serv, initial_worker_num](TIMER_PARAMS) {
+            if (test::counter_get(0) < initial_worker_num) {
+                return;
+            }
+
+            swoole_timer_del(tnode);
+            kill(serv->get_manager_pid(), SIGUSR2);
+
+            swoole_timer_tick(100, [serv](TIMER_PARAMS) {
+                if (test::counter_get(11) < 1) {
+                    return;
+                }
+                swoole_timer_del(tnode);
+                kill(serv->get_manager_pid(), SIGUSR1);
+            });
+        });
     };
 
     ASSERT_EQ(serv.start(), 0);
     ASSERT_EQ(test::counter_get(10), 2);  // onBeforeReload called
     ASSERT_EQ(test::counter_get(11), 2);  // onAfterReload called
+    ASSERT_GE(test::counter_get(0), initial_worker_num * 2);
 }
 
 TEST(server, reload_all_workers2) {

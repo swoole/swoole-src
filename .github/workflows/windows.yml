@@ -5,6 +5,7 @@ jobs:
   windows-tests:
     name: Unit Test on Windows
     runs-on: windows-latest
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[win-unit]')"
     strategy:
       fail-fast: false
       matrix:

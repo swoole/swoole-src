@@ -1851,7 +1851,6 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property_stringl(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), port);
     zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
     // check host
     if (host_len == 0) {
@@ -1859,12 +1858,14 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
         RETURN_FALSE;
     }
     auto host_string = std::string(host, host_len);
-    auto socket_type = swoole::network::Socket::convert_to_type(host_string);
-    if (!swoole::network::Socket::is_local(socket_type) && !Address::verify_port(port, true)) {
+    auto socket_type = NetSocket::convert_to_type(host_string);
+
+    if (port != 0 && !NetSocket::is_local(socket_type) && !Address::verify_port(port, true)) {
         zend_throw_exception(swoole_http_client_coro_exception_ce, "The port is invalid", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
     hcc->client = new Client(ZEND_THIS, socket_type, std::move(host_string), port, ssl);
+    zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), hcc->client->port);
 }
 
 static PHP_METHOD(swoole_http_client_coro, __destruct) {}
