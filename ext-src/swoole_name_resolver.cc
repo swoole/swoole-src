@@ -141,7 +141,7 @@ PHP_FUNCTION(swoole_name_resolver_remove) {
             bool equals = zend_string_equals(hash_2, hash_1);
             zend_string_release(hash_2);
             if (iter->type == NameResolver::TYPE_PHP && iter->private_data && equals) {
-                zval_dtor(zresolver);
+                zval_ptr_dtor_nogc(zresolver);
                 efree(iter->private_data);
                 found = true;
                 return SW_TRAVERSE_REMOVE;
@@ -184,12 +184,12 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
         zval zname;
         ZVAL_STRINGL(&zname, name.c_str(), name.length());
         zend_call_method_with_1_params(SW_Z8_OBJ_P(zresolver), nullptr, nullptr, "lookup", &retval, &zname);
-        zval_dtor(&zname);
+        zval_ptr_dtor_nogc(&zname);
         if (Z_TYPE(retval) == IS_OBJECT) {
             ctx->private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
             ctx->dtor = [](NameResolver::Context *ctx) {
                 zval *_zcluster_object = (zval *) ctx->private_data;
-                zval_dtor(_zcluster_object);
+                zval_ptr_dtor_nogc(_zcluster_object);
                 efree(_zcluster_object);
             };
             *zcluster_object = retval;

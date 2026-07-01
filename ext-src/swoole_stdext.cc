@@ -648,7 +648,7 @@ static void array_add_or_update(const zend_op *opline, zval *container, const zv
     HashTable *ht = Z_ARRVAL_P(container);
     const zend_op *op_data = opline + 1;
 
-    if (ZVAL_IS_NULL(key)) {
+    if (Z_ISNULL_P(key)) {
         var_ptr = zend_hash_next_index_insert(ht, value);
         if (UNEXPECTED(!var_ptr)) {
             zend_cannot_add_element();
