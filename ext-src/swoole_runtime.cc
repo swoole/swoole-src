@@ -487,6 +487,10 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     }
     sock = abstract->socket;
 
+    if (sw_unlikely(EG(active) == 0)) {
+        return sock->get_socket()->send_sync(buf, count, 0);
+    }
+
     if (abstract->blocking) {
         didwrite = sock->send_all(buf, count);
     } else {
@@ -532,6 +536,10 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         goto _exit;
     }
     sock = abstract->socket;
+
+    if (sw_unlikely(EG(active) == 0)) {
+        return sock->get_socket()->recv_sync(buf, count, 0);
+    }
 
     if (abstract->blocking) {
         nr_bytes = sock->recv(buf, count);
