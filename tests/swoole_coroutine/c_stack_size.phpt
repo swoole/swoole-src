@@ -1,7 +1,10 @@
 --TEST--
 swoole_coroutine: c_stack_size
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_darwin();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

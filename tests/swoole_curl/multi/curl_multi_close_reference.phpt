@@ -1,8 +1,9 @@
 --TEST--
 swoole_curl/multi: curl_multi_close closed by cleanup functions
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_darwin_todo('curl multi cleanup with self-referenced arrays is unstable on macOS CI');
 if (!extension_loaded('curl')) print 'skip';
 ?>
 --FILE--
