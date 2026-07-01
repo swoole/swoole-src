@@ -69,6 +69,7 @@ struct Stream {
 
 class Client {
   public:
+    SocketType socket_type;
     std::string host;
     int port;
     bool open_ssl;
@@ -93,10 +94,8 @@ class Client {
     SocketImpl *socket_ = nullptr;
     zval zsocket;
 
-    Client(const char *_host, size_t _host_len, int _port, bool _ssl, const zval *zobj) {
-        host = std::string(_host, _host_len);
-        port = _port;
-        open_ssl = _ssl;
+    Client(SocketType _socket_type, std::string &&_host, int _port, bool _ssl, const zval *zobj)
+        : socket_type(_socket_type), host(std::move(_host)), port(_port), open_ssl(_ssl) {
         _zobject = *zobj;
         zobject = &_zobject;
         Http2::init_settings(&local_settings);
@@ -413,7 +412,7 @@ bool Client::connect() {
         return false;
     }
 
-    auto object = php_swoole_create_socket(network::Socket::convert_to_type(host));
+    auto object = php_swoole_create_socket(socket_type);
     if (UNEXPECTED(!object)) {
         php_swoole_socket_set_error_properties(zobject, errno, strerror(errno));
         return false;
@@ -807,12 +806,14 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
         zend_throw_exception(swoole_http2_client_coro_exception_ce, "The host is empty", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
-    if (!swoole::network::Address::verify_port(port, true)) {
+    std::string host_string(host, host_len);
+    auto type = network::Socket::convert_to_type(host_string);
+    if (!network::Socket::is_local(type) && !network::Address::verify_port(port, true)) {
         zend_throw_exception(swoole_http2_client_coro_exception_ce, "The port is invalid", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
-    auto *client = new Client(host, host_len, port, ssl, ZEND_THIS);
+    auto *client = new Client(type, std::move(host_string), port, ssl, ZEND_THIS);
     http2_client_coro_fetch_object(Z_OBJ_P(ZEND_THIS))->client = client;
 
     zend_update_property_stringl(

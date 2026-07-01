@@ -56,7 +56,6 @@ class HttpServer {
     SocketImpl *socket;
     zend::Callable *default_handler;
     std::unordered_map<std::string, zend::Callable *> handlers;
-    uint32_t active_handler_count;
     bool running;
     zval zclients;
 
@@ -79,7 +78,6 @@ class HttpServer {
     explicit HttpServer(SocketType type) {
         socket = new SocketImpl(type);
         default_handler = nullptr;
-        active_handler_count = 0;
         array_init(&zclients);
         running = true;
 
@@ -110,12 +108,6 @@ class HttpServer {
             sw_callable_free(handler.second);
         }
         handlers.clear();
-    }
-
-    void try_clear_handlers() {
-        if (!running && active_handler_count == 0) {
-            clear_handlers();
-        }
     }
 
     bool set_handler(const std::string &pattern, zval *zfn) {
@@ -677,12 +669,9 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         sock->get_socket()->recv_wait = 0;
 
         if (cb) {
-            hs->active_handler_count++;
             if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, 0))) {
                 php_swoole_error(E_WARNING, "handler error");
             }
-            hs->active_handler_count--;
-            hs->try_clear_handlers();
         } else {
             ctx->response.status = SW_HTTP_NOT_FOUND;
         }
@@ -727,8 +716,6 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
             zend_hash_index_del(Z_ARRVAL_P(&hs->zclients), index);
         }
     }
-
-    hs->try_clear_handlers();
 }
 
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
@@ -755,13 +742,10 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
 
     if (cb) {
-        hs->active_handler_count++;
         if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, true))) {
             stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
             php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_coro_ce->name));
         }
-        hs->active_handler_count--;
-        hs->try_clear_handlers();
     } else {
         ctx->response.status = SW_HTTP_NOT_FOUND;
     }
