@@ -15,6 +15,7 @@ set_error_handler(function (int $errno, string $errstr) use (&$errors) {
 });
 
 Swoole\Coroutine::set([
+    'socket_buffer_size' => -1,
     'http2_header_table_size' => -1,
     'http2_enable_push' => -1,
     'http2_max_concurrent_streams' => -1,
@@ -25,13 +26,14 @@ Swoole\Coroutine::set([
 
 restore_error_handler();
 
-Assert::eq(count($errors), 6);
-Assert::contains($errors[0], 'http2_header_table_size');
-Assert::contains($errors[1], 'http2_enable_push');
-Assert::contains($errors[2], 'http2_max_concurrent_streams');
-Assert::contains($errors[3], 'http2_init_window_size');
-Assert::contains($errors[4], 'http2_max_frame_size');
-Assert::contains($errors[5], 'http2_max_header_list_size');
+Assert::eq(count($errors), 7);
+Assert::contains($errors[0], 'socket_buffer_size');
+Assert::contains($errors[1], 'http2_header_table_size');
+Assert::contains($errors[2], 'http2_enable_push');
+Assert::contains($errors[3], 'http2_max_concurrent_streams');
+Assert::contains($errors[4], 'http2_init_window_size');
+Assert::contains($errors[5], 'http2_max_frame_size');
+Assert::contains($errors[6], 'http2_max_header_list_size');
 
 echo "DONE\n";
 ?>

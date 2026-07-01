@@ -123,3 +123,4 @@ cmake-build-test/
 /.cmake/
 /Testing/
 build.ninja
+/tests/include/tmp/

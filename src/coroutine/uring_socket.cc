@@ -77,6 +77,19 @@ UringSocket *UringSocket::accept(double timeout) {
     return client_sock;
 }
 
+bool UringSocket::cancel(EventType event) {
+    Coroutine *co = get_bound_co(event);
+    if (!co) {
+        return false;
+    }
+    if (event != SW_EVENT_READ && event != SW_EVENT_WRITE) {
+        set_err(EINVAL);
+        return false;
+    }
+    set_err(ECANCELED);
+    return co->cancel();
+}
+
 NetSocket *UringSocket::uring_accept(double timeout) {
     auto *client_socket = new NetSocket();
     int fd = Iouring::accept(socket->get_fd(),

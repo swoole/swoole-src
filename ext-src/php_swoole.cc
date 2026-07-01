@@ -504,7 +504,10 @@ void php_swoole_set_global_option(HashTable *vht) {
         Socket::default_read_timeout = timeout_format(ztmp);
     }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        Socket::default_buffer_size = php_swoole_parse_to_size(ztmp);
+        zend_long v;
+        if (php_swoole_parse_nonnegative_size(ztmp, "socket_buffer_size", &v)) {
+            Socket::default_buffer_size = SW_MIN(v, UINT32_MAX);
+        }
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
         Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);

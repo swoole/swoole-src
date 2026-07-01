@@ -26,6 +26,7 @@ swoole_async_set([
 // Run default remote object server
 if (!is_win()) {
     swoole_library_set_option('default_remote_object_server_worker_num', 2);
+    swoole_library_set_option('default_remote_object_server_dir', __DIR__ . '/tmp');
     swoole_init_default_remote_object_server();
 }
 

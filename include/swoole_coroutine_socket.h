@@ -62,7 +62,7 @@ class Socket {
     bool connect(const std::string &host, int port = 0, int flags = 0);
     virtual bool connect(const sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
-    bool cancel(EventType event);
+    virtual bool cancel(EventType event);
     bool close();
 
     bool is_connected() const {

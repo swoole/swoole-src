@@ -2314,7 +2314,13 @@ static PHP_METHOD(swoole_server, set) {
     }
     if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp) ||
         php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
-        serv->compression_min_length = php_swoole_parse_to_size(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
+        if (v < 0) {
+            php_swoole_fatal_error(
+                E_WARNING, "compression_min_length must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+        } else {
+            serv->compression_min_length = SW_MIN(v, UINT32_MAX);
+        }
     }
 #endif
 
@@ -2334,7 +2340,13 @@ static PHP_METHOD(swoole_server, set) {
         serv->upload_tmp_dir = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "upload_max_filesize", ztmp)) {
-        serv->upload_max_filesize = php_swoole_parse_to_size(ztmp);
+        zend_long v = php_swoole_parse_to_size(ztmp);
+        if (v < 0) {
+            php_swoole_fatal_error(
+                E_WARNING, "upload_max_filesize must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+        } else {
+            serv->upload_max_filesize = v;
+        }
     }
     /**
      * http static file handler
