@@ -117,6 +117,18 @@ static PGresult *swoole_pgsql_get_result(PGconn *conn) {
     return last_result;
 }
 
+static PGresult *swoole_pgsql_get_result_after_send(PGconn *conn, int send_ret) {
+    if (send_ret == 0) {
+        return nullptr;
+    }
+
+    if (swoole_pgsql_flush(conn) == -1) {
+        return nullptr;
+    }
+
+    return swoole_pgsql_get_result(conn);
+}
+
 PGconn *swoole_pgsql_connectdb(const char *conninfo) {
     PGconn *conn = PQconnectStart(conninfo);
     if (conn == nullptr) {
@@ -164,16 +176,7 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
 PGresult *swoole_pgsql_prepare(
     PGconn *conn, const char *stmt_name, const char *query, int n_params, const Oid *param_types) {
     swoole_trace_log(SW_TRACE_CO_PGSQL, "PQsendPrepare(conn=%p, stmt_name='%s')", conn, stmt_name);
-    int ret = PQsendPrepare(conn, stmt_name, query, n_params, param_types);
-    if (ret == 0) {
-        return nullptr;
-    }
-
-    if (swoole_pgsql_flush(conn) == -1) {
-        return nullptr;
-    }
-
-    return swoole_pgsql_get_result(conn);
+    return swoole_pgsql_get_result_after_send(conn, PQsendPrepare(conn, stmt_name, query, n_params, param_types));
 }
 
 PGresult *swoole_pgsql_exec_prepared(PGconn *conn,
@@ -184,30 +187,13 @@ PGresult *swoole_pgsql_exec_prepared(PGconn *conn,
                                      const int *param_formats,
                                      int result_format) {
     swoole_trace_log(SW_TRACE_CO_PGSQL, "PQsendQueryPrepared(conn=%p, stmt_name='%s')", conn, stmt_name);
-    int ret = PQsendQueryPrepared(conn, stmt_name, n_params, param_values, param_lengths, param_formats, result_format);
-    if (ret == 0) {
-        return nullptr;
-    }
-
-    if (swoole_pgsql_flush(conn) == -1) {
-        return nullptr;
-    }
-
-    return swoole_pgsql_get_result(conn);
+    return swoole_pgsql_get_result_after_send(
+        conn, PQsendQueryPrepared(conn, stmt_name, n_params, param_values, param_lengths, param_formats, result_format));
 }
 
 PGresult *swoole_pgsql_exec(PGconn *conn, const char *query) {
     swoole_trace_log(SW_TRACE_CO_PGSQL, "PQsendQuery(conn=%p, query='%s')", conn, query);
-    int ret = PQsendQuery(conn, query);
-    if (ret == 0) {
-        return nullptr;
-    }
-
-    if (swoole_pgsql_flush(conn) == -1) {
-        return nullptr;
-    }
-
-    return swoole_pgsql_get_result(conn);
+    return swoole_pgsql_get_result_after_send(conn, PQsendQuery(conn, query));
 }
 
 PGresult *swoole_pgsql_exec_params(PGconn *conn,
@@ -219,30 +205,14 @@ PGresult *swoole_pgsql_exec_params(PGconn *conn,
                                    const int *param_formats,
                                    int result_format) {
     swoole_trace_log(SW_TRACE_CO_PGSQL, "PQsendQueryParams(conn=%p, command='%s')", conn, command);
-    int ret = PQsendQueryParams(
-        conn, command, n_params, param_types, param_values, param_lengths, param_formats, result_format);
-    if (ret == 0) {
-        return nullptr;
-    }
-
-    if (swoole_pgsql_flush(conn) == -1) {
-        return nullptr;
-    }
-
-    return swoole_pgsql_get_result(conn);
+    return swoole_pgsql_get_result_after_send(
+        conn,
+        PQsendQueryParams(conn, command, n_params, param_types, param_values, param_lengths, param_formats, result_format));
 }
 
 #ifdef HAVE_PQCLOSEPREPARED
 PGresult *swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName) {
-    int result = PQsendClosePrepared(conn, stmtName);
-    if (sw_likely(result)) {
-        if (swoole_pgsql_flush(conn) == -1) {
-            return nullptr;
-        }
-        return swoole_pgsql_get_result(conn);
-    }
-
-    return nullptr;
+    return swoole_pgsql_get_result_after_send(conn, PQsendClosePrepared(conn, stmtName));
 }
 #endif
 
