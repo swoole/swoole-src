@@ -19,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
         $req = new Swoole\Http2\Request();
         $req->path = '/foo/bar?alpha=1&beta=two';
-        Assert::true($cli->send($req));
+        Assert::greaterThan($cli->send($req), 0);
 
         /** @var Swoole\Http2\Response $response */
         $response = $cli->recv();

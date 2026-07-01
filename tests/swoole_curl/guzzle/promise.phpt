@@ -39,5 +39,5 @@ run(function () {
 ?>
 --EXPECT--
 {"data":"hello test1!"}
-application/json
+application/json; charset=utf-8
 Done
