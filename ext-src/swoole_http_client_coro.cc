@@ -33,6 +33,8 @@ SW_EXTERN_C_BEGIN
 #include "ext/standard/base64.h"
 SW_EXTERN_C_END
 
+#include <utility>
+
 using swoole::AsyncFile;
 using swoole::String;
 using swoole::network::Address;
@@ -186,7 +188,7 @@ class Client {
     bool completed = false;
     bool event_stream = false;
 
-    Client(const zval *zobject, const std::string &host, zend_long port = 80, zend_bool ssl = false);
+    Client(const zval *zobject, SocketType socket_type, std::string &&host, zend_long port = 80, zend_bool ssl = false);
 
     bool is_available() const {
         if (sw_unlikely(!socket || !socket->is_connected())) {
@@ -611,9 +613,9 @@ static int http_parser_on_message_complete(llhttp_t *parser) {
     return HPE_PAUSED;
 }
 
-Client::Client(const zval *zobject, const std::string &host, zend_long port, zend_bool ssl) {
-    this->host = host;
-    this->socket_type = network::Socket::convert_to_type(this->host);
+Client::Client(const zval *zobject, SocketType socket_type, std::string &&host, zend_long port, zend_bool ssl) {
+    this->host = std::move(host);
+    this->socket_type = socket_type;
     this->use_default_port = port == 0;
     if (this->use_default_port) {
         port = ssl ? 443 : 80;
@@ -1856,7 +1858,13 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
         zend_throw_exception_ex(swoole_http_client_coro_exception_ce, EINVAL, "host is empty");
         RETURN_FALSE;
     }
-    hcc->client = new Client(ZEND_THIS, std::string(host, host_len), port, ssl);
+    auto host_string = std::string(host, host_len);
+    auto socket_type = swoole::network::Socket::convert_to_type(host_string);
+    if (!swoole::network::Socket::is_local(socket_type) && !Address::verify_port(port, true)) {
+        zend_throw_exception(swoole_http_client_coro_exception_ce, "The port is invalid", SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
+    hcc->client = new Client(ZEND_THIS, socket_type, std::move(host_string), port, ssl);
 }
 
 static PHP_METHOD(swoole_http_client_coro, __destruct) {}

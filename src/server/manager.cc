@@ -229,6 +229,8 @@ void Manager::wait(Server *_server) {
             } else if (reload_task_worker) {  // only reload task workers
                 pool->reload_init = reload_task_worker = false;
                 if (_server->task_worker_num == 0) {
+                    delete pool->reload_task;
+                    pool->reload_task = nullptr;
                     swoole_warning("cannot reload task workers, task workers is not started");
                     continue;
                 }

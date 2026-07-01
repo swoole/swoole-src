@@ -982,6 +982,8 @@ TEST(server, reload_all_workers) {
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
     serv.task_enable_coroutine = true;
+    const auto worker_pid_file = "/tmp/swoole-core-reload-all-workers-" + std::to_string(getpid()) + ".pid";
+    unlink(worker_pid_file.c_str());
 
     test::counter_init();
 
@@ -1004,10 +1006,9 @@ TEST(server, reload_all_workers) {
     };
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
-        std::string filename = "/tmp/worker_1.pid";
         if (worker->id == 1) {
-            if (access(filename.c_str(), R_OK) == -1) {
-                ofstream file(filename);
+            if (access(worker_pid_file.c_str(), R_OK) == -1) {
+                ofstream file(worker_pid_file);
                 file << getpid();
                 file.close();
                 kill(serv->gs->manager_pid, SIGUSR2);
@@ -1015,7 +1016,7 @@ TEST(server, reload_all_workers) {
                 kill(serv->gs->manager_pid, SIGUSR1);
             } else {
                 char buf[10] = {0};
-                ifstream file(filename.c_str());
+                ifstream file(worker_pid_file.c_str());
                 file >> buf;
                 file.close();
 
@@ -1026,7 +1027,7 @@ TEST(server, reload_all_workers) {
                 EXPECT_TRUE(oldPid != getpid());
 
                 sleep(1);
-                remove(filename.c_str());
+                remove(worker_pid_file.c_str());
                 kill(serv->gs->master_pid, SIGTERM);
             }
         }
@@ -1044,6 +1045,8 @@ TEST(server, reload_all_workers2) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
+    const auto worker_pid_file = "/tmp/swoole-core-reload-all-workers2-" + std::to_string(getpid()) + ".pid";
+    unlink(worker_pid_file.c_str());
     swoole_set_log_level(SW_LOG_WARNING);
 
     test::counter_init();
@@ -1054,10 +1057,9 @@ TEST(server, reload_all_workers2) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
-        std::string filename = "/tmp/worker_2.pid";
         if (worker->id == 1) {
-            if (access(filename.c_str(), R_OK) == -1) {
-                ofstream file(filename);
+            if (access(worker_pid_file.c_str(), R_OK) == -1) {
+                ofstream file(worker_pid_file);
                 file << getpid();
                 file.close();
                 kill(serv->gs->master_pid, SIGUSR2);
@@ -1065,7 +1067,7 @@ TEST(server, reload_all_workers2) {
                 kill(serv->gs->master_pid, SIGUSR1);
             } else {
                 char buf[10] = {0};
-                ifstream file(filename.c_str());
+                ifstream file(worker_pid_file.c_str());
                 file >> buf;
                 file.close();
 
@@ -1076,7 +1078,7 @@ TEST(server, reload_all_workers2) {
                 EXPECT_TRUE(oldPid != getpid());
 
                 sleep(1);
-                remove(filename.c_str());
+                remove(worker_pid_file.c_str());
                 kill(serv->gs->master_pid, SIGTERM);
             }
         }
@@ -1888,7 +1890,10 @@ TEST(server, reload_no_task_worker) {
         if (worker->id == 0) {
             swoole_timer_after(50, [serv](TIMER_PARAMS) {
                 ASSERT_TRUE(serv->reload(false));
-                swoole_timer_after(80, [serv](TIMER_PARAMS) { serv->shutdown(); });
+                swoole_timer_after(80, [serv](TIMER_PARAMS) {
+                    ASSERT_TRUE(serv->reload(false));
+                    swoole_timer_after(80, [serv](TIMER_PARAMS) { serv->shutdown(); });
+                });
             });
         }
         test::counter_incr(1);
