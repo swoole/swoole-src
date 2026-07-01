@@ -3972,6 +3972,7 @@ static PHP_METHOD(swoole_connection_iterator, offsetExists) {
 
     sw_zend_call_method_with_1_params(zserv, swoole_server_ce, nullptr, "exists", &retval, zfd);
     RETVAL_BOOL(Z_BVAL_P(&retval));
+    zval_ptr_dtor(&retval);
 }
 
 static PHP_METHOD(swoole_connection_iterator, offsetGet) {

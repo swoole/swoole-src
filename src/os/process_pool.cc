@@ -302,6 +302,11 @@ int ProcessPool::response(const char *data, uint32_t length) const {
 }
 
 bool ProcessPool::send_message(WorkerId worker_id, const char *message, size_t l_message) const {
+    if (!is_worker_id_valid(worker_id)) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        return false;
+    }
+
     Worker *worker = get_worker(worker_id);
     if (message_bus) {
         SendData _task{};

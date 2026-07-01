@@ -348,6 +348,10 @@ struct ProcessPool {
 
     void *ptr;
 
+    bool is_worker_id_valid(WorkerId worker_id) const {
+        return worker_id >= start_id && worker_id < (uint64_t) start_id + worker_num;
+    }
+
     Worker *get_worker(WorkerId worker_id) const {
         return &(workers[worker_id - start_id]);
     }

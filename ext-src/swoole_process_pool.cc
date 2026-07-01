@@ -597,6 +597,11 @@ static PHP_METHOD(swoole_process_pool, sendMessage) {
     Z_PARAM_LONG(worker_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (worker_id < 0 || !pool->is_worker_id_valid(worker_id)) {
+        php_swoole_fatal_error(E_WARNING, "invalid worker_id[" ZEND_LONG_FMT "]", worker_id);
+        RETURN_FALSE;
+    }
+
     RETURN_BOOL(pool->send_message(worker_id, message, l_message));
 }
 
