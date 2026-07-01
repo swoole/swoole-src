@@ -1047,7 +1047,7 @@ SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) {
      * client: tcp_nodelay
      */
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp)) {
-        if (cli->get_type() == SW_SOCK_TCP || cli->get_type() != SW_SOCK_TCP6) {
+        if (cli->get_type() == SW_SOCK_TCP || cli->get_type() == SW_SOCK_TCP6) {
             cli->get_socket()->set_tcp_nodelay(zval_is_true(ztmp));
         }
     }
