@@ -2693,17 +2693,27 @@ static PHP_METHOD(swoole_server, addCommand) {
         argv[0] = *zserv;
         ZVAL_STRINGL(&argv[1], msg.c_str(), msg.length());
         zval return_value;
+        ZVAL_UNDEF(&return_value);
 
-        if (UNEXPECTED(!zend::function::call(cb, 2, argv, &return_value, false))) {
+        bool success = zend::function::call(cb, 2, argv, &return_value, false);
+        zval_ptr_dtor(&argv[1]);
+
+        if (UNEXPECTED(!success)) {
+            if (!ZVAL_IS_UNDEF(&return_value)) {
+                zval_ptr_dtor(&return_value);
+            }
             php_swoole_fatal_error(E_WARNING, "%s: command handler error", ZSTR_VAL(swoole_server_ce->name));
             return std::string(R"({"data": "failed to call function", "code": -1})");
         }
 
         if (!ZVAL_IS_STRING(&return_value)) {
+            zval_ptr_dtor(&return_value);
             return std::string(R"({"data": "wrong return type", "code": -2})");
         }
 
-        return std::string(Z_STRVAL(return_value), Z_STRLEN(return_value));
+        std::string result(Z_STRVAL(return_value), Z_STRLEN(return_value));
+        zval_ptr_dtor(&return_value);
+        return result;
     };
 
     if (!serv->add_command(std::string(name, l_name), accepted_process_types, fn)) {
@@ -3435,6 +3445,11 @@ static PHP_METHOD(swoole_server, command) {
     Z_PARAM_BOOL(json_decode)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (process_id < 0 || process_id > UINT32_MAX) {
+        php_swoole_fatal_error(E_WARNING, "invalid process_id[" ZEND_LONG_FMT "]", process_id);
+        RETURN_FALSE;
+    }
+
     smart_str buf = {};
     if (php_json_encode(&buf, zdata, 0) == FAILURE || !buf.s) {
         RETURN_FALSE;
@@ -3458,7 +3473,7 @@ static PHP_METHOD(swoole_server, command) {
         }
     };
 
-    if (!serv->command((uint16_t) process_id,
+    if (!serv->command((WorkerId) process_id,
                        (Server::Command::ProcessType) process_type,
                        std::string(name, l_name),
                        std::string(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s)),
