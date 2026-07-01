@@ -82,8 +82,8 @@ struct ContextImpl {
     multipart_parser *mt_parser;
 
     std::string current_header_name;
-    std::string current_input_name;
     std::string current_form_data_name;
+    bool current_part_is_file = false;
     String *form_data_buffer;
 
     bool completed = false;
@@ -215,9 +215,9 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         impl->current_form_data_name = name->second;
         auto filename = info.find("filename");
         if (filename == info.end()) {
-            impl->current_input_name.clear();
+            impl->current_part_is_file = false;
         } else {
-            impl->current_input_name = filename->second;
+            impl->current_part_is_file = true;
         }
     } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
         /**
@@ -236,20 +236,24 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
-    const auto *impl = ctx->impl;
+    auto *impl = ctx->impl;
+
+    if (impl->current_part_is_file) {
+        if (p->fp == nullptr) {
+            return 0;
+        }
+        ssize_t n = fwrite(at, sizeof(char), length, p->fp);
+        if (n != (off_t) length) {
+            ctx->files[impl->current_form_data_name] = "ERROR(1)";
+            fclose(p->fp);
+            p->fp = nullptr;
+            swoole_sys_warning("write upload file failed");
+        }
+        return 0;
+    }
+
     if (!impl->current_form_data_name.empty()) {
         impl->form_data_buffer->append(at, length);
-        return 0;
-    }
-    if (p->fp == nullptr) {
-        return 0;
-    }
-    ssize_t n = fwrite(at, sizeof(char), length, p->fp);
-    if (n != (off_t) length) {
-        ctx->files[impl->current_form_data_name] = "ERROR(1)";
-        fclose(p->fp);
-        p->fp = nullptr;
-        swoole_sys_warning("write upload file failed");
     }
     return 0;
 }
@@ -257,7 +261,7 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
 static int multipart_body_on_header_complete(multipart_parser *p) {
     auto *ctx = static_cast<Context *>(p->data);
     const auto *impl = ctx->impl;
-    if (impl->current_input_name.empty()) {
+    if (impl->current_form_data_name.empty() || !impl->current_part_is_file) {
         return 0;
     }
 
@@ -287,7 +291,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     auto *ctx = static_cast<Context *>(p->data);
     ContextImpl *impl = ctx->impl;
 
-    if (!impl->current_form_data_name.empty()) {
+    if (!impl->current_form_data_name.empty() && !impl->current_part_is_file) {
         ctx->form_data[impl->current_form_data_name] = impl->form_data_buffer->to_std_string();
         impl->form_data_buffer->clear();
     }
@@ -298,7 +302,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     }
 
     impl->current_header_name.clear();
-    impl->current_input_name.clear();
+    impl->current_part_is_file = false;
     impl->current_form_data_name.clear();
 
     return 0;

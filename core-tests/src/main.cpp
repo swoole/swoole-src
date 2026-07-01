@@ -3,6 +3,7 @@
 
 #include <dirent.h>
 #include <system_error>
+#include <unistd.h>
 
 using namespace swoole;
 using namespace std;
@@ -11,6 +12,8 @@ static string root_path;
 static int *test_counter;
 
 static void init_root_path(const char *);
+static bool is_source_root(const string &path);
+static bool find_source_root(string path, string *root);
 
 int main(int argc, char **argv) {
     swoole_init();
@@ -57,6 +60,45 @@ static void init_root_path(const char *_exec_file) {
     } else {
         root_path = string(_realpath);
     }
+
+    string source_root;
+    if (find_source_root(root_path, &source_root)) {
+        root_path = source_root;
+    }
+}
+
+static bool is_source_root(const string &path) {
+    return access((path + "/include/swoole.h").c_str(), R_OK) == 0 &&
+           access((path + "/core-tests/include/test_core.h").c_str(), R_OK) == 0;
+}
+
+static bool find_source_root(string path, string *root) {
+    char buf[PATH_MAX];
+    if (realpath(path.c_str(), buf) != nullptr) {
+        path = buf;
+    }
+
+    while (!path.empty()) {
+        if (is_source_root(path)) {
+            *root = path;
+            return true;
+        }
+
+        auto pos = path.rfind('/');
+        if (pos == string::npos) {
+            break;
+        }
+        if (pos == 0) {
+            path = "/";
+        } else {
+            path.resize(pos);
+        }
+        if (path == "/" && !is_source_root(path)) {
+            break;
+        }
+    }
+
+    return false;
 }
 
 namespace swoole::test {
