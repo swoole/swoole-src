@@ -772,9 +772,11 @@ Server::~Server() {
     if (!is_shutdown() && getpid() == gs->master_pid) {
         destroy();
     }
+
     for (auto port : ports) {
         delete port;
     }
+
     sw_shm_free(gs);
 }
 
