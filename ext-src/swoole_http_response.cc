@@ -962,6 +962,14 @@ static PHP_METHOD(swoole_http_response, sendfile) {
         php_swoole_error(E_WARNING, "file name is empty");
         RETURN_FALSE;
     }
+    if (offset < 0) {
+        php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] must be greater than or equal to 0", offset);
+        RETURN_FALSE;
+    }
+    if (length < 0) {
+        php_swoole_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] must be greater than or equal to 0", length);
+        RETURN_FALSE;
+    }
 
     struct stat file_stat;
     if (stat(file->val, &file_stat) < 0) {
@@ -996,6 +1004,9 @@ static PHP_METHOD(swoole_http_response, sendfile) {
 
 static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
     HttpContext *ctx = http_response_get_and_check_context(zobject);
+    if (ctx == nullptr || cookie == nullptr) {
+        return false;
+    }
 
     zend_string *cookie_str = cookie->toString();
     if (!cookie_str) {
@@ -1047,10 +1058,14 @@ static void http_response_set_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool en
             ->withPartitioned(partitioned);
         result = http_response_create_cookie(&cookie, ZEND_THIS);
     } else if (ZVAL_IS_OBJECT(name_or_object)) {
+        if (!instanceof_function(Z_OBJCE_P(name_or_object), swoole_http_cookie_ce)) {
+            php_swoole_error(E_WARNING, "The first argument must be a string or a Http\\Cookie object");
+            RETURN_FALSE;
+        }
         HttpCookie *cookie = php_swoole_http_get_cooke_safety(name_or_object);
         result = http_response_create_cookie(cookie, ZEND_THIS);
     } else {
-        php_swoole_error(E_WARNING, "The first argument must be a string or an cookie object");
+        php_swoole_error(E_WARNING, "The first argument must be a string or a Http\\Cookie object");
         result = false;
     }
 
@@ -1320,6 +1335,7 @@ void WebSocket::recv_frame(const WebSocketSettings &settings,
                            zval *return_value,
                            double timeout) {
     zval zpayload;
+    const size_t max_frame_size = sock->protocol.package_max_length;
 
     do {
         ssize_t retval = sock->recv_packet(timeout);
@@ -1382,6 +1398,11 @@ void WebSocket::recv_frame(const WebSocketSettings &settings,
                 RETURN_NULL();
             }
 
+            if (sw_unlikely(continue_frame_buffer->length + frame.payload_length > max_frame_size)) {
+                swoole_set_last_error(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+                RETURN_NULL();
+            }
+
             if (sw_likely(frame.payload)) {
                 continue_frame_buffer->append(frame.payload, frame.payload_length);
             }
@@ -1435,6 +1456,10 @@ void WebSocket::recv_frame(const WebSocketSettings &settings,
                 zval_ptr_dtor(&zpayload);
                 return;
             } else {
+                if (sw_unlikely(frame.payload_length > max_frame_size)) {
+                    swoole_set_last_error(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+                    RETURN_NULL();
+                }
                 continue_frame_buffer = std::make_shared<String>(
                     (frame.payload_length > 0 ? frame.payload_length : SW_WEBSOCKET_DEFAULT_BUFFER),
                     sw_zend_string_allocator());
@@ -1520,15 +1545,21 @@ static PHP_METHOD(swoole_http_response, create) {
         }
     } else if (ZVAL_IS_ARRAY(zobject)) {
         zrequest = zend_hash_index_find(Z_ARR_P(zobject), 1);
-        if (!ZVAL_IS_OBJECT(zrequest) || !instanceof_function(Z_OBJCE_P(zrequest), swoole_http_request_ce)) {
+        if (zrequest == nullptr || !ZVAL_IS_OBJECT(zrequest) ||
+            !instanceof_function(Z_OBJCE_P(zrequest), swoole_http_request_ce)) {
             php_swoole_fatal_error(E_WARNING, "parameter $1.second must be instanceof Http\\Request");
             RETURN_FALSE;
         }
         zobject = zend_hash_index_find(Z_ARR_P(zobject), 0);
-        if (!ZVAL_IS_OBJECT(zobject)) {
+        if (zobject == nullptr || !ZVAL_IS_OBJECT(zobject)) {
             goto _bad_type;
         } else {
             ctx = php_swoole_http_request_get_context(zrequest);
+            if (ctx == nullptr) {
+                zend_throw_exception_ex(
+                    swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "parameter $1.second has no valid Http\\Request context");
+                RETURN_FALSE;
+            }
             goto _type_detect;
         }
     } else {
@@ -1560,7 +1591,8 @@ static PHP_METHOD(swoole_http_response, create) {
             swoole_llhttp_parser_init(&ctx->parser, HTTP_REQUEST, (void *) ctx);
         } else {
             delete ctx;
-            assert(0);
+            zend_throw_exception_ex(
+                swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "failed to create Http\\Response from the given arguments");
             RETURN_FALSE;
         }
     } else {
@@ -1571,7 +1603,8 @@ static PHP_METHOD(swoole_http_response, create) {
         } else if (zsocket) {
             ctx->bind(zsocket);
         } else {
-            assert(0);
+            zend_throw_exception_ex(
+                swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "failed to bind Http\\Response to the given context");
             RETURN_FALSE;
         }
     }

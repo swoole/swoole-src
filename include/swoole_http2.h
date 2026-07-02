@@ -152,6 +152,8 @@ ReturnCode unpack_setting_data(const char *buf,
                                const std::function<ReturnCode(uint16_t, uint32_t)> &cb);
 ssize_t get_frame_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 int send_setting_frame(Protocol *protocol, network::Socket *conn);
+bool parse_content_length(const char *value, size_t length, uint64_t max_body_size, uint64_t *out);
+bool parse_status_code(const char *value, size_t length, uint16_t *out);
 const char *get_type(int type);
 int get_type_color(int type);
 
@@ -181,6 +183,9 @@ static inline std::string get_flag_string(int _flags) {
     if (_flags & SW_HTTP2_FLAG_PRIORITY) {
         str.append("PRIORITY|");
     }
+    if (str.empty()) {
+        return {"none"};
+    }
     if (str.back() == '|') {
         return str.substr(0, str.length() - 1);
     } else {
@@ -205,7 +210,8 @@ static sw_inline void set_frame_header(char *buffer, uint8_t type, uint32_t leng
     buffer[2] = length;
     buffer[3] = type;
     buffer[4] = flags;
-    *(uint32_t *) (buffer + 5) = htonl(stream_id);
+    uint32_t net_stream_id = htonl(stream_id);
+    memcpy(buffer + 5, &net_stream_id, sizeof(net_stream_id));
 }
 
 }  // namespace http2

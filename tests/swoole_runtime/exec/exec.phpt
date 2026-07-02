@@ -15,6 +15,7 @@ $pm = ProcessManager::exec(function () {
     run(function () use ($fn_list)  {
         $running = true;
         $count = 0;
+        $cmd = escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg('sleep(3); echo "ping statistics\nDONE\n";');
         $cid = Co\go(function () use (&$count, &$running)  {
             while ($running) {
                 $count++;
@@ -22,7 +23,8 @@ $pm = ProcessManager::exec(function () {
             }
         });
         foreach ($fn_list as $fn) {
-            $rs = $fn("ping -4 www.gov.cn -c 3");var_dump($rs);
+            $rs = $fn($cmd);
+            var_dump($rs);
         }
         $running = false;
         Co::join([$cid]);

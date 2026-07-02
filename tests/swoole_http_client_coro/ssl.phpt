@@ -8,7 +8,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $domain = 'httpbin.org';
+    $domain = 'httpcan.org';
     $cli = new Swoole\Coroutine\Http\Client($domain, 443, true);
     $cli->set([
         'timeout' => 10,

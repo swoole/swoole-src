@@ -8,7 +8,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $host = 'httpbin.org';
+    $host = 'httpbingo.org';
     $cli = new Swoole\Coroutine\Http\Client($host, 443, true);
     $cli->set(['timeout' => 10]);
     $cli->setHeaders([
@@ -20,7 +20,7 @@ go(function () {
     ]);
     $ret = $cli->get('/');
     Assert::assert($ret);
-    Assert::assert(str_contains($cli->body, 'httpbin.org'));
+    Assert::assert(str_contains($cli->body, 'httpbingo.org'));
 });
 ?>
 --EXPECT--

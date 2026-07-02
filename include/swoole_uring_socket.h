@@ -63,6 +63,7 @@ class UringSocket : public Socket {
 
     bool connect(const sockaddr *addr, socklen_t addrlen) override;
     UringSocket *accept(double timeout = 0);
+    bool cancel(EventType event) override;
 
     ssize_t read(void *_buf, size_t _n) override;
     ssize_t write(const void *_buf, size_t _n) override;

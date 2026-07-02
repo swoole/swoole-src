@@ -161,6 +161,7 @@ struct Context {
     uchar parse_cookie : 1;
     uchar parse_body : 1;
     uchar parse_files : 1;
+    uchar current_part_is_file : 1;
     uchar http2 : 1;
 
     zval zsocket;
@@ -187,8 +188,6 @@ struct Context {
     uint16_t input_var_num;
     const char *current_header_name;
     size_t current_header_name_len;
-    char *current_input_name;
-    size_t current_input_name_len;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;

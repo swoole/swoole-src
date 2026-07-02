@@ -577,17 +577,17 @@ static PHP_METHOD(swoole_server_port, on) {
 
         found = true;
         int index = i.second.type;
+        auto fci_cache = sw_callable_create(cb);
+        if (!fci_cache) {
+            RETURN_FALSE;
+        }
+
         std::string property_name = std::string("on") + i.second.name;
         zend_update_property(
             swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
 
         if (property->callbacks[index]) {
             sw_callable_free(property->callbacks[index]);
-        }
-
-        auto fci_cache = sw_callable_create(cb);
-        if (!fci_cache) {
-            RETURN_FALSE;
         }
         property->callbacks[index] = fci_cache;
 
@@ -645,7 +645,5 @@ static PHP_METHOD(swoole_server_port, getSocket) {
         RETURN_FALSE;
     }
     SW_ZVAL_SOCKET(return_value, socket_object);
-    zval *zsocket = sw_zval_dup(return_value);
-    Z_TRY_ADDREF_P(zsocket);
 }
 #endif

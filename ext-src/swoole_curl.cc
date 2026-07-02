@@ -322,9 +322,9 @@ int Multi::handle_socket(CURL *cp, curl_socket_t sockfd, int action, void *userp
     case CURL_POLL_REMOVE:
         return multi->del_event(socketp, sockfd);
     default:
-        abort();
+        swoole_warning("unexpected curl socket action[%d]", action);
+        return 0;
     }
-    return 0;
 }
 
 #ifdef SW_CURL_USE_IOCP
@@ -551,13 +551,7 @@ int Multi::set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
     curl_socket->sockfd = sockfd;
     curl_socket->action = action;
 
-    int events = 0;
-    if (action != CURL_POLL_IN) {
-        events |= SW_EVENT_WRITE;
-    }
-    if (action != CURL_POLL_OUT) {
-        events |= SW_EVENT_READ;
-    }
+    int events = get_event(action);
 
     swoole_trace_log(SW_TRACE_CO_CURL,
                      SW_ECHO_GREEN " curl_socket=%p, fd=%d, events=%d",

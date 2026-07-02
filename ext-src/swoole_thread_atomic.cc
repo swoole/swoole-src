@@ -49,7 +49,11 @@ static sw_inline AtomicObject *atomic_fetch_object(zend_object *obj) {
 }
 
 static sw_atomic_t *atomic_get_ptr(const zval *zobject) {
-    return &atomic_fetch_object(Z_OBJ_P(zobject))->atomic->value;
+    AtomicResource *atomic = atomic_fetch_object(Z_OBJ_P(zobject))->atomic;
+    if (UNEXPECTED(!atomic)) {
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    }
+    return &atomic->value;
 }
 
 static void atomic_free_object(zend_object *object) {
@@ -91,7 +95,11 @@ static sw_inline AtomicLongObject *atomic_long_fetch_object(zend_object *obj) {
 }
 
 static sw_atomic_long_t *atomic_long_get_ptr(const zval *zobject) {
-    return &atomic_long_fetch_object(Z_OBJ_P(zobject))->atomic->value;
+    AtomicLongResource *atomic = atomic_long_fetch_object(Z_OBJ_P(zobject))->atomic;
+    if (UNEXPECTED(!atomic)) {
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    }
+    return &atomic->value;
 }
 
 static void atomic_long_free_object(zend_object *object) {
@@ -112,11 +120,19 @@ static zend_object *atomic_long_create_object(zend_class_entry *ce) {
 }
 
 ThreadResource *php_swoole_thread_atomic_cast(const zval *zobject) {
-    return atomic_fetch_object(Z_OBJ_P(zobject))->atomic;
+    AtomicResource *atomic = atomic_fetch_object(Z_OBJ_P(zobject))->atomic;
+    if (UNEXPECTED(!atomic)) {
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    }
+    return atomic;
 }
 
 ThreadResource *php_swoole_thread_atomic_long_cast(const zval *zobject) {
-    return atomic_long_fetch_object(Z_OBJ_P(zobject))->atomic;
+    AtomicLongResource *atomic = atomic_long_fetch_object(Z_OBJ_P(zobject))->atomic;
+    if (UNEXPECTED(!atomic)) {
+        php_swoole_fatal_error(E_ERROR, "must call constructor first");
+    }
+    return atomic;
 }
 
 void php_swoole_thread_atomic_create(zval *return_value, ThreadResource *resource) {

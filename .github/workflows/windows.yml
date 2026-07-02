@@ -4,11 +4,12 @@ on: [push, pull_request]
 jobs:
   windows-tests:
     name: Unit Test on Windows
-    runs-on: windows-latest
+    runs-on: windows-2022
+    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[win-unit]')"
     strategy:
       fail-fast: false
       matrix:
-        os: [ 'windows-latest' ]
+        os: [ 'windows-2022' ]
         ts: [ 'ts' ]
     steps:
       - name: Checkout
@@ -23,7 +24,7 @@ jobs:
           git config --global core.eol lf
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@master
+        uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           coverage: none
@@ -71,4 +72,4 @@ jobs:
           set TEST_PHP_EXECUTABLE=php
           set SKIP_ONLINE_TESTS=1
           set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 300 tests\swoole_function tests\swoole_channel_coro tests\swoole_client_coro tests\swoole_coroutine tests\swoole_coroutine_lock tests\swoole_coroutine_scheduler tests\swoole_coroutine_system tests\swoole_coroutine_util tests\swoole_coroutine_wait_group tests\swoole_curl tests\swoole_event tests\swoole_global tests\swoole_http2_client_coro tests\swoole_http_client_coro tests\swoole_runtime tests\swoole_socket_coro tests\swoole_timer
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 300 tests\swoole_windows tests\swoole_function

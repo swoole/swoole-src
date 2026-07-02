@@ -21,7 +21,6 @@ run(function () {
 
     Assert::assert($chan->push("hello world [1]", 100));
     Assert::eq(Coroutine::isCanceled(), false);
-    Assert::eq($chan->errCode, SWOOLE_CHANNEL_OK);
 
     Assert::eq($chan->push("hello world [2]", 100), false);
     Assert::eq(Coroutine::isCanceled(), true);

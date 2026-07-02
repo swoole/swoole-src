@@ -98,10 +98,16 @@ class HttpServer {
     ~HttpServer() {
         sw_free(upload_tmp_dir);
         zval_ptr_dtor(&zclients);
+        clear_handlers();
+        delete socket;
+    }
+
+    void clear_handlers() {
+        default_handler = nullptr;
         for (const auto &handler : handlers) {
             sw_callable_free(handler.second);
         }
-        delete socket;
+        handlers.clear();
     }
 
     bool set_handler(const std::string &pattern, zval *zfn) {
@@ -409,12 +415,15 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     /* get callback fci cache */
     char *func_name = nullptr;
     zend_fcall_info_cache fci_cache;
-    zend::Variable zcallback("onAccept");
+    zval zcallback;
+    ZVAL_STRING(&zcallback, "onAccept");
     if (!sw_zend_is_callable_at_frame(
-            zcallback.ptr(), ZEND_THIS, execute_data, 0, &func_name, nullptr, &fci_cache, nullptr)) {
+            &zcallback, ZEND_THIS, execute_data, 0, &func_name, nullptr, &fci_cache, nullptr)) {
+        zval_ptr_dtor(&zcallback);
         php_swoole_fatal_error(E_CORE_ERROR, "function '%s' is not callable", func_name);
         return;
     }
+    zval_ptr_dtor(&zcallback);
     efree(func_name);
 
     /* check settings */
@@ -453,7 +462,13 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     }
     if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp) ||
         php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
-        hs->compression_min_length = zval_get_long(ztmp);
+        zend_long v = zval_get_long(ztmp);
+        if (v < 0) {
+            php_swoole_fatal_error(
+                E_WARNING, "compression_min_length must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+        } else {
+            hs->compression_min_length = SW_MIN(v, UINT32_MAX);
+        }
     }
     if (php_swoole_array_get_value(vht, "http_compression_types", ztmp) ||
         php_swoole_array_get_value(vht, "compression_types", ztmp)) {
@@ -493,7 +508,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         if (conn) {
             zval zsocket;
             php_swoole_init_socket_object(&zsocket, conn);
-            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, zcallback.ptr());
+            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, nullptr);
             zval_dtor(&zsocket);
             if (cid < 0) {
                 goto _wait_1s;
@@ -722,7 +737,7 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
     http_server_add_server_array(
         Z_ARRVAL_P(zserver_http2), SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP2));
 
-    const auto *hs = static_cast<HttpServer *>(session->private_data);
+    auto *hs = static_cast<HttpServer *>(session->private_data);
     zend::Callable *cb = hs->get_handler(ctx);
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
 

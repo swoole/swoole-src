@@ -12,6 +12,7 @@ use Swoole\WebSocket\CloseFrame;
 use SwooleTest\ProcessManager as ProcessManager;
 
 $pm = new ProcessManager;
+$pm->setWaitTimeout(3);
 $pm->parentFunc = function (int $pid) use ($pm) {
     Co\run(function () use ($pm) {
         $client = new Client('127.0.0.1', $pm->getFreePort());
@@ -19,6 +20,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $client->push('aaa');
         $client->push('lalalala');
     });
+    $pm->wait();
     $pm->kill();
 };
 
@@ -42,6 +44,7 @@ $pm->childFunc = function () use ($pm) {
             Assert::true($server->push($frame->fd, $close));
         } else {
             var_dump($frame->data);
+            $pm->wakeup();
         }
     });
 

@@ -23,6 +23,7 @@
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
 using swoole::Reactor;
+using swoole::Coroutine;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
 using swoole::test::create_socket_pair;

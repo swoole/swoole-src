@@ -48,7 +48,11 @@ Context::Context(size_t stack_size, CoroutineFunc fn, void *private_data)
 #else
     stack_ = (char *) sw_malloc(stack_size_);
 #endif
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
+    if (stack_ == MAP_FAILED) {
+#else
     if (!stack_) {
+#endif
         swoole_fatal_error(SW_ERROR_MALLOC_FAIL, "failed to malloc stack memory.");
         exit(254);
     }

@@ -24,8 +24,12 @@
 #include <list>
 #include <unordered_map>
 
-using namespace swoole;
+using swoole::Coroutine;
+using swoole::Reactor;
 using swoole::coroutine::System;
+#if SW_USE_IOURING
+using swoole::Iouring;
+#endif
 
 struct WaitTask {
     Coroutine *co;

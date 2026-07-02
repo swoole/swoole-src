@@ -190,7 +190,7 @@ class ZendArray : public ThreadResource {
     }
 
     bool index_exists(zend_long index) const {
-        return index < (zend_long) zend_hash_num_elements(&ht);
+        return index >= 0 && index < (zend_long) zend_hash_num_elements(&ht);
     }
 
     bool strkey_exists(zend::String &skey) const {

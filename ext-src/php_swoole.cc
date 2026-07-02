@@ -415,6 +415,16 @@ void php_swoole_register_shutdown_function(const char *function) {
 #endif
 }
 
+static bool php_swoole_parse_nonnegative_size(zval *zv, const char *name, zend_long *value) {
+    zend_long size = php_swoole_parse_to_size(zv);
+    if (size < 0) {
+        php_swoole_fatal_error(E_WARNING, "%s must be greater than or equal to 0, got " ZEND_LONG_FMT, name, size);
+        return false;
+    }
+    *value = size;
+    return true;
+}
+
 void php_swoole_set_global_option(HashTable *vht) {
     zval *ztmp;
 
@@ -494,7 +504,10 @@ void php_swoole_set_global_option(HashTable *vht) {
         Socket::default_read_timeout = timeout_format(ztmp);
     }
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        Socket::default_buffer_size = php_swoole_parse_to_size(ztmp);
+        zend_long v;
+        if (php_swoole_parse_nonnegative_size(ztmp, "socket_buffer_size", &v)) {
+            Socket::default_buffer_size = SW_MIN(v, UINT32_MAX);
+        }
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
         Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);
@@ -502,22 +515,46 @@ void php_swoole_set_global_option(HashTable *vht) {
     // [HTTP2]
     // ======================================================================
     if (php_swoole_array_get_value(vht, "http2_header_table_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, php_swoole_parse_to_size(ztmp));
+        zend_long v;
+        if (php_swoole_parse_nonnegative_size(ztmp, "http2_header_table_size", &v)) {
+            swoole::http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, SW_MIN(v, UINT32_MAX));
+        }
     }
     if (php_swoole_array_get_value(vht, "http2_enable_push", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH, zval_get_long(ztmp));
+        zend_long v = zval_get_long(ztmp);
+        if (v < 0) {
+            php_swoole_fatal_error(
+                E_WARNING, "http2_enable_push must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+        } else {
+            swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH, SW_MIN(v, UINT32_MAX));
+        }
     }
     if (php_swoole_array_get_value(vht, "http2_max_concurrent_streams", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, zval_get_long(ztmp));
+        zend_long v = zval_get_long(ztmp);
+        if (v < 0) {
+            php_swoole_fatal_error(
+                E_WARNING, "http2_max_concurrent_streams must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+        } else {
+            swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, SW_MIN(v, UINT32_MAX));
+        }
     }
     if (php_swoole_array_get_value(vht, "http2_init_window_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, php_swoole_parse_to_size(ztmp));
+        zend_long v;
+        if (php_swoole_parse_nonnegative_size(ztmp, "http2_init_window_size", &v)) {
+            swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, SW_MIN(v, UINT32_MAX));
+        }
     }
     if (php_swoole_array_get_value(vht, "http2_max_frame_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, php_swoole_parse_to_size(ztmp));
+        zend_long v;
+        if (php_swoole_parse_nonnegative_size(ztmp, "http2_max_frame_size", &v)) {
+            swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, SW_MIN(v, UINT32_MAX));
+        }
     }
     if (php_swoole_array_get_value(vht, "http2_max_header_list_size", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, php_swoole_parse_to_size(ztmp));
+        zend_long v;
+        if (php_swoole_parse_nonnegative_size(ztmp, "http2_max_header_list_size", &v)) {
+            swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, SW_MIN(v, UINT32_MAX));
+        }
     }
 }
 

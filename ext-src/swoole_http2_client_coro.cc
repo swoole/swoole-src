@@ -30,8 +30,12 @@ END_EXTERN_C()
 
 #define HTTP2_CLIENT_HOST_HEADER_INDEX 3
 
-using namespace swoole;
+using swoole::ReturnCode;
+using swoole::SocketType;
+using swoole::String;
 using swoole::http2::get_default_setting;
+using swoole::network::Address;
+using swoole::network::Socket;
 
 namespace Http2 = swoole::http2;
 
@@ -69,10 +73,11 @@ struct Stream {
 
 class Client {
   public:
+    SocketType socket_type;
     std::string host;
     int port;
     bool open_ssl;
-    double timeout = network::Socket::default_read_timeout;
+    double timeout = NetSocket::default_read_timeout;
 
     uint32_t stream_id = 0;       // the next send stream id
     uint32_t last_stream_id = 0;  // the last received stream id
@@ -93,10 +98,12 @@ class Client {
     SocketImpl *socket_ = nullptr;
     zval zsocket;
 
-    Client(const char *_host, size_t _host_len, int _port, bool _ssl, const zval *zobj) {
-        host = std::string(_host, _host_len);
+    Client(SocketType _socket_type, std::string &&_host, int _port, bool _ssl, const zval *zobj)
+        : socket_type(_socket_type), host(std::move(_host)), open_ssl(_ssl) {
+        if (_port == 0) {
+            _port = _ssl ? 443 : 80;
+        }
         port = _port;
-        open_ssl = _ssl;
         _zobject = *zobj;
         zobject = &_zobject;
         Http2::init_settings(&local_settings);
@@ -413,7 +420,7 @@ bool Client::connect() {
         return false;
     }
 
-    auto object = php_swoole_create_socket(network::Socket::convert_to_type(host));
+    auto object = php_swoole_create_socket(socket_type);
     if (UNEXPECTED(!object)) {
         php_swoole_socket_set_error_properties(zobject, errno, strerror(errno));
         return false;
@@ -656,7 +663,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         return SW_CONTINUE;
     }
     if (type == SW_HTTP2_TYPE_HEADERS) {
-        parse_header(stream, flags, buf, length);
+        if (parse_header(stream, flags, buf, length) < 0) {
+            return SW_ERROR;
+        }
     } else if (type == SW_HTTP2_TYPE_DATA) {
         if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {
             stream->flags |= SW_HTTP2_STREAM_PIPELINE_RESPONSE;
@@ -802,16 +811,22 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len == 0) {
-        zend_throw_exception(swoole_http2_client_coro_exception_ce, "host is empty", SW_ERROR_INVALID_PARAMS);
+        zend_throw_exception(swoole_http2_client_coro_exception_ce, "The host is empty", SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
+    std::string host_string(host, host_len);
+    auto type = Socket::convert_to_type(host_string);
+    if (port != 0 && !Socket::is_local(type) && !Address::verify_port(port, true)) {
+        zend_throw_exception(swoole_http2_client_coro_exception_ce, "The port is invalid", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
-    auto *client = new Client(host, host_len, port, ssl, ZEND_THIS);
+    auto *client = new Client(type, std::move(host_string), port, ssl, ZEND_THIS);
     http2_client_coro_fetch_object(Z_OBJ_P(ZEND_THIS))->client = client;
 
     zend_update_property_stringl(
         swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), port);
+    zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), client->port);
     zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
 }
 
@@ -908,7 +923,11 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
             if (nv.name[0] == ':') {
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status")) {
-                    zend::object_set(zresponse, ZEND_STRL("statusCode"), sw_atol((char *) nv.value));
+                    uint16_t status_code = 0;
+                    if (!Http2::parse_status_code((char *) nv.value, nv.valuelen, &status_code)) {
+                        return SW_ERR;
+                    }
+                    zend::object_set(zresponse, ZEND_STRL("statusCode"), status_code);
                 }
             } else {
 #ifdef SW_HAVE_ZLIB
@@ -1016,6 +1035,11 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, char *buffer) {
                 continue;
             }
             zend::String str_value(zvalue);
+            if (sw_unlikely(ZSTR_LEN(key) + str_value.len() + 1 > SW_HTTP_COOKIE_MAX_SIZE)) {
+                zend_throw_exception_ex(
+                    swoole_http2_client_coro_exception_ce, SW_ERROR_INVALID_PARAMS, "HTTP cookie header is too large");
+                return -1;
+            }
             header_buffer->clear();
             header_buffer->append(ZSTR_VAL(key), ZSTR_LEN(key));
             header_buffer->append("=", 1);
@@ -1030,14 +1054,11 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, char *buffer) {
     }
 
     size_t buflen = nghttp2_hd_deflate_bound(h2c->deflater, headers.get(), headers.len());
-#if 0
-    if (buflen > h2c->remote_settings.max_header_list_size) {
-        php_swoole_error(E_WARNING,
-                         "header cannot bigger than remote max_header_list_size %u",
-                         client->remote_settings.max_header_list_size);
+    if (sw_unlikely(buflen > SW_HTTP_HEADER_MAX_SIZE)) {
+        zend_throw_exception_ex(
+            swoole_http2_client_coro_exception_ce, SW_ERROR_INVALID_PARAMS, "HTTP/2 header block is too large");
         return -1;
     }
-#endif
     ssize_t rv = nghttp2_hd_deflate_hd(h2c->deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
     if (rv < 0) {
         h2c->nghttp2_error(rv, "nghttp2_hd_deflate_hd() failed");
@@ -1433,6 +1454,10 @@ static PHP_METHOD(swoole_http2_client_coro, write) {
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(end);
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (stream_id < 0) {
+        RETURN_FALSE;
+    }
 
     SW_CLIENT_PRESERVE_SOCKET(&h2c->zsocket);
 

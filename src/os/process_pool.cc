@@ -135,14 +135,14 @@ int ProcessPool::create_message_bus() {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "the message bus has been created");
         return SW_ERR;
     }
-    auto *msg_id = static_cast<sw_atomic_long_t *>(sw_mem_pool()->alloc(sizeof(sw_atomic_long_t)));
-    if (msg_id == nullptr) {
+    message_bus_msg_id = static_cast<sw_atomic_long_t *>(sw_mem_pool()->alloc(sizeof(sw_atomic_long_t)));
+    if (message_bus_msg_id == nullptr) {
         swoole_sys_warning("malloc[1] failed");
         return SW_ERR;
     }
-    *msg_id = 1;
+    *message_bus_msg_id = 1;
     message_bus = new MessageBus();
-    message_bus->set_id_generator([msg_id]() { return sw_atomic_fetch_add(msg_id, 1); });
+    message_bus->set_id_generator([this]() { return sw_atomic_fetch_add(message_bus_msg_id, 1); });
     size_t ipc_max_size;
 #ifndef __linux__
     ipc_max_size = SW_IPC_MAX_SIZE;
@@ -158,6 +158,10 @@ int ProcessPool::create_message_bus() {
 #endif
     message_bus->set_buffer_size(ipc_max_size);
     if (!message_bus->alloc_buffer()) {
+        delete message_bus;
+        message_bus = nullptr;
+        sw_mem_pool()->free((void *) message_bus_msg_id);
+        message_bus_msg_id = nullptr;
         return SW_ERR;
     }
     return SW_OK;
@@ -197,7 +201,7 @@ int ProcessPool::listen(const char *host, int port, int backlog) const {
     return SW_OK;
 }
 
-void ProcessPool::set_protocol(ProtocolType _protocol_type) {
+void ProcessPool::set_protocol(swProtocolType _protocol_type) {
     switch (_protocol_type) {
     case SW_PROTOCOL_TASK:
         main_loop = run_with_task_protocol;
@@ -298,6 +302,11 @@ int ProcessPool::response(const char *data, uint32_t length) const {
 }
 
 bool ProcessPool::send_message(WorkerId worker_id, const char *message, size_t l_message) const {
+    if (!is_worker_id_valid(worker_id)) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        return false;
+    }
+
     Worker *worker = get_worker(worker_id);
     if (message_bus) {
         SendData _task{};
@@ -1061,6 +1070,10 @@ void ProcessPool::destroy() {
         delete message_bus;
         message_bus = nullptr;
     }
+    if (message_bus_msg_id) {
+        sw_mem_pool()->free((void *) message_bus_msg_id);
+        message_bus_msg_id = nullptr;
+    }
 
     sw_mem_pool()->free(workers);
 }
@@ -1140,6 +1153,10 @@ void Worker::report_error(const ExitStatus &exit_status) const {
 
 void ReloadTask::add_workers(Worker *list, size_t n) {
     SW_LOOP_N(n) {
+        if (list[i].pid <= 0) {
+            swoole_warning("skip invalid worker(pid=%d, id=%d) for reload", list[i].pid, list[i].id);
+            continue;
+        }
         workers[list[i].pid] = &list[i];
         kill_queue.push(list[i].pid);
     }
@@ -1170,15 +1187,17 @@ ReloadTask::~ReloadTask() {
 }
 
 void ReloadTask::kill_all(int signal_number) {
-    for (auto &kv : workers) {
-        if (swoole_kill(kv.first, signal_number) < 0) {
+    for (auto iter = workers.begin(); iter != workers.end();) {
+        if (swoole_kill(iter->first, signal_number) < 0) {
             if (errno == ECHILD || errno == ESRCH) {
+                iter = workers.erase(iter);
                 continue;
             }
-            swoole_sys_warning("failed to kill(%d, SIGTERM) worker#[%d]", kv.first, kv.second->id);
+            swoole_sys_warning("failed to kill(%d, %d) worker#[%d]", iter->first, signal_number, iter->second->id);
         } else if (signal_number == SIGKILL) {
-            swoole_warning("force kill worker process(pid=%d, id=%d)", kv.first, kv.second->id);
+            swoole_warning("force kill worker process(pid=%d, id=%d)", iter->first, iter->second->id);
         }
+        iter++;
     }
 
     clear_queue();
@@ -1197,7 +1216,7 @@ void ReloadTask::kill_one(int signal_number) {
                 workers.erase(iter);
                 continue;
             }
-            swoole_sys_warning("kill(%d, SIGTERM) [%d] failed", pid, iter->second->id);
+            swoole_sys_warning("kill(%d, %d) [%d] failed", pid, signal_number, iter->second->id);
         }
         break;
     }

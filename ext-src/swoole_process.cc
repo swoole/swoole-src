@@ -28,7 +28,12 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_process_arginfo.h"
 END_EXTERN_C()
 
-using namespace swoole;
+using swoole::MsgQueue;
+using swoole::QueueNode;
+using swoole::Reactor;
+using swoole::Server;
+using swoole::UnixSocket;
+using swoole::Worker;
 
 zend_class_entry *swoole_process_ce;
 static zend_object_handlers swoole_process_handlers;
@@ -83,7 +88,9 @@ static void php_swoole_process_free_object(zend_object *object) {
         if (_pipe && !worker->shared) {
             delete _pipe;
         }
-        delete worker->queue;
+        if (worker->queue && !worker->shared) {
+            delete worker->queue;
+        }
         delete worker;
     }
 
@@ -401,6 +408,7 @@ static PHP_METHOD(swoole_process, useQueue) {
     if (capacity > 0) {
         queue->set_capacity(capacity);
     }
+    delete process->queue;
     process->queue = queue;
     process->msgqueue_mode = mode;
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueId"), queue->get_id());
@@ -712,7 +720,7 @@ static PHP_METHOD(swoole_process, start) {
     } else if (pid > 0) {
         process->pid = pid;
         process->child_process = 0;
-        zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pid"), process->pid);
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pid"), process->pid);
         RETURN_LONG(pid);
     } else {
         process->child_process = 1;
@@ -728,6 +736,11 @@ static PHP_METHOD(swoole_process, read) {
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(buf_size)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (buf_size <= 0) {
+        php_swoole_fatal_error(E_WARNING, "size must be greater than 0");
+        RETURN_FALSE;
+    }
 
     const Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (process->pipe_current == nullptr) {
@@ -756,10 +769,6 @@ static PHP_METHOD(swoole_process, read) {
 static PHP_METHOD(swoole_process, write) {
     char *data = nullptr;
     size_t data_len = 0;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE) {
-        RETURN_FALSE;
-    }
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_STRING(data, data_len)

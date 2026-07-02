@@ -15,6 +15,8 @@ $pm->parentFunc = function ($pid) use ($pm)
         $conn = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         Assert::assert($conn->connect('127.0.0.1', $pm->getFreePort()));
 
+        Assert::false(@$conn->sendfile(TEST_IMAGE, -1));
+        Assert::false(@$conn->sendfile(TEST_IMAGE, 0, -1));
         $conn->send(pack('N', filesize(TEST_IMAGE)));
         $ret = $conn->sendfile(TEST_IMAGE);
         Assert::assert($ret);

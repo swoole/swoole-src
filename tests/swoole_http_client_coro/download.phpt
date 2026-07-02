@@ -28,7 +28,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             // read content
             $raw_file = fopen(TEST_IMAGE, 'r+');
             fseek($raw_file, $offset);
-            if (!Assert::assert(co::fread($raw_file) === co::readFile($filename))) {
+            if (!Assert::assert(fread($raw_file, $raw_file_size - $offset) === co::readFile($filename))) {
                 goto _end;
             }
 

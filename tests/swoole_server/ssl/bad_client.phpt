@@ -41,8 +41,16 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
-readfile(ERROR_FILE);
-unlink(ERROR_FILE);
+for ($i = 0; $i < 50; $i++) {
+    if (is_file(ERROR_FILE) && filesize(ERROR_FILE) > 0) {
+        break;
+    }
+    usleep(20000);
+}
+if (is_file(ERROR_FILE)) {
+    readfile(ERROR_FILE);
+    unlink(ERROR_FILE);
+}
 ?>
 --EXPECTF--
 [%s]	WARNING	Socket::ssl_accept(): bad SSL client[127.0.0.1:%d], reason=%d, error_string=%s

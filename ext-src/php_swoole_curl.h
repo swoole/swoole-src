@@ -199,7 +199,16 @@ class Multi {
     }
 
     int get_event(int action) {
-        return action == CURL_POLL_IN ? SW_EVENT_READ : SW_EVENT_WRITE;
+        switch (action) {
+        case CURL_POLL_IN:
+            return SW_EVENT_READ;
+        case CURL_POLL_OUT:
+            return SW_EVENT_WRITE;
+        case CURL_POLL_INOUT:
+            return SW_EVENT_READ | SW_EVENT_WRITE;
+        default:
+            return 0;
+        }
     }
 
     Coroutine *check_bound_co() {

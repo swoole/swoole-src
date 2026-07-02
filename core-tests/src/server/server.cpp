@@ -25,6 +25,7 @@
 #include "swoole_lock.h"
 #include "swoole_util.h"
 
+#include <condition_variable>
 #include <numeric>
 
 using namespace std;
@@ -982,8 +983,18 @@ TEST(server, reload_all_workers) {
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
     serv.task_enable_coroutine = true;
+    const int initial_worker_num = serv.worker_num + serv.task_worker_num;
 
     test::counter_init();
+    mutex watchdog_lock;
+    condition_variable watchdog_cv;
+    bool watchdog_done = false;
+    thread watchdog([&]() {
+        unique_lock<mutex> lock(watchdog_lock);
+        if (!watchdog_cv.wait_for(lock, chrono::seconds(10), [&]() { return watchdog_done; })) {
+            serv.shutdown();
+        }
+    });
 
     swoole_set_log_level(SW_LOG_WARNING);
 
@@ -1000,43 +1011,45 @@ TEST(server, reload_all_workers) {
 
     serv.onAfterReload = [](Server *serv) {
         DEBUG() << "onAfterReload: master_pid=" << beforeReloadPid << "\n";
-        test::counter_incr(11);
+        if (test::counter_incr(11) == 2) {
+            swoole_timer_after(200, [serv](TIMER_PARAMS) { serv->shutdown(); });
+        }
     };
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
-        std::string filename = "/tmp/worker_1.pid";
-        if (worker->id == 1) {
-            if (access(filename.c_str(), R_OK) == -1) {
-                ofstream file(filename);
-                file << getpid();
-                file.close();
-                kill(serv->gs->manager_pid, SIGUSR2);
-                sleep(1);
-                kill(serv->gs->manager_pid, SIGUSR1);
-            } else {
-                char buf[10] = {0};
-                ifstream file(filename.c_str());
-                file >> buf;
-                file.close();
-
-                int oldPid = 0;
-                stringstream stringPid(buf);
-                stringPid >> oldPid;
-
-                EXPECT_TRUE(oldPid != getpid());
-
-                sleep(1);
-                remove(filename.c_str());
-                kill(serv->gs->master_pid, SIGTERM);
-            }
-        }
-
+        test::counter_incr(0);
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
 
+    serv.onManagerStart = [initial_worker_num](Server *serv) {
+        swoole_timer_tick(100, [serv, initial_worker_num](TIMER_PARAMS) {
+            if (test::counter_get(0) < initial_worker_num) {
+                return;
+            }
+
+            swoole_timer_del(tnode);
+            kill(serv->get_manager_pid(), SIGUSR2);
+
+            swoole_timer_tick(100, [serv](TIMER_PARAMS) {
+                if (test::counter_get(11) < 1) {
+                    return;
+                }
+                swoole_timer_del(tnode);
+                kill(serv->get_manager_pid(), SIGUSR1);
+            });
+        });
+    };
+
     ASSERT_EQ(serv.start(), 0);
+    {
+        lock_guard<mutex> lock(watchdog_lock);
+        watchdog_done = true;
+    }
+    watchdog_cv.notify_one();
+    watchdog.join();
     ASSERT_EQ(test::counter_get(10), 2);  // onBeforeReload called
     ASSERT_EQ(test::counter_get(11), 2);  // onAfterReload called
+    ASSERT_GE(test::counter_get(0), initial_worker_num * 2);
 }
 
 TEST(server, reload_all_workers2) {
@@ -1044,6 +1057,8 @@ TEST(server, reload_all_workers2) {
     serv.worker_num = 2;
     serv.task_worker_num = 2;
     serv.max_wait_time = 1;
+    const auto worker_pid_file = "/tmp/swoole-core-reload-all-workers2-" + std::to_string(getpid()) + ".pid";
+    unlink(worker_pid_file.c_str());
     swoole_set_log_level(SW_LOG_WARNING);
 
     test::counter_init();
@@ -1054,10 +1069,9 @@ TEST(server, reload_all_workers2) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
-        std::string filename = "/tmp/worker_2.pid";
         if (worker->id == 1) {
-            if (access(filename.c_str(), R_OK) == -1) {
-                ofstream file(filename);
+            if (access(worker_pid_file.c_str(), R_OK) == -1) {
+                ofstream file(worker_pid_file);
                 file << getpid();
                 file.close();
                 kill(serv->gs->master_pid, SIGUSR2);
@@ -1065,7 +1079,7 @@ TEST(server, reload_all_workers2) {
                 kill(serv->gs->master_pid, SIGUSR1);
             } else {
                 char buf[10] = {0};
-                ifstream file(filename.c_str());
+                ifstream file(worker_pid_file.c_str());
                 file >> buf;
                 file.close();
 
@@ -1076,7 +1090,7 @@ TEST(server, reload_all_workers2) {
                 EXPECT_TRUE(oldPid != getpid());
 
                 sleep(1);
-                remove(filename.c_str());
+                remove(worker_pid_file.c_str());
                 kill(serv->gs->master_pid, SIGTERM);
             }
         }
@@ -1703,6 +1717,59 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.gs->task_count, 2);
 }
 
+TEST(server, task_wait_multi_dispatch_fail_restores_tasking_num) {
+    Server serv;
+    serv.worker_num = 1;
+    serv.task_worker_num = 1;
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.get_event_worker_pool()->workers = serv.workers;
+    serv.get_event_worker_pool()->worker_num = serv.worker_num;
+    serv.workers[0].lock = new Mutex(true);
+
+    WorkerId old_worker_id = swoole_get_worker_id();
+    swoole_set_worker_id(0);
+
+    auto *task_worker = &serv.get_task_worker_pool()->workers[0];
+    ASSERT_NE(task_worker->pipe_master, nullptr);
+    ASSERT_GE(task_worker->pipe_master->fd, 0);
+    close(task_worker->pipe_master->fd);
+    task_worker->pipe_master->fd = SW_BAD_SOCKET;
+
+    uint16_t fail_count = 0;
+    Server::MultiTask mt(1);
+    mt.pack = [](uint16_t, EventData *buf) -> TaskId {
+        return Server::task_pack(buf, SW_STRL("task")) ? buf->info.fd : -1;
+    };
+    mt.unpack = [](uint16_t, EventData *) {};
+    mt.fail = [&fail_count](uint16_t) { fail_count++; };
+
+    ASSERT_FALSE(serv.task_sync(mt, 0.01));
+    EXPECT_EQ(fail_count, 1);
+    EXPECT_EQ(serv.get_tasking_num(), 0);
+
+    swoole_set_worker_id(old_worker_id);
+    delete serv.workers[0].lock;
+    serv.workers[0].lock = nullptr;
+}
+
+TEST(server, create_task_workers_failure_cleans_partial_state) {
+    Server serv;
+    serv.worker_num = 1;
+    serv.task_worker_num = 1;
+    serv.task_enable_coroutine = true;
+    serv.task_ipc_mode = Server::TASK_IPC_MSGQUEUE;
+
+    ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
+    ASSERT_EQ(serv.create(), SW_ERR);
+
+    EXPECT_EQ(serv.task_results, nullptr);
+    EXPECT_TRUE(serv.task_notify_pipes.empty());
+    EXPECT_EQ(serv.get_task_worker_pool()->workers, nullptr);
+    EXPECT_EQ(serv.get_task_worker_pool()->map_, nullptr);
+}
+
 TEST(server, task_worker2) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
@@ -1835,7 +1902,10 @@ TEST(server, reload_no_task_worker) {
         if (worker->id == 0) {
             swoole_timer_after(50, [serv](TIMER_PARAMS) {
                 ASSERT_TRUE(serv->reload(false));
-                swoole_timer_after(80, [serv](TIMER_PARAMS) { serv->shutdown(); });
+                swoole_timer_after(80, [serv](TIMER_PARAMS) {
+                    ASSERT_TRUE(serv->reload(false));
+                    swoole_timer_after(80, [serv](TIMER_PARAMS) { serv->shutdown(); });
+                });
             });
         }
         test::counter_incr(1);
@@ -2239,6 +2309,8 @@ TEST(server, max_connection) {
     ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
 
     serv.create();
+
+    ASSERT_EQ(serv.get_connection(serv.get_max_connection()), nullptr);
 
     serv.set_max_connection(100);
     ASSERT_EQ(serv.get_max_connection(), last_value);
@@ -3548,7 +3620,11 @@ TEST(server, no_idle_worker) {
         });
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock->unlock();
+        }
+    };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         usleep(10000);
@@ -3606,7 +3682,11 @@ TEST(server, no_idle_task_worker) {
         });
     };
 
-    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) { lock->unlock(); };
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock->unlock();
+        }
+    };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         SW_LOOP_N(1024) {

@@ -85,3 +85,54 @@ TEST(coroutine_async_file, close_state_and_fd_zero) {
         ASSERT_EQ(file->get_fd(), 0);
     });
 }
+
+TEST(coroutine_async_file, reopen_after_close) {
+    coroutine::run([](void *arg) {
+        string filename = "/tmp/async_file_reopen.txt";
+        auto file = new AsyncFile(filename, O_CREAT | O_RDWR, 0666);
+        ON_SCOPE_EXIT {
+            if (file->ready()) {
+                file->close();
+            }
+            delete file;
+            unlink(filename.c_str());
+        };
+
+        ASSERT_TRUE(file->ready());
+        ASSERT_TRUE(file->close());
+        ASSERT_FALSE(file->ready());
+
+        ASSERT_TRUE(file->open(filename, O_CREAT | O_RDWR, 0666));
+        ASSERT_TRUE(file->ready());
+        ASSERT_GE(file->get_fd(), 0);
+        ASSERT_EQ(file->truncate(0), true);
+        ASSERT_EQ(file->set_offset(0), 0);
+
+        const char *data = "reopen";
+        ASSERT_EQ(file->write(data, strlen(data)), static_cast<ssize_t>(strlen(data)));
+        ASSERT_EQ(file->set_offset(0), 0);
+
+        char buf[16] = {};
+        ASSERT_EQ(file->read(buf, sizeof(buf)), static_cast<ssize_t>(strlen(data)));
+        ASSERT_STREQ(data, buf);
+    });
+}
+
+TEST(coroutine_async_file, open_fail_keeps_closed) {
+    coroutine::run([](void *arg) {
+        auto file = new AsyncFile("/tmp/async_file_open_fail.txt", O_CREAT | O_RDWR, 0666);
+        ON_SCOPE_EXIT {
+            if (file->ready()) {
+                file->close();
+            }
+            delete file;
+        };
+
+        ASSERT_TRUE(file->close());
+        ASSERT_FALSE(file->ready());
+
+        ASSERT_FALSE(file->open("/tmp/async_file_missing_dir/child.txt", O_CREAT | O_RDWR, 0666));
+        ASSERT_FALSE(file->ready());
+        ASSERT_EQ(file->get_fd(), -1);
+    });
+}

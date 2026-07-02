@@ -189,6 +189,7 @@
 #define SW_HTTP_CHUNK_EOF "0\r\n\r\n"
 #define SW_HTTP_DEFAULT_CONTENT_TYPE "text/html"
 #define SW_HTTP_MAX_APPEND_DATA 16384
+#define SW_HTTP_COOKIE_MAX_SIZE 4096
 
 #define SW_HTTP_100_CONTINUE_PACKET "HTTP/1.1 100 Continue\r\n\r\n"
 #define SW_HTTP_BAD_REQUEST_PACKET "HTTP/1.1 400 Bad Request\r\n\r\n"

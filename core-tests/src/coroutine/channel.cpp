@@ -2,9 +2,58 @@
 
 using swoole::Coroutine;
 using swoole::coroutine::Channel;
+using swoole::coroutine::ChannelImpl;
 
 using namespace std;
 using namespace swoole::test;
+
+TEST(coroutine_channel, direct_push_pop_data_boundaries) {
+    for (auto capacity : {1, 2, 3, 4, 8, 16, 17}) {
+        ChannelImpl<int> chan(capacity);
+
+        ASSERT_TRUE(chan.is_empty());
+        ASSERT_FALSE(chan.is_full());
+        ASSERT_EQ(chan.length(), 0);
+
+        for (int i = 0; i < capacity; i++) {
+            ASSERT_TRUE(chan.push_data(i));
+            ASSERT_EQ(chan.length(), i + 1);
+        }
+
+        ASSERT_TRUE(chan.is_full());
+        ASSERT_FALSE(chan.is_empty());
+        ASSERT_FALSE(chan.push_data(capacity));
+        ASSERT_EQ(chan.get_error(), ChannelImpl<int>::ERROR_TIMEOUT);
+        ASSERT_EQ(chan.length(), capacity);
+
+        for (int i = 0; i < capacity; i++) {
+            int value = -1;
+            ASSERT_TRUE(chan.pop_data(&value));
+            ASSERT_EQ(value, i);
+            ASSERT_EQ(chan.length(), capacity - i - 1);
+        }
+
+        ASSERT_TRUE(chan.is_empty());
+        ASSERT_FALSE(chan.is_full());
+        int value = -1;
+        ASSERT_FALSE(chan.pop_data(&value));
+        ASSERT_EQ(value, -1);
+    }
+}
+
+TEST(coroutine_channel, direct_zero_capacity_uses_one_slot) {
+    ChannelImpl<int> chan(0);
+
+    ASSERT_TRUE(chan.push_data(1));
+    ASSERT_TRUE(chan.is_full());
+    ASSERT_EQ(chan.length(), 1);
+    ASSERT_FALSE(chan.push_data(2));
+
+    int value = 0;
+    ASSERT_TRUE(chan.pop_data(&value));
+    ASSERT_EQ(value, 1);
+    ASSERT_TRUE(chan.is_empty());
+}
 
 TEST(coroutine_channel, push_pop) {
     coroutine::run([](void *arg) {

@@ -19,7 +19,7 @@ Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
 run(function () {
     $client = new Client();
-    $host = 'http://httpbin.org/stream/1024';
+    $host = 'http://httpcan.org/stream/1024';
     $client->request('GET', $host, [
         'on_stats' => function (TransferStats $stats) use ($host) {
             Assert::eq($stats->getEffectiveUri(), $host);

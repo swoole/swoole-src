@@ -27,6 +27,7 @@
 
 #include "thirdparty/php/sockets/php_sockets_cxx.h"
 
+#include <limits>
 #include <string>
 
 BEGIN_EXTERN_C()
@@ -1046,7 +1047,7 @@ SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) {
      * client: tcp_nodelay
      */
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp)) {
-        if (cli->get_type() == SW_SOCK_TCP || cli->get_type() != SW_SOCK_TCP6) {
+        if (cli->get_type() == SW_SOCK_TCP || cli->get_type() == SW_SOCK_TCP6) {
             cli->get_socket()->set_tcp_nodelay(zval_is_true(ztmp));
         }
     }
@@ -1215,11 +1216,14 @@ PHP_FUNCTION(swoole_coroutine_socketpair) {
 
     zend_object *s1 = php_swoole_create_socket_from_fd(pair[0], sock_type);
     if (s1 == nullptr) {
+        ::close(pair[0]);
+        ::close(pair[1]);
         RETURN_FALSE;
     }
 
     zend_object *s2 = php_swoole_create_socket_from_fd(pair[1], sock_type);
     if (s2 == nullptr) {
+        ::close(pair[1]);
         OBJ_RELEASE(s1);
         RETURN_FALSE;
     }
@@ -1627,6 +1631,11 @@ static void socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all
     }
 
     std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
+    auto free_func = [](const iovec *iov, int start, int end) {
+        for (int i = start; i < end; i++) {
+            zend_string_free(zend::fetch_zend_string_by_val((char *) iov[i].iov_base));
+        }
+    };
 
     SW_HASHTABLE_FOREACH_START(vht, zelement) {
         if (!ZVAL_IS_LONG(zelement)) {
@@ -1635,14 +1644,22 @@ static void socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all
                                     "Item #[%d] must be of type int, %s given",
                                     iov_index,
                                     zend_get_type_by_const(Z_TYPE_P(zelement)));
+            free_func(iov.get(), 0, iov_index);
             RETURN_FALSE;
         }
-        if (Z_LVAL_P(zelement) < 0) {
+        if (Z_LVAL_P(zelement) <= 0) {
             zend_throw_exception_ex(
                 swoole_socket_coro_exception_ce, EINVAL, "Item #[%d] must be greater than 0", iov_index);
+            free_func(iov.get(), 0, iov_index);
             RETURN_FALSE;
         }
-        size_t iov_len = Z_LVAL_P(zelement);
+        const size_t iov_len = Z_LVAL_P(zelement);
+        if (iov_len > static_cast<size_t>(std::numeric_limits<ssize_t>::max() - total_length)) {
+            zend_throw_exception_ex(
+                swoole_socket_coro_exception_ce, EINVAL, "The total length of the io vector is too large");
+            free_func(iov.get(), 0, iov_index);
+            RETURN_FALSE;
+        }
 
         iov[iov_index].iov_base = zend_string_alloc(iov_len, false)->val;
         iov[iov_index].iov_len = iov_len;
@@ -1656,17 +1673,11 @@ static void socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all
     SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
     ssize_t retval = all ? sock->socket->readv_all(&io_vector) : sock->socket->readv(&io_vector);
 
-    auto free_func = [](const iovec *iov, int iovcnt, int iov_index) {
-        for (; iov_index < iovcnt; iov_index++) {
-            zend_string_free(zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base));
-        }
-    };
-
     if (UNEXPECTED(retval < 0)) {
-        free_func(iov.get(), iovcnt, 0);
+        free_func(iov.get(), 0, iovcnt);
         RETURN_FALSE;
     } else if (UNEXPECTED(retval == 0)) {
-        free_func(iov.get(), iovcnt, 0);
+        free_func(iov.get(), 0, iovcnt);
         RETURN_EMPTY_ARRAY();
     } else {
         array_init(return_value);
@@ -1684,7 +1695,7 @@ static void socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all
             zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
             iov[iov_index].iov_base = sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes)->val;
             iov[iov_index].iov_len = offset_bytes;
-            free_func(iov.get(), iovcnt, real_count);
+            free_func(iov.get(), real_count, iovcnt);
         } else {
             real_count = iovcnt;
         }
@@ -1719,6 +1730,14 @@ static PHP_METHOD(swoole_socket_coro, sendFile) {
 
     if (file_len == 0) {
         php_swoole_fatal_error(E_WARNING, "file to send is empty");
+        RETURN_FALSE;
+    }
+    if (offset < 0) {
+        php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] must be greater than or equal to 0", offset);
+        RETURN_FALSE;
+    }
+    if (length < 0) {
+        php_swoole_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] must be greater than or equal to 0", length);
         RETURN_FALSE;
     }
 
@@ -2237,6 +2256,9 @@ static PHP_METHOD(swoole_socket_coro, import) {
         RETURN_FALSE;
     }
     zend_object *object = php_swoole_create_socket_from_fd(socket_fd, type);
+    if (object == nullptr) {
+        RETURN_FALSE;
+    }
     SocketObject *sock = socket_coro_fetch_object(object);
 
     ZVAL_COPY(&sock->zstream, zstream);

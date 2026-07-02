@@ -19,13 +19,13 @@ Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
 run(function () {
     $client = new Client();
-    $response = $client->request('GET', 'https://httpbin.org');
+    $response = $client->request('GET', 'https://httpbingo.org');
 
     echo $response->getStatusCode(), PHP_EOL; // 200
     echo $response->getHeaderLine('content-type'), PHP_EOL;
 
     // Send an asynchronous request.
-    $request = new Request('GET', 'http://httpbin.org');
+    $request = new Request('GET', 'https://httpbingo.org');
     $promise = $client->sendAsync($request)->then(function ($response) {
         echo 'I completed! ' . $response->getStatusCode() . PHP_EOL;
     });

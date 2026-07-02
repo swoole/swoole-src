@@ -285,14 +285,15 @@ NO_PROC_OPEN_ERROR;
     }
 
     if (!getenv('TEST_PHPDBG_EXECUTABLE')) {
-        if (IS_WINDOWS && file_exists(dirname($php) . "/phpdbg.exe")) {
-            $phpdbg = realpath(dirname($php) . "/phpdbg.exe");
-        } elseif (file_exists(dirname($php) . "/../../sapi/phpdbg/phpdbg")) {
-            $phpdbg = realpath(dirname($php) . "/../../sapi/phpdbg/phpdbg");
+        $php_bin_dir = is_string($php) && $php !== '' ? dirname($php) : null;
+        if ($php_bin_dir && IS_WINDOWS && file_exists($php_bin_dir . "/phpdbg.exe")) {
+            $phpdbg = realpath($php_bin_dir . "/phpdbg.exe");
+        } elseif ($php_bin_dir && file_exists($php_bin_dir . "/../../sapi/phpdbg/phpdbg")) {
+            $phpdbg = realpath($php_bin_dir . "/../../sapi/phpdbg/phpdbg");
         } elseif (file_exists("./sapi/phpdbg/phpdbg")) {
             $phpdbg = realpath("./sapi/phpdbg/phpdbg");
-        } elseif (file_exists(dirname($php) . "/phpdbg")) {
-            $phpdbg = realpath(dirname($php) . "/phpdbg");
+        } elseif ($php_bin_dir && file_exists($php_bin_dir . "/phpdbg")) {
+            $phpdbg = realpath($php_bin_dir . "/phpdbg");
         } else {
             $phpdbg = null;
         }
@@ -2161,21 +2162,23 @@ TEST $file
     $ini_settings = $workerID ? array('opcache.cache_id' => "worker$workerID") : array();
 
     // Additional required extensions
+    $missing_extensions = array();
     if (array_key_exists('EXTENSIONS', $section_text)) {
         $ext_params = array();
         settings2array($ini_overwrites, $ext_params);
         $ext_params = settings2params($ext_params);
-        $ext_dir = shell_exec("$php $pass_options $extra_options $ext_params -d display_errors=0 -r \"echo ini_get('extension_dir');\"");
         $extensions = preg_split("/[\n\r]+/", trim($section_text['EXTENSIONS']));
-        $loaded = explode(",", shell_exec("$php $pass_options $extra_options $ext_params -d display_errors=0 -r \"echo implode(',', get_loaded_extensions());\""));
-        $ext_prefix = IS_WINDOWS ? "php_" : "";
+        $loaded = array_map(
+            'strtolower',
+            explode(",", shell_exec("$php $pass_options $extra_options $ext_params -d display_errors=0 -r \"echo implode(',', get_loaded_extensions());\""))
+        );
         foreach ($extensions as $req_ext) {
-            if (!in_array($req_ext, $loaded)) {
-                if ($req_ext == 'opcache') {
-                    $ini_settings['zend_extension'][] = $ext_dir . DIRECTORY_SEPARATOR . $ext_prefix . $req_ext . '.' . PHP_SHLIB_SUFFIX;
-                } else {
-                    $ini_settings['extension'][] = $ext_dir . DIRECTORY_SEPARATOR . $ext_prefix . $req_ext . '.' . PHP_SHLIB_SUFFIX;
-                }
+            $req_ext = trim($req_ext);
+            if ($req_ext === '') {
+                continue;
+            }
+            if (!in_array(strtolower($req_ext), $loaded, true)) {
+                $missing_extensions[] = $req_ext;
             }
         }
     }
@@ -2199,6 +2202,21 @@ TEST $file
     $ini_settings = settings2params($ini_settings);
 
     $env['TEST_PHP_EXTRA_ARGS'] = $pass_options . ' ' . $ini_settings;
+
+    if (!empty($missing_extensions)) {
+        $message = 'required extension(s) must be preloaded via php.ini: ' . implode(', ', $missing_extensions);
+        show_result('BORK', $message, $tested_file, '', $temp_filenames);
+        $PHP_FAILED_TESTS['BORKED'][] = array(
+            'name' => $file,
+            'test_name' => '',
+            'output' => '',
+            'diff' => '',
+            'exp' => '',
+            'info' => "$message [$file]",
+        );
+        junit_mark_test_as('BORK', $shortname, $tested_file, 0, $message);
+        return 'BORKED';
+    }
 
     // Check if test should be skipped.
     $info = '';

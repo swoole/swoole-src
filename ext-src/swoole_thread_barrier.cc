@@ -81,7 +81,7 @@ static zend_object *barrier_create_object(zend_class_entry *ce) {
 }
 
 ThreadResource *php_swoole_thread_barrier_cast(const zval *zobject) {
-    return barrier_fetch_object(Z_OBJ_P(zobject))->barrier;
+    return barrier_get_and_check_ptr(zobject);
 }
 
 void php_swoole_thread_barrier_create(zval *return_value, ThreadResource *resource) {

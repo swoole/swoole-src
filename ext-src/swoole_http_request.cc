@@ -54,6 +54,32 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
 static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
 
+static sw_inline void multipart_body_reset_current_part(HttpContext *ctx) {
+    if (ctx->current_form_data_name) {
+        efree(ctx->current_form_data_name);
+        ctx->current_form_data_name = nullptr;
+        ctx->current_form_data_name_len = 0;
+    }
+    if (ctx->current_multipart_header) {
+        efree(ctx->current_multipart_header);
+        ctx->current_multipart_header = nullptr;
+    }
+    ctx->current_part_is_file = 0;
+}
+
+static sw_inline void multipart_body_abort_current_part(multipart_parser *p, HttpContext *ctx) {
+    if (p->fp) {
+        fclose(p->fp);
+        p->fp = nullptr;
+    }
+    zval_ptr_dtor(ctx->current_multipart_header);
+    multipart_body_reset_current_part(ctx);
+    if (ctx->form_data_buffer) {
+        ctx->form_data_buffer->clear();
+    }
+    ctx->current_part_is_file = 0;
+}
+
 static HttpContext *http_request_get_and_check_context(const zval *zobject) {
     auto *ctx = php_swoole_http_request_get_context(zobject);
     if (!ctx) {
@@ -513,6 +539,12 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
     char *header_name = _header_name.get();
 
     if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
+        if (sw_unlikely(ctx->current_multipart_header != nullptr)) {
+            multipart_body_abort_current_part(p, ctx);
+            swoole_warning("unexpected multipart state detected before current part finished");
+            return SW_ERR;
+        }
+
         size_t offset = 0;
         if (swoole_strnpos(at, length, ZEND_STRL("form-data;")) >= 0) {
             offset += sizeof("form-data;") - 1;
@@ -542,21 +574,18 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         value_len = Z_STRLEN_P(zform_name);
         char *tmp = http_trim_double_quote(value_buf, &value_len);
 
-        zval *zfilename;
-        // POST form data
-        if (!(zfilename = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("filename")))) {
-            ctx->current_form_data_name = estrndup(tmp, value_len);
-            ctx->current_form_data_name_len = value_len;
-        }
-        // upload file
-        else {
+        ctx->current_form_data_name = estrndup(tmp, value_len);
+        ctx->current_form_data_name_len = value_len;
+
+        zval *zfilename = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("filename"));
+        // Upload file
+        if (zfilename) {
             if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN) {
                 swoole_warning("filename[%s] is too large", Z_STRVAL_P(zfilename));
                 ret = -1;
                 return ret;
             }
-            ctx->current_input_name = estrndup(tmp, value_len);
-            ctx->current_input_name_len = value_len;
+            ctx->current_part_is_file = 1;
 
             zval *z_multipart_header = sw_malloc_zval();
             array_init(z_multipart_header);
@@ -615,7 +644,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(p->data);
-    if (ctx->current_form_data_name) {
+    if (ctx->current_form_data_name && !ctx->current_part_is_file) {
         ctx->form_data_buffer->append(at, length);
         return 0;
     }
@@ -652,7 +681,7 @@ static void get_random_file_name(char *des, const char *src)
 
 static int multipart_body_on_header_complete(multipart_parser *p) {
     auto *ctx = static_cast<HttpContext *>(p->data);
-    if (!ctx->current_input_name) {
+    if (!ctx->current_form_data_name || !ctx->current_part_is_file) {
         return 0;
     }
 
@@ -674,6 +703,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
 
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
+        close(tmpfile);
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         swoole_sys_warning("fopen(%s) failed", file_path);
         return 0;
@@ -690,7 +720,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
 static int multipart_body_on_data_end(multipart_parser *p) {
     auto *ctx = static_cast<HttpContext *>(p->data);
 
-    if (ctx->current_form_data_name) {
+    if (ctx->current_form_data_name && !ctx->current_part_is_file) {
         php_register_variable_safe(
             ctx->current_form_data_name,
             ctx->form_data_buffer->str,
@@ -698,14 +728,12 @@ static int multipart_body_on_data_end(multipart_parser *p) {
             swoole_http_init_and_read_property(
                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
 
-        efree(ctx->current_form_data_name);
-        ctx->current_form_data_name = nullptr;
-        ctx->current_form_data_name_len = 0;
         ctx->form_data_buffer->clear();
+        multipart_body_reset_current_part(ctx);
         return 0;
     }
 
-    if (!ctx->current_input_name) {
+    if (!ctx->current_form_data_name || !ctx->current_part_is_file) {
         return 0;
     }
 
@@ -729,14 +757,14 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     zval *zfiles = swoole_http_init_and_read_property(
         swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, SW_ZSTR_KNOWN(SW_ZEND_STR_FILES));
 
-    int input_path_pos = swoole_strnpos(ctx->current_input_name, ctx->current_input_name_len, ZEND_STRL("["));
+    int input_path_pos = swoole_strnpos(ctx->current_form_data_name, ctx->current_form_data_name_len, ZEND_STRL("["));
     if (ctx->parse_files && input_path_pos > 0) {
         char meta_name[SW_HTTP_FORM_KEYLEN + sizeof("[tmp_name]") - 1];
-        char *input_path = ctx->current_input_name + input_path_pos;
+        char *input_path = ctx->current_form_data_name + input_path_pos;
         char *meta_path = meta_name + input_path_pos;
         size_t meta_path_len = sizeof(meta_name) - input_path_pos;
 
-        swoole_strlcpy(meta_name, ctx->current_input_name, sizeof(meta_name));
+        swoole_strlcpy(meta_name, ctx->current_form_data_name, sizeof(meta_name));
 
         zval *zname = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("name"));
         zval *ztype = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("type"));
@@ -759,14 +787,10 @@ static int multipart_body_on_data_end(multipart_parser *p) {
         sw_snprintf(meta_path, meta_path_len, "[size]%s", input_path);
         php_register_variable_ex(meta_name, zsize, zfiles);
     } else {
-        php_register_variable_ex(ctx->current_input_name, z_multipart_header, zfiles);
+        php_register_variable_ex(ctx->current_form_data_name, z_multipart_header, zfiles);
     }
 
-    efree(ctx->current_input_name);
-    ctx->current_input_name = nullptr;
-    ctx->current_input_name_len = 0;
-    efree(ctx->current_multipart_header);
-    ctx->current_multipart_header = nullptr;
+    multipart_body_reset_current_part(ctx);
 
     return 0;
 }

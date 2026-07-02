@@ -136,3 +136,8 @@ TEST(redis, parse) {
     auto rs = redis::parse(SW_STRL(":3\r\n"));
     ASSERT_EQ(rs[0], "3");
 }
+
+TEST(redis, parse_incomplete) {
+    auto rs = redis::parse(SW_STRL("*1\r\n$3\r\n"));
+    ASSERT_TRUE(rs.empty());
+}

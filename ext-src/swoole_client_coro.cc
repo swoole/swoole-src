@@ -419,6 +419,14 @@ static PHP_METHOD(swoole_client_coro, sendfile) {
         php_swoole_fatal_error(E_WARNING, "file to send is empty");
         RETURN_FALSE;
     }
+    if (offset < 0) {
+        php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] must be greater than or equal to 0", offset);
+        RETURN_FALSE;
+    }
+    if (length < 0) {
+        php_swoole_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] must be greater than or equal to 0", length);
+        RETURN_FALSE;
+    }
 
     CLIENT_CORO_GET_SOCKET_SAFE(cli);
 
@@ -493,6 +501,11 @@ static PHP_METHOD(swoole_client_coro, peek) {
 
     CLIENT_CORO_GET_SOCKET_SAFE(cli);
 
+    if (buf_len <= 0) {
+        php_swoole_fatal_error(E_WARNING, "length must be greater than 0");
+        RETURN_FALSE;
+    }
+
     buf = static_cast<char *>(emalloc((size_t) buf_len + 1));
     auto ret = cli->peek(buf, buf_len);
     if (ret < 0) {
@@ -536,6 +549,9 @@ static PHP_METHOD(swoole_client_coro, getsockname) {
  */
 static PHP_METHOD(swoole_client_coro, exportSocket) {
     auto cli = client_coro_get_client(ZEND_THIS);
+    if (ZVAL_IS_NULL(&cli->zsocket)) {
+        RETURN_FALSE;
+    }
     RETURN_ZVAL(&cli->zsocket, 1, 0);
 }
 

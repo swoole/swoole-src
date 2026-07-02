@@ -133,15 +133,19 @@ PHP_FUNCTION(swoole_name_resolver_remove) {
     auto hash_1 = sw_php_spl_object_hash(zresolver);
     bool found = false;
     swoole_name_resolver_each(
-        [&found, hash_1, zresolver](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
+        [&found, hash_1](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
             if (found) {
                 return SW_TRAVERSE_STOP;
             }
-            auto hash_2 = sw_php_spl_object_hash((zval *) iter->private_data);
+            if (iter->type != NameResolver::TYPE_PHP || iter->private_data == nullptr) {
+                return SW_TRAVERSE_KEEP;
+            }
+            zval *stored_resolver = static_cast<zval *>(iter->private_data);
+            auto hash_2 = sw_php_spl_object_hash(stored_resolver);
             bool equals = zend_string_equals(hash_2, hash_1);
             zend_string_release(hash_2);
-            if (iter->type == NameResolver::TYPE_PHP && iter->private_data && equals) {
-                zval_dtor(zresolver);
+            if (equals) {
+                zval_ptr_dtor(stored_resolver);
                 efree(iter->private_data);
                 found = true;
                 return SW_TRAVERSE_REMOVE;
@@ -198,17 +202,22 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
         } else if (Z_TYPE(retval) == IS_STRING) {
             ctx->final_ = true;
             ctx->cluster_ = false;
-            return {Z_STRVAL(retval), Z_STRLEN(retval)};
+            std::string result(Z_STRVAL(retval), Z_STRLEN(retval));
+            zval_ptr_dtor(&retval);
+            return result;
         } else {
             ctx->final_ = false;
             ctx->cluster_ = false;
+            zval_ptr_dtor(&retval);
             return "";
         }
     } else {
         zcluster_object = (zval *) ctx->private_data;
         // no available node, resolve again
         sw_zend_call_method_with_0_params(zcluster_object, nullptr, nullptr, "count", &retval);
-        if (zval_get_long(&retval) == 0) {
+        bool empty = zval_get_long(&retval) == 0;
+        zval_ptr_dtor(&retval);
+        if (empty) {
             ctx->dtor(ctx);
             ctx->private_data = nullptr;
             goto _lookup;
@@ -217,10 +226,12 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
 
     sw_zend_call_method_with_0_params(zcluster_object, nullptr, nullptr, "pop", &retval);
     if (!ZVAL_IS_ARRAY(&retval)) {
+        zval_ptr_dtor(&retval);
         return "";
     }
     zval *zhost = zend_hash_str_find(HASH_OF(&retval), ZEND_STRL("host"));
     if (zhost == nullptr || !ZVAL_IS_STRING(zhost)) {
+        zval_ptr_dtor(&retval);
         return "";
     }
     std::string result(Z_STRVAL_P(zhost), Z_STRLEN_P(zhost));
@@ -228,6 +239,7 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
         result.append(":");
         zval *zport = zend_hash_str_find(HASH_OF(&retval), ZEND_STRL("port"));
         if (zport == nullptr) {
+            zval_ptr_dtor(&retval);
             return "";
         }
         result.append(std::to_string(zval_get_long(zport)));

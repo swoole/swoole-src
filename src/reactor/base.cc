@@ -181,6 +181,8 @@ void Reactor::set_handler(const int fd_type, const int event, const ReactorHandl
     } else if (isset_error_event(event)) {
         error_handler[fd_type] = handler;
     } else {
+        // Reactor users are expected to pass exactly one event class here.
+        // Invalid values are treated as a programmer error and kept under assert.
         assert(0);
     }
 }

@@ -92,6 +92,10 @@ _recv_data:
     } else {
         buffer->length += n;
 
+        if (buffer->length < SW_CRLF_LEN) {
+            goto _recv_data;
+        }
+
         if (strncmp(buffer->str + buffer->length - SW_CRLF_LEN, SW_CRLF, SW_CRLF_LEN) != 0) {
             if (buffer->size < protocol->package_max_length) {
                 uint32_t extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
@@ -251,6 +255,9 @@ std::vector<std::string> parse(const char *data, size_t len) {
             /* no break */
 
         case STATE_RECEIVE_STRING:
+            if (static_cast<size_t>(pe - p) < static_cast<size_t>(length + SW_CRLF_LEN)) {
+                return result;
+            }
             result.emplace_back(p, length);
             p += length + SW_CRLF_LEN;
             state = STATE_RECEIVE_LENGTH;

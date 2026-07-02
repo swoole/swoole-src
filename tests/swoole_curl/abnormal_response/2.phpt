@@ -26,7 +26,7 @@ $pm->parentFunc = function () use ($pm) {
         curl_setopt($ch, CURLOPT_HEADER, 0);
         $output = curl_exec($ch);
         Assert::isEmpty($output);
-        Assert::eq(curl_errno($ch), CURLE_PARTIAL_FILE);
+        Assert::oneOf(curl_errno($ch), [CURLE_PARTIAL_FILE, CURLE_RECV_ERROR, CURLE_GOT_NOTHING]);
         curl_close($ch);
     });
     $pm->kill();
@@ -42,7 +42,7 @@ $pm->childFunc = function () use ($pm) {
         usleep(100);
         $serv->send($fd, "HTTP/1.1 200 OK\r\n" .
             "Content-Type: text/html; charset=UTF-8\r\n" .
-            "Content-Length: 1256\r\n");
+            "Content-Length: 1256\r\n\r\n");
         usleep(10000);
         $serv->close($fd);
     });

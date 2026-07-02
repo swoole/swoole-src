@@ -33,3 +33,16 @@ TEST(websocket, encode_mask_with_header_only) {
     // Should have appended header (2 bytes) + mask key (4 bytes) only, no body
     ASSERT_EQ(buffer.length, 2 + SW_WEBSOCKET_MASK_LEN);
 }
+
+TEST(websocket, decode_unaligned_buffer) {
+    String buffer(64);
+    ASSERT_TRUE(websocket::encode(&buffer, "hello", 5, websocket::OPCODE_TEXT, websocket::FLAG_FIN));
+
+    std::unique_ptr<char[]> raw(new char[buffer.length + 1]);
+    memcpy(raw.get() + 1, buffer.str, buffer.length);
+
+    websocket::Frame frame{};
+    ASSERT_TRUE(websocket::decode(&frame, raw.get() + 1, buffer.length));
+    ASSERT_EQ(frame.payload_length, 5);
+    ASSERT_MEMEQ(frame.payload, "hello", frame.payload_length);
+}

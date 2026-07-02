@@ -212,9 +212,9 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
         RETURN_FALSE;
     }
 
-    auto fci_cache = sw_callable_create(zcallback);
-    if (!fci_cache) {
-        return;
+    auto callback = sw_callable_create(zcallback);
+    if (!callback) {
+        RETURN_FALSE;
     }
 
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
@@ -233,7 +233,7 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
         sw_callable_free(i->second);
     }
 
-    redis_handlers[key] = fci_cache;
+    redis_handlers[key] = callback;
 
     RETURN_TRUE;
 }

@@ -17,7 +17,9 @@ for ($i = 1000; $i--;) {
     $data = base64_encode(get_safe_random(mt_rand(0, 128000))) . 'EOL';
     if ($opcode === WEBSOCKET_OPCODE_CLOSE) {
         $code = mt_rand(0, 5000);
-        $data = substr($data, -mt_rand(3, 125), 125);
+        $data = substr($data, -mt_rand(3, 123), 123);
+    } elseif ($opcode === WEBSOCKET_OPCODE_PING || $opcode === WEBSOCKET_OPCODE_PONG) {
+        $data = substr($data, 0, mt_rand(0, 125));
     }
     $finish = !!mt_rand(0, 1);
 

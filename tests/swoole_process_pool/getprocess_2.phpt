@@ -15,6 +15,8 @@ $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
     if ($workerId == 0) {
         $process1 = $pool->getProcess();
         $process2 = $pool->getProcess(1);
+        Assert::same($process1->id, 0);
+        Assert::same($process2->id, 1);
         $process2->write(str_repeat('A', N));
         Assert::same(@$pool->getProcess(2), false);
 

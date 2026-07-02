@@ -22,7 +22,10 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_table_arginfo.h"
 END_EXTERN_C()
 
-using namespace swoole;
+using swoole::Table;
+using swoole::TableColumn;
+using swoole::TableRow;
+using swoole::TableStringLength;
 
 static inline void table_row2array(const Table *table, TableRow *row, zval *return_value) {
     array_init(return_value);
@@ -42,7 +45,7 @@ static inline void table_row2array(const Table *table, TableRow *row, zval *retu
             row->get_value(col, &lval);
             add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), lval);
         } else {
-            abort();
+            php_swoole_fatal_error(E_WARNING, "unknown table column type[%d]", col->type);
         }
     }
 }
@@ -67,7 +70,8 @@ static inline void table_get_field_value(Table *table, TableRow *row, zval *retu
         row->get_value(col, &lval);
         ZVAL_LONG(return_value, lval);
     } else {
-        abort();
+        php_swoole_fatal_error(E_WARNING, "unknown table column type[%d]", col->type);
+        ZVAL_FALSE(return_value);
     }
 }
 

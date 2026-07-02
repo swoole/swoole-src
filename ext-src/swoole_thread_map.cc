@@ -61,7 +61,7 @@ static ThreadMapObject *map_fetch_object_check(const zval *zobject) {
 }
 
 ThreadResource *php_swoole_thread_map_cast(const zval *zobject) {
-    return map_fetch_object(Z_OBJ_P(zobject))->map;
+    return map_fetch_object_check(zobject)->map;
 }
 
 void php_swoole_thread_map_create(zval *return_value, ThreadResource *resource) {

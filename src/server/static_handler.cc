@@ -20,11 +20,60 @@
 #include <string>
 #include <dirent.h>
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <regex>
 
 namespace swoole {
 namespace http_server {
+static std::string html_escape(const std::string &value) {
+    std::string escaped;
+    escaped.reserve(value.length());
+
+    for (const char c : value) {
+        switch (c) {
+        case '&':
+            escaped.append("&amp;");
+            break;
+        case '<':
+            escaped.append("&lt;");
+            break;
+        case '>':
+            escaped.append("&gt;");
+            break;
+        case '"':
+            escaped.append("&quot;");
+            break;
+        case '\'':
+            escaped.append("&#39;");
+            break;
+        default:
+            escaped.push_back(c);
+            break;
+        }
+    }
+
+    return escaped;
+}
+
+static std::string percent_encode_path_segment(const std::string &value) {
+    static constexpr char hex[] = "0123456789ABCDEF";
+    std::string encoded;
+    encoded.reserve(value.length());
+
+    for (const unsigned char c : value) {
+        if (isalnum(c) || c == '-' || c == '.' || c == '_' || c == '~') {
+            encoded.push_back(c);
+        } else {
+            encoded.push_back('%');
+            encoded.push_back(hex[c >> 4]);
+            encoded.push_back(hex[c & 0x0f]);
+        }
+    }
+
+    return encoded;
+}
+
 bool StaticHandler::is_modified(const std::string &date_if_modified_since) const {
     char date_tmp[64];
     if (date_if_modified_since.empty() || date_if_modified_since.length() > sizeof(date_tmp) - 1) {
@@ -215,6 +264,7 @@ size_t StaticHandler::make_index_page(String *buffer) {
     if (dir_path.back() != '/') {
         dir_path.append("/");
     }
+    const std::string escaped_dir_path = html_escape(dir_path);
 
     buffer->format_impl(String::FORMAT_APPEND | String::FORMAT_GROW,
                         "<html>\n"
@@ -223,18 +273,20 @@ size_t StaticHandler::make_index_page(String *buffer) {
                         "</head>\n"
                         "<body>\n" SW_HTTP_PAGE_CSS "<h1>Index of %s</h1>"
                         "\t<ul>\n",
-                        dir_path.c_str(),
-                        dir_path.c_str());
+                        escaped_dir_path.c_str(),
+                        escaped_dir_path.c_str());
 
     for (const auto &dir_file : dir_files) {
         if (dir_file == "." || (dir_path == "/" && dir_file == "..")) {
             continue;
         }
+        std::string escaped_href = escaped_dir_path + percent_encode_path_segment(dir_file);
+        std::string escaped_name = html_escape(dir_file);
+
         buffer->format_impl(String::FORMAT_APPEND | String::FORMAT_GROW,
-                            "\t\t<li><a href=%s%s>%s</a></li>\n",
-                            dir_path.c_str(),
-                            dir_file.c_str(),
-                            dir_file.c_str());
+                            "\t\t<li><a href=\"%s\">%s</a></li>\n",
+                            escaped_href.c_str(),
+                            escaped_name.c_str());
     }
 
     buffer->append(SW_STRL("\t</ul>\n" SW_HTTP_POWER_BY "</body>\n</html>\n"));
@@ -268,8 +320,12 @@ bool StaticHandler::get_dir_files() {
 
 bool StaticHandler::set_filename(const std::string &_filename) {
     char *p = filename + l_filename;
+    const size_t separator_len = (*p == '/') ? 0 : 1;
+    if (l_filename + separator_len + _filename.length() >= PATH_MAX) {
+        return false;
+    }
 
-    if (*p != '/') {
+    if (separator_len) {
         *p = '/';
         p += 1;
     }

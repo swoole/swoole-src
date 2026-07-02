@@ -255,6 +255,7 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
         dst_worker_id = -1;
         if (!task(&buf, &dst_worker_id, true)) {
             swoole_warning("failed to dispatch task");
+            sw_atomic_fetch_sub(&gs->tasking_num, 1);
             task_id = -1;
         _fail:
             mtask.fail(i);

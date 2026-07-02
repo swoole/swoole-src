@@ -28,6 +28,7 @@ Factory *Server::create_base_factory() {
     gs->connection_nums = static_cast<sw_atomic_t *>(sw_shm_calloc(worker_num, sizeof(sw_atomic_t)));
     if (gs->connection_nums == nullptr) {
         swoole_sys_warning("sw_shm_calloc(%ld) for gs->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+        destroy_base_factory();
         return nullptr;
     }
 
@@ -35,6 +36,7 @@ Factory *Server::create_base_factory() {
         port->gs->connection_nums = static_cast<sw_atomic_t *>(sw_shm_calloc(worker_num, sizeof(sw_atomic_t)));
         if (port->gs->connection_nums == nullptr) {
             swoole_sys_warning("sw_shm_calloc(%ld) for port->connection_nums failed", worker_num * sizeof(sw_atomic_t));
+            destroy_base_factory();
             return nullptr;
         }
     }
@@ -42,13 +44,21 @@ Factory *Server::create_base_factory() {
     return new BaseFactory(this);
 }
 
-void Server::destroy_base_factory() const {
-    sw_free(connection_list);
-    sw_shm_free((void *) gs->connection_nums);
-    for (auto port : ports) {
-        sw_shm_free((void *) port->gs->connection_nums);
+void Server::destroy_base_factory() {
+    if (connection_list) {
+        sw_free(connection_list);
+        connection_list = nullptr;
     }
-    gs->connection_nums = nullptr;
+    if (gs->connection_nums) {
+        sw_shm_free((void *) gs->connection_nums);
+        gs->connection_nums = nullptr;
+    }
+    for (auto port : ports) {
+        if (port->gs->connection_nums) {
+            sw_shm_free((void *) port->gs->connection_nums);
+            port->gs->connection_nums = nullptr;
+        }
+    }
 }
 
 BaseFactory::BaseFactory(Server *server) : Factory(server) {}

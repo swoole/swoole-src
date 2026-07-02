@@ -20,6 +20,8 @@
 #include "swoole_http2.h"
 #include "swoole_protocol.h"
 
+#include <limits>
+
 using swoole::PacketLength;
 using swoole::Protocol;
 using swoole::network::Socket;
@@ -57,7 +59,8 @@ void put_default_setting(enum swHttp2SettingId id, uint32_t value) {
         default_settings.max_header_list_size = value;
         break;
     default:
-        assert(0);
+        // Unknown HTTP/2 settings must be ignored by the core.
+        swoole_trace_log(SW_TRACE_HTTP2, "ignore unknown setting id=%u", id);
         break;
     }
 }
@@ -77,18 +80,16 @@ uint32_t get_default_setting(enum swHttp2SettingId id) {
     case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
         return default_settings.max_header_list_size;
     default:
-        assert(0);
+        swoole_trace_log(SW_TRACE_HTTP2, "query unknown setting id=%u", id);
         return 0;
     }
 }
 
 static inline void pack_setting_item(char *_buf, enum swHttp2SettingId _id, uint32_t _value) {
-    uint16_t id;
-    uint32_t value;
-    id = htons(_id);
+    const uint16_t id = htons(_id);
+    const uint32_t value = htonl(_value);
     memcpy(_buf, &id, sizeof(id));
-    value = htonl(_value);
-    memcpy(_buf + 2, &value, sizeof(value));
+    memcpy(_buf + sizeof(id), &value, sizeof(value));
 }
 
 size_t pack_setting_frame(char *buf, const Settings &settings, bool server_side) {
@@ -127,8 +128,10 @@ ReturnCode unpack_setting_data(const char *buf,
     uint32_t value = 0;
 
     while (length > 0) {
-        id = ntohs(*(uint16_t *) (buf));
-        value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
+        memcpy(&id, buf, sizeof(id));
+        memcpy(&value, buf + sizeof(id), sizeof(value));
+        id = ntohs(id);
+        value = ntohl(value);
 
         auto rc = cb(id, value);
         if (rc != SW_SUCCESS) {
@@ -146,6 +149,57 @@ int send_setting_frame(Protocol *protocol, Socket *_socket) {
     char setting_frame[SW_HTTP2_SETTING_FRAME_SIZE];
     size_t n = pack_setting_frame(setting_frame, default_settings, true);
     return _socket->send(setting_frame, n, 0);
+}
+
+bool parse_content_length(const char *value, size_t length, uint64_t max_body_size, uint64_t *out) {
+    if (length == 0) {
+        return false;
+    }
+
+    uint64_t content_length = 0;
+    for (size_t i = 0; i < length; i++) {
+        const auto ch = static_cast<unsigned char>(value[i]);
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+
+        const uint64_t digit = ch - '0';
+        if (content_length > (std::numeric_limits<uint64_t>::max() - digit) / 10) {
+            return false;
+        }
+        content_length = content_length * 10 + digit;
+        if (content_length > max_body_size) {
+            return false;
+        }
+    }
+
+    if (out) {
+        *out = content_length;
+    }
+    return true;
+}
+
+bool parse_status_code(const char *value, size_t length, uint16_t *out) {
+    if (length != 3) {
+        return false;
+    }
+
+    uint16_t status_code = 0;
+    for (size_t i = 0; i < length; i++) {
+        const auto ch = static_cast<unsigned char>(value[i]);
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+        status_code = status_code * 10 + (ch - '0');
+    }
+
+    if (status_code < 100 || status_code > 599) {
+        return false;
+    }
+    if (out) {
+        *out = status_code;
+    }
+    return true;
 }
 
 /**

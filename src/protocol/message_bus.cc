@@ -149,6 +149,8 @@ _read_from_pipe:
         return SW_ERR;
     }
 
+    // The read path assumes a complete DataHead is available after MSG_PEEK.
+    // Callers currently rely on pipe/socket semantics that deliver the header atomically.
     if (!buffer_->is_chunked()) {
         return sock->read(buffer_, sizeof(buffer_->info) + buffer_->info.len);
     }

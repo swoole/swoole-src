@@ -144,6 +144,31 @@ struct Connection {
     int server_fd;
 };
 
+// Snapshot data consumed by the PHP wrapper without exposing Connection internals.
+struct ClientInfoSnapshot {
+    SessionId session_id = 0;
+    swSocketFd server_fd = 0;
+    swSocketFd socket_fd = 0;
+    SocketType socket_type = SW_SOCK_TCP;
+    ReactorId reactor_id = 0;
+    int worker_id = 0;
+    uint32_t uid = 0;
+    uint8_t websocket_status = 0;
+    int close_errno = 0;
+    sw_atomic_t recv_queued_bytes = 0;
+    uint32_t send_queued_bytes = 0;
+    double connect_time = 0;
+    double last_recv_time = 0;
+    double last_send_time = 0;
+    double last_dispatch_time = 0;
+    uint16_t remote_port = 0;
+    uint16_t server_port = 0;
+    std::string remote_ip;
+    std::string ssl_client_cert;
+    bool has_server_port = false;
+    bool has_ssl_client_cert = false;
+};
+
 //------------------------------------ReactorThread-------------------------------------------
 struct ReactorThread {
     int id;
@@ -576,11 +601,25 @@ class ProcessFactory : public Factory {
 
 struct ThreadReloadTask {
     Server *server_;
+    uint16_t start_worker_id;
     uint16_t worker_num;
-    uint16_t reloaded_num;
+    uint16_t next_worker_id;
+    std::unordered_set<WorkerId> completed_workers;
 
     bool is_completed() const {
-        return reloaded_num == worker_num;
+        return completed_workers.size() == worker_num;
+    }
+
+    bool has_next() const {
+        return next_worker_id < start_worker_id + worker_num;
+    }
+
+    bool contains(WorkerId worker_id) const {
+        return worker_id >= start_worker_id && worker_id < start_worker_id + worker_num;
+    }
+
+    bool mark_completed(WorkerId worker_id) {
+        return contains(worker_id) && completed_workers.emplace(worker_id).second;
     }
 
     ThreadReloadTask(Server *_server, bool _reload_all_workers);
@@ -600,6 +639,7 @@ class ThreadFactory : public BaseFactory {
     void create_message_bus() const;
     void destroy_message_bus();
     void do_reload();
+    void finish_reload_worker(Worker *worker);
     void push_to_wait_queue(Worker *worker);
 
   public:
@@ -991,7 +1031,22 @@ class Server {
     }
 
     network::Socket *get_server_socket(int fd) const {
-        return connection_list[fd].socket;
+        Connection *conn = get_connection(fd);
+        if (sw_unlikely(!conn || conn->fd != fd || !conn->socket)) {
+            return nullptr;
+        }
+        if (sw_unlikely(conn->socket->fd_type != SW_FD_STREAM_SERVER && conn->socket->fd_type != SW_FD_DGRAM_SERVER)) {
+            return nullptr;
+        }
+        return conn->socket;
+    }
+
+    network::Socket *get_server_socket(int fd, SocketType expected_type) const {
+        network::Socket *socket = get_server_socket(fd);
+        if (sw_unlikely(!socket || socket->socket_type != expected_type)) {
+            return nullptr;
+        }
+        return socket;
     }
 
     network::Socket *get_command_reply_socket() const {
@@ -1449,6 +1504,9 @@ class Server {
     }
 
     bool is_healthy_connection(double now, const Connection *conn) const;
+    std::vector<SessionId> heartbeat(bool close_connection) const;
+    bool get_client_info(SessionId session_id, ClientInfoSnapshot &snapshot) const;
+    bool get_client_list(SessionId start_session_id, int find_count, std::vector<SessionId> &sessions) const;
 
     static bool is_dgram_event(uint8_t type) {
         return type == SW_SERVER_EVENT_RECV_DGRAM;
@@ -1497,7 +1555,7 @@ class Server {
     }
 
     Connection *get_connection(const int fd) const {
-        if (static_cast<uint32_t>(fd) > max_connection) {
+        if (sw_unlikely(static_cast<uint32_t>(fd) >= max_connection)) {
             return nullptr;
         }
         return &connection_list[fd];
@@ -1735,13 +1793,13 @@ class Server {
 #ifndef _WIN32
     void store_pipe_fd(UnixSocket *p);
 #endif
-    void destroy_base_factory() const;
+    void destroy_base_factory();
     void destroy_thread_factory() const;
 #ifndef _WIN32
     void destroy_process_factory();
 #endif
     void destroy_worker(Worker *worker);
-    void destroy_task_workers() const;
+    void destroy_task_workers();
     int start_reactor_threads();
 #ifndef _WIN32
     int start_reactor_processes();
