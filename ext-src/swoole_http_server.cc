@@ -111,11 +111,11 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
         ctx->close(ctx);
         if (ctx->parser.error != HPE_OK) {
-            swoole_notice("Invalid HTTP request discarded: %ld bytes unprocessed. Reason: %s",
+            swoole_warning("Invalid HTTP request discarded: %ld bytes unprocessed. Reason: %s",
                           Z_STRLEN_P(zdata) - parsed_n,
                           llhttp_get_error_reason(&ctx->parser));
         } else {
-            swoole_notice("Incomplete HTTP request: parsed successfully but missing required components");
+            swoole_warning("Incomplete HTTP request: parsed successfully but missing required components");
         }
         goto _dtor_and_return;
     }
