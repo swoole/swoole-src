@@ -2,18 +2,28 @@
 swoole_http2_server: array headers
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc'; ?>
+require __DIR__ . '/../include/skipif.inc';
+skip_if_no_nghttp();
+?>
 --FILE--
 <?php
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Http\Server;
+use SwooleTest\ChildProcess;
 
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager();
 $pm->parentFunc = function ($pid) use ($pm) {
-    $output = shell_exec("curl --http2-prior-knowledge --silent -I http://127.0.0.1:{$pm->getFreePort()}");
-    Assert::contains($output, 'HTTP/2 200');
+    $proc = ChildProcess::exec("nghttp -nv -t 1s http://127.0.0.1:{$pm->getFreePort()}/");
+    $output = '';
+    while ($line = $proc->read()) {
+        $output .= $line;
+        if (str_contains($line, 'send GOAWAY frame')) {
+            break;
+        }
+    }
+    Assert::contains($output, ':status: 200');
     Assert::contains($output, 'test-value: a');
     Assert::contains($output, 'test-value: d5678');
     Assert::contains($output, 'test-value: e');
