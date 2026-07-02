@@ -555,9 +555,11 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
     }
     zend_end_try();
 
-    zend_destroy_file_handle(&file_handle);
+    printf("SG(request_info).argv0=%p\n", SG(request_info).argv0);
+    printf("SG(request_info)\n", &SG(request_info));
 
     php_request_shutdown(nullptr);
+    zend_destroy_file_handle(&file_handle);
     file_handle.filename = nullptr;
 
 _startup_error:

@@ -158,12 +158,27 @@ function get_one_free_port(): int
      */
     $flags = Runtime::getHookFlags();
     Runtime::enableCoroutine(0);
-    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or exit('Unable to create socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
-    socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
-    socket_set_option($socket, SOL_SOCKET, SO_REUSEPORT, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
-    socket_bind($socket, '127.0.0.1', 0) or exit('Unable to bind socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
-    socket_getsockname($socket, $addr, $port);
-    socket_close($socket);
+    if (function_exists('socket_create')) {
+        $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or exit('Unable to create socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+        socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+        if (defined('SO_REUSEPORT')) {
+            socket_set_option($socket, SOL_SOCKET, SO_REUSEPORT, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+        }
+        socket_bind($socket, '127.0.0.1', 0) or exit('Unable to bind socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+        socket_getsockname($socket, $addr, $port);
+        socket_close($socket);
+    } else {
+        $server = @stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+        if (!$server) {
+            exit('Unable to create socket: ' . ($errstr ?: $errno) . PHP_EOL);
+        }
+        $name = stream_socket_get_name($server, false);
+        fclose($server);
+        if ($name === false || !preg_match('/:(\d+)$/', $name, $match)) {
+            exit('Unable to query socket port' . PHP_EOL);
+        }
+        $port = (int) $match[1];
+    }
     Runtime::enableCoroutine($flags);
     return $port;
 }

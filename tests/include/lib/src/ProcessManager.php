@@ -58,10 +58,21 @@ class ProcessManager
      */
     protected $childProcess;
     protected $logFileHandle;
+    protected $syncToken;
+    protected $syncFile;
+    protected $waitCount = 0;
+    protected $childOutputFile;
+    protected $childExitCode = 255;
 
     public function __construct()
     {
-        $this->atomic = new Atomic(0);
+        if (is_win()) {
+            $this->syncToken = getenv('SWOOLE_TEST_PM_TOKEN') ?: bin2hex(random_bytes(8));
+            $this->syncFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'swoole-pm-' . $this->syncToken . '.state';
+            $this->childOutputFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'swoole-pm-' . $this->syncToken . '.out';
+        } else {
+            $this->atomic = new Atomic(0);
+        }
         $this->expectExitSignal = [0, defined('SIGTERM') ? SIGTERM : 0];
     }
 
@@ -101,7 +112,20 @@ class ProcessManager
         if ($this->alone || $this->waitTimeout == 0) {
             return false;
         }
-        return $this->atomic->wait($this->waitTimeout);
+        if (!is_win()) {
+            return $this->atomic->wait($this->waitTimeout);
+        }
+
+        $deadline = microtime(true) + $this->waitTimeout;
+        while (microtime(true) < $deadline) {
+            $current = $this->readSyncCount();
+            if ($current > $this->waitCount) {
+                $this->waitCount = $current;
+                return true;
+            }
+            usleep(10000);
+        }
+        return false;
     }
 
     //唤醒等待的进程
@@ -110,7 +134,12 @@ class ProcessManager
         if ($this->alone) {
             return false;
         }
-        return $this->atomic->wakeup();
+        if (!is_win()) {
+            return $this->atomic->wakeup();
+        }
+
+        $this->waitCount = max($this->waitCount + 1, $this->readSyncCount() + 1);
+        return $this->writeSyncCount($this->waitCount);
     }
 
     public function runParentFunc($pid = 0)
@@ -244,6 +273,10 @@ class ProcessManager
         }
         if (!$this->alone and !$this->killed and $this->childPid) {
             $this->killed = true;
+            if (is_win() && is_resource($this->childProcess)) {
+                @proc_terminate($this->childProcess, 1);
+                return;
+            }
             if ($force || (!@Process::kill($this->childPid) && swoole_errno() !== PCNTL_ESRCH)) {
                 if (!@Process::kill($this->childPid, SIGKILL) && swoole_errno() !== PCNTL_ESRCH) {
                     exit('KILL CHILD PROCESS ERROR');
@@ -296,6 +329,52 @@ class ProcessManager
             $this->alone = false;
         }
 
+        if (is_win()) {
+            $this->syncToken = $this->syncToken ?: bin2hex(random_bytes(8));
+            $this->syncFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'swoole-pm-' . $this->syncToken . '.state';
+            $this->childOutputFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'swoole-pm-' . $this->syncToken . '.out';
+            @unlink($this->syncFile);
+            @unlink($this->childOutputFile);
+
+            $php = PHP_BINARY;
+            $script = $_SERVER['SCRIPT_FILENAME'] ?? null;
+            if (!$script) {
+                throw new RuntimeException('cannot determine current script filename');
+            }
+
+            $command = escapeshellarg($php) . ' ' . escapeshellarg($script) . ' child';
+            $descriptors = [
+                0 => ['file', 'NUL', 'r'],
+                1 => ['file', $this->childOutputFile, 'a'],
+                2 => ['file', $this->childOutputFile, 'a'],
+            ];
+
+            $previousToken = getenv('SWOOLE_TEST_PM_TOKEN');
+            putenv('SWOOLE_TEST_PM_TOKEN=' . $this->syncToken);
+            $this->childProcess = proc_open($command, $descriptors, $pipes);
+            if ($previousToken === false) {
+                putenv('SWOOLE_TEST_PM_TOKEN');
+            } else {
+                putenv('SWOOLE_TEST_PM_TOKEN=' . $previousToken);
+            }
+            if (!is_resource($this->childProcess)) {
+                exit("ERROR: CAN NOT CREATE PROCESS\n");
+            }
+            $status = proc_get_status($this->childProcess);
+            $this->childPid = $status['pid'] ?? 0;
+            register_shutdown_function(function () {
+                $this->kill();
+            });
+            if (!$this->parentFirst) {
+                $this->wait();
+            }
+            $this->runParentFunc($this->childPid);
+            Event::wait();
+            $this->childExitCode = proc_close($this->childProcess);
+            $this->childExitStatus = $this->childExitCode;
+            return true;
+        }
+
         $this->childProcess = new Process(function () {
             if ($this->parentFirst) {
                 $this->wait();
@@ -325,6 +404,9 @@ class ProcessManager
 
     public function getChildOutput()
     {
+        if (is_win()) {
+            return is_file($this->childOutputFile) ? (string) file_get_contents($this->childOutputFile) : '';
+        }
         $this->childProcess->setBlocking(false);
         $output = '';
         while (1) {
@@ -340,6 +422,16 @@ class ProcessManager
 
     public function expectExitCode($code = 0)
     {
+        if (is_win()) {
+            $actual = $this->childExitCode;
+            if (!is_array($code)) {
+                $code = [$code];
+            }
+            if (!in_array($actual, $code, true)) {
+                throw new RuntimeException("Unexpected exit code {$actual}");
+            }
+            return;
+        }
         if (!is_array($code)) {
             $code = [$code];
         }
@@ -358,6 +450,20 @@ class ProcessManager
             $signal = [$signal];
         }
         $this->expectExitSignal = $signal;
+    }
+
+    protected function readSyncCount(): int
+    {
+        if (!is_file($this->syncFile)) {
+            return 0;
+        }
+        $content = trim((string) @file_get_contents($this->syncFile));
+        return is_numeric($content) ? (int) $content : 0;
+    }
+
+    protected function writeSyncCount(int $count): bool
+    {
+        return file_put_contents($this->syncFile, (string) $count, LOCK_EX) !== false;
     }
 
     static function exec(callable $fn)

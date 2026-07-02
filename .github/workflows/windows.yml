@@ -56,7 +56,7 @@ jobs:
       - name: Show Swoole extension info
         shell: powershell
         run: |
-          php -d extension=php_swoole --ri swoole
+          php -d extension=php_swoole.dll --ri swoole
 
       - name: Install test dependencies
         shell: cmd
@@ -70,6 +70,5 @@ jobs:
         run: |
           set PHPT=1
           set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
           set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 300 tests\swoole_windows tests\swoole_function
+          php tests\run-tests -P -q -d extension=php_swoole.dll -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 300 tests\swoole_windows\bootstrap.phpt tests\swoole_windows\free_port.phpt tests\swoole_windows\local_ip.phpt tests\swoole_windows\local_mac.phpt tests\swoole_windows\code tests\swoole_function
