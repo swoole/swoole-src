@@ -2,6 +2,12 @@
 swoole_channel_coro: connection pool
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/config.php';
+if (!@stream_socket_client('tcp://' . REDIS_SERVER_HOST . ':' . REDIS_SERVER_PORT, $errno, $errstr, 1)) {
+    die('skip no available redis server');
+}
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
