@@ -273,8 +273,10 @@ class ProcessManager
         }
         if (!$this->alone and !$this->killed and $this->childPid) {
             $this->killed = true;
-            if (is_win() && is_resource($this->childProcess)) {
-                @proc_terminate($this->childProcess, 1);
+            if (is_win()) {
+                if (is_resource($this->childProcess)) {
+                    @proc_terminate($this->childProcess, 1);
+                }
                 return;
             }
             if ($force || (!@Process::kill($this->childPid) && swoole_errno() !== PCNTL_ESRCH)) {
@@ -310,7 +312,15 @@ class ProcessManager
         if ($argc > 1) {
             $this->useConstantPorts = true;
             $this->alone = true;
-            $this->initFreePorts();
+            if (is_win() && ($ports = getenv('SWOOLE_TEST_PM_PORTS'))) {
+                $ports = json_decode($ports, true);
+                if (is_array($ports)) {
+                    $this->freePorts = array_map('intval', $ports);
+                }
+            }
+            if (!$this->freePorts) {
+                $this->initFreePorts();
+            }
             if ($argv[1] == 'child') {
                 $this->onlyChild = true;
             } elseif ($argv[1] == 'parent') {
@@ -319,7 +329,9 @@ class ProcessManager
                 throw new RuntimeException("bad parameter \$1\n");
             }
         }
-        $this->initFreePorts();
+        if (!$this->freePorts) {
+            $this->initFreePorts();
+        }
         if ($this->alone) {
             if ($this->onlyChild) {
                 return $this->runChildFunc();
@@ -350,12 +362,19 @@ class ProcessManager
             ];
 
             $previousToken = getenv('SWOOLE_TEST_PM_TOKEN');
+            $previousPorts = getenv('SWOOLE_TEST_PM_PORTS');
             putenv('SWOOLE_TEST_PM_TOKEN=' . $this->syncToken);
+            putenv('SWOOLE_TEST_PM_PORTS=' . json_encode($this->freePorts));
             $this->childProcess = proc_open($command, $descriptors, $pipes);
             if ($previousToken === false) {
                 putenv('SWOOLE_TEST_PM_TOKEN');
             } else {
                 putenv('SWOOLE_TEST_PM_TOKEN=' . $previousToken);
+            }
+            if ($previousPorts === false) {
+                putenv('SWOOLE_TEST_PM_PORTS');
+            } else {
+                putenv('SWOOLE_TEST_PM_PORTS=' . $previousPorts);
             }
             if (!is_resource($this->childProcess)) {
                 exit("ERROR: CAN NOT CREATE PROCESS\n");
@@ -372,6 +391,7 @@ class ProcessManager
             Event::wait();
             $this->childExitCode = proc_close($this->childProcess);
             $this->childExitStatus = $this->childExitCode;
+            $this->killed = true;
             return true;
         }
 

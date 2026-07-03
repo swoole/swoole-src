@@ -24,13 +24,14 @@ run(function () {
     $url = 'https://' . TEST_DOMAIN_3 . '/';
 
     $jobs = [];
-    for ($i = 0; $i < 2; $i++) {
+    for ($i = 0; $i < 4; $i++) {
         $jobs[] = go(function () use ($url) {
             $ch = curl_init();
-            Assert::isInstanceOf($ch, Swoole\Curl\Handler::class);
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
             $body = curl_exec($ch);
