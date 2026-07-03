@@ -72,26 +72,19 @@ static thread_local JMP_BUF *thread_bailout = nullptr;
 static std::atomic<size_t> thread_num(1);
 
 struct ThreadSocket {
-#ifdef _WIN32
     static php_socket_t duplicate(php_socket_t socket_fd) {
+#ifdef _WIN32
         WSAPROTOCOL_INFO info;
         if (WSADuplicateSocket(socket_fd, GetCurrentProcessId(), &info) == SOCKET_ERROR) {
             return SW_BAD_SOCKET;
         }
-
-        php_socket_t duplicated = WSASocket(FROM_PROTOCOL_INFO,
-                                            FROM_PROTOCOL_INFO,
-                                            FROM_PROTOCOL_INFO,
-                                            &info,
-                                            0,
-                                            WSA_FLAG_OVERLAPPED);
+        php_socket_t duplicated =
+            WSASocket(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, &info, 0, WSA_FLAG_OVERLAPPED);
         return duplicated == INVALID_SOCKET ? SW_BAD_SOCKET : duplicated;
-    }
 #else
-    static php_socket_t duplicate(php_socket_t socket_fd) {
         return dup((int) socket_fd);
-    }
 #endif
+    }
 
     static php_socket_t copy_stream_handle(php_socket_t socket_fd) {
         return duplicate(socket_fd);
@@ -430,13 +423,13 @@ static PHP_METHOD(swoole_thread, setPriority) {
 
 #ifdef _WIN32
     int winPriorities[] = {
-        THREAD_PRIORITY_IDLE,           // 0
-        THREAD_PRIORITY_LOWEST,         // 1
-        THREAD_PRIORITY_BELOW_NORMAL,   // 2
-        THREAD_PRIORITY_NORMAL,         // 3
-        THREAD_PRIORITY_ABOVE_NORMAL,   // 4
-        THREAD_PRIORITY_HIGHEST,        // 5
-        THREAD_PRIORITY_TIME_CRITICAL   // 6
+        THREAD_PRIORITY_IDLE,          // 0
+        THREAD_PRIORITY_LOWEST,        // 1
+        THREAD_PRIORITY_BELOW_NORMAL,  // 2
+        THREAD_PRIORITY_NORMAL,        // 3
+        THREAD_PRIORITY_ABOVE_NORMAL,  // 4
+        THREAD_PRIORITY_HIGHEST,       // 5
+        THREAD_PRIORITY_TIME_CRITICAL  // 6
     };
 
     int idx = priority;
@@ -479,47 +472,47 @@ static PHP_METHOD(swoole_thread, getPriority) {
 
     int combinedPriority = 0;
     switch (processClass) {
-        case REALTIME_PRIORITY_CLASS:
-            combinedPriority = 20;
-            break;
-        case HIGH_PRIORITY_CLASS:
-            combinedPriority = 10;
-            break;
-        case ABOVE_NORMAL_PRIORITY_CLASS:
-            combinedPriority = 5;
-            break;
-        case NORMAL_PRIORITY_CLASS:
-            combinedPriority = 0;
-            break;
-        case BELOW_NORMAL_PRIORITY_CLASS:
-            combinedPriority = -5;
-            break;
-        case IDLE_PRIORITY_CLASS:
-            combinedPriority = -15;
-            break;
+    case REALTIME_PRIORITY_CLASS:
+        combinedPriority = 20;
+        break;
+    case HIGH_PRIORITY_CLASS:
+        combinedPriority = 10;
+        break;
+    case ABOVE_NORMAL_PRIORITY_CLASS:
+        combinedPriority = 5;
+        break;
+    case NORMAL_PRIORITY_CLASS:
+        combinedPriority = 0;
+        break;
+    case BELOW_NORMAL_PRIORITY_CLASS:
+        combinedPriority = -5;
+        break;
+    case IDLE_PRIORITY_CLASS:
+        combinedPriority = -15;
+        break;
     }
 
     switch (threadPriority) {
-        case THREAD_PRIORITY_TIME_CRITICAL:
-            combinedPriority += 5;
-            break;
-        case THREAD_PRIORITY_HIGHEST:
-            combinedPriority += 3;
-            break;
-        case THREAD_PRIORITY_ABOVE_NORMAL:
-            combinedPriority += 1;
-            break;
-        case THREAD_PRIORITY_NORMAL:
-            break;
-        case THREAD_PRIORITY_BELOW_NORMAL:
-            combinedPriority -= 1;
-            break;
-        case THREAD_PRIORITY_LOWEST:
-            combinedPriority -= 3;
-            break;
-        case THREAD_PRIORITY_IDLE:
-            combinedPriority -= 5;
-            break;
+    case THREAD_PRIORITY_TIME_CRITICAL:
+        combinedPriority += 5;
+        break;
+    case THREAD_PRIORITY_HIGHEST:
+        combinedPriority += 3;
+        break;
+    case THREAD_PRIORITY_ABOVE_NORMAL:
+        combinedPriority += 1;
+        break;
+    case THREAD_PRIORITY_NORMAL:
+        break;
+    case THREAD_PRIORITY_BELOW_NORMAL:
+        combinedPriority -= 1;
+        break;
+    case THREAD_PRIORITY_LOWEST:
+        combinedPriority -= 3;
+        break;
+    case THREAD_PRIORITY_IDLE:
+        combinedPriority -= 5;
+        break;
     }
 
     add_assoc_long_ex(return_value, ZEND_STRL("policy"), processClass);
