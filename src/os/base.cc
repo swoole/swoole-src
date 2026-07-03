@@ -281,7 +281,7 @@ int swoole_set_cpu_affinity(cpu_set_t *set) {
         return -1;
     }
 
-    if (SetThreadAffinityMask(GetCurrentThread(), mask) == 0) {
+    if (!SetProcessAffinityMask(GetCurrentProcess(), mask)) {
         errno = EINVAL;
         return -1;
     }
@@ -290,6 +290,33 @@ int swoole_set_cpu_affinity(cpu_set_t *set) {
 }
 
 int swoole_get_cpu_affinity(cpu_set_t *set) {
+    DWORD_PTR process_mask = 0;
+    DWORD_PTR system_mask = 0;
+    if (!GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    php_swoole_mask_to_cpu_set(process_mask, set);
+    return 0;
+}
+
+int swoole_thread_set_cpu_affinity(cpu_set_t *set) {
+    DWORD_PTR mask = php_swoole_cpu_set_to_mask(set);
+    if (mask == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (SetThreadAffinityMask(GetCurrentThread(), mask) == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return 0;
+}
+
+int swoole_thread_get_cpu_affinity(cpu_set_t *set) {
     DWORD_PTR process_mask = 0;
     DWORD_PTR system_mask = 0;
     if (!GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask)) {
@@ -311,14 +338,6 @@ int swoole_get_cpu_affinity(cpu_set_t *set) {
 
     php_swoole_mask_to_cpu_set(current_mask, set);
     return 0;
-}
-
-int swoole_thread_set_cpu_affinity(cpu_set_t *set) {
-    return swoole_set_cpu_affinity(set);
-}
-
-int swoole_thread_get_cpu_affinity(cpu_set_t *set) {
-    return swoole_get_cpu_affinity(set);
 }
 #elif defined(__FreeBSD__)
 int swoole_set_cpu_affinity(cpu_set_t *set) {

@@ -631,6 +631,7 @@ int swoole_tmpfile(char *filename);
 #include <pthread_np.h>
 typedef cpuset_t cpu_set_t;
 #endif
+// CPU affinity for the current process.
 int swoole_set_cpu_affinity(cpu_set_t *set);
 int swoole_get_cpu_affinity(cpu_set_t *set);
 #endif
