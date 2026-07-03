@@ -22,13 +22,18 @@ ARG_ENABLE("swoole-sqlite", "enable sqlite support", "no");
 ARG_ENABLE("swoole-odbc", "enable odbc support", "no");
 ARG_WITH("swoole-oracle", "enable oracle support", "no");
 
-function create_folder_recursive(path)
+function SWOOLE_CREATE_FOLDER_RECURSIVE(path)
 {
+	path = FSO.GetAbsolutePathName(path);
 	if (FSO.FolderExists(path)) {
 		return;
 	}
 
-	create_folder_recursive(FSO.GetParentFolderName(path));
+	var parent = FSO.GetParentFolderName(path);
+	if (parent != "" && parent != path) {
+		SWOOLE_CREATE_FOLDER_RECURSIVE(parent);
+	}
+
 	FSO.CreateFolder(path);
 }
 
@@ -50,7 +55,7 @@ function SWOOLE_ADD_SOURCE(source_file)
 	}
 
 	var obj_dir = configure_module_dirname + "\\" + dir;
-	create_folder_recursive(FSO.BuildPath(get_define("BUILD_DIR"), obj_dir));
+	SWOOLE_CREATE_FOLDER_RECURSIVE(FSO.BuildPath(get_define("BUILD_DIR"), obj_dir));
 	ADD_SOURCES(obj_dir, filename, "swoole", obj_dir);
 }
 
