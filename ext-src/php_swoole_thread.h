@@ -55,11 +55,11 @@ void php_swoole_thread_atomic_create(zval *return_value, ThreadResource *resourc
 void php_swoole_thread_atomic_long_create(zval *return_value, ThreadResource *resource);
 void php_swoole_thread_barrier_create(zval *return_value, ThreadResource *resource);
 
-int php_swoole_thread_stream_cast(zval *zstream);
-void php_swoole_thread_stream_create(zval *return_value, zend_long sockfd);
+php_socket_t php_swoole_thread_stream_cast(zval *zstream);
+void php_swoole_thread_stream_create(zval *return_value, php_socket_t sockfd);
 
-int php_swoole_thread_co_socket_cast(zval *zstream, swSocketType *type);
-void php_swoole_thread_co_socket_create(zval *return_value, zend_long sockfd, swSocketType type);
+php_socket_t php_swoole_thread_co_socket_cast(zval *zstream, swSocketType *type);
+void php_swoole_thread_co_socket_create(zval *return_value, php_socket_t sockfd, swSocketType type);
 
 #define EMSG_NO_RESOURCE "resource not found"
 #define ECODE_NO_RESOURCE (-2)
@@ -108,7 +108,7 @@ struct ArrayItem {
         zend_long lval;
         double dval;
         struct {
-            int fd;
+            php_socket_t fd;
             swSocketType type;
         } socket;
         zend_string *serialized_object;
