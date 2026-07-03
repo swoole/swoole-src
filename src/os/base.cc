@@ -236,22 +236,87 @@ void swoole_set_process_death_signal(int signal) {
 #endif
 }
 
-#ifdef HAVE_CPU_AFFINITY
+#if defined(HAVE_CPU_AFFINITY) || defined(_WIN32)
+#ifdef _WIN32
+static DWORD_PTR php_swoole_cpu_set_to_mask(cpu_set_t *set) {
+    DWORD_PTR mask = 0;
+    const int bit_width = static_cast<int>(sizeof(DWORD_PTR) * 8);
+
+    for (int i = 0; i < bit_width; i++) {
+        if (CPU_ISSET(i, set)) {
+            mask |= ((DWORD_PTR) 1 << i);
+        }
+    }
+
+    return mask;
+}
+
+static void php_swoole_mask_to_cpu_set(DWORD_PTR mask, cpu_set_t *set) {
+    CPU_ZERO(set);
+
+    const int bit_width = static_cast<int>(sizeof(DWORD_PTR) * 8);
+    for (int i = 0; i < bit_width; i++) {
+        if (mask & ((DWORD_PTR) 1 << i)) {
+            CPU_SET(i, set);
+        }
+    }
+}
+
 int swoole_set_cpu_affinity(cpu_set_t *set) {
-#ifdef __FreeBSD__
-    return cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
-#else
-    return sched_setaffinity(getpid(), sizeof(*set), set);
-#endif
+    DWORD_PTR mask = php_swoole_cpu_set_to_mask(set);
+    if (mask == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (SetThreadAffinityMask(GetCurrentThread(), mask) == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return 0;
 }
 
 int swoole_get_cpu_affinity(cpu_set_t *set) {
-#ifdef __FreeBSD__
-    return cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
-#else
-    return sched_getaffinity(getpid(), sizeof(*set), set);
-#endif
+    DWORD_PTR process_mask = 0;
+    DWORD_PTR system_mask = 0;
+    if (!GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    HANDLE thread = GetCurrentThread();
+    DWORD_PTR current_mask = SetThreadAffinityMask(thread, process_mask);
+    if (current_mask == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    if (SetThreadAffinityMask(thread, current_mask) == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    php_swoole_mask_to_cpu_set(current_mask, set);
+    return 0;
 }
+#elif defined(__FreeBSD__)
+int swoole_set_cpu_affinity(cpu_set_t *set) {
+    return cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
+}
+
+int swoole_get_cpu_affinity(cpu_set_t *set) {
+    return cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
+}
+#else
+int swoole_set_cpu_affinity(cpu_set_t *set) {
+    return sched_setaffinity(getpid(), sizeof(*set), set);
+}
+
+int swoole_get_cpu_affinity(cpu_set_t *set) {
+    return sched_getaffinity(getpid(), sizeof(*set), set);
+}
+#endif
 #endif
 
 #if defined(__linux__)

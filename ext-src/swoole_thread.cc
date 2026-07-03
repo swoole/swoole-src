@@ -305,6 +305,41 @@ static PHP_METHOD(swoole_thread, setName) {
 }
 
 #ifdef HAVE_CPU_AFFINITY
+static bool thread_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set) {
+    if (php_swoole_array_length(array) == 0) {
+        return false;
+    }
+
+    if (php_swoole_array_length(array) > SW_CPU_NUM) {
+        php_swoole_fatal_error(E_WARNING, "More than the number of CPU");
+        return false;
+    }
+
+    zval *value = nullptr;
+    CPU_ZERO(cpu_set);
+
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), value)
+    if (zval_get_long(value) >= SW_CPU_NUM) {
+        php_swoole_fatal_error(E_WARNING, "invalid cpu id [%d]", (int) Z_LVAL_P(value));
+        return false;
+    }
+    CPU_SET(Z_LVAL_P(value), cpu_set);
+    SW_HASHTABLE_FOREACH_END();
+
+    return true;
+}
+
+static void thread_cpu_set_to_array(zval *array, cpu_set_t *cpu_set) {
+    array_init(array);
+
+    int cpu_n = SW_CPU_NUM;
+    SW_LOOP_N(cpu_n) {
+        if (CPU_ISSET(i, cpu_set)) {
+            add_next_index_long(array, i);
+        }
+    }
+}
+
 static PHP_METHOD(swoole_thread, setAffinity) {
     zval *array;
 
@@ -313,12 +348,12 @@ static PHP_METHOD(swoole_thread, setAffinity) {
     ZEND_PARSE_PARAMETERS_END();
 
     cpu_set_t cpu_set;
-    if (!php_swoole_array_to_cpu_set(array, &cpu_set)) {
+    if (!thread_array_to_cpu_set(array, &cpu_set)) {
         RETURN_FALSE;
     }
 
-    if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set) < 0) {
-        php_swoole_error(E_WARNING, "pthread_setaffinity_np() failed");
+    if (swoole_set_cpu_affinity(&cpu_set) < 0) {
+        php_swoole_sys_error(E_WARNING, "set affinity failed");
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -326,11 +361,11 @@ static PHP_METHOD(swoole_thread, setAffinity) {
 
 static PHP_METHOD(swoole_thread, getAffinity) {
     cpu_set_t cpu_set;
-    if (pthread_getaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set) < 0) {
-        php_swoole_error(E_WARNING, "pthread_getaffinity_np() failed");
+    if (swoole_get_cpu_affinity(&cpu_set) < 0) {
+        php_swoole_sys_error(E_WARNING, "get affinity failed");
         RETURN_FALSE;
     }
-    php_swoole_cpu_set_to_array(return_value, &cpu_set);
+    thread_cpu_set_to_array(return_value, &cpu_set);
 }
 #endif
 

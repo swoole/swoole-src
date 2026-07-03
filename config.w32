@@ -251,6 +251,7 @@ if (PHP_SWOOLE != "no") {
 	// Check for required libraries and headers
 	var swoole_ok = true;
 
+	AC_DEFINE("HAVE_CPU_AFFINITY", 1, "cpu affinity support");
 	AC_DEFINE("SW_USE_OPENSSL", 1, "Enable OpenSSL support");
 	AC_DEFINE("SW_HAVE_ZLIB", 1, "Have zlib");
 	AC_DEFINE("SW_HAVE_BROTLI", 1, "Have Brotli");
@@ -398,7 +399,11 @@ if (PHP_SWOOLE != "no") {
 	// Register the primary source through EXTENSION(). Additional sources are
 	// added one by one, following ext/mongodb's obj_dir pattern, so nmake can
 	// rebuild only the touched source file.
-	EXTENSION("swoole", "ext-src\\php_swoole.cc", PHP_SWOOLE_SHARED, "/D ENABLE_PHP_SWOOLE /D SW_USE_ASM_CONTEXT /D SW_USE_IOCP /D SW_USE_IOCP_SOCKET /DHAVE_RWLOCK /EHsc");
+	EXTENSION("swoole", "ext-src\\php_swoole.cc", PHP_SWOOLE_SHARED,
+	    "/D ENABLE_PHP_SWOOLE " +
+	    "/D SW_USE_ASM_CONTEXT " +
+	    "/D HAVE_CPU_AFFINITY " +
+ 	    "/D SW_USE_IOCP /D SW_USE_IOCP_SOCKET /DHAVE_RWLOCK /EHsc");
 	SWOOLE_ADD_SOURCES(swoole_source_files, "ext-src\\php_swoole.cc");
 
 	ADD_EXTENSION_DEP("swoole", "spl");

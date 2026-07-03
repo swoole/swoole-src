@@ -13,8 +13,6 @@ use Swoole\Thread;
 
 $tm = new \SwooleTest\ThreadManager();
 
-Assert::eq(Thread::API_NAME, 'POSIX Threads');
-
 $tm->parentFunc = function () {
     $thread = new Thread(__FILE__, 'child');
     $r = Thread::getAffinity();
