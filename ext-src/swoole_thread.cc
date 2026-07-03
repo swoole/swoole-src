@@ -82,10 +82,11 @@ static int thread_sapi_deactivate() {
     return original_sapi_deactivate ? original_sapi_deactivate() : SUCCESS;
 }
 
-// On Windows, php.exe and php_swoole.dll each have their own static TSRMLS cache.
-// A worker thread can update the extension cache, but cannot update the CLI/phpdbg
-// SAPI cache used by sapi_cli_deactivate(). Calling the original deactivate from
-// a worker thread may therefore crash while evaluating SG(request_info).
+// On Windows ZTS builds, executable and DLL images keep separate static TSRMLS
+// cache pointers. A Swoole worker thread updates php_swoole.dll's cache before
+// request startup, but the CLI/phpdbg SAPI image may still have a stale cache.
+// Avoid entering CLI/phpdbg deactivate from worker threads until the SAPI owns
+// refreshing its cache in that thread.
 static void thread_replace_sapi_deactivate() {
     if (sapi_module.name && (strcmp(sapi_module.name, "cli") == 0 || strcmp(sapi_module.name, "phpdbg") == 0) &&
         sapi_module.deactivate != thread_sapi_deactivate) {
