@@ -4,6 +4,7 @@ swoole_thread/server: taskCo
 <?php
 require __DIR__ . '/../../include/skipif.inc';
 skip_if_nts();
+skip_if_win();
 ?>
 --FILE--
 <?php

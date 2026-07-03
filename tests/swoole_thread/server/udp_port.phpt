@@ -4,6 +4,7 @@ swoole_thread/server: listen udp port
 <?php
 require __DIR__ . '/../../include/skipif.inc';
 skip_if_nts();
+skip_if_win();
 ?>
 --FILE--
 <?php

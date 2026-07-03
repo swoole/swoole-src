@@ -4,6 +4,7 @@ swoole_thread/server: reload task workers [async]
 <?php
 require __DIR__ . '/../../include/skipif.inc';
 skip_if_nts();
+skip_if_win();
 ?>
 --FILE--
 <?php
