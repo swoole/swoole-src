@@ -4,6 +4,7 @@ swoole_thread: priority
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_nts();
+skip_if_win();
 skip_if_not_root();
 ?>
 --FILE--

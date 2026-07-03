@@ -13,7 +13,7 @@ use Swoole\Thread;
 
 $tm = new \SwooleTest\ThreadManager();
 
-Assert::eq(Thread::API_NAME, 'POSIX Threads');
+Assert::eq(Thread::API_NAME, is_win() ? 'Windows Threads' : 'POSIX Threads');
 
 $tm->parentFunc = function () {
     $thread = new Thread(__FILE__, 'child');
