@@ -71,6 +71,30 @@ static thread_local zval thread_argv = {};
 static thread_local JMP_BUF *thread_bailout = nullptr;
 static std::atomic<size_t> thread_num(1);
 
+#ifdef _WIN32
+static int (*original_sapi_deactivate)(void) = nullptr;
+
+static int thread_sapi_deactivate() {
+    if (!tsrm_is_main_thread()) {
+        fflush(stdout);
+        return SUCCESS;
+    }
+    return original_sapi_deactivate ? original_sapi_deactivate() : SUCCESS;
+}
+
+// On Windows, php.exe and php_swoole.dll each have their own static TSRMLS cache.
+// A worker thread can update the extension cache, but cannot update the CLI/phpdbg
+// SAPI cache used by sapi_cli_deactivate(). Calling the original deactivate from
+// a worker thread may therefore crash while evaluating SG(request_info).
+static void thread_replace_sapi_deactivate() {
+    if (sapi_module.name && (strcmp(sapi_module.name, "cli") == 0 || strcmp(sapi_module.name, "phpdbg") == 0) &&
+        sapi_module.deactivate != thread_sapi_deactivate) {
+        original_sapi_deactivate = sapi_module.deactivate;
+        sapi_module.deactivate = thread_sapi_deactivate;
+    }
+}
+#endif
+
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
     return reinterpret_cast<ThreadObject *>(reinterpret_cast<char *>(obj) - swoole_thread_handlers.offset);
 }
@@ -151,6 +175,10 @@ static const zend_function_entry swoole_thread_methods[] = {
 // clang-format on
 
 void php_swoole_thread_minit(int module_number) {
+#ifdef _WIN32
+    thread_replace_sapi_deactivate();
+#endif
+
     SW_INIT_CLASS_ENTRY(swoole_thread, "Swoole\\Thread", nullptr, swoole_thread_methods);
     swoole_thread_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread, sw_zend_class_clone_deny);
@@ -555,11 +583,8 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
     }
     zend_end_try();
 
-    printf("SG(request_info).argv0=%p\n", SG(request_info).argv0);
-    printf("SG(request_info)\n", &SG(request_info));
-
-    php_request_shutdown(nullptr);
     zend_destroy_file_handle(&file_handle);
+    php_request_shutdown(nullptr);
     file_handle.filename = nullptr;
 
 _startup_error:

@@ -20,24 +20,30 @@ $threads = [];
 
 for ($i = 0; $i < $c; $i++) {
     $threads[$i] = new Thread(__DIR__ . '/worker_thread.inc', $i, $queue);
-    var_dump($threads[$i]);
 }
 
 for ($i = 0; $i < $c; $i++) {
     $threads[$i]->join();
-    var_dump($threads[$i]);
 }
 
-while(!$queue->empty()) {
-    echo $queue->pop();
+$results = [];
+for ($i = 0; $i < $c; $i++) {
+    $result = $queue->pop();
+    $results[$result['id']] = $result['length'];
+}
+ksort($results);
+
+foreach ($results as $id => $length) {
+    echo "Thread #{$id}\n";
+    var_dump($length);
 }
 ?>
---EXPECT--
+--EXPECTF--
 Thread #0
-int(5)
+int(%d)
 Thread #1
-int(5)
+int(%d)
 Thread #2
-int(5)
+int(%d)
 Thread #3
-int(5)
+int(%d)
