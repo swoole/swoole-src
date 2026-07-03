@@ -22,6 +22,51 @@ ARG_ENABLE("swoole-sqlite", "enable sqlite support", "no");
 ARG_ENABLE("swoole-odbc", "enable odbc support", "no");
 ARG_WITH("swoole-oracle", "enable oracle support", "no");
 
+function create_folder_recursive(path)
+{
+	if (FSO.FolderExists(path)) {
+		return;
+	}
+
+	create_folder_recursive(FSO.GetParentFolderName(path));
+	FSO.CreateFolder(path);
+}
+
+function SWOOLE_ADD_SOURCE(source_file)
+{
+	source_file = source_file.replace(new RegExp("/", "g"), "\\");
+
+	var parts = source_file.split("\\");
+	var filename = parts.pop();
+	var dir = parts.join("\\");
+
+	if (filename == "") {
+		return;
+	}
+
+	if (dir == "") {
+		ADD_SOURCES(configure_module_dirname, filename, "swoole");
+		return;
+	}
+
+	var obj_dir = configure_module_dirname + "\\" + dir;
+	create_folder_recursive(FSO.BuildPath(get_define("BUILD_DIR"), obj_dir));
+	ADD_SOURCES(obj_dir, filename, "swoole", obj_dir);
+}
+
+function SWOOLE_ADD_SOURCES(file_list, skip_file)
+{
+	var files = file_list.split(new RegExp("\\s+"));
+	skip_file = skip_file.replace(new RegExp("/", "g"), "\\");
+
+	for (var i in files) {
+		if (files[i] == "" || files[i] == skip_file) {
+			continue;
+		}
+		SWOOLE_ADD_SOURCE(files[i]);
+	}
+}
+
 if (PHP_SWOOLE != "no") {
 	// Calculate PHP version ID (e.g., PHP 8.4 -> 84, PHP 8.5 -> 85)
 	var PHP_VERSION_ID = parseInt(PHP_VERSION + "" + PHP_MINOR_VERSION);
@@ -282,6 +327,16 @@ if (PHP_SWOOLE != "no") {
         CHECK_LIB("libssh2.lib", "swoole", null);
         CHECK_LIB("nghttp2.lib", "swoole", null);
         CHECK_LIB("crypt32.lib", "swoole", null);
+
+		// PHP's ext/curl config may not list all static libcurl dependencies
+		// shipped by the Windows SDK build. Add them to the curl target here so
+		// php_curl.dll links without editing the generated Makefile.
+		if (PHP_CURL != "no") {
+			CHECK_LIB("libzstd.lib", "curl", PHP_CURL);
+			CHECK_LIB("brotlienc.lib", "curl", PHP_CURL);
+			CHECK_LIB("brotlidec.lib", "curl", PHP_CURL);
+			CHECK_LIB("brotlicommon.lib", "curl", PHP_CURL);
+		}
 	}
 
 	// Check for SQLite
@@ -340,8 +395,11 @@ if (PHP_SWOOLE != "no") {
 	CHECK_LIB("brotlidec.lib", "swoole", null);
 	CHECK_LIB("brotlicommon.lib", "swoole", null);
 
-	// Register the extension
-	EXTENSION("swoole", swoole_source_files, PHP_SWOOLE_SHARED, "/D ENABLE_PHP_SWOOLE /D SW_USE_ASM_CONTEXT /D SW_USE_IOCP /D SW_USE_IOCP_SOCKET /DHAVE_RWLOCK /EHsc");
+	// Register the primary source through EXTENSION(). Additional sources are
+	// added one by one, following ext/mongodb's obj_dir pattern, so nmake can
+	// rebuild only the touched source file.
+	EXTENSION("swoole", "ext-src\\php_swoole.cc", PHP_SWOOLE_SHARED, "/D ENABLE_PHP_SWOOLE /D SW_USE_ASM_CONTEXT /D SW_USE_IOCP /D SW_USE_IOCP_SOCKET /DHAVE_RWLOCK /EHsc");
+	SWOOLE_ADD_SOURCES(swoole_source_files, "ext-src\\php_swoole.cc");
 
 	ADD_EXTENSION_DEP("swoole", "spl");
 
