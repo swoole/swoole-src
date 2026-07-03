@@ -26,6 +26,11 @@ bool swoole_thread_set_name(const char *name);
 bool swoole_thread_get_name(char *buf, size_t len);
 std::string swoole_thread_id_to_str(std::thread::id id);
 
+#ifdef HAVE_CPU_AFFINITY
+int swoole_thread_set_cpu_affinity(cpu_set_t *set);
+int swoole_thread_get_cpu_affinity(cpu_set_t *set);
+#endif
+
 namespace swoole {
 class Thread {
     int exit_status = 0;

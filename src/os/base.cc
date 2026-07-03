@@ -42,6 +42,18 @@
 #endif
 #endif
 
+#if defined(__linux__)
+#include <sys/syscall.h> /* syscall(SYS_gettid) */
+#elif defined(__FreeBSD__)
+#include <pthread_np.h> /* pthread_getthreadid_np() */
+#elif defined(_AIX)
+#include <sys/thread.h> /* thread_self() */
+#elif defined(__NetBSD__)
+#include <lwp.h> /* _lwp_self() */
+#elif defined(__CYGWIN__)
+#include <windows.h> /* GetCurrentThreadId() */
+#endif
+
 #include <thread>
 #include <sstream>
 
@@ -300,6 +312,14 @@ int swoole_get_cpu_affinity(cpu_set_t *set) {
     php_swoole_mask_to_cpu_set(current_mask, set);
     return 0;
 }
+
+int swoole_thread_set_cpu_affinity(cpu_set_t *set) {
+    return swoole_set_cpu_affinity(set);
+}
+
+int swoole_thread_get_cpu_affinity(cpu_set_t *set) {
+    return swoole_get_cpu_affinity(set);
+}
 #elif defined(__FreeBSD__)
 int swoole_set_cpu_affinity(cpu_set_t *set) {
     return cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
@@ -307,6 +327,24 @@ int swoole_set_cpu_affinity(cpu_set_t *set) {
 
 int swoole_get_cpu_affinity(cpu_set_t *set) {
     return cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
+}
+
+int swoole_thread_set_cpu_affinity(cpu_set_t *set) {
+    int retval = pthread_setaffinity_np(pthread_self(), sizeof(*set), set);
+    if (retval != 0) {
+        errno = retval;
+        return -1;
+    }
+    return 0;
+}
+
+int swoole_thread_get_cpu_affinity(cpu_set_t *set) {
+    int retval = pthread_getaffinity_np(pthread_self(), sizeof(*set), set);
+    if (retval != 0) {
+        errno = retval;
+        return -1;
+    }
+    return 0;
 }
 #else
 int swoole_set_cpu_affinity(cpu_set_t *set) {
@@ -316,19 +354,35 @@ int swoole_set_cpu_affinity(cpu_set_t *set) {
 int swoole_get_cpu_affinity(cpu_set_t *set) {
     return sched_getaffinity(getpid(), sizeof(*set), set);
 }
-#endif
-#endif
 
+int swoole_thread_set_cpu_affinity(cpu_set_t *set) {
 #if defined(__linux__)
-#include <sys/syscall.h> /* syscall(SYS_gettid) */
-#elif defined(__FreeBSD__)
-#include <pthread_np.h> /* pthread_getthreadid_np() */
-#elif defined(_AIX)
-#include <sys/thread.h> /* thread_self() */
-#elif defined(__NetBSD__)
-#include <lwp.h> /* _lwp_self() */
-#elif defined(__CYGWIN__)
-#include <windows.h> /* GetCurrentThreadId() */
+    int retval = pthread_setaffinity_np(pthread_self(), sizeof(*set), set);
+    if (retval != 0) {
+        errno = retval;
+        return -1;
+    }
+    return 0;
+#else
+    errno = ENOTSUP;
+    return -1;
+#endif
+}
+
+int swoole_thread_get_cpu_affinity(cpu_set_t *set) {
+#if defined(__linux__)
+    int retval = pthread_getaffinity_np(pthread_self(), sizeof(*set), set);
+    if (retval != 0) {
+        errno = retval;
+        return -1;
+    }
+    return 0;
+#else
+    errno = ENOTSUP;
+    return -1;
+#endif
+}
+#endif
 #endif
 
 long swoole_thread_get_native_id() {

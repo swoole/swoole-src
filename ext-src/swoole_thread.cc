@@ -396,7 +396,7 @@ static PHP_METHOD(swoole_thread, setAffinity) {
         RETURN_FALSE;
     }
 
-    if (swoole_set_cpu_affinity(&cpu_set) < 0) {
+    if (swoole_thread_set_cpu_affinity(&cpu_set) < 0) {
         php_swoole_sys_error(E_WARNING, "set affinity failed");
         RETURN_FALSE;
     }
@@ -405,7 +405,7 @@ static PHP_METHOD(swoole_thread, setAffinity) {
 
 static PHP_METHOD(swoole_thread, getAffinity) {
     cpu_set_t cpu_set;
-    if (swoole_get_cpu_affinity(&cpu_set) < 0) {
+    if (swoole_thread_get_cpu_affinity(&cpu_set) < 0) {
         php_swoole_sys_error(E_WARNING, "get affinity failed");
         RETURN_FALSE;
     }
