@@ -628,9 +628,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zval *zserver = ctx->request.zserver;
         HashTable *ht = Z_ARRVAL_P(zserver);
 
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (zend_long) time(nullptr));
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), microtime());
-
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), remote_addr.ptr());
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_PORT), (zend_long) remote_port);
 
@@ -649,7 +646,6 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             break;
         }
 
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11));
         zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
 
         zend::Callable *cb = hs->get_handler(ctx);
