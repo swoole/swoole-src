@@ -49,10 +49,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2026-02-25</date>
+    <date>2026-07-07</date>
     <time>22:00:00</time>
     <version>
-        <release>6.1.8</release>
+        <release>6.1.9</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,12 +61,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed an issue where the write timeout incorrectly used the read timeout when `max_idle_time` was set.
-        - Fixed an invalid warning caused by the exit of old processes during asynchronous reload.
-        - Refactored server process management logic.
-        - Optimized handling of fork failures: added a retry mechanism with a 1-second wait before each retry to reduce excessive error logging.
-        - Changed the `closed` field in the underlying `Connection` struct to use atomic operations, resolving a potential data race condition.
-        - Fixed an integer overflow issue in the Redis server.
+        - Refactored the inter-thread-pool communication mechanism from `Pipe` to `Unix Socket` to enhance the transmission reliability of asynchronous file operations under high concurrency.
+        - Resolved the occasional segmentation fault in `Worker` when parsing `HTTP` parameters, eliminating the risk of process crashes.
+        - Fixed the `Error::__toString` fatal error that occurred during database interactions in the PHP request shutdown (rshutdown) phase.
+        - Fixed the `Poll` event initialization anomaly in `pdo_pgsql` after coroutine transformation, ensuring the stability of blocking mode.
     </notes>
     <contents>
         <dir name="/">
