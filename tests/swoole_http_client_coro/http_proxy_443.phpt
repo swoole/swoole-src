@@ -22,7 +22,7 @@ $pm->parentFunc = function () use ($pm) {
         ]);
         $result = $cli->get('/');
         Assert::assert($result);
-        Assert::assert(stripos($cli->body, 'tencent') !== false);
+        Assert::assert(stripos($cli->body, '腾讯') !== false);
         $pm->kill();
     });
 };
