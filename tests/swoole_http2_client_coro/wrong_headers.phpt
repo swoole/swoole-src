@@ -24,7 +24,7 @@ go(function () {
     /**@var $response swoole_http2_response */
     $response = $cli->recv();
     echo $response->statusCode;
-    Assert::assert(stripos($response->data, 'tencent') !== false);
+    Assert::assert(stripos($response->data, '腾讯') !== false);
 });
 ?>
 --EXPECT--
