@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 0d7c0a67a111d8e3b94cc9c03fa89a649100c326 */
+/* $Id: 26e2e98b4bdaf3da1497910c21c44cd96f7a8dc8 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -1060,7 +1060,7 @@ static const char* swoole_library_source_core_array_object =
     "\n"
     "    public function valid(): bool\n"
     "    {\n"
-    "        return array_key_exists($this->key(), $this->array);\n"
+    "        return $this->key() !== null;\n"
     "    }\n"
     "\n"
     "    /**\n"

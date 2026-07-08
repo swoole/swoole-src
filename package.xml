@@ -61,18 +61,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fix timeout configuration error: Fixed an issue where the write timeout incorrectly reused the read timeout when `max_idle_time` was set.
-        - Fix async reload warning: Eliminated invalid warnings triggered by the exit of old processes during asynchronous reloads.
-        - Refactor process management: Refactored the server process management logic.
-        - Optimize fork failure handling: Improved the handling mechanism after child process `fork` failures. Added retry logic that waits 1 second before each retry to avoid generating excessive error logs.
-        - Fix data race issue: Changed the `closed` field in the underlying `Connection` struct to an atomic operation, eliminating a potential data race risk.
-        - Fix integer overflow: Fixed an integer overflow issue in the Redis server.
-        - Replace communication mechanism: Replaced the communication method between child threads and the main thread in the thread pool from `Pipe` to `UnixSocket`.
-        - Support curl coroutine mode: In `curl` coroutine scenarios, file upload and download operations have been replaced with coroutine implementations.
-        - Optimize blocking function detection: Enhanced the `tracker observer`'s ability to detect blocking functions.
-        - Adapt unit tests: Updated the IP address lookup functionality in unit tests for different operating system families.
-        - Add PDO asynchronous method: Added the asynchronous method `PQsendClosePrepared` for `pdo_pgsql` to close existing prepared statements.
-        - Database connection pool optimization: Added recognition and handling for various error messages indicating that database connections have been disconnected and require reconnection.
+        - Refactored the communication between multi-thread pools from `Pipe` to `Unix Socket` to enhance the reliability of high-concurrency transmission for asynchronous file operations.
+        - Resolved sporadic segmentation faults when `Worker` parses `HTTP` parameters, eliminating the risk of process crashes.
+        - Fixed a fatal `Error::__toString` error during the `PHP` request shutdown (rshutdown) phase when interacting with the database.
+        - Fixed the `Poll` event initialization exception after coroutine conversion of `pdo_pgsql`, ensuring the stability of blocking mode.
+        - Removed duplicate and redundant `Server` property configurations in `Swoole\Coroutine\Http\Server`.
+        - Fixed an issue in `Swoole\ArrayObject::valid()` where, under `PHP 8.5`, using `null` as the key parameter for `array_key_exists()` would trigger a deprecation warning: "Using null as the key parameter for array_key_exists() is deprecated."
     </notes>
     <contents>
         <dir name="/">
