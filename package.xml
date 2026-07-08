@@ -49,10 +49,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2026-05-14</date>
+    <date>2026-07-08</date>
     <time>22:00:00</time>
     <version>
-        <release>6.2.1</release>
+        <release>6.2.2</release>
         <api>6.0</api>
     </version>
     <stability>
