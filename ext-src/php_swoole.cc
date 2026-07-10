@@ -557,7 +557,8 @@ void php_swoole_set_global_option(HashTable *vht) {
         }
     }
     if (php_swoole_array_get_value(vht, "http2_max_headers", ztmp)) {
-        swoole::http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADERS, zval_get_long(ztmp));
+        zend_long v = zval_get_long(ztmp);
+        swoole::http2::set_http2_max_headers(SW_MIN(v, UINT32_MAX));
     }
 }
 

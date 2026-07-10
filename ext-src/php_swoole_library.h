@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 9816f0a6f82068c372424b88a74107943fb9abfd */
+/* $Id: 26e2e98b4bdaf3da1497910c21c44cd96f7a8dc8 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -298,6 +298,8 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_HTTP2_MAX_FRAME_SIZE = 'http2_max_frame_size';\n"
     "\n"
     "    public const OPTION_HTTP2_MAX_HEADER_LIST_SIZE = 'http2_max_header_list_size';\n"
+    "\n"
+    "    public const OPTION_HTTP2_MAX_HEADERS = 'http2_max_headers';\n"
     "\n"
     "    public const OPTION_AIO_CORE_WORKER_NUM = 'aio_core_worker_num';\n"
     "\n"
@@ -1060,7 +1062,7 @@ static const char* swoole_library_source_core_array_object =
     "\n"
     "    public function valid(): bool\n"
     "    {\n"
-    "        return array_key_exists($this->key(), $this->array);\n"
+    "        return $this->key() !== null;\n"
     "    }\n"
     "\n"
     "    /**\n"
@@ -9404,7 +9406,8 @@ static const char* swoole_library_source_core_server_helper =
     "        'http2_max_concurrent_streams' => true,\n"
     "        'http2_init_window_size'       => true,\n"
     "        'http2_max_frame_size'         => true,\n"
-    "        'http2_max_header_list_size'   => true,\n"
+    "	     'http2_max_header_list_size'   => true,\n"
+    "	     'http2_max_headers'            => true,\n"
     "    ];\n"
     "\n"
     "    public const SERVER_OPTIONS = [\n"
