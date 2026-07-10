@@ -67,8 +67,6 @@ enum swHttp2SettingId {
     SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE = 0x4,
     SW_HTTP2_SETTINGS_MAX_FRAME_SIZE = 0x5,
     SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE = 0x6,
-    /* Swoole-specific (not sent on the wire) */
-    SW_HTTP2_SETTINGS_MAX_HEADERS = 0x100,
 };
 
 enum swHttp2StreamFlag {
@@ -120,7 +118,6 @@ struct Settings {
     uint32_t init_window_size;
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
-    uint32_t max_headers;
 };
 
 /**
@@ -148,6 +145,8 @@ static sw_inline ssize_t get_length(const char *buf) {
 }
 
 void put_default_setting(enum swHttp2SettingId id, uint32_t value);
+void set_http2_max_headers(uint32_t value);
+uint32_t get_http2_max_headers();
 uint32_t get_default_setting(enum swHttp2SettingId id);
 size_t pack_setting_frame(char *buf, const Settings &settings, bool server_side);
 ReturnCode unpack_setting_data(const char *buf,
@@ -167,7 +166,6 @@ static sw_inline void init_settings(Settings *settings) {
     settings->init_window_size = get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE);
     settings->max_frame_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE);
     settings->max_header_list_size = get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
-    settings->max_headers = get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADERS);
 }
 
 static inline std::string get_flag_string(int _flags) {

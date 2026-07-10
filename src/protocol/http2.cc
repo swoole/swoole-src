@@ -29,6 +29,8 @@ using swoole::network::Socket;
 namespace swoole {
 namespace http2 {
 
+static uint32_t max_headers = SW_HTTP2_DEFAULT_MAX_HEADERS;
+
 static Settings default_settings = {
     SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE,
     SW_HTTP2_DEFAULT_ENABLE_PUSH,
@@ -36,7 +38,6 @@ static Settings default_settings = {
     SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE,
     SW_HTTP2_DEFAULT_MAX_FRAME_SIZE,
     SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE,
-    SW_HTTP2_DEFAULT_MAX_HEADERS,
 };
 
 void put_default_setting(enum swHttp2SettingId id, uint32_t value) {
@@ -59,9 +60,6 @@ void put_default_setting(enum swHttp2SettingId id, uint32_t value) {
     case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
         default_settings.max_header_list_size = value;
         break;
-    case SW_HTTP2_SETTINGS_MAX_HEADERS:
-        default_settings.max_headers = value;
-        break;
     default:
         // Unknown HTTP/2 settings must be ignored by the core.
         swoole_trace_log(SW_TRACE_HTTP2, "ignore unknown setting id=%u", id);
@@ -83,13 +81,23 @@ uint32_t get_default_setting(enum swHttp2SettingId id) {
         return default_settings.max_frame_size;
     case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
         return default_settings.max_header_list_size;
-    case SW_HTTP2_SETTINGS_MAX_HEADERS:
-        return default_settings.max_headers;
     default:
         swoole_trace_log(SW_TRACE_HTTP2, "query unknown setting id=%u", id);
         return 0;
     }
 }
+
+uint32_t get_http2_max_headers() {
+    return max_headers;
+}
+
+void set_http2_max_headers(uint32_t value) {
+    if (value > 0) {
+        max_headers = value;
+    }
+}
+
+void set_http2_max_headers(uint32_t value);
 
 static inline void pack_setting_item(char *_buf, enum swHttp2SettingId _id, uint32_t _value) {
     const uint16_t id = htons(_id);
