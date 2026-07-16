@@ -52,6 +52,7 @@
  *******************************************************/
 
 .text
+.private_extern _swoole_jump_fcontext
 .globl _swoole_jump_fcontext
 .balign 16
 _swoole_jump_fcontext:
