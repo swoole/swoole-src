@@ -141,7 +141,7 @@ static ssize_t php_ssh2_sftp_stream_read(php_stream *stream, char *buf, size_t c
     auto session = data->session;
     bytes_read = libssh2_sftp_read(data->handle, buf, count);
 
-    stream->eof = (bytes_read <= 0 && bytes_read != LIBSSH2_ERROR_EAGAIN);
+    stream->eof = (bytes_read == 0);
 
     return bytes_read;
 }
@@ -305,20 +305,29 @@ static ssize_t php_ssh2_sftp_dirstream_read(php_stream *stream, char *buf, size_
     php_ssh2_sftp_handle_data *data = (php_ssh2_sftp_handle_data *) stream->abstract;
     php_stream_dirent *ent = (php_stream_dirent *) buf;
 
+    // readdir() uses false for both errors and completion, so every branch must own EOF.
     if (!php_ssh2_sftp_handle_session_is_open(data)) {
-        return 0;
+        stream->eof = 0;
+        return -1;
     }
 
     auto session = data->session;
     int bytesread = libssh2_sftp_readdir(data->handle, ent->d_name, sizeof(ent->d_name) - 1, NULL);
-    zend_string *basename;
 
-    if (bytesread <= 0) {
+    if (bytesread < 0) {
+        stream->eof = 0;
+        return bytesread;
+    }
+
+    if (bytesread == 0) {
+        stream->eof = 1;
         return 0;
     }
+
+    stream->eof = 0;
     ent->d_name[bytesread] = 0;
 
-    basename = php_basename(ent->d_name, bytesread, NULL, 0);
+    zend_string *basename = php_basename(ent->d_name, bytesread, NULL, 0);
     if (!basename) {
         return 0;
     }
