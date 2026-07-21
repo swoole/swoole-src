@@ -627,8 +627,6 @@ PHP_FUNCTION(ssh2_auth_none) {
 }
 /* }}} */
 
-char *password_for_kbd_callback;
-
 static void kbd_callback(const char *name,
                          int name_len,
                          const char *instruction,
@@ -641,12 +639,19 @@ static void kbd_callback(const char *name,
     (void) name_len;
     (void) instruction;
     (void) instruction_len;
-    if (num_prompts == 1) {
-        responses[0].text = estrdup(password_for_kbd_callback);
-        responses[0].length = strlen(password_for_kbd_callback);
-    }
     (void) prompts;
-    (void) abstract;
+
+    auto session_data = (php_ssh2_session_data **) abstract;
+
+    for (int i = 0; i < num_prompts; i++) {
+        responses[i].text = NULL;
+        responses[i].length = 0;
+    }
+
+    if (num_prompts >= 1 && session_data && *session_data && (*session_data)->kbd_password) {
+        responses[0].text = estrndup((*session_data)->kbd_password, (*session_data)->kbd_password_len);
+        responses[0].length = (unsigned int) (*session_data)->kbd_password_len;
+    }
 }
 
 /* {{{ proto bool ssh2_auth_password(resource session, string username, string password)
@@ -667,11 +672,20 @@ PHP_FUNCTION(ssh2_auth_password) {
     userauthlist = libssh2_userauth_list(session, username->val, username->len);
 
     if (userauthlist != NULL) {
-        password_for_kbd_callback = password->val;
+        auto session_data = (php_ssh2_session_data **) libssh2_session_abstract(session);
+        (*session_data)->kbd_password = password->val;
+        (*session_data)->kbd_password_len = password->len;
+
+        int kbd_ok = 0;
         if (strstr(userauthlist, "keyboard-interactive") != NULL) {
-            if (libssh2_userauth_keyboard_interactive(session, username->val, &kbd_callback) == 0) {
-                RETURN_TRUE;
-            }
+            kbd_ok = (libssh2_userauth_keyboard_interactive(session, username->val, &kbd_callback) == 0);
+        }
+
+        (*session_data)->kbd_password = NULL;
+        (*session_data)->kbd_password_len = 0;
+
+        if (kbd_ok) {
+            RETURN_TRUE;
         }
 
         /* TODO: Support password change callback */
