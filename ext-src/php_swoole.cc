@@ -384,6 +384,7 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->blocking_threshold = 100000;
     swoole_globals->profile = false;
     swoole_globals->leak_detection = false;
+    swoole_globals->cli = false;
 
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
         strcmp("embed", sapi_module.name) == 0 || strcmp("micro", sapi_module.name) == 0) {
