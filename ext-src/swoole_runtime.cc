@@ -1057,7 +1057,7 @@ static inline int socket_xport_api(php_stream *stream, SocketImpl *sock, php_str
         }
         break;
     case STREAM_XPORT_OP_SHUTDOWN:
-        xparam->outputs.returncode = sock->shutdown(shutdown_how[xparam->how]);
+        xparam->outputs.returncode = sock->shutdown(shutdown_how[xparam->how]) ? 0 : -1;
         break;
     default:
 #ifdef SW_DEBUG
