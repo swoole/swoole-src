@@ -131,6 +131,10 @@ extern php_stream_wrapper php_ssh2_sftp_wrapper;
 extern int le_ssh2_session;
 extern int le_ssh2_sftp;
 
+static inline bool php_ssh2_session_is_open(zend_resource *session_rsrc) {
+    return session_rsrc && session_rsrc->ptr != NULL;
+}
+
 static inline LIBSSH2_SESSION *ssh2_get_session(php_ssh2_channel_data *abstract) {
     return (LIBSSH2_SESSION *) zend_fetch_resource(abstract->session_rsrc, PHP_SSH2_SESSION_RES_NAME, le_ssh2_session);
 }
