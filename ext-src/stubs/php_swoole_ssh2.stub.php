@@ -138,14 +138,14 @@ function ssh2_shell_resize($session, int $width, int $height): bool {}
  * Execute a command on a remote server
  * @param resource $session The SSH session
  * @param string $command The command to execute
- * @param bool $pty [optional] Whether to allocate a pseudo-terminal
+ * @param string|null $pty [optional] The remote terminal type to allocate, or null for no pseudo-terminal
  * @param array $env [optional] Environment variables
  * @param int $width [optional] Width of the terminal
  * @param int $height [optional] Height of the terminal
  * @param int $width_height_type [optional] Type of width/height measurement
  * @return resource|false Returns a stream resource on success, or false on failure
  */
-function ssh2_exec($session, string $command, bool $pty = false, ?array $env = null, int $width = 80, int $height = 25, int $width_height_type = 0) {}
+function ssh2_exec($session, string $command, ?string $pty = null, ?array $env = null, int $width = 80, int $height = 25, int $width_height_type = 0) {}
 
 /**
  * Open a tunnel through a remote server
