@@ -357,6 +357,8 @@ static php_stream *php_ssh2_sftp_dirstream_opener(php_stream_wrapper *wrapper,
 
     data = (php_ssh2_sftp_handle_data *) emalloc(sizeof(php_ssh2_sftp_handle_data));
     data->handle = handle;
+    data->session = session;
+    data->sftp = sftp;
     data->sftp_rsrc = sftp_rsrc;
 
     stream = php_stream_alloc(&php_ssh2_sftp_dirstream_ops, data, 0, mode);
