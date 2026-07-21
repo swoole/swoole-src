@@ -33,6 +33,10 @@
 #define MD5_DIGEST_LENGTH 16
 #endif
 
+#ifndef SHA256_DIGEST_LENGTH
+#define SHA256_DIGEST_LENGTH 32
+#endif
+
 /* True global resources - no need for thread safety here */
 int le_ssh2_session;
 int le_ssh2_listener;
@@ -505,19 +509,28 @@ PHP_FUNCTION(ssh2_fingerprint) {
     const char *fingerprint;
     zend_long flags = 0;
     size_t i, fingerprint_len;
+    int hash_type;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|l", &zsession, &flags) == FAILURE) {
         return;
     }
-    fingerprint_len = (flags & PHP_SSH2_FINGERPRINT_SHA1) ? SHA_DIGEST_LENGTH : MD5_DIGEST_LENGTH;
+    if (flags & PHP_SSH2_FINGERPRINT_SHA256) {
+        fingerprint_len = SHA256_DIGEST_LENGTH;
+        hash_type = LIBSSH2_HOSTKEY_HASH_SHA256;
+    } else if (flags & PHP_SSH2_FINGERPRINT_SHA1) {
+        fingerprint_len = SHA_DIGEST_LENGTH;
+        hash_type = LIBSSH2_HOSTKEY_HASH_SHA1;
+    } else {
+        fingerprint_len = MD5_DIGEST_LENGTH;
+        hash_type = LIBSSH2_HOSTKEY_HASH_MD5;
+    }
 
     if ((session = (LIBSSH2_SESSION *) zend_fetch_resource(
              Z_RES_P(zsession), PHP_SSH2_SESSION_RES_NAME, le_ssh2_session)) == NULL) {
         RETURN_FALSE;
     }
 
-    fingerprint = (char *) libssh2_hostkey_hash(
-        session, (flags & PHP_SSH2_FINGERPRINT_SHA1) ? LIBSSH2_HOSTKEY_HASH_SHA1 : LIBSSH2_HOSTKEY_HASH_MD5);
+    fingerprint = (char *) libssh2_hostkey_hash(session, hash_type);
     if (!fingerprint) {
         php_error_docref(NULL, E_WARNING, "Unable to retrieve fingerprint from specified session");
         RETURN_FALSE;
@@ -543,6 +556,36 @@ fingerprint_good:
         ZVAL_STRINGL(return_value, hexchars, 2 * fingerprint_len);
         efree(hexchars);
     }
+}
+/* }}} */
+
+/* {{{ proto array ssh2_hostkey(resource session)
+ * Returns the server's raw host key and type
+ */
+PHP_FUNCTION(ssh2_hostkey) {
+    LIBSSH2_SESSION *session;
+    zval *zsession;
+    const char *hostkey;
+    size_t hostkey_len;
+    int type;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &zsession) == FAILURE) {
+        return;
+    }
+
+    if ((session = (LIBSSH2_SESSION *) zend_fetch_resource(
+             Z_RES_P(zsession), PHP_SSH2_SESSION_RES_NAME, le_ssh2_session)) == NULL) {
+        RETURN_FALSE;
+    }
+
+    hostkey = libssh2_session_hostkey(session, &hostkey_len, &type);
+    if (!hostkey) {
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+    add_assoc_stringl(return_value, "key", (char *) hostkey, hostkey_len);
+    add_assoc_long(return_value, "type", type);
 }
 /* }}} */
 
@@ -1249,6 +1292,15 @@ int php_swoole_ssh2_minit(int module_number) {
     REGISTER_LONG_CONSTANT("SSH2_FINGERPRINT_SHA1", PHP_SSH2_FINGERPRINT_SHA1, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SSH2_FINGERPRINT_HEX", PHP_SSH2_FINGERPRINT_HEX, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SSH2_FINGERPRINT_RAW", PHP_SSH2_FINGERPRINT_RAW, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SSH2_FINGERPRINT_SHA256", PHP_SSH2_FINGERPRINT_SHA256, CONST_CS | CONST_PERSISTENT);
+
+    REGISTER_LONG_CONSTANT("SSH2_HOSTKEY_TYPE_UNKNOWN", LIBSSH2_HOSTKEY_TYPE_UNKNOWN, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SSH2_HOSTKEY_TYPE_RSA", LIBSSH2_HOSTKEY_TYPE_RSA, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SSH2_HOSTKEY_TYPE_DSS", LIBSSH2_HOSTKEY_TYPE_DSS, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SSH2_HOSTKEY_TYPE_ECDSA_256", LIBSSH2_HOSTKEY_TYPE_ECDSA_256, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SSH2_HOSTKEY_TYPE_ECDSA_384", LIBSSH2_HOSTKEY_TYPE_ECDSA_384, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SSH2_HOSTKEY_TYPE_ECDSA_521", LIBSSH2_HOSTKEY_TYPE_ECDSA_521, CONST_CS | CONST_PERSISTENT);
+    REGISTER_LONG_CONSTANT("SSH2_HOSTKEY_TYPE_ED25519", LIBSSH2_HOSTKEY_TYPE_ED25519, CONST_CS | CONST_PERSISTENT);
 
     REGISTER_LONG_CONSTANT("SSH2_TERM_UNIT_CHARS", PHP_SSH2_TERM_UNIT_CHARS, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SSH2_TERM_UNIT_PIXELS", PHP_SSH2_TERM_UNIT_PIXELS, CONST_CS | CONST_PERSISTENT);

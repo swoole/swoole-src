@@ -40,6 +40,13 @@ function ssh2_methods_negotiated($session): array {}
 function ssh2_fingerprint($session, int $flags = 0) {}
 
 /**
+ * Retrieve the raw host key from the remote server
+ * @param resource $session The SSH session
+ * @return array|false Returns the raw host key and type on success, or false on failure
+ */
+function ssh2_hostkey($session): array|false {}
+
+/**
  * Authenticate as "none"
  * @param resource $session The SSH session
  * @param string $username The username to authenticate as

@@ -7,6 +7,10 @@
 #include <libssh2_sftp.h>
 #include <libssh2_publickey.h>
 
+#if LIBSSH2_VERSION_NUM < 0x010900
+#error "Swoole SSH2 support requires libssh2 1.9.0 or newer"
+#endif
+
 typedef struct _php_ssh2_session_data {
     /* Userspace callback functions */
     zval *ignore_cb;
