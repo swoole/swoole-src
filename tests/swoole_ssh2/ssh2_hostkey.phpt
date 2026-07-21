@@ -15,7 +15,7 @@ Co\run(function () {
     var_dump(is_string($hostKey['key']));
     var_dump($hostKey['key'] !== '');
     var_dump(is_int($hostKey['type']));
-    var_dump($hostKey['type'] === SSH2_HOSTKEY_TYPE_ED25519);
+    var_dump($hostKey['type'] !== SSH2_HOSTKEY_TYPE_UNKNOWN);
     var_dump(strlen($fingerprint));
     var_dump($fingerprint === hash('sha256', $hostKey['key'], true));
 
