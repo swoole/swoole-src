@@ -28,18 +28,17 @@ Co\run(function (): void {
     );
     $fileDescriptorCount = static fn (): int => count(scandir('/proc/self/fd')) - 2;
 
-    $warmupFailed   = @fopen($url, 'rb', false, $context) === false;
-    $baseline       = $fileDescriptorCount();
-    $attemptsFailed = true;
+    $warmupFailed = @fopen($url, 'rb', false, $context) === false;
+    $baseline     = $fileDescriptorCount();
 
-    for ($attempt = 0; $attempt < 3; $attempt++) {
-        $attemptsFailed = @fopen($url, 'rb', false, $context) === false && $attemptsFailed;
-    }
+    // Keep the two failures below OpenSSH 9.8+'s default per-source penalty floor
+    // so this test cannot block later tests that share the SSH server.
+    $attemptFailed = @fopen($url, 'rb', false, $context) === false;
 
     gc_collect_cycles();
 
     var_dump($warmupFailed);
-    var_dump($attemptsFailed);
+    var_dump($attemptFailed);
     var_dump($fileDescriptorCount() === $baseline);
 });
 ?>
