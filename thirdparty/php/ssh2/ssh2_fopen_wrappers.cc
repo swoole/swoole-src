@@ -689,7 +689,7 @@ PHP_FUNCTION(ssh2_shell) {
     int argc = ZEND_NUM_ARGS();
 
     if (argc == 4) {
-        php_error_docref(NULL, E_ERROR, "width specified without height parameter");
+        php_error_docref(NULL, E_WARNING, "width specified without height parameter");
         RETURN_FALSE;
     }
 
