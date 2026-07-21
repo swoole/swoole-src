@@ -243,6 +243,7 @@ static void server_free_object(zend_object *object) {
 
 static zend_object *server_create_object(zend_class_entry *ce) {
     auto *server_object = static_cast<ServerObject *>(zend_object_alloc(sizeof(ServerObject), ce));
+    ZVAL_NULL(&server_object->init_arguments);
     zend_object_std_init(&server_object->std, ce);
     object_properties_init(&server_object->std, ce);
     server_object->std.handlers = &swoole_server_handlers;
@@ -746,7 +747,7 @@ static bool php_swoole_server_task_unpack(zval *zresult, EventData *task_result)
         PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
         if (!unserialized) {
             swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                           (zend_long) ((char *) p - packet.data),
+                           (zend_long)((char *) p - packet.data),
                            l);
             return false;
         }
@@ -1826,7 +1827,7 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
 
     *zserv = *(php_swoole_server_zval_ptr(serv));
     ZVAL_LONG(zfd, conn ? conn->session_id : data->info.fd);
-    ZVAL_LONG(ztype, (zend_long) (data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
+    ZVAL_LONG(ztype, (zend_long)(data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
     if (data && sw_zend_function_max_num_args(cb->ptr()->function_handler) > 3) {
         // TODO: reduce memory copy
         zdata = &args[3];
@@ -2414,14 +2415,10 @@ static PHP_METHOD(swoole_server, set) {
     // bootstrap
     if (php_swoole_array_get_value(vht, "bootstrap", ztmp)) {
         zend::object_set(ZEND_THIS, ZEND_STRL("bootstrap"), ztmp);
-    } else {
-        zend::object_set(ZEND_THIS, ZEND_STRL("bootstrap"), SG(request_info).path_translated);
     }
     // thread arguments
     if (php_swoole_array_get_value(vht, "init_arguments", ztmp)) {
         server_object->init_arguments = *ztmp;
-    } else {
-        ZVAL_NULL(&server_object->init_arguments);
     }
 #endif
 
@@ -2713,6 +2710,9 @@ static PHP_METHOD(swoole_server, start) {
 
     if (serv->is_thread_mode()) {
         zval *_bootstrap = zend::object_get(ZEND_THIS, ZEND_STRL("bootstrap"));
+        if (ZVAL_IS_EMPTY_STRING(_bootstrap)) {
+            zend::object_set(zserv, ZEND_STRL("bootstrap"), SG(request_info).path_translated);
+        }
         bootstrap = zend_string_dup(Z_STR_P(_bootstrap), true);
 
         if (!ZVAL_IS_NULL(&server_object->init_arguments)) {
