@@ -414,6 +414,12 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
         return NULL;
     }
 
+    if (pubkey_file && privkey_file &&
+        (php_check_open_basedir(pubkey_file) || php_check_open_basedir(privkey_file))) {
+        php_url_free(resource);
+        return NULL;
+    }
+
     session = php_ssh2_session_connect(ZSTR_VAL(resource->host), resource->port, methods, callbacks);
     if (!session) {
         /* Unable to connect! */
@@ -421,13 +427,10 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
         return NULL;
     }
 
+    ZVAL_RES(&zsession, zend_register_resource(session, le_ssh2_session));
+
     /* Authenticate */
     if (pubkey_file && privkey_file) {
-        if (php_check_open_basedir(pubkey_file) || php_check_open_basedir(privkey_file)) {
-            php_url_free(resource);
-            return NULL;
-        }
-
         /* Attempt pubkey authentication */
         if (!libssh2_userauth_publickey_fromfile(session, username, pubkey_file, privkey_file, password)) {
             goto session_authed;
@@ -443,17 +446,12 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
 
     /* Auth failure */
     php_url_free(resource);
-    if (Z_RES(zsession)) {
-        zend_list_delete(Z_RES(zsession));
-    }
+    zend_list_delete(Z_RES(zsession));
     return NULL;
 
 session_authed:
-    ZVAL_RES(&zsession, zend_register_resource(session, le_ssh2_session));
-
-    if (psftp) {
+    if (psftp && psftp_rsrc) {
         LIBSSH2_SFTP *sftp;
-        zval zsftp{};
 
         sftp = libssh2_sftp_init(session);
         if (!sftp) {
@@ -466,10 +464,7 @@ session_authed:
         sftp_data->session = session;
         sftp_data->sftp = sftp;
         sftp_data->session_rsrc = Z_RES(zsession);
-
-        // TODO Sean-Der
-        // ZEND_REGISTER_RESOURCE(sftp_data, le_ssh2_sftp);
-        *psftp_rsrc = Z_RES(zsftp);
+        *psftp_rsrc = zend_register_resource(sftp_data, le_ssh2_sftp);
         *psftp = sftp;
     }
 
