@@ -518,7 +518,7 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session,
 
                 if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
                     php_error_docref(
-                        NULL, E_WARNING, "Failed setting %s=%s on remote end", ZSTR_VAL(key), Z_STRVAL(copyval));
+                        NULL, E_WARNING, "Failed setting environment variable %s on remote end", ZSTR_VAL(key));
                 }
                 zval_dtor(&copyval);
             } else {
@@ -780,7 +780,7 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
                 convert_to_string(&copyval);
                 if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
                     php_error_docref(
-                        NULL, E_WARNING, "Failed setting %s=%s on remote end", ZSTR_VAL(key), Z_STRVAL(copyval));
+                        NULL, E_WARNING, "Failed setting environment variable %s on remote end", ZSTR_VAL(key));
                 }
                 zval_dtor(&copyval);
             } else {
