@@ -100,6 +100,7 @@ typedef struct _php_ssh2_channel_data {
     unsigned int streamid;
     char is_blocking;
     long timeout;
+    bool timeout_event;
 
     /* Resource */
     zend_resource *session_rsrc;

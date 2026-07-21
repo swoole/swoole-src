@@ -863,7 +863,9 @@ PHP_FUNCTION(ssh2_forward_accept) {
     channel_data = (php_ssh2_channel_data *) emalloc(sizeof(php_ssh2_channel_data));
     channel_data->channel = channel;
     channel_data->streamid = 0;
-    channel_data->is_blocking = 0;
+    channel_data->is_blocking = 1;
+    channel_data->timeout = 0;
+    channel_data->timeout_event = false;
     channel_data->session_rsrc = data->session_rsrc;
     channel_data->refcount = NULL;
 

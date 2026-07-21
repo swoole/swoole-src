@@ -31,11 +31,6 @@ static inline SocketImpl *ssh2_get_socket(LIBSSH2_SESSION *session) {
     return (*session_data)->socket;
 }
 
-static inline void ssh2_set_socket_timeout(LIBSSH2_SESSION *session, int timeout_ms) {
-    auto sock = ssh2_get_socket(session);
-    sock->set_timeout(timeout_ms / 1000, SW_TIMEOUT_ALL);
-}
-
 class ResourceGuard {
     zval zres_;
 
@@ -49,9 +44,16 @@ class ResourceGuard {
     }
 };
 
-static inline int ssh2_async_call(LIBSSH2_SESSION *session, const std::function<int(void)> &fn) {
+static inline int ssh2_async_call(LIBSSH2_SESSION *session,
+                                  const std::function<int(void)> &fn,
+                                  double timeout = 0,
+                                  bool *timeout_event = nullptr) {
     auto event = ssh2_get_event_type(session);
     auto socket = ssh2_get_socket(session);
+
+    if (timeout_event) {
+        *timeout_event = false;
+    }
 
     socket->check_bound_co(SW_EVENT_READ);
     socket->check_bound_co(SW_EVENT_WRITE);
@@ -60,7 +62,10 @@ static inline int ssh2_async_call(LIBSSH2_SESSION *session, const std::function<
     while (1) {
         rc = fn();
         if (rc == LIBSSH2_ERROR_EAGAIN) {
-            if (!socket->poll(event)) {
+            if (!socket->poll(event, timeout)) {
+                if (timeout_event) {
+                    *timeout_event = timeout > 0 && socket->errCode == ETIMEDOUT;
+                }
                 return LIBSSH2_ERROR_SOCKET_NONE;
             }
             continue;
