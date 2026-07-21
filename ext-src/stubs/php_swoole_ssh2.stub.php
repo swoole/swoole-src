@@ -61,7 +61,7 @@ function ssh2_auth_none($session, string $username): bool {}
  * @param string $password The password to use for authentication
  * @return bool Returns true on success or false on failure
  */
-function ssh2_auth_password($session, string $username, string $password): bool {}
+function ssh2_auth_password($session, string $username, #[\SensitiveParameter] string $password): bool {}
 
 /**
  * Authenticate using a public key
@@ -72,7 +72,7 @@ function ssh2_auth_password($session, string $username, string $password): bool 
  * @param string $passphrase [optional] The passphrase for the private key
  * @return bool Returns true on success or false on failure
  */
-function ssh2_auth_pubkey_file($session, string $username, string $pubkeyfile, string $privkeyfile, ?string $passphrase = null): bool {}
+function ssh2_auth_pubkey_file($session, string $username, string $pubkeyfile, string $privkeyfile, #[\SensitiveParameter] ?string $passphrase = null): bool {}
 
 /**
  * Authenticate using a public key
@@ -83,7 +83,7 @@ function ssh2_auth_pubkey_file($session, string $username, string $pubkeyfile, s
  * @param string $passphrase [optional] The passphrase for the private key
  * @return bool Returns true on success or false on failure
  */
-function ssh2_auth_pubkey($session, string $username, string $pubkey, string $privkey, ?string $passphrase = null): bool {}
+function ssh2_auth_pubkey($session, string $username, string $pubkey, #[\SensitiveParameter] string $privkey, #[\SensitiveParameter] ?string $passphrase = null): bool {}
 
 /**
  * Authenticate using a public hostkey
@@ -96,7 +96,7 @@ function ssh2_auth_pubkey($session, string $username, string $pubkey, string $pr
  * @param string $local_username [optional] The local username
  * @return bool Returns true on success or false on failure
  */
-function ssh2_auth_hostbased_file($session, string $username, string $hostname, string $pubkeyfile, string $privkeyfile, ?string $passphrase = null, ?string $local_username = null): bool {}
+function ssh2_auth_hostbased_file($session, string $username, string $hostname, string $pubkeyfile, string $privkeyfile, #[\SensitiveParameter] ?string $passphrase = null, ?string $local_username = null): bool {}
 
 /**
  * Request SSH port forwarding

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 1dc5ed3aa194a67930eed0a6268ba23b95120873 */
+ * Stub hash: d246747db9f229907efb7f6710bce4c0cfcb39c3 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_connect, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
