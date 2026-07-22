@@ -94,6 +94,21 @@ static bool runtime_kernel_at_least(int required_major, int required_minor) {
 
 Iouring::Iouring(Reactor *_reactor) {
     reactor = _reactor;
+
+    /**
+     * Registered before any of the failure paths below so that even a partially-constructed instance
+     * (cached in SwooleTG.iouring by get_instance()) is destroyed and SwooleTG.iouring reset when the
+     * reactor is destroyed. Otherwise, the failed instance would leak, keep a dangling reactor pointer,
+     * and prevent io_uring from ever being retried in a subsequent event loop of this thread.
+     */
+    reactor->add_destroy_callback([](void *data) {
+        if (!SwooleTG.iouring) {
+            return;
+        }
+        delete SwooleTG.iouring;
+        SwooleTG.iouring = nullptr;
+    });
+
     if (SwooleG.iouring_entries > 0) {
         uint32_t i = 6;
         while ((1U << i) < SwooleG.iouring_entries) {
@@ -155,14 +170,6 @@ Iouring::Iouring(Reactor *_reactor) {
             event_num--;
         }
         return true;
-    });
-
-    reactor->add_destroy_callback([](void *data) {
-        if (!SwooleTG.iouring) {
-            return;
-        }
-        delete SwooleTG.iouring;
-        SwooleTG.iouring = nullptr;
     });
 
     reactor->set_end_callback(Reactor::PRIORITY_IOURING_SUBMIT, [](Reactor *reactor) {
