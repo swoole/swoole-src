@@ -92,6 +92,22 @@ static bool runtime_kernel_at_least(int required_major, int required_minor) {
 }
 #endif
 
+static uint32_t resolve_ring_entries() {
+    uint32_t entries = SW_IOURING_QUEUE_SIZE;
+    if (SwooleG.iouring_entries > 0) {
+        uint32_t i = 6;
+        while ((1U << i) < SwooleG.iouring_entries) {
+            i++;
+        }
+        entries = 1 << i;
+    }
+    return entries;
+}
+
+static unsigned resolve_ring_flags() {
+    return SwooleG.iouring_flag == IORING_SETUP_SQPOLL ? IORING_SETUP_SQPOLL : 0;
+}
+
 Iouring::Iouring(Reactor *_reactor) {
     reactor = _reactor;
 
@@ -109,16 +125,9 @@ Iouring::Iouring(Reactor *_reactor) {
         SwooleTG.iouring = nullptr;
     });
 
-    if (SwooleG.iouring_entries > 0) {
-        uint32_t i = 6;
-        while ((1U << i) < SwooleG.iouring_entries) {
-            i++;
-        }
-        entries = 1 << i;
-    }
+    entries = resolve_ring_entries();
 
-    int ret =
-        io_uring_queue_init(entries, &ring, (SwooleG.iouring_flag == IORING_SETUP_SQPOLL ? IORING_SETUP_SQPOLL : 0));
+    int ret = io_uring_queue_init(entries, &ring, resolve_ring_flags());
     if (ret < 0) {
         errno = -ret;
         swoole_sys_warning("Failed to initialize io_uring instance");
@@ -403,8 +412,16 @@ Iouring *Iouring::get_instance() {
 
 bool Iouring::available() {
     static const bool available_ = []() -> bool {
+        /**
+         * Probe with the same entries and setup flags the real ring will use, so that the cached result
+         * actually predicts whether Iouring's own initialization will succeed. Probing with minimal
+         * parameters could report success while the real initialization still fails, e.g., when
+         * SWOOLE_IOURING_SQPOLL is rejected for lack of privileges or a large queue size exceeds
+         * RLIMIT_MEMLOCK. Note that the result is cached on first use: iouring_entries/iouring_flag
+         * must be configured (via Swoole\Async::set()) before the first coroutine I/O operation.
+         */
         io_uring probe_ring;
-        int ret = io_uring_queue_init(8, &probe_ring, 0);
+        int ret = io_uring_queue_init(resolve_ring_entries(), &probe_ring, resolve_ring_flags());
         if (ret < 0) {
             swoole_warning("io_uring is unavailable (%s), falling back to thread-pool based asynchronous I/O",
                            swoole_strerror(-ret));
