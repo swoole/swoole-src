@@ -423,8 +423,14 @@ bool Iouring::available() {
         io_uring probe_ring;
         int ret = io_uring_queue_init(resolve_ring_entries(), &probe_ring, resolve_ring_flags());
         if (ret < 0) {
-            swoole_warning("io_uring is unavailable (%s), falling back to thread-pool based asynchronous I/O",
-                           swoole_strerror(-ret));
+            /**
+             * Must not log at WARNING/NOTICE/INFO here: those levels print to stdout by default, corrupting
+             * the output of CLI scripts (and phpt tests) whenever io_uring is compiled in but blocked at
+             * runtime, e.g. by the default Docker seccomp profile. The fallback is transparent, matching the
+             * silent behavior of a build without io_uring support.
+             */
+            swoole_debug("io_uring is unavailable (%s), falling back to thread-pool based asynchronous I/O",
+                         swoole_strerror(-ret));
             return false;
         }
         io_uring_queue_exit(&probe_ring);
