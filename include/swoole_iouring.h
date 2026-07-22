@@ -101,12 +101,17 @@ class Iouring {
         return task_num;
     }
 
+    /**
+     * The accessors below must not touch `ring` unless ready() returns true: when the ring failed to
+     * initialize, `ring` is left uninitialized and dereferencing its queue pointers would crash (e.g.,
+     * Swoole\Coroutine::stats() calls them on whatever instance is cached in SwooleTG.iouring).
+     */
     uint32_t get_sq_space_left() const {
-        return io_uring_sq_space_left(&ring);
+        return sw_likely(ready()) ? io_uring_sq_space_left(&ring) : 0;
     }
 
     uint32_t get_sq_capacity() const {
-        return ring.sq.ring_entries;
+        return sw_likely(ready()) ? ring.sq.ring_entries : 0;
     }
 
     uint32_t get_sq_used() const {
@@ -118,7 +123,8 @@ class Iouring {
     }
 
     float get_sq_usage_percent() const {
-        return (float) get_sq_used() / get_sq_capacity() * 100.0f;
+        uint32_t capacity = get_sq_capacity();
+        return capacity == 0 ? 0.0f : (float) get_sq_used() / capacity * 100.0f;
     }
 
     static int socket(int domain, int type, int protocol = 0, int flags = 0);
