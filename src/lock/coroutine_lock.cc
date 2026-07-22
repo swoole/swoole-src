@@ -18,10 +18,9 @@
 
 #ifdef HAVE_IOURING_FUTEX
 #include "swoole_iouring.h"
-#else
+#endif
 #include "swoole_coroutine_system.h"
 using swoole::coroutine::System;
-#endif
 
 namespace swoole {
 CoroutineLock::CoroutineLock(bool shared) : Lock(COROUTINE_LOCK, shared) {
@@ -62,10 +61,11 @@ int CoroutineLock::unlock() {
     coroutine = nullptr;
 
 #ifdef HAVE_IOURING_FUTEX
-    return Iouring::futex_wakeup((uint32_t *) value) >= 0 ? 0 : errno;
-#else
-    return 0;
+    if (sw_likely(Iouring::available())) {
+        return Iouring::futex_wakeup((uint32_t *) value) >= 0 ? 0 : errno;
+    }
 #endif
+    return 0;
 }
 
 int CoroutineLock::lock_impl(bool blocking) {
@@ -80,9 +80,7 @@ int CoroutineLock::lock_impl(bool blocking) {
     }
 
     int result = 0;
-#ifndef HAVE_IOURING_FUTEX
     double second = SW_FILE_LOCK_DEFAULT_SECOND;
-#endif
 
     while (true) {
         if (sw_atomic_cmp_set(value, 0, 1)) {
@@ -94,11 +92,14 @@ int CoroutineLock::lock_impl(bool blocking) {
         }
 
 #ifdef HAVE_IOURING_FUTEX
-        result = Iouring::futex_wait((uint32_t *) value);
-        if (result != 0) {
-            return errno;
+        if (sw_likely(Iouring::available())) {
+            result = Iouring::futex_wait((uint32_t *) value);
+            if (result != 0) {
+                return errno;
+            }
+            continue;
         }
-#else
+#endif
         if (System::sleep(second) != SW_OK) {
             return SW_ERROR_CO_CANCELED;
         }
@@ -106,7 +107,6 @@ int CoroutineLock::lock_impl(bool blocking) {
         // will make it increasingly difficult to acquire the lock.
         second = (second >= SW_FILE_LOCK_MAX_SECOND) ? SW_FILE_LOCK_DEFAULT_SECOND
                                                      : SW_MIN(second * 2, SW_FILE_LOCK_MAX_SECOND);
-#endif
     }
 
     cid = current_coroutine->get_cid();

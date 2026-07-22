@@ -98,7 +98,7 @@ Iouring::Iouring(Reactor *_reactor) {
         io_uring_queue_init(entries, &ring, (SwooleG.iouring_flag == IORING_SETUP_SQPOLL ? IORING_SETUP_SQPOLL : 0));
     if (ret < 0) {
         errno = -ret;
-        swoole_sys_error("Failed to initialize io_uring instance");
+        swoole_sys_warning("Failed to initialize io_uring instance");
         return;
     }
 
@@ -107,8 +107,8 @@ Iouring::Iouring(Reactor *_reactor) {
         ret = io_uring_register_iowq_max_workers(&ring, workers);
         if (ret < 0) {
             errno = -ret;
-            swoole_sys_error("Failed to set the maximum of io_uring async workers");
-            return;
+            // Not fatal: io_uring works without the worker cap, only the tuning option is lost.
+            swoole_sys_warning("Failed to set the maximum of io_uring async workers");
         }
     }
 
@@ -378,8 +378,29 @@ Iouring *Iouring::get_instance() {
     return SwooleTG.iouring;
 }
 
+bool Iouring::available() {
+    static const bool available_ = []() -> bool {
+        io_uring probe_ring;
+        int ret = io_uring_queue_init(8, &probe_ring, 0);
+        if (ret < 0) {
+            swoole_warning("io_uring is unavailable (%s), falling back to thread-pool based asynchronous I/O",
+                           swoole_strerror(-ret));
+            return false;
+        }
+        io_uring_queue_exit(&probe_ring);
+        return true;
+    }();
+    return available_;
+}
+
 ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();
+    // The instance exists but its ring failed to initialize (e.g., io_uring blocked by seccomp at runtime,
+    // or the SQPOLL flag rejected for lack of privileges). Fail the operation instead of queuing it forever.
+    if (sw_unlikely(!iouring->ready())) {
+        errno = ENOTSUP;
+        return -1;
+    }
     iouring->dispatch(event);
     iouring->yield(event);
     return event->result;

@@ -480,6 +480,7 @@ class Socket {
 
     bool add_event(EventType event);
     bool wait_event(EventType event, const void **_buf = nullptr, size_t _n = 0);
+    network::Socket *accept_raw(double timeout);
 
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();

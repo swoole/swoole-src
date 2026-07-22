@@ -65,6 +65,14 @@ class Iouring {
   public:
     ~Iouring();
 
+    /**
+     * Whether io_uring is usable in the current environment. io_uring may be compiled in but unusable at runtime,
+     * e.g., when the io_uring syscalls are blocked by seccomp (the default profile of Docker and containerd does
+     * this), disabled via the kernel.io_uring_disabled sysctl, or missing from an old kernel. The result is probed
+     * once and cached; callers should fall back to the thread-pool based async I/O when this returns false.
+     */
+    static bool available();
+
     bool is_empty_waiting_tasks() const {
         return waiting_tasks.empty();
     }

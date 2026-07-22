@@ -221,7 +221,7 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     }
 
 #ifdef SW_USE_IOURING
-    if (nfds == 1) {
+    if (nfds == 1 && sw_likely(Iouring::available())) {
         return Iouring::poll(fds, nfds, timeout);
     }
 #endif
@@ -492,13 +492,14 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
 #if defined(_WIN32) && defined(SW_USE_IOCP)
     return Iocp::open_file(pathname, flags, mode);
 #else
-#ifdef SW_USE_ASYNC
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::open(pathname, flags, mode);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = open(pathname, flags, mode); });
     return ret;
-#else
-    return Iouring::open(pathname, flags, mode);
-#endif
 #endif
 }
 
@@ -519,12 +520,15 @@ int swoole_coroutine_close(int sockfd) {
 
 #ifdef SW_USE_IOCP_FILE
     return Iocp::close_file(sockfd);
-#elif defined(SW_USE_ASYNC)
+#else
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::close(sockfd);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = close(sockfd); });
     return ret;
-#else
-    return Iouring::close(sockfd);
 #endif
 }
 
@@ -540,7 +544,12 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
 
 #ifdef SW_USE_IOCP_FILE
     return Iocp::read_file(sockfd, buf, count);
-#elif defined(SW_USE_ASYNC)
+#else
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::read(sockfd, buf, count);
+    }
+#endif
     ssize_t ret = -1;
     NetSocket sock = {};
     sock.fd = sockfd;
@@ -548,8 +557,6 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
     sock.read_timeout = -1;
     async([&]() { ret = sock.read_sync(buf, count); });
     return ret;
-#else
-    return Iouring::read(sockfd, buf, count);
 #endif
 }
 
@@ -565,7 +572,12 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
 
 #ifdef SW_USE_IOCP_FILE
     return Iocp::write_file(sockfd, buf, count);
-#elif defined(SW_USE_ASYNC)
+#else
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::write(sockfd, buf, count);
+    }
+#endif
     ssize_t ret = -1;
     NetSocket sock = {};
     sock.fd = sockfd;
@@ -573,8 +585,6 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
     sock.write_timeout = -1;
     async([&]() { ret = sock.write_sync(buf, count); });
     return ret;
-#else
-    return Iouring::write(sockfd, buf, count);
 #endif
 }
 
@@ -583,13 +593,14 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
         return fstat(fd, statbuf);
     }
 
-#if defined(SW_USE_ASYNC) || !defined(HAVE_IOURING_STATX)
+#if !defined(SW_USE_ASYNC) && defined(HAVE_IOURING_STATX)
+    if (sw_likely(Iouring::available())) {
+        return Iouring::fstat(fd, statbuf);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = fstat(fd, statbuf); });
     return ret;
-#else
-    return Iouring::fstat(fd, statbuf);
-#endif
 }
 
 int swoole_coroutine_stat(const char *path, struct stat *statbuf) {
@@ -597,13 +608,14 @@ int swoole_coroutine_stat(const char *path, struct stat *statbuf) {
         return stat(path, statbuf);
     }
 
-#if defined(SW_USE_ASYNC) || !defined(HAVE_IOURING_STATX)
+#if !defined(SW_USE_ASYNC) && defined(HAVE_IOURING_STATX)
+    if (sw_likely(Iouring::available())) {
+        return Iouring::stat(path, statbuf);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = stat(path, statbuf); });
     return ret;
-#else
-    return Iouring::stat(path, statbuf);
-#endif
 }
 
 int swoole_coroutine_lstat(const char *path, struct stat *statbuf) {
@@ -611,13 +623,14 @@ int swoole_coroutine_lstat(const char *path, struct stat *statbuf) {
         return lstat(path, statbuf);
     }
 
-#if defined(SW_USE_ASYNC) || !defined(HAVE_IOURING_STATX)
+#if !defined(SW_USE_ASYNC) && defined(HAVE_IOURING_STATX)
+    if (sw_likely(Iouring::available())) {
+        return Iouring::stat(path, statbuf);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = lstat(path, statbuf); });
     return ret;
-#else
-    return Iouring::stat(path, statbuf);
-#endif
 }
 
 int swoole_coroutine_unlink(const char *pathname) {
@@ -625,13 +638,14 @@ int swoole_coroutine_unlink(const char *pathname) {
         return unlink(pathname);
     }
 
-#ifdef SW_USE_ASYNC
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::unlink(pathname);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = unlink(pathname); });
     return ret;
-#else
-    return Iouring::unlink(pathname);
-#endif
 }
 
 int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
@@ -643,7 +657,11 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
 #endif
     }
 
-#ifdef SW_USE_ASYNC
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::mkdir(pathname, mode);
+    }
+#endif
     int ret = -1;
 #ifdef _WIN32
     async([&]() { ret = mkdir(pathname); });
@@ -651,9 +669,6 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
     async([&]() { ret = mkdir(pathname, mode); });
 #endif
     return ret;
-#else
-    return Iouring::mkdir(pathname, mode);
-#endif
 }
 
 int swoole_coroutine_rmdir(const char *pathname) {
@@ -661,13 +676,14 @@ int swoole_coroutine_rmdir(const char *pathname) {
         return rmdir(pathname);
     }
 
-#ifdef SW_USE_ASYNC
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::rmdir(pathname);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = rmdir(pathname); });
     return ret;
-#else
-    return Iouring::rmdir(pathname);
-#endif
 }
 
 int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
@@ -675,13 +691,14 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
         return rename(oldpath, newpath);
     }
 
-#ifdef SW_USE_ASYNC
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::rename(oldpath, newpath);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = rename(oldpath, newpath); });
     return ret;
-#else
-    return Iouring::rename(oldpath, newpath);
-#endif
 }
 
 int swoole_coroutine_fsync(int fd) {
@@ -689,13 +706,14 @@ int swoole_coroutine_fsync(int fd) {
         return sw_fsync(fd);
     }
 
-#ifdef SW_USE_ASYNC
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::fsync(fd);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = sw_fsync(fd); });
     return ret;
-#else
-    return Iouring::fsync(fd);
-#endif
 }
 
 int swoole_coroutine_fdatasync(int fd) {
@@ -707,7 +725,11 @@ int swoole_coroutine_fdatasync(int fd) {
 #endif
     }
 
-#ifdef SW_USE_ASYNC
+#ifndef SW_USE_ASYNC
+    if (sw_likely(Iouring::available())) {
+        return Iouring::fdatasync(fd);
+    }
+#endif
     int ret = -1;
 #ifdef HAVE_FDATASYNC
     async([&]() { ret = fdatasync(fd); });
@@ -715,9 +737,6 @@ int swoole_coroutine_fdatasync(int fd) {
     async([&]() { ret = sw_fsync(fd); });
 #endif
     return ret;
-#else
-    return Iouring::fdatasync(fd);
-#endif
 }
 
 int swoole_coroutine_ftruncate(int fd, off_t length) {
@@ -725,13 +744,14 @@ int swoole_coroutine_ftruncate(int fd, off_t length) {
         return sw_ftruncate(fd, length);
     }
 
-#if defined(SW_USE_ASYNC) || !defined(HAVE_IOURING_FTRUNCATE)
+#if !defined(SW_USE_ASYNC) && defined(HAVE_IOURING_FTRUNCATE)
+    if (sw_likely(Iouring::available())) {
+        return Iouring::ftruncate(fd, length);
+    }
+#endif
     int ret = -1;
     async([&]() { ret = sw_ftruncate(fd, length); });
     return ret;
-#else
-    return Iouring::ftruncate(fd, length);
-#endif
 }
 
 off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
