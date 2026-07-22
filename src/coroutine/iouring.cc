@@ -73,6 +73,7 @@ struct IouringEvent {
     }
 };
 
+#if defined(HAVE_IOURING_FUTEX) || defined(HAVE_IOURING_FTRUNCATE)
 static void parse_kernel_version(const char *release, int *major, int *minor) {
     char copy[SW_STRUCT_MEMBER_SIZE(utsname, release)];
     strcpy(copy, release);
@@ -83,6 +84,13 @@ static void parse_kernel_version(const char *release, int *major, int *minor) {
     token = strtok(nullptr, ".-");
     *minor = token ? sw_atoi(token) : 0;
 }
+
+static bool runtime_kernel_at_least(int required_major, int required_minor) {
+    int major, minor;
+    parse_kernel_version(SwooleG.uname.release, &major, &minor);
+    return (major > required_major) || (major == required_major && minor >= required_minor);
+}
+#endif
 
 Iouring::Iouring(Reactor *_reactor) {
     reactor = _reactor;
@@ -112,18 +120,18 @@ Iouring::Iouring(Reactor *_reactor) {
         }
     }
 
-    int major, minor;
-    parse_kernel_version(SwooleG.uname.release, &major, &minor);
-
 #ifdef HAVE_IOURING_FUTEX
-    if (!((major > 6) || (major == 6 && minor >= 7))) {
-        swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
+    if (!futex_available()) {
+        // Not fatal: the callers of Iouring::futex_wait()/Iouring::futex_wakeup() fall back to the
+        // timer-based implementation.
+        swoole_warning("Iouring::futex_wait()/Iouring::futex_wakeup() requires a `6.7` or higher Linux kernel");
     }
 #endif
 
 #ifdef HAVE_IOURING_FTRUNCATE
-    if (!((major > 6) || (major == 6 && minor >= 9))) {
-        swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
+    if (!ftruncate_available()) {
+        // Not fatal: the callers of Iouring::ftruncate() fall back to the thread-pool based async I/O.
+        swoole_warning("Iouring::ftruncate() requires a `6.9` or higher Linux kernel");
     }
 #endif
 
@@ -392,6 +400,24 @@ bool Iouring::available() {
     }();
     return available_;
 }
+
+#ifdef HAVE_IOURING_FUTEX
+bool Iouring::futex_available() {
+    // IORING_OP_FUTEX_WAIT/IORING_OP_FUTEX_WAKE were detected at build time from the build host's kernel;
+    // the runtime kernel may be older, so it must be checked again here.
+    static const bool available_ = Iouring::available() && runtime_kernel_at_least(6, 7);
+    return available_;
+}
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+bool Iouring::ftruncate_available() {
+    // IORING_OP_FTRUNCATE was detected at build time from the build host's kernel;
+    // the runtime kernel may be older, so it must be checked again here.
+    static const bool available_ = Iouring::available() && runtime_kernel_at_least(6, 9);
+    return available_;
+}
+#endif
 
 ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();

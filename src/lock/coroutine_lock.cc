@@ -61,7 +61,7 @@ int CoroutineLock::unlock() {
     coroutine = nullptr;
 
 #ifdef HAVE_IOURING_FUTEX
-    if (sw_likely(Iouring::available())) {
+    if (sw_likely(Iouring::futex_available())) {
         return Iouring::futex_wakeup((uint32_t *) value) >= 0 ? 0 : errno;
     }
 #endif
@@ -92,7 +92,7 @@ int CoroutineLock::lock_impl(bool blocking) {
         }
 
 #ifdef HAVE_IOURING_FUTEX
-        if (sw_likely(Iouring::available())) {
+        if (sw_likely(Iouring::futex_available())) {
             result = Iouring::futex_wait((uint32_t *) value);
             if (result != 0) {
                 return errno;

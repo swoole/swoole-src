@@ -73,6 +73,26 @@ class Iouring {
      */
     static bool available();
 
+#ifdef HAVE_IOURING_FUTEX
+    /**
+     * Whether the io_uring futex operations (IORING_OP_FUTEX_WAIT/IORING_OP_FUTEX_WAKE) are usable: io_uring itself
+     * is available and the runtime kernel is 6.7 or higher. The support is detected at build time from the build
+     * host's kernel, so a binary built on a newer kernel may run on an older one. The result is probed once and
+     * cached; callers should fall back to the timer-based implementation when this returns false.
+     */
+    static bool futex_available();
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    /**
+     * Whether IORING_OP_FTRUNCATE is usable: io_uring itself is available and the runtime kernel is 6.9 or higher.
+     * The support is detected at build time from the build host's kernel, so a binary built on a newer kernel may
+     * run on an older one. The result is probed once and cached; callers should fall back to the thread-pool based
+     * async I/O when this returns false.
+     */
+    static bool ftruncate_available();
+#endif
+
     bool is_empty_waiting_tasks() const {
         return waiting_tasks.empty();
     }

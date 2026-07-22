@@ -745,7 +745,7 @@ int swoole_coroutine_ftruncate(int fd, off_t length) {
     }
 
 #if !defined(SW_USE_ASYNC) && defined(HAVE_IOURING_FTRUNCATE)
-    if (sw_likely(Iouring::available())) {
+    if (sw_likely(Iouring::ftruncate_available())) {
         return Iouring::ftruncate(fd, length);
     }
 #endif
