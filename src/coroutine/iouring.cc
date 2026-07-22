@@ -138,6 +138,18 @@ Iouring::Iouring(Reactor *_reactor) {
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
     ring_socket->object = this;
 
+    if (reactor->add(ring_socket, SW_EVENT_READ) == SW_ERR) {
+        // Not fatal: dispose of the ring so that ready() returns false, Iouring::execute() fails with
+        // ENOTSUP, and callers fall back to the thread-pool based async I/O. The reactor callbacks below
+        // are deliberately not registered, so nothing ever touches the released ring.
+        swoole_sys_warning("Failed to add the io_uring ring fd to the event loop");
+        ring_socket->move_fd();
+        ring_socket->free();
+        ring_socket = nullptr;
+        io_uring_queue_exit(&ring);
+        return;
+    }
+
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOURING, [](Reactor *reactor, size_t &event_num) -> bool {
         if (SwooleTG.iouring && SwooleTG.iouring->get_task_num() == 0 && SwooleTG.iouring->is_empty_waiting_tasks()) {
             event_num--;
@@ -161,10 +173,6 @@ Iouring::Iouring(Reactor *_reactor) {
     });
 
     reactor->iouring_interrupt_handler = [this](Reactor *reactor) { wakeup(); };
-
-    if (reactor->add(ring_socket, SW_EVENT_READ) == SW_ERR) {
-        swoole_sys_error("Failed to add io_uring ring fd to the event loop");
-    }
 }
 
 Iouring::~Iouring() {
