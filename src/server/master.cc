@@ -22,6 +22,7 @@
 #include "swoole_hash.h"
 
 #include "swoole_api.h"
+#include "swoole_coroutine_api.h"
 
 #include <cassert>
 #include <net/if.h>
@@ -1433,10 +1434,20 @@ int Server::schedule_worker(int fd, SendData *data) {
  * [Master] send to client or append to out_buffer
  * @return SW_OK or SW_ERR
  */
-int Server::send_to_connection(const SendData *_send) const {
+int Server::send_to_connection(SendData *_send) const {
     const SessionId session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
+
+    // A SEND_FILE event that owns its file is dropped here before reaching sendfile_async(),
+    // so delete the file and clear the token before returning an error.
+    auto drop_owned_sendfile = [](SendData *_send) {
+        if (_send->info.type == SW_SERVER_EVENT_SEND_FILE && (_send->info.ext_flags & SW_SERVER_SENDFILE_DELETE)) {
+            const auto *task = reinterpret_cast<const SendfileTask *>(_send->data);
+            swoole_coroutine_unlink(task->filename);
+            _send->info.ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
+        }
+    };
 
     Connection *conn;
     if (_send->info.type != SW_SERVER_EVENT_CLOSE) {
@@ -1458,6 +1469,7 @@ int Server::send_to_connection(const SendData *_send) const {
                              _send->info.type,
                              session_id);
         }
+        drop_owned_sendfile(_send);
         return SW_ERR;
     }
 
@@ -1476,6 +1488,7 @@ int Server::send_to_connection(const SendData *_send) const {
         } else {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
         }
+        drop_owned_sendfile(_send);
         return SW_ERR;
     }
 
@@ -1559,7 +1572,11 @@ int Server::send_to_connection(const SendData *_send) const {
         conn->close_queued = 1;
     } else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         auto *task = (SendfileTask *) _send_data;
-        if (conn->socket->sendfile_async(task->filename, task->offset, task->length) < 0) {
+        // Hand the delete token to the request that now owns the transfer, and clear it from
+        // the event so a synchronous base/thread caller does not delete the file again.
+        const bool delete_file = _send->info.ext_flags & SW_SERVER_SENDFILE_DELETE;
+        _send->info.ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
+        if (conn->socket->sendfile_async(task->filename, task->offset, task->length, delete_file) < 0) {
             return false;
         }
     } else {
@@ -1625,6 +1642,12 @@ bool Server::notify(Connection *conn, ServerEventType event) const {
  * @process Worker
  */
 bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) const {
+    bool delete_file = false;
+    return sendfile(session_id, file, l_file, offset, length, delete_file);
+}
+
+bool Server::sendfile(
+    SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length, bool &delete_file) const {
     if (sw_unlikely(session_id <= 0)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld]", session_id);
         return false;
@@ -1677,9 +1700,20 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
     send_data.info.fd = session_id;
     send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
     send_data.info.len = sizeof(SendfileTask) + l_file + 1;
+    // Validation has passed, so ownership of the file moves into the SEND_FILE event.
+    send_data.info.ext_flags = delete_file ? SW_SERVER_SENDFILE_DELETE : 0;
     send_data.data = _buffer;
+    delete_file = false;
 
-    return factory_->finish(&send_data);
+    const bool accepted = factory_->finish(&send_data);
+
+    // The handoff failed before any layer consumed the event token, so clean up here. A
+    // synchronous base/thread path that already handled cleanup has cleared the flag.
+    if (!accepted && (send_data.info.ext_flags & SW_SERVER_SENDFILE_DELETE)) {
+        swoole_coroutine_unlink(req->filename);
+    }
+
+    return accepted;
 }
 
 /**
