@@ -547,7 +547,8 @@ bool Server::select_static_handler(const http_server::Request *request, const Co
     }
 
     char header_buffer[1024];
-    SendData response;
+    // Value-initialize so ext_flags is zero: static SEND_FILE events never opt into deletion.
+    SendData response{};
     response.info.fd = conn->session_id;
     response.info.type = SW_SERVER_EVENT_SEND_DATA;
 
