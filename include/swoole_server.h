@@ -689,6 +689,12 @@ enum ServerEventType {
     SW_SERVER_EVENT_SHUTDOWN_SIGNAL,
 };
 
+// Carried in DataHead::ext_flags of a SW_SERVER_EVENT_SEND_FILE event: the event owns the file
+// and must delete it once the native transfer terminates.
+enum ServerSendfileFlag {
+    SW_SERVER_SENDFILE_DELETE = 1u << 0,
+};
+
 class Server {
   public:
     typedef int (*DispatchFunction)(Server *, Connection *, SendData *);
@@ -1606,7 +1612,7 @@ class Server {
     static int close_connection(Reactor *reactor, network::Socket *_socket);
     static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
 
-    int send_to_connection(const SendData *) const;
+    int send_to_connection(SendData *) const;
     ssize_t send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags);
     bool has_kernel_nobufs_error(SessionId session_id) const;
 
@@ -1628,6 +1634,8 @@ class Server {
      * It will read the file from disk and send it to the client.
      */
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) const;
+    bool sendfile(
+        SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length, bool &delete_file) const;
     bool sendwait(SessionId session_id, const void *data, uint32_t length) const;
     bool close(SessionId session_id, bool reset = false) const;
 
