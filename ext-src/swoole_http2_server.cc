@@ -720,11 +720,15 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
 #endif
 
     SW_LOOP {
-        if (ctx->send_chunked && body->length == 0 && !stream->send_end_stream_data_frame()) {
-            break;
+        if (body->length == 0) {
+            // Trailer HEADERS carry END_STREAM, so only trailerless streamed responses need an empty DATA frame.
+            if (ctx->send_chunked && !ztrailer && !stream->send_end_stream_data_frame()) {
+                break;
+            }
         } else if (!stream->send_body(body, end_stream, client)) {
             break;
-        } else if (ztrailer && !stream->send_trailer()) {
+        }
+        if (ztrailer && !stream->send_trailer()) {
             break;
         }
         error = false;
