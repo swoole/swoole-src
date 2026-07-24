@@ -2961,13 +2961,15 @@ static PHP_METHOD(swoole_server, sendfile) {
     size_t len;
     zend_long offset = 0;
     zend_long length = 0;
+    zend_bool delete_file = false;
 
-    ZEND_PARSE_PARAMETERS_START(2, 4)
+    ZEND_PARSE_PARAMETERS_START(2, 5)
     Z_PARAM_LONG(fd)
     Z_PARAM_STRING(filename, len)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(offset)
     Z_PARAM_LONG(length)
+    Z_PARAM_BOOL(delete_file)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (serv->is_master()) {
@@ -2983,7 +2985,7 @@ static PHP_METHOD(swoole_server, sendfile) {
         RETURN_FALSE;
     }
 
-    RETURN_BOOL(serv->sendfile(fd, filename, len, offset, length));
+    RETURN_BOOL(serv->sendfile(fd, filename, len, offset, length, delete_file));
 }
 
 static PHP_METHOD(swoole_server, close) {

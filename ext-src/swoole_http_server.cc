@@ -45,7 +45,7 @@ static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> server_ips;
 static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
-static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length);
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file);
 static bool http_context_disconnect(HttpContext *ctx);
 
 static void http_server_process_request(const Server *serv, zend::Callable *cb, HttpContext *ctx) {
@@ -358,9 +358,9 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     return retval;
 }
 
-static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file) {
     auto *serv = ctx->get_async_server();
-    return serv->sendfile(ctx->fd, file->val, file->len, offset, length);
+    return serv->sendfile(ctx->fd, file->val, file->len, offset, length, delete_file);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {
