@@ -3,7 +3,7 @@ namespace Swoole\Http {
 	class Response {
 		public function write(string $content): bool {}
 		public function end(?string $content = null): bool {}
-		public function sendfile(string $filename, int $offset = 0, int $length = 0): bool {}
+		public function sendfile(string $filename, int $offset = 0, int $length = 0, bool $delete_file = false): bool {}
 		public function redirect(string $location, int $http_code = 302): bool {}
 		public function cookie(\Swoole\Http\Cookie|string $name_or_object , string $value = '', int $expires = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = '', bool $partitioned = false): bool {}
 		public function rawcookie(string $name, string $value = '', int $expires = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = '', bool $partitioned = false): bool {}
