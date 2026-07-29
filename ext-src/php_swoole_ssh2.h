@@ -7,6 +7,10 @@
 #include <libssh2_sftp.h>
 #include <libssh2_publickey.h>
 
+#if LIBSSH2_VERSION_NUM < 0x010900
+#error "Swoole SSH2 support requires libssh2 1.9.0 or newer"
+#endif
+
 typedef struct _php_ssh2_session_data {
     /* Userspace callback functions */
     zval *ignore_cb;
@@ -15,6 +19,11 @@ typedef struct _php_ssh2_session_data {
     zval *disconnect_cb;
 
     SocketImpl *socket;
+
+    /* Keyboard-interactive password for the in-flight auth attempt. This lives
+     * on the session so concurrent coroutines cannot overwrite callback state. */
+    const char *kbd_password;
+    size_t kbd_password_len;
 } php_ssh2_session_data;
 
 static inline swoole::EventType ssh2_get_event_type(LIBSSH2_SESSION *session) {

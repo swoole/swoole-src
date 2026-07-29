@@ -40,6 +40,13 @@ function ssh2_methods_negotiated($session): array {}
 function ssh2_fingerprint($session, int $flags = 0) {}
 
 /**
+ * Retrieve the raw host key from the remote server
+ * @param resource $session The SSH session
+ * @return array|false Returns the raw host key and type on success, or false on failure
+ */
+function ssh2_hostkey($session): array|false {}
+
+/**
  * Authenticate as "none"
  * @param resource $session The SSH session
  * @param string $username The username to authenticate as
@@ -54,7 +61,7 @@ function ssh2_auth_none($session, string $username): bool {}
  * @param string $password The password to use for authentication
  * @return bool Returns true on success or false on failure
  */
-function ssh2_auth_password($session, string $username, string $password): bool {}
+function ssh2_auth_password($session, string $username, #[\SensitiveParameter] string $password): bool {}
 
 /**
  * Authenticate using a public key
@@ -65,7 +72,7 @@ function ssh2_auth_password($session, string $username, string $password): bool 
  * @param string $passphrase [optional] The passphrase for the private key
  * @return bool Returns true on success or false on failure
  */
-function ssh2_auth_pubkey_file($session, string $username, string $pubkeyfile, string $privkeyfile, ?string $passphrase = null): bool {}
+function ssh2_auth_pubkey_file($session, string $username, string $pubkeyfile, string $privkeyfile, #[\SensitiveParameter] ?string $passphrase = null): bool {}
 
 /**
  * Authenticate using a public key
@@ -76,7 +83,7 @@ function ssh2_auth_pubkey_file($session, string $username, string $pubkeyfile, s
  * @param string $passphrase [optional] The passphrase for the private key
  * @return bool Returns true on success or false on failure
  */
-function ssh2_auth_pubkey($session, string $username, string $pubkey, string $privkey, ?string $passphrase = null): bool {}
+function ssh2_auth_pubkey($session, string $username, string $pubkey, #[\SensitiveParameter] string $privkey, #[\SensitiveParameter] ?string $passphrase = null): bool {}
 
 /**
  * Authenticate using a public hostkey
@@ -89,7 +96,7 @@ function ssh2_auth_pubkey($session, string $username, string $pubkey, string $pr
  * @param string $local_username [optional] The local username
  * @return bool Returns true on success or false on failure
  */
-function ssh2_auth_hostbased_file($session, string $username, string $hostname, string $pubkeyfile, string $privkeyfile, ?string $passphrase = null, ?string $local_username = null): bool {}
+function ssh2_auth_hostbased_file($session, string $username, string $hostname, string $pubkeyfile, string $privkeyfile, #[\SensitiveParameter] ?string $passphrase = null, ?string $local_username = null): bool {}
 
 /**
  * Request SSH port forwarding
@@ -131,14 +138,14 @@ function ssh2_shell_resize($session, int $width, int $height): bool {}
  * Execute a command on a remote server
  * @param resource $session The SSH session
  * @param string $command The command to execute
- * @param bool $pty [optional] Whether to allocate a pseudo-terminal
+ * @param string|null $pty [optional] The remote terminal type to allocate, or null for no pseudo-terminal
  * @param array $env [optional] Environment variables
  * @param int $width [optional] Width of the terminal
  * @param int $height [optional] Height of the terminal
  * @param int $width_height_type [optional] Type of width/height measurement
  * @return resource|false Returns a stream resource on success, or false on failure
  */
-function ssh2_exec($session, string $command, bool $pty = false, ?array $env = null, int $width = 80, int $height = 25, int $width_height_type = 0) {}
+function ssh2_exec($session, string $command, ?string $pty = null, ?array $env = null, int $width = 80, int $height = 25, int $width_height_type = 0) {}
 
 /**
  * Open a tunnel through a remote server
