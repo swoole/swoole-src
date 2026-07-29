@@ -1305,7 +1305,6 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client->default_ctx->onBeforeRequest = http2_server_onBeforeRequest;
         client->max_body_size = serv->get_package_max_length(conn);
         client->handle = http2_server_onRequest;
-        http2_sessions.emplace(session_id, client);
     } else {
         client = iter->second;
     }
@@ -1339,7 +1338,15 @@ void swoole_http2_server_session_free(SessionId session_id) {
     if (iter == http2_sessions.end()) {
         return;
     }
-    /* default_ctx does not blong to session object */
-    iter->second->default_ctx = nullptr;
+    if (iter->second->is_coro) {
+        // A coroutine session borrows default_ctx from its request/response objects; an async session owns it.
+        iter->second->default_ctx = nullptr;
+    }
     http2_sessions.erase(iter);
+}
+
+void swoole_http2_server_release_sessions() {
+    while (!http2_sessions.empty()) {
+        swoole_http2_server_session_free(http2_sessions.begin()->first);
+    }
 }

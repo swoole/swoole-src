@@ -40,6 +40,7 @@ int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn
 
 std::shared_ptr<swoole::http2::Session> swoole_http2_server_session_new(swoole::SessionId fd);
 void swoole_http2_server_session_free(swoole::SessionId fd);
+void swoole_http2_server_release_sessions();
 
 bool swoole_http2_server_end(swoole::http::Context *ctx, zend_string *sdata);
 bool swoole_http2_server_write(swoole::http::Context *ctx, zend_string *sdata);

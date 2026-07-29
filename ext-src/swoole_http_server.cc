@@ -192,6 +192,8 @@ void php_swoole_http_server_rshutdown() {
         SG(rfc1867_uploaded_files) = nullptr;
     }
 
+    // A fatal bailout can leave HTTP/2 sessions here; free them before Zend tears down the allocator nghttp2 uses.
+    swoole_http2_server_release_sessions();
     server_ips.clear();
     client_ips.clear();
     while (!queued_http_contexts.empty()) {
