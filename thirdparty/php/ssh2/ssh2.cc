@@ -906,6 +906,10 @@ PHP_FUNCTION(ssh2_forward_accept) {
         RETURN_FALSE;
     }
 
+    if (!php_ssh2_session_is_open(data->session_rsrc)) {
+        RETURN_FALSE;
+    }
+
     auto session = data->session;
     channel = libssh2_channel_forward_accept(data->listener);
 
@@ -916,7 +920,9 @@ PHP_FUNCTION(ssh2_forward_accept) {
     channel_data = (php_ssh2_channel_data *) emalloc(sizeof(php_ssh2_channel_data));
     channel_data->channel = channel;
     channel_data->streamid = 0;
-    channel_data->is_blocking = 0;
+    channel_data->is_blocking = 1;
+    channel_data->timeout = 0;
+    channel_data->timeout_event = false;
     channel_data->session_rsrc = data->session_rsrc;
     channel_data->refcount = NULL;
 
@@ -992,6 +998,10 @@ PHP_FUNCTION(ssh2_publickey_add) {
 
     if ((data = (php_ssh2_pkey_subsys_data *) zend_fetch_resource(
              Z_RES_P(zpkey_data), PHP_SSH2_PKEY_SUBSYS_RES_NAME, le_ssh2_pkey_subsys)) == NULL) {
+        RETURN_FALSE;
+    }
+
+    if (!php_ssh2_session_is_open(data->session_rsrc)) {
         RETURN_FALSE;
     }
 
@@ -1097,6 +1107,10 @@ PHP_FUNCTION(ssh2_publickey_remove) {
         RETURN_FALSE;
     }
 
+    if (!php_ssh2_session_is_open(data->session_rsrc)) {
+        RETURN_FALSE;
+    }
+
     if (libssh2_publickey_remove_ex(data->pkey, (unsigned char *) algo, algo_len, (unsigned char *) blob, blob_len)) {
         php_error_docref(NULL, E_WARNING, "Unable to remove %s key", algo);
         RETURN_FALSE;
@@ -1121,6 +1135,10 @@ PHP_FUNCTION(ssh2_publickey_list) {
 
     if ((data = (php_ssh2_pkey_subsys_data *) zend_fetch_resource(
              Z_RES_P(zpkey_data), PHP_SSH2_PKEY_SUBSYS_RES_NAME, le_ssh2_pkey_subsys)) == NULL) {
+        RETURN_FALSE;
+    }
+
+    if (!php_ssh2_session_is_open(data->session_rsrc)) {
         RETURN_FALSE;
     }
 
@@ -1275,9 +1293,12 @@ static void php_ssh2_session_dtor(zend_resource *rsrc) {
 static void php_ssh2_listener_dtor(zend_resource *rsrc) {
     php_ssh2_listener_data *data = (php_ssh2_listener_data *) rsrc->ptr;
     LIBSSH2_LISTENER *listener = data->listener;
-    auto session = data->session;
 
-    libssh2_channel_forward_cancel(listener);
+    if (php_ssh2_session_is_open(data->session_rsrc)) {
+        auto session = data->session;
+        libssh2_channel_forward_cancel(listener);
+    }
+
     zend_list_delete(data->session_rsrc);
     efree(data);
 }
@@ -1286,7 +1307,10 @@ static void php_ssh2_pkey_subsys_dtor(zend_resource *rsrc) {
     php_ssh2_pkey_subsys_data *data = (php_ssh2_pkey_subsys_data *) rsrc->ptr;
     LIBSSH2_PUBLICKEY *pkey = data->pkey;
 
-    libssh2_publickey_shutdown(pkey);
+    if (php_ssh2_session_is_open(data->session_rsrc)) {
+        libssh2_publickey_shutdown(pkey);
+    }
+
     zend_list_delete(data->session_rsrc);
     efree(data);
 }
