@@ -342,6 +342,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
     headers.add(ZEND_STRL(":status"), intbuf[0], ret);
 
     uint32_t header_flags = 0x0;
+    std::vector<std::string> content_lengths;
 
     // headers
     if (ZVAL_IS_ARRAY(zheader)) {
@@ -352,7 +353,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
 
         zend_string *content_type = nullptr;
         auto add_header =
-            [ctx, body, &content_type](
+            [ctx, &content_type, &content_lengths](
                 Http2::HeaderSet &headers, const char *key, size_t l_key, zval *value, uint32_t &header_flags) {
                 if (ZVAL_IS_NULL(value)) {
                     return;
@@ -365,21 +366,14 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
                 if (SW_STRCASEEQ(key, l_key, "server")) {
                     header_flags |= HTTP_HEADER_SERVER;
                 } else if (SW_STRCASEEQ(key, l_key, "content-length")) {
-#ifdef SW_HAVE_COMPRESSION
-                    // A complete body that the client accepts compressed is length-normalized below,
-                    // so the explicit value cannot be trusted; a streamed body (body == nullptr) is not.
-                    if (body && ctx->accept_compression) {
-                        swoole_error_log(SW_LOG_WARNING,
-                                         SW_ERROR_HTTP_CONFLICT_HEADER,
-                                         "The client has set 'Accept-Encoding', 'Content-Length' will be ignored");
-                        return;
-                    }
-#endif
                     header_flags |= HTTP_HEADER_CONTENT_LENGTH;
-                    // An empty value keeps the field explicit, suppressing synthesis without emitting it.
-                    if (str_value.len() == 0) {
-                        return;
+                    // Defer the field until compression has actually succeeded. Accept-Encoding alone
+                    // is insufficient because compression may still be disabled by the representation
+                    // headers or skipped for a body below compression_min_length.
+                    if (str_value.len() > 0) {
+                        content_lengths.emplace_back(str_value.val(), str_value.len());
                     }
+                    return;
                 } else if (SW_STRCASEEQ(key, l_key, "content-encoding")) {
 #ifdef SW_HAVE_COMPRESSION
                     // The application owns the representation encoding; do not compress it again.
@@ -456,7 +450,30 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         SW_HASHTABLE_FOREACH_END();
     }
 
-    if (body) {
+    size_t content_length = body ? body->length : 0;
+    bool content_compressed = false;
+#ifdef SW_HAVE_COMPRESSION
+    if (body && ctx->compress(body->str, body->length)) {
+        content_compressed = true;
+        content_length = ctx->zlib_buffer->length;
+        const char *content_encoding = ctx->get_content_encoding();
+        headers.add(ZEND_STRL("content-encoding"), (char *) content_encoding, strlen(content_encoding));
+    }
+#endif
+
+    if (content_compressed) {
+        if (header_flags & HTTP_HEADER_CONTENT_LENGTH) {
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_HTTP_CONFLICT_HEADER,
+                             "The client has set 'Accept-Encoding', 'Content-Length' will be ignored");
+        }
+        ret = swoole_itoa(intbuf[1], content_length);
+        headers.add(ZEND_STRL("content-length"), intbuf[1], ret);
+    } else if (header_flags & HTTP_HEADER_CONTENT_LENGTH) {
+        for (const auto &value : content_lengths) {
+            headers.add(ZEND_STRL("content-length"), value.c_str(), value.length());
+        }
+    } else if (body) {
         // HTTP/2 keeps the method in the request_method server var, not in llhttp's parser.
         zval *zrequest_method = zend_hash_str_find(Z_ARR_P(ctx->request.zserver), ZEND_STRL("request_method"));
         bool is_head = zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING &&
@@ -464,16 +481,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
 
         // Synthesize a length only when the caller did not supply one, and never rewrite a
         // zero-length HEAD representation to an explicit zero.
-        if (!(header_flags & HTTP_HEADER_CONTENT_LENGTH) && (body->length > 0 || !is_head)) {
-            size_t content_length = body->length;
-#ifdef SW_HAVE_COMPRESSION
-            if (ctx->compress(body->str, body->length)) {
-                content_length = ctx->zlib_buffer->length;
-                // content encoding
-                const char *content_encoding = ctx->get_content_encoding();
-                headers.add(ZEND_STRL("content-encoding"), (char *) content_encoding, strlen(content_encoding));
-            }
-#endif
+        if (body->length > 0 || !is_head) {
             ret = swoole_itoa(intbuf[1], content_length);
             headers.add(ZEND_STRL("content-length"), intbuf[1], ret);
         }

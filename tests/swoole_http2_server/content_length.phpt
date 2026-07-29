@@ -82,6 +82,11 @@ $pm->parentFunc = function () use (
         Assert::same((string) $response->data, '');
         Assert::same($response->headers['content-length'], '12345');
 
+        // Advertising compression must not discard HEAD metadata when there is no body to compress.
+        $response = $fetch('/head-explicit', 'HEAD', ['accept-encoding' => 'gzip']);
+        Assert::same((string) $response->data, '');
+        Assert::same($response->headers['content-length'], '12345');
+
         // HEAD without an explicit length omits Content-Length instead of synthesizing zero.
         $response = $fetch('/head-empty', 'HEAD');
         Assert::same((string) $response->data, '');
@@ -92,6 +97,13 @@ $pm->parentFunc = function () use (
         $response = $fetch('/end-explicit');
         Assert::same($response->data, $explicit_body);
         Assert::same($response->headers['content-length'], '0000100');
+
+        // Accept-Encoding alone does not replace an explicit value when the body is below
+        // the compression threshold.
+        $response = $fetch('/end-explicit', 'GET', ['accept-encoding' => 'gzip']);
+        Assert::same($response->data, $explicit_body);
+        Assert::same($response->headers['content-length'], '0000100');
+        Assert::false(isset($response->headers['content-encoding']));
 
         // end($body) without an explicit value still synthesizes the body length.
         $response = $fetch('/end-plain');
@@ -111,7 +123,7 @@ $pm->parentFunc = function () use (
         $response = $fetch('/pre-encoded', 'GET', ['accept-encoding' => 'gzip']);
         Assert::same($response->data, $pre_encoded_plain);
         Assert::same($response->headers['content-encoding'], 'gzip');
-        Assert::same($response->headers['content-length'], (string) strlen($pre_encoded_gzip));
+        Assert::same($response->headers['content-length'], '000' . strlen($pre_encoded_gzip));
 
         // An empty explicit Content-Length suppresses the field rather than emitting an empty one.
         $response = $fetch('/empty-length');
@@ -141,6 +153,7 @@ $pm->childFunc = function () use (
         'log_file' => '/dev/null',
         'open_http2_protocol' => true,
         'http_compression' => true,
+        'http_compression_min_length' => 1024,
     ]);
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
@@ -179,8 +192,10 @@ $pm->childFunc = function () use (
                 $response->end($compressible_body);
                 break;
             case '/pre-encoded':
+                // Content-Length may be inserted before Content-Encoding; header order must
+                // not affect whether the explicit value survives.
+                $response->header('content-length', '000' . strlen($pre_encoded_gzip));
                 $response->header('content-encoding', 'gzip');
-                $response->header('content-length', (string) strlen($pre_encoded_gzip));
                 $response->end($pre_encoded_gzip);
                 break;
             case '/empty-length':
