@@ -131,6 +131,40 @@ class table_t {
     }
 };
 
+static TableValue table_int(Table *table, const char *column, long value) {
+    return TableValue(table->get_column(column), &value, sizeof(value));
+}
+
+static TableValue table_float(Table *table, const char *column, double value) {
+    return TableValue(table->get_column(column), &value, sizeof(value));
+}
+
+static TableValue table_string(Table *table, const char *column, const std::string &value) {
+    return TableValue(table->get_column(column), value.data(), value.size());
+}
+
+static TableValues table_row(Table *table, const row_t &value) {
+    return {
+        table_int(table, "id", value.id),
+        table_string(table, "name", value.name),
+        table_float(table, "score", value.score),
+    };
+}
+
+static row_t table_snapshot(Table *table, const std::string &data) {
+    row_t value;
+    const auto column_id = table->get_column("id");
+    const auto column_name = table->get_column("name");
+    const auto column_score = table->get_column("score");
+
+    memcpy(&value.id, data.data() + column_id->index, sizeof(value.id));
+    memcpy(&value.score, data.data() + column_score->index, sizeof(value.score));
+    TableStringLength length;
+    memcpy(&length, data.data() + column_name->index, sizeof(length));
+    value.name.assign(data.data() + column_name->index + sizeof(length), length);
+    return value;
+}
+
 TEST(table, create) {
     table_t table(1024);
     auto ptr = table.ptr();
@@ -160,6 +194,178 @@ TEST(table, create) {
 
     // Test with a string that is longer than the column size
     ASSERT_TRUE(table.set("golang", {"golang " TEST_JPG_MD5SUM TEST_JPG_MD5SUM, 3, 4.888}));
+}
+
+TEST(table, conditional_writes) {
+    table_t table(128);
+    auto ptr = table.ptr();
+
+    ASSERT_TRUE(ptr->add("empty", 5, {}));
+    row_t empty = table.get("empty");
+    ASSERT_EQ(empty.id, 0);
+    ASSERT_EQ(empty.name, "");
+    ASSERT_EQ(empty.score, 0);
+    ASSERT_EQ(ptr->insert_count, 1);
+
+    auto php = table_row(ptr, {"php", 1, 1.25});
+    ASSERT_TRUE(ptr->add("php", 3, php));
+    ASSERT_FALSE(ptr->add("php", 3, table_row(ptr, {"changed", 2, 2.5})));
+    ASSERT_EQ(ptr->insert_count, 2);
+    ASSERT_EQ(ptr->update_count, 0);
+    ASSERT_EQ(table.get("php").name, "php");
+
+    ASSERT_FALSE(ptr->update("missing", 7, php));
+    ASSERT_TRUE(ptr->update("php", 3, {}));
+    ASSERT_TRUE(ptr->update("php", 3, {table_string(ptr, "name", "updated")}));
+    ASSERT_EQ(ptr->update_count, 2);
+    ASSERT_EQ(table.get("php").name, "updated");
+
+    TableValues expected = {
+        table_int(ptr, "id", 1),
+        table_string(ptr, "name", "updated"),
+        table_float(ptr, "score", 1.25),
+    };
+    ASSERT_FALSE(ptr->cmpset("missing", 7, expected, {}));
+    ASSERT_FALSE(ptr->cmpset("php", 3, {table_int(ptr, "id", 2)}, {}));
+    ASSERT_FALSE(
+        ptr->cmpset("php",
+                    3,
+                    {table_int(ptr, "id", 2), table_string(ptr, "name", "updated"), table_float(ptr, "score", 1.25)},
+                    {}));
+    ASSERT_FALSE(ptr->cmpset(
+        "php", 3, {table_int(ptr, "id", 1), table_string(ptr, "name", "wrong"), table_float(ptr, "score", 1.25)}, {}));
+    ASSERT_FALSE(ptr->cmpset(
+        "php", 3, {table_int(ptr, "id", 1), table_string(ptr, "name", "updated"), table_float(ptr, "score", 2.5)}, {}));
+    ASSERT_TRUE(ptr->cmpset("php", 3, expected, {table_int(ptr, "id", 2)}));
+    ASSERT_EQ(ptr->update_count, 3);
+    ASSERT_EQ(table.get("php").id, 2);
+}
+
+TEST(table, exact_comparisons) {
+    table_t table(128);
+    auto ptr = table.ptr();
+
+    const std::string binary("a\0b", 3);
+    ASSERT_TRUE(ptr->add("binary", 6, {table_string(ptr, "name", binary)}));
+    ASSERT_TRUE(ptr->cmpset("binary", 6, {table_string(ptr, "name", binary)}, {}));
+    ASSERT_FALSE(ptr->cmpset("binary", 6, {table_string(ptr, "name", std::string("a\0c", 3))}, {}));
+
+    ASSERT_TRUE(ptr->add("capacity", 8, {table_string(ptr, "name", std::string(32, 'a'))}));
+    ASSERT_FALSE(ptr->cmpset("capacity", 8, {table_string(ptr, "name", std::string(33, 'a'))}, {}));
+
+    double positive_zero = 0.0;
+    uint64_t negative_zero_bits = 1ULL << 63;
+    double negative_zero;
+    memcpy(&negative_zero, &negative_zero_bits, sizeof(negative_zero));
+    ASSERT_TRUE(ptr->add("zero", 4, {table_float(ptr, "score", positive_zero)}));
+    ASSERT_FALSE(ptr->cmpset("zero", 4, {table_float(ptr, "score", negative_zero)}, {}));
+    ASSERT_TRUE(ptr->cmpset("zero", 4, {table_float(ptr, "score", positive_zero)}, {}));
+
+    uint64_t nan_bits = 0x7ff8000000000001ULL;
+    uint64_t other_nan_bits = 0x7ff8000000000002ULL;
+    double nan;
+    double other_nan;
+    memcpy(&nan, &nan_bits, sizeof(nan));
+    memcpy(&other_nan, &other_nan_bits, sizeof(other_nan));
+    ASSERT_TRUE(ptr->add("nan", 3, {table_float(ptr, "score", nan)}));
+    ASSERT_TRUE(ptr->cmpset("nan", 3, {table_float(ptr, "score", nan)}, {}));
+    ASSERT_FALSE(ptr->cmpset("nan", 3, {table_float(ptr, "score", other_nan)}, {}));
+}
+
+TEST(table, conditional_deletes_and_snapshots) {
+    table_t table(128);
+    auto ptr = table.ptr();
+
+    ASSERT_TRUE(ptr->add("php", 3, table_row(ptr, {std::string("p\0hp", 4), 42, 3.5})));
+    ASSERT_FALSE(ptr->cmpdel("php", 3, {table_int(ptr, "id", 41)}));
+    ASSERT_TRUE(table.exists("php"));
+
+    std::string data;
+    ASSERT_TRUE(ptr->getdel("php", 3, nullptr, &data));
+    row_t snapshot = table_snapshot(ptr, data);
+    ASSERT_EQ(snapshot.id, 42);
+    ASSERT_EQ(snapshot.name, std::string("p\0hp", 4));
+    ASSERT_EQ(snapshot.score, 3.5);
+    ASSERT_FALSE(table.exists("php"));
+
+    ASSERT_TRUE(ptr->add("field", 5, table_row(ptr, {"field", 99, 9.5})));
+    ASSERT_TRUE(ptr->getdel("field", 5, ptr->get_column("name"), &data));
+    TableStringLength length;
+    memcpy(&length, data.data(), sizeof(length));
+    ASSERT_EQ(std::string(data.data() + sizeof(length), length), "field");
+    ASSERT_FALSE(table.exists("field"));
+
+    ASSERT_TRUE(ptr->add("delete", 6, table_row(ptr, {"delete", 7, 1.0})));
+    ASSERT_TRUE(ptr->cmpdel("delete", 6, {table_int(ptr, "id", 7)}));
+    ASSERT_FALSE(table.exists("delete"));
+    ASSERT_EQ(ptr->delete_count, 3);
+}
+
+TEST(table, conditional_collision_chain) {
+    table_t table(128);
+    auto ptr = table.ptr();
+    ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    const uint32_t available = ptr->get_available_slice_num();
+    for (long i = 1; i <= 7; i++) {
+        std::string key = "k" + std::to_string(i);
+        ASSERT_TRUE(ptr->add(key.data(), key.size(), table_row(ptr, {key, i, (double) i})));
+    }
+
+    ASSERT_TRUE(ptr->update("k1", 2, {table_int(ptr, "id", 11)}));
+    ASSERT_TRUE(ptr->update("k4", 2, {table_int(ptr, "id", 14)}));
+    ASSERT_TRUE(ptr->update("k7", 2, {table_int(ptr, "id", 17)}));
+    ASSERT_EQ(table.get("k1").id, 11);
+    ASSERT_EQ(table.get("k4").id, 14);
+    ASSERT_EQ(table.get("k7").id, 17);
+
+    ASSERT_TRUE(ptr->cmpdel("k1", 2, {table_int(ptr, "id", 11)}));
+    ASSERT_TRUE(ptr->cmpdel("k4", 2, {table_int(ptr, "id", 14)}));
+    ASSERT_TRUE(ptr->cmpdel("k7", 2, {table_int(ptr, "id", 17)}));
+
+    std::string data;
+    ASSERT_TRUE(ptr->getdel("k2", 2, nullptr, &data));
+    ASSERT_EQ(table_snapshot(ptr, data).id, 2);
+    ASSERT_TRUE(ptr->getdel("k5", 2, ptr->get_column("id"), &data));
+    long id;
+    memcpy(&id, data.data(), sizeof(id));
+    ASSERT_EQ(id, 5);
+    ASSERT_TRUE(ptr->getdel("k6", 2, nullptr, &data));
+    ASSERT_EQ(table_snapshot(ptr, data).id, 6);
+
+    ASSERT_EQ(table.count(), 1);
+    ASSERT_TRUE(table.exists("k3"));
+    ASSERT_EQ(table.get("k3").id, 3);
+    ASSERT_EQ(ptr->get_available_slice_num(), available);
+}
+
+TEST(table, conditional_add_exhaustion) {
+    table_t table(4, 1.0);
+    auto ptr = table.ptr();
+    ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    const size_t capacity = 1 + ptr->get_total_slice_num();
+    for (size_t i = 0; i < capacity; i++) {
+        std::string key = "k" + std::to_string(i);
+        ASSERT_TRUE(ptr->add(key.data(), key.size(), table_row(ptr, {key, (long) i, (double) i})));
+    }
+
+    const auto insert_count = ptr->insert_count;
+    const auto conflict_count = ptr->conflict_count;
+    const auto conflict_max_level = ptr->conflict_max_level;
+    bool out_of_space = false;
+    ASSERT_FALSE(ptr->add("overflow", 8, table_row(ptr, {"overflow", 99, 99}), &out_of_space));
+    ASSERT_TRUE(out_of_space);
+    ASSERT_EQ(ptr->insert_count, insert_count);
+    ASSERT_EQ(ptr->conflict_count, conflict_count);
+    ASSERT_EQ(ptr->conflict_max_level, conflict_max_level);
+    ASSERT_EQ(table.count(), capacity);
+    ASSERT_TRUE(ptr->update("k0", 2, {table_int(ptr, "id", 100)}));
+
+    ASSERT_TRUE(ptr->cmpdel("k1", 2, {table_int(ptr, "id", 1)}));
+    ASSERT_TRUE(ptr->add("replacement", 11, table_row(ptr, {"replacement", 101, 101}), &out_of_space));
+    ASSERT_FALSE(out_of_space);
+    ASSERT_EQ(table.count(), capacity);
 }
 
 void start_iterator(Table *_ptr) {
