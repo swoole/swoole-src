@@ -125,6 +125,8 @@ class Coroutine {
         task = _task;
     }
 
+    void set_origin(Coroutine *co);
+
     void set_cancel_fn(CancelFunc *cancel_fn) {
         cancel_fn_ = cancel_fn;
     }
@@ -255,6 +257,10 @@ class Coroutine {
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
+    /* The coroutines resumed by this coroutine that are still alive */
+    Coroutine *first_child = nullptr;
+    Coroutine *prev_sibling = nullptr;
+    Coroutine *next_sibling = nullptr;
     CancelFunc *cancel_fn_ = nullptr;
 
     Coroutine(const CoroutineFunc &fn, void *private_data);
