@@ -642,14 +642,18 @@ bool Http2Stream::send_trailer() const {
 
     http_buffer->clear();
     ssize_t bytes = http2_server_build_trailer(ctx, (uchar *) header_buffer);
+    if (bytes < 0) {
+        return false;
+    }
+
+    http2::set_frame_header(
+        frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
+    http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
     if (bytes > 0) {
-        http2::set_frame_header(
-            frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
-        http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         http_buffer->append(header_buffer, bytes);
-        if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
-            return false;
-        }
+    }
+    if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
+        return false;
     }
 
     return true;
@@ -720,11 +724,15 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
 #endif
 
     SW_LOOP {
-        if (ctx->send_chunked && body->length == 0 && !stream->send_end_stream_data_frame()) {
-            break;
+        if (body->length == 0) {
+            // Trailer HEADERS carry END_STREAM, so only trailerless streamed responses need an empty DATA frame.
+            if (ctx->send_chunked && !ztrailer && !stream->send_end_stream_data_frame()) {
+                break;
+            }
         } else if (!stream->send_body(body, end_stream, client)) {
             break;
-        } else if (ztrailer && !stream->send_trailer()) {
+        }
+        if (ztrailer && !stream->send_trailer()) {
             break;
         }
         error = false;
