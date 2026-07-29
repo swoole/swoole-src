@@ -125,6 +125,68 @@ TEST(coroutine_base, expired_origin) {
     ASSERT_EQ(nullptr, Coroutine::get_by_cid(child_cid));
 }
 
+TEST(coroutine_base, tree_exit_any_order) {
+    /*
+     * A -> B -> C and A -> D -> E, then close the coroutines in every possible order.
+     * After each close, the origin of every surviving coroutine must be nullptr
+     * or point to a coroutine that is still alive (address present in the map).
+     */
+    std::vector<long> cid(5);
+
+    auto build_tree = [&cid]() {
+        cid[0] = Coroutine::create([&cid](void *) {          // A
+            cid[1] = Coroutine::create([&cid](void *) {      // B
+                cid[2] = Coroutine::create([](void *) {      // C
+                    Coroutine::get_current()->yield();
+                });
+                Coroutine::get_current()->yield();
+            });
+            cid[3] = Coroutine::create([&cid](void *) {      // D
+                cid[4] = Coroutine::create([](void *) {      // E
+                    Coroutine::get_current()->yield();
+                });
+                Coroutine::get_current()->yield();
+            });
+            Coroutine::get_current()->yield();
+        });
+    };
+
+    auto assert_no_dangling_origin = [&cid]() {
+        for (long i : cid) {
+            Coroutine *co = Coroutine::get_by_cid(i);
+            if (co == nullptr) {
+                continue;
+            }
+            Coroutine *origin = co->get_origin();
+            bool alive = (origin == nullptr);
+            for (long j : cid) {
+                if (Coroutine::get_by_cid(j) == origin) {
+                    alive = true;
+                    break;
+                }
+            }
+            EXPECT_TRUE(alive) << "cid=" << i << " holds a dangling origin=" << origin;
+        }
+    };
+
+    std::vector<long> order = {0, 1, 2, 3, 4};
+    size_t tested = 0;
+    do {
+        build_tree();
+        ASSERT_EQ(5, (int) Coroutine::count());
+        for (long i : order) {
+            Coroutine *co = Coroutine::get_by_cid(cid[i]);
+            ASSERT_NE(nullptr, co);
+            co->resume();
+            ASSERT_EQ(nullptr, Coroutine::get_by_cid(cid[i]));
+            assert_no_dangling_origin();
+        }
+        ASSERT_EQ(0, (int) Coroutine::count());
+        tested++;
+    } while (std::next_permutation(order.begin(), order.end()));
+    ASSERT_EQ(120, (int) tested);
+}
+
 TEST(coroutine_base, is_end) {
     Coroutine::create([](void *_arg) {
         auto co = Coroutine::get_current();
