@@ -106,6 +106,25 @@ TEST(coroutine_base, get_origin_cid) {
     });
 }
 
+TEST(coroutine_base, expired_origin) {
+    Coroutine *child = nullptr;
+    long child_cid = 0;
+
+    Coroutine::create([&](void *arg) {
+        child_cid = Coroutine::create([](void *arg) {
+            Coroutine::get_current()->yield();
+        });
+        child = Coroutine::get_by_cid(child_cid);
+    });
+
+    ASSERT_NE(nullptr, child);
+    ASSERT_EQ(nullptr, child->get_origin());
+    ASSERT_EQ(-1, child->get_origin_cid());
+
+    child->resume();
+    ASSERT_EQ(nullptr, Coroutine::get_by_cid(child_cid));
+}
+
 TEST(coroutine_base, is_end) {
     Coroutine::create([](void *_arg) {
         auto co = Coroutine::get_current();

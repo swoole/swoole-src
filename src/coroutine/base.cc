@@ -95,7 +95,7 @@ void Coroutine::check_end() {
 
 long Coroutine::run() {
     const long _cid = cid;
-    origin = current;
+    set_origin(current);
     current = this;
     CALC_EXECUTE_USEC(origin, nullptr);
     state = STATE_RUNNING;
@@ -164,7 +164,7 @@ void Coroutine::resume() {
     if (sw_likely(on_resume && task)) {
         on_resume(task);
     }
-    origin = current;
+    set_origin(current);
     current = this;
 
     CALC_EXECUTE_USEC(origin, this);
@@ -195,7 +195,44 @@ void Coroutine::close() {
 #endif
     current = origin;
     coroutines.erase(cid);
+    /*
+     * The coroutines resumed by this coroutine may still be suspended.
+     * Their origin must be cleared so that they will never reference the released memory of this coroutine.
+     */
+    while (first_child) {
+        Coroutine *child = first_child;
+        first_child = child->next_sibling;
+        child->origin = nullptr;
+        child->prev_sibling = nullptr;
+        child->next_sibling = nullptr;
+    }
+    set_origin(nullptr);
     delete this;
+}
+
+void Coroutine::set_origin(Coroutine *co) {
+    if (origin == co) {
+        return;
+    }
+    if (origin) {
+        if (prev_sibling) {
+            prev_sibling->next_sibling = next_sibling;
+        } else {
+            origin->first_child = next_sibling;
+        }
+        if (next_sibling) {
+            next_sibling->prev_sibling = prev_sibling;
+        }
+        prev_sibling = next_sibling = nullptr;
+    }
+    origin = co;
+    if (co) {
+        next_sibling = co->first_child;
+        if (next_sibling) {
+            next_sibling->prev_sibling = this;
+        }
+        co->first_child = this;
+    }
 }
 
 void Coroutine::print_list() {
