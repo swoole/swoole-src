@@ -5,8 +5,13 @@ namespace Swoole {
         public function column(string $name, int $type, int $size = 0): bool {}
         public function create(): bool {}
         public function set(string $key, array $value): bool {}
+        public function add(string $key, array $values): bool {}
+        public function update(string $key, array $values): bool {}
+        public function cmpset(string $key, array $expected, array $values): bool {}
         public function get(string $key, ?string $field = null): array|false|string|float|int {}
+        public function getdel(string $key, ?string $field = null): array|false|string|float|int {}
         public function del(string $key): bool {}
+        public function cmpdel(string $key, array $expected): bool {}
         public function exists(string $key): bool {}
         public function incr(string $key, string $column, int|float $incrby = 1): false|float|int {}
         public function decr(string $key, string $column, int|float $incrby = 1): false|float|int {}
