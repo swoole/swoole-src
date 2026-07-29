@@ -221,15 +221,15 @@ static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, in
         return PHP_STREAM_OPTION_RETURN_OK;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
-        ret = abstract->timeout;
 #ifdef PHP_SSH2_SESSION_TIMEOUT
         struct timeval tv = *(struct timeval *) ptrparam;
         abstract->timeout = tv.tv_sec * 1000 + (tv.tv_usec / 1000);
         abstract->timeout_event = false;
+        return PHP_STREAM_OPTION_RETURN_OK;
 #else
         php_error_docref(NULL, E_WARNING, "No support for ssh2 stream timeout. Please recompile with libssh2 >= 1.2.9");
+        return PHP_STREAM_OPTION_RETURN_ERR;
 #endif
-        return ret;
     }
     case PHP_STREAM_OPTION_CHECK_LIVENESS: {
         if (!php_ssh2_session_is_open(abstract->session_rsrc)) {

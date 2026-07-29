@@ -23,7 +23,8 @@ Co\run(function (): void {
         throw new RuntimeException('Failed to open the SSH channels.');
     }
 
-    stream_set_timeout($timedChannel, 0, 200000);
+    var_dump(stream_set_timeout($timedChannel, 0, 300000));
+    var_dump(stream_set_timeout($timedChannel, 0, 200000));
 
     $startedAt = microtime(true);
     var_dump(fread($timedChannel, 1));
@@ -47,6 +48,8 @@ Co\run(function (): void {
 });
 ?>
 --EXPECT--
+bool(true)
+bool(true)
 bool(false)
 bool(true)
 bool(true)

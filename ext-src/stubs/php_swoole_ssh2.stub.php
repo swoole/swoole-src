@@ -99,12 +99,14 @@ function ssh2_auth_hostbased_file($session, string $username, string $hostname, 
  * @param int $max_connections [optional] The maximum number of connections
  * @return resource|false Returns a listener resource on success, or false on failure
  */
-function ssh2_forward_listen($session, int $port, string $host = '127.0.0.1', int $max_connections = 1): resource|false {}
+function ssh2_forward_listen($session, int $port, string $host = '127.0.0.1', int $max_connections = 1) {}
 
 /**
  * Accept a connection created by ssh2_forward_listen
+ * @param resource $listener The SSH forwarding listener
+ * @return resource|false Returns a channel stream on success, or false on failure
  */
-function ssh2_forward_accept(resource $listener, ?string &$host = null, ?int &$port = null): resource|false {}
+function ssh2_forward_accept($listener, ?string &$host = null, ?int &$port = null) {}
 
 /**
  * Request an interactive shell

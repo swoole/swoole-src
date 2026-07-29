@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: dfaf05276c29a8606b576793221837fe7170806d */
+ * Stub hash: 0e2d087eabb673483b0c44dbed95d9511d3986e5 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_connect, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
@@ -58,15 +58,15 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_auth_hostbased_file, 0, 5, 
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, local_username, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_ssh2_forward_listen, 0, 2, resource, MAY_BE_FALSE)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_forward_listen, 0, 0, 2)
 	ZEND_ARG_INFO(0, session)
 	ZEND_ARG_TYPE_INFO(0, port, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'127.0.0.1\'")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, max_connections, IS_LONG, 0, "1")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_ssh2_forward_accept, 0, 1, resource, MAY_BE_FALSE)
-	ZEND_ARG_OBJ_INFO(0, listener, resource, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_forward_accept, 0, 0, 1)
+	ZEND_ARG_INFO(0, listener)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(1, host, IS_STRING, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(1, port, IS_LONG, 1, "null")
 ZEND_END_ARG_INFO()
