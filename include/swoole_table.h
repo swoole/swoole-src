@@ -40,6 +40,15 @@ typedef uint64_t (*HashFunc)(const char *key, size_t len);
 
 struct TableColumn;
 
+struct TableValue {
+    const TableColumn *column;
+    std::string data;
+
+    TableValue(const TableColumn *_column, const void *value, size_t length);
+};
+
+using TableValues = std::vector<TableValue>;
+
 struct TableRow {
     sw_atomic_t lock_;
     pid_t lock_pid;
@@ -157,6 +166,11 @@ class Table {
     TableColumn *get_column(const std::string &key) const;
     TableRow *set(const char *key, size_t keylen, TableRow **rowlock, int *out_flags);
     TableRow *get(const char *key, size_t keylen, TableRow **rowlock) const;
+    bool add(const char *key, size_t keylen, const TableValues &values, bool *out_of_space = nullptr);
+    bool update(const char *key, size_t keylen, const TableValues &values);
+    bool cmpset(const char *key, size_t keylen, const TableValues &expected, const TableValues &values);
+    bool cmpdel(const char *key, size_t keylen, const TableValues &expected);
+    bool getdel(const char *key, size_t keylen, const TableColumn *column, std::string *data);
     bool exists(const char *key, size_t keylen) const;
     bool del(const char *key, size_t keylen);
     void forward() const;
@@ -237,6 +251,12 @@ class Table {
         pool->free(tmp);
         unlock();
     }
+
+    TableRow *find_row(
+        TableRow *root, const char *key, size_t keylen, TableRow **previous, uint32_t *conflict_level = nullptr) const;
+    void delete_row(TableRow *root, TableRow *row, TableRow *previous);
+    static void apply_values(TableRow *row, const TableValues &values);
+    static bool match_values(const TableRow *row, const TableValues &expected);
 
     static bool is_valid_key_length(size_t keylen) {
         return keylen > 0 && keylen < SW_TABLE_KEY_SIZE;
