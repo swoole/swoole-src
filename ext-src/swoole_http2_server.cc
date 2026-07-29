@@ -30,7 +30,6 @@ using swoole::RecvData;
 using swoole::Server;
 using swoole::SessionId;
 using swoole::String;
-using swoole::coroutine::System;
 using swoole::http2::get_default_setting;
 using swoole::http_server::StaticHandler;
 
@@ -871,24 +870,15 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
     auto client = http2_sessions[ctx->fd];
     auto stream = client->get_stream(ctx->stream_id);
-    std::shared_ptr<String> body;
 
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
 #endif
-    if (swoole_coroutine_is_in()) {
-        body = System::read_file(ZSTR_VAL(file), false);
-        if (!body) {
-            return false;
-        }
-    } else {
-        File fp(ZSTR_VAL(file), O_RDONLY);
-        if (!fp.ready()) {
-            return false;
-        }
-        body = fp.read_content();
+
+    File fp(ZSTR_VAL(file), O_RDONLY);
+    if (!fp.ready()) {
+        return false;
     }
-    body->length = SW_MIN(length, body->length);
 
     zval *ztrailer =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
@@ -903,7 +893,11 @@ bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t of
     }
 
     bool end_stream = (ztrailer == nullptr);
-    if (!stream->send_header(body.get(), end_stream)) {
+
+    // Compression is disabled above, so send_header() reads only the transfer length.
+    String content_length{};
+    content_length.length = length;
+    if (!stream->send_header(&content_length, end_stream)) {
         return false;
     }
 
@@ -911,10 +905,39 @@ bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t of
     ctx->end_ = 1;
 
     bool error = false;
+    String chunk(SW_FILE_CHUNK_SIZE);
+    off_t file_offset = offset;
+    size_t remaining = length;
 
-    if (body->length > 0) {
-        if (!stream->send_body(body.get(), end_stream, client, offset, length)) {
+    while (remaining > 0) {
+        const size_t read_size = SW_MIN(remaining, chunk.size);
+        ssize_t n_read = -1;
+        auto read_chunk = [&]() { n_read = fp.pread(chunk.str, read_size, file_offset); };
+
+        if (swoole_coroutine_is_in()) {
+            if (!swoole::coroutine::async(read_chunk)) {
+                error = true;
+                break;
+            }
+        } else {
+            read_chunk();
+        }
+
+        // A positive short read is progress; a zero-length read before the requested
+        // range ends is a premature end of file.
+        if (n_read <= 0) {
             error = true;
+            break;
+        }
+
+        chunk.length = n_read;
+        file_offset += n_read;
+        remaining -= n_read;
+
+        const bool last_data = remaining == 0 && !ztrailer;
+        if (!stream->send_body(&chunk, last_data, client)) {
+            error = true;
+            break;
         }
     }
 
