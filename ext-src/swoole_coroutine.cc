@@ -678,7 +678,6 @@ void PHPCoroutine::on_close(void *arg) {
 }
 
 void PHPCoroutine::destroy_context(PHPContext *ctx) {
-    PHPContext *origin_ctx = get_origin_context(ctx);
 #ifdef SW_LOG_TRACE_OPEN
     // MUST be assigned here, the task memory may have been released
     long cid = ctx->co->get_cid();
@@ -712,6 +711,10 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
         ctx->defer_tasks = nullptr;
     }
 
+    /*
+     * Object destruction may yield and allow the origin coroutine to exit.
+     * Do not cache its context across resource cleanup; resolve it immediately before each use.
+     */
     // Release resources
     if (ctx->context) {
         zend_object *context = ctx->context;
@@ -725,7 +728,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
 
     Z_TRY_DELREF(ctx->return_value);
 
-    fiber_context_try_destroy(ctx, origin_ctx);
+    fiber_context_try_destroy(ctx, get_origin_context(ctx));
 
     swoole_trace_log(SW_TRACE_COROUTINE,
                      "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
@@ -736,7 +739,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
                      (uintmax_t) zend_memory_usage(1));
 
     zend_vm_stack_destroy();
-    restore_context(origin_ctx);
+    restore_context(get_origin_context(ctx));
 }
 
 void PHPCoroutine::main_func(void *_args) {
