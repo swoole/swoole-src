@@ -642,14 +642,18 @@ bool Http2Stream::send_trailer() const {
 
     http_buffer->clear();
     ssize_t bytes = http2_server_build_trailer(ctx, (uchar *) header_buffer);
+    if (bytes < 0) {
+        return false;
+    }
+
+    http2::set_frame_header(
+        frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
+    http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
     if (bytes > 0) {
-        http2::set_frame_header(
-            frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
-        http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
         http_buffer->append(header_buffer, bytes);
-        if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
-            return false;
-        }
+    }
+    if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
+        return false;
     }
 
     return true;

@@ -40,6 +40,14 @@ $pm->parentFunc = function () use ($pm) {
             Assert::same($response->headers['grpc-message'] ?? null, 'ok');
         }
 
+        // A trailer array may contain no encodable fields. Its empty HEADERS frame must still terminate the stream.
+        $request = new Http2Request;
+        $request->path = '/null-trailer';
+        Assert::greaterThan($client->send($request), 0);
+        $response = $client->recv();
+        Assert::same($response->data, BODY);
+        Assert::false(isset($response->headers['grpc-status']));
+
         // The connection stays usable for an ordinary request afterwards.
         $request = new Http2Request;
         $request->path = '/plain';
@@ -64,6 +72,12 @@ $pm->childFunc = function () use ($pm) {
             case '/stream-then-trailer':
                 $response->trailer('grpc-status', '0');
                 $response->trailer('grpc-message', 'ok');
+                $response->write('Hello, ');
+                $response->write('World!');
+                $response->end();
+                break;
+            case '/null-trailer':
+                $response->trailer('grpc-status', null);
                 $response->write('Hello, ');
                 $response->write('World!');
                 $response->end();
