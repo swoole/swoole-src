@@ -222,6 +222,7 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
 	ZEND_FE(ssh2_methods_negotiated, arginfo_ssh2_methods_negotiated)
 	ZEND_FE(ssh2_fingerprint, arginfo_ssh2_fingerprint)
+	ZEND_FE(ssh2_hostkey, arginfo_ssh2_hostkey)
 	ZEND_FE(ssh2_auth_none, arginfo_ssh2_auth_none)
 	ZEND_FE(ssh2_auth_password, arginfo_ssh2_auth_password)
 	ZEND_FE(ssh2_auth_pubkey_file, arginfo_ssh2_auth_pubkey_file)

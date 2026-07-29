@@ -5,6 +5,7 @@ ZEND_FUNCTION(ssh2_connect);
 ZEND_FUNCTION(ssh2_disconnect);
 ZEND_FUNCTION(ssh2_methods_negotiated);
 ZEND_FUNCTION(ssh2_fingerprint);
+ZEND_FUNCTION(ssh2_hostkey);
 ZEND_FUNCTION(ssh2_auth_none);
 ZEND_FUNCTION(ssh2_auth_password);
 ZEND_FUNCTION(ssh2_auth_pubkey_file);

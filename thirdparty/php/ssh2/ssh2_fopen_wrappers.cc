@@ -572,31 +572,24 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session,
 
     if (environment) {
         zend_string *key;
-        int key_type;
-        zend_ulong idx;
+        zval *value;
 
-        for (zend_hash_internal_pointer_reset(HASH_OF(environment));
-             (key_type = zend_hash_get_current_key(HASH_OF(environment), &key, &idx)) != HASH_KEY_NON_EXISTENT;
-             zend_hash_move_forward(HASH_OF(environment))) {
-            if (key_type == HASH_KEY_IS_STRING) {
-                zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(environment), key, value) {
+            if (key) {
+                zval copyval = *value;
 
-                if ((value = zend_hash_get_current_data(HASH_OF(environment))) != NULL) {
-                    zval copyval = *value;
+                zval_copy_ctor(&copyval);
+                convert_to_string(&copyval);
 
-                    zval_copy_ctor(&copyval);
-                    convert_to_string(&copyval);
-
-                    if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
-                        php_error_docref(
-                            NULL, E_WARNING, "Failed setting %s=%s on remote end", ZSTR_VAL(key), Z_STRVAL(copyval));
-                    }
-                    zval_dtor(&copyval);
+                if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
+                    php_error_docref(
+                        NULL, E_WARNING, "Failed setting environment variable %s on remote end", ZSTR_VAL(key));
                 }
+                zval_dtor(&copyval);
             } else {
                 php_error_docref(NULL, E_NOTICE, "Skipping numeric index in environment array");
             }
-        }
+        } ZEND_HASH_FOREACH_END();
     }
 
     if (type == PHP_SSH2_TERM_UNIT_CHARS) {
@@ -761,8 +754,8 @@ PHP_FUNCTION(ssh2_shell) {
     zend_long type = PHP_SSH2_DEFAULT_TERM_UNIT;
     int argc = ZEND_NUM_ARGS();
 
-    if (argc == 5) {
-        php_error_docref(NULL, E_ERROR, "width specified without height parameter");
+    if (argc == 4) {
+        php_error_docref(NULL, E_WARNING, "width specified without height parameter");
         RETURN_FALSE;
     }
 
@@ -847,32 +840,24 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
     }
 
     if (environment) {
-        zend_string *key = NULL;
-        int key_type;
-        zend_ulong idx = 0;
-        HashPosition pos;
+        zend_string *key;
+        zval *value;
 
-        for (zend_hash_internal_pointer_reset_ex(HASH_OF(environment), &pos);
-             (key_type = zend_hash_get_current_key_ex(HASH_OF(environment), &key, &idx, &pos)) != HASH_KEY_NON_EXISTENT;
-             zend_hash_move_forward_ex(HASH_OF(environment), &pos)) {
-            if (key_type == HASH_KEY_IS_STRING) {
-                zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(environment), key, value) {
+            if (key) {
+                zval copyval = *value;
 
-                if ((value = zend_hash_get_current_data(HASH_OF(environment))) != NULL) {
-                    zval copyval = *value;
-
-                    zval_copy_ctor(&copyval);
-                    convert_to_string(&copyval);
-                    if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
-                        php_error_docref(
-                            NULL, E_WARNING, "Failed setting %s=%s on remote end", ZSTR_VAL(key), Z_STRVAL(copyval));
-                    }
-                    zval_dtor(&copyval);
+                zval_copy_ctor(&copyval);
+                convert_to_string(&copyval);
+                if (libssh2_channel_setenv_ex(channel, key->val, key->len, Z_STRVAL(copyval), Z_STRLEN(copyval))) {
+                    php_error_docref(
+                        NULL, E_WARNING, "Failed setting environment variable %s on remote end", ZSTR_VAL(key));
                 }
+                zval_dtor(&copyval);
             } else {
                 php_error_docref(NULL, E_NOTICE, "Skipping numeric index in environment array");
             }
-        }
+        } ZEND_HASH_FOREACH_END();
     }
 
     if (term) {

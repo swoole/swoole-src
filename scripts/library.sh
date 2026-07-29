@@ -15,6 +15,9 @@ bash ./install-deps-on-ubuntu.sh
 
 # sshd
 apt install -y openssh-server
+mkdir -p /etc/ssh/sshd_config.d
+echo 'AcceptEnv SWOOLE_TEST_*' > /etc/ssh/sshd_config.d/swoole-tests.conf
+sshd -t
 service ssh start
 
 # MariaDB ODBC Connector

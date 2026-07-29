@@ -506,29 +506,32 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         sock->set_err(errno);
     }
 
-    if (didwrite < 0 || (size_t) didwrite != count) {
-        /* we do not expect the outer layer to continue to call the `send` syscall in a loop
-         * and `didwrite` is meaningless if it failed */
-        didwrite = -1;
-        abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
-        php_error_docref(nullptr,
-                         E_NOTICE,
-                         "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
-                         (zend_long) count,
-                         sock->errCode,
-                         sock->errMsg);
-    } else {
-        php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
-    }
-
+    // Preserve positive partial counts so PHP can retry the unwritten remainder.
     if (didwrite < 0) {
-        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
+        abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
+
+        if (sock->errCode != ETIMEDOUT && sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
             didwrite = 0;
         } else {
+            php_error_docref(nullptr,
+                             E_NOTICE,
+                             "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
+                             (zend_long) count,
+                             sock->errCode,
+                             sock->errMsg);
+
+            if (sock->errCode == ETIMEDOUT) {
+                didwrite = 0;
+            } else {
+                stream->eof = 1;
+            }
+        }
+    } else {
+        php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
+
+        if (didwrite == 0) {
             stream->eof = 1;
         }
-    } else if (didwrite == 0) {
-        stream->eof = 1;
     }
 
 _exit:
@@ -1057,7 +1060,7 @@ static inline int socket_xport_api(php_stream *stream, SocketImpl *sock, php_str
         }
         break;
     case STREAM_XPORT_OP_SHUTDOWN:
-        xparam->outputs.returncode = sock->shutdown(shutdown_how[xparam->how]);
+        xparam->outputs.returncode = sock->shutdown(shutdown_how[xparam->how]) ? 0 : -1;
         break;
     default:
 #ifdef SW_DEBUG
