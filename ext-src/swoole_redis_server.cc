@@ -102,6 +102,10 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
 
     zval zparams{};
     array_init(&zparams);
+    ON_SCOPE_EXIT {
+        zval_ptr_dtor(&zdata);
+        zval_ptr_dtor(&zparams);
+    };
 
     int state = Redis::STATE_RECEIVE_TOTAL_LINE;
     int add_param = 0;
@@ -175,6 +179,7 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     auto fci_cache = i->second;
     zval args[2];
     zval retval;
+    ZVAL_UNDEF(&retval);
 
     ZVAL_LONG(&args[0], fd);
     args[1] = zparams;
@@ -190,9 +195,9 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     if (Z_TYPE_P(&retval) == IS_STRING) {
         serv->send(fd, Z_STRVAL_P(&retval), Z_STRLEN_P(&retval));
     }
-    zval_ptr_dtor(&retval);
-    zval_ptr_dtor(&zdata);
-    zval_ptr_dtor(&zparams);
+    if (!Z_ISUNDEF(retval)) {
+        zval_ptr_dtor(&retval);
+    }
 
     return SW_OK;
 }
