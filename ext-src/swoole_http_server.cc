@@ -48,6 +48,13 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
 static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
 
+static void http_context_discard(HttpContext *ctx) {
+    ctx->end_ = 1;
+    ctx->onAfterResponse = nullptr;
+    zval_ptr_dtor(ctx->request.zobject);
+    zval_ptr_dtor(ctx->response.zobject);
+}
+
 static void http_server_process_request(const Server *serv, zend::Callable *cb, HttpContext *ctx) {
     zval args[2];
     args[0] = *ctx->request.zobject;
@@ -199,10 +206,7 @@ void php_swoole_http_server_rshutdown() {
     while (!queued_http_contexts.empty()) {
         HttpContext *ctx = queued_http_contexts.front();
         queued_http_contexts.pop();
-        ctx->end_ = 1;
-        ctx->onAfterResponse = nullptr;
-        zval_ptr_dtor(ctx->request.zobject);
-        zval_ptr_dtor(ctx->response.zobject);
+        http_context_discard(ctx);
     }
 }
 #endif
@@ -374,6 +378,7 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
     ctx->onBeforeRequest = nullptr;
     ctx->onAfterResponse = swoole_http_server_onAfterResponse;
     if (!sw_server() || !sw_worker() || sw_worker()->is_shutdown()) {
+        http_context_discard(ctx);
         return false;
     }
 
@@ -408,6 +413,7 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
             queued_http_contexts.pop();
             _ctx->send(_ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
             _ctx->close(_ctx);
+            http_context_discard(_ctx);
         }
         return;
     }
