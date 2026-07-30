@@ -406,6 +406,10 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
             queued_http_contexts.pop();
             _ctx->send(_ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
             _ctx->close(_ctx);
+            _ctx->end_ = 1;
+            _ctx->onAfterResponse = nullptr;
+            zval_ptr_dtor(_ctx->request.zobject);
+            zval_ptr_dtor(_ctx->response.zobject);
         }
         return;
     }
