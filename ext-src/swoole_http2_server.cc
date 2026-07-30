@@ -36,8 +36,6 @@ using Http2Stream = Http2::Stream;
 using Http2Session = Http2::Session;
 
 static SW_THREAD_LOCAL std::unordered_map<SessionId, std::shared_ptr<Http2Session>> http2_sessions;
-static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> server_ips;
-static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http2_server_respond(HttpContext *ctx, const String *body);
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler);
@@ -1308,8 +1306,6 @@ std::shared_ptr<Http2Session> swoole_http2_server_session_new(SessionId fd) {
 }
 
 void php_swoole_http2_server_onClose(Server *serv, SessionId session_id) {
-    server_ips.erase(session_id);
-    client_ips.erase(session_id);
     swoole_http2_server_session_free(session_id);
 }
 
