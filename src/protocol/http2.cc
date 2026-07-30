@@ -97,8 +97,6 @@ void set_http2_max_headers(uint32_t value) {
     }
 }
 
-void set_http2_max_headers(uint32_t value);
-
 static inline void pack_setting_item(char *_buf, enum swHttp2SettingId _id, uint32_t _value) {
     const uint16_t id = htons(_id);
     const uint32_t value = htonl(_value);
