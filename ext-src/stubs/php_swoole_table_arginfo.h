@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6f27e661a71cca25f9d93788ad1dc938f50f8a41 */
+ * Stub hash: 62c49ea2bccd88e927bd3434d65569b6a62215a3 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Table___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, table_size, IS_LONG, 0)
@@ -20,13 +20,33 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_set, 0, 2, _I
 	ZEND_ARG_TYPE_INFO(0, value, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_add, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, values, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_class_Swoole_Table_update arginfo_class_Swoole_Table_add
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_cmpset, 0, 3, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, expected, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO(0, values, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Table_get, 0, 1, MAY_BE_ARRAY|MAY_BE_FALSE|MAY_BE_STRING|MAY_BE_DOUBLE|MAY_BE_LONG)
 	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, field, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
+#define arginfo_class_Swoole_Table_getdel arginfo_class_Swoole_Table_get
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_del, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_cmpdel, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, expected, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Table_exists arginfo_class_Swoole_Table_del
