@@ -261,6 +261,14 @@ void php_swoole_firebird_minit(int module_id) {
 
     php_pdo_unregister_driver(&swoole_pdo_firebird_driver);
     php_pdo_register_driver(&swoole_pdo_firebird_driver);
+
+#if PHP_VERSION_ID >= 80400
+    auto *ce =
+        static_cast<zend_class_entry *>(zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("pdo\\firebird")));
+    if (ce) {
+        php_pdo_register_driver_specific_ce(&swoole_pdo_firebird_driver, ce);
+    }
+#endif
 }
 
 void php_swoole_firebird_mshutdown() {

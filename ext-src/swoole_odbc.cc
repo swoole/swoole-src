@@ -257,6 +257,14 @@ int php_swoole_odbc_minit(int module_id) {
     php_pdo_unregister_driver(&swoole_pdo_odbc_driver);
     php_pdo_register_driver(&swoole_pdo_odbc_driver);
 
+#if PHP_VERSION_ID >= 80400
+    auto *ce =
+        static_cast<zend_class_entry *>(zend_hash_str_find_ptr(CG(class_table), ZEND_STRL("pdo\\odbc")));
+    if (ce) {
+        php_pdo_register_driver_specific_ce(&swoole_pdo_odbc_driver, ce);
+    }
+#endif
+
     return SUCCESS;
 }
 
