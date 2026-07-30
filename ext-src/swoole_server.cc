@@ -671,6 +671,10 @@ static TaskId php_swoole_server_task_pack(zval *zdata, EventData *task) {
         php_var_serialize(&serialized_data, zdata, &var_hash);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);
 
+        if (UNEXPECTED(EG(exception))) {
+            smart_str_free(&serialized_data);
+            return -1;
+        }
         if (!serialized_data.s) {
             return -1;
         }
@@ -1087,6 +1091,11 @@ static bool php_swoole_server_task_finish(Server *serv, zval *zdata, EventData *
         PHP_VAR_SERIALIZE_INIT(var_hash);
         php_var_serialize(&serialized_data, zdata, &var_hash);
         PHP_VAR_SERIALIZE_DESTROY(var_hash);
+
+        if (UNEXPECTED(EG(exception)) || !serialized_data.s) {
+            smart_str_free(&serialized_data);
+            return false;
+        }
         data_str = ZSTR_VAL(serialized_data.s);
         data_len = ZSTR_LEN(serialized_data.s);
 
@@ -1342,9 +1351,13 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
         zval_ptr_dtor(&argv[1]);
     }
 
-    if (!ZVAL_IS_NULL(&retval)) {
+    if (Z_TYPE(retval) > IS_NULL) {
         php_swoole_server_task_finish(serv, &retval, req);
         zval_ptr_dtor(&retval);
+        // the result is serialized after zend::function::call() has already checked for callback exceptions
+        if (UNEXPECTED(EG(exception))) {
+            zend_exception_error(EG(exception), E_ERROR);
+        }
     }
 
     return SW_OK;
