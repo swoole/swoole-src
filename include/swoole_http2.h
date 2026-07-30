@@ -145,6 +145,8 @@ static sw_inline ssize_t get_length(const char *buf) {
 }
 
 void put_default_setting(enum swHttp2SettingId id, uint32_t value);
+void set_http2_max_headers(uint32_t value);
+uint32_t get_http2_max_headers();
 uint32_t get_default_setting(enum swHttp2SettingId id);
 size_t pack_setting_frame(char *buf, const Settings &settings, bool server_side);
 ReturnCode unpack_setting_data(const char *buf,

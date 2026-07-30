@@ -29,6 +29,8 @@ using swoole::network::Socket;
 namespace swoole {
 namespace http2 {
 
+static uint32_t max_headers = SW_HTTP2_DEFAULT_MAX_HEADERS;
+
 static Settings default_settings = {
     SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE,
     SW_HTTP2_DEFAULT_ENABLE_PUSH,
@@ -82,6 +84,16 @@ uint32_t get_default_setting(enum swHttp2SettingId id) {
     default:
         swoole_trace_log(SW_TRACE_HTTP2, "query unknown setting id=%u", id);
         return 0;
+    }
+}
+
+uint32_t get_http2_max_headers() {
+    return max_headers;
+}
+
+void set_http2_max_headers(uint32_t value) {
+    if (value > 0) {
+        max_headers = value;
     }
 }
 

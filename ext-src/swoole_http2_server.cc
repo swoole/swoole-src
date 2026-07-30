@@ -30,7 +30,6 @@ using swoole::RecvData;
 using swoole::Server;
 using swoole::SessionId;
 using swoole::String;
-using swoole::http2::get_default_setting;
 using swoole::http_server::StaticHandler;
 
 namespace Http2 = swoole::http2;
@@ -1033,6 +1032,9 @@ static int http2_server_parse_header(
     zval *zheader = ctx->request.zheader;
     zval *zserver = ctx->request.zserver;
 
+    uint32_t header_count = 0;
+    uint32_t max_headers = Http2::get_http2_max_headers();
+
     for (;;) {
         nghttp2_nv nv;
         int inflate_flags = 0;
@@ -1049,6 +1051,17 @@ static int http2_server_parse_header(
         inlen -= proclen;
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
+            header_count++;
+            if (header_count > max_headers) {
+                swoole_error_log(SW_LOG_WARNING,
+                                 SW_ERROR_HTTP2_TOO_MANY_HEADERS,
+                                 "http2 stream#%d exceeded max_headers limit (%u)",
+                                 ctx->stream_id,
+                                 max_headers);
+                nghttp2_hd_inflate_end_headers(inflater);
+                return SW_ERR;
+            }
+
             swoole_trace_log(SW_TRACE_HTTP2,
                              "name=(%zu)[" SW_ECHO_BLUE "], value=(%zu)[" SW_ECHO_CYAN "]",
                              nv.namelen,
@@ -1222,12 +1235,30 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
     case SW_HTTP2_TYPE_HEADERS: {
         auto stream = client->get_stream(stream_id);
         swoole_http2_frame_trace_log("%s", (stream ? "exist stream" : "new stream"));
+
         if (!stream) {
+            if (sw_unlikely(client->streams.size() >= client->local_settings.max_concurrent_streams)) {
+                swoole_error_log(SW_LOG_WARNING,
+                                 SW_ERROR_HTTP2_TOO_MANY_STREAMS,
+                                 "http2 stream#%d refused, max_concurrent_streams limit (%u) reached",
+                                 stream_id,
+                                 client->local_settings.max_concurrent_streams);
+
+                char rst_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE];
+                uint32_t error_code = htonl(SW_HTTP2_ERROR_REFUSED_STREAM);
+                memcpy(rst_frame + SW_HTTP2_FRAME_HEADER_SIZE, &error_code, sizeof(error_code));
+
+                Http2::set_frame_header(rst_frame, SW_HTTP2_TYPE_RST_STREAM, SW_HTTP2_RST_STREAM_SIZE, 0, stream_id);
+                client->default_ctx->send(client->default_ctx, rst_frame, sizeof(rst_frame));
+                break;
+            }
+
             stream = client->create_stream(stream_id);
             if (!stream) {
                 return SW_ERR;
             }
         }
+
         HttpContext *ctx = stream->ctx;
         if (http2_server_parse_header(client, ctx, flags, buf, length) < 0) {
             return SW_ERR;
@@ -1379,8 +1410,8 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     if (retval < 0) {
         client->default_ctx->close(client->default_ctx);
     }
-    zval_ptr_dtor(&zdata);
 
+    zval_ptr_dtor(&zdata);
     return SW_OK;
 }
 
