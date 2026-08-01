@@ -15,9 +15,14 @@ bash ./install-deps-on-ubuntu.sh
 
 # sshd
 apt install -y openssh-server
+if ! id -u swoole_ssh2_test_user > /dev/null 2>&1; then
+    useradd -m -s /bin/bash swoole_ssh2_test_user
+fi
+echo 'swoole_ssh2_test_user:swoole_ssh2_test_pass' | chpasswd
 mkdir -p /etc/ssh/sshd_config.d
-echo 'AcceptEnv SWOOLE_TEST_*' > /etc/ssh/sshd_config.d/swoole-tests.conf
-sshd -t
+printf '%s\n' 'AcceptEnv SWOOLE_TEST_*' 'PasswordAuthentication yes' > /etc/ssh/sshd_config.d/swoole-tests.conf
+mkdir -p /run/sshd
+sshd -t || { echo 'sshd configuration is invalid'; exit 1; }
 service ssh start
 
 # MariaDB ODBC Connector
