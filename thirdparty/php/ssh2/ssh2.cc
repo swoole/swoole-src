@@ -917,14 +917,7 @@ PHP_FUNCTION(ssh2_forward_accept) {
         RETURN_FALSE;
     }
 
-    channel_data = (php_ssh2_channel_data *) emalloc(sizeof(php_ssh2_channel_data));
-    channel_data->channel = channel;
-    channel_data->streamid = 0;
-    channel_data->is_blocking = 1;
-    channel_data->timeout = 0;
-    channel_data->timeout_event = false;
-    channel_data->session_rsrc = data->session_rsrc;
-    channel_data->refcount = NULL;
+    channel_data = php_ssh2_channel_data_create(channel, data->session_rsrc, false);
 
     stream = php_stream_alloc(&php_ssh2_channel_stream_ops, channel_data, 0, "r+");
     if (!stream) {

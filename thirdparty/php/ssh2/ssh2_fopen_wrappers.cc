@@ -54,6 +54,45 @@ static inline int php_ssh2_channel_eof_raw(LIBSSH2_CHANNEL *channel) {
     return (libssh2_channel_eof)(channel);
 }
 
+enum php_ssh2_channel_completion_state {
+    PHP_SSH2_CHANNEL_COMPLETION_COMPLETE,
+    PHP_SSH2_CHANNEL_COMPLETION_INCOMPLETE,
+    PHP_SSH2_CHANNEL_COMPLETION_ERROR,
+};
+
+static php_ssh2_channel_completion_state php_ssh2_channel_complete(php_ssh2_channel_data *abstract, bool may_block) {
+    if (!php_ssh2_channel_eof_raw(abstract->channel)) {
+        return PHP_SSH2_CHANNEL_COMPLETION_INCOMPLETE;
+    }
+    if (!abstract->wait_for_remote_close) {
+        return PHP_SSH2_CHANNEL_COMPLETION_COMPLETE;
+    }
+
+    int state;
+    if (may_block) {
+        auto session = ssh2_get_session(abstract);
+#ifdef PHP_SSH2_SESSION_TIMEOUT
+        const double timeout = abstract->timeout / 1000.0;
+#else
+        const double timeout = 0;
+#endif
+        state = ssh2_async_call(session,
+                                [&]() { return libssh2_channel_wait_closed(abstract->channel); },
+                                timeout,
+                                &abstract->timeout_event);
+    } else {
+        state = libssh2_channel_wait_closed(abstract->channel);
+    }
+
+    if (state == 0) {
+        return PHP_SSH2_CHANNEL_COMPLETION_COMPLETE;
+    }
+    if (state == LIBSSH2_ERROR_EAGAIN) {
+        return PHP_SSH2_CHANNEL_COMPLETION_INCOMPLETE;
+    }
+    return PHP_SSH2_CHANNEL_COMPLETION_ERROR;
+}
+
 static ssize_t php_ssh2_channel_stream_write(php_stream *stream, const char *buf, size_t count) {
     php_ssh2_channel_data *abstract = (php_ssh2_channel_data *) stream->abstract;
     ssize_t writestate;
@@ -111,7 +150,12 @@ static ssize_t php_ssh2_channel_stream_read(php_stream *stream, char *buf, size_
             return 0;
         }
         if (readstate == 0) {
-            stream->eof = php_ssh2_channel_eof_raw(abstract->channel);
+            auto completion = php_ssh2_channel_complete(abstract, false);
+            if (completion == PHP_SSH2_CHANNEL_COMPLETION_ERROR) {
+                /* Reads report the error; liveness publishes the terminal state. */
+                return -1;
+            }
+            stream->eof = completion == PHP_SSH2_CHANNEL_COMPLETION_COMPLETE;
             return 0;
         }
         return readstate;
@@ -135,7 +179,12 @@ static ssize_t php_ssh2_channel_stream_read(php_stream *stream, char *buf, size_
                                 &abstract->timeout_event);
 
     if (readstate == 0) {
-        stream->eof = libssh2_channel_eof(abstract->channel);
+        auto completion = php_ssh2_channel_complete(abstract, true);
+        if (completion == PHP_SSH2_CHANNEL_COMPLETION_ERROR) {
+            /* A completion timeout is retryable and must not be published as EOF. */
+            return -1;
+        }
+        stream->eof = completion == PHP_SSH2_CHANNEL_COMPLETION_COMPLETE;
     }
 
     return readstate;
@@ -215,7 +264,19 @@ static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, in
 
         if (php_ssh2_session_is_open(abstract->session_rsrc)) {
             auto session = ssh2_get_session(abstract);
+            char *exit_signal = NULL;
+            size_t exit_signal_len = 0;
+
+            /* A signalled command may have no exit-status, leaving libssh2's status at 0. */
             add_assoc_long((zval *) ptrparam, "exit_status", libssh2_channel_get_exit_status(abstract->channel));
+            if (libssh2_channel_get_exit_signal(
+                    abstract->channel, &exit_signal, &exit_signal_len, NULL, NULL, NULL, NULL) == 0 &&
+                exit_signal) {
+                add_assoc_stringl((zval *) ptrparam, "exit_signal", exit_signal, exit_signal_len);
+                libssh2_free(session, exit_signal);
+            } else {
+                add_assoc_null((zval *) ptrparam, "exit_signal");
+            }
         }
 
         return PHP_STREAM_OPTION_RETURN_OK;
@@ -233,14 +294,18 @@ static int php_ssh2_channel_stream_set_option(php_stream *stream, int option, in
     }
     case PHP_STREAM_OPTION_CHECK_LIVENESS: {
         if (!php_ssh2_session_is_open(abstract->session_rsrc)) {
-            return stream->eof = 1;
+            stream->eof = 1;
+            return PHP_STREAM_OPTION_RETURN_ERR;
         }
 
-        return stream->eof = php_ssh2_channel_eof_raw(abstract->channel);
+        auto completion = php_ssh2_channel_complete(abstract, false);
+        stream->eof = completion != PHP_SSH2_CHANNEL_COMPLETION_INCOMPLETE;
+        /* This check never blocks, so a completion error means the stream is dead. */
+        return stream->eof ? PHP_STREAM_OPTION_RETURN_ERR : PHP_STREAM_OPTION_RETURN_OK;
     }
     }
 
-    return -1;
+    return PHP_STREAM_OPTION_RETURN_NOTIMPL;
 }
 
 php_stream_ops php_ssh2_channel_stream_ops = {
@@ -613,14 +678,7 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session,
     }
 
     /* Turn it into a stream */
-    channel_data = (php_ssh2_channel_data *) emalloc(sizeof(php_ssh2_channel_data));
-    channel_data->channel = channel;
-    channel_data->streamid = 0;
-    channel_data->is_blocking = 1;
-    channel_data->timeout = 0;
-    channel_data->timeout_event = false;
-    channel_data->session_rsrc = resource;
-    channel_data->refcount = NULL;
+    channel_data = php_ssh2_channel_data_create(channel, resource, false);
 
     stream = php_stream_alloc(&php_ssh2_channel_stream_ops, channel_data, 0, "r+");
 
@@ -884,14 +942,7 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
     }
 
     /* Turn it into a stream */
-    channel_data = (php_ssh2_channel_data *) emalloc(sizeof(php_ssh2_channel_data));
-    channel_data->channel = channel;
-    channel_data->streamid = 0;
-    channel_data->is_blocking = 1;
-    channel_data->timeout = 0;
-    channel_data->timeout_event = false;
-    channel_data->session_rsrc = rsrc;
-    channel_data->refcount = NULL;
+    channel_data = php_ssh2_channel_data_create(channel, rsrc, true);
 
     stream = php_stream_alloc(&php_ssh2_channel_stream_ops, channel_data, 0, "r+");
 
@@ -1073,14 +1124,7 @@ static php_stream *php_ssh2_scp_xfer(LIBSSH2_SESSION *session, zend_resource *rs
     }
 
     /* Turn it into a stream */
-    channel_data = (php_ssh2_channel_data *) emalloc(sizeof(php_ssh2_channel_data));
-    channel_data->channel = channel;
-    channel_data->streamid = 0;
-    channel_data->is_blocking = 1;
-    channel_data->timeout = 0;
-    channel_data->timeout_event = false;
-    channel_data->session_rsrc = rsrc;
-    channel_data->refcount = NULL;
+    channel_data = php_ssh2_channel_data_create(channel, rsrc, false);
 
     stream = php_stream_alloc(&php_ssh2_channel_stream_ops, channel_data, 0, "r");
 
@@ -1323,14 +1367,7 @@ static php_stream *php_ssh2_direct_tcpip(LIBSSH2_SESSION *session, zend_resource
     }
 
     /* Turn it into a stream */
-    channel_data = (php_ssh2_channel_data *) emalloc(sizeof(php_ssh2_channel_data));
-    channel_data->channel = channel;
-    channel_data->streamid = 0;
-    channel_data->is_blocking = 1;
-    channel_data->timeout = 0;
-    channel_data->timeout_event = false;
-    channel_data->session_rsrc = rsrc;
-    channel_data->refcount = NULL;
+    channel_data = php_ssh2_channel_data_create(channel, rsrc, false);
 
     stream = php_stream_alloc(&php_ssh2_channel_stream_ops, channel_data, 0, "r+");
 
