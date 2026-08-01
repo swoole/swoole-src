@@ -1,7 +1,11 @@
 --TEST--
 ssh2_exec() publishes nullable PTY and environment metadata
 --SKIPIF--
-<?php require_once 'ssh2_skip.inc'; ?>
+<?php
+if (!function_exists('ssh2_exec')) {
+    echo 'skip SSH2 support is not enabled';
+}
+?>
 --FILE--
 <?php
 $parameters  = (new ReflectionFunction('ssh2_exec'))->getParameters();

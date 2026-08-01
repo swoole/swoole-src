@@ -1,7 +1,11 @@
 --TEST--
 ssh2_shell() rejects a width without a height
 --SKIPIF--
-<?php require_once 'ssh2_skip.inc'; ?>
+<?php
+if (!function_exists('ssh2_shell')) {
+    echo 'skip SSH2 support is not enabled';
+}
+?>
 --FILE--
 <?php
 var_dump(ssh2_shell(null, 'xterm', [], 80));
