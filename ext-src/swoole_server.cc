@@ -167,6 +167,9 @@ zval *php_swoole_server_zval_ptr(Server *serv) {
 }
 
 ServerPortProperty *php_swoole_server_get_port_property(ListenPort *port) {
+    if (sw_unlikely(!port)) {
+        return nullptr;
+    }
 #ifdef SW_THREAD
     return swoole_server_port_properties.at(port->object_id);
 #else
@@ -637,12 +640,12 @@ void php_swoole_server_minit(int module_number) {
 
 zend::Callable *php_swoole_server_get_callback(Server *serv, int server_fd, int event_type) {
     ListenPort *port = serv->get_port_by_server_fd(server_fd);
-    ServerPortProperty *property = php_swoole_server_get_port_property(port);
-    zend::Callable *cb;
-
     if (sw_unlikely(!port)) {
         return nullptr;
     }
+
+    ServerPortProperty *property = php_swoole_server_get_port_property(port);
+    zend::Callable *cb;
     if (property && ((cb = property->callbacks[event_type]))) {
         return cb;
     } else {
