@@ -103,6 +103,17 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
         ret = TaskWorker_call_command_handler(pool, worker, task);
     } else {
         ret = serv->onTask(serv, task);
+        // A null result does not produce FINISH, so send a separate acknowledgement to make task lifetime trackable.
+        if (!serv->is_thread_mode() && (task->info.ext_flags & SW_TASK_NONBLOCK) &&
+            !(task->info.ext_flags & SW_TASK_NOREPLY) && task->info.reactor_id >= 0 &&
+            task->info.reactor_id < serv->worker_num) {
+            EventData complete{};
+            complete.info.type = SW_SERVER_EVENT_TASK_COMPLETE;
+            complete.info.fd = serv->get_task_id(task);
+            complete.info.reactor_id = task->info.reactor_id;
+            serv->send_to_worker_from_worker(
+                serv->get_worker(task->info.reactor_id), &complete, sizeof(complete.info), SW_PIPE_MASTER);
+        }
         /**
          * only server task as requests,
          * do not increase the count for pipeline communication and command processing.
@@ -159,6 +170,8 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
 }
 
 bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
+    const bool wait_complete =
+        !is_thread_mode() && !blocking && is_event_worker() && !(_task->info.ext_flags & SW_TASK_NOREPLY);
     sw_atomic_fetch_add(&gs->tasking_num, 1);
 
     swResultCode retval;
@@ -169,12 +182,38 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
     }
 
     if (retval == SW_OK) {
+        if (wait_complete) {
+            add_pending_task(get_task_id(_task));
+        }
         sw_atomic_fetch_add(&gs->task_count, 1);
         return true;
     }
 
     sw_atomic_fetch_sub(&gs->tasking_num, 1);
     return false;
+}
+
+void Server::add_pending_task(TaskId task_id) {
+    SwooleWG.pending_tasks.insert(task_id);
+    if (!SwooleWG.shutdown || !sw_reactor()) {
+        return;
+    }
+    auto pipe_worker = get_worker_pipe_worker_in_message_bus(sw_worker());
+    if (pipe_worker && (pipe_worker->removed || !(pipe_worker->events & SW_EVENT_READ))) {
+        sw_reactor()->add_read_event(pipe_worker);
+    }
+}
+
+void Server::complete_pending_task(TaskId task_id) {
+    SwooleWG.pending_tasks.erase(task_id);
+    if (!SwooleWG.shutdown || !SwooleWG.pending_tasks.empty() || !sw_reactor()) {
+        return;
+    }
+    auto pipe_worker = get_worker_pipe_worker_in_message_bus(sw_worker());
+    if (pipe_worker && !pipe_worker->removed) {
+        // Messages that arrive after this point remain in the pipe for the replacement worker.
+        sw_reactor()->remove_read_event(pipe_worker);
+    }
 }
 
 bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {

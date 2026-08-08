@@ -114,7 +114,11 @@ static sw_inline void Worker_do_task(Server *serv, Worker *worker, const DataHea
 
 void Server::worker_accept_event(DataHead *info) {
     Worker *worker = sw_worker();
-    worker->set_status_to_busy();
+    const bool shutting_down = worker->is_shutdown();
+    // FINISH must not make a detached worker visible to the scheduler as idle again.
+    if (!shutting_down) {
+        worker->set_status_to_busy();
+    }
 
     switch (info->type) {
     case SW_SERVER_EVENT_RECV_DATA: {
@@ -181,6 +185,10 @@ void Server::worker_accept_event(DataHead *info) {
         onFinish(this, reinterpret_cast<EventData *>(get_worker_message_bus()->get_buffer()));
         break;
     }
+    case SW_SERVER_EVENT_TASK_COMPLETE: {
+        complete_pending_task(info->fd);
+        break;
+    }
     case SW_SERVER_EVENT_PIPE_MESSAGE: {
         onPipeMessage(this, reinterpret_cast<EventData *>(get_worker_message_bus()->get_buffer()));
         break;
@@ -196,6 +204,10 @@ void Server::worker_accept_event(DataHead *info) {
     default:
         swoole_warning("[Worker] error event[type=%d]", (int) info->type);
         break;
+    }
+
+    if (shutting_down) {
+        return;
     }
 
     worker->set_status_to_idle();
@@ -345,7 +357,7 @@ void Server::stop_async_worker(Worker *worker) {
     SwooleWG.worker = worker;
     auto pipe_worker = get_worker_pipe_worker_in_message_bus(worker);
 
-    if (pipe_worker && !pipe_worker->removed) {
+    if (pipe_worker && !pipe_worker->removed && (worker->type != SW_EVENT_WORKER || SwooleWG.pending_tasks.empty())) {
         reactor->remove_read_event(pipe_worker);
     }
 
@@ -373,12 +385,14 @@ void Server::stop_async_worker(Worker *worker) {
             clear_timer();
         }
     } else if (is_process_mode()) {
-        WorkerStopMessage msg;
-        msg.pid = getpid();
-        msg.worker_id = worker->id;
+        if (worker->type != SW_EVENT_WORKER) {
+            WorkerStopMessage msg;
+            msg.pid = getpid();
+            msg.worker_id = worker->id;
 
-        if (get_event_worker_pool()->push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
-            swoole_sys_warning("failed to push WORKER_STOP message");
+            if (get_event_worker_pool()->push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
+                swoole_sys_warning("failed to push WORKER_STOP message");
+            }
         }
     } else if (is_thread_mode()) {
         if (is_event_worker()) {
@@ -429,6 +443,15 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
     bool has_call_worker_exit_func = false;
     while (true) {
         if (reactor->if_exit()) {
+            if (serv->is_process_mode() && serv->is_event_worker()) {
+                // Spawn the replacement only after the old worker has stopped reading its shared pipe.
+                WorkerStopMessage msg;
+                msg.pid = getpid();
+                msg.worker_id = sw_worker()->id;
+                if (serv->get_event_worker_pool()->push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
+                    swoole_sys_warning("failed to push WORKER_STOP message");
+                }
+            }
             reactor->running = false;
         } else {
             if (serv->onWorkerExit && !has_call_worker_exit_func) {

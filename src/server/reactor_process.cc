@@ -112,6 +112,10 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         serv->onFinish(serv, reinterpret_cast<EventData *>(pipe_buffer));
         break;
     }
+    case SW_SERVER_EVENT_TASK_COMPLETE: {
+        serv->complete_pending_task(pipe_buffer->info.fd);
+        break;
+    }
     case SW_SERVER_EVENT_SHUTDOWN: {
         serv->stop_async_worker(worker);
         break;

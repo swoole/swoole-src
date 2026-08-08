@@ -687,6 +687,8 @@ enum ServerEventType {
     SW_SERVER_EVENT_COMMAND_REQUEST,
     SW_SERVER_EVENT_COMMAND_RESPONSE,
     SW_SERVER_EVENT_SHUTDOWN_SIGNAL,
+    // Internal acknowledgement that a task handler has returned.
+    SW_SERVER_EVENT_TASK_COMPLETE,
 };
 
 class Server {
@@ -1640,6 +1642,8 @@ class Server {
                  const Command::Callback &fn);
 
     bool task(EventData *_task, int *dst_worker_id, bool blocking = false);
+    void add_pending_task(TaskId task_id);
+    void complete_pending_task(TaskId task_id);
     bool finish(const char *data, size_t data_len, int flags = 0, const EventData *current_task = nullptr);
     bool task_sync(EventData *task, int *dst_worker_id, double timeout = -1);
     bool task_sync(MultiTask &mtask, double timeout = -1);

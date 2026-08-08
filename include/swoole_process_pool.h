@@ -144,6 +144,8 @@ struct WorkerGlobal {
      */
     Worker *worker_copy;
     time_t exit_time;
+    // Async tasks submitted by this event worker and not yet completed by a task worker.
+    std::unordered_set<TaskId> pending_tasks;
 };
 
 struct Worker {
