@@ -113,49 +113,63 @@ class ThreadPool {
         event_mutex.unlock();
         _cv.notify_all();
 
-        for (auto &i : threads) {
+        std::unordered_map<std::thread::id, std::thread *> shutdown_threads;
+        {
+            std::lock_guard<std::mutex> lock(threads_mutex);
+            shutdown_threads.swap(threads);
+        }
+
+        for (auto &i : shutdown_threads) {
             std::thread *_thread = i.second;
             if (_thread->joinable()) {
                 _thread->join();
             }
             delete _thread;
         }
-        threads.clear();
 
         return true;
     }
 
     void schedule() {
-        if (n_waiting == 0 && threads.size() < worker_num && max_wait_time > 0) {
-            double _max_wait_time = queue_.get_max_wait_time();
-            if (_max_wait_time > max_wait_time) {
-                size_t n = 1;
-                /**
-                 * maybe we can find a better strategy
-                 */
-                if (threads.size() + n > worker_num) {
-                    n = worker_num - threads.size();
-                }
-                swoole_trace_log(SW_TRACE_AIO,
-                                 "Create %zu thread due to wait %fs, we will have %zu threads",
-                                 n,
-                                 _max_wait_time,
-                                 threads.size() + n);
-                while (n--) {
-                    create_thread();
-                }
-            }
+        const size_t thread_count = get_worker_num();
+        if (thread_count >= worker_num || queue_.empty()) {
+            return;
+        }
+
+        const size_t idle_worker_num = n_waiting.load();
+        const size_t queue_size = queue_.count();
+        const bool insufficient_idle_workers = queue_size > idle_worker_num;
+        const double queue_wait_time = queue_.get_max_wait_time();
+        const bool waited_too_long = max_wait_time > 0 && queue_wait_time > max_wait_time;
+        if (!insufficient_idle_workers && !waited_too_long) {
+            return;
+        }
+
+        size_t n = insufficient_idle_workers ? queue_size - idle_worker_num : 1;
+        n = SW_MIN(n, worker_num - thread_count);
+        swoole_trace_log(SW_TRACE_AIO,
+                         "Create %zu thread due to queue_size=%zu, idle_workers=%zu, wait=%fs, we will have %zu "
+                         "threads",
+                         n,
+                         queue_size,
+                         idle_worker_num,
+                         queue_wait_time,
+                         thread_count + n);
+        while (n--) {
+            create_thread();
         }
     }
 
     AsyncEvent *dispatch(const AsyncEvent *request) {
         auto _event_copy = new AsyncEvent(*request);
         event_mutex.lock();
-        schedule();
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = microtime();
         _event_copy->pipe_socket = SwooleTG.async_threads->write_socket;
+        // Schedule after the push so the queued task is counted; a task that arrives while every
+        // worker is blocked would otherwise never trigger pool growth.
         queue_.push(_event_copy);
+        schedule();
         event_mutex.unlock();
         _cv.notify_one();
         swoole_debug("push and notify one: %f", microtime());
@@ -163,6 +177,7 @@ class ThreadPool {
     }
 
     size_t get_worker_num() const {
+        std::lock_guard<std::mutex> lock(threads_mutex);
         return threads.size();
     }
 
@@ -172,20 +187,26 @@ class ThreadPool {
     }
 
     void release_thread(std::thread::id tid) {
-        auto i = threads.find(tid);
-        if (i == threads.end()) {
-            swoole_warning("AIO thread#%s is missing", swoole_thread_id_to_str(tid).c_str());
-            return;
+        std::thread *_thread = nullptr;
+        size_t remaining_thread_num = 0;
+        {
+            std::lock_guard<std::mutex> lock(threads_mutex);
+            auto i = threads.find(tid);
+            if (i == threads.end()) {
+                swoole_warning("AIO thread#%s is missing", swoole_thread_id_to_str(tid).c_str());
+                return;
+            }
+            _thread = i->second;
+            threads.erase(i);
+            remaining_thread_num = threads.size();
         }
-        std::thread *_thread = i->second;
         swoole_trace_log(SW_TRACE_AIO,
                          "release idle thread#%s, we have %zu now",
                          swoole_thread_id_to_str(tid).c_str(),
-                         threads.size() - 1);
+                         remaining_thread_num);
         if (_thread->joinable()) {
             _thread->join();
         }
-        threads.erase(i);
         delete _thread;
     }
 
@@ -216,6 +237,7 @@ class ThreadPool {
     std::atomic<size_t> n_closing{0};
     size_t current_task_id = 0;
     std::unordered_map<std::thread::id, std::thread *> threads;
+    mutable std::mutex threads_mutex;
     EventQueue queue_;
     std::mutex event_mutex;
     std::condition_variable _cv;
@@ -291,6 +313,7 @@ void ThreadPool::main_func(const bool is_core_worker) {
 void ThreadPool::create_thread(const bool is_core_worker) {
     try {
         auto *_thread = new std::thread([this, is_core_worker]() { main_func(is_core_worker); });
+        std::lock_guard<std::mutex> lock(threads_mutex);
         threads[_thread->get_id()] = _thread;
     } catch (const std::system_error &e) {
         swoole_sys_notice("create aio thread failed, please check your system configuration or adjust aio_worker_num");
