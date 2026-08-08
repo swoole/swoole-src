@@ -95,18 +95,19 @@ void php_swoole_coroutine_lock_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_coroutine_lock, __construct) {
-    CoroutineLock *lock = co_lock_get_ptr(ZEND_THIS);
-    if (lock != nullptr) {
-        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
-    }
-
     zend_bool shared = false;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(shared)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    // Parameter parsing can run user code, so inspect native state only after it.
+    CoroutineLock *lock = co_lock_get_ptr(ZEND_THIS);
+    if (lock != nullptr) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
 
     lock = new CoroutineLock(shared);
     co_lock_set_ptr(ZEND_THIS, lock);
