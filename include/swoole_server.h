@@ -341,7 +341,7 @@ struct ListenPort {
     }
 
     explicit ListenPort(Server *server);
-    ~ListenPort() = default;
+    ~ListenPort();
     int listen();
     void close();
     bool import(int sock);

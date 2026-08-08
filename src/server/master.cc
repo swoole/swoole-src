@@ -772,6 +772,9 @@ Server::~Server() {
     if (!is_shutdown() && getpid() == gs->master_pid) {
         destroy();
     }
+    if (SwooleG.server == this) {
+        SwooleG.server = nullptr;
+    }
     for (auto port : ports) {
         delete port;
     }
