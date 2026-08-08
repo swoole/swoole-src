@@ -19,6 +19,11 @@ services:
       - 1.1.1.1
     environment:
       SWOOLE_BRANCH: "${SWOOLE_BRANCH}"
+      TEST_SSH2_HOSTNAME: localhost
+      TEST_SSH2_PORT: 22
+      TEST_SSH2_USER: swoole_ssh2_test_user
+      TEST_SSH2_PASS: swoole_ssh2_test_pass
+      TEST_SSH2_AUTH: password
     command: tail -f /etc/group
   mysql:
     container_name: "mysql"

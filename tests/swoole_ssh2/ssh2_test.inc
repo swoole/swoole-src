@@ -7,10 +7,10 @@
  * @license  https://github.com/swoole/library/blob/master/LICENSE
  */
 
-ssh2t_defenv('TEST_SSH2_HOSTNAME', 'localhost');
+ssh2t_defenv('TEST_SSH2_HOSTNAME');
 ssh2t_defenv('TEST_SSH2_PORT', 22);
-ssh2t_defenv('TEST_SSH2_USER', 'swoole_ssh2_test_user');
-ssh2t_defenv('TEST_SSH2_PASS', 'swoole_ssh2_test_pass');
+ssh2t_defenv('TEST_SSH2_USER');
+ssh2t_defenv('TEST_SSH2_PASS');
 ssh2t_defenv('TEST_SSH2_TEMPDIR', '/tmp');
 ssh2t_defenv('TEST_SSH2_AUTH', TEST_SSH2_PASS ? 'password' : 'none');
 ssh2t_defenv('TEST_SSH2_PUB_KEY', __DIR__ . '/testkey_ed25519.pub');

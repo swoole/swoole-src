@@ -102,6 +102,7 @@ typedef struct _php_ssh2_channel_data {
     char is_blocking;
     long timeout;
     bool timeout_event;
+    bool wait_for_remote_close;
 
     /* Resource */
     zend_resource *session_rsrc;
@@ -110,6 +111,21 @@ typedef struct _php_ssh2_channel_data {
     unsigned char *refcount;
 
 } php_ssh2_channel_data;
+
+static inline php_ssh2_channel_data *php_ssh2_channel_data_create(LIBSSH2_CHANNEL *channel,
+                                                                  zend_resource *session_rsrc,
+                                                                  bool wait_for_remote_close) {
+    php_ssh2_channel_data *data = (php_ssh2_channel_data *) emalloc(sizeof(php_ssh2_channel_data));
+    data->channel = channel;
+    data->streamid = 0;
+    data->is_blocking = 1;
+    data->timeout = 0;
+    data->timeout_event = false;
+    data->wait_for_remote_close = wait_for_remote_close;
+    data->session_rsrc = session_rsrc;
+    data->refcount = NULL;
+    return data;
+}
 
 LIBSSH2_SESSION *php_ssh2_session_connect(const char *host, int port, zval *methods, zval *callbacks);
 void php_ssh2_sftp_dtor(zend_resource *rsrc);
