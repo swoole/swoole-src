@@ -18,8 +18,11 @@ Co\run(function () {
     $linkname = ssh2t_tempnam();
 
     var_dump(ssh2_sftp_mkdir($sftp, $filename, 0644, true));
-    var_dump(ssh2_sftp_symlink($sftp, $filename, $linkname));
-    var_dump(ssh2_sftp_readlink($sftp, $linkname) == $filename);
+    // Released libssh2 reads the request id as the SSH_FXP_STATUS code in
+    // sftp_symlink, so this returns true only when it is the session's first
+    // SFTP request (fixed upstream by libssh2 4ed26f57). Verify the link itself.
+    ssh2_sftp_symlink($sftp, $filename, $linkname);
+    var_dump(ssh2_sftp_readlink($sftp, $linkname) === $filename);
     $stat = ssh2_sftp_stat($sftp, $filename);
     var_dump(ssh2_sftp_rmdir($sftp, $filename));
     var_dump(ssh2_sftp_unlink($sftp, $linkname));
@@ -27,7 +30,6 @@ Co\run(function () {
 });
 ?>
 --EXPECT--
-bool(true)
 bool(true)
 bool(true)
 bool(true)

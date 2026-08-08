@@ -8,25 +8,22 @@
  */
 
 declare(strict_types=1);
+require_once __DIR__ . '/../include/skipif.inc';
 require_once 'ssh2_test.inc';
 
-if (!defined('SSH2_POLLIN')) {
-    echo 'skip extension not loaded';
-}
-if (TEST_SSH2_HOSTNAME === false) {
-    echo 'skip TEST_SSH2_HOSTNAME not set';
-}
+skip('SSH2 support is not enabled', !function_exists('ssh2_exec'));
+skip('TEST_SSH2_HOSTNAME not set', !TEST_SSH2_HOSTNAME);
 
 function ssh2t_needs_auth()
 {
     if (TEST_SSH2_AUTH == 'none') {
-        echo "skip TEST_SSH2_AUTH == 'none'";
+        skip("TEST_SSH2_AUTH == 'none'");
     }
 }
 
 function ssh2t_writes_remote()
 {
     if (!TEST_SSH2_TEMPDIR) {
-        echo 'skip TEST_SSH2_TEMPDIR is empty';
+        skip('TEST_SSH2_TEMPDIR is empty');
     }
 }
