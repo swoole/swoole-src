@@ -1085,6 +1085,8 @@ void Worker::init() {
     SwooleWG.running = true;
     SwooleWG.shutdown = false;
     SwooleWG.pending_tasks.clear();
+    SwooleWG.deferred_events.clear();
+    SwooleWG.replacement_requested = false;
 }
 
 void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {

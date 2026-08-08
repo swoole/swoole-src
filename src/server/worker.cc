@@ -99,6 +99,51 @@ _discard_data:
 
 typedef std::function<int(Server *, RecvData *)> TaskCallback;
 
+static bool Worker_should_defer_event(const DataHead *info) {
+    return info->type != SW_SERVER_EVENT_FINISH && info->type != SW_SERVER_EVENT_TASK_COMPLETE &&
+           info->type != SW_SERVER_EVENT_SHUTDOWN;
+}
+
+static void Worker_defer_event(Server *serv, const DataHead *info) {
+    auto packet = serv->get_worker_message_bus()->get_packet();
+    DeferredWorkerEvent event;
+    event.info = *info;
+    event.info.flags = 0;
+    event.info.len = packet.length;
+    if (packet.length > 0) {
+        event.data.assign(packet.data, packet.length);
+    }
+    SwooleWG.deferred_events.emplace_back(std::move(event));
+}
+
+static bool Worker_replay_deferred_events(Server *serv) {
+    auto pipe_master = serv->get_worker_pipe_master_in_message_bus(sw_worker());
+    while (!SwooleWG.deferred_events.empty()) {
+        auto &event = SwooleWG.deferred_events.front();
+        SendData packet{event.info, event.data.empty() ? nullptr : event.data.data()};
+        if (!serv->get_worker_message_bus()->write(pipe_master, &packet)) {
+            return false;
+        }
+        SwooleWG.deferred_events.pop_front();
+    }
+    return true;
+}
+
+static bool Worker_request_replacement(Server *serv) {
+    if (SwooleWG.replacement_requested) {
+        return true;
+    }
+    WorkerStopMessage msg;
+    msg.pid = getpid();
+    msg.worker_id = sw_worker()->id;
+    if (serv->get_event_worker_pool()->push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
+        swoole_sys_warning("failed to push WORKER_STOP message");
+        return false;
+    }
+    SwooleWG.replacement_requested = true;
+    return true;
+}
+
 static sw_inline void Worker_do_task(Server *serv, Worker *worker, const DataHead *info, const TaskCallback &callback) {
     RecvData recv_data;
     auto packet = serv->get_worker_message_bus()->get_packet();
@@ -118,6 +163,11 @@ void Server::worker_accept_event(DataHead *info) {
     // FINISH must not make a detached worker visible to the scheduler as idle again.
     if (!shutting_down) {
         worker->set_status_to_busy();
+    }
+
+    if (shutting_down && is_process_mode() && Worker_should_defer_event(info)) {
+        Worker_defer_event(this, info);
+        return;
     }
 
     switch (info->type) {
@@ -442,14 +492,25 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
 
     bool has_call_worker_exit_func = false;
     while (true) {
+        if (serv->is_process_mode() && serv->is_event_worker() && SwooleWG.replacement_requested &&
+            !Worker_replay_deferred_events(serv)) {
+            return;
+        }
         if (reactor->if_exit()) {
             if (serv->is_process_mode() && serv->is_event_worker()) {
-                // Spawn the replacement only after the old worker has stopped reading its shared pipe.
-                WorkerStopMessage msg;
-                msg.pid = getpid();
-                msg.worker_id = sw_worker()->id;
-                if (serv->get_event_worker_pool()->push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
-                    swoole_sys_warning("failed to push WORKER_STOP message");
+                if (!SwooleWG.replacement_requested) {
+                    // The old worker is no longer a reader. Start its replacement before replaying deferred events,
+                    // so the replacement can drain the pipe while this reactor flushes its output buffer.
+                    if (!Worker_request_replacement(serv)) {
+                        reactor->running = false;
+                        return;
+                    }
+                    if (!Worker_replay_deferred_events(serv)) {
+                        return;
+                    }
+                    if (!reactor->if_exit()) {
+                        return;
+                    }
                 }
             }
             reactor->running = false;
@@ -463,6 +524,16 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
             if (remaining_time <= 0) {
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced termination");
+                if (serv->is_process_mode() && serv->is_event_worker()) {
+                    auto pipe_worker = serv->get_worker_pipe_worker_in_message_bus(sw_worker());
+                    if (pipe_worker && !pipe_worker->removed) {
+                        reactor->remove_read_event(pipe_worker);
+                    }
+                    if (Worker_request_replacement(serv) && Worker_replay_deferred_events(serv)) {
+                        auto pipe_master = serv->get_worker_pipe_master_in_message_bus(sw_worker());
+                        reactor->drain_write_buffer(pipe_master);
+                    }
+                }
                 reactor->running = false;
             } else {
                 int timeout_msec = remaining_time * 1000;

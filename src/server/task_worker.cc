@@ -170,12 +170,6 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
 }
 
 bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
-    // Graceful shutdown only waits for work accepted before the shutdown boundary.
-    // Accepting new asynchronous tasks here could keep pending_tasks growing forever.
-    if (!is_thread_mode() && !blocking && is_event_worker() && SwooleWG.shutdown) {
-        return false;
-    }
-
     const bool wait_complete =
         !is_thread_mode() && !blocking && is_event_worker() && !(_task->info.ext_flags & SW_TASK_NOREPLY);
     sw_atomic_fetch_add(&gs->tasking_num, 1);
@@ -201,6 +195,13 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
 
 void Server::add_pending_task(TaskId task_id) {
     SwooleWG.pending_tasks.insert(task_id);
+    if (!SwooleWG.shutdown || !sw_reactor()) {
+        return;
+    }
+    auto pipe_worker = get_worker_pipe_worker_in_message_bus(sw_worker());
+    if (pipe_worker && (pipe_worker->removed || !(pipe_worker->events & SW_EVENT_READ))) {
+        sw_reactor()->add_read_event(pipe_worker);
+    }
 }
 
 void Server::complete_pending_task(TaskId task_id) {

@@ -1,5 +1,5 @@
 --TEST--
-swoole_server/task: keep task results and client data during graceful worker shutdown
+swoole_server/task: replay deferred client data after graceful shutdown timeout
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -16,14 +16,14 @@ $workerPid = new Atomic();
 $taskStarted = new Atomic();
 $workerExiting = new Atomic();
 $pm = new ProcessManager();
-$pm->setWaitTimeout(5);
+$pm->setWaitTimeout(8);
 $pm->parentFunc = function (int $pid) use ($pm, $workerPid, $taskStarted, $workerExiting) {
     $client = new Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'open_eof_check' => true,
         'package_eof' => "\r\n\r\n",
     ]);
-    Assert::true($client->connect('127.0.0.1', $pm->getFreePort(), 3));
+    Assert::true($client->connect('127.0.0.1', $pm->getFreePort(), 5));
     Assert::same($client->send("task\r\n\r\n"), 8);
     Assert::true($taskStarted->wait(2));
 
@@ -32,11 +32,8 @@ $pm->parentFunc = function (int $pid) use ($pm, $workerPid, $taskStarted, $worke
         usleep(10000);
     }
     Assert::same($workerExiting->get(), 1);
-    Assert::same($client->send("data-1\r\n\r\n"), 10);
-    Assert::same($client->send("data-2\r\n\r\n"), 10);
-
-    $responses = [trim($client->recv()), trim($client->recv()), trim($client->recv())];
-    Assert::same($responses, ['TASK', 'DATA-1', 'DATA-2']);
+    Assert::same($client->send("data\r\n\r\n"), 8);
+    Assert::same(trim($client->recv()), 'DATA');
     echo "SUCCESS\n";
 
     $pm->kill();
@@ -48,7 +45,7 @@ $pm->childFunc = function () use ($pm, $workerPid, $taskStarted, $workerExiting)
         'task_worker_num' => 1,
         'enable_coroutine' => false,
         'reload_async' => true,
-        'max_wait_time' => 3,
+        'max_wait_time' => 1,
         'log_file' => '/dev/null',
         'open_eof_check' => true,
         'package_eof' => "\r\n\r\n",
@@ -64,26 +61,19 @@ $pm->childFunc = function () use ($pm, $workerPid, $taskStarted, $workerExiting)
     });
     $server->on('Receive', function (Server $server, int $fd, int $reactorId, string $data) use ($workerPid) {
         if (trim($data) === 'task') {
-            Assert::integer($server->task('silent'));
-            Assert::integer($server->task('task', -1, function (Server $server) use ($fd) {
-                Assert::true($server->send($fd, "TASK\r\n\r\n"));
-            }));
+            Assert::integer($server->task('slow'));
         } else {
             Assert::notSame(getmypid(), $workerPid->get());
-            Assert::integer($server->task(trim($data), -1, function (Server $server, int $taskId, string $result) use ($fd) {
-                Assert::true($server->send($fd, strtoupper($result) . "\r\n\r\n"));
+            Assert::integer($server->task('late', -1, function (Server $server) use ($fd) {
+                Assert::true($server->send($fd, "DATA\r\n\r\n"));
             }));
         }
     });
     $server->on('Task', function (Server $server, int $taskId, int $sourceWorkerId, string $data) use ($taskStarted) {
-        if ($data === 'silent') {
+        if ($data === 'slow') {
             $taskStarted->wakeup();
-            usleep(100000);
+            sleep(3);
             return null;
-        }
-        if ($data === 'task') {
-            usleep(1000000);
-            return 'done';
         }
         return $data;
     });

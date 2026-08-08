@@ -29,6 +29,7 @@
 #endif
 
 #include <csignal>
+#include <deque>
 #include <unordered_map>
 #include <unordered_set>
 #include <queue>
@@ -124,6 +125,11 @@ static inline ExitStatus wait_process(pid_t _pid, int options) {
 struct ProcessPool;
 struct Worker;
 
+struct DeferredWorkerEvent {
+    DataHead info;
+    std::string data;
+};
+
 struct WorkerGlobal {
     WorkerId id;
     uint8_t type;
@@ -146,6 +152,9 @@ struct WorkerGlobal {
     time_t exit_time;
     // Async tasks submitted by this event worker and not yet completed by a task worker.
     std::unordered_set<TaskId> pending_tasks;
+    // Events consumed after shutdown that must be replayed by the replacement event worker.
+    std::deque<DeferredWorkerEvent> deferred_events;
+    bool replacement_requested;
 };
 
 struct Worker {
