@@ -258,9 +258,21 @@ void php_swoole_process_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_process, __construct) {
-    auto po = php_swoole_process_fetch_object(ZEND_THIS);
-    Server *server = sw_server();
+    zend::Function func;
+    zend_bool redirect_stdin_and_stdout = false;
+    zend_long pipe_type = PIPE_TYPE_DGRAM;
+    zend_bool enable_coroutine = false;
 
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
+    Z_PARAM_FUNC(func.fci, func.fci_cache);
+    Z_PARAM_OPTIONAL
+    Z_PARAM_BOOL(redirect_stdin_and_stdout)
+    Z_PARAM_LONG(pipe_type)
+    Z_PARAM_BOOL(enable_coroutine)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    // Callable resolution can run user code, so inspect native state only after parsing.
+    auto po = php_swoole_process_fetch_object(ZEND_THIS);
     if (po->worker) {
         zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
@@ -272,6 +284,7 @@ static PHP_METHOD(swoole_process, __construct) {
         RETURN_FALSE;
     }
 
+    Server *server = sw_server();
     if (server && server->is_started() && server->is_master()) {
         zend_throw_error(nullptr, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
@@ -282,21 +295,8 @@ static PHP_METHOD(swoole_process, __construct) {
         RETURN_FALSE;
     }
 
-    zend::Function func;
-    zend_bool redirect_stdin_and_stdout = false;
-    zend_long pipe_type = PIPE_TYPE_DGRAM;
-    zend_bool enable_coroutine = false;
-
-    po->worker = new Worker();
-    Worker *process = po->worker;
-
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
-    Z_PARAM_FUNC(func.fci, func.fci_cache);
-    Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(redirect_stdin_and_stdout)
-    Z_PARAM_LONG(pipe_type)
-    Z_PARAM_BOOL(enable_coroutine)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    Worker *process = new Worker();
+    po->worker = process;
 
     if (server && server->is_worker_thread()) {
         Worker *shared_worker;
