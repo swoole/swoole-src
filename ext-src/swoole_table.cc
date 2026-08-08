@@ -293,12 +293,6 @@ void php_swoole_table_minit(int module_number) {
 }
 
 PHP_METHOD(swoole_table, __construct) {
-    Table *table = table_get_ptr(ZEND_THIS);
-    if (table) {
-        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
-    }
-
     zend_long table_size;
     double conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
 
@@ -307,6 +301,13 @@ PHP_METHOD(swoole_table, __construct) {
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(conflict_proportion)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    // Parameter parsing can run user code, so inspect native state only after it.
+    Table *table = table_get_ptr(ZEND_THIS);
+    if (table) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
 
     table = Table::make(table_size, static_cast<float>(conflict_proportion));
     if (table == nullptr) {
@@ -790,14 +791,15 @@ static PHP_METHOD(swoole_table, cmpdel) {
 static PHP_METHOD(swoole_table, count) {
 #define COUNT_NORMAL 0
 #define COUNT_RECURSIVE 1
-    Table *table = table_get_ptr(ZEND_THIS);
-    if (!table) {
-        RETURN_LONG(0);
-    }
-
     zend_long mode = COUNT_NORMAL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &mode) == FAILURE) {
         RETURN_FALSE;
+    }
+
+    // Parameter parsing can run user code, so inspect native state only after it.
+    Table *table = table_get_ptr(ZEND_THIS);
+    if (!table) {
+        RETURN_LONG(0);
     }
 
     if (mode == COUNT_NORMAL) {
