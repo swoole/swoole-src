@@ -119,18 +119,19 @@ void php_swoole_lock_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_lock, __construct) {
-    Lock *lock = lock_get_ptr(ZEND_THIS);
-    if (lock != nullptr) {
-        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
-    }
-
     zend_long type = Lock::MUTEX;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    // Parameter parsing can run user code, so inspect native state only after it.
+    Lock *lock = lock_get_ptr(ZEND_THIS);
+    if (lock != nullptr) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
 
     switch (type) {
 #ifdef HAVE_SPINLOCK
