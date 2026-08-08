@@ -23,12 +23,15 @@ $pm->parentFunc = function (int $pid) use ($pm, $workerPid, $taskStarted, $worke
         'open_eof_check' => true,
         'package_eof' => "\r\n\r\n",
     ]);
-    Assert::true($client->connect('127.0.0.1', $pm->getFreePort()));
+    Assert::true($client->connect('127.0.0.1', $pm->getFreePort(), 3));
     Assert::same($client->send("task\r\n\r\n"), 8);
     Assert::true($taskStarted->wait(2));
 
     Assert::true(Process::kill($workerPid->get(), SIGTERM));
-    Assert::true($workerExiting->wait(2));
+    for ($i = 0; $i < 200 && $workerExiting->get() === 0; $i++) {
+        usleep(10000);
+    }
+    Assert::same($workerExiting->get(), 1);
     Assert::same($client->send("data\r\n\r\n"), 8);
 
     $responses = [trim($client->recv()), trim($client->recv())];
@@ -67,6 +70,8 @@ $pm->childFunc = function () use ($pm, $workerPid, $taskStarted, $workerExiting)
                 Assert::true($server->send($fd, "TASK\r\n\r\n"));
             }));
         } else {
+            // Do not allow client traffic received after the shutdown boundary to extend the task drain forever.
+            Assert::false($server->task('late'));
             Assert::true($server->send($fd, "DATA\r\n\r\n"));
         }
     });
@@ -76,7 +81,7 @@ $pm->childFunc = function () use ($pm, $workerPid, $taskStarted, $workerExiting)
             usleep(100000);
             return null;
         }
-        usleep(300000);
+        usleep(1000000);
         return 'done';
     });
     $server->on('Finish', function () {});
