@@ -1,7 +1,14 @@
 #include "test_core.h"
 #include "swoole_pipe.h"
 
+#include <type_traits>
+
 using namespace swoole;
+
+TEST(pipe, virtual_destructor) {
+    // AsyncThreads deletes its platform-specific pipe through SocketPair *.
+    ASSERT_TRUE(std::has_virtual_destructor<SocketPair>::value);
+}
 
 TEST(pipe, unixsock) {
     UnixSocket p(true, SOCK_DGRAM);
