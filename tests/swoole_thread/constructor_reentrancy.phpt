@@ -27,11 +27,17 @@ final class ReentrantHost
     }
 }
 
-$lock = (new ReflectionClass(Lock::class))->newInstanceWithoutConstructor();
+$lock = new Lock(Lock::MUTEX);
 $reentered = false;
 set_error_handler(function () use ($lock, &$reentered): bool {
     $reentered = true;
-    $lock->__construct(Lock::MUTEX);
+
+    try {
+        $lock->__construct(Lock::MUTEX);
+        Assert::true(false);
+    } catch (Error $error) {
+        Assert::contains($error->getMessage(), 'Constructor of Swoole\Thread\Lock can only be called once');
+    }
 
     return true;
 });
@@ -45,13 +51,20 @@ try {
 } finally {
     restore_error_handler();
 }
+// Broken constructors reject before parameter parsing, so this is the discriminating assertion.
 Assert::true($reentered);
 
-$barrier = (new ReflectionClass(Barrier::class))->newInstanceWithoutConstructor();
+$barrier = new Barrier(2);
 $reentered = false;
 set_error_handler(function () use ($barrier, &$reentered): bool {
     $reentered = true;
-    $barrier->__construct(2);
+
+    try {
+        $barrier->__construct(2);
+        Assert::true(false);
+    } catch (Error $error) {
+        Assert::contains($error->getMessage(), 'Constructor of Swoole\Thread\Barrier can only be called once');
+    }
 
     return true;
 });
@@ -65,6 +78,7 @@ try {
 } finally {
     restore_error_handler();
 }
+// Broken constructors reject before parameter parsing, so this is the discriminating assertion.
 Assert::true($reentered);
 
 $server = (new ReflectionClass(Server::class))->newInstanceWithoutConstructor();
