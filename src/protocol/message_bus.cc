@@ -44,6 +44,8 @@ PacketPtr MessageBus::get_packet() const {
 }
 
 bool MessageBus::alloc_buffer() {
+    // Reused buses must release allocator-owned state before the allocator's lifetime ends.
+    free_buffer();
     void *_ptr = allocator_->malloc(buffer_size_);
     if (_ptr) {
         buffer_ = (PipeBuffer *) _ptr;
@@ -370,13 +372,18 @@ void MessageBus::init_pipe_socket(const Socket *sock) {
     pipe_sockets_[pipe_fd] = _socket;
 }
 
-MessageBus::~MessageBus() {
+void MessageBus::release_pipe_sockets() {
     for (auto _socket : pipe_sockets_) {
         if (_socket) {
             _socket->fd = SW_BAD_SOCKET;
             _socket->free();
         }
     }
+    pipe_sockets_.clear();
+}
+
+MessageBus::~MessageBus() {
+    release_pipe_sockets();
 }
 
 }  // namespace swoole

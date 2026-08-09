@@ -29,6 +29,62 @@ using namespace swoole;
 
 constexpr int DATA_SIZE = 2 * SW_NUM_MILLION;
 
+static bool freed_null_buffer = false;
+static size_t freed_buffer_count = 0;
+
+static void test_buffer_free(void *ptr) {
+    if (ptr == nullptr) {
+        freed_null_buffer = true;
+    } else {
+        freed_buffer_count++;
+    }
+    free(ptr);
+}
+
+TEST(message_bus, free_buffer) {
+    Allocator allocator{malloc, calloc, realloc, test_buffer_free};
+    MessageBus message_bus;
+    message_bus.set_allocator(&allocator);
+
+    freed_null_buffer = false;
+    freed_buffer_count = 0;
+    message_bus.free_buffer();
+    ASSERT_FALSE(freed_null_buffer);
+    ASSERT_EQ(freed_buffer_count, 0);
+    ASSERT_EQ(message_bus.get_buffer(), nullptr);
+
+    ASSERT_TRUE(message_bus.alloc_buffer());
+    ASSERT_TRUE(message_bus.alloc_buffer());
+    ASSERT_EQ(freed_buffer_count, 1);
+    message_bus.free_buffer();
+    ASSERT_EQ(freed_buffer_count, 2);
+    ASSERT_EQ(message_bus.get_buffer(), nullptr);
+    message_bus.free_buffer();
+    ASSERT_FALSE(freed_null_buffer);
+    ASSERT_EQ(freed_buffer_count, 2);
+    ASSERT_EQ(message_bus.get_buffer(), nullptr);
+}
+
+TEST(message_bus, release_pipe_sockets) {
+    UnixSocket pipe(true, SOCK_DGRAM);
+    ASSERT_TRUE(pipe.ready());
+
+    auto socket = pipe.get_socket(true);
+    auto fd = socket->get_fd();
+    MessageBus message_bus;
+
+    message_bus.init_pipe_socket(socket);
+    ASSERT_NE(message_bus.get_pipe_socket(socket), socket);
+    message_bus.release_pipe_sockets();
+    ASSERT_TRUE(test::is_valid_fd(fd));
+
+    message_bus.release_pipe_sockets();
+    message_bus.init_pipe_socket(socket);
+    ASSERT_NE(message_bus.get_pipe_socket(socket), nullptr);
+    message_bus.release_pipe_sockets();
+    ASSERT_TRUE(test::is_valid_fd(fd));
+}
+
 struct TestPacket {
     SessionId fd;
     std::string data;

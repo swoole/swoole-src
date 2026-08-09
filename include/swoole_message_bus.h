@@ -90,6 +90,8 @@ class MessageBus {
         packet_pool_.clear();
     }
 
+    void release_pipe_sockets();
+
     void set_allocator(const Allocator *allocator) {
         allocator_ = allocator;
     }
@@ -118,8 +120,10 @@ class MessageBus {
      * otherwise coredump will occur when php shutdown, because zend_string has been released
      */
     void free_buffer() {
-        allocator_->free(buffer_);
-        buffer_ = nullptr;
+        if (buffer_) {
+            allocator_->free(buffer_);
+            buffer_ = nullptr;
+        }
     }
 
     void pass(const SendData *task) const;
