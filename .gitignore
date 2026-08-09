@@ -68,6 +68,7 @@ modules/*
 tests/.idea
 /tests/swoole_*/*.log
 /tests/swoole_*/*.sh
+!/tests/swoole_ssh2/truncated_scp_server.sh
 /tests/swoole_*/*.diff
 /tests/swoole_*/*.out
 /tests/swoole_*/*.exp
