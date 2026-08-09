@@ -100,6 +100,30 @@ TEST(process_pool, unix_sock) {
     test_func_task_protocol(pool);
 }
 
+TEST(process_pool, failed_unix_listen_can_retry) {
+    std::string socket_file = "/tmp/swoole-process-pool-listen-" + std::to_string(getpid()) + ".sock";
+    unlink(socket_file.c_str());
+    ON_SCOPE_EXIT {
+        unlink(socket_file.c_str());
+    };
+
+    int file_fd = open(socket_file.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
+    ASSERT_GE(file_fd, 0);
+    ASSERT_EQ(close(file_fd), 0);
+
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.listen(socket_file.c_str(), 128), SW_ERR);
+    ASSERT_EQ(pool.stream_info_->socket_file, nullptr);
+    ASSERT_EQ(pool.stream_info_->socket, nullptr);
+    ASSERT_EQ(access(socket_file.c_str(), F_OK), 0);
+
+    ASSERT_EQ(unlink(socket_file.c_str()), 0);
+    ASSERT_EQ(pool.listen(socket_file.c_str(), 128), SW_OK);
+    pool.destroy();
+    ASSERT_EQ(access(socket_file.c_str(), F_OK), -1);
+}
+
 TEST(process_pool, push_message_too_large) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);

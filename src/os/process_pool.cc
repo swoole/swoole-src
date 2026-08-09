@@ -172,15 +172,18 @@ int ProcessPool::listen(const char *socket_file, int backlog) const {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
     }
-    stream_info_->socket_file = sw_strdup(socket_file);
-    if (stream_info_->socket_file == nullptr) {
+    char *_socket_file = sw_strdup(socket_file);
+    if (_socket_file == nullptr) {
         return SW_ERR;
     }
+    auto _socket = make_server_socket(SW_SOCK_UNIX_STREAM, socket_file, 0, backlog);
+    if (!_socket) {
+        sw_free(_socket_file);
+        return SW_ERR;
+    }
+    stream_info_->socket_file = _socket_file;
     stream_info_->socket_port = 0;
-    stream_info_->socket = make_server_socket(SW_SOCK_UNIX_STREAM, stream_info_->socket_file, 0, backlog);
-    if (!stream_info_->socket) {
-        return SW_ERR;
-    }
+    stream_info_->socket = _socket;
     return SW_OK;
 }
 
@@ -189,15 +192,18 @@ int ProcessPool::listen(const char *host, int port, int backlog) const {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
     }
-    stream_info_->socket_file = sw_strdup(host);
-    if (stream_info_->socket_file == nullptr) {
+    char *_socket_file = sw_strdup(host);
+    if (_socket_file == nullptr) {
         return SW_ERR;
     }
+    auto _socket = make_server_socket(SW_SOCK_TCP, host, port, backlog);
+    if (!_socket) {
+        sw_free(_socket_file);
+        return SW_ERR;
+    }
+    stream_info_->socket_file = _socket_file;
     stream_info_->socket_port = port;
-    stream_info_->socket = make_server_socket(SW_SOCK_TCP, host, port, backlog);
-    if (!stream_info_->socket) {
-        return SW_ERR;
-    }
+    stream_info_->socket = _socket;
     return SW_OK;
 }
 
@@ -472,8 +478,11 @@ void ProcessPool::reopen_logger() {
 }
 
 void ProcessPool::kill_all_workers(int signo) {
+    // A zero pid would signal the entire process group while unwinding a partial spawn.
     SW_LOOP_N(worker_num) {
-        swoole_kill(workers[i].pid, signo);
+        if (workers[i].pid > 0) {
+            swoole_kill(workers[i].pid, signo);
+        }
     }
 }
 
@@ -1007,6 +1016,9 @@ int ProcessPool::wait() {
     // concurrent kill
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];
+        if (worker->pid <= 0) {
+            continue;
+        }
         if (swoole_kill(worker->pid, SIGTERM) < 0) {
             swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
             continue;
@@ -1017,6 +1029,9 @@ int ProcessPool::wait() {
     }
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];
+        if (worker->pid <= 0) {
+            continue;
+        }
         if (swoole_waitpid(worker->pid, &status, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", worker->pid);
         }
