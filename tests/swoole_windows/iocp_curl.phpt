@@ -17,51 +17,78 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 
-$pm = new SwooleTest\ProcessManager();
-$pm->parentFunc = function () use ($pm) {
-    Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
+Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
 
-    run(function () use ($pm) {
+run(function (): void {
+    $server = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    try {
+        if (!Assert::true($server->bind('127.0.0.1', 0))) {
+            return;
+        }
+        if (!Assert::true($server->listen())) {
+            return;
+        }
+
+        $address = $server->getsockname();
+        if (!Assert::isArray($address)) {
+            return;
+        }
+        if (!Assert::greaterThan($address['port'], 0)) {
+            return;
+        }
+        $port = $address['port'];
+
+        $completed = new Swoole\Coroutine\Channel(1);
+        go(function () use ($server, $completed): void {
+            try {
+                $connection = $server->accept(5);
+                if (!Assert::assert($connection !== false, 'failed to accept http request')) {
+                    return;
+                }
+                try {
+                    $request = '';
+                    while (!str_contains($request, "\r\n\r\n")) {
+                        $chunk = $connection->recv(1024, 5);
+                        if (!Assert::assert($chunk !== false && $chunk !== '', 'failed to read http request')) {
+                            return;
+                        }
+                        $request .= $chunk;
+                    }
+                    Assert::contains($request, 'GET / HTTP/1.1');
+
+                    $response = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nPONG\n";
+                    Assert::same($connection->sendAll($response, 5), strlen($response));
+                } finally {
+                    $connection->close();
+                }
+            } finally {
+                $completed->push(true);
+            }
+        });
+
         $ch = curl_init();
         Assert::isInstanceOf($ch, Swoole\Curl\Handler::class);
+        try {
+            curl_setopt($ch, CURLOPT_URL, 'http://127.0.0.1:' . $port . '/');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HEADER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
 
-        curl_setopt($ch, CURLOPT_URL, 'http://127.0.0.1:' . $pm->getFreePort() . '/');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HEADER, false);
+            $body = curl_exec($ch);
+            Assert::same($body, "PONG\n");
+            Assert::same(curl_getinfo($ch, CURLINFO_HTTP_CODE), 200);
+        } finally {
+            curl_close($ch);
 
-        $body = curl_exec($ch);
-        Assert::same($body, "PONG\n");
-        Assert::same(curl_getinfo($ch, CURLINFO_HTTP_CODE), 200);
-        curl_close($ch);
-    });
-
-    echo "DONE\n";
-};
-$pm->childFunc = function () use ($pm) {
-    $port = $pm->getFreePort();
-    $server = stream_socket_server("tcp://127.0.0.1:{$port}", $errno, $errstr);
-    Assert::assert($server !== false, $errstr ?: 'failed to create socket server');
-    $pm->wakeup();
-
-    $conn = stream_socket_accept($server, 10);
-    Assert::assert($conn !== false, 'failed to accept http request');
-
-    $request = '';
-    while (!str_contains($request, "\r\n\r\n")) {
-        $chunk = fread($conn, 1024);
-        if ($chunk === '' || $chunk === false) {
-            break;
+            $acceptCompleted = $completed->pop(6);
+            Assert::same($acceptCompleted, true);
         }
-        $request .= $chunk;
+    } finally {
+        $server->close();
     }
-    Assert::contains($request, 'GET / HTTP/1.1');
+});
 
-    fwrite($conn, "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nPONG\n");
-    fclose($conn);
-    fclose($server);
-};
-$pm->childFirst();
-$pm->run();
+echo "DONE\n";
 ?>
 --EXPECT--
 DONE
