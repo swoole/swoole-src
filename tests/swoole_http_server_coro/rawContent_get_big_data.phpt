@@ -29,6 +29,7 @@ $pm->childFunc = function () use ($pm) {
             Assert::assert($request->rawContent() === $pm->getRandomData());
             Assert::length($request->rawContent(), 64 * 1024);
         });
+        $pm->wakeup();
         $server->start();
     });
 };

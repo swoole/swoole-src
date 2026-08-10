@@ -18,6 +18,7 @@ use function Swoole\Coroutine\go;
 $table = new Table(64);
 $table->column('count', Table::TYPE_INT);
 $table->create();
+$ready = new Swoole\Atomic(0);
 
 const N = IS_MAC_OS ? 256 : 1024;
 const EOF = "\r\n\r\n";
@@ -56,7 +57,7 @@ $pm->parentFunc = function ($pid) use ($pm, $table) {
     echo 'DONE' . PHP_EOL;
 };
 
-$pm->childFunc = function () use ($pm, $table) {
+$pm->childFunc = function () use ($pm, $ready, $table) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
 
     $serv->set(array(
@@ -65,8 +66,8 @@ $pm->childFunc = function () use ($pm, $table) {
         'log_file' => '/dev/null',
     ));
 
-    $serv->on(Constant::EVENT_WORKER_START, function (Server $serv, $worker_id) use ($pm) {
-        if ($worker_id == 0) {
+    $serv->on(Constant::EVENT_WORKER_START, function (Server $serv, $worker_id) use ($pm, $ready) {
+        if ($ready->add() === $serv->setting['worker_num']) {
             $pm->wakeup();
         }
     });

@@ -28,6 +28,11 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $server = new Swoole\Http\Server(UNIXSOCK_PATH, 0, SERVER_MODE_RANDOM, SWOOLE_UNIX_STREAM);
     $server->set(['log_file' => '/dev/null']);
+    $server->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->end('Hello Swoole!');
     });

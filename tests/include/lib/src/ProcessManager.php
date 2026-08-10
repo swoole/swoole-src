@@ -113,6 +113,36 @@ class ProcessManager
         return $this->atomic->wakeup();
     }
 
+    private function waitForWakeup(string $side): void
+    {
+        if ($this->waitTimeout === 0) {
+            return;
+        }
+        if (!$this->wait()) {
+            throw new RuntimeException("ProcessManager {$side} timed out waiting for a readiness signal");
+        }
+    }
+
+    private function terminateChildAfterReadinessFailure(): void
+    {
+        $this->kill();
+        // Servers may use their full three-second max_wait_time to stop workers gracefully.
+        $deadline = microtime(true) + 5;
+        do {
+            // Process::wait() is process-global and may discard another direct child's status while reaping ours.
+            $waitInfo = Process::wait(false);
+            if ($waitInfo && $waitInfo['pid'] === $this->childPid) {
+                return;
+            }
+            usleep(10000);
+        } while (microtime(true) < $deadline);
+
+        @Process::kill($this->childPid, SIGKILL);
+        do {
+            $waitInfo = Process::wait(true);
+        } while ($waitInfo && $waitInfo['pid'] !== $this->childPid);
+    }
+
     public function runParentFunc($pid = 0)
     {
         if (!$this->parentFunc) {
@@ -298,21 +328,26 @@ class ProcessManager
 
         $this->childProcess = new Process(function () {
             if ($this->parentFirst) {
-                $this->wait();
+                $this->waitForWakeup('child');
             }
             $this->runChildFunc();
             exit;
         }, $redirectStdout, $redirectStdout);
-        if (!$this->childProcess || !$this->childProcess->start()) {
+        if (!$this->childProcess || !($this->childPid = $this->childProcess->start())) {
             exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
         register_shutdown_function(function () {
             $this->kill();
         });
         if (!$this->parentFirst) {
-            $this->wait();
+            try {
+                $this->waitForWakeup('parent');
+            } catch (RuntimeException $e) {
+                $this->terminateChildAfterReadinessFailure();
+                throw $e;
+            }
         }
-        $this->runParentFunc($this->childPid = $this->childProcess->pid);
+        $this->runParentFunc($this->childPid);
         Event::wait();
         $waitInfo = Process::wait(true);
         $this->childExitStatus = $waitInfo['code'];

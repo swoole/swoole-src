@@ -10,9 +10,9 @@ $http->set(array(
     "http_parse_post" => 1,
     "upload_tmp_dir" => "/tmp",
 ));
-$http->on("WorkerStart", function (Swoole\Server $serv) {
+$http->on("WorkerStart", function (Swoole\Server $_, int $workerId) {
     global $pm;
-    if ($pm) {
+    if ($workerId === 0) {
         $pm->wakeup();
     }
 });

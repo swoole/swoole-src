@@ -29,6 +29,11 @@ $pm->childFunc = function () use ($pm) {
         'enable_coroutine' => false,
         'task_enable_coroutine' => true
     ]);
+    $http->on('WorkerStart', function (Swoole\Server $server, int $workerId) use ($pm) {
+        if (!$server->taskworker && $workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         Assert::assert($response->detach());
         if (mt_rand(0, 1)) {
