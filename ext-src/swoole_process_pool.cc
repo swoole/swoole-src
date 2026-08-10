@@ -639,7 +639,7 @@ static PHP_METHOD(swoole_process_pool, start) {
             restore_signal_handlers();
             RETURN_FALSE;
         }
-        pool->message_bus->set_allocator(sw_zend_string_allocator());
+        pool->message_bus->set_packet_allocator(sw_zend_string_allocator());
         pool->set_protocol(SW_PROTOCOL_MESSAGE);
     } else {
         pool->set_protocol(SW_PROTOCOL_STREAM);

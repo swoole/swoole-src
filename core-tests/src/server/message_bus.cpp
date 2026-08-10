@@ -29,40 +29,43 @@ using namespace swoole;
 
 constexpr int DATA_SIZE = 2 * SW_NUM_MILLION;
 
-static bool freed_null_buffer = false;
-static size_t freed_buffer_count = 0;
+static size_t packet_allocator_allocations = 0;
+static size_t packet_allocator_frees = 0;
 
-static void test_buffer_free(void *ptr) {
-    if (ptr == nullptr) {
-        freed_null_buffer = true;
-    } else {
-        freed_buffer_count++;
-    }
+static void *test_packet_malloc(size_t size) {
+    packet_allocator_allocations++;
+    return malloc(size);
+}
+
+static void test_packet_free(void *ptr) {
+    packet_allocator_frees++;
     free(ptr);
 }
 
-TEST(message_bus, free_buffer) {
-    Allocator allocator{malloc, calloc, realloc, test_buffer_free};
+TEST(message_bus, buffer_uses_standard_allocator) {
+    Allocator allocator{test_packet_malloc, calloc, realloc, test_packet_free};
     MessageBus message_bus;
-    message_bus.set_allocator(&allocator);
+    message_bus.set_packet_allocator(&allocator);
 
-    freed_null_buffer = false;
-    freed_buffer_count = 0;
+    packet_allocator_allocations = 0;
+    packet_allocator_frees = 0;
     message_bus.free_buffer();
-    ASSERT_FALSE(freed_null_buffer);
-    ASSERT_EQ(freed_buffer_count, 0);
     ASSERT_EQ(message_bus.get_buffer(), nullptr);
+    ASSERT_EQ(packet_allocator_allocations, 0);
+    ASSERT_EQ(packet_allocator_frees, 0);
 
     ASSERT_TRUE(message_bus.alloc_buffer());
+    ASSERT_NE(message_bus.get_buffer(), nullptr);
     ASSERT_TRUE(message_bus.alloc_buffer());
-    ASSERT_EQ(freed_buffer_count, 1);
+    ASSERT_NE(message_bus.get_buffer(), nullptr);
+    ASSERT_EQ(packet_allocator_allocations, 0);
+    ASSERT_EQ(packet_allocator_frees, 0);
     message_bus.free_buffer();
-    ASSERT_EQ(freed_buffer_count, 2);
     ASSERT_EQ(message_bus.get_buffer(), nullptr);
     message_bus.free_buffer();
-    ASSERT_FALSE(freed_null_buffer);
-    ASSERT_EQ(freed_buffer_count, 2);
     ASSERT_EQ(message_bus.get_buffer(), nullptr);
+    ASSERT_EQ(packet_allocator_allocations, 0);
+    ASSERT_EQ(packet_allocator_frees, 0);
 }
 
 TEST(message_bus, release_pipe_sockets) {
@@ -165,10 +168,14 @@ TEST(message_bus, read) {
 
     uint64_t msg_id = 0;
 
+    Allocator allocator{test_packet_malloc, calloc, realloc, test_packet_free};
     TestMB tmb{};
+    tmb.mb.set_packet_allocator(&allocator);
     tmb.mb.set_buffer_size(65536);
     tmb.mb.set_id_generator([&msg_id]() { return msg_id++; });
-    tmb.mb.alloc_buffer();
+    packet_allocator_allocations = 0;
+    packet_allocator_frees = 0;
+    ASSERT_TRUE(tmb.mb.alloc_buffer());
 
     tmb.read_func = [&tmb](network::Socket *sock) { return tmb.mb.read(sock); };
 
@@ -188,6 +195,7 @@ TEST(message_bus, read) {
     tmb.send_empty_packet(p.get_socket(true));
 
     ASSERT_EQ(swoole_event_wait(), SW_OK);
+    ASSERT_GT(packet_allocator_allocations, 0);
 
     MB_ASSERT(1);
     MB_ASSERT(2);

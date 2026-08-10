@@ -59,7 +59,7 @@ struct PacketTask {
 
 class MessageBus {
   private:
-    const Allocator *allocator_;
+    const Allocator *packet_allocator_;
     std::unordered_map<uint64_t, std::shared_ptr<String>> packet_pool_;
     std::vector<network::Socket *> pipe_sockets_;
     std::function<uint64_t(void)> id_generator_;
@@ -72,7 +72,7 @@ class MessageBus {
 
   public:
     MessageBus() {
-        allocator_ = sw_std_allocator();
+        packet_allocator_ = sw_std_allocator();
         buffer_size_ = SW_BUFFER_SIZE_STD;
     }
 
@@ -92,8 +92,10 @@ class MessageBus {
 
     void release_pipe_sockets();
 
-    void set_allocator(const Allocator *allocator) {
-        allocator_ = allocator;
+    // The packet allocator only owns assembled payloads. The fixed scratch buffer uses the standard
+    // allocator so its lifetime is independent of a PHP request.
+    void set_packet_allocator(const Allocator *allocator) {
+        packet_allocator_ = allocator;
     }
 
     void set_id_generator(const std::function<uint64_t(void)> &id_generator) {
@@ -115,13 +117,9 @@ class MessageBus {
     size_t get_memory_size() const;
     bool alloc_buffer();
 
-    /**
-     * If use the zend_string_allocator, must manually call this function to release the memory,
-     * otherwise coredump will occur when php shutdown, because zend_string has been released
-     */
     void free_buffer() {
         if (buffer_) {
-            allocator_->free(buffer_);
+            sw_free(buffer_);
             buffer_ = nullptr;
         }
     }
