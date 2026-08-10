@@ -7,10 +7,15 @@ swoole_function: get mac address
 require __DIR__ . '/../include/bootstrap.php';
 
 $macs = swoole_get_local_mac();
-Assert::assert(is_array($macs));
-foreach ($macs as $mac) {
+Assert::isArray($macs);
+Assert::notEmpty($macs);
+
+foreach ($macs as $name => $mac) {
+    Assert::stringNotEmpty($name);
     Assert::same(filter_var($mac, FILTER_VALIDATE_MAC), $mac);
 }
 
+echo "DONE\n";
 ?>
 --EXPECT--
+DONE
