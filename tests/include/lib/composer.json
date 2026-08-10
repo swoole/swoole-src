@@ -1,6 +1,7 @@
 {
   "name": "swoole_tests/lib",
   "description": "for swoole tests",
+  "license": "Apache-2.0",
   "authors": [
     {
       "name": "tianfeng.han",
@@ -31,6 +32,9 @@
   "config": {
     "allow-plugins": {
       "php-http/discovery": true
+    },
+    "platform": {
+      "php": "8.2.0"
     }
   }
 }
