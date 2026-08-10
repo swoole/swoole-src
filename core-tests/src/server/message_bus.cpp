@@ -45,7 +45,7 @@ static void test_packet_free(void *ptr) {
 TEST(message_bus, buffer_uses_standard_allocator) {
     Allocator allocator{test_packet_malloc, calloc, realloc, test_packet_free};
     MessageBus message_bus;
-    message_bus.set_packet_allocator(&allocator);
+    message_bus.set_allocator(&allocator);
 
     packet_allocator_allocations = 0;
     packet_allocator_frees = 0;
@@ -170,7 +170,7 @@ TEST(message_bus, read) {
 
     Allocator allocator{test_packet_malloc, calloc, realloc, test_packet_free};
     TestMB tmb{};
-    tmb.mb.set_packet_allocator(&allocator);
+    tmb.mb.set_allocator(&allocator);
     tmb.mb.set_buffer_size(65536);
     tmb.mb.set_id_generator([&msg_id]() { return msg_id++; });
     packet_allocator_allocations = 0;

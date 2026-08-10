@@ -59,7 +59,7 @@ struct PacketTask {
 
 class MessageBus {
   private:
-    const Allocator *packet_allocator_;
+    const Allocator *allocator_;
     std::unordered_map<uint64_t, std::shared_ptr<String>> packet_pool_;
     std::vector<network::Socket *> pipe_sockets_;
     std::function<uint64_t(void)> id_generator_;
@@ -72,7 +72,7 @@ class MessageBus {
 
   public:
     MessageBus() {
-        packet_allocator_ = sw_std_allocator();
+        allocator_ = sw_std_allocator();
         buffer_size_ = SW_BUFFER_SIZE_STD;
     }
 
@@ -92,10 +92,10 @@ class MessageBus {
 
     void release_pipe_sockets();
 
-    // The packet allocator only owns assembled payloads. The fixed scratch buffer uses the standard
+    // The allocator only owns assembled payloads. The fixed scratch buffer uses the standard
     // allocator so its lifetime is independent of a PHP request.
-    void set_packet_allocator(const Allocator *allocator) {
-        packet_allocator_ = allocator;
+    void set_allocator(const Allocator *allocator) {
+        allocator_ = allocator;
     }
 
     void set_id_generator(const std::function<uint64_t(void)> &id_generator) {

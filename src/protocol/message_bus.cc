@@ -44,6 +44,8 @@ PacketPtr MessageBus::get_packet() const {
 }
 
 bool MessageBus::alloc_buffer() {
+    // ReactorThread instances may reuse this bus after a PHP request ends, so replace the scratch buffer
+    // through the standard allocator.
     free_buffer();
     void *_ptr = sw_malloc(buffer_size_);
     if (_ptr) {
@@ -86,7 +88,7 @@ String *MessageBus::get_packet_buffer() {
         if (!buffer_->is_begin()) {
             return nullptr;
         }
-        packet_buffer = make_string(buffer_->info.len, packet_allocator_);
+        packet_buffer = make_string(buffer_->info.len, allocator_);
         packet_pool_.emplace(buffer_->info.msg_id, std::shared_ptr<String>(packet_buffer));
     } else {
         packet_buffer = iter->second.get();
