@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: host
+swoole_http_client_coro: generated connection header
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -10,17 +10,10 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     Co\run(function () use ($pm) {
         $client = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
-        $client->setHeaders(['hOsT' => 'example.test']);
+        $client->set(['keep_alive' => false]);
         Assert::true($client->get('/'));
-        Assert::same(substr_count($client->body, "Host: example.test\r\n"), 1);
-        Assert::notContains($client->body, "Host: 127.0.0.1");
-        $client->close();
-
-        $port = $pm->getFreePort();
-        $client = new Swoole\Coroutine\Http\Client('127.0.0.1', $port);
-        Assert::true($client->get('/'));
-        Assert::contains($client->body, "Host: 127.0.0.1:{$port}\r\n");
-        $client->close();
+        Assert::contains($client->body, "Connection: close\r\n");
+        Assert::notContains($client->body, "Connection: closed\r\n");
         echo "DONE\n";
         $pm->kill();
     });
