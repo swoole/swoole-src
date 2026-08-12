@@ -802,6 +802,13 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_STRERROR_DNS", SW_STRERROR_DNS);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_STRERROR_SWOOLE", SW_STRERROR_SWOOLE);
 
+    for (const auto *error = swoole::get_errno_constants(); error->name; error++) {
+        std::string name = "SWOOLE_ERRNO_";
+        name += error->name;
+        zend_register_long_constant(
+            name.c_str(), name.length(), error->value, CONST_CS | CONST_PERSISTENT, module_number);
+    }
+
     /**
      * Register ERROR constants
      */
