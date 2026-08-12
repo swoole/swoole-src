@@ -20,9 +20,325 @@
 
 static std::unordered_set<int> ignored_errors;
 
+#define SW_ERRNO_CONSTANT(name)                                                                                        \
+    { #name, name }
+
+static const swoole::ErrnoConstant errno_constants[] = {
+#ifdef EPERM
+    SW_ERRNO_CONSTANT(EPERM),
+#endif
+#ifdef ENOENT
+    SW_ERRNO_CONSTANT(ENOENT),
+#endif
+#ifdef EINTR
+    SW_ERRNO_CONSTANT(EINTR),
+#endif
+#ifdef EIO
+    SW_ERRNO_CONSTANT(EIO),
+#endif
+#ifdef ENXIO
+    SW_ERRNO_CONSTANT(ENXIO),
+#endif
+#ifdef E2BIG
+    SW_ERRNO_CONSTANT(E2BIG),
+#endif
+#ifdef EBADF
+    SW_ERRNO_CONSTANT(EBADF),
+#endif
+    SW_ERRNO_CONSTANT(EAGAIN),
+#ifdef ENOMEM
+    SW_ERRNO_CONSTANT(ENOMEM),
+#endif
+#ifdef EACCES
+    SW_ERRNO_CONSTANT(EACCES),
+#endif
+#ifdef EFAULT
+    SW_ERRNO_CONSTANT(EFAULT),
+#endif
+#ifdef ENOTBLK
+    SW_ERRNO_CONSTANT(ENOTBLK),
+#endif
+#ifdef EBUSY
+    SW_ERRNO_CONSTANT(EBUSY),
+#endif
+#ifdef EEXIST
+    SW_ERRNO_CONSTANT(EEXIST),
+#endif
+#ifdef EXDEV
+    SW_ERRNO_CONSTANT(EXDEV),
+#endif
+#ifdef ENODEV
+    SW_ERRNO_CONSTANT(ENODEV),
+#endif
+#ifdef ENOTDIR
+    SW_ERRNO_CONSTANT(ENOTDIR),
+#endif
+#ifdef EISDIR
+    SW_ERRNO_CONSTANT(EISDIR),
+#endif
+#ifdef EINVAL
+    SW_ERRNO_CONSTANT(EINVAL),
+#endif
+#ifdef ENFILE
+    SW_ERRNO_CONSTANT(ENFILE),
+#endif
+#ifdef EMFILE
+    SW_ERRNO_CONSTANT(EMFILE),
+#endif
+#ifdef ENOTTY
+    SW_ERRNO_CONSTANT(ENOTTY),
+#endif
+#ifdef ENOSPC
+    SW_ERRNO_CONSTANT(ENOSPC),
+#endif
+#ifdef ESPIPE
+    SW_ERRNO_CONSTANT(ESPIPE),
+#endif
+#ifdef EROFS
+    SW_ERRNO_CONSTANT(EROFS),
+#endif
+#ifdef EMLINK
+    SW_ERRNO_CONSTANT(EMLINK),
+#endif
+#ifdef EPIPE
+    SW_ERRNO_CONSTANT(EPIPE),
+#endif
+#ifdef ENAMETOOLONG
+    SW_ERRNO_CONSTANT(ENAMETOOLONG),
+#endif
+#ifdef ENOLCK
+    SW_ERRNO_CONSTANT(ENOLCK),
+#endif
+#ifdef ENOSYS
+    SW_ERRNO_CONSTANT(ENOSYS),
+#endif
+#ifdef ENOTEMPTY
+    SW_ERRNO_CONSTANT(ENOTEMPTY),
+#endif
+#ifdef ELOOP
+    SW_ERRNO_CONSTANT(ELOOP),
+#endif
+    // Swoole reports a would-block socket result as EAGAIN on every platform.
+    {"EWOULDBLOCK", EAGAIN},
+#ifdef ENOMSG
+    SW_ERRNO_CONSTANT(ENOMSG),
+#endif
+#ifdef EIDRM
+    SW_ERRNO_CONSTANT(EIDRM),
+#endif
+#ifdef ECHRNG
+    SW_ERRNO_CONSTANT(ECHRNG),
+#endif
+#ifdef EL2NSYNC
+    SW_ERRNO_CONSTANT(EL2NSYNC),
+#endif
+#ifdef EL3HLT
+    SW_ERRNO_CONSTANT(EL3HLT),
+#endif
+#ifdef EL3RST
+    SW_ERRNO_CONSTANT(EL3RST),
+#endif
+#ifdef ELNRNG
+    SW_ERRNO_CONSTANT(ELNRNG),
+#endif
+#ifdef EUNATCH
+    SW_ERRNO_CONSTANT(EUNATCH),
+#endif
+#ifdef ENOCSI
+    SW_ERRNO_CONSTANT(ENOCSI),
+#endif
+#ifdef EL2HLT
+    SW_ERRNO_CONSTANT(EL2HLT),
+#endif
+#ifdef EBADE
+    SW_ERRNO_CONSTANT(EBADE),
+#endif
+#ifdef EBADR
+    SW_ERRNO_CONSTANT(EBADR),
+#endif
+#ifdef EXFULL
+    SW_ERRNO_CONSTANT(EXFULL),
+#endif
+#ifdef ENOANO
+    SW_ERRNO_CONSTANT(ENOANO),
+#endif
+#ifdef EBADRQC
+    SW_ERRNO_CONSTANT(EBADRQC),
+#endif
+#ifdef EBADSLT
+    SW_ERRNO_CONSTANT(EBADSLT),
+#endif
+#ifdef ENOSTR
+    SW_ERRNO_CONSTANT(ENOSTR),
+#endif
+#ifdef ENODATA
+    SW_ERRNO_CONSTANT(ENODATA),
+#endif
+#ifdef ETIME
+    SW_ERRNO_CONSTANT(ETIME),
+#endif
+#ifdef ENOSR
+    SW_ERRNO_CONSTANT(ENOSR),
+#endif
+#ifdef ENONET
+    SW_ERRNO_CONSTANT(ENONET),
+#endif
+#ifdef EREMOTE
+    SW_ERRNO_CONSTANT(EREMOTE),
+#endif
+#ifdef ENOLINK
+    SW_ERRNO_CONSTANT(ENOLINK),
+#endif
+#ifdef EADV
+    SW_ERRNO_CONSTANT(EADV),
+#endif
+#ifdef ESRMNT
+    SW_ERRNO_CONSTANT(ESRMNT),
+#endif
+#ifdef ECOMM
+    SW_ERRNO_CONSTANT(ECOMM),
+#endif
+#ifdef EPROTO
+    SW_ERRNO_CONSTANT(EPROTO),
+#endif
+#ifdef EMULTIHOP
+    SW_ERRNO_CONSTANT(EMULTIHOP),
+#endif
+#ifdef EBADMSG
+    SW_ERRNO_CONSTANT(EBADMSG),
+#endif
+#ifdef ENOTUNIQ
+    SW_ERRNO_CONSTANT(ENOTUNIQ),
+#endif
+#ifdef EBADFD
+    SW_ERRNO_CONSTANT(EBADFD),
+#endif
+#ifdef EREMCHG
+    SW_ERRNO_CONSTANT(EREMCHG),
+#endif
+#ifdef ERESTART
+    SW_ERRNO_CONSTANT(ERESTART),
+#endif
+#ifdef ESTRPIPE
+    SW_ERRNO_CONSTANT(ESTRPIPE),
+#endif
+#ifdef EUSERS
+    SW_ERRNO_CONSTANT(EUSERS),
+#endif
+#ifdef ENOTSOCK
+    SW_ERRNO_CONSTANT(ENOTSOCK),
+#endif
+#ifdef EDESTADDRREQ
+    SW_ERRNO_CONSTANT(EDESTADDRREQ),
+#endif
+#ifdef EMSGSIZE
+    SW_ERRNO_CONSTANT(EMSGSIZE),
+#endif
+#ifdef EPROTOTYPE
+    SW_ERRNO_CONSTANT(EPROTOTYPE),
+#endif
+#ifdef ENOPROTOOPT
+    SW_ERRNO_CONSTANT(ENOPROTOOPT),
+#endif
+#ifdef EPROTONOSUPPORT
+    SW_ERRNO_CONSTANT(EPROTONOSUPPORT),
+#endif
+#ifdef ESOCKTNOSUPPORT
+    SW_ERRNO_CONSTANT(ESOCKTNOSUPPORT),
+#endif
+#ifdef EOPNOTSUPP
+    SW_ERRNO_CONSTANT(EOPNOTSUPP),
+#endif
+#ifdef EPFNOSUPPORT
+    SW_ERRNO_CONSTANT(EPFNOSUPPORT),
+#endif
+#ifdef EAFNOSUPPORT
+    SW_ERRNO_CONSTANT(EAFNOSUPPORT),
+#endif
+#ifdef EADDRINUSE
+    SW_ERRNO_CONSTANT(EADDRINUSE),
+#endif
+#ifdef EADDRNOTAVAIL
+    SW_ERRNO_CONSTANT(EADDRNOTAVAIL),
+#endif
+#ifdef ENETDOWN
+    SW_ERRNO_CONSTANT(ENETDOWN),
+#endif
+#ifdef ENETUNREACH
+    SW_ERRNO_CONSTANT(ENETUNREACH),
+#endif
+#ifdef ENETRESET
+    SW_ERRNO_CONSTANT(ENETRESET),
+#endif
+#ifdef ECONNABORTED
+    SW_ERRNO_CONSTANT(ECONNABORTED),
+#endif
+#ifdef ECONNRESET
+    SW_ERRNO_CONSTANT(ECONNRESET),
+#endif
+#ifdef ENOBUFS
+    SW_ERRNO_CONSTANT(ENOBUFS),
+#endif
+#ifdef EISCONN
+    SW_ERRNO_CONSTANT(EISCONN),
+#endif
+#ifdef ENOTCONN
+    SW_ERRNO_CONSTANT(ENOTCONN),
+#endif
+#ifdef ESHUTDOWN
+    SW_ERRNO_CONSTANT(ESHUTDOWN),
+#endif
+#ifdef ETOOMANYREFS
+    SW_ERRNO_CONSTANT(ETOOMANYREFS),
+#endif
+#ifdef ETIMEDOUT
+    SW_ERRNO_CONSTANT(ETIMEDOUT),
+#endif
+#ifdef ECONNREFUSED
+    SW_ERRNO_CONSTANT(ECONNREFUSED),
+#endif
+#ifdef EHOSTDOWN
+    SW_ERRNO_CONSTANT(EHOSTDOWN),
+#endif
+#ifdef EHOSTUNREACH
+    SW_ERRNO_CONSTANT(EHOSTUNREACH),
+#endif
+#ifdef EALREADY
+    SW_ERRNO_CONSTANT(EALREADY),
+#endif
+#ifdef EINPROGRESS
+    SW_ERRNO_CONSTANT(EINPROGRESS),
+#endif
+#ifdef EISNAM
+    SW_ERRNO_CONSTANT(EISNAM),
+#endif
+#ifdef EREMOTEIO
+    SW_ERRNO_CONSTANT(EREMOTEIO),
+#endif
+#ifdef EDQUOT
+    SW_ERRNO_CONSTANT(EDQUOT),
+#endif
+#ifdef ENOMEDIUM
+    SW_ERRNO_CONSTANT(ENOMEDIUM),
+#endif
+#ifdef EMEDIUMTYPE
+    SW_ERRNO_CONSTANT(EMEDIUMTYPE),
+#endif
+#ifdef ECANCELED
+    SW_ERRNO_CONSTANT(ECANCELED),
+#endif
+    {nullptr, 0},
+};
+
+#undef SW_ERRNO_CONSTANT
+
 namespace swoole {
 Exception::Exception(const int code) noexcept : code(code) {
     msg = swoole_strerror(code);
+}
+
+const ErrnoConstant *get_errno_constants() {
+    return errno_constants;
 }
 }  // namespace swoole
 
