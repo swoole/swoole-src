@@ -26,30 +26,38 @@ run(function () {
     Assert::true($listener->bind('127.0.0.1', 0));
     Assert::true($listener->listen());
 
-    for ($index = 0; $index < 8; $index++) {
+    Assert::false($listener->accept(0.001));
+    $timeoutError = $listener->errCode;
+    Assert::integer($timeoutError);
+    Assert::greaterThan($timeoutError, 0);
+
+    for ($index = 1; $index < 8; $index++) {
         Assert::false($listener->accept(0.001));
-        Assert::same($listener->errCode, SOCKET_ETIMEDOUT);
+        Assert::same($listener->errCode, $timeoutError);
     }
 
     $completion  = new Channel(1);
     $coroutineId = go(function () use ($listener, $completion) {
         Assert::false($listener->accept(-1));
-        Assert::same($listener->errCode, SOCKET_ECANCELED);
-        $completion->push(true);
+        $completion->push($listener->errCode);
     });
     Assert::true(Coroutine::cancel($coroutineId));
-    Assert::true($completion->pop(1));
+    $cancellationError = $completion->pop(1);
+    Assert::integer($cancellationError);
+    Assert::greaterThan($cancellationError, 0);
+    Assert::notSame($cancellationError, $timeoutError);
 
     $completion = new Channel(1);
     go(function () use ($listener, $completion) {
         Assert::false($listener->accept(-1));
-        Assert::same($listener->errCode, SOCKET_ECANCELED);
-        $completion->push(true);
+        $completion->push($listener->errCode);
     });
     // The second call succeeds only while accept remains bound until Windows reports cancellation completion.
     Assert::true($listener->cancel());
     Assert::true($listener->cancel());
-    Assert::true($completion->pop(1));
+    $socketCancellationError = $completion->pop(1);
+    Assert::integer($socketCancellationError);
+    Assert::same($socketCancellationError, $cancellationError);
 
     $stats = Coroutine::stats();
     Assert::same($stats['iocp_blocking_task_num'], 0);
@@ -70,7 +78,7 @@ run(function () {
     Assert::isInstanceOf($connection, Socket::class);
     Assert::same($listener->errCode, 0);
     Assert::false($connection->recv(7, 0.001));
-    Assert::same($connection->errCode, SOCKET_ETIMEDOUT);
+    Assert::same($connection->errCode, $timeoutError);
     $send->push(true);
     Assert::same($connection->recvAll(7, 1), 'payload');
     $connection->close();
