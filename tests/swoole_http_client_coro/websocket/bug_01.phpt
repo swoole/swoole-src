@@ -14,6 +14,7 @@ $pm = new ProcessManager();
 $pm->parentFunc = function ($pid) use ($pm) {
     Co\run(function () use ($pm) {
         $cli = new Co\http\Client('127.0.0.1', $pm->getFreePort());
+        $cli->set(['lowercase_header' => false]);
         $ret = $cli->upgrade('/');
         if (!$ret) {
             echo "ERROR\n";

@@ -353,30 +353,23 @@ static void http_request_add_upload_file(HttpContext *ctx, const char *file, siz
 }
 
 bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
-    if (0 == length) {
-        return false;
-    }
-    if (SW_STRCASEEQ(at, length, value)) {
-        return true;
-    }
+    const char *end = at + length;
+    const size_t value_length = strlen(value);
 
-    char *var;
-    const char *separator = ",\0";
-    char *strtok_buf = nullptr;
-    size_t var_len;
-
-    char *_c = sw_tg_buffer()->str;
-    memcpy(_c, at, length);
-    _c[length] = '\0';
-
-    var = php_strtok_r(_c, separator, &strtok_buf);
-    while (var) {
-        var_len = swoole::ltrim(&var, strlen(var));
-        var_len = swoole::rtrim(var, var_len);
-        if (swoole_strcaseeq(var, var_len, value, strlen(value))) {
+    while (at < end) {
+        const char *separator = static_cast<const char *>(memchr(at, ',', end - at));
+        const char *token_end = separator ? separator : end;
+        while (at < token_end && isspace(static_cast<unsigned char>(*at))) {
+            at++;
+        }
+        const size_t token_length = swoole::rtrim(at, token_end - at);
+        if (token_length > 0 && swoole_strcaseeq(at, token_length, value, value_length)) {
             return true;
         }
-        var = php_strtok_r(nullptr, separator, &strtok_buf);
+        if (!separator) {
+            break;
+        }
+        at = separator + 1;
     }
     return false;
 }

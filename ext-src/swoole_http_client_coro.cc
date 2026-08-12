@@ -86,6 +86,19 @@ static zend_object_handlers swoole_http_client_coro_handlers;
 static zend_class_entry *swoole_http_client_coro_exception_ce;
 static zend_object_handlers swoole_http_client_coro_exception_handlers;
 
+static zval *http_header_find(HashTable *headers, const char *name, size_t length) {
+    // Header arrays may retain caller-provided or wire casing.
+    zval *value;
+    zend_string *key;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(headers, key, value) {
+        if (key && swoole_strcaseeq(ZSTR_VAL(key), ZSTR_LEN(key), name, length)) {
+            return value;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return nullptr;
+}
+
 static bool websocket_verify_server_handshake(zval *zobject) {
     zend_class_entry *ce = Z_OBJCE_P(zobject);
     zval *zrequest_headers = sw_zend_read_property_ex(ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_HEADERS), 0);
@@ -99,19 +112,19 @@ static bool websocket_verify_server_handshake(zval *zobject) {
         return false;
     }
 
-    zval *zupgrade = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("upgrade"));
+    zval *zupgrade = http_header_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("upgrade"));
     if (zupgrade == nullptr || Z_TYPE_P(zupgrade) != IS_STRING ||
         !swoole_http_token_list_contains_value(Z_STRVAL_P(zupgrade), Z_STRLEN_P(zupgrade), "websocket")) {
         return false;
     }
 
-    zval *zconnection = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("connection"));
+    zval *zconnection = http_header_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("connection"));
     if (zconnection == nullptr || Z_TYPE_P(zconnection) != IS_STRING ||
         !swoole_http_token_list_contains_value(Z_STRVAL_P(zconnection), Z_STRLEN_P(zconnection), "Upgrade")) {
         return false;
     }
 
-    zval *zaccept = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("sec-websocket-accept"));
+    zval *zaccept = http_header_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("sec-websocket-accept"));
     if (zaccept == nullptr || Z_TYPE_P(zaccept) != IS_STRING || Z_STRLEN_P(zaccept) == 0) {
         return false;
     }
@@ -158,7 +171,6 @@ class Client {
     uint8_t max_retries = 0;
     bool keep_alive = true;  // enable by default
     bool websocket = false;  // if upgrade successfully
-    bool chunked = false;    // Transfer-Encoding: chunked
 
     bool body_decompression = true;
     bool http_compression = true;
@@ -473,21 +485,22 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 
     http->add_header(header_name, header_len, (char *) at, length);
 
-    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STREQ(header_name, header_len, "upgrade")) {
+    if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STRCASEEQ(header_name, header_len, "upgrade")) {
         if (swoole_http_token_list_contains_value(at, length, "websocket")) {
             http->websocket = true;
         }
         /* TODO: protocol error? */
     }
 #ifdef SW_HAVE_ZLIB
-    else if (http->websocket && http->websocket_settings.compression &&
-             SW_STREQ(header_name, header_len, "sec-websocket-extensions")) {
+    // Extension negotiation must not depend on Upgrade appearing first on the wire.
+    else if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && http->websocket_settings.compression &&
+             SW_STRCASEEQ(header_name, header_len, "sec-websocket-extensions")) {
         if (swoole_strncasestr(at, length, SW_STRL("permessage-deflate"))) {
             http->accept_websocket_compression = true;
         }
     }
 #endif
-    else if (SW_STREQ(header_name, header_len, "set-cookie")) {
+    else if (SW_STRCASEEQ(header_name, header_len, "set-cookie")) {
         zval *zcookies =
             sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
         zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(
@@ -495,7 +508,7 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
         php_swoole_http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
 #ifdef SW_HAVE_COMPRESSION
-    else if (SW_STREQ(header_name, header_len, "content-encoding")) {
+    else if (SW_STRCASEEQ(header_name, header_len, "content-encoding")) {
         if (false) {
         }
 #ifdef SW_HAVE_BROTLI
@@ -517,11 +530,11 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 #endif
     }
 #endif
-    else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
-        http->chunked = true;
-    } else if (SW_STREQ(header_name, header_len, "connection")) {
-        http->connection_close = SW_STR_ISTARTS_WITH(at, length, "close");
-    } else if (SW_STREQ(header_name, header_len, "content-type")) {
+    else if (SW_STRCASEEQ(header_name, header_len, "connection")) {
+        if (swoole_http_token_list_contains_value(at, length, "close")) {
+            http->connection_close = true;
+        }
+    } else if (SW_STRCASEEQ(header_name, header_len, "content-type")) {
         http->event_stream = SW_STR_ISTARTS_WITH(at, length, "text/event-stream");
     }
 
@@ -986,8 +999,7 @@ bool Client::send_request() {
     // ============   host   ============
     zend::String str_host;
 
-    if ((ZVAL_IS_ARRAY(zheaders)) && (((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host")))) ||
-                                      ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host")))))) {
+    if (ZVAL_IS_ARRAY(zheaders) && (zvalue = http_header_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host")))) {
         str_host = zvalue;
     }
 
@@ -1095,8 +1107,8 @@ bool Client::send_request() {
 
             if (SW_STRCASEEQ(key, keylen, "Connection")) {
                 header_flag |= HTTP_HEADER_CONNECTION;
-                if (SW_STRCASEEQ(str_value.val(), str_value.len(), "close")) {
-                    keep_alive = false;
+                if (swoole_http_token_list_contains_value(str_value.val(), str_value.len(), "close")) {
+                    connection_close = true;
                 }
             }
         }
@@ -1115,7 +1127,7 @@ bool Client::send_request() {
         if (keep_alive) {
             add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
         } else {
-            add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
+            add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("close"));
         }
     }
 #ifdef SW_HAVE_COMPRESSION
@@ -1412,7 +1424,6 @@ bool Client::send_request() {
             buffer->append(ZEND_STRL("\r\n"));
         }
         if (header_too_large(buffer)) {
-            close();
             return false;
         }
     }
@@ -1447,6 +1458,8 @@ bool Client::exec(const std::string &_path) {
     }
     SW_LOOP_N(max_retries + 1) {
         if (send_request() == false) {
+            // Pre-send validation failures do not close and therefore need explicit cleanup.
+            reset();
             return false;
         }
         if (defer) {
@@ -1491,9 +1504,10 @@ bool Client::recv_response(double timeout) {
         if (sw_unlikely(retval <= 0)) {
             if (retval == 0) {
                 socket->set_err(ECONNRESET);
-                if (total_bytes > 0 && !llhttp_should_keep_alive(&parser)) {
+                if (total_bytes > 0 && llhttp_message_needs_eof(&parser)) {
                     llhttp_finish(&parser);
-                    success = true;
+                    // The message-complete callback pauses the parser, so its flag is authoritative.
+                    success = completed;
                     break;
                 }
             }
@@ -1670,6 +1684,7 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
 
 void Client::reset() {
     wait_response = false;
+    connection_close = false;
     completed = false;
     event_stream = false;
 #ifdef SW_HAVE_COMPRESSION
@@ -1697,7 +1712,8 @@ void Client::reset() {
     if (has_upload_files) {
         zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("uploadFiles"));
     }
-    if (download_file != nullptr) {
+    // Empty-body downloads have a target name but never open the file.
+    if (download_file != nullptr || download_file_name.get()) {
         download_file.reset();
         download_file_name.release();
         download_offset = 0;

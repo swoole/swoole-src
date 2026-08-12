@@ -204,7 +204,7 @@ std::string intersection(const std::vector<std::string> &vec1, std::set<std::str
 static inline size_t ltrim(char **str, size_t len) {
     size_t i;
     for (i = 0; i < len; ++i) {
-        if ('\0' != **str && isspace(**str)) {
+        if ('\0' != **str && isspace(static_cast<unsigned char>(**str))) {
             ++*str;
         } else {
             break;
@@ -215,7 +215,7 @@ static inline size_t ltrim(char **str, size_t len) {
 
 static inline size_t rtrim(char *str, size_t len) {
     for (size_t i = len; i > 0;) {
-        if (isspace(str[--i])) {
+        if (isspace(static_cast<unsigned char>(str[--i]))) {
             str[i] = 0;
             len--;
         } else {
@@ -227,7 +227,7 @@ static inline size_t rtrim(char *str, size_t len) {
 
 static inline size_t rtrim(const char *str, size_t len) {
     for (size_t i = len; i > 0;) {
-        if (isspace(str[--i])) {
+        if (isspace(static_cast<unsigned char>(str[--i]))) {
             len--;
         } else {
             break;
