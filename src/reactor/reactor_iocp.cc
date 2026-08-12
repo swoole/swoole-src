@@ -29,6 +29,7 @@ class ReactorIocp final : public ReactorImpl {
 
     struct PollState {
         Socket *socket = nullptr;
+        // The IOCP completion owns this operation and reaps it before the reactor implementation is deleted.
         PollOperation *operation = nullptr;
         HANDLE wait_handle = INVALID_HANDLE_VALUE;
         int events = 0;

@@ -167,7 +167,7 @@ Iocp::Iocp(Reactor *reactor_) {
 }
 
 Iocp::~Iocp() {
-    swoole_trace_log(SW_TRACE_EVENT, "IOCP destroyed: port=%p", port);
+    swoole_trace_log(SW_TRACE_EVENT, "IOCP destroyed: port=%p, pending=%" PRIu64, port, get_task_num());
     if (reactor && !reactor->destroyed) {
         reactor->remove_exit_condition(Reactor::EXIT_CONDITION_IOCP);
         reactor->erase_end_callback(Reactor::PRIORITY_IOCP_WAKEUP);
@@ -346,19 +346,13 @@ ssize_t Iocp::execute(IocpEvent *event, double timeout) {
     errno = result_error;
     swoole_set_last_error(result_error);
 
-    if (result < 0 && resume_error != 0) {
-        swoole_trace_log(SW_TRACE_SOCKET,
-                         "IOCP timeout/cancel opcode=%s, fd=%d, errno=%d",
-                         get_opcode_name(event->opcode),
-                         (int) event->fd,
-                         result_error);
-    }
     swoole_trace_log(SW_TRACE_SOCKET,
-                     "IOCP done opcode=%s, fd=%d, result=%zd, errno=%d",
+                     "IOCP done opcode=%s, fd=%d, result=%zd, errno=%d, resume_error=%d",
                      get_opcode_name(event->opcode),
                      (int) event->fd,
                      result,
-                     result_error);
+                     result_error,
+                     resume_error);
     delete event;
     return result;
 }
