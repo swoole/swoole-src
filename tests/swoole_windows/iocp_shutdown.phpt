@@ -32,7 +32,7 @@ run(function () use (&$coroutineId) {
 
     $server = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
     Assert::assert($server !== false, $errorMessage ?: 'failed to create socket server');
-    Assert::notSame(Event::add($server, static function () {}), false);
+    Assert::integer(Event::add($server, static function () {}));
 
     $coroutineId = go(function () use ($listener) {
         $listener->accept(-1);
