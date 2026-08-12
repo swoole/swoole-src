@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 
+#include <chrono>
 #include <thread>
 
 void sw_spinlock(sw_atomic_t *lock) {
@@ -44,23 +45,42 @@ void sw_spinlock(sw_atomic_t *lock) {
 #include <sys/syscall.h>
 
 int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
-    if (sw_atomic_cmp_set(atomic, 1, 0)) {
-        return 0;
-    }
+    using Clock = std::chrono::steady_clock;
 
-    int ret;
-    timespec _timeout;
+    const bool timed = timeout > 0;
+    const auto deadline =
+        timed ? Clock::now() + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(timeout))
+              : Clock::time_point{};
 
-    if (timeout > 0) {
-        _timeout.tv_sec = static_cast<long>(timeout);
-        _timeout.tv_nsec = (timeout - _timeout.tv_sec) * 1000 * 1000 * 1000;
-        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, NULL, 0);
-    } else {
-        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
-    }
-    if (ret == 0 && sw_atomic_cmp_set(atomic, 1, 0)) {
-        return 0;
-    } else {
+    while (true) {
+        if (sw_atomic_cmp_set(atomic, 1, 0)) {
+            return 0;
+        }
+
+        timespec _timeout;
+        timespec *timeout_ptr = nullptr;
+        if (timed) {
+            const auto remaining = deadline - Clock::now();
+            if (remaining <= Clock::duration::zero()) {
+                return -1;
+            }
+            const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(remaining);
+            _timeout.tv_sec = seconds.count();
+            _timeout.tv_nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(remaining - seconds).count();
+            timeout_ptr = &_timeout;
+        }
+
+        const int ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, timeout_ptr, NULL, 0);
+        if (ret == 0) {
+            // FUTEX_WAKE may release multiple waiters, but only one can consume the shared wakeup flag. The others
+            // must still report success because wakeup(n) releases n waiters.
+            sw_atomic_cmp_set(atomic, 1, 0);
+            return 0;
+        }
+        // A wakeup can set the flag just before FUTEX_WAIT, and signals may interrupt an otherwise valid wait.
+        if (errno == EAGAIN || errno == EINTR) {
+            continue;
+        }
         return -1;
     }
 }
@@ -77,18 +97,30 @@ int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
     if (sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
         return 0;
     }
-    timeout = timeout <= 0 ? INT_MAX : timeout;
+
+    using Clock = std::chrono::steady_clock;
+
+    const bool timed = timeout > 0;
+    const auto deadline =
+        timed ? Clock::now() + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(timeout))
+              : Clock::time_point{};
     int32_t i = (int32_t) sw_atomic_sub_fetch(atomic, 1);
-    while (timeout > 0) {
+    if (i >= 0) {
+        return 0;
+    }
+    while (true) {
         if ((int32_t) *atomic > i) {
             return 0;
-        } else {
-            sw_usleep(1000);
-            timeout -= 0.001;
         }
+        if (timed && Clock::now() >= deadline) {
+            break;
+        }
+        sw_usleep(1000);
     }
-    sw_atomic_fetch_add(atomic, 1);
-    return -1;
+    if (sw_atomic_cmp_set(atomic, (sw_atomic_t) i, (sw_atomic_t) (i + 1))) {
+        return -1;
+    }
+    return 0;
 }
 
 int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {

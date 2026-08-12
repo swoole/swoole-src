@@ -23,7 +23,7 @@ function race(callable $operation): int
         $process = new Process(function () use ($ready, $start, $successes, $operation): void {
             $ready->add();
             while ($start->get() === 0) {
-                $start->wait(1.0);
+                usleep(1000);
             }
             if ($operation()) {
                 $successes->add();
@@ -42,7 +42,6 @@ function race(callable $operation): int
     }
 
     $start->set(1);
-    $start->wakeup(WORKERS);
     foreach ($processes as $_) {
         $status = Process::wait();
         Assert::same($status['code'], 0);
