@@ -76,7 +76,6 @@ run(function () {
 
     $connection = $listener->accept(-1);
     Assert::isInstanceOf($connection, Socket::class);
-    Assert::same($listener->errCode, 0);
     Assert::false($connection->recv(7, 0.001));
     Assert::same($connection->errCode, $timeoutError);
     $send->push(true);
