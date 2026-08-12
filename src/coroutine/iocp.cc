@@ -85,9 +85,9 @@ void IocpEvent::set_result(DWORD transferred, DWORD err) {
     } else {
         result = -1;
         if (socket_event) {
-            Iocp::set_error(err);
+            Iocp::set_socket_error(err);
         } else {
-            Iocp::set_file_error(err);
+            Iocp::set_system_error(err);
         }
         error = errno;
     }
@@ -126,7 +126,7 @@ static bool bind_connect_ex_socket(swSocketFd fd, const sockaddr *addr) {
     if (::bind(fd, reinterpret_cast<sockaddr *>(&local_addr), local_addr_len) == SOCKET_ERROR) {
         const int err = WSAGetLastError();
         if (err != WSAEINVAL) {
-            Iocp::set_error(err);
+            Iocp::set_socket_error(err);
             return false;
         }
     }
@@ -137,8 +137,8 @@ Iocp::Iocp(Reactor *reactor_) {
     reactor = reactor_;
     port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
     if (port == nullptr) {
-        set_error(GetLastError());
-        swoole_sys_error("CreateIoCompletionPort() failed");
+        set_system_error(GetLastError());
+        swoole_sys_warning("CreateIoCompletionPort() failed");
         return;
     }
 
@@ -172,19 +172,36 @@ Iocp::~Iocp() {
         reactor->remove_exit_condition(Reactor::EXIT_CONDITION_IOCP);
         reactor->erase_end_callback(Reactor::PRIORITY_IOCP_WAKEUP);
     }
+    if (ready()) {
+        for (auto *event : submissions) {
+            event->orphaned = true;
+            CancelIoEx(event->handle, &event->overlapped);
+        }
+
+        /*
+         * Every registered operation queues a completion packet, and orphaned callbacks cannot submit replacements.
+         * wait(-1) therefore either removes one submission or fails the port. Returning early would release memory that
+         * Windows may still own.
+         */
+        while (!submissions.empty()) {
+            if (wait(-1) < 0) {
+                swoole_sys_error("failed to drain IOCP submissions");
+            }
+        }
+    }
     if (port != INVALID_HANDLE_VALUE && port != nullptr) {
         CloseHandle(port);
         port = INVALID_HANDLE_VALUE;
     }
 }
 
-void Iocp::set_error(DWORD error) {
+void Iocp::set_socket_error(DWORD error) {
     WSASetLastError(error);
     errno = sw_socket_errno();
     swoole_set_last_error(errno);
 }
 
-void Iocp::set_file_error(DWORD error) {
+void Iocp::set_system_error(DWORD error) {
     SetLastError(error);
     switch (error) {
     case ERROR_SUCCESS:
@@ -202,12 +219,18 @@ void Iocp::set_file_error(DWORD error) {
     case ERROR_INVALID_HANDLE:
         errno = EBADF;
         break;
+    case ERROR_INVALID_PARAMETER:
+        errno = EINVAL;
+        break;
     case ERROR_ALREADY_EXISTS:
     case ERROR_FILE_EXISTS:
         errno = EEXIST;
         break;
     case ERROR_HANDLE_EOF:
         errno = 0;
+        break;
+    case ERROR_OPERATION_ABORTED:
+        errno = ECANCELED;
         break;
     case ERROR_NOT_ENOUGH_MEMORY:
     case ERROR_OUTOFMEMORY:
@@ -231,7 +254,7 @@ bool Iocp::get_extension_function(SOCKET fd, GUID guid, void **fn) {
                  &bytes,
                  nullptr,
                  nullptr) == SOCKET_ERROR) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         return false;
     }
     return true;
@@ -282,7 +305,7 @@ bool Iocp::associate(swSocketFd fd) {
 bool Iocp::associate(HANDLE handle, ULONG_PTR key) {
     HANDLE retval = CreateIoCompletionPort(handle, port, key, 0);
     if (retval != port) {
-        set_error(GetLastError());
+        set_system_error(GetLastError());
         return false;
     }
     return true;
@@ -292,53 +315,50 @@ ssize_t Iocp::execute(IocpEvent *event, double timeout) {
     event->coroutine = Coroutine::get_current_safe();
     submit(event);
     swoole_trace_log(SW_TRACE_SOCKET,
-                     "IOCP submit opcode=%s, fd=%d, timeout=%f, task_num=%u",
+                     "IOCP submit opcode=%s, fd=%d, timeout=%f, task_num=%" PRIu64,
                      get_opcode_name(event->opcode),
                      (int) event->fd,
                      timeout,
-                     task_num);
+                     get_task_num());
 
-    if (timeout > 0) {
-        event->coroutine->yield_ex(timeout);
-    } else {
-        Coroutine::CancelFunc cancel_fn = [event](Coroutine *co) {
-            CancelIoEx(event->handle, &event->overlapped);
-            co->resume();
-            return true;
-        };
-        event->coroutine->yield(&cancel_fn);
+    event->coroutine->yield_ex(timeout);
+
+    int resume_error = 0;
+    if (!event->completed) {
+        // Socket::cancel() resumes without setting a resume code, so every non-timeout wakeup is cancellation.
+        resume_error = event->coroutine->is_timedout() ? ETIMEDOUT : ECANCELED;
+        CancelIoEx(event->handle, &event->overlapped);
+
+        /*
+         * CancelIoEx only requests cancellation. Keep the event, caller buffers, and task accounting alive until the
+         * completion packet is dequeued. A bare Socket::cancel() may resume this coroutine again while it is draining.
+         */
+        do {
+            event->coroutine->yield();
+        } while (!event->completed);
     }
 
-    if (!event->completed) {
-        cancel_submission(event);
-        CancelIoEx(event->handle, &event->overlapped);
-        if (event->coroutine->is_timedout()) {
-            errno = ETIMEDOUT;
-        } else if (event->coroutine->is_canceled()) {
-            errno = ECANCELED;
-        } else {
-            errno = ECANCELED;
-        }
-        swoole_set_last_error(errno);
+    ssize_t result = event->result;
+    int result_error = event->error;
+    if (result < 0 && resume_error != 0) {
+        result_error = resume_error;
+    }
+    errno = result_error;
+    swoole_set_last_error(result_error);
+
+    if (result < 0 && resume_error != 0) {
         swoole_trace_log(SW_TRACE_SOCKET,
                          "IOCP timeout/cancel opcode=%s, fd=%d, errno=%d",
                          get_opcode_name(event->opcode),
                          (int) event->fd,
-                         errno);
-        return -1;
-    }
-
-    ssize_t result = event->result;
-    if (event->error) {
-        errno = event->error;
-        swoole_set_last_error(errno);
+                         result_error);
     }
     swoole_trace_log(SW_TRACE_SOCKET,
-                     "IOCP done opcode=%s, fd=%d, result=%ld, errno=%d",
+                     "IOCP done opcode=%s, fd=%d, result=%zd, errno=%d",
                      get_opcode_name(event->opcode),
                      (int) event->fd,
                      result,
-                     event->error);
+                     result_error);
     delete event;
     return result;
 }
@@ -367,15 +387,15 @@ bool Iocp::dispatch(DWORD transferred, ULONG_PTR key, OVERLAPPED *overlapped, DW
 
     finish_submission(event);
 
+    if (event->orphaned) {
+        // Teardown reaped this event; the suspended execute() frame still owns and may delete it.
+        return true;
+    }
+
     if (event->opcode == SW_IOCP_RECVFROM && event->addrlen) {
         *event->addrlen = static_cast<socklen_t>(event->addrlen_int);
     } else if (event->opcode == SW_IOCP_RECVMSG && event->msg_namelen) {
         *event->msg_namelen = static_cast<socklen_t>(event->addrlen_int);
-    }
-
-    if (event->orphaned || event->coroutine == nullptr) {
-        delete event;
-        return true;
     }
 
     event->coroutine->resume();
@@ -408,7 +428,7 @@ int Iocp::wait(int timeout_msec) {
         if (error == WAIT_TIMEOUT) {
             return 0;
         }
-        set_error(error);
+        set_system_error(error);
         return -1;
     }
 
@@ -432,8 +452,8 @@ int Iocp::connect(swSocketFd fd, const struct sockaddr *addr, socklen_t len, dou
 
     auto *event = new IocpEvent(SW_IOCP_CONNECT, fd);
     BOOL ok = fn_connect_ex(fd, addr, len, nullptr, 0, nullptr, &event->overlapped);
-    if (!ok && WSAGetLastError() != ERROR_IO_PENDING) {
-        set_error(WSAGetLastError());
+    if (!ok && WSAGetLastError() != WSA_IO_PENDING) {
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -472,18 +492,17 @@ int Iocp::accept(swSocketFd fd, struct sockaddr *addr, socklen_t *len, int flags
 
     SOCKET accept_fd = WSASocketW(domain, SOCK_STREAM, IPPROTO_TCP, nullptr, 0, WSA_FLAG_OVERLAPPED);
     if (accept_fd == INVALID_SOCKET) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         return -1;
     }
 
     auto *event = new IocpEvent(SW_IOCP_ACCEPT, fd);
-    event->accept_socket = accept_fd;
     char accept_buffer[(sizeof(sockaddr_storage) + 16) * 2] = {};
     DWORD bytes = 0;
     const DWORD address_length = sizeof(sockaddr_storage) + 16;
     BOOL ok = fn_accept_ex(fd, accept_fd, accept_buffer, 0, address_length, address_length, &bytes, &event->overlapped);
-    if (!ok && WSAGetLastError() != ERROR_IO_PENDING) {
-        set_error(WSAGetLastError());
+    if (!ok && WSAGetLastError() != WSA_IO_PENDING) {
+        set_socket_error(WSAGetLastError());
         closesocket(accept_fd);
         delete event;
         return -1;
@@ -522,7 +541,7 @@ ssize_t Iocp::recv(swSocketFd fd, void *buf, size_t len, int flags, double timeo
     event->flags = static_cast<DWORD>(flags);
     if (WSARecv(fd, &event->wsabuf, 1, nullptr, &event->flags, &event->overlapped, nullptr) == SOCKET_ERROR &&
         WSAGetLastError() != WSA_IO_PENDING) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -539,7 +558,7 @@ ssize_t Iocp::send(swSocketFd fd, const void *buf, size_t len, int flags, double
     event->wsabuf.len = static_cast<ULONG>(len);
     if (WSASend(fd, &event->wsabuf, 1, nullptr, static_cast<DWORD>(flags), &event->overlapped, nullptr) == SOCKET_ERROR &&
         WSAGetLastError() != WSA_IO_PENDING) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -579,7 +598,7 @@ ssize_t Iocp::recvmsg(swSocketFd fd, struct msghdr *message, int flags, double t
                      nullptr);
     }
     if (rc == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -615,7 +634,7 @@ ssize_t Iocp::sendmsg(swSocketFd fd, const struct msghdr *message, int flags, do
                      nullptr);
     }
     if (rc == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -634,7 +653,7 @@ ssize_t Iocp::sendto(
     if (WSASendTo(fd, &event->wsabuf, 1, nullptr, static_cast<DWORD>(flags), addr, len, &event->overlapped, nullptr) ==
             SOCKET_ERROR &&
         WSAGetLastError() != WSA_IO_PENDING) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -662,7 +681,7 @@ ssize_t Iocp::recvfrom(swSocketFd fd, void *buf, size_t n, sockaddr *addr, sockl
                     &event->overlapped,
                     nullptr) == SOCKET_ERROR &&
         WSAGetLastError() != WSA_IO_PENDING) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -684,7 +703,7 @@ ssize_t Iocp::readv(swSocketFd fd, const struct iovec *iovec, int count, double 
                 &event->overlapped,
                 nullptr) == SOCKET_ERROR &&
         WSAGetLastError() != WSA_IO_PENDING) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -706,7 +725,7 @@ ssize_t Iocp::writev(swSocketFd fd, const struct iovec *iovec, int count, double
                 &event->overlapped,
                 nullptr) == SOCKET_ERROR &&
         WSAGetLastError() != WSA_IO_PENDING) {
-        set_error(WSAGetLastError());
+        set_socket_error(WSAGetLastError());
         delete event;
         return -1;
     }
@@ -736,13 +755,13 @@ static bool get_file_offset(HANDLE handle, uint64_t *offset, bool append) {
     LARGE_INTEGER pos = {};
     if (append) {
         if (!GetFileSizeEx(handle, &pos)) {
-            Iocp::set_file_error(GetLastError());
+            Iocp::set_system_error(GetLastError());
             return false;
         }
     } else {
         LARGE_INTEGER zero = {};
         if (!SetFilePointerEx(handle, zero, &pos, FILE_CURRENT)) {
-            Iocp::set_file_error(GetLastError());
+            Iocp::set_system_error(GetLastError());
             return false;
         }
     }
@@ -754,7 +773,7 @@ static void set_file_offset(HANDLE handle, uint64_t offset) {
     LARGE_INTEGER pos = {};
     pos.QuadPart = static_cast<LONGLONG>(offset);
     if (!SetFilePointerEx(handle, pos, nullptr, FILE_BEGIN)) {
-        Iocp::set_file_error(GetLastError());
+        Iocp::set_system_error(GetLastError());
     }
 }
 
@@ -766,12 +785,12 @@ int Iocp::open_file(const char *pathname, int flags, mode_t mode) {
 
     wchar_t *pathw = php_win32_ioutil_any_to_w(pathname);
     if (!pathw) {
-        set_file_error(ERROR_INVALID_PARAMETER);
+        set_system_error(ERROR_INVALID_PARAMETER);
         return -1;
     }
     if (!PHP_WIN32_IOUTIL_PATH_IS_OK_W(pathw, wcslen(pathw))) {
         free(pathw);
-        set_file_error(ERROR_ACCESS_DENIED);
+        set_system_error(ERROR_ACCESS_DENIED);
         return -1;
     }
 
@@ -784,7 +803,7 @@ int Iocp::open_file(const char *pathname, int flags, mode_t mode) {
             errno = EISDIR;
             swoole_set_last_error(errno);
         } else {
-            set_file_error(error);
+            set_system_error(error);
         }
         return -1;
     }
@@ -840,7 +859,6 @@ ssize_t Iocp::read_file(int fd, void *buf, size_t size, double timeout) {
     }
     if (iocp->associated_files.find(fd) == iocp->associated_files.end()) {
         if (!iocp->associate(handle, static_cast<ULONG_PTR>(fd))) {
-            set_file_error(GetLastError());
             return -1;
         }
         iocp->associated_files.insert(fd);
@@ -865,7 +883,7 @@ ssize_t Iocp::read_file(int fd, void *buf, size_t size, double timeout) {
             return 0;
         }
         if (error != ERROR_IO_PENDING) {
-            set_file_error(error);
+            set_system_error(error);
             delete event;
             return -1;
         }
@@ -897,7 +915,6 @@ ssize_t Iocp::write_file(int fd, const void *buf, size_t size, double timeout) {
     }
     if (iocp->associated_files.find(fd) == iocp->associated_files.end()) {
         if (!iocp->associate(handle, static_cast<ULONG_PTR>(fd))) {
-            set_file_error(GetLastError());
             return -1;
         }
         iocp->associated_files.insert(fd);
@@ -920,7 +937,7 @@ ssize_t Iocp::write_file(int fd, const void *buf, size_t size, double timeout) {
     if (!WriteFile(handle, buf, static_cast<DWORD>(size), nullptr, &event->overlapped)) {
         DWORD error = GetLastError();
         if (error != ERROR_IO_PENDING) {
-            set_file_error(error);
+            set_system_error(error);
             delete event;
             return -1;
         }
@@ -984,7 +1001,7 @@ int Iocp::poll(struct pollfd *fds, nfds_t nfds, int timeout) {
         int retval = WSAPoll(fds, nfds, 0);
         if (retval != 0 || timeout == 0) {
             if (retval < 0) {
-                set_error(WSAGetLastError());
+                set_socket_error(WSAGetLastError());
             }
             return retval;
         }
