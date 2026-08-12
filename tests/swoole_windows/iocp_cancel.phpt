@@ -4,10 +4,10 @@ swoole_windows: iocp cancellation
 <?php
 require __DIR__ . '/../include/skipif.inc';
 if (stripos(PHP_OS, 'WIN') !== 0) {
-    exit('skip Windows only');
+    die('skip Windows only');
 }
 if (!class_exists(Swoole\Coroutine\Socket::class, false)) {
-    exit('skip coroutine socket not available');
+    die('skip coroutine socket not available');
 }
 ?>
 --FILE--
