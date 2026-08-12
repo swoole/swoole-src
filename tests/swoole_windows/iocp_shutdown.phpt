@@ -4,10 +4,10 @@ swoole_windows: iocp shutdown drains pending operations
 <?php
 require __DIR__ . '/../include/skipif.inc';
 if (stripos(PHP_OS, 'WIN') !== 0) {
-    exit('skip Windows only');
+    die('skip Windows only');
 }
 if (!class_exists(Swoole\Coroutine\Socket::class, false)) {
-    exit('skip coroutine socket not available');
+    die('skip coroutine socket not available');
 }
 ?>
 --FILE--
@@ -29,6 +29,10 @@ run(function () use (&$coroutineId) {
     $listener = new Socket(AF_INET, SOCK_STREAM, 0);
     Assert::true($listener->bind('127.0.0.1', 0));
     Assert::true($listener->listen());
+
+    $server = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+    Assert::assert($server !== false, $errorMessage ?: 'failed to create socket server');
+    Assert::notSame(Event::add($server, static function () {}), false);
 
     $coroutineId = go(function () use ($listener) {
         $listener->accept(-1);
