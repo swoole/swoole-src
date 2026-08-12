@@ -26,7 +26,7 @@ $coroutineId = null;
 Coroutine::set(['enable_deadlock_check' => false]);
 
 run(function () use (&$coroutineId) {
-    $listener = new Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    $listener = new Socket(AF_INET, SOCK_STREAM, 0);
     Assert::true($listener->bind('127.0.0.1', 0));
     Assert::true($listener->listen());
 
