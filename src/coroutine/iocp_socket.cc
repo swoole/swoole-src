@@ -70,7 +70,6 @@ IocpSocket *IocpSocket::accept(double timeout) {
         return nullptr;
     }
 
-    set_err(0);
     return client_sock;
 }
 
