@@ -22,7 +22,7 @@ use function Swoole\Coroutine\go;
 use function Swoole\Coroutine\run;
 
 run(function () {
-    $listener = new Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    $listener = new Socket(AF_INET, SOCK_STREAM, 0);
     Assert::true($listener->bind('127.0.0.1', 0));
     Assert::true($listener->listen());
 
@@ -58,7 +58,7 @@ run(function () {
     $send       = new Channel(1);
     $clientDone = new Channel(1);
     go(function () use ($listener, $send, $clientDone) {
-        $client = new Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        $client = new Socket(AF_INET, SOCK_STREAM, 0);
         Assert::true($client->connect('127.0.0.1', $listener->getsockname()['port']));
         Assert::true($send->pop(1));
         Assert::same($client->sendAll('payload'), 7);
