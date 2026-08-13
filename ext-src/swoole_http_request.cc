@@ -45,14 +45,25 @@ static int http_request_on_url(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_body(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_header_value_complete(llhttp_t *parser);
 static int http_request_on_headers_complete(llhttp_t *parser);
 static int http_request_message_complete(llhttp_t *parser);
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length);
+static int multipart_body_on_header_value_complete(multipart_parser *p);
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
+
+static bool http_request_append_header_fragment(HttpContext *ctx, std::string &buffer, const char *at, size_t length) {
+    size_t header_length = ctx->current_header_name.length() + ctx->current_header_value.length();
+    if (header_length > SW_HTTP_HEADER_MAX_SIZE || length > SW_HTTP_HEADER_MAX_SIZE - header_length) {
+        return false;
+    }
+    buffer.append(at, length);
+    return true;
+}
 
 static sw_inline void multipart_body_reset_current_part(HttpContext *ctx) {
     if (ctx->current_form_data_name) {
@@ -64,6 +75,9 @@ static sw_inline void multipart_body_reset_current_part(HttpContext *ctx) {
         efree(ctx->current_multipart_header);
         ctx->current_multipart_header = nullptr;
     }
+    ctx->current_header_name.clear();
+    ctx->current_header_value.clear();
+    ctx->tmp_content_type.clear();
     ctx->current_part_is_file = 0;
 }
 
@@ -137,7 +151,7 @@ static constexpr llhttp_settings_t http_parser_settings =
     nullptr,                                // on_method_complete
     nullptr,                                // on_version_complete
     nullptr,                                // on_header_field_complete
-    nullptr,                                // on_header_value_complete
+    http_request_on_header_value_complete,  // on_header_value_complete
     nullptr,                                // on_chunk_extension_name_complete
     nullptr,                                // on_chunk_extension_value_complete
     nullptr,                                // on_chunk_header
@@ -149,6 +163,7 @@ static constexpr multipart_parser_settings mt_parser_settings =
 {
     multipart_body_on_header_field,
     multipart_body_on_header_value,
+    multipart_body_on_header_value_complete,
     multipart_body_on_data,
     nullptr,
     multipart_body_on_header_complete,
@@ -165,11 +180,16 @@ bool HttpContext::parse_multipart_data(const char *at, size_t length) const {
     ssize_t n = multipart_parser_execute(mt_parser, at, length);
     if (n < 0) {
         int l_error = multipart_parser_error_msg(mt_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
-        swoole_error_log(SW_LOG_NOTICE,
-                         SW_ERROR_SERVER_INVALID_REQUEST,
-                         "parse multipart body failed, reason: %.*s",
-                         l_error,
-                         sw_tg_buffer()->str);
+        if (l_error == 0) {
+            swoole_error_log(
+                SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, callback aborted");
+        } else {
+            swoole_error_log(SW_LOG_NOTICE,
+                             SW_ERROR_SERVER_INVALID_REQUEST,
+                             "parse multipart body failed, reason: %.*s",
+                             l_error,
+                             sw_tg_buffer()->str);
+        }
         return false;
     } else if (n != (ssize_t) length) {
         swoole_error_log(SW_LOG_NOTICE,
@@ -309,9 +329,7 @@ static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) 
 
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
-    ctx->current_header_name = at;
-    ctx->current_header_name_len = length;
-    return 0;
+    return http_request_append_header_fragment(ctx, ctx->current_header_name, at, length) ? SW_OK : SW_ERR;
 }
 
 bool HttpContext::init_multipart_parser(const char *boundary_str, int boundary_len) {
@@ -376,9 +394,27 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
+    return http_request_append_header_fragment(ctx, ctx->current_header_value, at, length) ? SW_OK : SW_ERR;
+}
+
+static int http_request_on_header_value_complete(llhttp_t *parser) {
+    auto *ctx = static_cast<HttpContext *>(parser->data);
+    std::string header_name_value = std::move(ctx->current_header_name);
+    std::string header_value = std::move(ctx->current_header_value);
+    ctx->current_header_name.clear();
+    ctx->current_header_value.clear();
     zval *zheader = ctx->request.zheader;
-    const char *header_name = ctx->current_header_name;
-    size_t header_len = ctx->current_header_name_len;
+    const char *header_name = header_name_value.c_str();
+    size_t header_len = header_name_value.length();
+    const char *at = header_value.c_str();
+    size_t length = header_value.length();
+
+    if (SW_STRCASEEQ(header_name, header_len, "content-type")) {
+        if (ctx->content_type_seen) {
+            return -1;
+        }
+        ctx->content_type_seen = 1;
+    }
 
     if (ctx->parse_cookie && SW_STRCASEEQ(header_name, header_len, "cookie")) {
         zval *zcookie = swoole_http_init_and_read_property(
@@ -416,7 +452,9 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
                 return -1;
             }
             swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
-            ctx->init_multipart_parser(boundary_str, boundary_len);
+            if (!ctx->init_multipart_parser(boundary_str, boundary_len)) {
+                return -1;
+            }
         }
     }
 #ifdef SW_HAVE_COMPRESSION
@@ -497,7 +535,8 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
         (ctx->request.version == 101 ? SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11) : SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP10)));
 
     ctx->keepalive = llhttp_should_keep_alive(parser);
-    ctx->current_header_name = nullptr;
+    ctx->current_header_name.clear();
+    ctx->current_header_value.clear();
 
     return 0;
 }
@@ -508,11 +547,22 @@ static int multipart_body_on_header_field(multipart_parser *p, const char *at, s
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
+    auto *ctx = static_cast<HttpContext *>(p->data);
+    return http_request_append_header_fragment(ctx, ctx->current_header_value, at, length) ? SW_OK : SW_ERR;
+}
+
+static int multipart_body_on_header_value_complete(multipart_parser *p) {
     char value_buf[SW_HTTP_FORM_KEYLEN];
     size_t value_len;
     int ret = 0;
 
     auto *ctx = static_cast<HttpContext *>(p->data);
+    std::string header_name_value = std::move(ctx->current_header_name);
+    std::string header_value = std::move(ctx->current_header_value);
+    ctx->current_header_name.clear();
+    ctx->current_header_value.clear();
+    const char *at = header_value.c_str();
+    size_t length = header_value.length();
     /**
      * Hash collision attack
      */
@@ -526,9 +576,9 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         ctx->input_var_num++;
     }
 
-    size_t header_len = ctx->current_header_name_len;
+    size_t header_len = header_name_value.length();
     zend::CharPtr _header_name;
-    _header_name.assign_tolower(ctx->current_header_name, header_len);
+    _header_name.assign_tolower(header_name_value.c_str(), header_len);
     char *header_name = _header_name.get();
 
     if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
@@ -583,9 +633,10 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             zval *z_multipart_header = sw_malloc_zval();
             array_init(z_multipart_header);
 
-            if (ctx->tmp_content_type) {
-                add_assoc_stringl(z_multipart_header, "type", ctx->tmp_content_type, ctx->tmp_content_type_len);
-                ctx->tmp_content_type = nullptr;
+            if (!ctx->tmp_content_type.empty()) {
+                add_assoc_stringl(
+                    z_multipart_header, "type", ctx->tmp_content_type.c_str(), ctx->tmp_content_type.length());
+                ctx->tmp_content_type.clear();
             } else {
                 add_assoc_string(z_multipart_header, "type", (char *) "");
             }
@@ -613,8 +664,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
                 add_assoc_stringl(z_multipart_header, "type", (char *) at, length);
             }
         } else {
-            ctx->tmp_content_type = at;
-            ctx->tmp_content_type_len = length;
+            ctx->tmp_content_type.assign(at, length);
         }
     } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
         /**

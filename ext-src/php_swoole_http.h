@@ -162,6 +162,7 @@ struct Context {
     uchar parse_body : 1;
     uchar parse_files : 1;
     uchar current_part_is_file : 1;
+    uchar content_type_seen : 1;
     uchar http2 : 1;
 
     zval zsocket;
@@ -186,13 +187,12 @@ struct Context {
     multipart_parser *mt_parser;
 
     uint16_t input_var_num;
-    const char *current_header_name;
-    size_t current_header_name_len;
+    std::string current_header_name;
+    std::string current_header_value;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
-    const char *tmp_content_type;
-    size_t tmp_content_type_len;
+    std::string tmp_content_type;
     String *form_data_buffer;
 
     std::string upload_tmp_dir;

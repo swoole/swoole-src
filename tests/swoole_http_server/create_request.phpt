@@ -65,5 +65,53 @@ $req3 = Request::create();
 $req3->parse($data);
 Assert::eq("POST", $req3->getMethod());
 
+$fragmented = "POST /upload HTTP/1.1\r\n";
+$fragmented .= "Host: 127.0.0.1\r\n";
+$fragmented .= "Content-Type: application/x-www-form-urlencoded\r\n";
+$fragmented .= "Authorization: Bearer fragmented\r\n";
+$fragmented .= "X-Custom-Header: custom value\r\n";
+$fragmented .= "Upgrade-Insecure-Requests: \r\n";
+$fragmented .= "User-Agent: fragmented-agent\r\n";
+$fragmented .= "Cookie: first=one; second=two\r\n";
+$fragmented .= "Content-Length: 0\r\n\r\n";
+
+$assertFragmented = static function (Request $request): void {
+    Assert::true($request->isCompleted());
+    Assert::same($request->header['host'], '127.0.0.1');
+    Assert::same($request->header['content-type'], 'application/x-www-form-urlencoded');
+    Assert::same($request->header['authorization'], 'Bearer fragmented');
+    Assert::same($request->header['x-custom-header'], 'custom value');
+    Assert::same($request->header['upgrade-insecure-requests'], '');
+    Assert::same($request->header['user-agent'], 'fragmented-agent');
+    Assert::same($request->cookie, ['first' => 'one', 'second' => 'two']);
+};
+
+for ($split = 1; $split < strlen($fragmented); $split++) {
+    $request = Request::create();
+    Assert::same($request->parse(substr($fragmented, 0, $split)), $split);
+    Assert::same($request->parse(substr($fragmented, $split)), strlen($fragmented) - $split);
+    $assertFragmented($request);
+}
+
+$request = Request::create();
+foreach (str_split($fragmented) as $byte) {
+    Assert::same($request->parse($byte), 1);
+}
+$assertFragmented($request);
+
+$duplicate = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$duplicate .= "Content-Type: application/x-www-form-urlencoded\r\n";
+$duplicate .= "Content-Type: text/plain\r\nContent-Length: 0\r\n\r\n";
+$request = Request::create();
+Assert::notSame($request->parse($duplicate), strlen($duplicate));
+Assert::false($request->isCompleted());
+
+$oversizedPrefix = "GET / HTTP/1.1\r\nHost: localhost\r\nX-Large: " . str_repeat('A', 32768);
+$oversizedSuffix = str_repeat('A', 32768) . "\r\n\r\n";
+$request = Request::create();
+Assert::same($request->parse($oversizedPrefix), strlen($oversizedPrefix));
+Assert::notSame($request->parse($oversizedSuffix), strlen($oversizedSuffix));
+Assert::false($request->isCompleted());
+
 ?>
 --EXPECT--
