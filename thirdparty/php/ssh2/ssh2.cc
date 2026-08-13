@@ -83,7 +83,11 @@ static void php_ssh2_session_data_free(php_ssh2_session_data *data) {
     php_ssh2_callback_free(data->debug_cb);
     php_ssh2_callback_free(data->macerror_cb);
     php_ssh2_callback_free(data->disconnect_cb);
-    delete data->socket;
+    // close() cancels bound coroutines so they stop retrying libssh2 calls against freed resources.
+    // Cancellation resumes synchronously; if no binding remains afterwards, deletion is safe.
+    if (data->socket->close() || !data->socket->has_bound()) {
+        delete data->socket;
+    }
     efree(data);
 }
 
@@ -1271,10 +1275,26 @@ static void php_ssh2_session_dtor(zend_resource *rsrc) {
             session, SSH_DISCONNECT_BY_APPLICATION, "swoole_ssh2 (https://github.com/swoole/swoole-src)", "");
     });
 
+    // Shut down without closing so libssh2 can reclaim attached resources locally. Keeping the
+    // descriptor reserved prevents another connection from reusing it while libssh2 still holds it.
     session_data->socket->shutdown(SHUT_RDWR);
-    // Transport shutdown makes attached resource cleanup local. Do not use ssh2_release_call():
-    // it restores state after its callback, but this call frees the session on success.
-    libssh2_session_free(session);
+
+    // Blocking mode retries libssh2's EAGAIN internally. The timeout makes that retry finite, and a
+    // successful free invalidates the session, so its state is deliberately not restored.
+    libssh2_session_set_timeout(session, PHP_SSH2_SESSION_FREE_TIMEOUT_MS);
+    libssh2_session_set_blocking(session, 1);
+    int rc = libssh2_session_free(session);
+    if (rc != 0) {
+        // The surviving session still holds session_data as its abstract pointer.
+        char *error_msg = NULL;
+        libssh2_session_last_error(session, &error_msg, NULL, 0);
+        php_error_docref(NULL,
+                         E_WARNING,
+                         "Unable to free SSH2 session(%d): %s; resources retained",
+                         rc,
+                         error_msg ? error_msg : "Unknown error");
+        return;
+    }
 
     php_ssh2_session_data_free(session_data);
 }
