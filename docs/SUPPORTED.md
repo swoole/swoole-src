@@ -3,7 +3,7 @@
 | Branch                                                     | PHP Version | Initialization | Active Support Until | Security Support Until |
 |------------------------------------------------------------|-------------|----------------|----------------------|------------------------|
 | [v6.0.x](https://github.com/swoole/swoole-src/tree/6.0)    | 8.1 - 8.4   | 2024-12-31     | 2025-12-31           | 2026-06-31             |
-| [v6.1.x](https://github.com/swoole/swoole-src/tree/master) | 8.1 - 8.4   | 2025-10-31     | 2026-10-31           | 2027-04-31             |
+| [v6.1.x](https://github.com/swoole/swoole-src/tree/master) | 8.2 - 8.5   | 2025-10-31     | 2026-10-31           | 2027-04-31             |
 
 - **Active support**： A release that is being actively supported. Reported bugs and security issues are fixed and regular point releases are made.
 - **Security fixes only**:  A release that is supported for critical security issues only. Releases are only made on an as-needed basis.

@@ -17,8 +17,8 @@ else
 fi
 
 cd ./include/lib
-echo "composer update"
-composer update
+echo "composer install"
+composer install
 cd -
 echo ""
 
