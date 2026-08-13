@@ -39,7 +39,6 @@ enum multipart_error {
     MPPE_INVALID_HEADER_VALUE_CHAR,
     MPPE_BAD_PART_END,
     MPPE_END_BOUNDARY_NO_DASH,
-    MPPE_HEADER_VALUE_INCOMPLETE,
 };
 
 #define MPPE_ERROR -1
@@ -81,6 +80,10 @@ struct multipart_parser_settings {
      * for example data is "plain/text" with length 10
      */
     multipart_data_cb on_header_value;
+    /*
+     * after all fragments of a header value
+     */
+    multipart_notify_cb on_header_value_complete;
     /*
      * data callback called on body data coming,
      * will be called repeatedly until data end

@@ -279,8 +279,9 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
             if (c == CR) {
                 p->state = s_header_value_almost_done;
                 EMIT_DATA_CB(header_value, i + 1, buf + mark, i - mark);
+                NOTIFY_CB(header_value_complete, i + 1);
             } else if (is_last) {
-                ERROR_EXPECT(MPPE_HEADER_VALUE_INCOMPLETE, CR);
+                EMIT_DATA_CB(header_value, i + 1, buf + mark, i - mark + 1);
             }
             break;
         case s_header_value_almost_done:
