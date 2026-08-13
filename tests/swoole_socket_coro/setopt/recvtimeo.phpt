@@ -17,6 +17,9 @@ Assert::assert($retval_1 === false);
 $options = array("sec" => 1, "usec" => 0);
 $retval_2 = $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, $options);
 Assert::assert($retval_2 === true);
+$options = (object) array("sec" => 1, "usec" => 0);
+$retval_3 = $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, $options);
+Assert::assert($retval_3 === true);
 
 ?>
 --EXPECTF--

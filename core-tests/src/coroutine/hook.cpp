@@ -762,7 +762,7 @@ TEST(coroutine_hook, get_socket_fail) {
         });
 
         auto rs = swoole_coroutine_get_socket_object_ex(fd);
-        ASSERT_EQ(errno, EWOULDBLOCK);
+        ASSERT_EQ(errno, EAGAIN);
         ASSERT_EQ(rs, nullptr);
         swoole_coroutine_close(fd);
     }

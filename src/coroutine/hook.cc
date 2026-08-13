@@ -82,7 +82,7 @@ static sw_inline std::shared_ptr<SocketImpl> get_socket(swSocketFd sockfd) {
 
 static sw_inline std::shared_ptr<SocketImpl> get_socket_ex(swSocketFd sockfd) {
     if (sw_unlikely(is_no_coro())) {
-        errno = EWOULDBLOCK;
+        errno = EAGAIN;
         return nullptr;
     }
     return get_socket(sockfd);

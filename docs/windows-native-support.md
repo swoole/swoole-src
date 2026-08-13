@@ -40,6 +40,19 @@ provided by the native port:
 - POSIX process manager semantics
 - POSIX file descriptor reactor semantics
 
+## Error Handling
+
+Use the `SWOOLE_ERRNO_E*` constants when comparing system errors reported by
+Swoole APIs, including socket `errCode` properties and `swoole_last_error()`.
+Swoole normalizes native socket errors into portable system error values. PHP's
+`SOCKET_E*` constants use Winsock values on native Windows and must not be used
+for these comparisons.
+
+The `SWOOLE_ERRNO_E*` family represents system errors. Errors defined by Swoole
+itself use the separate `SWOOLE_ERROR_*` family. A Winsock error without a
+portable mapping is reported unchanged and has no named `SWOOLE_ERRNO_*` alias;
+for sockets, `errMsg` then contains `Unknown error <n>`.
+
 ## Supported Modules
 
 ### Core

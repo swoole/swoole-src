@@ -218,6 +218,13 @@ enum swErrorCode {
 };
 
 namespace swoole {
+struct ErrnoConstant {
+    const char *name;
+    int value;
+};
+
+SW_API const ErrnoConstant *get_errno_constants();
+
 class Exception final : std::exception {
   public:
     int code;
