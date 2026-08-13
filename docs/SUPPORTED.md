@@ -1,12 +1,15 @@
 ## Supported Versions
 
-| Branch                                                     | PHP Version | Initialization | Active Support Until | Security Support Until |
-|------------------------------------------------------------|-------------|----------------|----------------------|------------------------|
-| [v6.0.x](https://github.com/swoole/swoole-src/tree/6.0)    | 8.1 - 8.4   | 2024-12-31     | 2025-12-31           | 2026-06-31             |
-| [v6.1.x](https://github.com/swoole/swoole-src/tree/master) | 8.2 - 8.5   | 2025-10-31     | 2026-10-31           | 2027-04-31             |
+| Branch                                                                  | PHP Version | Initialization | Active Support Until | Security Support Until |
+|-------------------------------------------------------------------------|-------------|----------------|----------------------|------------------------|
+| [v6.1.x](https://github.com/swoole/swoole-src/tree/6.1)                 | 8.1 - 8.4   | 2025-10-24     | 2026-10-24           | 2027-04-24             |
+| [v6.2.x](https://github.com/swoole/swoole-src/tree/6.2)                 | 8.2 - 8.5   | 2026-04-07     | 2027-04-07           | 2027-10-07             |
+| [v6.3.x (unreleased)](https://github.com/swoole/swoole-src/tree/master) | 8.2 - 8.5   | Unreleased     | TBD                  | TBD                    |
 
 - **Active support**： A release that is being actively supported. Reported bugs and security issues are fixed and regular point releases are made.
 - **Security fixes only**:  A release that is supported for critical security issues only. Releases are only made on an as-needed basis.
+- **Standard support period**: A non-LTS branch receives one year of active support followed by six months of security-only support, for a total of 1.5 years.
+- **LTS support period**: A branch explicitly designated as LTS receives a total of three years of support. The active and security-only dates are listed when the LTS release is announced.
 
 ## PHP Version Support
 
@@ -31,3 +34,4 @@ The pace of PHP version updates is rapid, with each version introducing numerous
 | `4.8.x`                  | 7.3 - 8.2   | 2021-10-14 ~ 2024-06-30 |
 | `5.0.x`                  | 7.4 - 8.3   | 2022-01-20 ~ 2023-07-20 |
 | `5.1.x`                  | 8.0 - 8.3   | 2023-11-29 ~ 2025-04-29 |
+| `6.0.x`                  | 8.1 - 8.4   | 2024-12-31 ~ 2026-06-30 |
