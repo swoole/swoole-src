@@ -149,27 +149,62 @@ bool HttpProxy::handshake(const String *recv_buffer) {
 namespace http_server {
 //-----------------------------------------------------------------
 
+static bool multipart_append_header_fragment(Request *request,
+                                             std::string &buffer,
+                                             const char *at,
+                                             size_t length) {
+    auto *form_data = request->form_data_;
+    size_t header_length = form_data->current_header_name.length() + form_data->current_header_value.length();
+    if (header_length > SW_HTTP_HEADER_MAX_SIZE || length > SW_HTTP_HEADER_MAX_SIZE - header_length) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "multipart header is too large");
+        return false;
+    }
+    buffer.append(at, length);
+    return true;
+}
+
 static int multipart_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *request = static_cast<Request *>(p->data);
-    request->form_data_->current_header_name = at;
-    request->form_data_->current_header_name_len = length;
+    if (!multipart_append_header_fragment(request, request->form_data_->current_header_name, at, length)) {
+        return SW_ERR;
+    }
 
     swoole_trace("header_field: at=%.*s, length=%lu", (int) length, at, length);
-    return 0;
+    return SW_OK;
 }
 
 static int multipart_on_header_value(multipart_parser *p, const char *at, size_t length) {
     swoole_trace("header_value: at=%.*s, length=%lu", (int) length, at, length);
 
     auto *request = static_cast<Request *>(p->data);
-    auto *form_data = request->form_data_;
+    return multipart_append_header_fragment(request, request->form_data_->current_header_value, at, length)
+               ? SW_OK
+               : SW_ERR;
+}
 
-    form_data->multipart_buffer_->append(form_data->current_header_name, form_data->current_header_name_len);
+static int multipart_on_header_value_complete(multipart_parser *p) {
+    auto *request = static_cast<Request *>(p->data);
+    auto *form_data = request->form_data_;
+    std::string header_name = std::move(form_data->current_header_name);
+    std::string header_value = std::move(form_data->current_header_value);
+    form_data->current_header_name.clear();
+    form_data->current_header_value.clear();
+
+    size_t header_length = header_name.length() + header_value.length() + sizeof(": \r\n") - 1;
+    if (header_length > request->max_length_ ||
+        form_data->multipart_buffer_->length > request->max_length_ - header_length) {
+        request->excepted = 1;
+        request->unavailable = 1;
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "multipart header is too large");
+        return MPPE_PAUSED;
+    }
+
+    form_data->multipart_buffer_->append(header_name);
     form_data->multipart_buffer_->append(SW_STRL(": "));
-    form_data->multipart_buffer_->append(at, length);
+    form_data->multipart_buffer_->append(header_value);
     form_data->multipart_buffer_->append(SW_STRL("\r\n"));
 
-    if (SW_STRCASEEQ(form_data->current_header_name, form_data->current_header_name_len, "content-disposition")) {
+    if (SW_STRCASEEQ(header_name.c_str(), header_name.length(), "content-disposition")) {
         ParseCookieCallback cb = [request, form_data, p](char *key, size_t key_len, char *value, size_t value_len) {
             if (SW_STRCASEEQ(key, key_len, "filename")) {
                 memcpy(form_data->upload_tmpfile->str,
@@ -180,12 +215,17 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
                 int tmpfile = swoole_tmpfile(form_data->upload_tmpfile->str);
                 if (tmpfile < 0) {
                     request->excepted = true;
+                    request->unavailable = true;
                     return false;
                 }
 
                 FILE *fp = fdopen(tmpfile, "wb+");
                 if (fp == nullptr) {
                     swoole_sys_warning("fopen(%s) failed", form_data->upload_tmpfile->str);
+                    close(tmpfile);
+                    unlink(form_data->upload_tmpfile->str);
+                    request->excepted = true;
+                    request->unavailable = true;
                     return false;
                 }
                 p->fp = fp;
@@ -194,10 +234,17 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
             }
             return true;
         };
-        parse_cookie(at, length, cb);
+        if (!parse_cookie(header_value.data(), header_value.length(), cb)) {
+            swoole_error_log(
+                SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "multipart Content-Disposition is too large");
+            return SW_ERR;
+        }
+        if (request->excepted) {
+            return MPPE_PAUSED;
+        }
     }
 
-    return 0;
+    return SW_OK;
 }
 
 static int multipart_on_data(multipart_parser *p, const char *at, size_t length) {
@@ -222,10 +269,11 @@ static int multipart_on_data(multipart_parser *p, const char *at, size_t length)
         return 1;
     }
 
-    ssize_t n = fwrite(at, sizeof(char), length, p->fp);
-    if (n != (off_t) length) {
+    size_t n = fwrite(at, sizeof(char), length, p->fp);
+    if (n != length) {
         fclose(p->fp);
         p->fp = nullptr;
+        unlink(form_data->upload_tmpfile->str);
         request->excepted = 1;
         request->unavailable = 1;
         swoole_sys_warning("failed to write upload file");
@@ -321,6 +369,7 @@ static int multipart_on_body_end(multipart_parser *p) {
 static constexpr multipart_parser_settings mt_parser_settings = {
     multipart_on_header_field,
     multipart_on_header_value,
+    multipart_on_header_value_complete,
     multipart_on_data,
     multipart_on_part_begin,
     multipart_on_header_complete,
@@ -478,12 +527,17 @@ const char *get_status_message(int code) {
     }
 }
 
-void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb) {
+bool parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb) {
     char *value;
     const char *separator = ";\0";
     size_t key_len = 0;
     char *strtok_buf = nullptr;
 
+    static_assert(SW_STACK_BUFFER_SIZE >= SW_HTTP_HEADER_MAX_SIZE,
+                  "thread buffer must hold the maximum HTTP header");
+    if (length >= SW_HTTP_HEADER_MAX_SIZE) {
+        return false;
+    }
     char *_c = sw_tg_buffer()->str;
     memcpy(_c, at, length);
     _c[length] = '\0';
@@ -516,6 +570,7 @@ void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb) 
     next_cookie:
         key = strtok_r(nullptr, separator, &strtok_buf);
     }
+    return true;
 }
 
 bool parse_multipart_boundary(
@@ -723,12 +778,13 @@ _end:
 /**
  * simple get headers info
  */
-void Request::parse_header_info() {
+bool Request::parse_header_info() {
     // header field start
     char *p = buffer_->str + request_line_length_ + (sizeof("\r\n") - 1);
     // point-end: start + strlen(all-header) without strlen("\r\n\r\n")
     char *pe = buffer_->str + header_length_ - (sizeof("\r\n\r\n") - 1);
 
+    bool content_type_seen = false;
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
             if (SW_STR_ISTARTS_WITH(p, pe - p, "Content-Length:")) {
@@ -761,6 +817,12 @@ void Request::parse_header_info() {
                     chunked = 1;
                 }
             } else if (SW_STR_ISTARTS_WITH(p, pe - p, "Content-Type:")) {
+                if (content_type_seen) {
+                    delete form_data_;
+                    form_data_ = nullptr;
+                    return false;
+                }
+                content_type_seen = true;
                 p += (sizeof("Content-Type:") - 1);
                 while (*p == ' ') {
                     p++;
@@ -778,20 +840,24 @@ void Request::parse_header_info() {
     if (chunked && known_length && content_length_ == 0) {
         nobody_chunked = 1;
     }
+    return true;
 }
 
 bool Request::init_multipart_parser(const Server *server) {
-#ifndef _WIN32
     char *boundary_str;
     int boundary_len;
     if (!parse_multipart_boundary(
             form_data_->multipart_boundary_buf, form_data_->multipart_boundary_len, 0, &boundary_str, &boundary_len)) {
+        delete form_data_;
+        form_data_ = nullptr;
         return false;
     }
 
     form_data_->multipart_parser_ = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!form_data_->multipart_parser_) {
         swoole_warning("multipart_parser_init() failed");
+        delete form_data_;
+        form_data_ = nullptr;
         return false;
     }
     form_data_->multipart_parser_->data = this;
@@ -804,7 +870,6 @@ bool Request::init_multipart_parser(const Server *server) {
     form_data_->upload_tmpfile_fmt_ = server->upload_tmp_dir + "/swoole.upfile.XXXXXX";
     form_data_->upload_tmpfile = new String(form_data_->upload_tmpfile_fmt_);
     form_data_->upload_max_filesize = server->upload_max_filesize;
-#endif  // _WIN32
 
     return true;
 }
@@ -833,11 +898,16 @@ bool Request::parse_multipart_data(String *buffer) {
     if (n < 0) {
         int l_error =
             multipart_parser_error_msg(form_data_->multipart_parser_, sw_tg_buffer()->str, sw_tg_buffer()->size);
-        swoole_error_log(SW_LOG_NOTICE,
-                         SW_ERROR_SERVER_INVALID_REQUEST,
-                         "parse multipart body failed, reason: %.*s",
-                         l_error,
-                         sw_tg_buffer()->str);
+        if (l_error == 0) {
+            swoole_error_log(
+                SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, callback aborted");
+        } else {
+            swoole_error_log(SW_LOG_NOTICE,
+                             SW_ERROR_SERVER_INVALID_REQUEST,
+                             "parse multipart body failed, reason: %.*s",
+                             l_error,
+                             sw_tg_buffer()->str);
+        }
         return false;
     } else if ((size_t) n != buffer->length) {
         swoole_error_log(SW_LOG_NOTICE,

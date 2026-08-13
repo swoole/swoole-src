@@ -113,16 +113,16 @@ class Server;
 namespace http_server {
 //-----------------------------------------------------------------
 struct FormData {
-    const char *multipart_boundary_buf;
-    uint32_t multipart_boundary_len;
-    multipart_parser *multipart_parser_;
-    String *multipart_buffer_;
-    String *upload_tmpfile;
+    const char *multipart_boundary_buf = nullptr;
+    uint32_t multipart_boundary_len = 0;
+    multipart_parser *multipart_parser_ = nullptr;
+    String *multipart_buffer_ = nullptr;
+    String *upload_tmpfile = nullptr;
     std::string upload_tmpfile_fmt_;
-    const char *current_header_name;
-    size_t current_header_name_len;
-    size_t upload_filesize;
-    size_t upload_max_filesize;
+    std::string current_header_name;
+    std::string current_header_value;
+    size_t upload_filesize = 0;
+    size_t upload_max_filesize = 0;
 };
 
 struct Request {
@@ -164,7 +164,7 @@ struct Request {
     int get_protocol();
     int get_header_length();
     int get_chunked_body_length();
-    void parse_header_info();
+    bool parse_header_info();
     bool parse_multipart_data(String *buffer);
     bool init_multipart_parser(const Server *server);
     void destroy_multipart_parser();
@@ -189,7 +189,7 @@ char *url_encode(char const *str, size_t len);
 int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 bool parse_multipart_boundary(
     const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
-void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
+bool parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
 
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 uint8_t get_package_length_size(network::Socket *conn);
@@ -204,6 +204,10 @@ class Context {
         session_id_ = session_id;
         impl = _impl;
     }
+    Context(const Context &) = delete;
+    Context &operator=(const Context &) = delete;
+    Context(Context &&) = delete;
+    Context &operator=(Context &&) = delete;
     ~Context();
     bool end(const std::string &data) {
         return end(data.c_str(), data.length());
