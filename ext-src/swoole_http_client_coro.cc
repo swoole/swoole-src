@@ -44,6 +44,7 @@ namespace WebSocket = swoole::websocket;
 
 static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length);
 static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length);
+static int http_parser_on_header_value_complete(llhttp_t *parser);
 static int http_parser_on_headers_complete(llhttp_t *parser);
 static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length);
 static int http_parser_on_message_complete(llhttp_t *parser);
@@ -71,7 +72,7 @@ static constexpr llhttp_settings_t http_parser_settings =
     nullptr,                                // on_method_complete
     nullptr,                                // on_version_complete
     nullptr,                                // on_header_field_complete
-    nullptr,                                // on_header_value_complete
+    http_parser_on_header_value_complete,   // on_header_value_complete
     nullptr,                                // on_chunk_extension_name_complete
     nullptr,                                // on_chunk_extension_value_complete
     nullptr,                                // on_chunk_header
@@ -159,8 +160,9 @@ class Client {
     std::string basic_auth;
 
     /* for response parser */
-    const char *tmp_header_field_name = nullptr;
-    int tmp_header_field_name_len = 0;
+    std::string tmp_header_field_name;
+    std::string tmp_header_field_value;
+    bool response_header_too_large = false;
     String *body = nullptr;
 #ifdef SW_HAVE_COMPRESSION
     enum swHttpCompressMethod compress_method = HTTP_COMPRESS_NONE;
@@ -352,6 +354,16 @@ class Client {
 
 using swoole::coroutine::http::Client;
 
+static bool http_parser_append_header_fragment(Client *http, std::string &buffer, const char *at, size_t length) {
+    size_t header_length = http->tmp_header_field_name.length() + http->tmp_header_field_value.length();
+    if (header_length > SW_HTTP_HEADER_MAX_SIZE || length > SW_HTTP_HEADER_MAX_SIZE - header_length) {
+        http->response_header_too_large = true;
+        return false;
+    }
+    buffer.append(at, length);
+    return true;
+}
+
 struct HttpClientObject {
     Client *client;
     zend_object std;
@@ -465,17 +477,26 @@ void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcoo
 
 static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
-    http->tmp_header_field_name = at;
-    http->tmp_header_field_name_len = length;
-    return 0;
+    return http_parser_append_header_fragment(http, http->tmp_header_field_name, at, length) ? 0 : -1;
 }
 
 static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
+    return http_parser_append_header_fragment(http, http->tmp_header_field_value, at, length) ? 0 : -1;
+}
+
+static int http_parser_on_header_value_complete(llhttp_t *parser) {
+    auto *http = static_cast<Client *>(parser->data);
+    std::string header_name_value = std::move(http->tmp_header_field_name);
+    std::string header_value = std::move(http->tmp_header_field_value);
+    http->tmp_header_field_name.clear();
+    http->tmp_header_field_value.clear();
     zval *zobject = static_cast<zval *>(http->zobject);
 
-    const char *header_name = http->tmp_header_field_name;
-    size_t header_len = http->tmp_header_field_name_len;
+    const char *header_name = header_name_value.c_str();
+    size_t header_len = header_name_value.length();
+    const char *at = header_value.c_str();
+    size_t length = header_value.length();
     zend::CharPtr _header_name;
 
     if (http->lowercase_header) {
@@ -1489,6 +1510,9 @@ bool Client::recv_response(double timeout) {
     off_t header_crlf_offset = 0;
 
     // re-init http response parser
+    tmp_header_field_name.clear();
+    tmp_header_field_value.clear();
+    response_header_too_large = false;
     swoole_llhttp_parser_init(&parser, HTTP_RESPONSE, (void *) this);
 
     if (timeout == 0) {
@@ -1520,7 +1544,7 @@ bool Client::recv_response(double timeout) {
                     buffer->str + header_crlf_offset, buffer->length - header_crlf_offset, ZEND_STRL("\r\n\r\n")) < 0) {
                 if (buffer->length == buffer->size) {
                     swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Http header too large");
-                    socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
+                    socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL, "HTTP/1 header block is too large");
                     break;
                 }
                 header_crlf_offset = buffer->length > 4 ? buffer->length - 4 : 0;
@@ -1562,7 +1586,11 @@ bool Client::recv_response(double timeout) {
                 break;
             }
         } else {
-            socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
+            if (response_header_too_large) {
+                socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL, "HTTP/1 header block is too large");
+            } else {
+                socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
+            }
             break;
         }
     }
