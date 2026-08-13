@@ -526,7 +526,16 @@ static PHP_METHOD(swoole_process, signal) {
         }
         signal_fci_caches[signo] = fci_cache;
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler, true); }, nullptr);
+        /**
+         * In a sync process without an event loop (e.g. the manager process), SwooleTG.reactor is nullptr,
+         * so swoole_event_defer() would dereference a null pointer and the deferred callback would never run.
+         * Set the signal handler directly instead.
+         */
+        if (SwooleTG.reactor) {
+            swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler, true); }, nullptr);
+        } else {
+            swoole_signal_set(signo, handler, true);
+        }
 #else
         swoole_signal_set(signo, handler, true);
 #endif
