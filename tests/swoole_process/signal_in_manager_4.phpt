@@ -1,5 +1,5 @@
 --TEST--
-swoole_process: signal in manager (thread context null reactor regression)
+swoole_process: register and unregister signal in manager
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -15,11 +15,15 @@ $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     usleep(100000);
     $manager_pid = file_get_contents(PID_FILE);
-    // The manager process must still be alive here. With SW_USE_THREAD_CONTEXT enabled,
-    // registering the signal handler in onManagerStart used to segfault the manager process,
-    // because swoole_event_defer() dereferenced the null reactor.
+    // The manager process must still be alive here. Registering or unregistering a signal
+    // handler in onManagerStart used to segfault the manager process, because
+    // swoole_event_defer() dereferenced the null reactor.
     Assert::true(Process::kill($manager_pid, 0));
+    // The removed callback must not be invoked (SIGINT is ignored after unregistration).
     Process::kill($manager_pid, SIGINT);
+    usleep(100000);
+    Assert::true(Process::kill($manager_pid, 0));
+    Process::kill($manager_pid, SIGTERM);
     $pm->wait();
     $pm->kill();
 };
@@ -32,10 +36,11 @@ $pm->childFunc = function () use ($pm) {
     ]);
     $serv->on('ManagerStart', function (Server $serv) use ($pm) {
         file_put_contents(PID_FILE, $serv->getManagerPid());
-        Process::signal(SIGINT, function () use ($pm) {
+        Process::signal(SIGINT, static function () {
             echo "SIGINT triggered\n";
-            $pm->wakeup();
         });
+        Assert::true(Process::signal(SIGINT, null));
+        echo "signal unregistered\n";
         $pm->wakeup();
     });
     $serv->on('Receive', function (Server $serv, $fd, $reactorId, $data) {
@@ -47,4 +52,4 @@ $pm->run();
 unlink(PID_FILE);
 ?>
 --EXPECT--
-SIGINT triggered
+signal unregistered
