@@ -29,7 +29,7 @@ class ReactorIocp final : public ReactorImpl {
 
     struct PollState {
         Socket *socket = nullptr;
-        // The IOCP completion owns this operation and reaps it before the reactor implementation is deleted.
+        // The IOCP completion clears this pointer and reaps the operation before the reactor implementation is deleted.
         PollOperation *operation = nullptr;
         HANDLE wait_handle = INVALID_HANDLE_VALUE;
         int events = 0;
@@ -38,7 +38,7 @@ class ReactorIocp final : public ReactorImpl {
 
     struct PollOperation {
         IocpEvent event;
-        ReactorIocp *reactor;
+        ReactorIocp *const reactor;
         afd::PollInfo poll_info;
 
         PollOperation(ReactorIocp *reactor_, Socket *socket, ULONG events)
@@ -52,10 +52,7 @@ class ReactorIocp final : public ReactorImpl {
         static void on_complete(IocpEvent *event, DWORD transferred, DWORD error) {
             (void) transferred;
             auto *operation = static_cast<PollOperation *>(event->private_data);
-            ReactorIocp *reactor = operation->reactor;
-            if (reactor && !event->orphaned) {
-                reactor->complete(operation, error);
-            }
+            operation->reactor->complete(operation, error);
             delete operation;
         }
     };
@@ -104,7 +101,7 @@ class ReactorIocp final : public ReactorImpl {
     }
 
     void cancel(PollOperation *operation) {
-        if (!operation || operation->event.completed) {
+        if (!operation) {
             return;
         }
         operation->event.orphaned = true;
@@ -219,12 +216,17 @@ class ReactorIocp final : public ReactorImpl {
     void complete(PollOperation *operation, DWORD error) {
         const swSocketFd fd = operation->event.fd;
         auto iter = states_.find(fd);
+        // A cancelled operation can complete after del() erased the state or submit_all() replaced it;
+        // only clear the pointer we still own.
         if (iter == states_.end() || iter->second.operation != operation) {
             return;
         }
 
-        PollState *state = &iter->second;
-        state->operation = nullptr;
+        iter->second.operation = nullptr;
+        // Teardown drains through here inside ~Reactor(); release ownership but never run handlers.
+        if (operation->event.orphaned) {
+            return;
+        }
 
         const auto &handle = operation->poll_info.handles[0];
         const int events = events_from_afd(handle.events, handle.status, error);
