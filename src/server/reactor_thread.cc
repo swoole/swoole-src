@@ -851,11 +851,14 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 void ReactorThread::clean() {
     message_bus.free_buffer();
     message_bus.release_pipe_sockets();
+    heartbeat_timer = nullptr;
     pipe_command = nullptr;
+    dispatch_count = 0;
 }
 
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     ReactorThread *thread = serv->get_thread(reactor_id);
+    thread->clean();
     thread->id = reactor_id;
     SwooleTG.message_bus = &thread->message_bus;
 

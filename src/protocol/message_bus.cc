@@ -44,10 +44,7 @@ PacketPtr MessageBus::get_packet() const {
 }
 
 bool MessageBus::alloc_buffer() {
-    // ReactorThread instances may reuse this bus after a PHP request ends, so replace the scratch buffer
-    // through the standard allocator.
-    free_buffer();
-    void *_ptr = sw_malloc(buffer_size_);
+    void *_ptr = buffer_allocator_->malloc(buffer_size_);
     if (_ptr) {
         buffer_ = (PipeBuffer *) _ptr;
         sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
@@ -88,7 +85,7 @@ String *MessageBus::get_packet_buffer() {
         if (!buffer_->is_begin()) {
             return nullptr;
         }
-        packet_buffer = make_string(buffer_->info.len, allocator_);
+        packet_buffer = make_string(buffer_->info.len, packet_allocator_);
         packet_pool_.emplace(buffer_->info.msg_id, std::shared_ptr<String>(packet_buffer));
     } else {
         packet_buffer = iter->second.get();
@@ -374,13 +371,13 @@ void MessageBus::init_pipe_socket(const Socket *sock) {
 }
 
 void MessageBus::release_pipe_sockets() {
-    for (auto _socket : pipe_sockets_) {
+    for (auto &_socket : pipe_sockets_) {
         if (_socket) {
             _socket->fd = SW_BAD_SOCKET;
             _socket->free();
+            _socket = nullptr;
         }
     }
-    pipe_sockets_.clear();
 }
 
 MessageBus::~MessageBus() {

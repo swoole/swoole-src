@@ -56,8 +56,6 @@ TEST(message_bus, buffer_uses_standard_allocator) {
 
     ASSERT_TRUE(message_bus.alloc_buffer());
     ASSERT_NE(message_bus.get_buffer(), nullptr);
-    ASSERT_TRUE(message_bus.alloc_buffer());
-    ASSERT_NE(message_bus.get_buffer(), nullptr);
     ASSERT_EQ(packet_allocator_allocations, 0);
     ASSERT_EQ(packet_allocator_frees, 0);
     message_bus.free_buffer();
@@ -79,6 +77,7 @@ TEST(message_bus, release_pipe_sockets) {
     message_bus.init_pipe_socket(socket);
     ASSERT_NE(message_bus.get_pipe_socket(socket), socket);
     message_bus.release_pipe_sockets();
+    ASSERT_EQ(message_bus.get_pipe_socket(socket), nullptr);
     ASSERT_TRUE(test::is_valid_fd(fd));
 
     message_bus.release_pipe_sockets();
@@ -176,6 +175,7 @@ TEST(message_bus, read) {
     packet_allocator_allocations = 0;
     packet_allocator_frees = 0;
     ASSERT_TRUE(tmb.mb.alloc_buffer());
+    ASSERT_EQ(packet_allocator_allocations, 0);
 
     tmb.read_func = [&tmb](network::Socket *sock) { return tmb.mb.read(sock); };
 
