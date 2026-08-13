@@ -538,6 +538,35 @@ TableRow *Table::set(const char *key, size_t keylen, TableRow **rowlock, int *ou
     return row;
 }
 
+bool Table::set(const char *key, size_t keylen, const TableValues &values, bool *out_of_space) {
+    if (out_of_space) {
+        *out_of_space = false;
+    }
+    if (!is_valid_key_length(keylen)) {
+        return false;
+    }
+
+    TableRow *rowlock = nullptr;
+    int out_flags = 0;
+    TableRow *row = set(key, keylen, &rowlock, &out_flags);
+    if (row == nullptr) {
+        if (rowlock) {
+            rowlock->unlock();
+            if (out_of_space) {
+                *out_of_space = true;
+            }
+        }
+        return false;
+    }
+
+    if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
+        clear_row(row);
+    }
+    apply_values(row, values);
+    rowlock->unlock();
+    return true;
+}
+
 bool Table::add(const char *key, size_t keylen, const TableValues &values, bool *out_of_space) {
     if (out_of_space) {
         *out_of_space = false;

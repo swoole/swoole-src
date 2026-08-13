@@ -233,9 +233,9 @@ static void server_free_object(zend_object *object) {
     delete property;
 
     zend_object_std_dtor(object);
-    if (serv && serv->is_master()) {
+    if (serv && (serv->is_master() || !serv->is_created())) {
 #ifdef SW_THREAD
-        if (serv->is_thread_mode()) {
+        if (serv->is_thread_mode() && serv->private_data_4) {
             zend_string_release((zend_string *) serv->private_data_4);
         }
 #endif
@@ -1963,13 +1963,6 @@ static void server_ctor(zval *zserv, Server *serv) {
 }
 
 static PHP_METHOD(swoole_server, __construct) {
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
-    Server *serv = server_object->serv;
-    if (serv) {
-        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
-    }
-
     zval *zserv = ZEND_THIS;
     char *host;
     size_t host_len = 0;
@@ -1990,6 +1983,14 @@ static PHP_METHOD(swoole_server, __construct) {
     Z_PARAM_LONG(serv_mode)
     Z_PARAM_LONG(sock_type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    // Parameter parsing can run user code, so inspect native state only after it.
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
+    Server *serv = server_object->serv;
+    if (serv) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
 
     if (serv_mode != Server::MODE_BASE
 #ifndef _WIN32
@@ -2033,6 +2034,7 @@ static PHP_METHOD(swoole_server, __construct) {
     if (serv_port == 0 && strcasecmp(host, "SYSTEMD") == 0) {
         if (serv->add_systemd_socket() <= 0) {
             zend_throw_error(nullptr, "failed to add systemd socket");
+            delete serv;
             RETURN_FALSE;
         }
     } else {
@@ -2045,6 +2047,7 @@ static PHP_METHOD(swoole_server, __construct) {
                                     serv_port,
                                     swoole_strerror(swoole_get_last_error()),
                                     swoole_get_last_error());
+            delete serv;
             RETURN_FALSE;
         }
     }

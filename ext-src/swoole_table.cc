@@ -293,12 +293,6 @@ void php_swoole_table_minit(int module_number) {
 }
 
 PHP_METHOD(swoole_table, __construct) {
-    Table *table = table_get_ptr(ZEND_THIS);
-    if (table) {
-        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
-    }
-
     zend_long table_size;
     double conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
 
@@ -307,6 +301,13 @@ PHP_METHOD(swoole_table, __construct) {
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(conflict_proportion)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    // Parameter parsing can run user code, so inspect native state only after it.
+    Table *table = table_get_ptr(ZEND_THIS);
+    if (table) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
 
     table = Table::make(table_size, static_cast<float>(conflict_proportion));
     if (table == nullptr) {
@@ -320,7 +321,6 @@ PHP_METHOD(swoole_table, __construct) {
 }
 
 PHP_METHOD(swoole_table, column) {
-    Table *table = table_get_and_check_ptr(ZEND_THIS);
     char *name;
     size_t len;
     long type;
@@ -329,6 +329,8 @@ PHP_METHOD(swoole_table, column) {
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sl|l", &name, &len, &type, &size) == FAILURE) {
         RETURN_FALSE;
     }
+
+    Table *table = table_get_and_check_ptr(ZEND_THIS);
     if (type == TableColumn::TYPE_STRING) {
         if (size < 1) {
             php_swoole_fatal_error(E_WARNING, "the length of string type values has to be more than zero");
@@ -372,7 +374,6 @@ static PHP_METHOD(swoole_table, destroy) {
 }
 
 static PHP_METHOD(swoole_table, set) {
-    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     zval *array;
     char *key;
     size_t keylen;
@@ -382,75 +383,26 @@ static PHP_METHOD(swoole_table, set) {
     Z_PARAM_ARRAY(array)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (!table->ready()) {
-        php_swoole_fatal_error(E_ERROR, "the table object does not exist");
-        RETURN_FALSE;
-    }
-
+    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     if (!table_check_key_length(keylen)) {
         RETURN_FALSE;
     }
 
-    int out_flags;
-    TableRow *_rowlock = nullptr;
-    TableRow *row = table->set(key, keylen, &_rowlock, &out_flags);
-    if (!row) {
-        if (_rowlock) {
-            _rowlock->unlock();
+    TableValues values;
+    if (!table_marshal_values(ZEND_THIS, table, Z_ARRVAL_P(array), key, keylen, TABLE_VALUE_WRITE, &values)) {
+        if (UNEXPECTED(EG(exception))) {
+            RETURN_THROWS();
         }
-        php_swoole_error(E_WARNING, "failed to set('%*s'), unable to allocate memory", (int) keylen, key);
         RETURN_FALSE;
     }
 
-    HashTable *ht = Z_ARRVAL_P(array);
-
-    if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
-        for (const auto col : *table->column_list) {
-            zval *zv = zend_hash_str_find(ht, col->name.c_str(), col->name.length());
-            if (zv == nullptr || ZVAL_IS_NULL(zv)) {
-                col->clear(row);
-            } else {
-                if (col->type == TableColumn::TYPE_STRING) {
-                    zend_string *str = zval_get_string(zv);
-                    row->set_value(col, ZSTR_VAL(str), ZSTR_LEN(str));
-                    zend_string_release(str);
-                } else if (col->type == TableColumn::TYPE_FLOAT) {
-                    double _value = zval_get_double(zv);
-                    row->set_value(col, &_value, 0);
-                } else {
-                    long _value = zval_get_long(zv);
-                    row->set_value(col, &_value, 0);
-                }
-            }
+    bool out_of_space = false;
+    if (!table->set(key, keylen, values, &out_of_space)) {
+        if (out_of_space) {
+            php_swoole_error(E_WARNING, "failed to set('%*s'), unable to allocate memory", (int) keylen, key);
         }
-    } else {
-        const char *k;
-        uint32_t klen;
-        int ktype;
-        zval *zv;
-        SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, zv) {
-            if (k == nullptr) {
-                continue;
-            }
-            TableColumn *col = table->get_column(std::string(k, klen));
-            if (col == nullptr) {
-                continue;
-            } else if (col->type == TableColumn::TYPE_STRING) {
-                zend_string *str = zval_get_string(zv);
-                row->set_value(col, ZSTR_VAL(str), ZSTR_LEN(str));
-                zend_string_release(str);
-            } else if (col->type == TableColumn::TYPE_FLOAT) {
-                double _value = zval_get_double(zv);
-                row->set_value(col, &_value, 0);
-            } else {
-                long _value = zval_get_long(zv);
-                row->set_value(col, &_value, 0);
-            }
-        }
-        (void) ktype;
-        SW_HASHTABLE_FOREACH_END();
+        RETURN_FALSE;
     }
-    _rowlock->unlock();
     RETURN_TRUE;
 }
 
@@ -549,7 +501,6 @@ static PHP_METHOD(swoole_table, cmpset) {
 }
 
 static PHP_METHOD(swoole_table, incr) {
-    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t key_len;
     char *col;
@@ -560,6 +511,7 @@ static PHP_METHOD(swoole_table, incr) {
         RETURN_FALSE;
     }
 
+    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     if (!table_check_key_length(key_len)) {
         RETURN_FALSE;
     }
@@ -574,6 +526,29 @@ static PHP_METHOD(swoole_table, incr) {
         RETURN_FALSE;
     }
 
+    double double_value = 1;
+    long long_value = 1;
+    if (incrby) {
+        // Convert before acquiring the bucket lock because conversion can execute user code.
+        {
+            TableObject *object = table_fetch_object(Z_OBJ_P(ZEND_THIS));
+            object->value_conversion_depth++;
+            ON_SCOPE_EXIT {
+                object->value_conversion_depth--;
+            };
+
+            if (column->type == TableColumn::TYPE_FLOAT) {
+                double_value = zval_get_double(incrby);
+            } else {
+                long_value = zval_get_long(incrby);
+            }
+        }
+
+        if (UNEXPECTED(EG(exception))) {
+            RETURN_THROWS();
+        }
+    }
+
     int out_flags;
     TableRow *_rowlock = nullptr;
     TableRow *row = table->set(key, key_len, &_rowlock, &out_flags);
@@ -592,21 +567,13 @@ static PHP_METHOD(swoole_table, incr) {
     if (column->type == TableColumn::TYPE_FLOAT) {
         double set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
-        if (incrby) {
-            set_value += zval_get_double(incrby);
-        } else {
-            set_value += 1;
-        }
+        set_value += double_value;
         row->set_value(column, &set_value, 0);
         RETVAL_DOUBLE(set_value);
     } else {
         long set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
-        if (incrby) {
-            set_value += zval_get_long(incrby);
-        } else {
-            set_value += 1;
-        }
+        set_value += long_value;
         row->set_value(column, &set_value, 0);
         RETVAL_LONG(set_value);
     }
@@ -614,7 +581,6 @@ static PHP_METHOD(swoole_table, incr) {
 }
 
 static PHP_METHOD(swoole_table, decr) {
-    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t key_len;
     char *col;
@@ -625,6 +591,7 @@ static PHP_METHOD(swoole_table, decr) {
         RETURN_FALSE;
     }
 
+    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     if (!table_check_key_length(key_len)) {
         RETURN_FALSE;
     }
@@ -639,6 +606,29 @@ static PHP_METHOD(swoole_table, decr) {
         RETURN_FALSE;
     }
 
+    double double_value = 1;
+    long long_value = 1;
+    if (decrby) {
+        // Convert before acquiring the bucket lock because conversion can execute user code.
+        {
+            TableObject *object = table_fetch_object(Z_OBJ_P(ZEND_THIS));
+            object->value_conversion_depth++;
+            ON_SCOPE_EXIT {
+                object->value_conversion_depth--;
+            };
+
+            if (column->type == TableColumn::TYPE_FLOAT) {
+                double_value = zval_get_double(decrby);
+            } else {
+                long_value = zval_get_long(decrby);
+            }
+        }
+
+        if (UNEXPECTED(EG(exception))) {
+            RETURN_THROWS();
+        }
+    }
+
     int out_flags;
     TableRow *_rowlock = nullptr;
     TableRow *row = table->set(key, key_len, &_rowlock, &out_flags);
@@ -657,21 +647,13 @@ static PHP_METHOD(swoole_table, decr) {
     if (column->type == TableColumn::TYPE_FLOAT) {
         double set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
-        if (decrby) {
-            set_value -= zval_get_double(decrby);
-        } else {
-            set_value -= 1;
-        }
+        set_value -= double_value;
         row->set_value(column, &set_value, 0);
         RETVAL_DOUBLE(set_value);
     } else {
         long set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
-        if (decrby) {
-            set_value -= zval_get_long(decrby);
-        } else {
-            set_value -= 1;
-        }
+        set_value -= long_value;
         row->set_value(column, &set_value, 0);
         RETVAL_LONG(set_value);
     }
@@ -679,7 +661,6 @@ static PHP_METHOD(swoole_table, decr) {
 }
 
 static PHP_METHOD(swoole_table, get) {
-    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
     zend_string *field = nullptr;
@@ -690,6 +671,7 @@ static PHP_METHOD(swoole_table, get) {
     Z_PARAM_STR_OR_NULL(field)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     if (!table_check_key_length(keylen)) {
         RETURN_FALSE;
     }
@@ -750,13 +732,14 @@ static PHP_METHOD(swoole_table, getdel) {
 }
 
 static PHP_METHOD(swoole_table, exists) {
-    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE) {
         RETURN_FALSE;
     }
+
+    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     if (!table_check_key_length(keylen)) {
         RETURN_FALSE;
     }
@@ -764,7 +747,6 @@ static PHP_METHOD(swoole_table, exists) {
 }
 
 static PHP_METHOD(swoole_table, del) {
-    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
 
@@ -772,6 +754,7 @@ static PHP_METHOD(swoole_table, del) {
     Z_PARAM_STRING(key, keylen)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    Table *table = table_get_and_check_ptr2(ZEND_THIS);
     if (!table_check_key_length(keylen)) {
         RETURN_FALSE;
     }
@@ -808,14 +791,15 @@ static PHP_METHOD(swoole_table, cmpdel) {
 static PHP_METHOD(swoole_table, count) {
 #define COUNT_NORMAL 0
 #define COUNT_RECURSIVE 1
-    Table *table = table_get_ptr(ZEND_THIS);
-    if (!table) {
-        RETURN_LONG(0);
-    }
-
     zend_long mode = COUNT_NORMAL;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &mode) == FAILURE) {
         RETURN_FALSE;
+    }
+
+    // Parameter parsing can run user code, so inspect native state only after it.
+    Table *table = table_get_ptr(ZEND_THIS);
+    if (!table) {
+        RETURN_LONG(0);
     }
 
     if (mode == COUNT_NORMAL) {
