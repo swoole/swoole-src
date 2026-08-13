@@ -177,16 +177,16 @@ static int ProcessPool_listen(
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "the process pool is already listening");
         return SW_ERR;
     }
-    char *_socket_file = sw_strdup(address);
-    if (_socket_file == nullptr) {
+    char *_address = sw_strdup(address);
+    if (_address == nullptr) {
         return SW_ERR;
     }
     auto _socket = make_server_socket(socket_type, address, port, backlog);
     if (!_socket) {
-        sw_free(_socket_file);
+        sw_free(_address);
         return SW_ERR;
     }
-    pool->stream_info_->socket_file = _socket_file;
+    pool->stream_info_->socket_address = _address;
     pool->stream_info_->socket_port = port;
     pool->stream_info_->socket = _socket;
     return SW_OK;
@@ -355,7 +355,7 @@ int ProcessPool::pop_message(void *data, size_t size) const {
 
 swResultCode ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     if (use_socket) {
-        Stream *stream = Stream::create(stream_info_->socket_file, 0, SW_SOCK_UNIX_STREAM);
+        Stream *stream = Stream::create(stream_info_->socket_address, 0, SW_SOCK_UNIX_STREAM);
         if (!stream) {
             return SW_ERR;
         }
@@ -390,7 +390,7 @@ swResultCode ProcessPool::dispatch_sync(const char *data, uint32_t len) const {
     if (!client.ready()) {
         return SW_ERR;
     }
-    if (client.connect(stream_info_->socket_file, stream_info_->socket_port, -1, 0) < 0) {
+    if (client.connect(stream_info_->socket_address, stream_info_->socket_port, -1, 0) < 0) {
         return SW_ERR;
     }
     uint32_t packed_len = htonl(len);
@@ -1041,9 +1041,12 @@ void ProcessPool::destroy() {
     }
 
     if (stream_info_) {
-        if (stream_info_->socket) {
-            unlink(stream_info_->socket_file);
-            sw_free(stream_info_->socket_file);
+        if (stream_info_->socket && stream_info_->socket->socket_type == SW_SOCK_UNIX_STREAM) {
+            unlink(stream_info_->socket_address);
+        }
+        if (stream_info_->socket_address) {
+            sw_free(stream_info_->socket_address);
+            stream_info_->socket_address = nullptr;
         }
         if (stream_info_->socket) {
             stream_info_->socket->free();

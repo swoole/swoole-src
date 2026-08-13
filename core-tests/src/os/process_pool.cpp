@@ -114,7 +114,7 @@ TEST(process_pool, failed_unix_listen_can_retry) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(socket_file.c_str(), 128), SW_ERR);
-    ASSERT_EQ(pool.stream_info_->socket_file, nullptr);
+    ASSERT_EQ(pool.stream_info_->socket_address, nullptr);
     ASSERT_EQ(pool.stream_info_->socket, nullptr);
     ASSERT_EQ(access(socket_file.c_str(), F_OK), 0);
 
@@ -131,14 +131,42 @@ TEST(process_pool, listen_only_once) {
     ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
 
     auto *listening = pool.stream_info_->socket;
-    auto *listening_address = pool.stream_info_->socket_file;
+    auto *listening_address = pool.stream_info_->socket_address;
     ASSERT_EQ(pool.listen(TEST_HOST, svr_port + 1, 128), SW_ERR);
     ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
     ASSERT_EQ(pool.stream_info_->socket, listening);
-    ASSERT_EQ(pool.stream_info_->socket_file, listening_address);
+    ASSERT_EQ(pool.stream_info_->socket_address, listening_address);
     ASSERT_EQ(pool.stream_info_->socket_port, svr_port);
 
     pool.destroy();
+}
+
+TEST(process_pool, tcp_listener_destroy_does_not_unlink_address) {
+    auto status = test::spawn_exec_and_wait([]() {
+        char temp_dir[] = "/tmp/swoole-process-pool-destroy-XXXXXX";
+        if (mkdtemp(temp_dir) == nullptr || chdir(temp_dir) < 0) {
+            exit(1);
+        }
+
+        int file_fd = open(TEST_HOST, O_CREAT | O_EXCL | O_WRONLY, 0600);
+        if (file_fd < 0 || close(file_fd) < 0) {
+            exit(2);
+        }
+
+        ProcessPool pool{};
+        if (pool.create(1, 0, SW_IPC_SOCKET) != SW_OK || pool.listen(TEST_HOST, TEST_PORT + __LINE__, 128) != SW_OK) {
+            exit(3);
+        }
+        pool.destroy();
+
+        bool address_file_exists = access(TEST_HOST, F_OK) == 0;
+        unlink(TEST_HOST);
+        chdir("/");
+        rmdir(temp_dir);
+        exit(address_file_exists ? 0 : 4);
+    });
+    ASSERT_TRUE(WIFEXITED(status));
+    ASSERT_EQ(WEXITSTATUS(status), 0);
 }
 
 TEST(process_pool, kill_all_workers_before_start) {
