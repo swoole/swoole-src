@@ -100,6 +100,66 @@ TEST(process_pool, unix_sock) {
     test_func_task_protocol(pool);
 }
 
+TEST(process_pool, failed_unix_listen_can_retry) {
+    std::string socket_file = "/tmp/swoole-process-pool-listen-" + std::to_string(getpid()) + ".sock";
+    unlink(socket_file.c_str());
+    ON_SCOPE_EXIT {
+        unlink(socket_file.c_str());
+    };
+
+    int file_fd = open(socket_file.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
+    ASSERT_GE(file_fd, 0);
+    ASSERT_EQ(close(file_fd), 0);
+
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.listen(socket_file.c_str(), 128), SW_ERR);
+    ASSERT_EQ(pool.stream_info_->socket_file, nullptr);
+    ASSERT_EQ(pool.stream_info_->socket, nullptr);
+    ASSERT_EQ(access(socket_file.c_str(), F_OK), 0);
+
+    ASSERT_EQ(unlink(socket_file.c_str()), 0);
+    ASSERT_EQ(pool.listen(socket_file.c_str(), 128), SW_OK);
+    pool.destroy();
+    ASSERT_EQ(access(socket_file.c_str(), F_OK), -1);
+}
+
+TEST(process_pool, listen_only_once) {
+    ProcessPool pool{};
+    int svr_port = TEST_PORT + __LINE__;
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
+
+    auto *listening = pool.stream_info_->socket;
+    auto *listening_address = pool.stream_info_->socket_file;
+    ASSERT_EQ(pool.listen(TEST_HOST, svr_port + 1, 128), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+    ASSERT_EQ(pool.stream_info_->socket, listening);
+    ASSERT_EQ(pool.stream_info_->socket_file, listening_address);
+    ASSERT_EQ(pool.stream_info_->socket_port, svr_port);
+
+    pool.destroy();
+}
+
+TEST(process_pool, kill_all_workers_before_start) {
+    // Unspawned worker slots hold pid 0. Without the guard in kill_all_workers() this becomes
+    // kill(0, SIGTERM) and signals the whole process group, so the child moves into its own group
+    // first and the parent checks it exited normally rather than dying from the signal.
+    auto status = test::spawn_exec_and_wait([]() {
+        if (setpgid(0, 0) < 0) {
+            exit(1);
+        }
+        ProcessPool pool{};
+        if (pool.create(2) != SW_OK) {
+            exit(1);
+        }
+        pool.kill_all_workers(SIGTERM);
+        pool.destroy();
+    });
+    ASSERT_TRUE(WIFEXITED(status));
+    ASSERT_EQ(WEXITSTATUS(status), 0);
+}
+
 TEST(process_pool, push_message_too_large) {
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);

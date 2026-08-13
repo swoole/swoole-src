@@ -167,38 +167,37 @@ int ProcessPool::create_message_bus() {
     return SW_OK;
 }
 
-int ProcessPool::listen(const char *socket_file, int backlog) const {
-    if (ipc_mode != SW_IPC_SOCKET) {
+static int ProcessPool_listen(
+    const ProcessPool *pool, SocketType socket_type, const char *address, int port, int backlog) {
+    if (pool->ipc_mode != SW_IPC_SOCKET) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
         return SW_ERR;
     }
-    stream_info_->socket_file = sw_strdup(socket_file);
-    if (stream_info_->socket_file == nullptr) {
+    if (pool->stream_info_->socket) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "the process pool is already listening");
         return SW_ERR;
     }
-    stream_info_->socket_port = 0;
-    stream_info_->socket = make_server_socket(SW_SOCK_UNIX_STREAM, stream_info_->socket_file, 0, backlog);
-    if (!stream_info_->socket) {
+    char *_socket_file = sw_strdup(address);
+    if (_socket_file == nullptr) {
         return SW_ERR;
     }
+    auto _socket = make_server_socket(socket_type, address, port, backlog);
+    if (!_socket) {
+        sw_free(_socket_file);
+        return SW_ERR;
+    }
+    pool->stream_info_->socket_file = _socket_file;
+    pool->stream_info_->socket_port = port;
+    pool->stream_info_->socket = _socket;
     return SW_OK;
 }
 
+int ProcessPool::listen(const char *socket_file, int backlog) const {
+    return ProcessPool_listen(this, SW_SOCK_UNIX_STREAM, socket_file, 0, backlog);
+}
+
 int ProcessPool::listen(const char *host, int port, int backlog) const {
-    if (ipc_mode != SW_IPC_SOCKET) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_SOCKET");
-        return SW_ERR;
-    }
-    stream_info_->socket_file = sw_strdup(host);
-    if (stream_info_->socket_file == nullptr) {
-        return SW_ERR;
-    }
-    stream_info_->socket_port = port;
-    stream_info_->socket = make_server_socket(SW_SOCK_TCP, host, port, backlog);
-    if (!stream_info_->socket) {
-        return SW_ERR;
-    }
-    return SW_OK;
+    return ProcessPool_listen(this, SW_SOCK_TCP, host, port, backlog);
 }
 
 void ProcessPool::set_protocol(swProtocolType _protocol_type) {
@@ -472,8 +471,12 @@ void ProcessPool::reopen_logger() {
 }
 
 void ProcessPool::kill_all_workers(int signo) {
+    // reopen_logger() can run from a signal handler before start() has spawned every worker.
+    // Unspawned slots still hold pid 0, and kill(0, ...) would signal the whole process group.
     SW_LOOP_N(worker_num) {
-        swoole_kill(workers[i].pid, signo);
+        if (workers[i].pid > 0) {
+            swoole_kill(workers[i].pid, signo);
+        }
     }
 }
 
