@@ -34,12 +34,12 @@ $pm->childFunc = function () use ($pm) {
     });
     $server->on('receive', function (Swoole\Server $server, int $fd, int $reactorId, string $data) {
         if (str_starts_with($data, 'GET /oversized ')) {
-            $response = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nX-Trailer: ";
+            $response = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-Trailer\r\n\r\n0\r\nX-Trailer: ";
             $response .= str_repeat('A', 65536) . "\r\n\r\n";
             $server->send($fd, $response);
             return;
         }
-        $server->send($fd, "HTTP/1.1 200 OK\r\nX-Before: intact\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nbody\r\n0\r\nX-Tra");
+        $server->send($fd, "HTTP/1.1 200 OK\r\nX-Before: intact\r\nTransfer-Encoding: chunked\r\nTrailer: X-Trailer\r\n\r\n4\r\nbody\r\n0\r\nX-Tra");
         Swoole\Timer::after(10, function () use ($server, $fd) {
             $server->send($fd, "iler: fragmented-");
             Swoole\Timer::after(10, function () use ($server, $fd) {
