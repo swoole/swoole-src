@@ -169,6 +169,9 @@ zval *php_swoole_server_zval_ptr(Server *serv) {
 }
 
 ServerPortProperty *php_swoole_server_get_port_property(ListenPort *port) {
+    if (sw_unlikely(!port)) {
+        return nullptr;
+    }
 #ifdef SW_THREAD
     return swoole_server_port_properties.at(port->object_id);
 #else
