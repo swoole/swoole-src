@@ -32,6 +32,7 @@ static int http_request_message_complete(llhttp_t *parser);
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length);
+static int multipart_body_on_header_value_complete(multipart_parser *p);
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
@@ -69,6 +70,7 @@ static constexpr llhttp_settings_t http_parser_settings =
 static  constexpr multipart_parser_settings mt_parser_settings = {
     multipart_body_on_header_field,
     multipart_body_on_header_value,
+    multipart_body_on_header_value_complete,
     multipart_body_on_data,
     nullptr,
     multipart_body_on_header_complete,
@@ -79,15 +81,25 @@ static  constexpr multipart_parser_settings mt_parser_settings = {
 
 struct ContextImpl {
     llhttp_t parser;
-    multipart_parser *mt_parser;
+    multipart_parser *mt_parser = nullptr;
 
     std::string current_header_name;
+    std::string current_header_value;
     std::string current_form_data_name;
     bool current_part_is_file = false;
-    String *form_data_buffer;
+    std::string form_data_buffer;
 
     bool completed = false;
     bool is_beginning = true;
+
+    ~ContextImpl() {
+        if (mt_parser) {
+            if (mt_parser->fp) {
+                fclose(mt_parser->fp);
+            }
+            multipart_parser_free(mt_parser);
+        }
+    }
 
     bool parse(Context &ctx, const char *at, size_t length) {
         swoole_llhttp_parser_init(&parser, HTTP_REQUEST, static_cast<void *>(&ctx));
@@ -95,6 +107,12 @@ struct ContextImpl {
         return parser.error == HPE_OK && completed;
     }
 };
+
+static void trim_multipart_quotes(std::string &value) {
+    if (value.length() >= 2 && value.front() == '"' && value.back() == '"') {
+        value = value.substr(1, value.length() - 2);
+    }
+}
 
 static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) {
     const char *query_start = (const char *) memchr(at, '?', length);
@@ -115,6 +133,7 @@ static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) 
 
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(parser->data);
+    // This wrapper parses the complete request head in one call; multipart headers are incremental below.
     ctx->impl->current_header_name = std::string(at, length);
     return 0;
 }
@@ -137,7 +156,6 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
                 return -1;
             }
             impl->mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
-            impl->form_data_buffer = new String(SW_BUFFER_SIZE_STD);
             impl->mt_parser->data = ctx;
             swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
         }
@@ -150,6 +168,7 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
     ctx->version = parser->http_major * 100 + parser->http_minor;
     ctx->server_protocol = std::string(ctx->version == 101 ? "HTTP/1.1" : "HTTP/1.0");
     ctx->keepalive = llhttp_should_keep_alive(parser);
+    ctx->impl->current_header_name.clear();
     return 0;
 }
 
@@ -174,13 +193,28 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
             } while (length != 0);
             impl->is_beginning = false;
         }
-        size_t n = multipart_parser_execute(multipart_parser, at, length);
-        if (sw_unlikely(n != length)) {
+        ssize_t n = multipart_parser_execute(multipart_parser, at, length);
+        if (sw_unlikely(n < 0)) {
+            int l_error = multipart_parser_error_msg(multipart_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
+            if (l_error == 0) {
+                swoole_error_log(SW_LOG_WARNING,
+                                 SW_ERROR_SERVER_INVALID_REQUEST,
+                                 "parse multipart body failed, callback aborted");
+            } else {
+                swoole_error_log(SW_LOG_WARNING,
+                                 SW_ERROR_SERVER_INVALID_REQUEST,
+                                 "parse multipart body failed, reason: %.*s",
+                                 l_error,
+                                 sw_tg_buffer()->str);
+            }
+            return -1;
+        } else if (sw_unlikely((size_t) n != length)) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_SERVER_INVALID_REQUEST,
-                             "parse multipart body failed, %zu/%zu bytes processed",
+                             "parse multipart body failed, %zd/%zu bytes processed",
                              n,
                              length);
+            return -1;
         }
     } else {
         ctx->body.append(at, length);
@@ -191,15 +225,27 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
-    ContextImpl *impl = ctx->impl;
-    return http_request_on_header_field(&impl->parser, at, length);
+    ctx->impl->current_header_name.append(at, length);
+    return SW_OK;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
+    ctx->impl->current_header_value.append(at, length);
+    return SW_OK;
+}
+
+static int multipart_body_on_header_value_complete(multipart_parser *p) {
+    auto *ctx = static_cast<Context *>(p->data);
     ContextImpl *impl = ctx->impl;
-    const char *header_name = impl->current_header_name.c_str();
-    size_t header_len = impl->current_header_name.length();
+    std::string header_name_value = std::move(impl->current_header_name);
+    std::string header_value = std::move(impl->current_header_value);
+    impl->current_header_name.clear();
+    impl->current_header_value.clear();
+    const char *header_name = header_name_value.c_str();
+    size_t header_len = header_name_value.length();
+    const char *at = header_value.c_str();
+    size_t length = header_value.length();
 
     if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
         std::unordered_map<std::string, std::string> info;
@@ -207,11 +253,16 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             info[std::string(key, key_len)] = std::string(value, value_len);
             return true;
         };
-        parse_cookie(at, length, cb);
+        if (!parse_cookie(at, length, cb)) {
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "multipart Content-Disposition is too large");
+            return SW_ERR;
+        }
         auto name = info.find("name");
         if (name == info.end()) {
             return 0;
         }
+        trim_multipart_quotes(name->second);
         impl->current_form_data_name = name->second;
         auto filename = info.find("filename");
         if (filename == info.end()) {
@@ -242,18 +293,22 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
         if (p->fp == nullptr) {
             return 0;
         }
-        ssize_t n = fwrite(at, sizeof(char), length, p->fp);
-        if (n != (off_t) length) {
-            ctx->files[impl->current_form_data_name] = "ERROR(1)";
+        size_t n = fwrite(at, sizeof(char), length, p->fp);
+        if (n != length) {
             fclose(p->fp);
             p->fp = nullptr;
+            auto file = ctx->files.find(impl->current_form_data_name);
+            if (file != ctx->files.end()) {
+                unlink(file->second.c_str());
+                file->second = "ERROR(1)";
+            }
             swoole_sys_warning("write upload file failed");
         }
         return 0;
     }
 
     if (!impl->current_form_data_name.empty()) {
-        impl->form_data_buffer->append(at, length);
+        impl->form_data_buffer.append(at, length);
     }
     return 0;
 }
@@ -269,17 +324,22 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
         return 0;
     }
 
-    char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE] = "/tmp/swoole.upfile.XXXXXX";
+    char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
+    sw_snprintf(file_path,
+                sizeof(file_path),
+                "%s/swoole.upfile.XXXXXX",
+                ctx->server_->upload_tmp_dir.c_str());
     int tmpfile = swoole_tmpfile(file_path);
     if (tmpfile < 0) {
-        return 0;
+        return SW_ERR;
     }
 
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         swoole_sys_warning("fopen(%s) failed", file_path);
         ::close(tmpfile);
-        return 0;
+        unlink(file_path);
+        return SW_ERR;
     }
     p->fp = fp;
     ctx->files[impl->current_form_data_name] = file_path;
@@ -292,8 +352,8 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     ContextImpl *impl = ctx->impl;
 
     if (!impl->current_form_data_name.empty() && !impl->current_part_is_file) {
-        ctx->form_data[impl->current_form_data_name] = impl->form_data_buffer->to_std_string();
-        impl->form_data_buffer->clear();
+        ctx->form_data[impl->current_form_data_name] = std::move(impl->form_data_buffer);
+        impl->form_data_buffer.clear();
     }
 
     if (p->fp != nullptr) {
@@ -302,6 +362,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     }
 
     impl->current_header_name.clear();
+    impl->current_header_value.clear();
     impl->current_part_is_file = false;
     impl->current_form_data_name.clear();
 
@@ -311,11 +372,6 @@ static int multipart_body_on_data_end(multipart_parser *p) {
 static int http_request_message_complete(llhttp_t *p) {
     const auto *ctx = static_cast<Context *>(p->data);
     auto *impl = ctx->impl;
-
-    if (impl->form_data_buffer) {
-        delete impl->form_data_buffer;
-        impl->form_data_buffer = nullptr;
-    }
 
     impl->completed = true;
     return HPE_PAUSED;
@@ -392,7 +448,8 @@ std::shared_ptr<Server> listen(const std::string &addr, const std::function<void
         if (impl.parse(ctx, req->data, req->info.len)) {
             http_server_on_request(ctx);
         } else {
-            server->send(req->session_id(), SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
+            server->send(session_id, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
+            server->close(session_id, false);
         }
         return SW_OK;
     };
