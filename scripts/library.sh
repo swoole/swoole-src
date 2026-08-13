@@ -23,7 +23,7 @@ if ! id -u swoole_ssh2_truncated_scp_user > /dev/null 2>&1; then
     useradd -m -s /bin/sh swoole_ssh2_truncated_scp_user
 fi
 echo 'swoole_ssh2_truncated_scp_user:swoole_ssh2_truncated_scp_pass' | chpasswd
-install -m 0555 ../tests/swoole_ssh2/truncated_scp_server.sh /usr/local/bin/swoole-truncated-scp-server
+install -m 0555 ./truncated_scp_server.sh /usr/local/bin/swoole-truncated-scp-server
 mkdir -p /etc/ssh/sshd_config.d
 printf '%s\n' \
     'AcceptEnv SWOOLE_TEST_*' \
