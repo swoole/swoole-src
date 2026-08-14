@@ -913,19 +913,25 @@ static PHP_METHOD(swoole_websocket_server, unpack) {
         RETURN_FALSE;
     }
 
-    zval zpayload{};
     uint8_t flags = frame.get_flags();
 
+    // The payload is masked after it is compressed, and the input string may be interned,
+    // so unmask a copy before decompressing it.
+    zval zpayload;
+    ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
+    if (frame.header.MASK && frame.payload_length > 0) {
+        WebSocket::mask(Z_STRVAL(zpayload), frame.payload_length, frame.mask_key);
+    }
+
     if (frame.compressed()) {
-        if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length))) {
+        zval zuncompressed;
+        bool rs = FrameObject::uncompress(&zuncompressed, Z_STRVAL(zpayload), Z_STRLEN(zpayload));
+        zval_ptr_dtor(&zpayload);
+        if (sw_unlikely(!rs)) {
             swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
             RETURN_FALSE;
         }
-    } else {
-        ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
-        if (frame.header.MASK && frame.payload_length > 0) {
-            WebSocket::mask(Z_STRVAL(zpayload), frame.payload_length, frame.mask_key);
-        }
+        zpayload = zuncompressed;
     }
 
     WebSocket::construct_frame(return_value, frame.header.OPCODE, &zpayload, flags);
