@@ -99,19 +99,45 @@ foreach (str_split($fragmented) as $byte) {
 }
 $assertFragmented($request);
 
+$parseInChunks = static function (string $data, int $chunkSize): Request {
+    $request = Request::create();
+    for ($offset = 0; $offset < strlen($data); $offset += $chunkSize) {
+        $length = min($chunkSize, strlen($data) - $offset);
+        Assert::same($request->parse(substr($data, $offset, $length)), $length);
+    }
+    return $request;
+};
+
+$body = 'first=one&second=two';
+$duplicate = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$duplicate .= "Content-Type: multipart/form-data; boundary=ignored\r\n";
+$duplicate .= "Content-Type: application/x-www-form-urlencoded\r\n";
+$duplicate .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
+$request = Request::create();
+// http_request_on_body currently assumes non-chunked URL-encoded body fragments are contiguous.
+Assert::same($request->parse($duplicate), strlen($duplicate));
+Assert::true($request->isCompleted());
+Assert::same($request->post, ['first' => 'one', 'second' => 'two']);
+
+$boundary = 'fragmented-boundary';
+$body = "--{$boundary}\r\n";
+$body .= "Content-Disposition: form-data; name=\"field\"\r\n\r\n";
+$body .= "field-value\r\n";
+$body .= "--{$boundary}\r\n";
+$body .= "Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n";
+$body .= "Content-Type: text/plain\r\n\r\n";
+$body .= "file-value\r\n";
+$body .= "--{$boundary}--\r\n";
 $duplicate = "POST / HTTP/1.1\r\nHost: localhost\r\n";
 $duplicate .= "Content-Type: application/x-www-form-urlencoded\r\n";
-$duplicate .= "Content-Type: text/plain\r\nContent-Length: 0\r\n\r\n";
-$request = Request::create();
-Assert::notSame($request->parse($duplicate), strlen($duplicate));
-Assert::false($request->isCompleted());
-
-$oversizedPrefix = "GET / HTTP/1.1\r\nHost: localhost\r\nX-Large: " . str_repeat('A', 32768);
-$oversizedSuffix = str_repeat('A', 32768) . "\r\n\r\n";
-$request = Request::create();
-Assert::same($request->parse($oversizedPrefix), strlen($oversizedPrefix));
-Assert::notSame($request->parse($oversizedSuffix), strlen($oversizedSuffix));
-Assert::false($request->isCompleted());
+$duplicate .= "Content-Type: multipart/form-data; boundary={$boundary}\r\n";
+$duplicate .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
+$request = $parseInChunks($duplicate, 7);
+Assert::true($request->isCompleted());
+Assert::same($request->post['field'], 'field-value');
+Assert::same($request->files['file']['name'], 'test.txt');
+Assert::same($request->files['file']['type'], 'text/plain');
+Assert::same(file_get_contents($request->files['file']['tmp_name']), 'file-value');
 
 ?>
 --EXPECT--

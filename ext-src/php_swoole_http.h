@@ -162,7 +162,6 @@ struct Context {
     uchar parse_body : 1;
     uchar parse_files : 1;
     uchar current_part_is_file : 1;
-    uchar content_type_seen : 1;
     uchar http2 : 1;
 
     zval zsocket;
@@ -215,6 +214,7 @@ struct Context {
     void bind(zval *zsock);
     void copy(const Context *ctx);
     bool init_multipart_parser(const char *boundary_str, int boundary_len);
+    void destroy_multipart_parser();
     bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);

@@ -87,18 +87,25 @@ struct ContextImpl {
     std::string current_header_value;
     std::string current_form_data_name;
     bool current_part_is_file = false;
-    std::string form_data_buffer;
+    String *form_data_buffer = nullptr;
 
     bool completed = false;
     bool is_beginning = true;
 
-    ~ContextImpl() {
+    void destroy_multipart_parser() {
         if (mt_parser) {
             if (mt_parser->fp) {
                 fclose(mt_parser->fp);
             }
             multipart_parser_free(mt_parser);
+            mt_parser = nullptr;
         }
+        delete form_data_buffer;
+        form_data_buffer = nullptr;
+    }
+
+    ~ContextImpl() {
+        destroy_multipart_parser();
     }
 
     bool parse(Context &ctx, const char *at, size_t length) {
@@ -146,6 +153,8 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
     if ((parser->method == HTTP_POST || parser->method == HTTP_PUT || parser->method == HTTP_DELETE ||
          parser->method == HTTP_PATCH) &&
         SW_STRCASEEQ(impl->current_header_name.c_str(), impl->current_header_name.length(), "content-type")) {
+        ctx->post_form_urlencoded = false;
+        impl->destroy_multipart_parser();
         if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
             ctx->post_form_urlencoded = true;
         } else if (SW_STR_ISTARTS_WITH(at, length, "multipart/form-data")) {
@@ -156,6 +165,7 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
                 return -1;
             }
             impl->mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
+            impl->form_data_buffer = new String(SW_BUFFER_SIZE_STD);
             impl->mt_parser->data = ctx;
             swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
         }
@@ -196,17 +206,11 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
         ssize_t n = multipart_parser_execute(multipart_parser, at, length);
         if (sw_unlikely(n < 0)) {
             int l_error = multipart_parser_error_msg(multipart_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
-            if (l_error == 0) {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_SERVER_INVALID_REQUEST,
-                                 "parse multipart body failed, callback aborted");
-            } else {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_SERVER_INVALID_REQUEST,
-                                 "parse multipart body failed, reason: %.*s",
-                                 l_error,
-                                 sw_tg_buffer()->str);
-            }
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_SERVER_INVALID_REQUEST,
+                             "parse multipart body failed, reason: %.*s",
+                             l_error,
+                             sw_tg_buffer()->str);
             return -1;
         } else if (sw_unlikely((size_t) n != length)) {
             swoole_error_log(SW_LOG_WARNING,
@@ -308,7 +312,7 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
     }
 
     if (!impl->current_form_data_name.empty()) {
-        impl->form_data_buffer.append(at, length);
+        impl->form_data_buffer->append(at, length);
     }
     return 0;
 }
@@ -325,10 +329,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     }
 
     char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
-    sw_snprintf(file_path,
-                sizeof(file_path),
-                "%s/swoole.upfile.XXXXXX",
-                ctx->server_->upload_tmp_dir.c_str());
+    sw_snprintf(file_path, sizeof(file_path), "%s/swoole.upfile.XXXXXX", ctx->server_->upload_tmp_dir.c_str());
     int tmpfile = swoole_tmpfile(file_path);
     if (tmpfile < 0) {
         return SW_ERR;
@@ -352,8 +353,8 @@ static int multipart_body_on_data_end(multipart_parser *p) {
     ContextImpl *impl = ctx->impl;
 
     if (!impl->current_form_data_name.empty() && !impl->current_part_is_file) {
-        ctx->form_data[impl->current_form_data_name] = std::move(impl->form_data_buffer);
-        impl->form_data_buffer.clear();
+        ctx->form_data[impl->current_form_data_name] = impl->form_data_buffer->to_std_string();
+        impl->form_data_buffer->clear();
     }
 
     if (p->fp != nullptr) {

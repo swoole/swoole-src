@@ -1103,10 +1103,8 @@ static int http2_server_parse_header(
                 }
             } else {
                 if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-type")) {
-                    if (ctx->content_type_seen) {
-                        return SW_ERR;
-                    }
-                    ctx->content_type_seen = 1;
+                    ctx->request.post_form_urlencoded = 0;
+                    ctx->destroy_multipart_parser();
                     if (SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded")) {
                         ctx->request.post_form_urlencoded = 1;
                     } else if (SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "multipart/form-data")) {

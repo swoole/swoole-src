@@ -164,7 +164,7 @@ struct Request {
     int get_protocol();
     int get_header_length();
     int get_chunked_body_length();
-    bool parse_header_info();
+    void parse_header_info();
     bool parse_multipart_data(String *buffer);
     bool init_multipart_parser(const Server *server);
     void destroy_multipart_parser();
@@ -204,10 +204,6 @@ class Context {
         session_id_ = session_id;
         impl = _impl;
     }
-    Context(const Context &) = delete;
-    Context &operator=(const Context &) = delete;
-    Context(Context &&) = delete;
-    Context &operator=(Context &&) = delete;
     ~Context();
     bool end(const std::string &data) {
         return end(data.c_str(), data.length());

@@ -56,15 +56,6 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
 static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
 
-static bool http_request_append_header_fragment(HttpContext *ctx, std::string &buffer, const char *at, size_t length) {
-    size_t header_length = ctx->current_header_name.length() + ctx->current_header_value.length();
-    if (header_length > SW_HTTP_HEADER_MAX_SIZE || length > SW_HTTP_HEADER_MAX_SIZE - header_length) {
-        return false;
-    }
-    buffer.append(at, length);
-    return true;
-}
-
 static sw_inline void multipart_body_reset_current_part(HttpContext *ctx) {
     if (ctx->current_form_data_name) {
         efree(ctx->current_form_data_name);
@@ -180,16 +171,11 @@ bool HttpContext::parse_multipart_data(const char *at, size_t length) const {
     ssize_t n = multipart_parser_execute(mt_parser, at, length);
     if (n < 0) {
         int l_error = multipart_parser_error_msg(mt_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
-        if (l_error == 0) {
-            swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, callback aborted");
-        } else {
-            swoole_error_log(SW_LOG_NOTICE,
-                             SW_ERROR_SERVER_INVALID_REQUEST,
-                             "parse multipart body failed, reason: %.*s",
-                             l_error,
-                             sw_tg_buffer()->str);
-        }
+        swoole_error_log(SW_LOG_NOTICE,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "parse multipart body failed, reason: %.*s",
+                         l_error,
+                         sw_tg_buffer()->str);
         return false;
     } else if (n != (ssize_t) length) {
         swoole_error_log(SW_LOG_NOTICE,
@@ -329,7 +315,8 @@ static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) 
 
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
-    return http_request_append_header_fragment(ctx, ctx->current_header_name, at, length) ? SW_OK : SW_ERR;
+    ctx->current_header_name.append(at, length);
+    return SW_OK;
 }
 
 bool HttpContext::init_multipart_parser(const char *boundary_str, int boundary_len) {
@@ -341,6 +328,18 @@ bool HttpContext::init_multipart_parser(const char *boundary_str, int boundary_l
     form_data_buffer = new String(SW_BUFFER_SIZE_STD);
     mt_parser->data = this;
     return true;
+}
+
+void HttpContext::destroy_multipart_parser() {
+    if (mt_parser) {
+        if (mt_parser->fp) {
+            fclose(mt_parser->fp);
+        }
+        multipart_parser_free(mt_parser);
+        mt_parser = nullptr;
+    }
+    delete form_data_buffer;
+    form_data_buffer = nullptr;
 }
 
 bool HttpContext::get_multipart_boundary(
@@ -394,7 +393,8 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
-    return http_request_append_header_fragment(ctx, ctx->current_header_value, at, length) ? SW_OK : SW_ERR;
+    ctx->current_header_value.append(at, length);
+    return SW_OK;
 }
 
 static int http_request_on_header_value_complete(llhttp_t *parser) {
@@ -408,13 +408,6 @@ static int http_request_on_header_value_complete(llhttp_t *parser) {
     size_t header_len = header_name_value.length();
     const char *at = header_value.c_str();
     size_t length = header_value.length();
-
-    if (SW_STRCASEEQ(header_name, header_len, "content-type")) {
-        if (ctx->content_type_seen) {
-            return -1;
-        }
-        ctx->content_type_seen = 1;
-    }
 
     if (ctx->parse_cookie && SW_STRCASEEQ(header_name, header_len, "cookie")) {
         zval *zcookie = swoole_http_init_and_read_property(
@@ -442,6 +435,8 @@ static int http_request_on_header_value_complete(llhttp_t *parser) {
     } else if ((parser->method == HTTP_POST || parser->method == HTTP_PUT || parser->method == HTTP_DELETE ||
                 parser->method == HTTP_PATCH) &&
                SW_STRCASEEQ(header_name, header_len, "content-type")) {
+        ctx->request.post_form_urlencoded = 0;
+        ctx->destroy_multipart_parser();
         if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
             ctx->request.post_form_urlencoded = 1;
         } else if (SW_STR_ISTARTS_WITH(at, length, "multipart/form-data")) {
@@ -543,12 +538,14 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(p->data);
-    return http_request_on_header_field(&ctx->parser, at, length);
+    ctx->current_header_name.append(at, length);
+    return SW_OK;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(p->data);
-    return http_request_append_header_fragment(ctx, ctx->current_header_value, at, length) ? SW_OK : SW_ERR;
+    ctx->current_header_value.append(at, length);
+    return SW_OK;
 }
 
 static int multipart_body_on_header_value_complete(multipart_parser *p) {
@@ -747,6 +744,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         close(tmpfile);
+        unlink(file_path);
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         swoole_sys_warning("fopen(%s) failed", file_path);
         return 0;
@@ -893,14 +891,7 @@ static int http_request_message_complete(llhttp_t *parser) {
             swoole_http_init_and_read_property(
                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
     }
-    if (ctx->mt_parser) {
-        multipart_parser_free(ctx->mt_parser);
-        ctx->mt_parser = nullptr;
-    }
-    if (ctx->form_data_buffer) {
-        delete ctx->form_data_buffer;
-        ctx->form_data_buffer = nullptr;
-    }
+    ctx->destroy_multipart_parser();
 
     ctx->completed = 1;
 

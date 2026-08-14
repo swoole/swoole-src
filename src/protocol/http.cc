@@ -149,10 +149,7 @@ bool HttpProxy::handshake(const String *recv_buffer) {
 namespace http_server {
 //-----------------------------------------------------------------
 
-static bool multipart_append_header_fragment(Request *request,
-                                             std::string &buffer,
-                                             const char *at,
-                                             size_t length) {
+static bool multipart_append_header_fragment(Request *request, std::string &buffer, const char *at, size_t length) {
     auto *form_data = request->form_data_;
     size_t header_length = form_data->current_header_name.length() + form_data->current_header_value.length();
     if (header_length > SW_HTTP_HEADER_MAX_SIZE || length > SW_HTTP_HEADER_MAX_SIZE - header_length) {
@@ -177,9 +174,8 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
     swoole_trace("header_value: at=%.*s, length=%lu", (int) length, at, length);
 
     auto *request = static_cast<Request *>(p->data);
-    return multipart_append_header_fragment(request, request->form_data_->current_header_value, at, length)
-               ? SW_OK
-               : SW_ERR;
+    return multipart_append_header_fragment(request, request->form_data_->current_header_value, at, length) ? SW_OK
+                                                                                                            : SW_ERR;
 }
 
 static int multipart_on_header_value_complete(multipart_parser *p) {
@@ -195,7 +191,8 @@ static int multipart_on_header_value_complete(multipart_parser *p) {
         form_data->multipart_buffer_->length > request->max_length_ - header_length) {
         request->excepted = 1;
         request->unavailable = 1;
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "multipart header is too large");
+        swoole_error_log(
+            SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "reconstructed multipart request is too large");
         return MPPE_PAUSED;
     }
 
@@ -533,9 +530,7 @@ bool parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb) 
     size_t key_len = 0;
     char *strtok_buf = nullptr;
 
-    static_assert(SW_STACK_BUFFER_SIZE >= SW_HTTP_HEADER_MAX_SIZE,
-                  "thread buffer must hold the maximum HTTP header");
-    if (length >= SW_HTTP_HEADER_MAX_SIZE) {
+    if (length >= sw_tg_buffer()->size) {
         return false;
     }
     char *_c = sw_tg_buffer()->str;
@@ -778,13 +773,12 @@ _end:
 /**
  * simple get headers info
  */
-bool Request::parse_header_info() {
+void Request::parse_header_info() {
     // header field start
     char *p = buffer_->str + request_line_length_ + (sizeof("\r\n") - 1);
     // point-end: start + strlen(all-header) without strlen("\r\n\r\n")
     char *pe = buffer_->str + header_length_ - (sizeof("\r\n\r\n") - 1);
 
-    bool content_type_seen = false;
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
             if (SW_STR_ISTARTS_WITH(p, pe - p, "Content-Length:")) {
@@ -817,12 +811,8 @@ bool Request::parse_header_info() {
                     chunked = 1;
                 }
             } else if (SW_STR_ISTARTS_WITH(p, pe - p, "Content-Type:")) {
-                if (content_type_seen) {
-                    delete form_data_;
-                    form_data_ = nullptr;
-                    return false;
-                }
-                content_type_seen = true;
+                delete form_data_;
+                form_data_ = nullptr;
                 p += (sizeof("Content-Type:") - 1);
                 while (*p == ' ') {
                     p++;
@@ -840,7 +830,6 @@ bool Request::parse_header_info() {
     if (chunked && known_length && content_length_ == 0) {
         nobody_chunked = 1;
     }
-    return true;
 }
 
 bool Request::init_multipart_parser(const Server *server) {
@@ -898,16 +887,11 @@ bool Request::parse_multipart_data(String *buffer) {
     if (n < 0) {
         int l_error =
             multipart_parser_error_msg(form_data_->multipart_parser_, sw_tg_buffer()->str, sw_tg_buffer()->size);
-        if (l_error == 0) {
-            swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, callback aborted");
-        } else {
-            swoole_error_log(SW_LOG_NOTICE,
-                             SW_ERROR_SERVER_INVALID_REQUEST,
-                             "parse multipart body failed, reason: %.*s",
-                             l_error,
-                             sw_tg_buffer()->str);
-        }
+        swoole_error_log(SW_LOG_NOTICE,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "parse multipart body failed, reason: %.*s",
+                         l_error,
+                         sw_tg_buffer()->str);
         return false;
     } else if ((size_t) n != buffer->length) {
         swoole_error_log(SW_LOG_NOTICE,

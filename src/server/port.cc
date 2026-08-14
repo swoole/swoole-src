@@ -553,9 +553,7 @@ _parse:
 
     // parse http header and got http body length
     if (!request->header_parsed) {
-        if (!request->parse_header_info()) {
-            goto _bad_request;
-        }
+        request->parse_header_info();
         request->max_length_ = protocol->package_max_length;
         swoole_trace_log(SW_TRACE_SERVER,
                          "content-length=%" PRIu64 ", keep-alive=%u, chunked=%u",
