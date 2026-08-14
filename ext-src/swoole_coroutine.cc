@@ -326,7 +326,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(vm_stack_end) = EG(vm_stack)->end;
     EG(vm_stack_page_size) = SW_DEFAULT_PHP_STACK_PAGE_SIZE;
 
-    auto *call = reinterpret_cast<zend_execute_data *>((EG(vm_stack_top)));
+    auto *call = reinterpret_cast<zend_execute_data *>((EG(vm_stack)->top));
     EG(current_execute_data) = call;
     memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
 
@@ -336,8 +336,6 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(jit_trace_num) = 0;
 
     call->func = static_cast<zend_function *>(&swoole_coroutine_internal_function);
-    EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
-
 #ifdef ZEND_CHECK_STACK_LIMIT
     EG(stack_base) = stack_base(ctx);
     EG(stack_limit) = stack_limit(ctx);
