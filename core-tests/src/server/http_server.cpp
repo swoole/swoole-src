@@ -896,13 +896,15 @@ TEST(http_server, wrapper_multipart_completion) {
                 c.connect(TEST_HOST, server->get_primary_port()->port);
                 c.send(request);
                 char buf[1024];
-                ssize_t n = c.recv(buf, sizeof(buf));
-                c.close();
-                EXPECT_GT(n, 0);
-                if (n <= 0) {
-                    return std::string();
+                std::string response;
+                ssize_t n;
+                // The response headers and body are sent separately, and Connection: close makes EOF the boundary.
+                while ((n = c.recv(buf, sizeof(buf))) > 0) {
+                    response.append(buf, n);
                 }
-                return std::string(buf, n);
+                c.close();
+                EXPECT_FALSE(response.empty());
+                return response;
             };
 
             std::string response = send_request(
