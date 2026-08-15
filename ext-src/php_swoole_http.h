@@ -186,6 +186,7 @@ struct Context {
     multipart_parser *mt_parser;
 
     uint16_t input_var_num;
+    std::string current_url;
     std::string current_header_name;
     std::string current_header_value;
     char *current_form_data_name;

@@ -26,7 +26,7 @@ $req = Request::create();
 Assert::count($req->header, 0);
 Assert::false($req->isCompleted());
 
-$data1 = substr($data, 0, rand(100, 600));
+$data1 = substr($data, 0, 300);
 $data2 = substr($data, strlen($data1));
 
 Assert::eq($req->parse($data1), strlen($data1));
@@ -65,7 +65,7 @@ $req3 = Request::create();
 $req3->parse($data);
 Assert::eq("POST", $req3->getMethod());
 
-$fragmented = "POST /upload HTTP/1.1\r\n";
+$fragmented = "POST /upload?first=one&second=two HTTP/1.1\r\n";
 $fragmented .= "Host: 127.0.0.1\r\n";
 $fragmented .= "Content-Type: application/x-www-form-urlencoded\r\n";
 $fragmented .= "Authorization: Bearer fragmented\r\n";
@@ -77,6 +77,10 @@ $fragmented .= "Content-Length: 0\r\n\r\n";
 
 $assertFragmented = static function (Request $request): void {
     Assert::true($request->isCompleted());
+    Assert::same($request->server['request_uri'], '/upload');
+    Assert::same($request->server['path_info'], '/upload');
+    Assert::same($request->server['query_string'], 'first=one&second=two');
+    Assert::same($request->get, ['first' => 'one', 'second' => 'two']);
     Assert::same($request->header['host'], '127.0.0.1');
     Assert::same($request->header['content-type'], 'application/x-www-form-urlencoded');
     Assert::same($request->header['authorization'], 'Bearer fragmented');
@@ -109,30 +113,62 @@ $parseInChunks = static function (string $data, int $chunkSize): Request {
 };
 
 $body = 'first=one&second=two';
+$urlencoded = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$urlencoded .= "Content-Type: application/x-www-form-urlencoded\r\n";
+$urlencoded .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
+$request = $parseInChunks($urlencoded, 5);
+Assert::true($request->isCompleted());
+Assert::same($request->post, ['first' => 'one', 'second' => 'two']);
+Assert::same($request->getContent(), $body);
+
+$body = 'first=one&second=two';
 $duplicate = "POST / HTTP/1.1\r\nHost: localhost\r\n";
 $duplicate .= "Content-Type: multipart/form-data; boundary=ignored\r\n";
 $duplicate .= "Content-Type: application/x-www-form-urlencoded\r\n";
 $duplicate .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
-$request = Request::create();
-// http_request_on_body currently assumes non-chunked URL-encoded body fragments are contiguous.
-Assert::same($request->parse($duplicate), strlen($duplicate));
+$request = $parseInChunks($duplicate, 7);
 Assert::true($request->isCompleted());
 Assert::same($request->post, ['first' => 'one', 'second' => 'two']);
 
+$empty = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$empty .= "Content-Type: multipart/form-data; boundary=empty\r\n";
+$empty .= "Content-Length: 0\r\n\r\n";
+$request = Request::create();
+Assert::same($request->parse($empty), strlen($empty));
+Assert::true($request->isCompleted());
+Assert::null($request->post);
+Assert::null($request->files);
+
+$body = "--incomplete\r\nContent-Disposition: form-data; name=\"unfinished";
+$incomplete = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$incomplete .= "Content-Type: multipart/form-data; boundary=incomplete\r\n";
+$incomplete .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
+$request = Request::create();
+Assert::same($request->parse($incomplete), strlen($incomplete));
+Assert::false($request->isCompleted());
+Assert::null($request->post);
+Assert::null($request->files);
+
 $boundary = 'fragmented-boundary';
 $body = "--{$boundary}\r\n";
+$body .= "Content-Type: text/plain\r\n";
+$body .= "Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\r\n";
+$body .= "file-value\r\n";
+$body .= "--{$boundary}\r\n";
 $body .= "Content-Disposition: form-data; name=\"field\"\r\n\r\n";
 $body .= "field-value\r\n";
-$body .= "--{$boundary}\r\n";
-$body .= "Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n";
-$body .= "Content-Type: text/plain\r\n\r\n";
-$body .= "file-value\r\n";
 $body .= "--{$boundary}--\r\n";
 $duplicate = "POST / HTTP/1.1\r\nHost: localhost\r\n";
 $duplicate .= "Content-Type: application/x-www-form-urlencoded\r\n";
 $duplicate .= "Content-Type: multipart/form-data; boundary={$boundary}\r\n";
 $duplicate .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
-$request = $parseInChunks($duplicate, 7);
+$firstSplit = strpos($duplicate, 'Content-Disposition: form-data; name="file"');
+$secondSplit = strpos($duplicate, 'name="field"') + strlen('name="fi');
+$request = Request::create();
+Assert::same($request->parse(substr($duplicate, 0, $firstSplit)), $firstSplit);
+$length = $secondSplit - $firstSplit;
+Assert::same($request->parse(substr($duplicate, $firstSplit, $length)), $length);
+Assert::same($request->parse(substr($duplicate, $secondSplit)), strlen($duplicate) - $secondSplit);
 Assert::true($request->isCompleted());
 Assert::same($request->post['field'], 'field-value');
 Assert::same($request->files['file']['name'], 'test.txt');
