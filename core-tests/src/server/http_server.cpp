@@ -929,17 +929,20 @@ TEST(http_server, preprocess_oversized_multipart_header) {
     std::thread t;
     auto server = http_server::listen(":0", [](Context &ctx) { ctx.end("UNEXPECTED"); });
     server->worker_num = 1;
-    server->get_primary_port()->set_package_max_length(1024);
+    // package_max_length cannot be lower than 64K, so the body must remain larger.
+    server->get_primary_port()->set_package_max_length(64 * 1024);
     server->upload_max_filesize = 256 * 1024;
     server->onWorkerStart = [&t](Server *server, Worker *worker) {
         t = std::thread([server]() {
             swoole_signal_block_all();
             const std::string boundary = "oversized-header";
             std::string header_value(SW_HTTP_HEADER_MAX_SIZE, 'A');
+            std::string first_value(4096, 'B');
             std::string body_prefix = "--" + boundary +
-                                      "\r\nContent-Disposition: form-data; name=\"first\"\r\n\r\nvalue\r\n--" +
-                                      boundary + "\r\nContent-Disposition: form-data; name=\"";
-            std::string body_suffix = "\"\r\n\r\nvalue\r\n--" + boundary + "--\r\n";
+                                      "\r\nContent-Disposition: form-data; name=\"first\"\r\n\r\n" +
+                                      first_value + "\r\n--" + boundary + "\r\nX-Test: ";
+            std::string body_suffix = "\r\nContent-Disposition: form-data; name=\"second\"\r\n\r\nvalue\r\n--" +
+                                      boundary + "--\r\n";
             std::string body = body_prefix + header_value + body_suffix;
             std::string headers =
                 "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; boundary=" + boundary +
@@ -960,6 +963,8 @@ TEST(http_server, preprocess_oversized_multipart_header) {
             }
             c.close();
             EXPECT_NE(response.find("400 Bad Request"), response.npos);
+            // The worker response detects if this request no longer enters the upload preprocessor.
+            EXPECT_EQ(response.find("UNEXPECTED"), response.npos);
             kill(server->get_master_pid(), SIGTERM);
         });
     };
