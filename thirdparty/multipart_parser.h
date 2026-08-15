@@ -111,10 +111,7 @@ multipart_parser *multipart_parser_init(const char *boundary,
                                         size_t boundary_length,
                                         const multipart_parser_settings *settings);
 void multipart_parser_free(multipart_parser *p);
-
-/**
- * The multipart header must be complete, otherwise it will be parsed incorrectly
- */
+int multipart_parser_is_complete(const multipart_parser *p);
 ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t len);
 int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len);
 

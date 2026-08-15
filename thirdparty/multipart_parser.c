@@ -119,6 +119,10 @@ void multipart_parser_free(multipart_parser *p) {
     free(p);
 }
 
+int multipart_parser_is_complete(const multipart_parser *p) {
+    return p->state == s_end;
+}
+
 int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len) {
     int ret;
     switch (p->error_reason) {

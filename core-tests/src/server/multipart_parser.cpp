@@ -213,6 +213,7 @@ TEST(multipart_parser, incomplete_header_value) {
     parser->data = &result;
 
     ASSERT_EQ(multipart_parser_execute(parser, header.c_str(), header.length()), header.length());
+    ASSERT_FALSE(multipart_parser_is_complete(parser));
     ASSERT_EQ(result.header_value, "form-data; name=\"test\"");
     ASSERT_EQ(result.header_value_complete_count, 0);
     ASSERT_EQ(multipart_parser_execute(parser, SW_STRL("\r\n\r\n")), 4);
@@ -300,5 +301,6 @@ TEST(multipart_parser, data) {
 
     ASSERT_TRUE(result.header_complete);
     ASSERT_TRUE(result.body_end);
+    ASSERT_TRUE(multipart_parser_is_complete(parser));
     multipart_parser_free(parser);
 }
