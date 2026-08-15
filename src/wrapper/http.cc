@@ -438,7 +438,8 @@ std::shared_ptr<Server> listen(const std::string &addr, const std::function<void
         if (impl.parse(ctx, req->data, req->info.len)) {
             http_server_on_request(ctx);
         } else {
-            server->send(req->session_id(), SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
+            server->send(session_id, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
+            server->close(session_id, false);
         }
         return SW_OK;
     };
