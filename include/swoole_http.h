@@ -113,16 +113,16 @@ class Server;
 namespace http_server {
 //-----------------------------------------------------------------
 struct FormData {
-    const char *multipart_boundary_buf = nullptr;
-    uint32_t multipart_boundary_len = 0;
-    multipart_parser *multipart_parser_ = nullptr;
-    String *multipart_buffer_ = nullptr;
-    String *upload_tmpfile = nullptr;
+    const char *multipart_boundary_buf;
+    uint32_t multipart_boundary_len;
+    multipart_parser *multipart_parser_;
+    String *multipart_buffer_;
+    String *upload_tmpfile;
     std::string upload_tmpfile_fmt_;
     std::string current_header_name;
     std::string current_header_value;
-    size_t upload_filesize = 0;
-    size_t upload_max_filesize = 0;
+    size_t upload_filesize;
+    size_t upload_max_filesize;
 };
 
 struct Request {

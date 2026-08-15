@@ -181,16 +181,16 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
 static int multipart_on_header_value_complete(multipart_parser *p) {
     auto *request = static_cast<Request *>(p->data);
     auto *form_data = request->form_data_;
-    std::string header_name = std::move(form_data->current_header_name);
-    std::string header_value = std::move(form_data->current_header_value);
-    form_data->current_header_name.clear();
-    form_data->current_header_value.clear();
+    std::string header_name;
+    std::string header_value;
+    header_name.swap(form_data->current_header_name);
+    header_value.swap(form_data->current_header_value);
 
     size_t header_length = header_name.length() + header_value.length() + sizeof(": \r\n") - 1;
     if (header_length > request->max_length_ ||
         form_data->multipart_buffer_->length > request->max_length_ - header_length) {
         request->excepted = 1;
-        request->unavailable = 1;
+        request->too_large = 1;
         swoole_error_log(
             SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_REQUEST, "reconstructed multipart request is too large");
         return MPPE_PAUSED;
@@ -864,16 +864,19 @@ bool Request::init_multipart_parser(const Server *server) {
 }
 
 void Request::destroy_multipart_parser() {
-    auto tmp_buffer = buffer_;
-    delete tmp_buffer;
-    buffer_ = form_data_->multipart_buffer_;
-    form_data_->multipart_buffer_ = nullptr;
-    if (form_data_->multipart_parser_->fp) {
-        fclose(form_data_->multipart_parser_->fp);
-        unlink(form_data_->upload_tmpfile->str);
+    if (form_data_->multipart_buffer_) {
+        delete buffer_;
+        buffer_ = form_data_->multipart_buffer_;
+        form_data_->multipart_buffer_ = nullptr;
     }
-    multipart_parser_free(form_data_->multipart_parser_);
-    form_data_->multipart_parser_ = nullptr;
+    if (form_data_->multipart_parser_) {
+        if (form_data_->multipart_parser_->fp) {
+            fclose(form_data_->multipart_parser_->fp);
+            unlink(form_data_->upload_tmpfile->str);
+        }
+        multipart_parser_free(form_data_->multipart_parser_);
+        form_data_->multipart_parser_ = nullptr;
+    }
     delete form_data_->upload_tmpfile;
     form_data_->upload_tmpfile = nullptr;
     delete form_data_;
