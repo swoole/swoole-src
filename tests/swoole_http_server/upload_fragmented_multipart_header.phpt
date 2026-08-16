@@ -26,23 +26,27 @@ $pm->parentFunc = function () use ($pm) {
     $headers .= 'Content-Length: ' . strlen($body) . "\r\n";
     $headers .= "Connection: close\r\n\r\n";
 
-    $split = strpos($body, 'name="file"') + strlen('name="fi');
-    $socket = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}", $errno, $errstr, 1);
-    Assert::notSame($socket, false);
+    $send = function (int $split) use ($pm, $headers, $body) {
+        $socket = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}", $errno, $errstr, 1);
+        Assert::notSame($socket, false);
 
-    foreach ([$headers . substr($body, 0, $split), substr($body, $split)] as $data) {
-        for ($offset = 0; $offset < strlen($data);) {
-            $written = fwrite($socket, substr($data, $offset));
-            Assert::greaterThan($written, 0);
-            $offset += $written;
+        foreach ([$headers . substr($body, 0, $split), substr($body, $split)] as $data) {
+            for ($offset = 0; $offset < strlen($data);) {
+                $written = fwrite($socket, substr($data, $offset));
+                Assert::greaterThan($written, 0);
+                $offset += $written;
+            }
+            usleep(100000);
         }
-        usleep(100000);
-    }
 
-    $response = stream_get_contents($socket);
-    fclose($socket);
-    Assert::contains($response, "200 OK");
-    Assert::contains($response, "field-value:131072");
+        $response = stream_get_contents($socket);
+        fclose($socket);
+        Assert::contains($response, "200 OK");
+        Assert::contains($response, "field-value:131072");
+    };
+
+    $send(strpos($body, 'name="file"') + strlen('name="fi'));
+    $send(strpos($body, 'Content-Disposition: form-data; name="file"') + strlen('Content-Dis'));
     $pm->kill();
 };
 
