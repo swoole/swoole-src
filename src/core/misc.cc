@@ -71,30 +71,68 @@ int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {
     }
 }
 #else
-int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
-    if (sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
-        return 0;
-    }
+int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout, sw_atomic_t *wakeup_count) {
     timeout = timeout <= 0 ? INT_MAX : timeout;
-    int32_t i = (int32_t) sw_atomic_sub_fetch(atomic, 1);
+    int32_t value = 0;
+
     while (timeout > 0) {
-        if ((int32_t) *atomic > i) {
+        /**
+         * Why the process holding the resource does not decrement wakeup_count:
+         * Due to the use of a while loop polling mechanism, whenever the lock is released,
+         * there will always be exactly one process that successfully acquires the resource via CAS.
+         * If this successful process were to also participate in decrementing wakeup_count,
+         * it would introduce unnecessary contention with other failed processes operating on the same atomic variable,
+         * potentially resulting in CAS failures and an inconsistent count.
+         *
+         * To avoid this issue, only the processes that fail to acquire the resource are responsible for
+         * decrementing wakeup_count. This design ensures that the total number of woken processes is correctly
+         * and accurately accounted for in every wakeup batch.
+         */
+        if (sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
             return 0;
-        } else {
+        }
+
+        value = *wakeup_count;
+        if (value == 0) {
             usleep(1000);
             timeout -= 0.001;
+            continue;
+        } else {
+            if (sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
+                return 0;
+            }
+        }
+
+        while (value) {
+            if (sw_atomic_cmp_set(wakeup_count, (sw_atomic_t) value, (sw_atomic_t)(value - 1))) {
+                return -1;
+            }
+
+            value = *wakeup_count;
         }
     }
-    sw_atomic_fetch_add(atomic, 1);
+
+    swoole_set_last_error(ETIMEDOUT);
     return -1;
 }
 
-int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {
+int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n, sw_atomic_t *wakeup_count) {
     if (1 == (int32_t) *atomic) {
         return 0;
     }
-    sw_atomic_fetch_add(atomic, n);
-    return 0;
+
+    /**
+     * The order here is important: the resource must be released first so that waiting processes can acquire it,
+     * before waking up n-1 processes.
+     */
+    int result = sw_atomic_cmp_set(atomic, (sw_atomic_t) 0, (sw_atomic_t) 1);
+
+    /**
+     * Use wakeup_count to wake up the other processes or threads.
+     * n - 1 is explained in sw_atomic_futex_wait.
+     */
+    *wakeup_count = n - 1;
+    return n;
 }
 #endif
 

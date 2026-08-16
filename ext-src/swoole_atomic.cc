@@ -29,6 +29,9 @@ static zend_object_handlers swoole_atomic_long_handlers;
 
 struct AtomicObject {
     sw_atomic_t *ptr;
+#ifndef HAVE_FUTEX
+    sw_atomic_t *wakeup_count;
+#endif
     zend_object std;
 };
 
@@ -40,8 +43,17 @@ static sw_atomic_t *atomic_get_ptr(const zval *zobject) {
     return atomic_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
+#ifndef HAVE_FUTEX
+static sw_atomic_t *atomic_get_wakeup_count(const zval *zobject) {
+    return atomic_fetch_object(Z_OBJ_P(zobject))->wakeup_count;
+}
+#endif
+
 static void atomic_free_object(zend_object *object) {
     sw_mem_pool()->free((void *) atomic_fetch_object(object)->ptr);
+#ifndef HAVE_FUTEX
+    sw_mem_pool()->free((void *) atomic_fetch_object(object)->wakeup_count);
+#endif
     zend_object_std_dtor(object);
 }
 
@@ -58,6 +70,13 @@ static zend_object *atomic_create_object(zend_class_entry *ce) {
     if (atomic->ptr == nullptr) {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
     }
+
+#ifndef HAVE_FUTEX
+    atomic->wakeup_count = (sw_atomic_t *) sw_mem_pool()->alloc(sizeof(sw_atomic_t));
+    if (atomic->wakeup_count == nullptr) {
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
+    }
+#endif
 
     return &atomic->std;
 }
@@ -160,7 +179,6 @@ void php_swoole_atomic_minit(int module_number) {
 }
 
 PHP_METHOD(swoole_atomic, __construct) {
-    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
     zend_long value = 0;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
@@ -168,7 +186,13 @@ PHP_METHOD(swoole_atomic, __construct) {
     Z_PARAM_LONG(value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
     *atomic = (sw_atomic_t) value;
+
+#ifndef HAVE_FUTEX
+    sw_atomic_t *wakeup_count = atomic_get_wakeup_count(ZEND_THIS);
+    *wakeup_count = (sw_atomic_t) 0;
+#endif
 }
 
 PHP_METHOD(swoole_atomic, add) {
@@ -224,7 +248,6 @@ PHP_METHOD(swoole_atomic, cmpset) {
 }
 
 PHP_METHOD(swoole_atomic, wait) {
-    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
     double timeout = 1.0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -232,11 +255,20 @@ PHP_METHOD(swoole_atomic, wait) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (timeout < 0) {
+        timeout = 1.0;
+    }
+
+    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
+#ifdef HAVE_FUTEX
     SW_CHECK_RETURN(sw_atomic_futex_wait(atomic, timeout));
+#else
+    sw_atomic_t *wakeup_count = atomic_get_wakeup_count(ZEND_THIS);
+    SW_CHECK_RETURN(sw_atomic_futex_wait(atomic, timeout, wakeup_count));
+#endif
 }
 
 PHP_METHOD(swoole_atomic, wakeup) {
-    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
     zend_long n = 1;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -244,7 +276,17 @@ PHP_METHOD(swoole_atomic, wakeup) {
     Z_PARAM_LONG(n)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (n < 1) {
+        n = 1;
+    }
+
+    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
+#ifdef HAVE_FUTEX
     SW_CHECK_RETURN(sw_atomic_futex_wakeup(atomic, (int) n));
+#else
+    sw_atomic_t *wakeup_count = atomic_get_wakeup_count(ZEND_THIS);
+    SW_CHECK_RETURN(sw_atomic_futex_wakeup(atomic, (int) n, wakeup_count));
+#endif
 }
 
 PHP_METHOD(swoole_atomic_long, __construct) {

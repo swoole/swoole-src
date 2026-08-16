@@ -31,9 +31,15 @@ static zend_object_handlers swoole_thread_atomic_long_handlers;
 
 struct AtomicResource : ThreadResource {
     sw_atomic_t value;
+#ifndef HAVE_FUTEX
+    sw_atomic_t wakeup_count;
+#endif
 
     explicit AtomicResource(zend_long _value) {
         value = _value;
+#ifndef HAVE_FUTEX
+        wakeup_count = 0;
+#endif
     }
 
     ~AtomicResource() override = default;
@@ -51,6 +57,12 @@ static sw_inline AtomicObject *atomic_fetch_object(zend_object *obj) {
 static sw_atomic_t *atomic_get_ptr(const zval *zobject) {
     return &atomic_fetch_object(Z_OBJ_P(zobject))->atomic->value;
 }
+
+#ifndef HAVE_FUTEX
+static sw_atomic_t *atomic_get_wakeup_count(const zval *zobject) {
+    return &atomic_fetch_object(Z_OBJ_P(zobject))->atomic->wakeup_count;
+}
+#endif
 
 static void atomic_free_object(zend_object *object) {
     AtomicObject *o = atomic_fetch_object(object);
@@ -262,7 +274,6 @@ PHP_METHOD(swoole_thread_atomic, cmpset) {
 }
 
 PHP_METHOD(swoole_thread_atomic, wait) {
-    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
     double timeout = 1.0;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -270,11 +281,20 @@ PHP_METHOD(swoole_thread_atomic, wait) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (timeout < 0) {
+        timeout = 1.0;
+    }
+
+    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
+#ifdef HAVE_FUTEX
     SW_CHECK_RETURN(sw_atomic_futex_wait(atomic, timeout));
+#else
+    sw_atomic_t *wakeup_count = atomic_get_wakeup_count(ZEND_THIS);
+    SW_CHECK_RETURN(sw_atomic_futex_wait(atomic, timeout, wakeup_count));
+#endif
 }
 
 PHP_METHOD(swoole_thread_atomic, wakeup) {
-    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
     zend_long n = 1;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
@@ -282,7 +302,17 @@ PHP_METHOD(swoole_thread_atomic, wakeup) {
     Z_PARAM_LONG(n)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (n < 1) {
+        n = 1;
+    }
+
+    sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
+#ifdef HAVE_FUTEX
     SW_CHECK_RETURN(sw_atomic_futex_wakeup(atomic, (int) n));
+#else
+    sw_atomic_t *wakeup_count = atomic_get_wakeup_count(ZEND_THIS);
+    SW_CHECK_RETURN(sw_atomic_futex_wakeup(atomic, (int) n, wakeup_count));
+#endif
 }
 
 PHP_METHOD(swoole_thread_atomic_long, __construct) {
