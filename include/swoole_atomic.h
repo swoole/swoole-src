@@ -44,5 +44,10 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 
 void sw_spinlock(sw_atomic_t *lock);
 #define sw_spinlock_release(lock) __sync_lock_release(lock)
+#ifdef HAVE_FUTEX
 int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout);
 int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n);
+#else
+int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout, sw_atomic_t *wakeup_count);
+int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n, sw_atomic_t *wakeup_count);
+#endif
