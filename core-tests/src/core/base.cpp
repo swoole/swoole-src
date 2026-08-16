@@ -466,19 +466,11 @@ TEST(base, futex) {
     std::thread t2([&value] {
         usleep(100000);
         DEBUG() << "wakeup 1\n";
-#ifdef HAVE_FUTEX
         ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 1);
-#else
-        ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 0);
-#endif
 
         DEBUG() << "wakeup 2\n";
         usleep(100000);
-#ifdef HAVE_FUTEX
         ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 1);
-#else
-        ASSERT_EQ(sw_atomic_futex_wakeup(&value, 1), 0);
-#endif
     });
 
     t1.join();
