@@ -32,6 +32,11 @@ $pm->childFunc = function () use ($pm) {
         'package_max_length' => 5 * 1024 *1024
     ]);
 
+    $server->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $server->on('receive', function (Swoole\Server $serv, int $fd, int $rid, string $data) {
         $header = Helper::getHeader($data);
         Assert::eq($header['type'], 3);

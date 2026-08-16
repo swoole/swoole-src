@@ -11,15 +11,16 @@ use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
 
-$pm->childFunc = function () {
+$pm->childFunc = function () use ($pm) {
     $port = get_one_free_port();
     $serv = new Server(TCP_SERVER_HOST, $port, SWOOLE_PROCESS);
-    $process = new Process(function ($process) use ($serv) {
+    $process = new Process(function ($process) use ($serv, $pm) {
         usleep(10000);
         $stats = $serv->stats();
         Assert::isArray($stats);
         Assert::keyExists($stats, 'connection_num');
         Assert::keyExists($stats, 'request_count');
+        $pm->wakeup();
         usleep(200000);
         $serv->shutdown();
     });

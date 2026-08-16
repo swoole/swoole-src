@@ -41,6 +41,11 @@ $pm->childFunc = function () use ($pm) {
         'log_level' => SWOOLE_LOG_ERROR,
     ]);
 
+    $server->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $server->on('receive', function (Swoole\Server $serv, int $fd, int $rid, string $data) use ($fp) {
         fputs($fp, "recv: $data\n");
         fputs($fp, 'getClientList: ' . implode(';', $serv->getClientList()) . "\n");

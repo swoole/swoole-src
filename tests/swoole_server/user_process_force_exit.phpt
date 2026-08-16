@@ -8,7 +8,6 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Constant;
 
-$atomic = new Swoole\Atomic;
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function () use ($pm) {
@@ -26,11 +25,12 @@ $pm->childFunc = function () use ($pm) {
 
     $server->on('packet', function () {
     });
-    $server->addProcess(new Swoole\Process(function () {
+    $server->addProcess(new Swoole\Process(function () use ($pm) {
         pcntl_signal(SIGTERM, function () {
         });
         Swoole\Timer::tick(1000, function () {
         });
+        $pm->wakeup();
     }));
     $server->start();
 };

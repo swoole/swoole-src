@@ -39,6 +39,11 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
+    $http->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $cookie = $request->get['cookie'];
         $response->cookie('cookie', $cookie);

@@ -2315,7 +2315,7 @@
             <file role="test" name="tests/swoole_server/heartbeat_true.phpt" />
             <file role="test" name="tests/swoole_server/heartbeat_with_base.phpt" />
             <file role="test" name="tests/swoole_server/http_protocol.phpt" />
-            <file role="test" name="tests/swoole_server/idle_worekr_num.phpt" />
+            <file role="test" name="tests/swoole_server/idle_worker_num.phpt" />
             <file role="test" name="tests/swoole_server/invalid_fd.phpt" />
             <file role="test" name="tests/swoole_server/invalid_option.phpt" />
             <file role="test" name="tests/swoole_server/kill_user_process_01.phpt" />
@@ -2419,7 +2419,7 @@
             <file role="test" name="tests/swoole_server/task/enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_server/task/finish_timeout.phpt" />
             <file role="test" name="tests/swoole_server/task/huge_data.phpt" />
-            <file role="test" name="tests/swoole_server/task/idle_worekr_num.phpt" />
+            <file role="test" name="tests/swoole_server/task/idle_worker_num.phpt" />
             <file role="test" name="tests/swoole_server/task/invalid_packet.phpt" />
             <file role="test" name="tests/swoole_server/task/kill_01.phpt" />
             <file role="test" name="tests/swoole_server/task/kill_02.phpt" />

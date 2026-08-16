@@ -42,7 +42,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('message', function (Server $server, Frame $frame) {
         $server->task(['fd' => $frame->fd]);
     });
-    $http->on('WorkerStart', function (Server $server, int $workerId) {
+    $http->on('WorkerStart', function (Server $server, int $workerId) use ($pm) {
         if ($server->taskworker) {
             Timer::after(1, function () use ($server, $workerId) {
                 var_dump('after1 : ' . time());
@@ -51,6 +51,8 @@ $pm->childFunc = function () use ($pm) {
             Timer::after(10000, function () use ($server, $workerId) {
                 var_dump('after2 : ' . time());
             });
+        } else {
+            $pm->wakeup();
         }
     });
     $http->on('task', function (Server $server, Task $task) {

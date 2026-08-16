@@ -43,6 +43,7 @@ $pm->childFunc = function () use ($pm) {
             $response->end('world');
         });
 
+        $pm->wakeup();
         $server->start();
     });
 };

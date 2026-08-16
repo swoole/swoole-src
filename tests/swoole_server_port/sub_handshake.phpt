@@ -22,6 +22,11 @@ $pm->parentFunc = function () use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     $main_server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
+    $main_server->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $main_server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->write('hello world');
         $response->end();
