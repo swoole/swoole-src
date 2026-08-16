@@ -23,21 +23,28 @@ struct MppResult {
     std::string data;
     std::string header_field;
     std::string header_value;
-    bool header_complete;
-    bool body_end;
+    size_t header_value_complete_count = 0;
+    bool header_complete = false;
+    bool body_end = false;
 };
 
 static int multipart_on_header_field(multipart_parser *p, const char *at, size_t length) {
     swoole_trace("on_header_field: at=%.*s, length=%lu", (int) length, at, length);
     auto res = (MppResult *) p->data;
-    res->header_field = std::string(at, length);
+    res->header_field.append(at, length);
     return 0;
 }
 
 static int multipart_on_header_value(multipart_parser *p, const char *at, size_t length) {
     swoole_trace("on_header_value: at=%.*s, length=%lu", (int) length, at, length);
     auto res = (MppResult *) p->data;
-    res->header_value = std::string(at, length);
+    res->header_value.append(at, length);
+    return 0;
+}
+
+static int multipart_on_header_value_complete(multipart_parser *p) {
+    auto res = (MppResult *) p->data;
+    res->header_value_complete_count++;
     return 0;
 }
 
@@ -75,6 +82,7 @@ static int multipart_on_body_end(multipart_parser *p) {
 static multipart_parser_settings _settings{
     multipart_on_header_field,
     multipart_on_header_value,
+    multipart_on_header_value_complete,
     multipart_on_data,
     multipart_on_part_begin,
     multipart_on_header_complete,
@@ -86,6 +94,10 @@ static const std::string boundary = "--WebKitFormBoundaryeGOz80A8JnaO6kuw";
 
 static multipart_parser *create_parser() {
     return multipart_parser_init(boundary.c_str(), boundary.length(), &_settings);
+}
+
+static std::string create_header() {
+    return "--" + boundary + "\r\nContent-Disposition: form-data; name=\"test\"\r\n\r\n";
 }
 
 static void create_error(multipart_parser *parser, multipart_error error_reason, const char *error) {
@@ -144,50 +156,87 @@ TEST(multipart_parser, error_message) {
     create_error(parser, MPPE_INVALID_HEADER_VALUE_CHAR, "invalid char in header value: ");
     create_error(parser, MPPE_BAD_PART_END, "no next part or final hyphen: expecting CR or '-' ");
     create_error(parser, MPPE_END_BOUNDARY_NO_DASH, "bad final hyphen: ");
+    multipart_parser_free(parser);
 }
 
 TEST(multipart_parser, header_field) {
     auto parser = create_parser();
-    ssize_t ret;
-
-    // header party
-    swoole::String header(1024);
-    header.append("--");
-    header.append(boundary);
-    header.append("\r\n");
-    header.append("Content-Disposition: form-data; name=\"test\"\r\n\r\n");
+    std::string header = create_header();
     MppResult result;
     parser->data = &result;
 
-    ret = multipart_parser_execute(parser, header.value(), header.get_length());
-    ASSERT_EQ(ret, header.length);
+    ASSERT_EQ(multipart_parser_execute(parser, header.c_str(), header.length()), header.length());
 
     ASSERT_STREQ(result.header_field.c_str(), "Content-Disposition");
     ASSERT_TRUE(result.header_value.find("test") != result.header_value.npos);
+    ASSERT_EQ(result.header_value_complete_count, 1);
 
     std::string boundary_str(parser->boundary, parser->boundary_length);
     ASSERT_EQ(multipart_parser_execute(parser, SW_STRL("\r\n")), 2);
     ASSERT_EQ(multipart_parser_execute(parser, boundary_str.c_str(), boundary_str.length()), boundary_str.length());
     ASSERT_EQ(multipart_parser_execute(parser, "--\r\n\r\n", 6), 6);
+    multipart_parser_free(parser);
 }
 
-TEST(multipart_parser, header_error) {
-    auto parser = create_parser();
-    ssize_t ret;
+TEST(multipart_parser, fragmented_header) {
+    std::string header = create_header();
+    for (size_t split = 1; split < header.length(); split++) {
+        auto parser = create_parser();
+        MppResult result;
+        parser->data = &result;
 
-    // header party
-    swoole::String header(1024);
-    header.append("--");
-    header.append(boundary);
-    header.append("\r\n");
-    header.append("Content-Disposition: form-data; name=\"test\"");
+        ASSERT_EQ(multipart_parser_execute(parser, header.c_str(), split), split);
+        ASSERT_EQ(multipart_parser_execute(parser, header.c_str() + split, header.length() - split),
+                  header.length() - split);
+        ASSERT_EQ(result.header_field, "Content-Disposition");
+        ASSERT_EQ(result.header_value, "form-data; name=\"test\"");
+        ASSERT_EQ(result.header_value_complete_count, 1);
+        multipart_parser_free(parser);
+    }
+
+    auto parser = create_parser();
+    MppResult result;
+    parser->data = &result;
+    for (char c : header) {
+        ASSERT_EQ(multipart_parser_execute(parser, &c, 1), 1);
+    }
+    ASSERT_EQ(result.header_field, "Content-Disposition");
+    ASSERT_EQ(result.header_value, "form-data; name=\"test\"");
+    ASSERT_EQ(result.header_value_complete_count, 1);
+    multipart_parser_free(parser);
+}
+
+TEST(multipart_parser, incomplete_header_value) {
+    auto parser = create_parser();
+    std::string header = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"test\"";
     MppResult result;
     parser->data = &result;
 
-    ret = multipart_parser_execute(parser, header.value(), header.get_length());
-    ASSERT_EQ(ret, -1);
-    ASSERT_EQ(parser->error_reason, MPPE_HEADER_VALUE_INCOMPLETE);
-    ASSERT_EQ(parser->error_expected, '\r');
+    ASSERT_EQ(multipart_parser_execute(parser, header.c_str(), header.length()), header.length());
+    ASSERT_FALSE(multipart_parser_is_complete(parser));
+    ASSERT_EQ(result.header_value, "form-data; name=\"test\"");
+    ASSERT_EQ(result.header_value_complete_count, 0);
+    ASSERT_EQ(multipart_parser_execute(parser, SW_STRL("\r\n\r\n")), 4);
+    ASSERT_EQ(result.header_value_complete_count, 1);
+    multipart_parser_free(parser);
+}
+
+TEST(multipart_parser, malformed_header) {
+    auto parser = create_parser();
+    MppResult result;
+    parser->data = &result;
+    std::string header = "--" + boundary + "\r\nContent@Disposition: value\r\n\r\n";
+    ASSERT_EQ(multipart_parser_execute(parser, header.c_str(), header.length()), -1);
+    ASSERT_EQ(parser->error_reason, MPPE_INVALID_HEADER_FIELD_CHAR);
+    multipart_parser_free(parser);
+
+    parser = create_parser();
+    MppResult second_result;
+    parser->data = &second_result;
+    header = "--" + boundary + "\r\nContent-Disposition: value\rX";
+    ASSERT_EQ(multipart_parser_execute(parser, header.c_str(), header.length()), -1);
+    ASSERT_EQ(parser->error_reason, MPPE_INVALID_HEADER_VALUE_CHAR);
+    multipart_parser_free(parser);
 }
 
 TEST(multipart_parser, data) {
@@ -252,4 +301,6 @@ TEST(multipart_parser, data) {
 
     ASSERT_TRUE(result.header_complete);
     ASSERT_TRUE(result.body_end);
+    ASSERT_TRUE(multipart_parser_is_complete(parser));
+    multipart_parser_free(parser);
 }

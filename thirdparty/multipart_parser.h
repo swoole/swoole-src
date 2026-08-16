@@ -39,7 +39,6 @@ enum multipart_error {
     MPPE_INVALID_HEADER_VALUE_CHAR,
     MPPE_BAD_PART_END,
     MPPE_END_BOUNDARY_NO_DASH,
-    MPPE_HEADER_VALUE_INCOMPLETE,
 };
 
 #define MPPE_ERROR -1
@@ -82,6 +81,10 @@ struct multipart_parser_settings {
      */
     multipart_data_cb on_header_value;
     /*
+     * after all fragments of a header value
+     */
+    multipart_notify_cb on_header_value_complete;
+    /*
      * data callback called on body data coming,
      * will be called repeatedly until data end
      */
@@ -108,10 +111,7 @@ multipart_parser *multipart_parser_init(const char *boundary,
                                         size_t boundary_length,
                                         const multipart_parser_settings *settings);
 void multipart_parser_free(multipart_parser *p);
-
-/**
- * The multipart header must be complete, otherwise it will be parsed incorrectly
- */
+int multipart_parser_is_complete(const multipart_parser *p);
 ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t len);
 int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len);
 

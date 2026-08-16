@@ -119,8 +119,8 @@ struct FormData {
     String *multipart_buffer_;
     String *upload_tmpfile;
     std::string upload_tmpfile_fmt_;
-    const char *current_header_name;
-    size_t current_header_name_len;
+    std::string current_header_name;
+    std::string current_header_value;
     size_t upload_filesize;
     size_t upload_max_filesize;
 };
@@ -189,7 +189,7 @@ char *url_encode(char const *str, size_t len);
 int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 bool parse_multipart_boundary(
     const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
-void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
+bool parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
 
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 uint8_t get_package_length_size(network::Socket *conn);

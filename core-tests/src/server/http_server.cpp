@@ -881,6 +881,99 @@ TEST(http_server, parser2) {
     t.join();
 }
 
+TEST(http_server, wrapper_multipart_completion) {
+    std::thread t;
+    auto server = http_server::listen(":0", [](Context &ctx) {
+        ctx.setHeader("Connection", "close");
+        ctx.end("DONE");
+    });
+    server->worker_num = 1;
+    server->onWorkerStart = [&t](Server *server, Worker *worker) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            auto send_request = [server](const std::string &request) {
+                SyncClient c(SW_SOCK_TCP);
+                c.connect(TEST_HOST, server->get_primary_port()->port);
+                c.send(request);
+                char buf[1024];
+                std::string response;
+                ssize_t n;
+                // The response headers and body are sent separately, and Connection: close makes EOF the boundary.
+                while ((n = c.recv(buf, sizeof(buf))) > 0) {
+                    response.append(buf, n);
+                }
+                c.close();
+                EXPECT_FALSE(response.empty());
+                return response;
+            };
+
+            std::string response = send_request(
+                "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; boundary=empty\r\n"
+                "Content-Length: 0\r\nConnection: close\r\n\r\n");
+            EXPECT_NE(response.find("200 OK"), response.npos);
+            EXPECT_NE(response.find("DONE"), response.npos);
+
+            std::string body = "--incomplete\r\nContent-Disposition: form-data; name=\"unfinished";
+            response = send_request(
+                "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; boundary=incomplete\r\n"
+                "Content-Length: " +
+                std::to_string(body.length()) + "\r\nConnection: close\r\n\r\n" + body);
+            EXPECT_NE(response.find("400 Bad Request"), response.npos);
+            EXPECT_EQ(response.find("DONE"), response.npos);
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
+}
+
+TEST(http_server, preprocess_oversized_multipart_header) {
+    std::thread t;
+    auto server = http_server::listen(":0", [](Context &ctx) { ctx.end("UNEXPECTED"); });
+    server->worker_num = 1;
+    // package_max_length cannot be lower than 64K, so the body must remain larger.
+    server->get_primary_port()->set_package_max_length(64 * 1024);
+    server->upload_max_filesize = 256 * 1024;
+    server->onWorkerStart = [&t](Server *server, Worker *worker) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            const std::string boundary = "oversized-header";
+            std::string header_value(SW_HTTP_HEADER_MAX_SIZE, 'A');
+            std::string first_value(4096, 'B');
+            std::string body_prefix = "--" + boundary +
+                                      "\r\nContent-Disposition: form-data; name=\"first\"\r\n\r\n" +
+                                      first_value + "\r\n--" + boundary + "\r\nX-Test: ";
+            std::string body_suffix = "\r\nContent-Disposition: form-data; name=\"second\"\r\n\r\nvalue\r\n--" +
+                                      boundary + "--\r\n";
+            std::string body = body_prefix + header_value + body_suffix;
+            std::string headers =
+                "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; boundary=" + boundary +
+                "\r\nContent-Length: " + std::to_string(body.length()) + "\r\nConnection: close\r\n\r\n";
+            size_t split = header_value.length() / 2;
+            SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, server->get_primary_port()->port);
+            // The complete first part opens the preprocessor gate while the second header is still incomplete.
+            // Keeping its first fragment in this write makes the next write cross the accumulated limit.
+            c.send(headers + body_prefix + header_value.substr(0, split));
+            usleep(10000);
+            c.send(header_value.substr(split) + body_suffix);
+            char buf[1024];
+            std::string response;
+            ssize_t n;
+            while ((n = c.recv(buf, sizeof(buf))) > 0) {
+                response.append(buf, n);
+            }
+            c.close();
+            EXPECT_NE(response.find("400 Bad Request"), response.npos);
+            // The worker response detects if this request no longer enters the upload preprocessor.
+            EXPECT_EQ(response.find("UNEXPECTED"), response.npos);
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
+}
+
 TEST(http_server, upload) {
     std::thread t;
     auto server = http_server::listen(":0", [](Context &ctx) {
@@ -1564,6 +1657,49 @@ TEST(http_server, has_expect_header) {
                         "Content-Length: 1000000\r\n"
                         "Expect: 100-continue\r\n\r\n");
     ASSERT_TRUE(req.has_expect_header());
+}
+
+TEST(http_server, duplicate_content_type) {
+    {
+        swoole::http_server::Request request;
+        request.buffer_ = new String("POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; "
+                                     "boundary=test\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n");
+
+        ASSERT_EQ(request.get_protocol(), SW_OK);
+        ASSERT_EQ(request.get_header_length(), SW_OK);
+        request.parse_header_info();
+        ASSERT_EQ(request.form_data_, nullptr);
+        delete request.buffer_;
+        request.buffer_ = nullptr;
+    }
+    {
+        swoole::http_server::Request request;
+        request.buffer_ = new String("POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: text/plain\r\n"
+                                     "Content-Type: multipart/form-data; boundary=test\r\nContent-Length: 0\r\n\r\n");
+
+        ASSERT_EQ(request.get_protocol(), SW_OK);
+        ASSERT_EQ(request.get_header_length(), SW_OK);
+        request.parse_header_info();
+        ASSERT_NE(request.form_data_, nullptr);
+        delete request.buffer_;
+        request.buffer_ = nullptr;
+    }
+}
+
+TEST(http_server, invalid_multipart_boundary) {
+    swoole::http_server::Request request;
+    Server server(Server::MODE_BASE);
+    request.buffer_ = new String(
+        "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data\r\nContent-Length: 1\r\n\r\nx");
+
+    ASSERT_EQ(request.get_protocol(), SW_OK);
+    ASSERT_EQ(request.get_header_length(), SW_OK);
+    request.parse_header_info();
+    ASSERT_NE(request.form_data_, nullptr);
+    ASSERT_FALSE(request.init_multipart_parser(&server));
+    ASSERT_EQ(request.form_data_, nullptr);
+    delete request.buffer_;
+    request.buffer_ = nullptr;
 }
 
 TEST(http_server, get_status_message) {

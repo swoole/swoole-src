@@ -32,6 +32,7 @@ static int http_request_message_complete(llhttp_t *parser);
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length);
+static int multipart_body_on_header_value_complete(multipart_parser *p);
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
@@ -69,6 +70,7 @@ static constexpr llhttp_settings_t http_parser_settings =
 static  constexpr multipart_parser_settings mt_parser_settings = {
     multipart_body_on_header_field,
     multipart_body_on_header_value,
+    multipart_body_on_header_value_complete,
     multipart_body_on_data,
     nullptr,
     multipart_body_on_header_complete,
@@ -79,15 +81,33 @@ static  constexpr multipart_parser_settings mt_parser_settings = {
 
 struct ContextImpl {
     llhttp_t parser;
-    multipart_parser *mt_parser;
+    multipart_parser *mt_parser = nullptr;
 
     std::string current_header_name;
+    std::string current_part_header_name;
+    std::string current_part_header_value;
     std::string current_form_data_name;
     bool current_part_is_file = false;
-    String *form_data_buffer;
+    String *form_data_buffer = nullptr;
 
     bool completed = false;
     bool is_beginning = true;
+
+    void destroy_multipart_parser() {
+        if (mt_parser) {
+            if (mt_parser->fp) {
+                fclose(mt_parser->fp);
+            }
+            multipart_parser_free(mt_parser);
+            mt_parser = nullptr;
+        }
+        delete form_data_buffer;
+        form_data_buffer = nullptr;
+    }
+
+    ~ContextImpl() {
+        destroy_multipart_parser();
+    }
 
     bool parse(Context &ctx, const char *at, size_t length) {
         swoole_llhttp_parser_init(&parser, HTTP_REQUEST, static_cast<void *>(&ctx));
@@ -136,7 +156,11 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
             if (!parse_multipart_boundary(at, length, offset, &boundary_str, &boundary_len)) {
                 return -1;
             }
+            impl->destroy_multipart_parser();
             impl->mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
+            if (!impl->mt_parser) {
+                return -1;
+            }
             impl->form_data_buffer = new String(SW_BUFFER_SIZE_STD);
             impl->mt_parser->data = ctx;
             swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
@@ -174,13 +198,22 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
             } while (length != 0);
             impl->is_beginning = false;
         }
-        size_t n = multipart_parser_execute(multipart_parser, at, length);
-        if (sw_unlikely(n != length)) {
+        ssize_t n = multipart_parser_execute(multipart_parser, at, length);
+        if (sw_unlikely(n < 0)) {
+            int l_error = multipart_parser_error_msg(multipart_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_SERVER_INVALID_REQUEST,
-                             "parse multipart body failed, %zu/%zu bytes processed",
+                             "parse multipart body failed, reason: %.*s",
+                             l_error,
+                             sw_tg_buffer()->str);
+            return -1;
+        } else if (sw_unlikely((size_t) n != length)) {
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_SERVER_INVALID_REQUEST,
+                             "parse multipart body failed, %zd/%zu bytes processed",
                              n,
                              length);
+            return -1;
         }
     } else {
         ctx->body.append(at, length);
@@ -191,23 +224,39 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
-    ContextImpl *impl = ctx->impl;
-    return http_request_on_header_field(&impl->parser, at, length);
+    ctx->impl->current_part_header_name.append(at, length);
+    return SW_OK;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
-    ContextImpl *impl = ctx->impl;
-    const char *header_name = impl->current_header_name.c_str();
-    size_t header_len = impl->current_header_name.length();
+    ctx->impl->current_part_header_value.append(at, length);
+    return SW_OK;
+}
 
-    if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
+static int multipart_body_on_header_value_complete(multipart_parser *p) {
+    auto *ctx = static_cast<Context *>(p->data);
+    ContextImpl *impl = ctx->impl;
+    std::string header_name;
+    std::string header_value;
+    header_name.swap(impl->current_part_header_name);
+    header_value.swap(impl->current_part_header_value);
+    const char *header_name_ptr = header_name.c_str();
+    size_t header_len = header_name.length();
+    const char *at = header_value.c_str();
+    size_t length = header_value.length();
+
+    if (SW_STRCASEEQ(header_name_ptr, header_len, "content-disposition")) {
         std::unordered_map<std::string, std::string> info;
         ParseCookieCallback cb = [&info](char *key, size_t key_len, char *value, size_t value_len) {
             info[std::string(key, key_len)] = std::string(value, value_len);
             return true;
         };
-        parse_cookie(at, length, cb);
+        if (!parse_cookie(at, length, cb)) {
+            swoole_error_log(
+                SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "multipart Content-Disposition is too large");
+            return SW_ERR;
+        }
         auto name = info.find("name");
         if (name == info.end()) {
             return 0;
@@ -219,7 +268,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         } else {
             impl->current_part_is_file = true;
         }
-    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+    } else if (SW_STRCASEEQ(header_name_ptr, header_len, SW_HTTP_UPLOAD_FILE)) {
         /**
          * When the "SW_HTTP_UPLOAD_FILE" header appears in the request, it indicates that the uploaded file has been
          * saved in a temporary file. The binary content in the message body will be replaced with the temporary
@@ -301,7 +350,8 @@ static int multipart_body_on_data_end(multipart_parser *p) {
         p->fp = nullptr;
     }
 
-    impl->current_header_name.clear();
+    impl->current_part_header_name.clear();
+    impl->current_part_header_value.clear();
     impl->current_part_is_file = false;
     impl->current_form_data_name.clear();
 
@@ -312,11 +362,10 @@ static int http_request_message_complete(llhttp_t *p) {
     const auto *ctx = static_cast<Context *>(p->data);
     auto *impl = ctx->impl;
 
-    if (impl->form_data_buffer) {
-        delete impl->form_data_buffer;
-        impl->form_data_buffer = nullptr;
+    // An empty multipart body is accepted, matching the extension parser.
+    if (impl->mt_parser && !impl->is_beginning && !multipart_parser_is_complete(impl->mt_parser)) {
+        return -1;
     }
-
     impl->completed = true;
     return HPE_PAUSED;
 }
@@ -392,7 +441,8 @@ std::shared_ptr<Server> listen(const std::string &addr, const std::function<void
         if (impl.parse(ctx, req->data, req->info.len)) {
             http_server_on_request(ctx);
         } else {
-            server->send(req->session_id(), SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
+            server->send(session_id, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
+            server->close(session_id, false);
         }
         return SW_OK;
     };

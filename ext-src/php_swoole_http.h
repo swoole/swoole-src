@@ -188,11 +188,12 @@ struct Context {
     uint16_t input_var_num;
     const char *current_header_name;
     size_t current_header_name_len;
+    std::string current_part_header_name;
+    std::string current_part_header_value;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
-    const char *tmp_content_type;
-    size_t tmp_content_type_len;
+    std::string tmp_content_type;
     String *form_data_buffer;
 
     std::string upload_tmp_dir;
@@ -215,6 +216,7 @@ struct Context {
     void bind(zval *zsock);
     void copy(const Context *ctx);
     bool init_multipart_parser(const char *boundary_str, int boundary_len);
+    void destroy_multipart_parser();
     bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
