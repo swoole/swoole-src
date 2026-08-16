@@ -84,7 +84,8 @@ struct ContextImpl {
     multipart_parser *mt_parser = nullptr;
 
     std::string current_header_name;
-    std::string current_header_value;
+    std::string current_part_header_name;
+    std::string current_part_header_value;
     std::string current_form_data_name;
     bool current_part_is_file = false;
     String *form_data_buffer = nullptr;
@@ -157,6 +158,9 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
             }
             impl->destroy_multipart_parser();
             impl->mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
+            if (!impl->mt_parser) {
+                return -1;
+            }
             impl->form_data_buffer = new String(SW_BUFFER_SIZE_STD);
             impl->mt_parser->data = ctx;
             swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
@@ -170,8 +174,6 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
     ctx->version = parser->http_major * 100 + parser->http_minor;
     ctx->server_protocol = std::string(ctx->version == 101 ? "HTTP/1.1" : "HTTP/1.0");
     ctx->keepalive = llhttp_should_keep_alive(parser);
-    // Multipart header fields reuse this accumulator and append fragments to it.
-    ctx->impl->current_header_name.clear();
     return 0;
 }
 
@@ -222,13 +224,13 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
-    ctx->impl->current_header_name.append(at, length);
+    ctx->impl->current_part_header_name.append(at, length);
     return SW_OK;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
-    ctx->impl->current_header_value.append(at, length);
+    ctx->impl->current_part_header_value.append(at, length);
     return SW_OK;
 }
 
@@ -237,8 +239,8 @@ static int multipart_body_on_header_value_complete(multipart_parser *p) {
     ContextImpl *impl = ctx->impl;
     std::string header_name;
     std::string header_value;
-    header_name.swap(impl->current_header_name);
-    header_value.swap(impl->current_header_value);
+    header_name.swap(impl->current_part_header_name);
+    header_value.swap(impl->current_part_header_value);
     const char *header_name_ptr = header_name.c_str();
     size_t header_len = header_name.length();
     const char *at = header_value.c_str();
@@ -348,8 +350,8 @@ static int multipart_body_on_data_end(multipart_parser *p) {
         p->fp = nullptr;
     }
 
-    impl->current_header_name.clear();
-    impl->current_header_value.clear();
+    impl->current_part_header_name.clear();
+    impl->current_part_header_value.clear();
     impl->current_part_is_file = false;
     impl->current_form_data_name.clear();
 
@@ -360,6 +362,7 @@ static int http_request_message_complete(llhttp_t *p) {
     const auto *ctx = static_cast<Context *>(p->data);
     auto *impl = ctx->impl;
 
+    // An empty multipart body is accepted, matching the extension parser.
     if (impl->mt_parser && !impl->is_beginning && !multipart_parser_is_complete(impl->mt_parser)) {
         return -1;
     }

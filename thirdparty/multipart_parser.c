@@ -98,6 +98,9 @@ multipart_parser *multipart_parser_init(const char *boundary,
                                         size_t boundary_length,
                                         const multipart_parser_settings *settings) {
     multipart_parser *p = calloc(sizeof(multipart_parser) + boundary_length + boundary_length + 9 + 4, sizeof(char));
+    if (!p) {
+        return NULL;
+    }
     memcpy(p->boundary, "--", 2);
     memcpy(p->boundary + 2, boundary, boundary_length);
     p->boundary[2 + boundary_length] = 0;
