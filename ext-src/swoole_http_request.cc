@@ -42,11 +42,9 @@ using swoole::Server;
 using swoole::http_server::ParseCookieCallback;
 
 static int http_request_on_url(llhttp_t *parser, const char *at, size_t length);
-static int http_request_on_url_complete(llhttp_t *parser);
 static int http_request_on_body(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length);
-static int http_request_on_header_value_complete(llhttp_t *parser);
 static int http_request_on_headers_complete(llhttp_t *parser);
 static int http_request_message_complete(llhttp_t *parser);
 
@@ -67,8 +65,8 @@ static sw_inline void multipart_body_reset_current_part(HttpContext *ctx) {
         efree(ctx->current_multipart_header);
         ctx->current_multipart_header = nullptr;
     }
-    ctx->current_header_name.clear();
-    ctx->current_header_value.clear();
+    ctx->current_part_header_name.clear();
+    ctx->current_part_header_value.clear();
     ctx->tmp_content_type.clear();
     ctx->current_part_is_file = 0;
 }
@@ -138,12 +136,12 @@ static constexpr llhttp_settings_t http_parser_settings =
     http_request_on_body,                   // on_body
     http_request_message_complete,          // on_message_complete
     nullptr,                                // on_protocol_complete
-    http_request_on_url_complete,           // on_url_complete
+    nullptr,                                // on_url_complete
     nullptr,                                // on_status_complete
     nullptr,                                // on_method_complete
     nullptr,                                // on_version_complete
     nullptr,                                // on_header_field_complete
-    http_request_on_header_value_complete,  // on_header_value_complete
+    nullptr,                                // on_header_value_complete
     nullptr,                                // on_chunk_extension_name_complete
     nullptr,                                // on_chunk_extension_value_complete
     nullptr,                                // on_chunk_header
@@ -286,45 +284,39 @@ void php_swoole_http_request_minit(int module_number) {
 }
 
 static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) {
-    auto *ctx = static_cast<HttpContext *>(parser->data);
-    ctx->current_url.append(at, length);
-    return SW_OK;
-}
-
-static int http_request_on_url_complete(llhttp_t *parser) {
-    auto *ctx = static_cast<HttpContext *>(parser->data);
-    const char *at = ctx->current_url.c_str();
-    size_t length = ctx->current_url.length();
     const char *query_start = (const char *) memchr(at, '?', length);
     size_t path_len = query_start ? (size_t) (query_start - at) : length;
 
+    auto *ctx = static_cast<HttpContext *>(parser->data);
     ctx->request.path = estrndup(at, path_len);
     ctx->request.path_len = path_len;
 
-    if (query_start && (length - path_len) > 1) {
-        const char *query_str = query_start + 1;
-        size_t query_len = length - path_len - 1;
-
-        zval tmp;
-        HashTable *ht = Z_ARR_P(ctx->request.zserver);
-        ZVAL_STRINGL(&tmp, (char *) query_str, query_len);
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_QUERY_STRING), &tmp);
-
-        // parse url params
-        swoole_php_treat_data(
-            PARSE_STRING,
-            estrndup((char *) query_str, query_len),  // it will be freed by treat_data
-            swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, SW_ZSTR_KNOWN(SW_ZEND_STR_GET)));
+    if (!query_start || (length - path_len) <= 1) {
+        return 0;
     }
-    ctx->current_url.clear();
-    return SW_OK;
+
+    const char *query_str = query_start + 1;
+    size_t query_len = length - path_len - 1;
+
+    zval tmp;
+    HashTable *ht = Z_ARR_P(ctx->request.zserver);
+    ZVAL_STRINGL(&tmp, (char *) query_str, query_len);
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_QUERY_STRING), &tmp);
+
+    // parse url params
+    swoole_php_treat_data(
+        PARSE_STRING,
+        estrndup((char *) query_str, query_len),  // it will be freed by treat_data
+        swoole_http_init_and_read_property(
+            swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, SW_ZSTR_KNOWN(SW_ZEND_STR_GET)));
+    return 0;
 }
 
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
-    ctx->current_header_name.append(at, length);
-    return SW_OK;
+    ctx->current_header_name = at;
+    ctx->current_header_name_len = length;
+    return 0;
 }
 
 bool HttpContext::init_multipart_parser(const char *boundary_str, int boundary_len) {
@@ -401,28 +393,16 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
-    ctx->current_header_value.append(at, length);
-    return SW_OK;
-}
-
-static int http_request_on_header_value_complete(llhttp_t *parser) {
-    auto *ctx = static_cast<HttpContext *>(parser->data);
-    std::string header_name;
-    std::string header_value;
-    header_name.swap(ctx->current_header_name);
-    header_value.swap(ctx->current_header_value);
     zval *zheader = ctx->request.zheader;
-    const char *header_name_ptr = header_name.c_str();
-    size_t header_len = header_name.length();
-    const char *at = header_value.c_str();
-    size_t length = header_value.length();
+    const char *header_name = ctx->current_header_name;
+    size_t header_len = ctx->current_header_name_len;
 
-    if (ctx->parse_cookie && SW_STRCASEEQ(header_name_ptr, header_len, "cookie")) {
+    if (ctx->parse_cookie && SW_STRCASEEQ(header_name, header_len, "cookie")) {
         zval *zcookie = swoole_http_init_and_read_property(
             swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE));
         swoole_http_parse_cookie(zcookie, at, length);
         return 0;
-    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "upgrade") &&
+    } else if (SW_STRCASEEQ(header_name, header_len, "upgrade") &&
                swoole_http_token_list_contains_value(at, length, "websocket")) {
         ctx->websocket = 1;
         if (ctx->is_co_socket()) {
@@ -442,7 +422,8 @@ static int http_request_on_header_value_complete(llhttp_t *parser) {
 #endif
     } else if ((parser->method == HTTP_POST || parser->method == HTTP_PUT || parser->method == HTTP_DELETE ||
                 parser->method == HTTP_PATCH) &&
-               SW_STRCASEEQ(header_name_ptr, header_len, "content-type")) {
+               SW_STRCASEEQ(header_name, header_len, "content-type")) {
+        // A repeated Content-Type replaces the parser state derived from the previous value.
         ctx->request.post_form_urlencoded = 0;
         ctx->destroy_multipart_parser();
         if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
@@ -461,12 +442,11 @@ static int http_request_on_header_value_complete(llhttp_t *parser) {
         }
     }
 #ifdef SW_HAVE_COMPRESSION
-    else if (ctx->enable_compression && SW_STRCASEEQ(header_name_ptr, header_len, "accept-encoding")) {
+    else if (ctx->enable_compression && SW_STRCASEEQ(header_name, header_len, "accept-encoding")) {
         ctx->set_compression_method(at, length);
     }
 #endif
-    else if (SW_STRCASEEQ(header_name_ptr, header_len, "transfer-encoding") &&
-             SW_STR_ISTARTS_WITH(at, length, "chunked")) {
+    else if (SW_STRCASEEQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
         ctx->recv_chunked = 1;
     }
 
@@ -477,25 +457,25 @@ _add_header:
     /**
      * some common request header key
      */
-    if (SW_STRCASEEQ(header_name_ptr, header_len, "host")) {
+    if (SW_STRCASEEQ(header_name, header_len, "host")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_HOST), &tmp);
-    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "user-agent")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "user-agent")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_USER_AGENT), &tmp);
-    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "accept")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "accept")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_ACCEPT), &tmp);
-    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "content-type")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "content-type")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_TYPE), &tmp);
-    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "content-length")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "content-length")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_LENGTH), &tmp);
-    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "authorization")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "authorization")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_AUTHORIZATION), &tmp);
-    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "connection")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "connection")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONNECTION), &tmp);
-    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "accept-encoding")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "accept-encoding")) {
         zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_ACCEPT_ENCODING), &tmp);
     } else {
-        char *new_header_name = estrndup(header_name_ptr, header_len);
-        zend_str_tolower_copy(new_header_name, header_name_ptr, header_len);
+        char *new_header_name = estrndup(header_name, header_len);
+        zend_str_tolower_copy(new_header_name, header_name, header_len);
         zend::array_add_or_merge(zheader, new_header_name, header_len, &tmp);
         efree(new_header_name);
     }
@@ -539,21 +519,19 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
         (ctx->request.version == 101 ? SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11) : SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP10)));
 
     ctx->keepalive = llhttp_should_keep_alive(parser);
-    ctx->current_header_name.clear();
-    ctx->current_header_value.clear();
 
     return 0;
 }
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(p->data);
-    ctx->current_header_name.append(at, length);
+    ctx->current_part_header_name.append(at, length);
     return SW_OK;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(p->data);
-    ctx->current_header_value.append(at, length);
+    ctx->current_part_header_value.append(at, length);
     return SW_OK;
 }
 
@@ -565,8 +543,8 @@ static int multipart_body_on_header_value_complete(multipart_parser *p) {
     auto *ctx = static_cast<HttpContext *>(p->data);
     std::string header_name;
     std::string header_value;
-    header_name.swap(ctx->current_header_name);
-    header_value.swap(ctx->current_header_value);
+    header_name.swap(ctx->current_part_header_name);
+    header_value.swap(ctx->current_part_header_value);
     const char *at = header_value.c_str();
     size_t length = header_value.length();
     /**
