@@ -190,7 +190,6 @@ TEST(iouring, ftruncate) {
     });
 }
 #endif
-#endif
 
 TEST(iouring, connect) {
     signal(SIGPIPE, SIG_IGN);
@@ -467,3 +466,4 @@ TEST(iouring, accept_timeout) {
         Iouring::close(server_sock);
     });
 }
+#endif
