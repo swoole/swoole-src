@@ -495,14 +495,19 @@ static PHP_METHOD(swoole_process, signal) {
     if (zcallback == nullptr) {
         fci_cache = signal_fci_caches[signo];
         if (fci_cache) {
-#ifdef SW_USE_THREAD_CONTEXT
-            swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
-#else
-            swoole_signal_set(signo, nullptr);
-#endif
             signal_fci_caches[signo] = nullptr;
-            swoole_event_defer(sw_callable_free, fci_cache);
             SwooleG.signal_listener_num--;
+            if (swoole_event_is_available()) {
+#ifdef SW_USE_THREAD_CONTEXT
+                swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
+#else
+                swoole_signal_set(signo, nullptr);
+#endif
+                swoole_event_defer(sw_callable_free, fci_cache);
+            } else {
+                swoole_signal_set(signo, nullptr);
+                sw_callable_free(fci_cache);
+            }
             RETURN_TRUE;
         } else {
             php_swoole_error(E_WARNING, "unable to find the callback of signal [" ZEND_LONG_FMT "]", signo);
@@ -526,7 +531,16 @@ static PHP_METHOD(swoole_process, signal) {
         }
         signal_fci_caches[signo] = fci_cache;
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler, true); }, nullptr);
+        /**
+         * In a sync process without an event loop (e.g. the manager process), there is no reactor,
+         * so swoole_event_defer() would dereference a null pointer and the deferred callback would never run.
+         * Set the signal handler directly instead.
+         */
+        if (swoole_event_is_available()) {
+            swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler, true); }, nullptr);
+        } else {
+            swoole_signal_set(signo, handler, true);
+        }
 #else
         swoole_signal_set(signo, handler, true);
 #endif
