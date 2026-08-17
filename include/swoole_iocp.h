@@ -67,7 +67,6 @@ struct IocpEvent {
     DWORD flags = 0;
     DWORD bytes = 0;
 
-    SOCKET accept_socket = INVALID_SOCKET;
     sockaddr *addr = nullptr;
     socklen_t *addrlen = nullptr;
     socklen_t *msg_namelen = nullptr;
@@ -80,8 +79,8 @@ struct IocpEvent {
 class Iocp {
     HANDLE port = INVALID_HANDLE_VALUE;
     Reactor *reactor = nullptr;
-    uint32_t task_num = 0;
     uint32_t blocking_task_num = 0;
+    std::unordered_set<IocpEvent *> submissions;
     std::unordered_set<swSocketFd> associated_sockets;
     std::unordered_set<int> associated_files;
     std::unordered_map<int, int> file_flags;
@@ -96,9 +95,7 @@ class Iocp {
             return;
         }
         event->submitted = false;
-        if (task_num > 0) {
-            --task_num;
-        }
+        submissions.erase(event);
         if (event->exit_blocking && blocking_task_num > 0) {
             --blocking_task_num;
         }
@@ -111,15 +108,15 @@ class Iocp {
     ~Iocp();
 
     static bool init(Reactor *reactor = nullptr);
-    static void set_error(DWORD error);
-    static void set_file_error(DWORD error);
+    static void set_socket_error(DWORD error);
+    static void set_system_error(DWORD error);
 
     bool ready() const {
         return port != INVALID_HANDLE_VALUE && port != nullptr;
     }
 
     uint64_t get_task_num() const {
-        return task_num;
+        return static_cast<uint64_t>(submissions.size());
     }
 
     uint64_t get_blocking_task_num() const {
@@ -137,15 +134,15 @@ class Iocp {
         event->completed = false;
         if (!event->submitted) {
             event->submitted = true;
-            ++task_num;
+            submissions.insert(event);
             if (event->exit_blocking) {
                 ++blocking_task_num;
             }
         }
     }
 
-    void cancel_submission(IocpEvent *event) {
-        event->orphaned = true;
+    // Use only when the issuing API failed synchronously and will not queue a completion packet.
+    void discard_submission(IocpEvent *event) {
         finish_submission(event);
     }
 
