@@ -7,10 +7,16 @@ swoole_function: get local ip
 require __DIR__ . '/../include/bootstrap.php';
 
 $ips = swoole_get_local_ip();
-foreach ($ips as $ip) {
-    Assert::same(filter_var($ip, FILTER_VALIDATE_IP), $ip);
-    Assert::assert(strstr($ip, ".", true) !== "127");
+Assert::isArray($ips);
+Assert::notEmpty($ips);
+
+foreach ($ips as $name => $ip) {
+    Assert::stringNotEmpty($name);
+    Assert::same(filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4), $ip);
+    Assert::false(str_starts_with($ip, '127.'));
 }
 
+echo "DONE\n";
 ?>
 --EXPECT--
+DONE
