@@ -65,6 +65,34 @@ class Iouring {
   public:
     ~Iouring();
 
+    /**
+     * Whether io_uring is usable in the current environment. io_uring may be compiled in but unusable at runtime,
+     * e.g., when the io_uring syscalls are blocked by seccomp (the default profile of Docker and containerd does
+     * this), disabled via the kernel.io_uring_disabled sysctl, or missing from an old kernel. The result is probed
+     * once and cached; callers should fall back to the thread-pool based async I/O when this returns false.
+     */
+    static bool available();
+
+#ifdef HAVE_IOURING_FUTEX
+    /**
+     * Whether the io_uring futex operations (IORING_OP_FUTEX_WAIT/IORING_OP_FUTEX_WAKE) are usable: io_uring itself
+     * is available and the runtime kernel is 6.7 or higher. The support is detected at build time from the build
+     * host's kernel, so a binary built on a newer kernel may run on an older one. The result is probed once and
+     * cached; callers should fall back to the timer-based implementation when this returns false.
+     */
+    static bool futex_available();
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    /**
+     * Whether IORING_OP_FTRUNCATE is usable: io_uring itself is available and the runtime kernel is 6.9 or higher.
+     * The support is detected at build time from the build host's kernel, so a binary built on a newer kernel may
+     * run on an older one. The result is probed once and cached; callers should fall back to the thread-pool based
+     * async I/O when this returns false.
+     */
+    static bool ftruncate_available();
+#endif
+
     bool is_empty_waiting_tasks() const {
         return waiting_tasks.empty();
     }
@@ -73,12 +101,17 @@ class Iouring {
         return task_num;
     }
 
+    /**
+     * The accessors below must not touch `ring` unless ready() returns true: when the ring failed to
+     * initialize, `ring` is left uninitialized and dereferencing its queue pointers would crash (e.g.,
+     * Swoole\Coroutine::stats() calls them on whatever instance is cached in SwooleTG.iouring).
+     */
     uint32_t get_sq_space_left() const {
-        return io_uring_sq_space_left(&ring);
+        return sw_likely(ready()) ? io_uring_sq_space_left(&ring) : 0;
     }
 
     uint32_t get_sq_capacity() const {
-        return ring.sq.ring_entries;
+        return sw_likely(ready()) ? ring.sq.ring_entries : 0;
     }
 
     uint32_t get_sq_used() const {
@@ -90,7 +123,8 @@ class Iouring {
     }
 
     float get_sq_usage_percent() const {
-        return (float) get_sq_used() / get_sq_capacity() * 100.0f;
+        uint32_t capacity = get_sq_capacity();
+        return capacity == 0 ? 0.0f : (float) get_sq_used() / capacity * 100.0f;
     }
 
     static int socket(int domain, int type, int protocol = 0, int flags = 0);

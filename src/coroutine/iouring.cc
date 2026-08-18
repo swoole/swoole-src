@@ -73,6 +73,7 @@ struct IouringEvent {
     }
 };
 
+#if defined(HAVE_IOURING_FUTEX) || defined(HAVE_IOURING_FTRUNCATE)
 static void parse_kernel_version(const char *release, int *major, int *minor) {
     char copy[SW_STRUCT_MEMBER_SIZE(utsname, release)];
     strcpy(copy, release);
@@ -84,8 +85,15 @@ static void parse_kernel_version(const char *release, int *major, int *minor) {
     *minor = token ? sw_atoi(token) : 0;
 }
 
-Iouring::Iouring(Reactor *_reactor) {
-    reactor = _reactor;
+static bool runtime_kernel_at_least(int required_major, int required_minor) {
+    int major, minor;
+    parse_kernel_version(SwooleG.uname.release, &major, &minor);
+    return (major > required_major) || (major == required_major && minor >= required_minor);
+}
+#endif
+
+static uint32_t resolve_ring_entries() {
+    uint32_t entries = SW_IOURING_QUEUE_SIZE;
     if (SwooleG.iouring_entries > 0) {
         uint32_t i = 6;
         while ((1U << i) < SwooleG.iouring_entries) {
@@ -93,12 +101,36 @@ Iouring::Iouring(Reactor *_reactor) {
         }
         entries = 1 << i;
     }
+    return entries;
+}
 
-    int ret =
-        io_uring_queue_init(entries, &ring, (SwooleG.iouring_flag == IORING_SETUP_SQPOLL ? IORING_SETUP_SQPOLL : 0));
+static unsigned resolve_ring_flags() {
+    return SwooleG.iouring_flag == IORING_SETUP_SQPOLL ? IORING_SETUP_SQPOLL : 0;
+}
+
+Iouring::Iouring(Reactor *_reactor) {
+    reactor = _reactor;
+
+    /**
+     * Registered before any of the failure paths below so that even a partially-constructed instance
+     * (cached in SwooleTG.iouring by get_instance()) is destroyed and SwooleTG.iouring reset when the
+     * reactor is destroyed. Otherwise, the failed instance would leak, keep a dangling reactor pointer,
+     * and prevent io_uring from ever being retried in a subsequent event loop of this thread.
+     */
+    reactor->add_destroy_callback([](void *data) {
+        if (!SwooleTG.iouring) {
+            return;
+        }
+        delete SwooleTG.iouring;
+        SwooleTG.iouring = nullptr;
+    });
+
+    entries = resolve_ring_entries();
+
+    int ret = io_uring_queue_init(entries, &ring, resolve_ring_flags());
     if (ret < 0) {
         errno = -ret;
-        swoole_sys_error("Failed to initialize io_uring instance");
+        swoole_sys_warning("Failed to initialize io_uring instance");
         return;
     }
 
@@ -107,42 +139,46 @@ Iouring::Iouring(Reactor *_reactor) {
         ret = io_uring_register_iowq_max_workers(&ring, workers);
         if (ret < 0) {
             errno = -ret;
-            swoole_sys_error("Failed to set the maximum of io_uring async workers");
-            return;
+            // Not fatal: io_uring works without the worker cap, only the tuning option is lost.
+            swoole_sys_warning("Failed to set the maximum of io_uring async workers");
         }
     }
 
-    int major, minor;
-    parse_kernel_version(SwooleG.uname.release, &major, &minor);
-
 #ifdef HAVE_IOURING_FUTEX
-    if (!((major > 6) || (major == 6 && minor >= 7))) {
-        swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
+    if (!futex_available()) {
+        // Not fatal: the callers of Iouring::futex_wait()/Iouring::futex_wakeup() fall back to the
+        // timer-based implementation.
+        swoole_warning("Iouring::futex_wait()/Iouring::futex_wakeup() requires a `6.7` or higher Linux kernel");
     }
 #endif
 
 #ifdef HAVE_IOURING_FTRUNCATE
-    if (!((major > 6) || (major == 6 && minor >= 9))) {
-        swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
+    if (!ftruncate_available()) {
+        // Not fatal: the callers of Iouring::ftruncate() fall back to the thread-pool based async I/O.
+        swoole_warning("Iouring::ftruncate() requires a `6.9` or higher Linux kernel");
     }
 #endif
 
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
     ring_socket->object = this;
 
+    if (reactor->add(ring_socket, SW_EVENT_READ) == SW_ERR) {
+        // Not fatal: dispose of the ring so that ready() returns false, Iouring::execute() fails with
+        // ENOTSUP, and callers fall back to the thread-pool based async I/O. The reactor callbacks below
+        // are deliberately not registered, so nothing ever touches the released ring.
+        swoole_sys_warning("Failed to add the io_uring ring fd to the event loop");
+        ring_socket->move_fd();
+        ring_socket->free();
+        ring_socket = nullptr;
+        io_uring_queue_exit(&ring);
+        return;
+    }
+
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOURING, [](Reactor *reactor, size_t &event_num) -> bool {
         if (SwooleTG.iouring && SwooleTG.iouring->get_task_num() == 0 && SwooleTG.iouring->is_empty_waiting_tasks()) {
             event_num--;
         }
         return true;
-    });
-
-    reactor->add_destroy_callback([](void *data) {
-        if (!SwooleTG.iouring) {
-            return;
-        }
-        delete SwooleTG.iouring;
-        SwooleTG.iouring = nullptr;
     });
 
     reactor->set_end_callback(Reactor::PRIORITY_IOURING_SUBMIT, [](Reactor *reactor) {
@@ -153,10 +189,6 @@ Iouring::Iouring(Reactor *_reactor) {
     });
 
     reactor->iouring_interrupt_handler = [this](Reactor *reactor) { wakeup(); };
-
-    if (reactor->add(ring_socket, SW_EVENT_READ) == SW_ERR) {
-        swoole_sys_error("Failed to add io_uring ring fd to the event loop");
-    }
 }
 
 Iouring::~Iouring() {
@@ -378,8 +410,61 @@ Iouring *Iouring::get_instance() {
     return SwooleTG.iouring;
 }
 
+bool Iouring::available() {
+    static const bool available_ = []() -> bool {
+        /**
+         * Probe with the same entries and setup flags the real ring will use, so that the cached result
+         * actually predicts whether Iouring's own initialization will succeed. Probing with minimal
+         * parameters could report success while the real initialization still fails, e.g., when
+         * SWOOLE_IOURING_SQPOLL is rejected for lack of privileges or a large queue size exceeds
+         * RLIMIT_MEMLOCK. Note that the result is cached on first use: iouring_entries/iouring_flag
+         * must be configured (via Swoole\Async::set()) before the first coroutine I/O operation.
+         */
+        io_uring probe_ring;
+        int ret = io_uring_queue_init(resolve_ring_entries(), &probe_ring, resolve_ring_flags());
+        if (ret < 0) {
+            /**
+             * Must not log at WARNING/NOTICE/INFO here: those levels print to stdout by default, corrupting
+             * the output of CLI scripts (and phpt tests) whenever io_uring is compiled in but blocked at
+             * runtime, e.g. by the default Docker seccomp profile. The fallback is transparent, matching the
+             * silent behavior of a build without io_uring support.
+             */
+            swoole_debug("io_uring is unavailable (%s), falling back to thread-pool based asynchronous I/O",
+                         swoole_strerror(-ret));
+            return false;
+        }
+        io_uring_queue_exit(&probe_ring);
+        return true;
+    }();
+    return available_;
+}
+
+#ifdef HAVE_IOURING_FUTEX
+bool Iouring::futex_available() {
+    // IORING_OP_FUTEX_WAIT/IORING_OP_FUTEX_WAKE were detected at build time from the build host's kernel;
+    // the runtime kernel may be older, so it must be checked again here.
+    static const bool available_ = Iouring::available() && runtime_kernel_at_least(6, 7);
+    return available_;
+}
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+bool Iouring::ftruncate_available() {
+    // IORING_OP_FTRUNCATE was detected at build time from the build host's kernel;
+    // the runtime kernel may be older, so it must be checked again here.
+    static const bool available_ = Iouring::available() && runtime_kernel_at_least(6, 9);
+    return available_;
+}
+#endif
+
 ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();
+    // The instance exists but its ring failed to initialize (e.g., io_uring blocked by seccomp at runtime,
+    // or the SQPOLL flag rejected for lack of privileges). Fail the operation instead of queuing it forever.
+    if (sw_unlikely(!iouring->ready())) {
+        errno = ENOTSUP;
+        return -1;
+    }
     iouring->dispatch(event);
     iouring->yield(event);
     return event->result;
