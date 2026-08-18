@@ -71,6 +71,26 @@ static LIBSSH2_REALLOC_FUNC(php_ssh2_realloc_cb) {
 }
 /* }}} */
 
+static void php_ssh2_callback_free(zval *callback) {
+    if (callback) {
+        zval_ptr_dtor(callback);
+        efree(callback);
+    }
+}
+
+static void php_ssh2_session_data_free(php_ssh2_session_data *data) {
+    php_ssh2_callback_free(data->ignore_cb);
+    php_ssh2_callback_free(data->debug_cb);
+    php_ssh2_callback_free(data->macerror_cb);
+    php_ssh2_callback_free(data->disconnect_cb);
+    // close() cancels bound coroutines so they stop retrying libssh2 calls against freed resources.
+    // Cancellation resumes synchronously; if no binding remains afterwards, deletion is safe.
+    if (data->socket->close() || !data->socket->has_bound()) {
+        delete data->socket;
+    }
+    efree(data);
+}
+
 /* {{{ php_ssh2_debug_cb
  * Debug packets
  */
@@ -225,34 +245,26 @@ static int php_ssh2_set_callback(LIBSSH2_SESSION *session,
     switch (callback_type) {
     case LIBSSH2_CALLBACK_IGNORE:
         internal_handler = (void *) php_ssh2_ignore_cb;
-        if (data->ignore_cb) {
-            zval_ptr_dtor(data->ignore_cb);
-        }
+        php_ssh2_callback_free(data->ignore_cb);
         data->ignore_cb = copyval;
         break;
     case LIBSSH2_CALLBACK_DEBUG:
         internal_handler = (void *) php_ssh2_debug_cb;
-        if (data->debug_cb) {
-            zval_ptr_dtor(data->debug_cb);
-        }
+        php_ssh2_callback_free(data->debug_cb);
         data->debug_cb = copyval;
         break;
     case LIBSSH2_CALLBACK_MACERROR:
         internal_handler = (void *) php_ssh2_macerror_cb;
-        if (data->macerror_cb) {
-            zval_ptr_dtor(data->macerror_cb);
-        }
+        php_ssh2_callback_free(data->macerror_cb);
         data->macerror_cb = copyval;
         break;
     case LIBSSH2_CALLBACK_DISCONNECT:
         internal_handler = (void *) php_ssh2_disconnect_cb;
-        if (data->disconnect_cb) {
-            zval_ptr_dtor(data->disconnect_cb);
-        }
+        php_ssh2_callback_free(data->disconnect_cb);
         data->disconnect_cb = copyval;
         break;
     default:
-        zval_ptr_dtor(copyval);
+        php_ssh2_callback_free(copyval);
         return -1;
     }
 
@@ -308,8 +320,7 @@ LIBSSH2_SESSION *php_ssh2_session_connect(const char *host, int port, zval *meth
     session = libssh2_session_init_ex(php_ssh2_alloc_cb, php_ssh2_free_cb, php_ssh2_realloc_cb, data);
     if (!session) {
         php_error_docref(NULL, E_WARNING, "Unable to initialize SSH2 session");
-        efree(data);
-        delete sock;
+        php_ssh2_session_data_free(data);
         return NULL;
     }
 
@@ -402,8 +413,7 @@ LIBSSH2_SESSION *php_ssh2_session_connect(const char *host, int port, zval *meth
         last_error = libssh2_session_last_error(session, &error_msg, NULL, 0);
         php_error_docref(NULL, E_WARNING, "Error starting up SSH connection(%d): %s", last_error, error_msg);
         libssh2_session_free(session);
-        efree(data);
-        delete sock;
+        php_ssh2_session_data_free(data);
         return NULL;
     }
 
@@ -923,7 +933,7 @@ PHP_FUNCTION(ssh2_forward_accept) {
     if (!stream) {
         php_error_docref(NULL, E_WARNING, "Failure allocating stream");
         efree(channel_data);
-        libssh2_channel_free(channel);
+        ssh2_release_channel(session, channel);
         RETURN_FALSE;
     }
 
@@ -1258,38 +1268,42 @@ PHP_FUNCTION(ssh2_auth_agent) {
 static void php_ssh2_session_dtor(zend_resource *rsrc) {
     LIBSSH2_SESSION *session = (LIBSSH2_SESSION *) rsrc->ptr;
     php_ssh2_session_data **data = (php_ssh2_session_data **) libssh2_session_abstract(session);
+    php_ssh2_session_data *session_data = *data;
 
-    libssh2_session_disconnect(session, "swoole_ssh2 (https://github.com/swoole/swoole-src)");
+    ssh2_release_call(session, [&]() {
+        return libssh2_session_disconnect_ex(
+            session, SSH_DISCONNECT_BY_APPLICATION, "swoole_ssh2 (https://github.com/swoole/swoole-src)", "");
+    });
 
-    if (*data) {
-        if ((*data)->ignore_cb) {
-            zval_ptr_dtor((*data)->ignore_cb);
-        }
-        if ((*data)->debug_cb) {
-            zval_ptr_dtor((*data)->debug_cb);
-        }
-        if ((*data)->macerror_cb) {
-            zval_ptr_dtor((*data)->macerror_cb);
-        }
-        if ((*data)->disconnect_cb) {
-            zval_ptr_dtor((*data)->disconnect_cb);
-        }
+    // Shut down without closing so libssh2 can reclaim attached resources locally. Keeping the
+    // descriptor reserved prevents another connection from reusing it while libssh2 still holds it.
+    session_data->socket->shutdown(SHUT_RDWR);
 
-        delete (*data)->socket;
-        efree(*data);
-        *data = NULL;
+    // Blocking mode retries libssh2's EAGAIN internally. The timeout makes that retry finite, and a
+    // successful free invalidates the session, so its state is deliberately not restored.
+    libssh2_session_set_timeout(session, PHP_SSH2_SESSION_FREE_TIMEOUT_MS);
+    libssh2_session_set_blocking(session, 1);
+    int rc = libssh2_session_free(session);
+    if (rc != 0) {
+        // The surviving session still holds session_data as its abstract pointer.
+        char *error_msg = NULL;
+        libssh2_session_last_error(session, &error_msg, NULL, 0);
+        php_error_docref(NULL,
+                         E_WARNING,
+                         "Unable to free SSH2 session(%d): %s; resources retained",
+                         rc,
+                         error_msg ? error_msg : "Unknown error");
+        return;
     }
 
-    libssh2_session_free(session);
+    php_ssh2_session_data_free(session_data);
 }
 
 static void php_ssh2_listener_dtor(zend_resource *rsrc) {
     php_ssh2_listener_data *data = (php_ssh2_listener_data *) rsrc->ptr;
-    LIBSSH2_LISTENER *listener = data->listener;
 
     if (php_ssh2_session_is_open(data->session_rsrc)) {
-        auto session = data->session;
-        libssh2_channel_forward_cancel(listener);
+        ssh2_release_call(data->session, [&]() { return (libssh2_channel_forward_cancel)(data->listener); });
     }
 
     zend_list_delete(data->session_rsrc);
@@ -1298,10 +1312,9 @@ static void php_ssh2_listener_dtor(zend_resource *rsrc) {
 
 static void php_ssh2_pkey_subsys_dtor(zend_resource *rsrc) {
     php_ssh2_pkey_subsys_data *data = (php_ssh2_pkey_subsys_data *) rsrc->ptr;
-    LIBSSH2_PUBLICKEY *pkey = data->pkey;
 
     if (php_ssh2_session_is_open(data->session_rsrc)) {
-        libssh2_publickey_shutdown(pkey);
+        ssh2_release_call(data->session, [&]() { return libssh2_publickey_shutdown(data->pkey); });
     }
 
     zend_list_delete(data->session_rsrc);

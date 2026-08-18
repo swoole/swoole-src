@@ -25,6 +25,7 @@
 #include "main/php_network.h"
 
 #define PHP_SSH2_DEFAULT_PORT 22
+#define PHP_SSH2_SESSION_FREE_TIMEOUT_MS 1000
 
 /* Exported Constants */
 #define PHP_SSH2_FINGERPRINT_MD5 0x0000
