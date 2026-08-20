@@ -164,6 +164,14 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
     auto *request = static_cast<Request *>(p->data);
     auto *form_data = request->form_data_;
 
+    if (SW_STRCASEEQ(form_data->current_header_name, form_data->current_header_name_len, SW_HTTP_UPLOAD_FILE)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "Bad Request: the reserved header '%s' may not be sent by clients",
+                         SW_HTTP_UPLOAD_FILE);
+        return SW_ERR;
+    }
+
     form_data->multipart_buffer_->append(form_data->current_header_name, form_data->current_header_name_len);
     form_data->multipart_buffer_->append(SW_STRL(": "));
     form_data->multipart_buffer_->append(at, length);
