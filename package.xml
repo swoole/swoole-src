@@ -1710,6 +1710,7 @@
             <file role="test" name="tests/swoole_http_server/upload_file_array_parsed.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_file_empty.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_max_filesize.phpt" />
+            <file role="test" name="tests/swoole_http_server/upload_reserved_header_preprocessor.phpt" />
             <file role="test" name="tests/swoole_http_server/worker_max_concurrency.phpt" />
             <file role="test" name="tests/swoole_http_server/zstd.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bad_request.phpt" />
