@@ -1621,6 +1621,7 @@
             <file role="test" name="tests/swoole_http_server/cookies.phpt" />
             <file role="test" name="tests/swoole_http_server/cookies_parse.phpt" />
             <file role="test" name="tests/swoole_http_server/create_request.phpt" />
+            <file role="test" name="tests/swoole_http_server/create_request_upload_reserved_header.phpt" />
             <file role="test" name="tests/swoole_http_server/data_parse.phpt" />
             <file role="test" name="tests/swoole_http_server/disable_compression.phpt" />
             <file role="test" name="tests/swoole_http_server/disable_coroutine.phpt" />
@@ -1710,6 +1711,7 @@
             <file role="test" name="tests/swoole_http_server/upload_file_array_parsed.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_file_empty.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_max_filesize.phpt" />
+            <file role="test" name="tests/swoole_http_server/upload_reserved_header.phpt" />
             <file role="test" name="tests/swoole_http_server/worker_max_concurrency.phpt" />
             <file role="test" name="tests/swoole_http_server/zstd.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bad_request.phpt" />
@@ -1761,6 +1763,7 @@
             <file role="test" name="tests/swoole_http_server_coro/ssl_bad_client.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/tcp_nodelay.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/upload.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/upload_reserved_header.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/websocket.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/websocket_close.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/websocket_compression.phpt" />

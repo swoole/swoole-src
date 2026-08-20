@@ -846,6 +846,139 @@ TEST(http_server, parser2) {
     t.join();
 }
 
+static std::string make_multipart_upload_body(const std::string &boundary,
+                                              const std::string &content,
+                                              const std::string &probe_file,
+                                              bool include_reserved_header) {
+    std::string body;
+    if (include_reserved_header) {
+        body.append("--").append(boundary).append("\r\n");
+        body.append("Content-Disposition: form-data; name=\"evil\"\r\n");
+        body.append("Swoole-Upload-File: ").append(probe_file).append("\r\n");
+        body.append("\r\nignored\r\n");
+    }
+    body.append("--").append(boundary).append("\r\n");
+    body.append("Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n");
+    body.append("Content-Type: text/plain\r\n\r\n");
+    body.append(content).append("\r\n--").append(boundary).append("--\r\n");
+    return body;
+}
+
+static std::string make_multipart_upload_request(const std::string &boundary, const std::string &body) {
+    std::string request;
+    request.append("POST /upload HTTP/1.1\r\n");
+    request.append("Host: 127.0.0.1\r\n");
+    request.append("Connection: close\r\n");
+    request.append("Content-Type: multipart/form-data; boundary=").append(boundary).append("\r\n");
+    request.append("Content-Length: ").append(std::to_string(body.length())).append("\r\n\r\n");
+    request.append(body);
+    return request;
+}
+
+static void check_reserved_header_upload(Context &ctx, const std::string &probe_file, const std::string &content) {
+    // The wrapper currently keeps quotes around multipart parameter values.
+    EXPECT_EQ(ctx.files.count("\"evil\""), 0);
+    auto iter = ctx.files.find("\"file\"");
+    if (iter == ctx.files.end()) {
+        ADD_FAILURE();
+        ctx.end(TEST_STR);
+        return;
+    }
+    EXPECT_NE(iter->second, probe_file);
+    auto file_content = file_get_contents(iter->second);
+    if (file_content) {
+        EXPECT_EQ(file_content->to_std_string(), content);
+    } else {
+        ADD_FAILURE();
+    }
+    EXPECT_TRUE(file_exists(probe_file));
+    ctx.end(TEST_STR);
+}
+
+TEST(http_server, upload_reserved_header) {
+    std::thread t;
+    std::string probe_file = std::string(TEST_TMP_FILE) + ".upload_marker." + std::to_string(getpid());
+    std::string upload_content = "direct upload body";
+    auto server = http_server::listen(":0", [&probe_file, &upload_content](Context &ctx) {
+        check_reserved_header_upload(ctx, probe_file, upload_content);
+    });
+    server->worker_num = 1;
+    server->onWorkerStart = [&t, &probe_file, &upload_content](Server *server, Worker *worker) {
+        t = std::thread([server, &probe_file, &upload_content]() {
+            swoole_signal_block_all();
+            if (!file_put_contents(probe_file, SW_STRL("probe"))) {
+                ADD_FAILURE();
+                kill(server->get_master_pid(), SIGTERM);
+                return;
+            }
+
+            std::string boundary = "------------------------d3f990cdce762596";
+            std::string body = make_multipart_upload_body(boundary, upload_content, probe_file, true);
+            std::string request = make_multipart_upload_request(boundary, body);
+            SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, server->get_primary_port()->port);
+            c.send(request.c_str(), request.length());
+            char buf[1024] = {};
+            auto n = c.recv(buf, sizeof(buf));
+            c.close();
+            std::string resp(buf, n);
+
+            EXPECT_TRUE(resp.find("200 OK") != resp.npos);
+            EXPECT_TRUE(file_exists(probe_file));
+            if (file_exists(probe_file)) {
+                unlink(probe_file.c_str());
+            }
+
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
+}
+
+TEST(http_server, upload_preprocessed_file) {
+    std::thread t;
+    std::string probe_file = std::string(TEST_TMP_FILE) + ".upload_marker." + std::to_string(getpid());
+    std::string upload_content(80 * 1024, 'A');
+    auto server = http_server::listen(":0", [&probe_file, &upload_content](Context &ctx) {
+        check_reserved_header_upload(ctx, probe_file, upload_content);
+    });
+    server->worker_num = 1;
+    server->get_primary_port()->set_package_max_length(64 * 1024);
+    server->upload_max_filesize = 1024 * 1024;
+    server->onWorkerStart = [&t, &probe_file, &upload_content](Server *server, Worker *worker) {
+        t = std::thread([server, &probe_file, &upload_content]() {
+            swoole_signal_block_all();
+            if (!file_put_contents(probe_file, SW_STRL("probe"))) {
+                ADD_FAILURE();
+                kill(server->get_master_pid(), SIGTERM);
+                return;
+            }
+
+            std::string boundary = "------------------------d3f990cdce762596";
+            std::string body = make_multipart_upload_body(boundary, upload_content, probe_file, false);
+            std::string request = make_multipart_upload_request(boundary, body);
+            SyncClient c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, server->get_primary_port()->port);
+            c.send(request.c_str(), request.length());
+            char buf[1024] = {};
+            auto n = c.recv(buf, sizeof(buf));
+            c.close();
+            std::string resp(buf, n);
+
+            EXPECT_TRUE(resp.find("200 OK") != resp.npos);
+            EXPECT_TRUE(file_exists(probe_file));
+            if (file_exists(probe_file)) {
+                unlink(probe_file.c_str());
+            }
+
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
+}
+
 TEST(http_server, upload) {
     std::thread t;
     auto server = http_server::listen(":0", [](Context &ctx) {
