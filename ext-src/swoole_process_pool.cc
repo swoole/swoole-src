@@ -385,7 +385,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
     }
 #endif
 
-    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "l|llb", &worker_num, &ipc_type, &msgq_key, &enable_coroutine) ==
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|llb", &worker_num, &ipc_type, &msgq_key, &enable_coroutine) ==
         FAILURE) {
         RETURN_FALSE;
     }
@@ -442,10 +442,10 @@ static PHP_METHOD(swoole_process_pool, set) {
     php_swoole_set_aio_option(vht);
 
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        pool->async = pp->enable_coroutine = zval_is_true(ztmp);
+        pool->async = pp->enable_coroutine = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "enable_message_bus", ztmp)) {
-        pp->enable_message_bus = zval_is_true(ztmp);
+        pp->enable_message_bus = zend_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "max_package_size", ztmp)) {
         zend_long v = php_swoole_parse_to_size(ztmp);
@@ -474,7 +474,7 @@ static PHP_METHOD(swoole_process_pool, on) {
         RETURN_FALSE;
     }
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
+    ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_STRING(name, l_name)
     Z_PARAM_ZVAL(zfn);
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -724,7 +724,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
     zval *zprocess = zend_hash_index_find(Z_ARRVAL_P(zworkers), worker_id);
     zval zobject;
 
-    if (zprocess == nullptr || ZVAL_IS_NULL(zprocess)) {
+    if (zprocess == nullptr || Z_ISNULL_P(zprocess)) {
         zprocess = &zobject;
         /**
          * Separation from shared memory

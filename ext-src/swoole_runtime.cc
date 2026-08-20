@@ -449,7 +449,7 @@ void php_swoole_runtime_rshutdown() {
             sw_callable_free(rf->fci_cache);
         }
         if (Z_TYPE(rf->name) == IS_STRING) {
-            zval_dtor(&rf->name);
+            zval_ptr_dtor_nogc(&rf->name);
         }
         if (rf->arg_info_copy) {
             free_arg_info(&rf->function->internal_function, rf->arg_info_copy);
@@ -774,7 +774,7 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
 
     if ((nullptr != PHP_STREAM_CONTEXT(stream)) &&
         (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "tcp_nodelay")) != nullptr &&
-        zval_is_true(tmpzval)) {
+        zend_is_true(tmpzval)) {
         tcp_nodelay = 1;
     }
 
@@ -925,7 +925,7 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, SocketImpl *sslso
     ZVAL_STRINGL(&argv[0], peer_cert.c_str(), peer_cert.length());
     auto retval = zend::function::call("openssl_x509_read", 1, argv);
     php_stream_context_set_option(PHP_STREAM_CONTEXT(stream), "ssl", "peer_certificate", &retval.value);
-    zval_dtor(&argv[0]);
+    zval_ptr_dtor_nogc(&argv[0]);
 
     if (nullptr !=
             (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", "capture_peer_cert_chain")) &&
@@ -941,7 +941,7 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, SocketImpl *sslso
                 auto _retval = zend::function::call("openssl_x509_read", 1, _argv);
                 zval_add_ref(&_retval.value);
                 add_next_index_zval(&arr, &_retval.value);
-                zval_dtor(&_argv[0]);
+                zval_ptr_dtor_nogc(&_argv[0]);
             }
         } else {
             ZVAL_NULL(&arr);
@@ -1010,21 +1010,21 @@ static inline int socket_xport_api(php_stream *stream, SocketImpl *sock, php_str
 
 #ifdef IPV6_V6ONLY
             if ((tmpzval = php_stream_context_get_option(ctx, "socket", "ipv6_v6only")) != nullptr &&
-                zval_is_true(tmpzval)) {
+                zend_is_true(tmpzval)) {
                 sock->get_socket()->set_option(IPPROTO_IPV6, IPV6_V6ONLY, 1);
             }
 #endif
 
 #ifdef SO_REUSEPORT
             if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_reuseport")) != nullptr &&
-                zval_is_true(tmpzval)) {
+                zend_is_true(tmpzval)) {
                 sock->get_socket()->set_reuse_port();
             }
 #endif
 
 #ifdef SO_BROADCAST
             if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_broadcast")) != nullptr &&
-                zval_is_true(tmpzval)) {
+                zend_is_true(tmpzval)) {
                 sock->set_option(SOL_SOCKET, SO_BROADCAST, 1);
             }
 #endif
@@ -1225,7 +1225,7 @@ static bool socket_ssl_set_options(SocketImpl *sock, php_stream_context *context
             add_alias("disable_compression", "ssl_disable_compression");
 
             bool ret = php_swoole_socket_set_ssl(sock, &zalias);
-            zval_dtor(&zalias);
+            zval_ptr_dtor_nogc(&zalias);
             return ret;
         }
     }

@@ -574,8 +574,8 @@ static sw_inline zend_string *sw_zend_string_recycle(zend_string *s, size_t allo
 //----------------------------------Array API------------------------------------
 
 #define php_swoole_array_length(zarray) zend_hash_num_elements(Z_ARRVAL_P(zarray))
-#define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str) - 1)) && !ZVAL_IS_NULL(v))
-#define php_swoole_array_get_value_ex(ht, str, v) ((v = zend_hash_str_find(ht, str, strlen(str))) && !ZVAL_IS_NULL(v))
+#define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str) - 1)) && !Z_ISNULL_P(v))
+#define php_swoole_array_get_value_ex(ht, str, v) ((v = zend_hash_str_find(ht, str, strlen(str))) && !Z_ISNULL_P(v))
 
 static sw_inline int php_swoole_array_length_safe(zval *zarray) {
     if (zarray && ZVAL_IS_ARRAY(zarray)) {
@@ -689,7 +689,7 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 #define SW_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std)                                   \
     SW_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj);                                                   \
-    module##_handlers.offset = XtOffsetOf(_struct, _std)
+    module##_handlers.offset = offsetof(_struct, _std)
 
 #define SW_PREVENT_USER_DESTRUCT()                                                                                     \
     do {                                                                                                               \

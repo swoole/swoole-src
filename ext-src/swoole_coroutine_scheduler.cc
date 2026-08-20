@@ -126,7 +126,7 @@ static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &even
 void php_swoole_coroutine_scheduler_rshutdown() {
     swoole_name_resolver_each([](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
         if (iter->type == NameResolver::TYPE_PHP) {
-            zval_dtor((zval *) iter->private_data);
+            zval_ptr_dtor_nogc((zval *) iter->private_data);
             efree(iter->private_data);
             return SW_TRAVERSE_REMOVE;
         } else {
@@ -148,13 +148,13 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
     if (php_swoole_array_get_value(vht, "enable_deadlock_check", ztmp)) {
-        PHPCoroutine::set_deadlock_check(zval_is_true(ztmp));
+        PHPCoroutine::set_deadlock_check(zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
         PHPCoroutine::set_hook_flags(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", ztmp)) {
-        PHPCoroutine::enable_preemptive_scheduler(zval_is_true(ztmp));
+        PHPCoroutine::enable_preemptive_scheduler(zend_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
         Coroutine::set_stack_size(php_swoole_parse_to_size(ztmp));

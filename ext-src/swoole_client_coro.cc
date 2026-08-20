@@ -214,7 +214,7 @@ static sw_inline SocketImpl *client_coro_get_socket_for_connect(zval *zobject, i
 static PHP_METHOD(swoole_client_coro, __construct) {
     zend_long type = 0;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_LONG(type)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -549,7 +549,7 @@ static PHP_METHOD(swoole_client_coro, getsockname) {
  */
 static PHP_METHOD(swoole_client_coro, exportSocket) {
     auto cli = client_coro_get_client(ZEND_THIS);
-    if (ZVAL_IS_NULL(&cli->zsocket)) {
+    if (Z_ISNULL_P(&cli->zsocket)) {
         RETURN_FALSE;
     }
     RETURN_ZVAL(&cli->zsocket, 1, 0);

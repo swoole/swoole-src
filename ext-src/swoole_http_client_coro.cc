@@ -802,20 +802,20 @@ bool Client::apply_setting(zval *zset, const bool check_all) {
             max_retries = (uint8_t) SW_MIN(v, UINT8_MAX);
         }
         if (php_swoole_array_get_value(vht, "defer", ztmp)) {
-            defer = zval_is_true(ztmp);
+            defer = zend_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "lowercase_header", ztmp)) {
             // TODO: Deprecate or remove this option in a future version and always normalize header keys to lowercase.
-            lowercase_header = zval_is_true(ztmp);
+            lowercase_header = zend_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp)) {
-            keep_alive = zval_is_true(ztmp);
+            keep_alive = zend_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "http_compression", ztmp)) {
-            http_compression = zval_is_true(ztmp);
+            http_compression = zend_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "body_decompression", ztmp)) {
-            body_decompression = zval_is_true(ztmp);
+            body_decompression = zend_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "write_func", ztmp)) {
             auto cb = sw_callable_create(ztmp);
@@ -1069,7 +1069,7 @@ bool Client::send_request() {
 
     if (ZVAL_IS_ARRAY(zheaders)) {
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheaders), key, keylen, keytype, zvalue) {
-            if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || ZVAL_IS_NULL(zvalue))) {
+            if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || Z_ISNULL_P(zvalue))) {
                 continue;
             }
             if (SW_STRCASEEQ(key, keylen, "Host")) {
@@ -1201,7 +1201,7 @@ bool Client::send_request() {
         // calculate length before encode array
         if (zbody && ZVAL_IS_ARRAY(zbody)) {
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, zvalue)
-            if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || ZVAL_IS_NULL(zvalue))) {
+            if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || Z_ISNULL_P(zvalue))) {
                 continue;
             }
             zend::String str_value(zvalue);
@@ -1258,7 +1258,7 @@ bool Client::send_request() {
         // ============ form-data body ============
         if (zbody && ZVAL_IS_ARRAY(zbody)) {
             SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zbody), key, keylen, keytype, zvalue) {
-                if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || ZVAL_IS_NULL(zvalue))) {
+                if (UNEXPECTED(HASH_KEY_IS_STRING != keytype || Z_ISNULL_P(zvalue))) {
                     continue;
                 }
                 zend::String str_value(zvalue);
@@ -1599,7 +1599,7 @@ void Client::recv_websocket_frame(zval *return_value, double timeout) {
         }
         return;
     }
-    if (sw_unlikely(ZVAL_IS_NULL(return_value))) {
+    if (sw_unlikely(Z_ISNULL_P(return_value))) {
         ZVAL_FALSE(return_value);
     }
 }
@@ -1843,7 +1843,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
     zend_long port = 0;
     zend_bool ssl = false;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_STRING(host, host_len)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(port)

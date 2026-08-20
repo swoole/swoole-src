@@ -500,7 +500,7 @@ static int pdo_firebird_stmt_get_col(
 					break;
 				case SQL_DOUBLE:
 					break;
-				EMPTY_SWITCH_DEFAULT_CASE()
+				default: ZEND_UNREACHABLE();
 			}
 
 			if ((var->sqltype & ~1) == SQL_DOUBLE) {

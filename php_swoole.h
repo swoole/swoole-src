@@ -39,23 +39,8 @@ extern "C" {
 #include "config.h"
 #endif
 
-/* PHP 8.6 removed several long-standing Zend API aliases; keep compatibility shims. */
+/* PHP 8.6-only replacements (APIs introduced when the old macros were removed). */
 #if PHP_VERSION_ID >= 80600
-#ifndef ZVAL_IS_NULL
-#define ZVAL_IS_NULL(z) Z_ISNULL_P(z)
-#endif
-#ifndef zval_dtor
-#define zval_dtor(z) zval_ptr_dtor_nogc(z)
-#endif
-#ifndef zval_is_true
-#define zval_is_true(z) zend_is_true(z)
-#endif
-#ifndef ZEND_PARSE_PARAMS_THROW
-#define ZEND_PARSE_PARAMS_THROW 0
-#endif
-#ifndef XtOffsetOf
-#define XtOffsetOf(s_type, field) offsetof(s_type, field)
-#endif
 #ifndef INI_STR
 #define INI_STR(name) ((char *) zend_ini_string_literal(name))
 #endif
@@ -67,20 +52,6 @@ extern "C" {
 #endif
 #ifndef INI_FLT
 #define INI_FLT(name) zend_ini_double_literal(name)
-#endif
-#ifndef EMPTY_SWITCH_DEFAULT_CASE
-#define EMPTY_SWITCH_DEFAULT_CASE()                                                                                    \
-    default:                                                                                                           \
-        ZEND_UNREACHABLE();
-#endif
-#define zend_parse_parameters_throw zend_parse_parameters
-#define zend_parse_parameters_none_throw zend_parse_parameters_none
-/* php_error_docref1/2 were removed; args are shown via error_include_args INI. */
-#ifndef php_error_docref1
-#define php_error_docref1(docref, arg1, type, ...) php_error_docref((docref), (type), __VA_ARGS__)
-#endif
-#ifndef php_error_docref2
-#define php_error_docref2(docref, arg1, arg2, type, ...) php_error_docref((docref), (type), __VA_ARGS__)
 #endif
 /* Renamed in PHP 8.6 (main/php_odbc_utils.h). */
 #ifndef php_odbc_connstr_estimate_quote_length

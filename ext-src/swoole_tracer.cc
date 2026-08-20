@@ -610,7 +610,7 @@ PHP_FUNCTION(swoole_tracer_leak_detect) {
     }
 
     zend_long threshold = 64;
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(threshold)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -664,7 +664,7 @@ PHP_FUNCTION(swoole_tracer_prof_begin) {
 
     zval *options = NULL; /* optional array arg: for future use */
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_ARRAY(options)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -692,7 +692,7 @@ PHP_FUNCTION(swoole_tracer_prof_end) {
     }
 
     zend_string *file;
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_STR(file)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 

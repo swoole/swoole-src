@@ -124,7 +124,7 @@ Variable call(const std::string &func_name, int argc, zval *argv) {
     if (call_user_function(EG(function_table), nullptr, &function_name, &retval.value, argc, argv) != SUCCESS) {
         ZVAL_NULL(&retval.value);
     }
-    zval_dtor(&function_name);
+    zval_ptr_dtor_nogc(&function_name);
     /* we have no chance to return to ZendVM to check the exception  */
     if (UNEXPECTED(EG(exception))) {
         zend_exception_error(EG(exception), E_ERROR);
@@ -136,7 +136,7 @@ Variable call(const std::string &func_name, int argc, zval *argv) {
 
 Callable::Callable(zval *_zfn) {
     ZVAL_UNDEF(&zfn);
-    if (!zval_is_true(_zfn)) {
+    if (!zend_is_true(_zfn)) {
         php_swoole_fatal_error(E_WARNING, "illegal callback function");
         return;
     }

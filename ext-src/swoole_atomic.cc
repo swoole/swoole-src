@@ -161,7 +161,7 @@ PHP_METHOD(swoole_atomic, __construct) {
     sw_atomic_t *atomic = atomic_get_ptr(ZEND_THIS);
     zend_long value = 0;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);

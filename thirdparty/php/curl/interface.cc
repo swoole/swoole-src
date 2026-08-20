@@ -248,7 +248,7 @@ void swoole_native_curl_minit(int module_number) {
     swoole_coroutine_curl_handle_ce->default_object_handlers = &swoole_coroutine_curl_handle_handlers;
 #endif
     memcpy(&swoole_coroutine_curl_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-    swoole_coroutine_curl_handle_handlers.offset = XtOffsetOf(php_curl, std);
+    swoole_coroutine_curl_handle_handlers.offset = offsetof(php_curl, std);
     swoole_coroutine_curl_handle_handlers.free_obj = swoole_curl_free_obj;
     swoole_coroutine_curl_handle_handlers.get_gc = swoole_curl_get_gc;
     swoole_coroutine_curl_handle_handlers.get_constructor = swoole_curl_get_constructor;

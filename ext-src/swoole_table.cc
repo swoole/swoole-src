@@ -296,7 +296,7 @@ PHP_METHOD(swoole_table, __construct) {
     zend_long table_size;
     double conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_LONG(table_size)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(conflict_proportion)
@@ -378,7 +378,7 @@ static PHP_METHOD(swoole_table, set) {
     char *key;
     size_t keylen;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
+    ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_STRING(key, keylen)
     Z_PARAM_ARRAY(array)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -411,7 +411,7 @@ static PHP_METHOD(swoole_table, add) {
     char *key;
     size_t keylen;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
+    ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_STRING(key, keylen)
     Z_PARAM_ARRAY(array)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -442,7 +442,7 @@ static PHP_METHOD(swoole_table, update) {
     char *key;
     size_t keylen;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
+    ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_STRING(key, keylen)
     Z_PARAM_ARRAY(array)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -469,7 +469,7 @@ static PHP_METHOD(swoole_table, cmpset) {
     char *key;
     size_t keylen;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 3, 3)
+    ZEND_PARSE_PARAMETERS_START(3, 3)
     Z_PARAM_STRING(key, keylen)
     Z_PARAM_ARRAY(expected_array)
     Z_PARAM_ARRAY(values_array)
@@ -665,7 +665,7 @@ static PHP_METHOD(swoole_table, get) {
     size_t keylen;
     zend_string *field = nullptr;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_STRING(key, keylen)
     Z_PARAM_OPTIONAL
     Z_PARAM_STR_OR_NULL(field)
@@ -700,7 +700,7 @@ static PHP_METHOD(swoole_table, getdel) {
     size_t keylen;
     zend_string *field = nullptr;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_STRING(key, keylen)
     Z_PARAM_OPTIONAL
     Z_PARAM_STR_OR_NULL(field)
@@ -750,7 +750,7 @@ static PHP_METHOD(swoole_table, del) {
     char *key;
     size_t keylen;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_STRING(key, keylen)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -766,7 +766,7 @@ static PHP_METHOD(swoole_table, cmpdel) {
     char *key;
     size_t keylen;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 2, 2)
+    ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_STRING(key, keylen)
     Z_PARAM_ARRAY(expected_array)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);

@@ -1254,7 +1254,7 @@ static int php_plain_files_unlink(php_stream_wrapper *wrapper,
     ret = unlink(url);
     if (ret == -1) {
         if (options & REPORT_ERRORS) {
-            php_error_docref1(NULL, url, E_WARNING, "%s", strerror(errno));
+            php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
         }
         return 0;
     }
@@ -1320,7 +1320,7 @@ static int php_plain_files_rename(
                      * access to the file in the meantime.
                      */
                     if (chown(url_to, sb.st_uid, sb.st_gid)) {
-                        php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+                        php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
                         if (errno != EPERM) {
                             success = 0;
                         }
@@ -1328,7 +1328,7 @@ static int php_plain_files_rename(
 
                     if (success) {
                         if (chmod(url_to, sb.st_mode)) {
-                            php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+                            php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
                             if (errno != EPERM) {
                                 success = 0;
                             }
@@ -1339,10 +1339,10 @@ static int php_plain_files_rename(
                         unlink(url_from);
                     }
                 } else {
-                    php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+                    php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
                 }
             } else {
-                php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+                php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
             }
 #if !defined(ZTS) && !defined(TSRM_WIN32)
             umask(oldmask);
@@ -1355,7 +1355,7 @@ static int php_plain_files_rename(
 #ifdef PHP_WIN32
         php_win32_docref2_from_error(GetLastError(), url_from, url_to);
 #else
-        php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+        php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
 #endif
         return 0;
     }
@@ -1471,13 +1471,13 @@ static int php_plain_files_rmdir(php_stream_wrapper *wrapper,
 
 #ifdef PHP_WIN32
     if (!php_win32_check_trailing_space(url, (int) strlen(url))) {
-        php_error_docref1(NULL, url, E_WARNING, "%s", strerror(ENOENT));
+        php_error_docref(NULL, E_WARNING, "%s", strerror(ENOENT));
         return 0;
     }
 #endif
 
     if (rmdir(url) < 0) {
-        php_error_docref1(NULL, url, E_WARNING, "%s", strerror(errno));
+        php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
         return 0;
     }
 
@@ -1499,7 +1499,7 @@ static int php_plain_files_metadata(
 
 #ifdef PHP_WIN32
     if (!php_win32_check_trailing_space(url, strlen(url))) {
-        php_error_docref1(NULL, url, E_WARNING, "%s", strerror(ENOENT));
+        php_error_docref(NULL, E_WARNING, "%s", strerror(ENOENT));
         return 0;
     }
 #endif
@@ -1518,7 +1518,7 @@ static int php_plain_files_metadata(
         if (access(url, F_OK) != 0) {
             int file = open(url, O_CREAT | O_WRONLY | O_TRUNC, 0666);
             if (file == -1) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to create file %s because %s", url, strerror(errno));
+                php_error_docref(NULL, E_WARNING, "Unable to create file %s because %s", url, strerror(errno));
                 return 0;
             }
             close(file);
@@ -1531,7 +1531,7 @@ static int php_plain_files_metadata(
     case PHP_STREAM_META_OWNER:
         if (option == PHP_STREAM_META_OWNER_NAME) {
             if (php_get_uid_by_name((char *) value, &uid) != SUCCESS) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to find uid for %s", (char *) value);
+                php_error_docref(NULL, E_WARNING, "Unable to find uid for %s", (char *) value);
                 return 0;
             }
         } else {
@@ -1543,7 +1543,7 @@ static int php_plain_files_metadata(
     case PHP_STREAM_META_GROUP_NAME:
         if (option == PHP_STREAM_META_GROUP_NAME) {
             if (php_get_gid_by_name((char *) value, &gid) != SUCCESS) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to find gid for %s", (char *) value);
+                php_error_docref(NULL, E_WARNING, "Unable to find gid for %s", (char *) value);
                 return 0;
             }
         } else {
@@ -1561,7 +1561,7 @@ static int php_plain_files_metadata(
         return 0;
     }
     if (ret == -1) {
-        php_error_docref1(NULL, url, E_WARNING, "Operation failed: %s", strerror(errno));
+        php_error_docref(NULL, E_WARNING, "Operation failed: %s", strerror(errno));
         return 0;
     }
     php_clear_stat_cache(0, NULL, 0);

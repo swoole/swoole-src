@@ -306,7 +306,7 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // server: tcp_nodelay
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp)) {
-        port->open_tcp_nodelay = zval_is_true(ztmp);
+        port->open_tcp_nodelay = zend_is_true(ztmp);
     } else {
         port->open_tcp_nodelay = true;
     }
@@ -317,15 +317,15 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // tcp_keepalive
     if (php_swoole_array_get_value(vht, "open_tcp_keepalive", ztmp)) {
-        port->open_tcp_keepalive = zval_is_true(ztmp);
+        port->open_tcp_keepalive = zend_is_true(ztmp);
     }
     // buffer: eof check
     if (php_swoole_array_get_value(vht, "open_eof_check", ztmp)) {
-        port->open_eof_check = zval_is_true(ztmp);
+        port->open_eof_check = zend_is_true(ztmp);
     }
     // buffer: split package with eof
     if (php_swoole_array_get_value(vht, "open_eof_split", ztmp)) {
-        port->protocol.split_by_eof = zval_is_true(ztmp);
+        port->protocol.split_by_eof = zend_is_true(ztmp);
         if (port->protocol.split_by_eof) {
             port->open_eof_check = true;
         }
@@ -345,11 +345,11 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // http_protocol
     if (php_swoole_array_get_value(vht, "open_http_protocol", ztmp)) {
-        port->open_http_protocol = zval_is_true(ztmp);
+        port->open_http_protocol = zend_is_true(ztmp);
     }
     // websocket protocol
     if (php_swoole_array_get_value(vht, "open_websocket_protocol", ztmp)) {
-        port->open_websocket_protocol = zval_is_true(ztmp);
+        port->open_websocket_protocol = zend_is_true(ztmp);
         if (port->open_websocket_protocol) {
             port->open_http_protocol = true;
         }
@@ -358,14 +358,14 @@ static PHP_METHOD(swoole_server_port, set) {
     php_swoole_server_set_websocket_option(port, vht);
     // http2 protocol
     if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {
-        port->open_http2_protocol = zval_is_true(ztmp);
+        port->open_http2_protocol = zend_is_true(ztmp);
         if (port->open_http2_protocol) {
             port->open_http_protocol = true;
         }
     }
     // buffer: mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp)) {
-        port->open_mqtt_protocol = zval_is_true(ztmp);
+        port->open_mqtt_protocol = zend_is_true(ztmp);
     }
     // redis protocol
     if (php_swoole_array_get_value(vht, "open_redis_protocol", ztmp)) {
@@ -397,11 +397,11 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // tcp_fastopen
     if (php_swoole_array_get_value(vht, "tcp_fastopen", ztmp)) {
-        port->tcp_fastopen = zval_is_true(ztmp);
+        port->tcp_fastopen = zend_is_true(ztmp);
     }
     // open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp)) {
-        port->open_length_check = zval_is_true(ztmp);
+        port->open_length_check = zend_is_true(ztmp);
     }
     // package length size
     if (php_swoole_array_get_value(vht, "package_length_type", ztmp)) {
@@ -458,16 +458,16 @@ static PHP_METHOD(swoole_server_port, set) {
             RETURN_FALSE;
         }
         if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
-            port->set_ssl_disable_compress(!zval_is_true(ztmp));
+            port->set_ssl_disable_compress(!zend_is_true(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
             port->set_ssl_protocols(zval_get_long(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
-            port->set_ssl_verify_peer(zval_is_true(ztmp));
+            port->set_ssl_verify_peer(zend_is_true(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
-            port->set_ssl_allow_self_signed(zval_is_true(ztmp));
+            port->set_ssl_allow_self_signed(zend_is_true(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", ztmp)) {
             zend::String str_v(ztmp);
@@ -489,7 +489,7 @@ static PHP_METHOD(swoole_server_port, set) {
             port->set_ssl_verify_depth(SW_MAX(0, SW_MIN(v, UINT8_MAX)));
         }
         if (php_swoole_array_get_value(vht, "ssl_prefer_server_ciphers", ztmp)) {
-            port->set_ssl_prefer_server_ciphers(zval_is_true(ztmp));
+            port->set_ssl_prefer_server_ciphers(zend_is_true(ztmp));
         }
         if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
             port->set_ssl_ciphers(zend::String(ztmp).to_std_string());
@@ -630,7 +630,7 @@ static PHP_METHOD(swoole_server_port, getCallback) {
                                                 property_name.length(),
                                                 true,
                                                 &rv);
-        if (!ZVAL_IS_NULL(property)) {
+        if (!Z_ISNULL_P(property)) {
             RETURN_ZVAL(property, 1, 0);
         }
     }
