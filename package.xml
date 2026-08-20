@@ -2917,6 +2917,24 @@
             <file role="src" name="thirdparty/php85/pdo_pgsql/pgsql_statement.c" />
             <file role="src" name="thirdparty/php85/pdo_pgsql/php_pdo_pgsql.h" />
             <file role="src" name="thirdparty/php85/pdo_pgsql/php_pdo_pgsql_int.h" />
+            <file role="doc" name="thirdparty/php86/pdo_firebird/CREDITS" />
+            <file role="src" name="thirdparty/php86/pdo_firebird/firebird_driver.c" />
+            <file role="src" name="thirdparty/php86/pdo_firebird/firebird_statement.c" />
+            <file role="src" name="thirdparty/php86/pdo_firebird/pdo_firebird_utils.cpp" />
+            <file role="src" name="thirdparty/php86/pdo_firebird/pdo_firebird_utils.h" />
+            <file role="src" name="thirdparty/php86/pdo_firebird/php_pdo_firebird.h" />
+            <file role="src" name="thirdparty/php86/pdo_firebird/php_pdo_firebird_int.h" />
+            <file role="src" name="thirdparty/php86/pdo_odbc/odbc_driver.c" />
+            <file role="src" name="thirdparty/php86/pdo_odbc/odbc_stmt.c" />
+            <file role="src" name="thirdparty/php86/pdo_odbc/php_pdo_odbc.h" />
+            <file role="src" name="thirdparty/php86/pdo_odbc/php_pdo_odbc_int.h" />
+            <file role="src" name="thirdparty/php86/pdo_pgsql/pdo_pgsql_arginfo.h" />
+            <file role="src" name="thirdparty/php86/pdo_pgsql/pgsql_driver.c" />
+            <file role="src" name="thirdparty/php86/pdo_pgsql/pgsql_driver_arginfo.h" />
+            <file role="src" name="thirdparty/php86/pdo_pgsql/pgsql_sql_parser.c" />
+            <file role="src" name="thirdparty/php86/pdo_pgsql/pgsql_statement.c" />
+            <file role="src" name="thirdparty/php86/pdo_pgsql/php_pdo_pgsql.h" />
+            <file role="src" name="thirdparty/php86/pdo_pgsql/php_pdo_pgsql_int.h" />
             <file role="src" name="tools/analysis.php" />
             <file role="src" name="tools/arginfo-check.php" />
             <file role="src" name="tools/bootstrap.php" />
@@ -2943,7 +2961,7 @@
         <required>
             <php>
                 <min>8.2.0</min>
-                <max>8.5.99</max>
+                <max>8.6.99</max>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>
