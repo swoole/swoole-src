@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   windows-tests:
-    name: Unit Test on Windows (PHP ${{ matrix.php-version }})
+    name: Unit Test on Windows
     runs-on: windows-2022
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[win-unit]')"
     strategy:
@@ -11,13 +11,6 @@ jobs:
       matrix:
         os: [ 'windows-2022' ]
         ts: [ 'ts' ]
-        php-version: [ '8.4' ]
-        include:
-          - os: 'windows-2022'
-            ts: 'ts'
-            php-version: '8.6'
-            experimental: true
-    continue-on-error: ${{ matrix.php-version == '8.6' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -33,7 +26,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-version }}
+          php-version: '8.4'
           coverage: none
           extensions: curl,openssl,pdo,sockets
         env:
@@ -46,18 +39,16 @@ jobs:
           path: |
             C:\tools\phpdev\deps
             C:\tools\phpdev\php-*-devel-*-*
-          key: php${{ matrix.php-version }}-${{ runner.os }}-${{ matrix.ts }}-v3
+          key: php84-${{ runner.os }}-${{ matrix.ts }}-v3
           restore-keys: |
-            php${{ matrix.php-version }}-${{ runner.os }}-${{ matrix.ts }}-
-            php${{ matrix.php-version }}-${{ runner.os }}-
+            php84-${{ runner.os }}-${{ matrix.ts }}-
+            php84-${{ runner.os }}-
 
       - name: Build Swoole extension
         uses: ./.github/workflows/winext
         with:
           ext-path: .
           tools-path: C:\tools\phpdev
-          phpver: ${{ matrix.php-version }}
-          phpts: '1'
           conf-args: --enable-swoole-curl --enable-swoole-thread
           staging-deps: '1'
           deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,brotli

@@ -82,11 +82,11 @@ runs:
           $PhpVer = "${{ inputs.phpver }}"
         }
         $master = $PhpVer
-        if ($PhpVer.Equals("8.5") -Or $PhpVer.Equals("8.6")) {
+        if ($PhpVer.Equals("8.5")) {
           # using master
           $master = "master"
         }
-        if ($PhpVer.Equals("8.6") -Or $PhpVer.Equals("8.5") -Or $PhpVer.Equals("8.4")) {
+        if ($PhpVer.Equals("8.5") -Or $PhpVer.Equals("8.4")) {
           $PhpVCVer = "vs17"
         } elseif ($PhpVer.Equals("8.3") -Or $PhpVer.Equals("8.2") -Or $PhpVer.Equals("8.1") -Or $PhpVer.Equals("8.0")) {
           $PhpVCVer = "vs16"

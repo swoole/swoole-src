@@ -1374,7 +1374,12 @@ EOF
     fi
 
     SW_PHP_VERSION_ID=`echo "${SW_PHP_VERSION}" | $AWK 'BEGIN { FS = "."; } { printf "%d", ([$]1 * 10 + [$]2); }'`
-    SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
+    dnl Prefer an exact thirdparty/phpXY tree; fall back to the newest available for newer PHP.
+    if test "$SW_PHP_VERSION_ID" -ge "85"; then
+        SW_PHP_THIRDPARTY_DIR="thirdparty/php85"
+    else
+        SW_PHP_THIRDPARTY_DIR="thirdparty/php${SW_PHP_VERSION_ID}"
+    fi
 
     AC_MSG_NOTICE([php version: $SW_PHP_VERSION, version_id: $SW_PHP_VERSION_ID, thirdparty_dir: $SW_PHP_THIRDPARTY_DIR])
 
@@ -1423,12 +1428,7 @@ EOF
     fi
 
     if test "$PHP_SWOOLE_FIREBIRD" != "no"; then
-        if test "$SW_PHP_VERSION_ID" -ge "86"; then
-            swoole_source_file="$swoole_source_file \
-                thirdparty/php86/pdo_firebird/firebird_driver.c \
-                thirdparty/php86/pdo_firebird/firebird_statement.c \
-                thirdparty/php86/pdo_firebird/pdo_firebird_utils.cpp"
-        elif test "$SW_PHP_VERSION_ID" -ge "85"; then
+        if test "$SW_PHP_VERSION_ID" -ge "85"; then
             swoole_source_file="$swoole_source_file \
                 thirdparty/php85/pdo_firebird/firebird_driver.c \
                 thirdparty/php85/pdo_firebird/firebird_statement.c \
@@ -1615,7 +1615,6 @@ EOF
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/curl)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php84/pdo_firebird)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php85/pdo_firebird)
-    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php86/pdo_firebird)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/llhttp)
 
     if test "$PHP_NGHTTP2_DIR" = "no"; then

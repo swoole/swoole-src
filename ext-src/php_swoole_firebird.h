@@ -28,10 +28,8 @@ BEGIN_EXTERN_C()
 
 #if PHP_VERSION_ID < 80500
 #include "thirdparty/php84/pdo_firebird/php_pdo_firebird_int.h"
-#elif PHP_VERSION_ID >= 80500 && PHP_VERSION_ID < 80600
-#include "thirdparty/php85/pdo_firebird/php_pdo_firebird_int.h"
 #else
-#include "thirdparty/php86/pdo_firebird/php_pdo_firebird_int.h"
+#include "thirdparty/php85/pdo_firebird/php_pdo_firebird_int.h"
 #endif
 
 extern const pdo_driver_t swoole_pdo_firebird_driver;
