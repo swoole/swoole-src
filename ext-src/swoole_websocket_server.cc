@@ -914,24 +914,35 @@ static PHP_METHOD(swoole_websocket_server, unpack) {
     }
 
     uint8_t flags = frame.get_flags();
-
-    // The payload is masked after it is compressed, and the input string may be interned,
-    // so unmask a copy before decompressing it.
-    zval zpayload;
-    ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
-    if (frame.header.MASK && frame.payload_length > 0) {
-        WebSocket::mask(Z_STRVAL(zpayload), frame.payload_length, frame.mask_key);
-    }
+    zval zpayload{};
 
     if (frame.compressed()) {
-        zval zuncompressed;
-        bool rs = FrameObject::uncompress(&zuncompressed, Z_STRVAL(zpayload), Z_STRLEN(zpayload));
-        zval_ptr_dtor(&zpayload);
-        if (sw_unlikely(!rs)) {
+        const char *payload = frame.payload;
+        zval zmasked_payload;
+        bool masked = frame.header.MASK && frame.payload_length > 0;
+
+        if (masked) {
+            // The payload is masked after compression, and mask() modifies its buffer in place,
+            // so unmask a copy rather than the caller's string.
+            ZVAL_STRINGL(&zmasked_payload, frame.payload, frame.payload_length);
+            WebSocket::mask(Z_STRVAL(zmasked_payload), frame.payload_length, frame.mask_key);
+            payload = Z_STRVAL(zmasked_payload);
+        }
+
+        bool result = FrameObject::uncompress(&zpayload, payload, frame.payload_length);
+        if (masked) {
+            zval_ptr_dtor(&zmasked_payload);
+        }
+
+        if (sw_unlikely(!result)) {
             swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
             RETURN_FALSE;
         }
-        zpayload = zuncompressed;
+    } else {
+        ZVAL_STRINGL(&zpayload, frame.payload, frame.payload_length);
+        if (frame.header.MASK && frame.payload_length > 0) {
+            WebSocket::mask(Z_STRVAL(zpayload), frame.payload_length, frame.mask_key);
+        }
     }
 
     WebSocket::construct_frame(return_value, frame.header.OPCODE, &zpayload, flags);
