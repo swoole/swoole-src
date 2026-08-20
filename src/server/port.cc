@@ -567,6 +567,7 @@ _parse:
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
                 request->init_multipart_parser(serv);
+                request->upload_preprocessed = 1;
 
                 buffer = request->buffer_;
             } else {
@@ -712,6 +713,7 @@ _parse:
     buffer->offset = request_length;
     dispatch_data.data = buffer->str;
     dispatch_data.info.len = buffer->length;
+    dispatch_data.info.ext_flags = request->upload_preprocessed ? http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED : 0;
 
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
         goto _close_fd;
