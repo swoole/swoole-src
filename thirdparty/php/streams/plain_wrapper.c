@@ -1080,7 +1080,12 @@ static php_stream *_sw_php_stream_fopen(const char *filename,
     char *persistent_id = NULL;
 
     if (FAILURE == sw_php_stream_parse_fopen_modes(mode, &open_flags)) {
+#if PHP_VERSION_ID >= 80600
+        php_stream_wrapper_log_warn(&php_plain_files_wrapper, NULL, options, InvalidMode,
+                                    "`%s' is not a valid mode for fopen", mode);
+#else
         php_stream_wrapper_log_error(&php_plain_files_wrapper, options, "`%s' is not a valid mode for fopen", mode);
+#endif
         return NULL;
     }
 

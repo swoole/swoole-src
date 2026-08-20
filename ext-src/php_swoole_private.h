@@ -117,8 +117,8 @@ BEGIN_EXTERN_C()
 
 #if PHP_VERSION_ID < 80200
 #error "require PHP version 8.2 or later"
-#elif PHP_VERSION_ID >= 80600
-#error "require PHP version 8.5 or earlier"
+#elif PHP_VERSION_ID >= 80700
+#error "require PHP version 8.6 or earlier"
 #endif
 
 #if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)

@@ -962,8 +962,14 @@ static zend_class_entry *swoole_coroutine_autoload(zend_string *name, zend_strin
         return original_zend_autoload(name, lc_name);
     }
 
+    #if PHP_VERSION_ID >= 80600
+    /* PHP 8.6 renamed EG(in_autoload) to an embedded HashTable. */
+    zend_hash_del(&EG(autoload_current_classnames), lc_name);
+#else
     ZEND_ASSERT(EG(in_autoload) != nullptr);
     zend_hash_del(EG(in_autoload), lc_name);
+#endif
+
 
     if (UNEXPECTED(SWOOLE_G(in_autoload) == nullptr)) {
         ALLOC_HASHTABLE(SWOOLE_G(in_autoload));
