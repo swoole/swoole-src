@@ -226,7 +226,7 @@ bool Socket::socks5_handshake() {
     char recv_buf[512];
     ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
     while (true) {
-        const ssize_t n = recv(recv_buf, sizeof(recv_buf));
+        const ssize_t n = recv(recv_buf, ctx->get_recv_length());
         if (n > 0 && ctx->handshake(recv_buf, n, send_fn)) {
             if (ctx->state == SW_SOCKS5_STATE_READY) {
                 return true;
