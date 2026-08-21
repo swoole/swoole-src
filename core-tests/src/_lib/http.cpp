@@ -39,7 +39,9 @@ bool Client::Push(const char *data, size_t length, int opcode) {
             flags |= websocket::FLAG_MASK;
         }
 
-        websocket::encode(&buffer, data, length, opcode, flags);
+        if (!websocket::encode(&buffer, data, length, opcode, flags)) {
+            return false;
+        }
         if (strm.write(buffer.str, buffer.length) != (ssize_t) buffer.length) {
             return false;
         }
