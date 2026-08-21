@@ -102,6 +102,7 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
     if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
         return size;
     }
+    errno = EIO;
     return -1;
 #elif defined(HAVE_ARC4RANDOM)
     arc4random_buf(buffer, size);
@@ -151,8 +152,8 @@ size_t swoole_random_bytes(char *buf, size_t size) {
     while (read_bytes < size) {
         size_t amount_to_read = size - read_bytes;
         ssize_t n = getrandom(buf + read_bytes, amount_to_read, 0);
-        if (n == -1) {
-            if (errno == EINTR || errno == EAGAIN) {
+        if (n <= 0) {
+            if (n == -1 && (errno == EINTR || errno == EAGAIN)) {
                 continue;
             } else {
                 break;
