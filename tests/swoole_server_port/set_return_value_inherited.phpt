@@ -1,0 +1,34 @@
+--TEST--
+swoole_server_port: inherited settings are rejected before server startup
+--SKIPIF--
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_no_ssl();
+?>
+--FILE--
+<?php
+require __DIR__ . '/../include/bootstrap.php';
+
+use Swoole\Server;
+
+$server = new Server('127.0.0.1', 0, SWOOLE_BASE);
+$server->listen('127.0.0.1', 0, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+Assert::true($server->set([
+    'log_file' => '/dev/null',
+    'worker_num' => 1,
+    'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
+    'ssl_key_file' => SSL_FILE_DIR . '/server.key',
+    'ssl_sni_certs' => true,
+]));
+$server->on('Receive', function () {});
+$server->on('WorkerStart', function (Server $server) {
+    $server->shutdown();
+});
+$server->start();
+
+echo "UNEXPECTED\n";
+?>
+--EXPECTF--
+Warning: Swoole\Server\Port::set(): ssl_sni_certs requires an array mapping host names to cert paths in %s on line %d
+
+Fatal error: Swoole\Server::start(): failed to set the options of port[127.0.0.1:%d] in %s on line %d%A

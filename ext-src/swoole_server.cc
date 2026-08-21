@@ -943,7 +943,14 @@ void ServerObject::on_before_start() {
             sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         // use swoole_server->setting
         if (zport_setting == nullptr || ZVAL_IS_NULL(zport_setting)) {
-            sw_zend_call_method_with_1_params(zport, swoole_server_port_ce, nullptr, "set", nullptr, zsetting);
+            zval retval;
+            sw_zend_call_method_with_1_params(zport, swoole_server_port_ce, nullptr, "set", &retval, zsetting);
+            if (!Z_BVAL_P(&retval)) {
+                ListenPort *port = php_swoole_server_port_get_and_check_ptr(zport);
+                php_swoole_fatal_error(
+                    E_ERROR, "failed to set the options of port[%s:%d]", port->get_host(), port->get_port());
+                return;
+            }
         }
     }
 
@@ -2415,8 +2422,12 @@ static PHP_METHOD(swoole_server, set) {
         RETURN_FALSE;
     }
 
+    zval retval;
     sw_zend_call_method_with_1_params(
-        server_object->property->ports.at(0), swoole_server_port_ce, nullptr, "set", nullptr, zset);
+        server_object->property->ports.at(0), swoole_server_port_ce, nullptr, "set", &retval, zset);
+    if (!Z_BVAL_P(&retval)) {
+        RETURN_FALSE;
+    }
 
     zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
