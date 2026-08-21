@@ -1294,7 +1294,9 @@ ssize_t WebSocket::send_frame(const swoole::WebSocketSettings &settings,
     }
     auto wbuf = sock->get_write_buffer();
     wbuf->clear();
-    WebSocket::encode(wbuf, payload, payload_length, opcode, flags);
+    if (sw_unlikely(!WebSocket::encode(wbuf, payload, payload_length, opcode, flags))) {
+        return SW_ERR;
+    }
     return sock->send(wbuf->str, wbuf->length);
 }
 
