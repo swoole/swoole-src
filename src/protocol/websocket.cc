@@ -108,6 +108,14 @@ void mask(char *data, size_t len, const char *mask_key) {
 }
 
 bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uint8_t _flags) {
+    const bool masked = _flags & FLAG_MASK;
+    char mask_key[SW_WEBSOCKET_MASK_LEN];
+    // RFC 6455 section 5.3 requires a fresh, unpredictable key for every masked frame.
+    if (masked && swoole_random_bytes(mask_key, sizeof(mask_key)) != sizeof(mask_key)) {
+        swoole_sys_warning("failed to generate websocket masking key");
+        return false;
+    }
+
     int pos = 0;
     char frame_header[16];
     auto *header = (Header *) frame_header;
@@ -116,7 +124,7 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
     header->RSV1 = !!(_flags & FLAG_RSV1);
     header->RSV2 = 0;
     header->RSV3 = 0;
-    header->MASK = !!(_flags & FLAG_MASK);
+    header->MASK = masked;
     pos = 2;
 
     if (length < SW_WEBSOCKET_EXT16_LENGTH) {
@@ -136,8 +144,8 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
     /**
      * frame body
      */
-    if (header->MASK) {
-        buffer->append(SW_WEBSOCKET_MASK_DATA, SW_WEBSOCKET_MASK_LEN);
+    if (masked) {
+        buffer->append(mask_key, sizeof(mask_key));
         if (_flags & FLAG_ENCODE_HEADER_ONLY) {
             return false;
         }
@@ -145,7 +153,7 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
             size_t offset = buffer->length;
             // Warn: buffer may be extended, string pointer will change
             buffer->append(data, length);
-            mask(buffer->str + offset, length, SW_WEBSOCKET_MASK_DATA);
+            mask(buffer->str + offset, length, mask_key);
         }
     } else {
         if (length > 0 and !(_flags & FLAG_ENCODE_HEADER_ONLY)) {
