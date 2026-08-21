@@ -10,6 +10,8 @@
 #include "swoole_signal.h"
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <string>
+#include <vector>
 using namespace swoole;
 
 constexpr int magic_number = 99900011;
@@ -558,6 +560,112 @@ TEST(process_pool, listen) {
     sysv_signal(SIGTERM, SIG_DFL);
 
     t1.join();
+}
+
+TEST(process_pool, listen_rejects_truncated_stream_packet) {
+    ProcessPool pool{};
+    auto port = swoole::test::get_random_port();
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.listen("127.0.0.1", port, 128), SW_OK);
+
+    pool.set_max_packet_size(64);
+    pool.set_protocol(SW_PROTOCOL_STREAM);
+
+    std::vector<std::string> messages;
+    pool.ptr = &messages;
+    pool.onMessage = [](ProcessPool *pool, RecvData *msg) {
+        auto *messages = static_cast<std::vector<std::string> *>(pool->ptr);
+        messages->emplace_back(msg->data, msg->info.len);
+        if (messages->back() == "sentinel") {
+            pool->running = false;
+        }
+    };
+
+    network::SyncClient c1(SW_SOCK_TCP);
+    network::SyncClient c2(SW_SOCK_TCP);
+    network::SyncClient c3(SW_SOCK_TCP);
+    ASSERT_TRUE(c1.connect("127.0.0.1", port));
+    ASSERT_TRUE(c2.connect("127.0.0.1", port));
+    ASSERT_TRUE(c3.connect("127.0.0.1", port));
+
+    uint32_t packet_len = htonl(8);
+    ASSERT_EQ(c1.send((char *) &packet_len, sizeof(packet_len)), static_cast<ssize_t>(sizeof(packet_len)));
+    ASSERT_EQ(c1.send(SW_STRL("message1")), 8);
+    ASSERT_EQ(c2.send((char *) &packet_len, sizeof(packet_len)), static_cast<ssize_t>(sizeof(packet_len)));
+    ASSERT_EQ(c2.send(SW_STRL("xx")), 2);
+    ASSERT_EQ(c2.get_client()->shutdown(SHUT_WR), SW_OK);
+    ASSERT_EQ(c3.send((char *) &packet_len, sizeof(packet_len)), static_cast<ssize_t>(sizeof(packet_len)));
+    ASSERT_EQ(c3.send(SW_STRL("sentinel")), 8);
+
+    auto *worker = pool.get_worker(0);
+    worker->init();
+    pool.running = true;
+    pool.main_loop(&pool, worker);
+    pool.destroy();
+
+    ASSERT_EQ(messages.size(), 2);
+    EXPECT_EQ(messages[0], "message1");
+    EXPECT_EQ(messages[1], "sentinel");
+}
+
+TEST(process_pool, listen_rejects_truncated_task_packet) {
+    ProcessPool pool{};
+    auto port = swoole::test::get_random_port();
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.listen("127.0.0.1", port, 128), SW_OK);
+    pool.set_protocol(SW_PROTOCOL_TASK);
+
+    std::vector<std::string> messages;
+    pool.ptr = &messages;
+    pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
+        auto *messages = static_cast<std::vector<std::string> *>(pool->ptr);
+        messages->emplace_back(task->data, task->info.len);
+        if (messages->back() == "sentinel") {
+            pool->running = false;
+        }
+        return SW_OK;
+    };
+
+    EventData event1{};
+    EventData event2{};
+    EventData event3{};
+    event1.info.len = 8;
+    event2.info.len = 8;
+    event3.info.len = 8;
+    memcpy(event1.data, SW_STRL("message1"));
+    memcpy(event2.data, SW_STRL("xx"));
+    memcpy(event3.data, SW_STRL("sentinel"));
+
+    network::SyncClient c1(SW_SOCK_TCP);
+    network::SyncClient c2(SW_SOCK_TCP);
+    network::SyncClient c3(SW_SOCK_TCP);
+    ASSERT_TRUE(c1.connect("127.0.0.1", port));
+    ASSERT_TRUE(c2.connect("127.0.0.1", port));
+    ASSERT_TRUE(c3.connect("127.0.0.1", port));
+
+    uint32_t packet_len = htonl(event1.size());
+    ASSERT_EQ(c1.send((char *) &packet_len, sizeof(packet_len)), static_cast<ssize_t>(sizeof(packet_len)));
+    ASSERT_EQ(c1.send(reinterpret_cast<char *>(&event1), event1.size()), event1.size());
+
+    packet_len = htonl(event2.size());
+    ASSERT_EQ(c2.send((char *) &packet_len, sizeof(packet_len)), static_cast<ssize_t>(sizeof(packet_len)));
+    ASSERT_EQ(c2.send(reinterpret_cast<char *>(&event2), sizeof(event2.info) + 2),
+              static_cast<ssize_t>(sizeof(event2.info) + 2));
+    ASSERT_EQ(c2.get_client()->shutdown(SHUT_WR), SW_OK);
+
+    packet_len = htonl(event3.size());
+    ASSERT_EQ(c3.send((char *) &packet_len, sizeof(packet_len)), static_cast<ssize_t>(sizeof(packet_len)));
+    ASSERT_EQ(c3.send(reinterpret_cast<char *>(&event3), event3.size()), event3.size());
+
+    auto *worker = pool.get_worker(0);
+    worker->init();
+    pool.running = true;
+    pool.main_loop(&pool, worker);
+    pool.destroy();
+
+    ASSERT_EQ(messages.size(), 2);
+    EXPECT_EQ(messages[0], "message1");
+    EXPECT_EQ(messages[1], "sentinel");
 }
 
 const char *test_sock = "/tmp/swoole_process_pool.sock";
