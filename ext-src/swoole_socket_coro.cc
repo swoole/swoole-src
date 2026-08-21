@@ -2023,7 +2023,7 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
         if (Z_TYPE_P(optval) != IS_ARRAY) {
             if (UNEXPECTED(Z_TYPE_P(optval) != IS_OBJECT)) {
                 zend_argument_type_error(optval_arg_index,
-                                         "must be of type array when argument $option is SO_LINGER, %s given",
+                                         "must be of type array|object when argument $opt_name is SO_LINGER, %s given",
                                          zend_zval_value_name(optval));
                 RETURN_THROWS();
             } else {
@@ -2052,7 +2052,7 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
         }
 
         if (val_linger < 0 || val_linger > USHRT_MAX) {
-            zend_argument_value_error(optval_arg_index, "\"%s\" must be between 0 and %d", l_linger, USHRT_MAX);
+            zend_argument_value_error(optval_arg_index, "\"%s\" must be between 0 and %u", l_linger_key, USHRT_MAX);
             RETURN_THROWS();
         }
 
@@ -2073,7 +2073,7 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
         if (Z_TYPE_P(optval) != IS_ARRAY) {
             if (UNEXPECTED(Z_TYPE_P(optval) != IS_OBJECT)) {
                 zend_argument_type_error(optval_arg_index,
-                                         "must be of type array when argument $option is %s, %s given",
+                                         "must be of type array|object when argument $opt_name is %s, %s given",
                                          optname == SO_RCVTIMEO ? "SO_RCVTIMEO" : "SO_SNDTIMEO",
                                          zend_zval_value_name(optval));
                 RETURN_THROWS();
@@ -2083,8 +2083,6 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
         } else {
             opt_ht = Z_ARRVAL_P(optval);
         }
-
-        opt_ht = Z_ARRVAL_P(optval);
 
         if ((sec = zend_hash_str_find(opt_ht, sec_key, sizeof(sec_key) - 1)) == nullptr) {
             php_error_docref(nullptr, E_WARNING, "no key \"%s\" passed in optval", sec_key);
