@@ -22,6 +22,30 @@
 
 using namespace swoole;
 
+TEST(websocket, encode_header_only) {
+    constexpr uint8_t payload_length = 5;
+
+    String unmasked(64);
+    ASSERT_TRUE(websocket::encode(&unmasked,
+                                  "hello",
+                                  payload_length,
+                                  websocket::OPCODE_TEXT,
+                                  websocket::FLAG_FIN | websocket::FLAG_ENCODE_HEADER_ONLY));
+    ASSERT_EQ(unmasked.length, SW_WEBSOCKET_HEADER_LEN);
+    ASSERT_FALSE(static_cast<uint8_t>(unmasked.str[1]) & 0x80);
+    ASSERT_EQ(static_cast<uint8_t>(unmasked.str[1]) & 0x7f, payload_length);
+
+    String masked(64);
+    ASSERT_TRUE(websocket::encode(&masked,
+                                  "hello",
+                                  payload_length,
+                                  websocket::OPCODE_TEXT,
+                                  websocket::FLAG_FIN | websocket::FLAG_MASK | websocket::FLAG_ENCODE_HEADER_ONLY));
+    ASSERT_EQ(masked.length, SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN);
+    ASSERT_TRUE(static_cast<uint8_t>(masked.str[1]) & 0x80);
+    ASSERT_EQ(static_cast<uint8_t>(masked.str[1]) & 0x7f, payload_length);
+}
+
 TEST(websocket, encode_uses_fresh_mask_key) {
     std::set<std::string> payload_keys;
     std::set<std::string> empty_keys;

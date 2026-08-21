@@ -147,7 +147,8 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
     if (masked) {
         buffer->append(mask_key, sizeof(mask_key));
         if (_flags & FLAG_ENCODE_HEADER_ONLY) {
-            return false;
+            // Header-only output keeps the mask key at the tail so the caller can mask the payload it writes itself.
+            return true;
         }
         if (length > 0) {
             size_t offset = buffer->length;
