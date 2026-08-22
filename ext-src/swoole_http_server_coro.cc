@@ -429,7 +429,13 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     /* check settings */
     zval *zsettings =
         sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
-    php_swoole_socket_set_protocol(hs->socket, zsettings);
+    if (!php_swoole_socket_set_protocol(hs->socket, zsettings)) {
+        zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
+        zend_update_property_string(
+            swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), swoole_strerror(EINVAL));
+        hs->running = false;
+        RETURN_FALSE;
+    }
     HashTable *vht = Z_ARRVAL_P(zsettings);
     zval *ztmp;
     // parse cookie header
@@ -522,7 +528,9 @@ static PHP_METHOD(swoole_http_server_coro, start) {
             } else {
                 http_server_coro_set_error(ZEND_THIS, sock);
                 php_swoole_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
-                break;
+                // Stop keep-alive connections after the listener can no longer accept.
+                hs->running = false;
+                RETURN_FALSE;
             }
         }
     }
