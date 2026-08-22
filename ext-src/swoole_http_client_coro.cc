@@ -197,7 +197,7 @@ class Client {
 #ifdef SW_HAVE_COMPRESSION
     bool decompress_response(const char *in, size_t in_len);
 #endif
-    void apply_setting(zval *zset, bool check_all = true);
+    bool apply_setting(zval *zset, bool check_all = true);
     void set_basic_auth(const std::string &username, const std::string &password);
     bool exec(const std::string &_path);
     bool recv_response(double timeout = 0);
@@ -740,9 +740,9 @@ bool Client::decompress_response(const char *in, size_t in_len) {
 }
 #endif
 
-void Client::apply_setting(zval *zset, const bool check_all) {
+bool Client::apply_setting(zval *zset, const bool check_all) {
     if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0) {
-        return;
+        return true;
     }
     if (check_all) {
         zval *ztmp;
@@ -778,8 +778,9 @@ void Client::apply_setting(zval *zset, const bool check_all) {
         }
         WebSocket::apply_setting(websocket_settings, vht, false);
     }
+    bool retval = true;
     if (socket) {
-        php_swoole_socket_set(socket, zset);
+        retval = php_swoole_socket_set(socket, zset);
 #ifdef SW_USE_OPENSSL
         if (socket->http_proxy && !socket->ssl_is_enable())
 #else
@@ -789,6 +790,7 @@ void Client::apply_setting(zval *zset, const bool check_all) {
             socket->http_proxy->dont_handshake = 1;
         }
     }
+    return retval;
 }
 
 void Client::set_basic_auth(const std::string &username, const std::string &password) {
@@ -833,6 +835,8 @@ bool Client::connect() {
     }
     ZVAL_OBJ(&zsocket, object);
     socket = php_swoole_get_socket(&zsocket);
+    // close() requires the destructor to clear socket and release zsocket on a settings failure.
+    socket->set_dtor([this](Socket *_socket) { socket_dtor(); });
 
 #ifdef SW_USE_OPENSSL
     if (ssl && !socket->enable_ssl_encrypt()) {
@@ -843,7 +847,12 @@ bool Client::connect() {
 #endif
 
     // apply settings
-    apply_setting(sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0), false);
+    if (!apply_setting(sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0),
+                       false)) {
+        set_error(SW_ERROR_INVALID_PARAMS, swoole_strerror(SW_ERROR_INVALID_PARAMS), HTTP_ESTATUS_CONNECT_FAILED);
+        close();
+        return false;
+    }
 
     // reset the properties that depend on the connection
     websocket = false;
@@ -854,7 +863,6 @@ bool Client::connect() {
     double _timeout = connect_timeout == 0 ? network::Socket::default_connect_timeout : connect_timeout;
     socket->set_timeout(_timeout, SW_TIMEOUT_CONNECT);
     socket->set_resolve_context(&resolve_context_);
-    socket->set_dtor([this](Socket *_socket) { socket_dtor(); });
     socket->set_buffer_allocator(sw_zend_string_allocator());
 
     if (!socket->connect(host, port)) {
@@ -1821,8 +1829,7 @@ static PHP_METHOD(swoole_http_client_coro, set) {
         zval *zsettings =
             sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
-        phc->apply_setting(zset);
-        RETURN_TRUE;
+        RETURN_BOOL(phc->apply_setting(zset));
     }
 }
 
