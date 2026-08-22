@@ -221,11 +221,7 @@ static ProfContext &tracer_get_ctx(long tid) {
 }
 
 static zend_string *tracer_format_number(long num) {
-#if PHP_VERSION_ID >= 80300
     return _php_math_number_format_long(num, 0, ".", 1, ",", 1);
-#else
-    return _php_math_number_format((double) num, 0, '.', ',');
-#endif
 }
 
 static std::string format_bytes(uint64_t size) {
