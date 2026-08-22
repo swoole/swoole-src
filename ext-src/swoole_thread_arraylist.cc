@@ -175,7 +175,7 @@ static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
     ZEND_PARSE_PARAMETERS_END();
 
     auto ao = arraylist_fetch_object_check(ZEND_THIS);
-    zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
+    zend_long index = Z_ISNULL_P(zkey) ? -1 : zval_get_long(zkey);
     if (!ao->list->index_offsetSet(index, zvalue)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }

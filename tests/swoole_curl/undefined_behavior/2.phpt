@@ -29,11 +29,6 @@ $pm = ProcessManager::exec(function ($pm) {
     });
 });
 $output = $pm->getChildOutput();
-if (PHP_VERSION_ID < 80000) {
-    $pm->expectExitCode(255);
-    Assert::contains($output, "curl_setopt(): supplied resource is not a valid Swoole-Coroutine-cURL-Handle resource");
-} else {
     $pm->expectExitCode(0);
-}
 ?>
 --EXPECT--

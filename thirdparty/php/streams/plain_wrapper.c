@@ -77,25 +77,21 @@ static int sw_php_win32_check_trailing_space(const char *path, const size_t path
 
 #define php_win32_check_trailing_space(path, path_len) sw_php_win32_check_trailing_space((path), (path_len))
 
-#if PHP_VERSION_ID >= 80100
 #ifndef fsync
 #define fsync _commit
 #endif
 #ifndef fdatasync
 #define fdatasync fsync
 #endif
-#endif
 
 #else
 #define PLAIN_WRAP_BUF_SIZE(st) (st)
 
-#if PHP_VERSION_ID >= 80100
 #if !defined(HAVE_FDATASYNC)
 #define fdatasync fsync
 #elif defined(__APPLE__)
 // The symbol is present, however not in the headers
 extern int fdatasync(int);
-#endif
 #endif
 
 #endif
@@ -110,11 +106,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
 static int sw_php_stdiop_cast(php_stream *stream, int castas, void **ret);
 static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result);
 static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, const char *persistent_id STREAMS_DC);
-#if PHP_VERSION_ID >= 80200
 static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id, bool zero_position STREAMS_DC);
-#else
-static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC);
-#endif
 static int sw_php_mkdir(const char *dir, zend_long mode);
 
 static int sw_php_stream_parse_fopen_modes(const char *mode, int *open_flags) {
@@ -262,15 +254,9 @@ static void _sw_detect_is_seekable(php_stdio_stream_data *self) {
         }
     }
 #elif defined(PHP_WIN32)
-#if PHP_VERSION_ID >= 80300
     uintptr_t handle = _get_osfhandle(self->fd);
 
     if (handle != (uintptr_t)INVALID_HANDLE_VALUE) {
-#else
-    zend_uintptr_t handle = _get_osfhandle(self->fd);
-
-    if (handle != (zend_uintptr_t)INVALID_HANDLE_VALUE) {
-#endif
         DWORD file_type = GetFileType((HANDLE)handle);
 
         self->is_seekable = !(file_type == FILE_TYPE_PIPE || file_type == FILE_TYPE_CHAR);
@@ -521,7 +507,6 @@ static int sw_php_stdiop_flush(php_stream *stream) {
     return 0;
 }
 
-#if PHP_VERSION_ID >= 80100
 static int php_stdiop_sync(php_stream *stream, bool dataonly)
 {
     php_stdio_stream_data *data = (php_stdio_stream_data*)stream->abstract;
@@ -542,7 +527,6 @@ static int php_stdiop_sync(php_stream *stream, bool dataonly)
     }
     return -1;
 }
-#endif
 
 static int sw_php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset) {
     php_stdio_stream_data *data = (php_stdio_stream_data *) stream->abstract;
@@ -698,15 +682,9 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
         if (fd == -1) {
             return -1;
         }
-#if PHP_VERSION_ID >= 80300
         if ((uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
             return 0;
         }
-#else
-        if ((zend_uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
-            return 0;
-        }
-#endif
 
         if (!swoole_coroutine_flock(fd, value)) {
             data->lock_flag = value;
@@ -891,7 +869,6 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
 #endif
         return PHP_STREAM_OPTION_RETURN_NOTIMPL;
 
-#if PHP_VERSION_ID >= 80100
     case PHP_STREAM_OPTION_SYNC_API:
         switch (value) {
         case PHP_STREAM_SYNC_SUPPORTED:
@@ -903,7 +880,6 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
         }
         /* Invalid option passed */
         return PHP_STREAM_OPTION_RETURN_ERR;
-#endif
 
     case PHP_STREAM_OPTION_TRUNCATE_API:
         switch (value) {
@@ -988,12 +964,10 @@ static php_stream_size_t php_plain_files_dirstream_read(php_stream *stream, char
     result = readdir(dir);
     if (result) {
         PHP_STRLCPY(ent->d_name, result->d_name, sizeof(ent->d_name), strlen(result->d_name));
-#if PHP_VERSION_ID >= 80300
 #ifdef _DIRENT_HAVE_D_TYPE
         ent->d_type = result->d_type;
 #else
         ent->d_type = DT_UNKNOWN;
-#endif
 #endif
         return sizeof(php_stream_dirent);
     }
@@ -1080,7 +1054,12 @@ static php_stream *_sw_php_stream_fopen(const char *filename,
     char *persistent_id = NULL;
 
     if (FAILURE == sw_php_stream_parse_fopen_modes(mode, &open_flags)) {
+#if PHP_VERSION_ID >= 80600
+        php_stream_wrapper_log_warn(&php_plain_files_wrapper, NULL, options, InvalidMode,
+                                    "`%s' is not a valid mode for fopen", mode);
+#else
         php_stream_wrapper_log_error(&php_plain_files_wrapper, options, "`%s' is not a valid mode for fopen", mode);
+#endif
         return NULL;
     }
 
@@ -1101,9 +1080,7 @@ static php_stream *_sw_php_stream_fopen(const char *filename,
                 *opened_path = zend_string_init(_realpath, strlen(_realpath), 0);
             }
             /* fall through */
-#if PHP_VERSION_ID >= 80100
             ZEND_FALLTHROUGH;
-#endif
 
         case PHP_STREAM_PERSISTENT_FAILURE:
             efree(persistent_id);
@@ -1204,9 +1181,7 @@ static php_stream *php_plain_files_stream_opener(php_stream_wrapper *wrapper,
 
 static int php_plain_files_url_stater(
     php_stream_wrapper *wrapper, const char *url, int flags, php_stream_statbuf *ssb, php_stream_context *context) {
-#if PHP_VERSION_ID >= 80100
     if (!(flags & PHP_STREAM_URL_STAT_IGNORE_OPEN_BASEDIR)) {
-#endif
         if (strncasecmp(url, "file://", sizeof("file://") - 1) == 0) {
             url += sizeof("file://") - 1;
         }
@@ -1214,9 +1189,7 @@ static int php_plain_files_url_stater(
         if (php_check_open_basedir_ex(url, (flags & PHP_STREAM_URL_STAT_QUIET) ? 0 : 1)) {
             return -1;
         }
-#if PHP_VERSION_ID >= 80100
     }
-#endif
 
 #ifdef PHP_WIN32
     if (flags & PHP_STREAM_URL_STAT_LINK) {
@@ -1249,7 +1222,7 @@ static int php_plain_files_unlink(php_stream_wrapper *wrapper,
     ret = unlink(url);
     if (ret == -1) {
         if (options & REPORT_ERRORS) {
-            php_error_docref1(NULL, url, E_WARNING, "%s", strerror(errno));
+            php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
         }
         return 0;
     }
@@ -1315,7 +1288,7 @@ static int php_plain_files_rename(
                      * access to the file in the meantime.
                      */
                     if (chown(url_to, sb.st_uid, sb.st_gid)) {
-                        php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+                        php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
                         if (errno != EPERM) {
                             success = 0;
                         }
@@ -1323,7 +1296,7 @@ static int php_plain_files_rename(
 
                     if (success) {
                         if (chmod(url_to, sb.st_mode)) {
-                            php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+                            php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
                             if (errno != EPERM) {
                                 success = 0;
                             }
@@ -1334,10 +1307,10 @@ static int php_plain_files_rename(
                         unlink(url_from);
                     }
                 } else {
-                    php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+                    php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
                 }
             } else {
-                php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+                php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
             }
 #if !defined(ZTS) && !defined(TSRM_WIN32)
             umask(oldmask);
@@ -1350,7 +1323,7 @@ static int php_plain_files_rename(
 #ifdef PHP_WIN32
         php_win32_docref2_from_error(GetLastError(), url_from, url_to);
 #else
-        php_error_docref2(NULL, url_from, url_to, E_WARNING, "%s", strerror(errno));
+        php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
 #endif
         return 0;
     }
@@ -1466,13 +1439,13 @@ static int php_plain_files_rmdir(php_stream_wrapper *wrapper,
 
 #ifdef PHP_WIN32
     if (!php_win32_check_trailing_space(url, (int) strlen(url))) {
-        php_error_docref1(NULL, url, E_WARNING, "%s", strerror(ENOENT));
+        php_error_docref(NULL, E_WARNING, "%s", strerror(ENOENT));
         return 0;
     }
 #endif
 
     if (rmdir(url) < 0) {
-        php_error_docref1(NULL, url, E_WARNING, "%s", strerror(errno));
+        php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
         return 0;
     }
 
@@ -1494,7 +1467,7 @@ static int php_plain_files_metadata(
 
 #ifdef PHP_WIN32
     if (!php_win32_check_trailing_space(url, strlen(url))) {
-        php_error_docref1(NULL, url, E_WARNING, "%s", strerror(ENOENT));
+        php_error_docref(NULL, E_WARNING, "%s", strerror(ENOENT));
         return 0;
     }
 #endif
@@ -1513,7 +1486,7 @@ static int php_plain_files_metadata(
         if (access(url, F_OK) != 0) {
             int file = open(url, O_CREAT | O_WRONLY | O_TRUNC, 0666);
             if (file == -1) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to create file %s because %s", url, strerror(errno));
+                php_error_docref(NULL, E_WARNING, "Unable to create file %s because %s", url, strerror(errno));
                 return 0;
             }
             close(file);
@@ -1526,7 +1499,7 @@ static int php_plain_files_metadata(
     case PHP_STREAM_META_OWNER:
         if (option == PHP_STREAM_META_OWNER_NAME) {
             if (php_get_uid_by_name((char *) value, &uid) != SUCCESS) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to find uid for %s", (char *) value);
+                php_error_docref(NULL, E_WARNING, "Unable to find uid for %s", (char *) value);
                 return 0;
             }
         } else {
@@ -1538,7 +1511,7 @@ static int php_plain_files_metadata(
     case PHP_STREAM_META_GROUP_NAME:
         if (option == PHP_STREAM_META_GROUP_NAME) {
             if (php_get_gid_by_name((char *) value, &gid) != SUCCESS) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to find gid for %s", (char *) value);
+                php_error_docref(NULL, E_WARNING, "Unable to find gid for %s", (char *) value);
                 return 0;
             }
         } else {
@@ -1556,7 +1529,7 @@ static int php_plain_files_metadata(
         return 0;
     }
     if (ret == -1) {
-        php_error_docref1(NULL, url, E_WARNING, "Operation failed: %s", strerror(errno));
+        php_error_docref(NULL, E_WARNING, "Operation failed: %s", strerror(errno));
         return 0;
     }
     php_clear_stat_cache(0, NULL, 0);

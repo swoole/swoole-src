@@ -24,11 +24,6 @@ $pm = ProcessManager::exec(function ($pm) {
     });
 });
 $output = $pm->getChildOutput();
-if (PHP_VERSION_ID < 80000) {
     $pm->expectExitCode(0);
-    Assert::contains($output, "curl_close(): supplied resource is not a valid cURL handle resource");
-} else {
-    $pm->expectExitCode(0);
-}
 ?>
 --EXPECT--

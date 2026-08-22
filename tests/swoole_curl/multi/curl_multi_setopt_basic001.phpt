@@ -31,10 +31,6 @@ $output = $pm->getChildOutput();
 
 Assert::contains($output, 'bool(true)');
 
-if (PHP_VERSION_ID < 80000) {
-    Assert::contains($output, 'Warning: curl_multi_setopt(): Invalid curl multi configuration option');
-} else {
     Assert::contains($output, 'curl_multi_setopt(): Argument #2 ($option) is not a valid cURL multi option');
-}
 ?>
 --EXPECT--

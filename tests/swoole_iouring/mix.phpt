@@ -45,10 +45,8 @@ run(function() use ($results) {
 
     $stream = fopen($fileName, 'w');
     fwrite($stream, $content);
-    if (PHP_VERSION_ID >= 80100) {
-        Assert::true(fdatasync($stream));
-        Assert::true(fsync($stream));
-    }
+    Assert::true(fdatasync($stream));
+    Assert::true(fsync($stream));
     Assert::eq(file_get_contents($fileName), $content);
     var_dump(fstat($stream));
     fclose($stream);

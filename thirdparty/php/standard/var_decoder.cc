@@ -46,12 +46,24 @@ static const char *php_json_get_error_msg(php_json_error_code error_code) /* {{{
 
 void json_decode(zval *return_value, const char *str, size_t str_len, zend_long options, zend_long depth) {
     if (!(options & PHP_JSON_THROW_ON_ERROR)) {
+#if PHP_VERSION_ID >= 80600
+        php_json_error_details_clear(&JSON_G(error_details));
+#else
         JSON_G(error_code) = PHP_JSON_ERROR_NONE;
+#endif
     }
 
     if (!str_len) {
         if (!(options & PHP_JSON_THROW_ON_ERROR)) {
+#if PHP_VERSION_ID >= 80600
+            JSON_G(error_details) = (php_json_error_details){
+                .code = PHP_JSON_ERROR_SYNTAX,
+                .line = 0,
+                .column = 0,
+            };
+#else
             JSON_G(error_code) = PHP_JSON_ERROR_SYNTAX;
+#endif
         } else {
             zend_throw_exception(
                 php_json_exception_ce, php_json_get_error_msg(PHP_JSON_ERROR_SYNTAX), PHP_JSON_ERROR_SYNTAX);

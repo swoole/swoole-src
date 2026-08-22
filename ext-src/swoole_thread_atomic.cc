@@ -213,7 +213,7 @@ PHP_METHOD(swoole_thread_atomic, __construct) {
     auto o = atomic_fetch_object(Z_OBJ_P(ZEND_THIS));
     zend_long value = 0;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);

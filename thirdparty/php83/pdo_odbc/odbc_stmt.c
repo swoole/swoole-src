@@ -17,7 +17,7 @@
 #define SW_USE_ODBC_HOOK
 #include "php_swoole_odbc.h"
 
-#if PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 80400
+#if PHP_VERSION_ID < 80400
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
@@ -776,7 +776,7 @@ static int odbc_stmt_set_param(pdo_stmt_t *stmt, zend_long attr, zval *val) {
         return 0;
 
     case PDO_ODBC_ATTR_ASSUME_UTF8:
-        S->assume_utf8 = zval_is_true(val);
+        S->assume_utf8 = zend_is_true(val);
         return 0;
     default:
         strcpy(S->einfo.last_err_msg, "Unknown Attribute");

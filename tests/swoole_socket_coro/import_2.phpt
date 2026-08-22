@@ -2,7 +2,6 @@
 swoole_socket_coro: import 2
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
-skip_if_php_version_lower_than('8.0');
 skip_if_extension_not_exist('sockets');
 ?>
 --FILE--

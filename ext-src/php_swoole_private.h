@@ -115,10 +115,10 @@ BEGIN_EXTERN_C()
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_VERSION_ID < 80200
-#error "require PHP version 8.2 or later"
-#elif PHP_VERSION_ID >= 80600
-#error "require PHP version 8.5 or earlier"
+#if PHP_VERSION_ID < 80300
+#error "require PHP version 8.3 or later"
+#elif PHP_VERSION_ID >= 80700
+#error "require PHP version 8.6 or earlier"
 #endif
 
 #if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)
@@ -574,8 +574,8 @@ static sw_inline zend_string *sw_zend_string_recycle(zend_string *s, size_t allo
 //----------------------------------Array API------------------------------------
 
 #define php_swoole_array_length(zarray) zend_hash_num_elements(Z_ARRVAL_P(zarray))
-#define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str) - 1)) && !ZVAL_IS_NULL(v))
-#define php_swoole_array_get_value_ex(ht, str, v) ((v = zend_hash_str_find(ht, str, strlen(str))) && !ZVAL_IS_NULL(v))
+#define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str) - 1)) && !Z_ISNULL_P(v))
+#define php_swoole_array_get_value_ex(ht, str, v) ((v = zend_hash_str_find(ht, str, strlen(str))) && !Z_ISNULL_P(v))
 
 static sw_inline int php_swoole_array_length_safe(zval *zarray) {
     if (zarray && ZVAL_IS_ARRAY(zarray)) {
@@ -689,7 +689,7 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 #define SW_SET_CLASS_CUSTOM_OBJECT(module, _create_object, _free_obj, _struct, _std)                                   \
     SW_SET_CLASS_CREATE_AND_FREE(module, _create_object, _free_obj);                                                   \
-    module##_handlers.offset = XtOffsetOf(_struct, _std)
+    module##_handlers.offset = offsetof(_struct, _std)
 
 #define SW_PREVENT_USER_DESTRUCT()                                                                                     \
     do {                                                                                                               \
@@ -1030,12 +1030,7 @@ static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len
 
 static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, smart_str *formstr) {
     if (HASH_OF(zdata)) {
-#if PHP_VERSION_ID < 80300
-        php_url_encode_hash_ex(
-            HASH_OF(zdata), formstr, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, nullptr, (int) PHP_QUERY_RFC1738);
-#else
         php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, NULL, NULL, (int) PHP_QUERY_RFC1738);
-#endif
     } else {
         if (formstr->s) {
             smart_str_free(formstr);

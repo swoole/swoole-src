@@ -39,6 +39,26 @@ extern "C" {
 #include "config.h"
 #endif
 
+/* PHP 8.6-only replacements (APIs introduced when the old macros were removed). */
+#if PHP_VERSION_ID >= 80600
+#ifndef INI_STR
+#define INI_STR(name) ((char *) zend_ini_string_literal(name))
+#endif
+#ifndef INI_INT
+#define INI_INT(name) zend_ini_long_literal(name)
+#endif
+#ifndef INI_BOOL
+#define INI_BOOL(name) zend_ini_bool_literal(name)
+#endif
+#ifndef INI_FLT
+#define INI_FLT(name) zend_ini_double_literal(name)
+#endif
+/* Renamed in PHP 8.6 (main/php_odbc_utils.h). */
+#ifndef php_odbc_connstr_estimate_quote_length
+#define php_odbc_connstr_estimate_quote_length php_odbc_connstr_get_quoted_length
+#endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif

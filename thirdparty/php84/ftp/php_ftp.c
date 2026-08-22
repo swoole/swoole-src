@@ -53,9 +53,7 @@ static void register_ftp_symbols(int module_number)
 	REGISTER_LONG_CONSTANT("FTP_FINISHED", PHP_FTP_FINISHED, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("FTP_MOREDATA", PHP_FTP_MOREDATA, CONST_PERSISTENT);
 
-#if PHP_VERSION_ID >= 80300
 	zend_add_parameter_attribute(zend_hash_str_find_ptr(CG(function_table), "ftp_login", sizeof("ftp_login") - 1), 2, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
-#endif
 }
 
 static zend_class_entry *register_class_FTP_Connection(void)
@@ -122,7 +120,7 @@ PHP_MINIT_FUNCTION(ftp)
 	php_ftp_ce->create_object = ftp_object_create;
 
 	memcpy(&ftp_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-	ftp_object_handlers.offset = XtOffsetOf(php_ftp_object, std);
+	ftp_object_handlers.offset = offsetof(php_ftp_object, std);
 	ftp_object_handlers.get_constructor = ftp_object_get_constructor;
 	ftp_object_handlers.free_obj = ftp_object_destroy;
 	ftp_object_handlers.clone_obj = NULL;

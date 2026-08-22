@@ -2,11 +2,6 @@
 swoole_pdo_sqlite:getColumnMeta fails on empty result set)
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80100) {
-    require __DIR__ . '/../include/skipif.inc';
-    skip('php version 8.0 or lower');
-}
-
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
 PdoSqliteTest::skip();
@@ -30,6 +25,8 @@ run(function() {
 array(6) {
   ["native_type"]=>
   string(4) "null"
+  ["pdo_type"]=>
+  int(0)
   ["flags"]=>
   array(0) {
   }
@@ -39,6 +36,4 @@ array(6) {
   int(-1)
   ["precision"]=>
   int(0)
-  ["pdo_type"]=>
-  int(2)
 }

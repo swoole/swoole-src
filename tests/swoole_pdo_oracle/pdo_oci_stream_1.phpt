@@ -2,10 +2,6 @@
 swoole_pdo_oracle: stream_get_contents length & offset test
 --SKIPIF--
 <?php
-if (PHP_VERSION < 80100) {
-	require __DIR__ . '/../include/skipif.inc';
-	skip('php version 8.1 or higher');
-}
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_oracle.inc';
 PdoOracleTest::skip();

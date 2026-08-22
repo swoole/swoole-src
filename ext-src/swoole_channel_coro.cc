@@ -126,7 +126,7 @@ void php_swoole_channel_coro_minit(int module_number) {
 static PHP_METHOD(swoole_channel_coro, __construct) {
     zend_long capacity = 1;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(capacity)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -149,7 +149,7 @@ static PHP_METHOD(swoole_channel_coro, push) {
     zval *zdata;
     double timeout = -1;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_ZVAL(zdata)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
@@ -171,7 +171,7 @@ static PHP_METHOD(swoole_channel_coro, pop) {
     PHPChannel *chan = channel_coro_get_ptr(ZEND_THIS);
     double timeout = -1;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);

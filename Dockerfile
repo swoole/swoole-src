@@ -1,7 +1,7 @@
 # This Dockerfile is designed to create a debug version of the PHP and Swoole environment,
  # enabling ASAN (`--enable-address-sanitizer`) to facilitate debugging and analysis of runtime crashes.
 FROM ubuntu:22.04
-ARG PHP_VERSION=8.2.28
+ARG PHP_VERSION=8.3.33
 RUN apt update
 RUN apt install -y g++ cmake automake wget pkg-config git xz-utils
 RUN apt install -y libssl-dev libcurl4-openssl-dev libxml2-dev libzip-dev libsqlite3-dev libreadline-dev libonig-dev \

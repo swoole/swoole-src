@@ -692,7 +692,7 @@ zend_function *get_function(const zend_string *fname);
 zend_function *get_function(const zend_array *function_table, const char *name, size_t name_len);
 
 static inline zend_string *fetch_zend_string_by_val(void *val) {
-    return (zend_string *) ((char *) val - XtOffsetOf(zend_string, val));
+    return (zend_string *) ((char *) val - offsetof(zend_string, val));
 }
 
 static inline void assign_zend_string_by_val(zval *zdata, char *addr, size_t length) {
@@ -838,7 +838,7 @@ static inline zend::Callable *sw_callable_create(zval *zfn) {
 }
 
 static inline zend::Callable *sw_callable_create_ex(zval *zfn, const char *fname, bool allow_null = true) {
-    if (zfn == nullptr || ZVAL_IS_NULL(zfn)) {
+    if (zfn == nullptr || Z_ISNULL_P(zfn)) {
         if (!allow_null) {
             zend_throw_exception_ex(
                 swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "%s must be of type callable, null given", fname);

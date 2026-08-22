@@ -19,11 +19,6 @@ $pm = ProcessManager::exec(function ($pm) {
     curl_multi_close($GLOBALS['mh']);
 });
 $output = $pm->getChildOutput();
-if (PHP_VERSION_ID < 80000) {
     $pm->expectExitCode(0);
-    Assert::contains($output, "Warning: curl_multi_close(): supplied resource is not a valid cURL Multi Handle resource");
-} else {
-    $pm->expectExitCode(0);
-}
 ?>
 --EXPECT--

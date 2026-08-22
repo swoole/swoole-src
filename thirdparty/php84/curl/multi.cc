@@ -44,12 +44,12 @@ void swoole_curl_multi_set_in_coroutine(php_curlm *mh, bool value) {
 bool swoole_curl_multi_is_in_coroutine(php_curlm *mh) {
     zval rv;
     zval *zv = zend_read_property_ex(nullptr, &mh->std, SW_ZSTR_KNOWN(SW_ZEND_STR_IN_COROUTINE), 1, &rv);
-    return zval_is_true(zv);
+    return zend_is_true(zv);
 }
 
 /* CurlMultiHandle class */
 static inline php_curlm *curl_multi_from_obj(zend_object *obj) {
-    return (php_curlm *) ((char *) (obj) -XtOffsetOf(php_curlm, std));
+    return (php_curlm *) ((char *) (obj) -offsetof(php_curlm, std));
 }
 
 #define Z_CURL_MULTI_P(zv) curl_multi_from_obj(Z_OBJ_P(zv))
@@ -637,7 +637,7 @@ void curl_multi_register_class(const zend_function_entry *method_entries) {
     swoole_coroutine_curl_multi_handle_ce->create_object = swoole_curl_multi_create_object;
 
     memcpy(&swoole_coroutine_curl_multi_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-    swoole_coroutine_curl_multi_handle_handlers.offset = XtOffsetOf(php_curlm, std);
+    swoole_coroutine_curl_multi_handle_handlers.offset = offsetof(php_curlm, std);
     swoole_coroutine_curl_multi_handle_handlers.free_obj = swoole_curl_multi_free_obj;
     swoole_coroutine_curl_multi_handle_handlers.get_gc = swoole_curl_multi_get_gc;
     swoole_coroutine_curl_multi_handle_handlers.get_constructor = swoole_curl_multi_get_constructor;

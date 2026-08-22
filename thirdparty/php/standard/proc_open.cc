@@ -716,7 +716,7 @@ static zend_result redirect_proc_descriptor(
         case 2:
             redirect_to = GetStdHandle(STD_ERROR_HANDLE);
             break;
-            EMPTY_SWITCH_DEFAULT_CASE()
+            default: ZEND_UNREACHABLE();
         }
 #endif
     }

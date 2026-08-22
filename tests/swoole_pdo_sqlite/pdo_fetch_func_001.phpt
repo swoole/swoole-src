@@ -2,10 +2,6 @@
 swoole_pdo_sqlite:FETCH_FUNC
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80200) {
-    require __DIR__ . '/../include/skipif.inc';
-    skip('php version 8.1 or lower');
-}
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
 PdoSqliteTest::skip();
