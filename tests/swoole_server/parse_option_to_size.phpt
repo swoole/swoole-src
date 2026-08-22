@@ -2,7 +2,7 @@
 swoole_server: parse option value to size
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
-skip_if_php_version_lower_than('8.2.0');
+skip_if_php_version_lower_than('8.3.0');
 ?>
 --FILE--
 <?php

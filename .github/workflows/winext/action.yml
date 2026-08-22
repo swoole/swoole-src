@@ -88,10 +88,8 @@ runs:
         }
         if ($PhpVer.Equals("8.6") -Or $PhpVer.Equals("8.5") -Or $PhpVer.Equals("8.4")) {
           $PhpVCVer = "vs17"
-        } elseif ($PhpVer.Equals("8.3") -Or $PhpVer.Equals("8.2") -Or $PhpVer.Equals("8.1") -Or $PhpVer.Equals("8.0")) {
-          $PhpVCVer = "vs16"
         } else {
-          $PhpVCVer = "vc15"
+          $PhpVCVer = "vc16"
         }
         Write-Output "vcver=$PhpVCVer" | Out-File "${env:GITHUB_OUTPUT}" -Append
         Write-Host "::group::Fetching deps from https://downloads.php.net/~windows"

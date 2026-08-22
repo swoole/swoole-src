@@ -2,11 +2,6 @@
 swoole_pdo_sqlite:PARAM_INT casts to 32bit int internally even on 64bit builds in pdo_sqlite
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80100) {
-    require __DIR__ . '/../include/skipif.inc';
-    skip('php version 8.0 or lower');
-}
-
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
 PdoSqliteTest::skip();
@@ -35,4 +30,4 @@ run(function() {
 ?>
 --EXPECT--
 int(100004313234244)
-string(15) "100004313234244"
+int(100004313234244)

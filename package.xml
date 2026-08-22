@@ -2862,13 +2862,6 @@
             <file role="src" name="thirdparty/php/streams/php_streams_int.h" />
             <file role="src" name="thirdparty/php/streams/plain_wrapper.c" />
             <file role="src" name="thirdparty/php/zend/zend_execute.c" />
-            <file role="src" name="thirdparty/php82/pdo_odbc/odbc_driver.c" />
-            <file role="src" name="thirdparty/php82/pdo_odbc/odbc_stmt.c" />
-            <file role="src" name="thirdparty/php82/pdo_odbc/php_pdo_odbc_int.h" />
-            <file role="src" name="thirdparty/php82/pdo_pgsql/pgsql_driver.c" />
-            <file role="src" name="thirdparty/php82/pdo_pgsql/pgsql_driver_arginfo.h" />
-            <file role="src" name="thirdparty/php82/pdo_pgsql/pgsql_statement.c" />
-            <file role="src" name="thirdparty/php82/pdo_pgsql/php_pdo_pgsql_int.h" />
             <file role="src" name="thirdparty/php83/pdo_odbc/odbc_driver.c" />
             <file role="src" name="thirdparty/php83/pdo_odbc/odbc_stmt.c" />
             <file role="src" name="thirdparty/php83/pdo_odbc/php_pdo_odbc_int.h" />
@@ -2960,7 +2953,7 @@
     <dependencies>
         <required>
             <php>
-                <min>8.2.0</min>
+                <min>8.3.0</min>
                 <max>8.6.99</max>
             </php>
             <pearinstaller>

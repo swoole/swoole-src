@@ -2,11 +2,6 @@
 swoole_pdo_sqlite:queryString property & numeric offsets / Crash)
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80100) {
-    require __DIR__ . '/../include/skipif.inc';
-    skip('php version 8.0 or lower');
-}
-
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
 PdoSqliteTest::skip();
@@ -32,11 +27,11 @@ object(PDORow)#%d (2) {
   ["queryString"]=>
   string(25) "select 1 as queryStringxx"
   ["queryStringxx"]=>
-  string(1) "1"
+  int(1)
 }
 string(25) "select 1 as queryStringxx"
 NULL
-string(1) "1"
+int(1)
 ---
 NULL
 NULL

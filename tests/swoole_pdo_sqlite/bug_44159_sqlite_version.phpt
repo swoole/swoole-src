@@ -2,11 +2,6 @@
 swoole_pdo_sqlite: SQLite variant
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID >= 80100) {
-    require __DIR__ . '/../include/skipif.inc';
-    skip('php version 8.0 or lower');
-}
-
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
 PdoSqliteTest::skip();
@@ -20,14 +15,22 @@ run(function() {
     $pdo = new PDO("sqlite:".__DIR__."/foo.db");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
 
-    var_dump($pdo->setAttribute(PDO::NULL_TO_STRING, NULL));
+    try {
+        var_dump($pdo->setAttribute(PDO::NULL_TO_STRING, NULL));
+    } catch (\TypeError $e) {
+        echo $e->getMessage(), \PHP_EOL;
+    }
     var_dump($pdo->setAttribute(PDO::NULL_TO_STRING, 1));
-    var_dump($pdo->setAttribute(PDO::NULL_TO_STRING, 'nonsense'));
+    try {
+        var_dump($pdo->setAttribute(PDO::NULL_TO_STRING, 'nonsense'));
+    } catch (\TypeError $e) {
+        echo $e->getMessage(), \PHP_EOL;
+    }
 
     @unlink(__DIR__."/foo.db");
 });
 ?>
 --EXPECT--
+Attribute value must be of type int for selected attribute, null given
 bool(true)
-bool(true)
-bool(true)
+Attribute value must be of type int for selected attribute, string given

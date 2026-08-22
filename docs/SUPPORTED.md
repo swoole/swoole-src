@@ -4,7 +4,7 @@
 |-------------------------------------------------------------------------|-------------|----------------|----------------------|------------------------|
 | [v6.1.x](https://github.com/swoole/swoole-src/tree/6.1)                 | 8.1 - 8.4   | 2025-10-24     | 2026-10-24           | 2027-04-24             |
 | [v6.2.x](https://github.com/swoole/swoole-src/tree/6.2)                 | 8.2 - 8.5   | 2026-04-07     | 2027-04-07           | 2027-10-07             |
-| [v6.3.x (unreleased)](https://github.com/swoole/swoole-src/tree/master) | 8.2 - 8.5   | Unreleased     | TBD                  | TBD                    |
+| [v6.3.x (unreleased)](https://github.com/swoole/swoole-src/tree/master) | 8.3 - 8.6   | Unreleased     | TBD                  | TBD                    |
 
 - **Active support**： A release that is being actively supported. Reported bugs and security issues are fixed and regular point releases are made.
 - **Security fixes only**:  A release that is supported for critical security issues only. Releases are only made on an as-needed basis.

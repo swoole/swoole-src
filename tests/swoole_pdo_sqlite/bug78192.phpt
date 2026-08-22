@@ -2,11 +2,6 @@
 swoole_pdo_sqlite: PDO SQLite Bug #78192 SegFault when reuse statement after schema change
 --SKIPIF--
 <?php
-if (PHP_VERSION_ID < 80100) {
-    require __DIR__ . '/../include/skipif.inc';
-    skip('php version 8.1 or higher');
-}
-
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/pdo_sqlite.inc';
 PdoSqliteTest::skip();

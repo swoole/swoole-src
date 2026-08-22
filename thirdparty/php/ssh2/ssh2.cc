@@ -1319,7 +1319,6 @@ int php_swoole_ssh2_minit(int module_number) {
     le_ssh2_pkey_subsys = zend_register_list_destructors_ex(
         php_ssh2_pkey_subsys_dtor, NULL, PHP_SSH2_PKEY_SUBSYS_RES_NAME, module_number);
 
-#if PHP_VERSION_ID >= 80200
     // Mirror ext/ftp's generated sensitive-parameter registration. SSH2 keeps its
     // function table hand-written, and C++ requires the lookup's void pointer to be cast.
     zend_add_parameter_attribute((zend_function *) zend_hash_str_find_ptr(CG(function_table),
@@ -1352,7 +1351,6 @@ int php_swoole_ssh2_minit(int module_number) {
                                  5,
                                  ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER),
                                  0);
-#endif
 
     REGISTER_LONG_CONSTANT("SSH2_FINGERPRINT_MD5", PHP_SSH2_FINGERPRINT_MD5, CONST_CS | CONST_PERSISTENT);
     REGISTER_LONG_CONSTANT("SSH2_FINGERPRINT_SHA1", PHP_SSH2_FINGERPRINT_SHA1, CONST_CS | CONST_PERSISTENT);

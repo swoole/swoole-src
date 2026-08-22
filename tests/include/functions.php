@@ -861,11 +861,7 @@ function dump_to_file($file, $data)
 
 function curl_type_assert($ch, $resource_type, $class_type): void
 {
-    if (PHP_VERSION_ID >= 80000) {
-        Assert::isInstanceOf($ch, $class_type);
-    } else {
-        Assert::eq(get_resource_type($ch), $resource_type);
-    }
+    Assert::isInstanceOf($ch, $class_type);
 }
 
 function swoole_get_variance($avg, $array, $is_swatch = false): bool|float

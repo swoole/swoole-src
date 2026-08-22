@@ -1,7 +1,7 @@
 --TEST--
 swoole_coroutine/destruct: destruct 3
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; skip_if_php_version_lower_than('8.1'); ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

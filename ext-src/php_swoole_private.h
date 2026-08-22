@@ -115,8 +115,8 @@ BEGIN_EXTERN_C()
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_VERSION_ID < 80200
-#error "require PHP version 8.2 or later"
+#if PHP_VERSION_ID < 80300
+#error "require PHP version 8.3 or later"
 #elif PHP_VERSION_ID >= 80700
 #error "require PHP version 8.6 or earlier"
 #endif
@@ -1030,12 +1030,7 @@ static sw_inline char *php_swoole_url_encode(const char *value, size_t value_len
 
 static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, smart_str *formstr) {
     if (HASH_OF(zdata)) {
-#if PHP_VERSION_ID < 80300
-        php_url_encode_hash_ex(
-            HASH_OF(zdata), formstr, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, nullptr, (int) PHP_QUERY_RFC1738);
-#else
         php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, NULL, NULL, (int) PHP_QUERY_RFC1738);
-#endif
     } else {
         if (formstr->s) {
             smart_str_free(formstr);

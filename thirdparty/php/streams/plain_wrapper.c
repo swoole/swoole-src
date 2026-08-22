@@ -77,25 +77,21 @@ static int sw_php_win32_check_trailing_space(const char *path, const size_t path
 
 #define php_win32_check_trailing_space(path, path_len) sw_php_win32_check_trailing_space((path), (path_len))
 
-#if PHP_VERSION_ID >= 80100
 #ifndef fsync
 #define fsync _commit
 #endif
 #ifndef fdatasync
 #define fdatasync fsync
 #endif
-#endif
 
 #else
 #define PLAIN_WRAP_BUF_SIZE(st) (st)
 
-#if PHP_VERSION_ID >= 80100
 #if !defined(HAVE_FDATASYNC)
 #define fdatasync fsync
 #elif defined(__APPLE__)
 // The symbol is present, however not in the headers
 extern int fdatasync(int);
-#endif
 #endif
 
 #endif
@@ -110,11 +106,7 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
 static int sw_php_stdiop_cast(php_stream *stream, int castas, void **ret);
 static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result);
 static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, const char *persistent_id STREAMS_DC);
-#if PHP_VERSION_ID >= 80200
 static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id, bool zero_position STREAMS_DC);
-#else
-static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC);
-#endif
 static int sw_php_mkdir(const char *dir, zend_long mode);
 
 static int sw_php_stream_parse_fopen_modes(const char *mode, int *open_flags) {
@@ -262,15 +254,9 @@ static void _sw_detect_is_seekable(php_stdio_stream_data *self) {
         }
     }
 #elif defined(PHP_WIN32)
-#if PHP_VERSION_ID >= 80300
     uintptr_t handle = _get_osfhandle(self->fd);
 
     if (handle != (uintptr_t)INVALID_HANDLE_VALUE) {
-#else
-    zend_uintptr_t handle = _get_osfhandle(self->fd);
-
-    if (handle != (zend_uintptr_t)INVALID_HANDLE_VALUE) {
-#endif
         DWORD file_type = GetFileType((HANDLE)handle);
 
         self->is_seekable = !(file_type == FILE_TYPE_PIPE || file_type == FILE_TYPE_CHAR);
@@ -521,7 +507,6 @@ static int sw_php_stdiop_flush(php_stream *stream) {
     return 0;
 }
 
-#if PHP_VERSION_ID >= 80100
 static int php_stdiop_sync(php_stream *stream, bool dataonly)
 {
     php_stdio_stream_data *data = (php_stdio_stream_data*)stream->abstract;
@@ -542,7 +527,6 @@ static int php_stdiop_sync(php_stream *stream, bool dataonly)
     }
     return -1;
 }
-#endif
 
 static int sw_php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset) {
     php_stdio_stream_data *data = (php_stdio_stream_data *) stream->abstract;
@@ -698,15 +682,9 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
         if (fd == -1) {
             return -1;
         }
-#if PHP_VERSION_ID >= 80300
         if ((uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
             return 0;
         }
-#else
-        if ((zend_uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
-            return 0;
-        }
-#endif
 
         if (!swoole_coroutine_flock(fd, value)) {
             data->lock_flag = value;
@@ -891,7 +869,6 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
 #endif
         return PHP_STREAM_OPTION_RETURN_NOTIMPL;
 
-#if PHP_VERSION_ID >= 80100
     case PHP_STREAM_OPTION_SYNC_API:
         switch (value) {
         case PHP_STREAM_SYNC_SUPPORTED:
@@ -903,7 +880,6 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
         }
         /* Invalid option passed */
         return PHP_STREAM_OPTION_RETURN_ERR;
-#endif
 
     case PHP_STREAM_OPTION_TRUNCATE_API:
         switch (value) {
@@ -988,12 +964,10 @@ static php_stream_size_t php_plain_files_dirstream_read(php_stream *stream, char
     result = readdir(dir);
     if (result) {
         PHP_STRLCPY(ent->d_name, result->d_name, sizeof(ent->d_name), strlen(result->d_name));
-#if PHP_VERSION_ID >= 80300
 #ifdef _DIRENT_HAVE_D_TYPE
         ent->d_type = result->d_type;
 #else
         ent->d_type = DT_UNKNOWN;
-#endif
 #endif
         return sizeof(php_stream_dirent);
     }
@@ -1106,9 +1080,7 @@ static php_stream *_sw_php_stream_fopen(const char *filename,
                 *opened_path = zend_string_init(_realpath, strlen(_realpath), 0);
             }
             /* fall through */
-#if PHP_VERSION_ID >= 80100
             ZEND_FALLTHROUGH;
-#endif
 
         case PHP_STREAM_PERSISTENT_FAILURE:
             efree(persistent_id);
@@ -1209,9 +1181,7 @@ static php_stream *php_plain_files_stream_opener(php_stream_wrapper *wrapper,
 
 static int php_plain_files_url_stater(
     php_stream_wrapper *wrapper, const char *url, int flags, php_stream_statbuf *ssb, php_stream_context *context) {
-#if PHP_VERSION_ID >= 80100
     if (!(flags & PHP_STREAM_URL_STAT_IGNORE_OPEN_BASEDIR)) {
-#endif
         if (strncasecmp(url, "file://", sizeof("file://") - 1) == 0) {
             url += sizeof("file://") - 1;
         }
@@ -1219,9 +1189,7 @@ static int php_plain_files_url_stater(
         if (php_check_open_basedir_ex(url, (flags & PHP_STREAM_URL_STAT_QUIET) ? 0 : 1)) {
             return -1;
         }
-#if PHP_VERSION_ID >= 80100
     }
-#endif
 
 #ifdef PHP_WIN32
     if (flags & PHP_STREAM_URL_STAT_LINK) {

@@ -20,11 +20,7 @@ $pm = ProcessManager::exec(function () {
 });
 $pm->expectExitCode(255);
 $output = $pm->getChildOutput();
-if (PHP_VERSION_ID < 80000) {
-    Assert::contains($output, 'Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given');
-} else {
     Assert::contains($output, 'Uncaught TypeError: Swoole\Timer::after(): Argument #2 ($callback) must be a valid callback, class Test does not have a method "not_exist"');
-}
 
 // private method
 //------------------------------------------------------------------------------------------------------------------
@@ -33,11 +29,7 @@ $pm = ProcessManager::exec(function () {
 });
 $pm->expectExitCode(255);
 $output = $pm->getChildOutput();
-if (PHP_VERSION_ID < 80000) {
-    Assert::contains($output, 'Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given');
-} else {
     Assert::contains($output, 'Swoole\Timer::after(): Argument #2 ($callback) must be a valid callback, cannot access private method Test::foo()');
-}
 
 // private method
 //------------------------------------------------------------------------------------------------------------------
@@ -46,11 +38,7 @@ $pm = ProcessManager::exec(function () {
 });
 $pm->expectExitCode(255);
 $output = $pm->getChildOutput();
-if (PHP_VERSION_ID < 80000) {
-    Assert::contains($output, 'Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given');
-} else {
     Assert::contains($output, 'Swoole\Timer::after(): Argument #2 ($callback) must be a valid callback, cannot access private method Test::bar()');
-}
 
 ?>
 --EXPECT--

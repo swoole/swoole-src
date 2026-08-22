@@ -19,25 +19,12 @@
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
 
-#if PHP_VERSION_ID < 80000
-typedef zval zend_source_string_t;
-#else
 typedef zend_string zend_source_string_t;
-#endif
 
-#if PHP_VERSION_ID < 80200
-#define ZEND_COMPILE_POSITION_DC
-#define ZEND_COMPILE_POSITION_RELAY_C
-#else
 #define ZEND_COMPILE_POSITION_DC , zend_compile_position position
 #define ZEND_COMPILE_POSITION_RELAY_C , position
-#endif
 
-#if PHP_VERSION_ID < 80000
-#define ZEND_STR_CONST
-#else
 #define ZEND_STR_CONST const
-#endif
 
 
 static zend_op_array *(*old_compile_string)(zend_source_string_t *source_string, ZEND_STR_CONST char *filename ZEND_COMPILE_POSITION_DC);
@@ -11580,8 +11567,8 @@ static const char* swoole_library_source_functions =
     "\n"
     "declare(strict_types=1);\n"
     "\n"
-    "if (PHP_VERSION_ID < 80200) { // @phpstan-ignore smaller.alwaysFalse\n"
-    "    throw new RuntimeException('require PHP version 8.2 or later');\n"
+    "if (PHP_VERSION_ID < 80300) { // @phpstan-ignore smaller.alwaysFalse\n"
+    "    throw new RuntimeException('require PHP version 8.3 or later');\n"
     "}\n"
     "\n"
     "if (SWOOLE_USE_SHORTNAME) {\n"
