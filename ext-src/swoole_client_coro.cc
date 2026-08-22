@@ -213,10 +213,13 @@ static sw_inline Socket *client_coro_get_socket_for_connect(zval *zobject, int p
     if (!sock) {
         return nullptr;
     }
+    // The destructor callback requires client->socket and clears it when close() succeeds.
     client->socket = sock;
     zval *zset = sw_zend_read_property_ex(swoole_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
-    if (zset && ZVAL_IS_ARRAY(zset)) {
-        php_swoole_socket_set(sock, zset);
+    if (zset && ZVAL_IS_ARRAY(zset) && !php_swoole_socket_set(sock, zset)) {
+        php_swoole_socket_set_error_properties(zobject, SW_ERROR_INVALID_PARAMS);
+        sock->close();
+        return nullptr;
     }
     return sock;
 }
