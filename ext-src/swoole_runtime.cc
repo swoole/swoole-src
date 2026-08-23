@@ -229,10 +229,10 @@ static zend_internal_arg_info *copy_arginfo(const zend_internal_function *functi
 #else
             ZEND_TYPE_LIST_FOREACH(new_list, list_type) {
 #endif
-            	if (ZEND_TYPE_HAS_NAME(*list_type)) {
-					zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), true);
-					ZEND_TYPE_SET_PTR(*list_type, name);
-				}
+                if (ZEND_TYPE_HAS_NAME(*list_type)) {
+                    zend_string *name = zend_string_dup(ZEND_TYPE_NAME(*list_type), true);
+                    ZEND_TYPE_SET_PTR(*list_type, name);
+                }
             }
             ZEND_TYPE_LIST_FOREACH_END();
         } else if (ZEND_TYPE_HAS_NAME(arg_info[i].type)) {
@@ -488,7 +488,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     if (abstract->blocking) {
         didwrite = sock->send_all(buf, count);
     } else {
-        didwrite = sock->get_socket()->send(buf, count, 0);
+        didwrite = sock->send_once(buf, count);
         sock->set_err(errno);
     }
 
@@ -538,7 +538,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
     if (abstract->blocking) {
         nr_bytes = sock->recv(buf, count);
     } else {
-        nr_bytes = sock->get_socket()->recv(buf, count, 0);
+        nr_bytes = sock->recv_once(buf, count);
         sock->set_err(errno);
     }
 

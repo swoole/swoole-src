@@ -663,6 +663,52 @@ ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) 
 
     return total;
 }
+
+ssize_t UringSocket::send_once(const void *buf, size_t count) {
+    NetSocket *socket = get_socket();
+
+    while (true) {
+        ssize_t send_bytes = socket->send(buf, count, 0);
+        if (!is_ssl()) {
+            return send_bytes;
+        }
+
+        if (!ssl_bio_prepare()) {
+            return -1;
+        }
+
+        if (send_bytes > 0) {
+            return send_bytes;
+        }
+
+        if (!ssl_bio_perform(send_bytes, "ssl_send")) {
+            return -1;
+        }
+    }
+}
+
+ssize_t UringSocket::recv_once(void *buf, size_t count) {
+    NetSocket *socket = get_socket();
+
+    while (true) {
+        ssize_t recv_bytes = socket->recv(buf, count, 0);
+        if (!is_ssl()) {
+            return recv_bytes;
+        }
+
+        if (!ssl_bio_prepare()) {
+            return -1;
+        }
+
+        if (recv_bytes > 0) {
+            return recv_bytes;
+        }
+
+        if (!ssl_bio_perform(recv_bytes, "ssl_recv")) {
+            return -1;
+        }
+    }
+}
 };  // namespace coroutine
 };  // namespace swoole
 #endif
