@@ -530,9 +530,9 @@ bool HttpContext::compress(const char *data, size_t length) {
     else if (compression_method == HTTP_COMPRESS_GZIP) {
         encoding = 0x1f;
     }
-    // deflate: -0xf
+    // deflate: 0xf
     else if (compression_method == HTTP_COMPRESS_DEFLATE) {
-        encoding = -0xf;
+        encoding = 0xf;
     }
 #endif
 #ifdef SW_HAVE_BROTLI
