@@ -60,6 +60,7 @@ struct PHPContext {
     zend_error_handling_t error_handling;
     zend_class_entry *exception_class;
     zend_object *exception;
+    const zend_op *opline_before_exception;
     zend_output_globals *output_ptr;
     /*
      * for var serialize/unserialize,
@@ -259,6 +260,7 @@ class PHPCoroutine {
         main_context.co = nullptr;
         main_context.fiber_context = EG(main_fiber_context);
         main_context.fiber_init_notified = true;
+        EG(opline_before_exception) = nullptr;
         save_context(&main_context);
     }
 
