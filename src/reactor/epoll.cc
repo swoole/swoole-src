@@ -210,7 +210,8 @@ int ReactorEpoll::wait() {
                 event.socket->event_hup = 1;
             }
             // read
-            if ((events_[i].events & EPOLLIN) && !event.socket->removed) {
+            if ((events_[i].events & EPOLLIN) && !event.socket->removed &&
+                Reactor::isset_read_event(event.socket->events)) {
                 handler = reactor_->get_handler(event.type, SW_EVENT_READ);
                 ret = handler(reactor_, &event);
                 if (ret < 0) {
@@ -218,7 +219,8 @@ int ReactorEpoll::wait() {
                 }
             }
             // write
-            if ((events_[i].events & EPOLLOUT) && !event.socket->removed) {
+            if ((events_[i].events & EPOLLOUT) && !event.socket->removed &&
+                Reactor::isset_write_event(event.socket->events)) {
                 handler = reactor_->get_handler(event.type, SW_EVENT_WRITE);
                 ret = handler(reactor_, &event);
                 if (ret < 0) {

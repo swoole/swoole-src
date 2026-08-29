@@ -48,7 +48,7 @@ int Socket::readable_event_callback(Reactor *reactor, Event *event) {
     socket->set_err(0);
 #ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->want_event != SW_EVENT_NULL)) {
-        if (socket->want_event == SW_EVENT_READ) {
+        if (socket->want_event == SW_EVENT_READ && socket->write_co) {
             socket->write_co->resume();
         }
     } else
@@ -57,7 +57,9 @@ int Socket::readable_event_callback(Reactor *reactor, Event *event) {
         if (socket->recv_barrier && (*socket->recv_barrier)() && !event->socket->event_hup) {
             return SW_OK;
         }
-        socket->read_co->resume();
+        if (socket->read_co) {
+            socket->read_co->resume();
+        }
     }
 
     return SW_OK;
@@ -68,7 +70,7 @@ int Socket::writable_event_callback(Reactor *reactor, Event *event) {
     socket->set_err(0);
 #ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->want_event != SW_EVENT_NULL)) {
-        if (socket->want_event == SW_EVENT_WRITE) {
+        if (socket->want_event == SW_EVENT_WRITE && socket->read_co) {
             socket->read_co->resume();
         }
     } else
@@ -77,7 +79,9 @@ int Socket::writable_event_callback(Reactor *reactor, Event *event) {
         if (socket->send_barrier && (*socket->send_barrier)() && !event->socket->event_hup) {
             return SW_OK;
         }
-        socket->write_co->resume();
+        if (socket->write_co) {
+            socket->write_co->resume();
+        }
     }
 
     return SW_OK;

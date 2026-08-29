@@ -300,9 +300,11 @@ int ReactorKqueue::wait() {
             switch (kevent->filter) {
             case EVFILT_READ:
             case EVFILT_WRITE: {
-                if (fetch_event(&event, udata)) {
-                    handler = reactor_->get_handler(event.type,
-                                                    kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE);
+                const EventType ev = kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE;
+                if (fetch_event(&event, udata) &&
+                    (ev == SW_EVENT_READ ? Reactor::isset_read_event(event.socket->events)
+                                         : Reactor::isset_write_event(event.socket->events))) {
+                    handler = reactor_->get_handler(event.type, ev);
                     if (sw_unlikely(handler(reactor_, &event) < 0)) {
                         swoole_sys_warning("kqueue event %s socket#%d handler failed",
                                            kevent->filter == EVFILT_READ ? "read" : "write",

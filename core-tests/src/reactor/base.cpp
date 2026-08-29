@@ -338,6 +338,45 @@ TEST(reactor, poll) {
     reactor_test_func(&reactor);
 }
 
+static void test_stale_event(Reactor::Type type) {
+    UnixSocket p(false, SOCK_STREAM);
+    ASSERT_TRUE(p.ready());
+
+    Reactor reactor(1024, type);
+    reactor.once = true;
+
+    int write_count = 0;
+
+    reactor.set_handler(SW_FD_STREAM, SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
+        char data;
+        ssize_t n = event->socket->read(&data, sizeof(data));
+        EXPECT_EQ(n, 1);
+        EXPECT_EQ(reactor->set(event->socket, SW_EVENT_READ), SW_OK);
+        return SW_OK;
+    });
+    reactor.set_handler(SW_FD_STREAM, SW_EVENT_WRITE, [](Reactor *, Event *event) -> int {
+        (*(int *) event->socket->object)++;
+        return SW_OK;
+    });
+
+    auto socket = p.get_socket(false);
+    socket->fd_type = SW_FD_STREAM;
+    socket->object = &write_count;
+    ASSERT_EQ(reactor.add(socket, SW_EVENT_READ | SW_EVENT_WRITE), SW_OK);
+    ASSERT_EQ(p.get_socket(true)->write("x", 1), 1);
+    ASSERT_EQ(reactor.wait(), SW_OK);
+    ASSERT_EQ(socket->events, SW_EVENT_READ);
+    ASSERT_EQ(write_count, 0);
+}
+
+TEST(reactor, epoll_stale_event) {
+    test_stale_event(Reactor::TYPE_EPOLL);
+}
+
+TEST(reactor, poll_stale_event) {
+    test_stale_event(Reactor::TYPE_POLL);
+}
+
 TEST(reactor, poll_extra) {
     Reactor reactor(32, Reactor::TYPE_POLL);
 
