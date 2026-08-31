@@ -338,6 +338,76 @@ TEST(reactor, poll) {
     reactor_test_func(&reactor);
 }
 
+struct PollSocketState {
+    network::Socket *sockets[2];
+    network::Socket *dispatched_socket = nullptr;
+    network::Socket *replacement_socket = nullptr;
+    int source_fd = -1;
+    int replacement_count = 0;
+};
+
+TEST(reactor, poll_readiness_after_fd_reuse) {
+    UnixSocket sockets[2] = {
+        UnixSocket(false, SOCK_STREAM),
+        UnixSocket(false, SOCK_STREAM),
+    };
+    ASSERT_TRUE(sockets[0].ready());
+    ASSERT_TRUE(sockets[1].ready());
+
+    int pipe_fds[2];
+    ASSERT_EQ(pipe(pipe_fds), 0);
+
+    Reactor reactor(32, Reactor::TYPE_POLL);
+    reactor.once = true;
+
+    PollSocketState state;
+    state.sockets[0] = sockets[0].get_socket(false);
+    state.sockets[1] = sockets[1].get_socket(false);
+    state.source_fd = pipe_fds[0];
+    state.sockets[0]->fd_type = SW_FD_STREAM;
+    state.sockets[1]->fd_type = SW_FD_STREAM;
+    state.sockets[0]->object = &state;
+    state.sockets[1]->object = &state;
+
+    reactor.set_handler(SW_FD_STREAM, SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
+        auto *state = static_cast<PollSocketState *>(event->socket->object);
+        char data;
+        EXPECT_EQ(event->socket->read(&data, sizeof(data)), 1);
+        state->dispatched_socket = event->socket;
+
+        network::Socket *other_socket = event->socket == state->sockets[0] ? state->sockets[1] : state->sockets[0];
+        EXPECT_EQ(reactor->del(other_socket), SW_OK);
+        const int fd = other_socket->move_fd();
+        EXPECT_EQ(dup2(state->source_fd, fd), fd);
+
+        state->replacement_socket = make_socket(fd, SW_FD_USER);
+        state->replacement_socket->object = &state->replacement_count;
+        EXPECT_EQ(reactor->add(state->replacement_socket, SW_EVENT_READ), SW_OK);
+        return SW_OK;
+    });
+    reactor.set_handler(SW_FD_USER, SW_EVENT_READ, [](Reactor *, Event *event) -> int {
+        (*(int *) event->socket->object)++;
+        return SW_OK;
+    });
+
+    ASSERT_EQ(reactor.add(state.sockets[0], SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor.add(state.sockets[1], SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(sockets[0].get_socket(true)->write("x", 1), 1);
+    ASSERT_EQ(sockets[1].get_socket(true)->write("x", 1), 1);
+    ASSERT_EQ(reactor.wait(), SW_OK);
+
+    ASSERT_EQ(state.replacement_count, 0);
+    ASSERT_NE(state.dispatched_socket, nullptr);
+    ASSERT_NE(state.replacement_socket, nullptr);
+
+    // A local Reactor does not defer Socket::free(), so release sockets after the batch.
+    ASSERT_EQ(reactor.del(state.dispatched_socket), SW_OK);
+    ASSERT_EQ(reactor.del(state.replacement_socket), SW_OK);
+    state.replacement_socket->free();
+    ASSERT_EQ(close(pipe_fds[0]), 0);
+    ASSERT_EQ(close(pipe_fds[1]), 0);
+}
+
 TEST(reactor, poll_extra) {
     Reactor reactor(32, Reactor::TYPE_POLL);
 
