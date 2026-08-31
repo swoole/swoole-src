@@ -1148,7 +1148,7 @@ bool Socket::ssl_context_create() {
 #endif
     }
     ssl_context->http_v2 = http2;
-    if (!ssl_context->create()) {
+    if (!ssl_context->create(ssl_is_server ? SW_SSL_SERVER : SW_SSL_CLIENT)) {
         set_err(SW_ERROR_SSL_CREATE_CONTEXT_FAILED);
         return false;
     }
@@ -1238,6 +1238,15 @@ bool Socket::ssl_handshake() {
 }
 
 bool Socket::ssl_verify(bool allow_self_signed) {
+    if (ssl_is_server) {
+        // SSL_get_verify_result() returns X509_V_OK when the peer did not provide a certificate.
+        X509 *cert = socket->ssl_get_peer_certificate();
+        if (cert == nullptr) {
+            set_err(SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE);
+            return false;
+        }
+        X509_free(cert);
+    }
     if (!socket->ssl_verify(allow_self_signed)) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;

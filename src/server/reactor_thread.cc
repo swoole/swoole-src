@@ -66,6 +66,16 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
                 return SW_ERROR;
             }
         }
+    } else if (port->get_ssl_verify_peer()) {
+        // SSL_get_verify_result() returns X509_V_OK when the peer did not provide a certificate.
+        X509 *cert = _socket->ssl_get_peer_certificate();
+        if (cert == nullptr) {
+            return SW_ERROR;
+        }
+        X509_free(cert);
+        if (!_socket->ssl_verify(port->get_ssl_allow_self_signed())) {
+            return SW_ERROR;
+        }
     }
 
     if (serv->onConnect) {
