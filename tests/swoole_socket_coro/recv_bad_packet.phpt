@@ -3,6 +3,7 @@ swoole_socket_coro: recv bad packet
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist(Swoole\Server::class);
 ?>
 --FILE--
 <?php

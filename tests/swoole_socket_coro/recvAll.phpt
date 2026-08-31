@@ -1,7 +1,10 @@
 --TEST--
 swoole_socket_coro: recvAll
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist(Swoole\Server::class);
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
