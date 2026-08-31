@@ -27,7 +27,7 @@ if (empty($args)) {
     $rdata = $args[1];
     Co\run(function () use ($socket, $rdata, $argv) {
         usleep(100);
-        shell_exec('sleep 0.01');
+        shell_exec(escapeshellarg(PHP_BINARY) . ' -r "usleep(10000);"');
         $socket->send($rdata);
     });
     exit(0);

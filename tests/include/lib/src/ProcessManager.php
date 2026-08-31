@@ -391,8 +391,11 @@ class ProcessManager
             register_shutdown_function(function () {
                 $this->kill();
             });
-            if (!$this->parentFirst && !$this->wait()) {
-                throw new RuntimeException('timed out waiting for child process: ' . $this->getChildOutput());
+            if (!$this->parentFirst) {
+                $notified = $this->wait();
+                if ($this->waitTimeout !== 0 && !$notified) {
+                    throw new RuntimeException('timed out waiting for child process: ' . $this->getChildOutput());
+                }
             }
             $this->runParentFunc($this->childPid);
             Event::wait();
