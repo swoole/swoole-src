@@ -19,7 +19,7 @@ go(function () use ($ready) {
     stream_context_set_option($context, 'ssl', 'verify_peer', true);
     stream_context_set_option($context, 'ssl', 'local_cert', SSL_FILE_DIR.'/server.crt');
     stream_context_set_option($context, 'ssl', 'local_pk', SSL_FILE_DIR.'/server.key');
-    stream_context_set_option($context, 'ssl', 'cafile', SSL_FILE_DIR.'/ca.crt');
+    stream_context_set_option($context, 'ssl', 'cafile', SSL_FILE_DIR.'/ca-cert.pem');
 
     $socket = stream_socket_server("ssl://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
     if (!$socket) {
@@ -38,8 +38,8 @@ go(function () use ($ready) {
     $ready->pop();
 
     $context = stream_context_create();
-    stream_context_set_option($context, 'ssl', 'local_cert', SSL_FILE_DIR . '/client.crt');
-    stream_context_set_option($context, 'ssl', 'local_pk', SSL_FILE_DIR . '/client.key');
+    stream_context_set_option($context, 'ssl', 'local_cert', SSL_FILE_DIR . '/client-cert.pem');
+    stream_context_set_option($context, 'ssl', 'local_pk', SSL_FILE_DIR . '/client-key.pem');
 
     $fp = stream_socket_client("ssl://127.0.0.1:8000", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $context);
     if (!$fp) {
