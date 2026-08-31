@@ -72,4 +72,4 @@ jobs:
           set TEST_PHP_EXECUTABLE=php
           set SKIP_ONLINE_TESTS=1
           set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 300 tests\swoole_windows tests\swoole_function tests\swoole_atomic\atomic.phpt tests\swoole_atomic\wait_and_wakeup.phpt
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 300 tests\swoole_windows tests\swoole_function tests\swoole_atomic\atomic.phpt tests\swoole_atomic\wait_and_wakeup.phpt tests\swoole_channel_coro tests\swoole_coroutine_lock tests\swoole_coroutine_wait_group tests\swoole_coroutine_scheduler tests\swoole_coroutine_util tests\swoole_stdext tests\swoole_timer tests\swoole_event tests\swoole_thread\*.phpt

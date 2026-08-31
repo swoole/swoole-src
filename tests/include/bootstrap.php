@@ -70,8 +70,8 @@ if ($traceFlags) {
 // Components
 require __DIR__ . '/lib/vendor/autoload.php';
 
+class_alias(SwooleTest\ProcessManager::class, ProcessManager::class);
 if (!is_win()) {
-    class_alias(SwooleTest\ProcessManager::class, ProcessManager::class);
     class_alias(SwooleTest\ServerManager::class, ServerManager::class);
 }
 class_alias(SwooleTest\RandStr::class, RandStr::class);
