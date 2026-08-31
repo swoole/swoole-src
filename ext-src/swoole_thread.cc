@@ -71,6 +71,29 @@ static thread_local zval thread_argv = {};
 static thread_local JMP_BUF *thread_bailout = nullptr;
 static std::atomic<size_t> thread_num(1);
 
+#ifdef _WIN32
+static int (*original_sapi_deactivate)(void) = nullptr;
+
+static int thread_sapi_deactivate() {
+    if (!tsrm_is_main_thread()) {
+        fflush(stdout);
+        return SUCCESS;
+    }
+    return original_sapi_deactivate ? original_sapi_deactivate() : SUCCESS;
+}
+
+// The Windows CLI executable and extension DLL have separate static TSRMLS
+// caches. The CLI deactivate callback cannot safely access its stale cache
+// from a Swoole-created worker thread.
+static void thread_replace_sapi_deactivate() {
+    if (sapi_module.name && (strcmp(sapi_module.name, "cli") == 0 || strcmp(sapi_module.name, "phpdbg") == 0) &&
+        sapi_module.deactivate != thread_sapi_deactivate) {
+        original_sapi_deactivate = sapi_module.deactivate;
+        sapi_module.deactivate = thread_sapi_deactivate;
+    }
+}
+#endif
+
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
     return reinterpret_cast<ThreadObject *>(reinterpret_cast<char *>(obj) - swoole_thread_handlers.offset);
 }
@@ -151,6 +174,10 @@ static const zend_function_entry swoole_thread_methods[] = {
 // clang-format on
 
 void php_swoole_thread_minit(int module_number) {
+#ifdef _WIN32
+    thread_replace_sapi_deactivate();
+#endif
+
     SW_INIT_CLASS_ENTRY(swoole_thread, "Swoole\\Thread", nullptr, swoole_thread_methods);
     swoole_thread_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NOT_SERIALIZABLE;
     SW_SET_CLASS_CLONEABLE(swoole_thread, sw_zend_class_clone_deny);
@@ -633,6 +660,11 @@ void php_swoole_thread_stream_create(zval *return_value, swSocketFd sockfd) {
         newfd == SW_BAD_SOCKET ? nullptr : php_stream_sock_open_from_socket((php_socket_t) newfd, nullptr);
     if (!stream && newfd != SW_BAD_SOCKET) {
         sw_close_socket(newfd);
+    }
+    if (stream) {
+        // php_stream_sock_open_from_socket() creates a generic socket stream,
+        // which cannot perform transport operations such as accept().
+        stream->ops = &php_stream_socket_ops;
     }
 #else
     std::string path = "php://fd/" + std::to_string(sockfd);

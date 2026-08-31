@@ -324,7 +324,7 @@ if (PHP_SWOOLE != "no") {
 		AC_DEFINE("SW_CORO_TIME", 1, "Calculate coroutine execution time");
 	}
 
-	if (PHP_SOCKETS == "yes") {
+	if (PHP_PHP_SOCKETS == "yes") {
 		AC_DEFINE("SW_SOCKETS", 1, "Enable sockets support");
 		AC_DEFINE("HAVE_SOCKETS", 1, "Whether sockets extension is enabled");
 	}

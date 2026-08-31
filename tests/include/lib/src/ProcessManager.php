@@ -368,7 +368,7 @@ class ProcessManager
             $descriptors = [
                 0 => ['file', 'NUL', 'r'],
                 1 => ['file', $this->childOutputFile, 'a'],
-                2 => ['file', $this->childOutputFile, 'a'],
+                2 => ['redirect', 1],
             ];
 
             $previousToken = getenv('SWOOLE_TEST_PM_TOKEN');
@@ -392,10 +392,9 @@ class ProcessManager
                 $this->kill();
             });
             if (!$this->parentFirst) {
-                $notified = $this->wait();
-                if ($this->waitTimeout !== 0 && !$notified) {
-                    throw new RuntimeException('timed out waiting for child process: ' . $this->getChildOutput());
-                }
+                // Match the POSIX fixture: readiness notification is optional.
+                // Some existing PHPT servers become ready without wakeup().
+                $this->wait();
             }
             $this->runParentFunc($this->childPid);
             Event::wait();
