@@ -5,7 +5,7 @@ jobs:
   windows-tests:
     name: Unit Test on Windows
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 20
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[win-unit]')"
     strategy:
       fail-fast: false
@@ -69,6 +69,90 @@ jobs:
       - name: Run IOCP cURL cancellation test
         id: iocp-curl-cancel
         continue-on-error: true
+        timeout-minutes: 1
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          set NO_INTERACTION=1
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_windows\iocp_curl_cancel.phpt
+
+      - name: Run core Windows IOCP tests
+        id: windows-core
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          set NO_INTERACTION=1
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_windows\atomic_compat.phpt tests\swoole_windows\bootstrap.phpt tests\swoole_windows\iocp_cancel.phpt tests\swoole_windows\iocp_curl.phpt tests\swoole_windows\iocp_curl_multi.phpt tests\swoole_windows\iocp_shutdown.phpt tests\swoole_windows\iocp_socket.phpt tests\swoole_windows\local_ip.phpt tests\swoole_windows\local_mac.phpt
+
+      - name: Run Windows function and atomic tests
+        id: function-atomic
+        continue-on-error: true
+        timeout-minutes: 1
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          set NO_INTERACTION=1
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_function tests\swoole_atomic\atomic.phpt tests\swoole_atomic\wait_and_wakeup.phpt
+
+      - name: Run Windows channel and lock tests
+        id: channel-lock
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          set NO_INTERACTION=1
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_channel_coro tests\swoole_coroutine_lock tests\swoole_coroutine_wait_group
+
+      - name: Run Windows scheduler and coroutine utility tests
+        id: scheduler-util
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          set NO_INTERACTION=1
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_coroutine_scheduler tests\swoole_coroutine_util
+
+      - name: Run Windows standard extension tests
+        id: stdext
+        continue-on-error: true
+        timeout-minutes: 1
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          set NO_INTERACTION=1
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_stdext
+
+      - name: Run Windows timer and event tests
+        id: timer-event
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          set NO_INTERACTION=1
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_timer tests\swoole_event
+
+      - name: Run Windows IOCP socket tests
+        id: iocp-socket
+        continue-on-error: true
         timeout-minutes: 3
         shell: cmd
         run: |
@@ -76,67 +160,19 @@ jobs:
           set TEST_PHP_EXECUTABLE=php
           set SKIP_ONLINE_TESTS=1
           set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 30 tests\swoole_windows\iocp_curl_cancel.phpt
-
-      - name: Run core Windows IOCP tests
-        id: windows-core
-        continue-on-error: true
-        timeout-minutes: 5
-        shell: cmd
-        run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 30 tests\swoole_windows\atomic_compat.phpt tests\swoole_windows\bootstrap.phpt tests\swoole_windows\iocp_cancel.phpt tests\swoole_windows\iocp_curl.phpt tests\swoole_windows\iocp_curl_multi.phpt tests\swoole_windows\iocp_shutdown.phpt tests\swoole_windows\iocp_socket.phpt tests\swoole_windows\local_ip.phpt tests\swoole_windows\local_mac.phpt
-
-      - name: Run Windows function and atomic tests
-        id: function-atomic
-        continue-on-error: true
-        timeout-minutes: 5
-        shell: cmd
-        run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 30 tests\swoole_function tests\swoole_atomic\atomic.phpt tests\swoole_atomic\wait_and_wakeup.phpt
-
-      - name: Run Windows coroutine and event tests
-        id: coroutine-event
-        continue-on-error: true
-        timeout-minutes: 10
-        shell: cmd
-        run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 30 tests\swoole_channel_coro tests\swoole_coroutine_lock tests\swoole_coroutine_wait_group tests\swoole_coroutine_scheduler tests\swoole_coroutine_util tests\swoole_stdext tests\swoole_timer tests\swoole_event
-
-      - name: Run Windows IOCP socket tests
-        id: iocp-socket
-        continue-on-error: true
-        timeout-minutes: 10
-        shell: cmd
-        run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 30 tests\swoole_socket_coro
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_socket_coro
 
       - name: Run Windows thread tests
         id: thread
         continue-on-error: true
-        timeout-minutes: 5
+        timeout-minutes: 2
         shell: cmd
         run: |
           set PHPT=1
           set TEST_PHP_EXECUTABLE=php
           set SKIP_ONLINE_TESTS=1
           set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 30 tests\swoole_thread\*.phpt
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_thread\*.phpt
 
       - name: Check Windows test results
         if: always()
@@ -146,7 +182,10 @@ jobs:
             '${{ steps.iocp-curl-cancel.outcome }}',
             '${{ steps.windows-core.outcome }}',
             '${{ steps.function-atomic.outcome }}',
-            '${{ steps.coroutine-event.outcome }}',
+            '${{ steps.channel-lock.outcome }}',
+            '${{ steps.scheduler-util.outcome }}',
+            '${{ steps.stdext.outcome }}',
+            '${{ steps.timer-event.outcome }}',
             '${{ steps.iocp-socket.outcome }}',
             '${{ steps.thread.outcome }}'
           )
