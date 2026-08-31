@@ -1276,7 +1276,7 @@ TEST(http_server, client_ca) {
     port->set_ssl_key_file(test::get_ssl_dir() + "/server.key");
     port->set_ssl_verify_peer(true);
     port->set_ssl_allow_self_signed(true);
-    port->set_ssl_cafile(test::get_ssl_dir() + "/ca.crt");
+    port->set_ssl_cafile(test::get_ssl_dir() + "/ca-cert.pem");
     port->ssl_init();
 
     pid_t pid = fork();
@@ -1291,8 +1291,8 @@ TEST(http_server, client_ca) {
 
         sleep(1);
         pid_t pid2;
-        string client_cert = " --cert " + test::get_ssl_dir() + "/client.crt";
-        string client_key = " --key " + test::get_ssl_dir() + "/client.key";
+        string client_cert = " --cert " + test::get_ssl_dir() + "/client-cert.pem";
+        string client_key = " --key " + test::get_ssl_dir() + "/client-key.pem";
         string command = "curl https://127.0.0.1:" + port_num + " " + client_cert + client_key +
                          " -k -vvv --stderr /tmp/client_ca.txt";
         swoole_shell_exec(command.c_str(), &pid2, 0);
