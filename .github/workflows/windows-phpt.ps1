@@ -54,6 +54,10 @@ foreach ($test in $tests) {
     Write-Host "::group::PHPT $relativePath"
     try {
         $process = Start-Process -FilePath php -ArgumentList ($options + $test.FullName) -NoNewWindow -PassThru
+        # Windows PowerShell 5 loses ExitCode for -NoNewWindow processes when
+        # the native handle is first requested after the child has exited.
+        # Cache it while the process is still alive (PowerShell #5421).
+        $null = $process.Handle
         if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
             $timeouts.Add($relativePath)
             $failures.Add($relativePath)
@@ -61,8 +65,6 @@ foreach ($test in $tests) {
             & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
             $process.WaitForExit()
         } else {
-            # Windows PowerShell 5 may not populate ExitCode after the timed
-            # WaitForExit overload until the process handle is signalled again.
             $process.WaitForExit()
             $process.Refresh()
             $exitCode = $process.ExitCode
