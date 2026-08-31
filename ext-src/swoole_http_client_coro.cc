@@ -583,6 +583,7 @@ Client::Client(const zval *zobject, const std::string &host, zend_long port, zen
     this->ssl = ssl;
 #endif
     _zobject = *zobject;
+    ZVAL_NULL(&zsocket);
     // TODO: zend_read_property cache here (strong type properties)
 }
 
