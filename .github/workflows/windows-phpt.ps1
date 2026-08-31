@@ -61,10 +61,14 @@ foreach ($test in $tests) {
             & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
             $process.WaitForExit()
         } else {
+            # Windows PowerShell 5 may not populate ExitCode after the timed
+            # WaitForExit overload until the process handle is signalled again.
+            $process.WaitForExit()
             $process.Refresh()
-            if ($process.ExitCode -ne 0) {
+            $exitCode = $process.ExitCode
+            if ($exitCode -ne 0) {
                 $failures.Add($relativePath)
-                Write-Error "PHPT failed with exit code $($process.ExitCode): $relativePath" -ErrorAction Continue
+                Write-Error "PHPT failed with exit code ${exitCode}: $relativePath" -ErrorAction Continue
             }
         }
     } finally {
