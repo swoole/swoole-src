@@ -160,7 +160,9 @@ function get_one_free_port(): int
     Runtime::enableCoroutine(0);
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or exit('Unable to create socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
     socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
-    socket_set_option($socket, SOL_SOCKET, SO_REUSEPORT, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+    if (defined('SO_REUSEPORT')) {
+        socket_set_option($socket, SOL_SOCKET, SO_REUSEPORT, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+    }
     socket_bind($socket, '127.0.0.1', 0) or exit('Unable to bind socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
     socket_getsockname($socket, $addr, $port);
     socket_close($socket);
