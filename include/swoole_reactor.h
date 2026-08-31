@@ -274,8 +274,12 @@ class Reactor {
         return sockets_;
     }
 
-    network::Socket *get_socket(const int fd) {
-        return sockets_[fd];
+    network::Socket *get_socket(const int fd) const {
+        auto i = sockets_.find(fd);
+        if (i == sockets_.end()) {
+            return nullptr;
+        }
+        return i->second;
     }
 
     void foreach_socket(const std::function<void(int, network::Socket *)> &callback) const {
