@@ -35,6 +35,7 @@ BEGIN_EXTERN_C()
 #include <ext/standard/php_var.h>
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
+#include <main/php_network.h>
 
 #define PHP_SWOOLE_VERSION SWOOLE_VERSION
 

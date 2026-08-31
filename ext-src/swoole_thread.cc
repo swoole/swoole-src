@@ -579,39 +579,66 @@ void php_swoole_thread_bailout() {
     zend_bailout();
 }
 
-int php_swoole_thread_stream_cast(zval *zstream) {
-    php_stream *stream;
-    int sockfd;
-    int cast_flags = PHP_STREAM_AS_FD_FOR_SELECT | PHP_STREAM_CAST_INTERNAL;
-    if ((php_stream_from_zval_no_verify(stream, zstream))) {
-        if (php_stream_cast(stream, cast_flags, (void **) &sockfd, 1) == SUCCESS && sockfd >= 0) {
-            return dup(sockfd);
-        }
+static swSocketFd php_swoole_thread_socket_dup(swSocketFd sockfd) {
+#ifdef _WIN32
+    WSAPROTOCOL_INFOW protocol_info;
+    if (WSADuplicateSocketW(sockfd, GetCurrentProcessId(), &protocol_info) != 0) {
+        errno = sw_socket_errno();
+        return SW_BAD_SOCKET;
     }
-    return -1;
+    swSocketFd newfd = WSASocketW(
+        FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, &protocol_info, 0, WSA_FLAG_OVERLAPPED);
+    if (newfd == SW_BAD_SOCKET) {
+        errno = sw_socket_errno();
+    }
+    return newfd;
+#else
+    return dup(sockfd);
+#endif
 }
 
-int php_swoole_thread_co_socket_cast(zval *zvalue, swSocketType *type) {
+swSocketFd php_swoole_thread_stream_cast(zval *zstream) {
+    php_stream *stream;
+    php_socket_t sockfd = SW_BAD_SOCKET;
+    int cast_flags = PHP_STREAM_AS_SOCKETD | PHP_STREAM_CAST_INTERNAL;
+    if ((php_stream_from_zval_no_verify(stream, zstream))) {
+        if (php_stream_cast(stream, cast_flags, (void **) &sockfd, 1) == SUCCESS && sockfd != SW_BAD_SOCKET) {
+            return php_swoole_thread_socket_dup(sockfd);
+        }
+    }
+    return SW_BAD_SOCKET;
+}
+
+swSocketFd php_swoole_thread_co_socket_cast(zval *zvalue, swSocketType *type) {
     SocketImpl *socket = php_swoole_get_socket(zvalue);
     if (!socket) {
-        return -1;
+        return SW_BAD_SOCKET;
     }
-    int sockfd = socket->get_fd();
-    if (sockfd < 0) {
-        return -1;
+    swSocketFd sockfd = socket->get_fd();
+    if (sockfd == SW_BAD_SOCKET) {
+        return SW_BAD_SOCKET;
     }
-    int newfd = dup(sockfd);
-    if (newfd < 0) {
-        return -1;
+    swSocketFd newfd = php_swoole_thread_socket_dup(sockfd);
+    if (newfd == SW_BAD_SOCKET) {
+        return SW_BAD_SOCKET;
     }
     *type = socket->get_type();
     return newfd;
 }
 
-void php_swoole_thread_stream_create(zval *return_value, zend_long sockfd) {
+void php_swoole_thread_stream_create(zval *return_value, swSocketFd sockfd) {
+#ifdef _WIN32
+    swSocketFd newfd = php_swoole_thread_socket_dup(sockfd);
+    php_stream *stream =
+        newfd == SW_BAD_SOCKET ? nullptr : php_stream_sock_open_from_socket((php_socket_t) newfd, nullptr);
+    if (!stream && newfd != SW_BAD_SOCKET) {
+        sw_close_socket(newfd);
+    }
+#else
     std::string path = "php://fd/" + std::to_string(sockfd);
     // The file descriptor will be duplicated once here
     php_stream *stream = php_stream_open_wrapper_ex(path.c_str(), "", 0, NULL, NULL);
+#endif
     if (stream) {
         php_stream_to_zval(stream, return_value);
     } else {
@@ -620,8 +647,8 @@ void php_swoole_thread_stream_create(zval *return_value, zend_long sockfd) {
     }
 }
 
-void php_swoole_thread_co_socket_create(zval *return_value, zend_long sockfd, swSocketType type) {
-    swSocketFd newfd = (swSocketFd)dup((int)sockfd);
+void php_swoole_thread_co_socket_create(zval *return_value, swSocketFd sockfd, swSocketType type) {
+    swSocketFd newfd = php_swoole_thread_socket_dup(sockfd);
     if (newfd == SW_BAD_SOCKET) {
     _error:
         object_init_ex(return_value, swoole_thread_error_ce);
@@ -637,9 +664,9 @@ void php_swoole_thread_co_socket_create(zval *return_value, zend_long sockfd, sw
 }
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
-void php_swoole_thread_php_socket_create(zval *return_value, zend_long sockfd) {
-    int newfd = dup(sockfd);
-    if (newfd < 0) {
+void php_swoole_thread_php_socket_create(zval *return_value, swSocketFd sockfd) {
+    swSocketFd newfd = php_swoole_thread_socket_dup(sockfd);
+    if (newfd == SW_BAD_SOCKET) {
     _error:
         object_init_ex(return_value, swoole_thread_error_ce);
         zend::object_set(return_value, ZEND_STRL("code"), errno);
@@ -647,7 +674,8 @@ void php_swoole_thread_php_socket_create(zval *return_value, zend_long sockfd) {
     }
     object_init_ex(return_value, socket_ce);
     auto retsock = Z_SOCKET_P(return_value);
-    if (!socket_import_file_descriptor(newfd, retsock)) {
+    if (!socket_import_file_descriptor((php_socket_t) newfd, retsock)) {
+        sw_close_socket(newfd);
         goto _error;
     }
 }
@@ -696,7 +724,7 @@ void ArrayItem::store(zval *zvalue) {
     case IS_RESOURCE: {
         value.socket.fd = php_swoole_thread_stream_cast(zvalue);
         type = IS_STREAM_SOCKET;
-        if (value.socket.fd == -1) {
+        if (value.socket.fd == SW_BAD_SOCKET) {
             zend_throw_exception(swoole_exception_ce, "failed to convert to socket fd", errno);
         }
         break;
@@ -710,7 +738,7 @@ void ArrayItem::store(zval *zvalue) {
         if (sw_zval_is_co_socket(zvalue)) {
             value.socket.fd = php_swoole_thread_co_socket_cast(zvalue, &value.socket.type);
             type = IS_CO_SOCKET;
-            if (value.socket.fd == -1) {
+            if (value.socket.fd == SW_BAD_SOCKET) {
                 zend_throw_exception(swoole_exception_ce, "failed to convert to socket fd", errno);
             }
             break;
@@ -722,8 +750,8 @@ void ArrayItem::store(zval *zvalue) {
                 zend_throw_exception(swoole_exception_ce, "invalid socket fd", EBADF);
                 break;
             }
-            value.socket.fd = dup(php_sock->bsd_socket);
-            if (value.socket.fd == -1) {
+            value.socket.fd = php_swoole_thread_socket_dup(php_sock->bsd_socket);
+            if (value.socket.fd == SW_BAD_SOCKET) {
                 zend_throw_exception(swoole_exception_ce, "failed to dup socket fd", errno);
             }
             type = IS_PHP_SOCKET;
@@ -971,8 +999,8 @@ void ArrayItem::release() {
         zend_string_release(value.str);
         value.str = nullptr;
     } else if (type == IS_STREAM_SOCKET || type == IS_CO_SOCKET || type == IS_PHP_SOCKET) {
-        close(value.socket.fd);
-        value.socket.fd = -1;
+        sw_close_socket(value.socket.fd);
+        value.socket.fd = SW_BAD_SOCKET;
     } else if (type == IS_SERIALIZED_OBJECT) {
         zend_string_release(value.serialized_object);
         value.serialized_object = nullptr;

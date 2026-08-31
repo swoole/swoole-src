@@ -50,7 +50,7 @@ jobs:
         with:
           ext-path: .
           tools-path: C:\tools\phpdev
-          conf-args: --enable-swoole-curl --enable-swoole-thread
+          conf-args: --enable-swoole-curl --enable-swoole-thread --enable-php-sockets
           staging-deps: '1'
           deps: openssl,libcurl,libssh2,zlib,nghttp2,libzstd,brotli
 
@@ -117,26 +117,18 @@ jobs:
       - name: Run Windows scheduler tests
         id: scheduler
         continue-on-error: true
-        timeout-minutes: 1
-        shell: cmd
+        timeout-minutes: 3
+        shell: powershell
         run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_coroutine_scheduler
+          & .github\workflows\windows-phpt.ps1 -Path tests\swoole_coroutine_scheduler -TimeoutSeconds 12
 
       - name: Run Windows coroutine utility tests
         id: coroutine-util
         continue-on-error: true
-        timeout-minutes: 1
-        shell: cmd
+        timeout-minutes: 2
+        shell: powershell
         run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_coroutine_util
+          & .github\workflows\windows-phpt.ps1 -Path tests\swoole_coroutine_util -TimeoutSeconds 12
 
       - name: Run Windows timer and event tests
         id: timer-event
@@ -153,74 +145,42 @@ jobs:
       - name: Run Windows IOCP socket tests (1/4)
         id: iocp-socket-1
         continue-on-error: true
-        timeout-minutes: 1
+        timeout-minutes: 2
         shell: powershell
         run: |
-          $env:PHPT = '1'
-          $env:TEST_PHP_EXECUTABLE = 'php'
-          $env:SKIP_ONLINE_TESTS = '1'
-          $env:NO_INTERACTION = '1'
-          $options = @('-P', '-q', '-d', 'extension=php_swoole', '-d', 'swoole.use_shortname=On', '--show-diff', '-g', 'PASS,FAIL,BORK,LEAK,XLEAK', '--show-slow', '1000', '--set-timeout', '10')
-          $tests = @(Get-ChildItem tests\swoole_socket_coro -Recurse -Filter *.phpt | Sort-Object FullName | Select-Object -First 16 | ForEach-Object { $_.FullName })
-          & php tests\run-tests @options @tests
-          exit $LASTEXITCODE
+          & .github\workflows\windows-phpt.ps1 -Path tests\swoole_socket_coro -Count 16 -TimeoutSeconds 12
 
       - name: Run Windows IOCP socket tests (2/4)
         id: iocp-socket-2
         continue-on-error: true
-        timeout-minutes: 1
+        timeout-minutes: 2
         shell: powershell
         run: |
-          $env:PHPT = '1'
-          $env:TEST_PHP_EXECUTABLE = 'php'
-          $env:SKIP_ONLINE_TESTS = '1'
-          $env:NO_INTERACTION = '1'
-          $options = @('-P', '-q', '-d', 'extension=php_swoole', '-d', 'swoole.use_shortname=On', '--show-diff', '-g', 'PASS,FAIL,BORK,LEAK,XLEAK', '--show-slow', '1000', '--set-timeout', '10')
-          $tests = @(Get-ChildItem tests\swoole_socket_coro -Recurse -Filter *.phpt | Sort-Object FullName | Select-Object -Skip 16 -First 16 | ForEach-Object { $_.FullName })
-          & php tests\run-tests @options @tests
-          exit $LASTEXITCODE
+          & .github\workflows\windows-phpt.ps1 -Path tests\swoole_socket_coro -Offset 16 -Count 16 -TimeoutSeconds 12
 
       - name: Run Windows IOCP socket tests (3/4)
         id: iocp-socket-3
         continue-on-error: true
-        timeout-minutes: 1
+        timeout-minutes: 2
         shell: powershell
         run: |
-          $env:PHPT = '1'
-          $env:TEST_PHP_EXECUTABLE = 'php'
-          $env:SKIP_ONLINE_TESTS = '1'
-          $env:NO_INTERACTION = '1'
-          $options = @('-P', '-q', '-d', 'extension=php_swoole', '-d', 'swoole.use_shortname=On', '--show-diff', '-g', 'PASS,FAIL,BORK,LEAK,XLEAK', '--show-slow', '1000', '--set-timeout', '10')
-          $tests = @(Get-ChildItem tests\swoole_socket_coro -Recurse -Filter *.phpt | Sort-Object FullName | Select-Object -Skip 32 -First 16 | ForEach-Object { $_.FullName })
-          & php tests\run-tests @options @tests
-          exit $LASTEXITCODE
+          & .github\workflows\windows-phpt.ps1 -Path tests\swoole_socket_coro -Offset 32 -Count 16 -TimeoutSeconds 12
 
       - name: Run Windows IOCP socket tests (4/4)
         id: iocp-socket-4
         continue-on-error: true
-        timeout-minutes: 1
+        timeout-minutes: 2
         shell: powershell
         run: |
-          $env:PHPT = '1'
-          $env:TEST_PHP_EXECUTABLE = 'php'
-          $env:SKIP_ONLINE_TESTS = '1'
-          $env:NO_INTERACTION = '1'
-          $options = @('-P', '-q', '-d', 'extension=php_swoole', '-d', 'swoole.use_shortname=On', '--show-diff', '-g', 'PASS,FAIL,BORK,LEAK,XLEAK', '--show-slow', '1000', '--set-timeout', '10')
-          $tests = @(Get-ChildItem tests\swoole_socket_coro -Recurse -Filter *.phpt | Sort-Object FullName | Select-Object -Skip 48 -First 16 | ForEach-Object { $_.FullName })
-          & php tests\run-tests @options @tests
-          exit $LASTEXITCODE
+          & .github\workflows\windows-phpt.ps1 -Path tests\swoole_socket_coro -Offset 48 -Count 16 -TimeoutSeconds 12
 
       - name: Run Windows thread tests
         id: thread
         continue-on-error: true
-        timeout-minutes: 2
-        shell: cmd
+        timeout-minutes: 4
+        shell: powershell
         run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_thread\*.phpt
+          & .github\workflows\windows-phpt.ps1 -Path tests\swoole_thread\*.phpt -TimeoutSeconds 20
 
       - name: Check Windows test results
         if: always()

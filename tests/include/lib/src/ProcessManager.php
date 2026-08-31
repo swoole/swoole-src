@@ -485,7 +485,16 @@ class ProcessManager
 
     protected function writeSyncCount(int $count): bool
     {
-        return file_put_contents($this->syncFile, (string) $count, LOCK_EX) !== false;
+        // Windows file locks are mandatory and can make the peer process fail
+        // to reopen this one-byte notification file. A single write is atomic
+        // for the small counters used here, so do not hold a cross-process lock.
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            if (@file_put_contents($this->syncFile, (string) $count) !== false) {
+                return true;
+            }
+            usleep(1000);
+        }
+        return false;
     }
 
     static function exec(callable $fn)
