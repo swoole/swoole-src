@@ -326,7 +326,7 @@ PHP_METHOD(swoole_thread_atomic_long, add) {
     Z_PARAM_LONG(add_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_add_fetch_64(atomic_long, (sw_atomic_long_t) add_value));
+    RETURN_LONG(sw_atomic_long_add_fetch(atomic_long, (sw_atomic_long_t) add_value));
 }
 
 PHP_METHOD(swoole_thread_atomic_long, sub) {
@@ -338,7 +338,7 @@ PHP_METHOD(swoole_thread_atomic_long, sub) {
     Z_PARAM_LONG(sub_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_LONG(sw_atomic_sub_fetch_64(atomic_long, (sw_atomic_long_t) sub_value));
+    RETURN_LONG(sw_atomic_long_sub_fetch(atomic_long, (sw_atomic_long_t) sub_value));
 }
 
 PHP_METHOD(swoole_thread_atomic_long, get) {
@@ -366,7 +366,7 @@ PHP_METHOD(swoole_thread_atomic_long, cmpset) {
     Z_PARAM_LONG(set_value)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(sw_atomic_cmp_set_64(atomic_long, (sw_atomic_long_t) cmp_value, (sw_atomic_long_t) set_value));
+    RETURN_BOOL(sw_atomic_long_cmp_set(atomic_long, (sw_atomic_long_t) cmp_value, (sw_atomic_long_t) set_value));
 }
 
 #endif

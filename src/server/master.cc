@@ -758,7 +758,7 @@ Server::Server(Mode _mode) {
     gs->pipe_packet_msg_id = 1;
     gs->max_concurrency = UINT_MAX;
 
-    msg_id_generator = [this]() { return sw_atomic_fetch_add(&gs->pipe_packet_msg_id, 1); };
+    msg_id_generator = [this]() { return sw_atomic_long_fetch_add(&gs->pipe_packet_msg_id, 1); };
     message_bus.set_id_generator(msg_id_generator);
 
 #ifdef SW_THREAD
@@ -1343,12 +1343,12 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) const
     _send.data = (char *) data;
     _send.info.len = length;
     if (factory_->finish(&_send)) {
-        sw_atomic_fetch_add(&gs->response_count, 1);
-        sw_atomic_fetch_add(&gs->total_send_bytes, length);
+        sw_atomic_long_fetch_add(&gs->response_count, 1);
+        sw_atomic_long_fetch_add(&gs->total_send_bytes, length);
         ListenPort *port = get_port_by_session_id(session_id);
         if (port) {
-            sw_atomic_fetch_add(&port->gs->response_count, 1);
-            sw_atomic_fetch_add(&port->gs->total_send_bytes, length);
+            sw_atomic_long_fetch_add(&port->gs->response_count, 1);
+            sw_atomic_long_fetch_add(&port->gs->total_send_bytes, length);
         }
         if (sw_worker()) {
             sw_worker()->response_count++;
@@ -2094,8 +2094,8 @@ bool Server::get_client_list(SessionId start_session_id, int find_count, std::ve
 }
 
 void Server::abort_connection(Reactor *reactor, const ListenPort *ls, Socket *_socket) const {
-    sw_atomic_fetch_add(&gs->abort_count, 1);
-    sw_atomic_fetch_add(&ls->gs->abort_count, 1);
+    sw_atomic_long_fetch_add(&gs->abort_count, 1);
+    sw_atomic_long_fetch_add(&ls->gs->abort_count, 1);
     if (_socket->object) {
         reactor->close(reactor, _socket);
     } else {
