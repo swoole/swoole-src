@@ -29,6 +29,8 @@ $pm->parentFunc = function () use ($pm) {
         for ($index = 0; $index < REQUESTS; $index++) {
             $handle = curl_init('http://127.0.0.1:' . $pm->getFreePort() . '/' . $index);
             curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, 1000);
+            curl_setopt($handle, CURLOPT_TIMEOUT_MS, 2000);
             curl_multi_add_handle($multi, $handle);
             $handles[$index] = $handle;
         }
@@ -65,8 +67,9 @@ $pm->childFunc = function () use ($pm) {
     $pm->wakeup();
 
     for ($requestIndex = 0; $requestIndex < REQUESTS; $requestIndex++) {
-        $connection = stream_socket_accept($server, 10);
+        $connection = stream_socket_accept($server, 2);
         Assert::assert($connection !== false, 'failed to accept HTTP request');
+        stream_set_timeout($connection, 1);
         $request = '';
         while (!str_contains($request, "\r\n\r\n")) {
             $chunk = fread($connection, 1024);

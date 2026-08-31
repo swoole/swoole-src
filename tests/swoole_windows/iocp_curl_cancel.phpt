@@ -27,6 +27,8 @@ $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $handle = curl_init('http://127.0.0.1:' . $pm->getFreePort() . '/');
         curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($handle, CURLOPT_CONNECTTIMEOUT_MS, 1000);
+        curl_setopt($handle, CURLOPT_TIMEOUT_MS, 2000);
 
         $coroutineId = Coroutine::getCid();
         go(function () use ($coroutineId) {
@@ -48,8 +50,9 @@ $pm->childFunc = function () use ($pm) {
     Assert::assert($server !== false, $errorMessage ?: 'failed to create HTTP server');
     $pm->wakeup();
 
-    $connection = stream_socket_accept($server, 10);
+    $connection = stream_socket_accept($server, 2);
     Assert::assert($connection !== false, 'failed to accept HTTP request');
+    stream_set_timeout($connection, 1);
     $request = '';
     while (!str_contains($request, "\r\n\r\n") && !feof($connection)) {
         $chunk = fread($connection, 1024);
