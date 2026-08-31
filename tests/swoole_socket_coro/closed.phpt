@@ -5,9 +5,15 @@ swoole_socket_coro: closed bad fd
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-go(function () {
+
+$server = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+Assert::assert($server !== false, $errorMessage ?: 'failed to create TCP server');
+$serverAddress = stream_socket_get_name($server, false);
+$port = (int) substr(strrchr($serverAddress, ':'), 1);
+
+go(function () use ($port) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
-    Assert::assert($socket->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT));
+    Assert::assert($socket->connect('127.0.0.1', $port));
     Assert::assert($socket->close());
     Assert::same($socket->errCode, 0);
     Assert::assert(!$socket->bind('127.0.0.1', 9501));
@@ -32,6 +38,7 @@ go(function () {
     Assert::same($socket->errCode, SOCKET_EBADF);
     echo "DONE\n";
 });
+fclose($server);
 ?>
 --EXPECT--
 DONE

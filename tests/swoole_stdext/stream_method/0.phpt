@@ -6,7 +6,7 @@ swoole_stdext/stream_method: 0
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-$filepath = tempnam(sys_get_temp_dir(), 'swoole-stdext-');
+$filepath = "/tmp/test.txt";
 $fp = fopen($filepath, "w+");
 $rdata = random_bytes(1024);
 Assert::greaterThan($fp->write($rdata->base64Encode()), $rdata->length());
@@ -32,6 +32,5 @@ Assert::eq($line, fgets($fp));
 Assert::true($fp->truncate(1000));
 
 Assert::true($fp->close());
-unlink($filepath);
 ?>
 --EXPECT--

@@ -114,20 +114,8 @@ jobs:
           set NO_INTERACTION=1
           php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_channel_coro tests\swoole_coroutine_lock tests\swoole_coroutine_wait_group
 
-      - name: Run Windows scheduler and coroutine utility tests
-        id: scheduler-util
-        continue-on-error: true
-        timeout-minutes: 2
-        shell: cmd
-        run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_coroutine_scheduler tests\swoole_coroutine_util
-
-      - name: Run Windows standard extension tests
-        id: stdext
+      - name: Run Windows scheduler tests
+        id: scheduler
         continue-on-error: true
         timeout-minutes: 1
         shell: cmd
@@ -136,7 +124,19 @@ jobs:
           set TEST_PHP_EXECUTABLE=php
           set SKIP_ONLINE_TESTS=1
           set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_stdext
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_coroutine_scheduler
+
+      - name: Run Windows coroutine utility tests
+        id: coroutine-util
+        continue-on-error: true
+        timeout-minutes: 1
+        shell: cmd
+        run: |
+          set PHPT=1
+          set TEST_PHP_EXECUTABLE=php
+          set SKIP_ONLINE_TESTS=1
+          set NO_INTERACTION=1
+          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_coroutine_util
 
       - name: Run Windows timer and event tests
         id: timer-event
@@ -150,17 +150,65 @@ jobs:
           set NO_INTERACTION=1
           php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_timer tests\swoole_event
 
-      - name: Run Windows IOCP socket tests
-        id: iocp-socket
+      - name: Run Windows IOCP socket tests (1/4)
+        id: iocp-socket-1
         continue-on-error: true
-        timeout-minutes: 3
-        shell: cmd
+        timeout-minutes: 1
+        shell: powershell
         run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_socket_coro
+          $env:PHPT = '1'
+          $env:TEST_PHP_EXECUTABLE = 'php'
+          $env:SKIP_ONLINE_TESTS = '1'
+          $env:NO_INTERACTION = '1'
+          $options = @('-P', '-q', '-d', 'extension=php_swoole', '-d', 'swoole.use_shortname=On', '--show-diff', '-g', 'PASS,FAIL,BORK,LEAK,XLEAK', '--show-slow', '1000', '--set-timeout', '10')
+          $tests = @(Get-ChildItem tests\swoole_socket_coro -Recurse -Filter *.phpt | Sort-Object FullName | Select-Object -First 16 | ForEach-Object { $_.FullName })
+          & php tests\run-tests @options @tests
+          exit $LASTEXITCODE
+
+      - name: Run Windows IOCP socket tests (2/4)
+        id: iocp-socket-2
+        continue-on-error: true
+        timeout-minutes: 1
+        shell: powershell
+        run: |
+          $env:PHPT = '1'
+          $env:TEST_PHP_EXECUTABLE = 'php'
+          $env:SKIP_ONLINE_TESTS = '1'
+          $env:NO_INTERACTION = '1'
+          $options = @('-P', '-q', '-d', 'extension=php_swoole', '-d', 'swoole.use_shortname=On', '--show-diff', '-g', 'PASS,FAIL,BORK,LEAK,XLEAK', '--show-slow', '1000', '--set-timeout', '10')
+          $tests = @(Get-ChildItem tests\swoole_socket_coro -Recurse -Filter *.phpt | Sort-Object FullName | Select-Object -Skip 16 -First 16 | ForEach-Object { $_.FullName })
+          & php tests\run-tests @options @tests
+          exit $LASTEXITCODE
+
+      - name: Run Windows IOCP socket tests (3/4)
+        id: iocp-socket-3
+        continue-on-error: true
+        timeout-minutes: 1
+        shell: powershell
+        run: |
+          $env:PHPT = '1'
+          $env:TEST_PHP_EXECUTABLE = 'php'
+          $env:SKIP_ONLINE_TESTS = '1'
+          $env:NO_INTERACTION = '1'
+          $options = @('-P', '-q', '-d', 'extension=php_swoole', '-d', 'swoole.use_shortname=On', '--show-diff', '-g', 'PASS,FAIL,BORK,LEAK,XLEAK', '--show-slow', '1000', '--set-timeout', '10')
+          $tests = @(Get-ChildItem tests\swoole_socket_coro -Recurse -Filter *.phpt | Sort-Object FullName | Select-Object -Skip 32 -First 16 | ForEach-Object { $_.FullName })
+          & php tests\run-tests @options @tests
+          exit $LASTEXITCODE
+
+      - name: Run Windows IOCP socket tests (4/4)
+        id: iocp-socket-4
+        continue-on-error: true
+        timeout-minutes: 1
+        shell: powershell
+        run: |
+          $env:PHPT = '1'
+          $env:TEST_PHP_EXECUTABLE = 'php'
+          $env:SKIP_ONLINE_TESTS = '1'
+          $env:NO_INTERACTION = '1'
+          $options = @('-P', '-q', '-d', 'extension=php_swoole', '-d', 'swoole.use_shortname=On', '--show-diff', '-g', 'PASS,FAIL,BORK,LEAK,XLEAK', '--show-slow', '1000', '--set-timeout', '10')
+          $tests = @(Get-ChildItem tests\swoole_socket_coro -Recurse -Filter *.phpt | Sort-Object FullName | Select-Object -Skip 48 -First 16 | ForEach-Object { $_.FullName })
+          & php tests\run-tests @options @tests
+          exit $LASTEXITCODE
 
       - name: Run Windows thread tests
         id: thread
@@ -183,10 +231,13 @@ jobs:
             '${{ steps.windows-core.outcome }}',
             '${{ steps.function-atomic.outcome }}',
             '${{ steps.channel-lock.outcome }}',
-            '${{ steps.scheduler-util.outcome }}',
-            '${{ steps.stdext.outcome }}',
+            '${{ steps.scheduler.outcome }}',
+            '${{ steps.coroutine-util.outcome }}',
             '${{ steps.timer-event.outcome }}',
-            '${{ steps.iocp-socket.outcome }}',
+            '${{ steps.iocp-socket-1.outcome }}',
+            '${{ steps.iocp-socket-2.outcome }}',
+            '${{ steps.iocp-socket-3.outcome }}',
+            '${{ steps.iocp-socket-4.outcome }}',
             '${{ steps.thread.outcome }}'
           )
           if ($outcomes -contains 'failure' -or $outcomes -contains 'cancelled') {

@@ -178,7 +178,7 @@ function skip_if_not_darwin()
 
 function skip_if_nts()
 {
-    skip('not support in nts', !defined('SWOOLE_THREAD'));
+    skip('thread support is required', !class_exists(Swoole\Thread::class, false));
 }
 
 function skip_if_not_linux()
