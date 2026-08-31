@@ -49,8 +49,47 @@ Coroutine\run(function () use (&$warnings) {
     Assert::true($server->start());
     Assert::true(Coroutine::join([$cid]));
     Assert::same($warnings, []);
+
+    $server = new Server('127.0.0.1', 0, true);
+    $server->handle('/', function ($request, $response) use ($server) {
+        $response->end('OK');
+        $server->shutdown();
+    });
+    Assert::true($server->set([
+        'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
+        'ssl_key_file' => SSL_FILE_DIR . '/server.key',
+        'ssl_client_cert_file' => __DIR__ . '/not-found.pem',
+    ]));
+
+    $cid = Coroutine::create(function () use ($server) {
+        Coroutine::sleep(0.01);
+        $server->shutdown();
+    });
+
+    try {
+        $server->start();
+        Assert::true(false, 'invalid SSL settings must throw before accepting connections');
+    } catch (Swoole\Exception $exception) {
+        Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+        Assert::contains($exception->getMessage(), 'ssl client cert file');
+    }
+    Assert::true(Coroutine::join([$cid]));
+    Assert::same($server->errCode, SOCKET_EINVAL);
+    Assert::same($server->errMsg, swoole_strerror(SOCKET_EINVAL));
+    Assert::same($warnings, []);
+
+    $warnings = [];
+    Assert::true($server->set(['ssl_client_cert_file' => SSL_FILE_DIR . '/ca-cert.pem']));
+    $cid = Coroutine::create(function () use ($server) {
+        Coroutine::sleep(0.01);
+        Assert::same(httpGetBody("https://127.0.0.1:{$server->port}/"), 'OK');
+    });
+    Assert::true($server->start());
+    Assert::true(Coroutine::join([$cid]));
+    Assert::same($warnings, []);
 });
 
 restore_error_handler();
 ?>
---EXPECT--
+--EXPECTF--
+[%s]	WARNING	SSLContext::set_client_cert_file(): ssl client cert file[%s] not found
