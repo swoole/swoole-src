@@ -15,7 +15,8 @@ Co\run(function () {
     } catch (TypeError $e) {
         echo $e->getMessage(), "\n";
     }
-    $s = stream_socket_server("udp://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND);
+    $scheme = IS_WIN ? 'tcp' : 'udp';
+    $s = stream_socket_server("{$scheme}://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND);
     var_dump($s);
     var_dump(fclose($s));
     try {

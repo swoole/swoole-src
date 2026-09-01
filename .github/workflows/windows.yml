@@ -130,6 +130,14 @@ jobs:
         run: |
           & .github\workflows\windows-phpt.ps1 -Path tests\swoole_coroutine_util -TimeoutSeconds 12
 
+      - name: Run Windows coroutine system tests
+        id: coroutine-system
+        continue-on-error: true
+        timeout-minutes: 2
+        shell: powershell
+        run: |
+          & .github\workflows\windows-phpt.ps1 -Path tests\swoole_coroutine_system -TimeoutSeconds 12
+
       - name: Run Windows timer and event tests
         id: timer-event
         continue-on-error: true
@@ -193,6 +201,7 @@ jobs:
             '${{ steps.channel-lock.outcome }}',
             '${{ steps.scheduler.outcome }}',
             '${{ steps.coroutine-util.outcome }}',
+            '${{ steps.coroutine-system.outcome }}',
             '${{ steps.timer-event.outcome }}',
             '${{ steps.iocp-socket-1.outcome }}',
             '${{ steps.iocp-socket-2.outcome }}',

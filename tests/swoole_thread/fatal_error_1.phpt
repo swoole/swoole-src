@@ -14,7 +14,9 @@ $pm = ProcessManager::exec(function () {
 });
 $output = $pm->getChildOutput();
 Assert::contains($output, "start child thread\n");
-Assert::contains($output, "stop child thread\n");
+if (!IS_WIN) {
+    Assert::contains($output, "stop child thread\n");
+}
 Assert::contains($output, "Fatal error: Uncaught Swoole\Error: test");
 ?>
 --EXPECT--

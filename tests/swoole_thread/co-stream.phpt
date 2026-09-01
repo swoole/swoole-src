@@ -11,7 +11,6 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Runtime;
 use Swoole\Thread;
-use Swoole\Thread\Queue;
 
 $tm = new \SwooleTest\ThreadManager();
 $tm->initFreePorts(increment: crc32(__FILE__) % 1000);
@@ -19,18 +18,15 @@ $tm->initFreePorts(increment: crc32(__FILE__) % 1000);
 $tm->parentFunc = function () use ($tm) {
     Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
     Co\run(function () use ($tm) {
-        $queue = new Queue();
         $fp = stream_socket_server('tcp://127.0.0.1:' . $tm->getFreePort(), $errno, $errstr);
-        $queue->push($fp);
-        $thread = new Thread(__FILE__, $queue);
+        $thread = new Thread(__FILE__, $fp);
         var_dump('main thread');
         $thread->join();
     });
 };
 
-$tm->childFunc = function ($queue) use ($tm) {
+$tm->childFunc = function ($fp) use ($tm) {
     var_dump('child thread');
-    $fp = $queue->pop();
     Co\run(function () use ($fp, $tm) {
         var_dump('child thread, co 0');
         Co\go(function () use ($tm) {
