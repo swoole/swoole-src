@@ -420,7 +420,11 @@ void PHPCoroutine::activate() {
     }
 
     if (sw_is_main_thread()) {
-        if (config.hook_flags) {
+        // Scheduler defaults request all runtime hooks, but installing them
+        // mutates process-wide PHP handlers. If another PHP thread is already
+        // active, keep any hooks installed before it started and do not try to
+        // reconfigure them from reactor activation.
+        if (config.hook_flags && sw_active_thread_count() == 1) {
             enable_hook(config.hook_flags);
         }
         disable_unsafe_function();

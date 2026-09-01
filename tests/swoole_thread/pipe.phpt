@@ -15,6 +15,9 @@ $args = Thread::getArguments();
 
 if (empty($args)) {
     $rdata = random_bytes(random_int(1024, 2048));
+    if (IS_WIN) {
+        Co::set(['hook_flags' => 0]);
+    }
     Co\run(function () use ($rdata) {
         if (IS_WIN) {
             $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);

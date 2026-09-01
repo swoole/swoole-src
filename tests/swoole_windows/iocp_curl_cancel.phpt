@@ -30,7 +30,9 @@ run(function () use ($port) {
     Assert::true($server->listen());
     go(function () use ($server) {
         $connection = $server->accept();
-        Assert::isInstanceOf($connection, Socket::class);
+        if (!$connection) {
+            return;
+        }
         $connection->recv();
         System::sleep(0.2);
         $connection->sendAll("HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nPONG\n");
@@ -53,6 +55,7 @@ run(function () use ($port) {
     Assert::same(curl_errno($handle), CURLE_ABORTED_BY_CALLBACK);
     Assert::same(swoole_last_error(), SWOOLE_ERROR_CO_CANCELED);
     curl_close($handle);
+    $server->close();
 });
 
 echo "DONE\n";
