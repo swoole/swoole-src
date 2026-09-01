@@ -11,7 +11,7 @@ Assert::assert($server !== false, $errorMessage ?: 'failed to create TCP server'
 $serverAddress = stream_socket_get_name($server, false);
 $port = (int) substr(strrchr($serverAddress, ':'), 1);
 
-go(function () use ($port) {
+go(function () use ($port, $server) {
     $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
     Assert::assert($socket->connect('127.0.0.1', $port));
     Assert::assert($socket->close());
@@ -39,9 +39,9 @@ go(function () use ($port) {
     $assertBadFileDescriptor();
     Assert::assert(!$socket->getpeername());
     $assertBadFileDescriptor();
+    fclose($server);
     echo "DONE\n";
 });
-fclose($server);
 ?>
 --EXPECT--
 DONE
