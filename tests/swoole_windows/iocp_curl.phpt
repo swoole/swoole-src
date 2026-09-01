@@ -18,9 +18,10 @@ use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 
 $pm = new SwooleTest\ProcessManager();
-$pm->parentFunc = function () use ($pm) {
+$pm->setParentSetup(function () {
     Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
-
+});
+$pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $ch = curl_init();
         Assert::isInstanceOf($ch, Swoole\Curl\Handler::class);

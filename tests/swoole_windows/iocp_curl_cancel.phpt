@@ -21,9 +21,10 @@ use function Swoole\Coroutine\go;
 use function Swoole\Coroutine\run;
 
 $pm = new SwooleTest\ProcessManager();
-$pm->parentFunc = function () use ($pm) {
+$pm->setParentSetup(function () {
     Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
-
+});
+$pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $handle = curl_init('http://127.0.0.1:' . $pm->getFreePort() . '/');
         curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);

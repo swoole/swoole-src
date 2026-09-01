@@ -20,9 +20,10 @@ use function Swoole\Coroutine\run;
 const REQUESTS = 3;
 
 $pm = new SwooleTest\ProcessManager();
-$pm->parentFunc = function () use ($pm) {
+$pm->setParentSetup(function () {
     Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
-
+});
+$pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $multi = curl_multi_init();
         $handles = [];

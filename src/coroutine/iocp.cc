@@ -776,6 +776,12 @@ int Iocp::open_file(const char *pathname, int flags, mode_t mode) {
     if (!php_win32_ioutil_posix_to_open_opts(flags, mode, &open_opts)) {
         return -1;
     }
+    // PHP's Windows flag conversion may treat O_CREAT without O_TRUNC as a
+    // fresh creation even when O_APPEND is present. Each coroutine writeFile
+    // call opens the file again, so that would discard the preceding writes.
+    if (flags & O_APPEND) {
+        open_opts.disposition = OPEN_ALWAYS;
+    }
 
     wchar_t *pathw = php_win32_ioutil_any_to_w(pathname);
     if (!pathw) {

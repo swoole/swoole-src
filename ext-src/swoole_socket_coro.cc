@@ -763,6 +763,8 @@ static sw_inline int socket_coro_public_error_code(int code) {
             return WSAEBADF;
         case ENOTCONN:
             return WSAENOTCONN;
+        case ETIMEDOUT:
+            return WSAETIMEDOUT;
         default:
             break;
         }

@@ -42,8 +42,13 @@ $pm->childFunc = function () use ($pm) {
 
         $server->handle(function (Connection $conn) use ($server) {
             while (true) {
-                $conn->recv();
-                $conn->send("helloworld");
+                $data = $conn->recv();
+                if ($data === '' || $data === false) {
+                    break;
+                }
+                if (!$conn->send("helloworld")) {
+                    break;
+                }
             }
         });
 

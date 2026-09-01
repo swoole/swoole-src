@@ -47,6 +47,7 @@ class ProcessManager
     protected $waitTimeout = 1.0;
 
     public $parentFunc;
+    protected $parentSetupFunc;
     public $childFunc;
     public $async = false;
     public $useConstantPorts = false;
@@ -93,6 +94,28 @@ class ProcessManager
     public function setParent(callable $func)
     {
         $this->parentFunc = $func;
+    }
+
+    /**
+     * Configure state that belongs to the parent PHP runtime.
+     *
+     * Windows must do this before starting the child thread because runtime
+     * hooks mutate process-wide PHP handlers and cannot be enabled while more
+     * than one PHP thread is active. POSIX does it after fork so the child
+     * keeps the unmodified runtime inherited by existing fixtures.
+     */
+    public function setParentSetup(callable $func): void
+    {
+        $this->parentSetupFunc = $func;
+    }
+
+    protected function runParentSetup(): void
+    {
+        if ($this->parentSetupFunc) {
+            $func = $this->parentSetupFunc;
+            $this->parentSetupFunc = null;
+            $func();
+        }
     }
 
     public function parentFirst()
@@ -228,6 +251,14 @@ class ProcessManager
             throw new RuntimeException("out of array");
         }
         return $this->randomDataArray[$index];
+    }
+
+    public function getRandomDataArray(): array
+    {
+        if ($this->randomDataArray instanceof Thread\ArrayList) {
+            return $this->randomDataArray->toArray();
+        }
+        return $this->randomDataArray;
     }
 
     public function getRandomData()
@@ -417,6 +448,7 @@ class ProcessManager
 
                 $this->syncQueue = new Thread\Queue();
                 $this->stopFlag = new Thread\Atomic(0);
+                $this->runParentSetup();
                 $this->childThread = new Thread(
                     $script,
                     self::WINDOWS_THREAD_MARKER,
@@ -489,6 +521,7 @@ class ProcessManager
                 // Some existing PHPT servers become ready without wakeup().
                 $this->wait();
             }
+            $this->runParentSetup();
             $this->runParentFunc($this->childPid);
             Event::wait();
             $this->childExitCode = proc_close($this->childProcess);
@@ -514,6 +547,7 @@ class ProcessManager
         if (!$this->parentFirst) {
             $this->wait();
         }
+        $this->runParentSetup();
         $this->runParentFunc($this->childPid = $this->childProcess->pid);
         Event::wait();
         $waitInfo = Process::wait(true);
