@@ -25,7 +25,7 @@ $port = get_one_free_port();
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
 run(function () use ($port) {
-    $server = new Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    $server = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     Assert::true($server->bind('127.0.0.1', $port));
     Assert::true($server->listen());
     go(function () use ($server) {

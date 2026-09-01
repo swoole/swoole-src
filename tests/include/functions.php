@@ -157,7 +157,9 @@ function get_one_free_port(): int
      * Therefore, it is essential to disable runtime hooks.
      */
     $flags = Runtime::getHookFlags();
-    Runtime::enableCoroutine(0);
+    if ($flags !== 0) {
+        Runtime::enableCoroutine(0);
+    }
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or exit('Unable to create socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
     socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
     if (defined('SO_REUSEPORT')) {
@@ -166,7 +168,9 @@ function get_one_free_port(): int
     socket_bind($socket, '127.0.0.1', 0) or exit('Unable to bind socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
     socket_getsockname($socket, $addr, $port);
     socket_close($socket);
-    Runtime::enableCoroutine($flags);
+    if ($flags !== 0) {
+        Runtime::enableCoroutine($flags);
+    }
     return $port;
 }
 
@@ -178,7 +182,9 @@ function get_constant_port(string $str, int $base = 9500): int
 function get_one_free_port_ipv6(): int
 {
     $hookFlags = Runtime::getHookFlags();
-    Runtime::enableCoroutine(0);
+    if ($hookFlags !== 0) {
+        Runtime::enableCoroutine(0);
+    }
     $server = @stream_socket_server('tcp://[::1]:0');
     if (!$server) {
         $port = -1;
@@ -191,7 +197,9 @@ function get_one_free_port_ipv6(): int
         }
     }
 
-    Runtime::enableCoroutine($hookFlags);
+    if ($hookFlags !== 0) {
+        Runtime::enableCoroutine($hookFlags);
+    }
     return $port;
 }
 

@@ -17,11 +17,11 @@ if (empty($args)) {
     $rdata = random_bytes(random_int(1024, 2048));
     Co\run(function () use ($rdata) {
         if (IS_WIN) {
-            $server = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            $server = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
             Assert::true($server->bind('127.0.0.1', 0));
             Assert::true($server->listen());
             $address = $server->getsockname();
-            $client = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            $client = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
             Assert::true($client->connect('127.0.0.1', $address['port']));
             $peer = $server->accept();
             Assert::isInstanceOf($peer, Swoole\Coroutine\Socket::class);

@@ -32,7 +32,7 @@ $tm->childFunc = function ($fp) use ($tm) {
         Assert::isInstanceOf($server, Socket::class);
         Co\go(function () use ($tm) {
             var_dump('child thread, co 1');
-            $client = new Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            $client = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
             Assert::true($client->connect('127.0.0.1', $tm->getFreePort()));
             Assert::eq($client->recv(), "hello world\n");
             $client->close();

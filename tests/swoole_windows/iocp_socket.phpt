@@ -19,7 +19,7 @@ use function Swoole\Coroutine\run;
 $pm = new SwooleTest\ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
-        $sock = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, defined('IPPROTO_TCP') ? IPPROTO_TCP : 0);
+        $sock = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         Assert::assert($sock->connect('127.0.0.1', $pm->getFreePort()));
         Assert::assert($sock->send('ping'));
         Assert::same($sock->recv(4, 1.0), 'pong');
