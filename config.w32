@@ -206,6 +206,7 @@ if (PHP_SWOOLE != "no") {
 	// Check for required libraries and headers
 	var swoole_ok = true;
 
+	AC_DEFINE("HAVE_CPU_AFFINITY", 1, "CPU affinity support");
 	AC_DEFINE("SW_USE_OPENSSL", 1, "Enable OpenSSL support");
 	AC_DEFINE("SW_HAVE_ZLIB", 1, "Have zlib");
 	AC_DEFINE("SW_HAVE_BROTLI", 1, "Have Brotli");
