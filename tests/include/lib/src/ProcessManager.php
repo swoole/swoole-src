@@ -23,9 +23,12 @@ use RuntimeException;
 use Swoole\Atomic;
 use Swoole\Event;
 use Swoole\Process;
+use Swoole\Thread;
 
 class ProcessManager
 {
+    private const WINDOWS_THREAD_MARKER = 'swoole-test-manager-thread';
+
     /**
      * @var Atomic
      */
@@ -63,10 +66,18 @@ class ProcessManager
     protected $waitCount = 0;
     protected $childOutputFile;
     protected $childExitCode = 255;
+    protected $childThread;
+    protected $syncQueue;
+    protected $stopFlag;
+    protected $windowsThreadBackend = false;
 
     public function __construct()
     {
         if (is_win()) {
+            if (!class_exists(Thread::class, false)) {
+                throw new RuntimeException('Swoole thread support is required on Windows');
+            }
+            $this->windowsThreadBackend = true;
             $this->syncToken = getenv('SWOOLE_TEST_PM_TOKEN') ?: bin2hex(random_bytes(8));
             $prefix = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'swoole-pm-' . $this->syncToken;
             $this->syncFile = $prefix . '.state';
@@ -117,6 +128,9 @@ class ProcessManager
         if (!is_win()) {
             return $this->atomic->wait($this->waitTimeout);
         }
+        if ($this->windowsThreadBackend) {
+            return $this->syncQueue->pop($this->waitTimeout) === true;
+        }
 
         $deadline = microtime(true) + $this->waitTimeout;
         while (microtime(true) < $deadline) {
@@ -138,6 +152,9 @@ class ProcessManager
         }
         if (!is_win()) {
             return $this->atomic->wakeup();
+        }
+        if ($this->windowsThreadBackend) {
+            return $this->syncQueue->push(true);
         }
 
         $this->waitCount = max($this->waitCount + 1, $this->readSyncCount() + 1);
@@ -261,7 +278,20 @@ class ProcessManager
 
     public function runChildFunc()
     {
-        return call_user_func($this->childFunc);
+        if (!$this->windowsThreadBackend) {
+            return call_user_func($this->childFunc);
+        }
+
+        $timerId = \Swoole\Timer::tick(10, function () {
+            if ($this->stopFlag->get() === 1) {
+                Event::exit();
+            }
+        });
+        try {
+            return call_user_func($this->childFunc);
+        } finally {
+            \Swoole\Timer::clear($timerId);
+        }
     }
 
     /**
@@ -276,6 +306,10 @@ class ProcessManager
         if (!$this->alone and !$this->killed and $this->childPid) {
             $this->killed = true;
             if (is_win()) {
+                if ($this->windowsThreadBackend) {
+                    $this->stopFlag->set(1);
+                    return;
+                }
                 if (is_resource($this->childProcess)) {
                     @proc_terminate($this->childProcess, 1);
                 }
@@ -311,6 +345,19 @@ class ProcessManager
     public function run($redirectStdout = false)
     {
         global $argv, $argc;
+        if (is_win() && class_exists(Thread::class, false)) {
+            $threadArgs = Thread::getArguments();
+            if (($threadArgs[0] ?? null) === self::WINDOWS_THREAD_MARKER) {
+                $this->windowsThreadBackend = true;
+                $this->onlyChild = true;
+                $this->syncQueue = $threadArgs[1];
+                $this->stopFlag = $threadArgs[2];
+                $this->freePorts = $threadArgs[3];
+                $this->randomData = $threadArgs[4];
+                $this->randomDataArray = $threadArgs[5];
+                return $this->runChildFunc();
+            }
+        }
         if ($argc > 1) {
             $this->useConstantPorts = true;
             if (is_win() && ($ports = getenv('SWOOLE_TEST_PM_PORTS'))) {
@@ -349,6 +396,39 @@ class ProcessManager
         }
 
         if (is_win()) {
+            if ($this->windowsThreadBackend) {
+                $script = $_SERVER['SCRIPT_FILENAME'] ?? null;
+                if (!$script) {
+                    throw new RuntimeException('cannot determine current script filename');
+                }
+
+                $this->syncQueue = new Thread\Queue();
+                $this->stopFlag = new Thread\Atomic(0);
+                $this->childThread = new Thread(
+                    $script,
+                    self::WINDOWS_THREAD_MARKER,
+                    $this->syncQueue,
+                    $this->stopFlag,
+                    $this->freePorts,
+                    $this->randomData,
+                    $this->randomDataArray,
+                );
+                $this->childPid = $this->childThread->id;
+                register_shutdown_function(function () {
+                    $this->kill();
+                });
+                if (!$this->parentFirst) {
+                    $this->wait();
+                }
+                $this->runParentFunc($this->childPid);
+                Event::wait();
+                $this->childThread->join();
+                $this->childExitCode = $this->childThread->getExitStatus();
+                $this->childExitStatus = $this->childExitCode;
+                $this->killed = true;
+                return true;
+            }
+
             @unlink($this->syncFile);
             @unlink($this->childOutputFile);
 
@@ -499,6 +579,11 @@ class ProcessManager
     static function exec(callable $fn)
     {
         $pm = new static();
+        // Fatal errors and whole-runtime exit behavior require a separate PHP
+        // runtime. This is test isolation, not the Swoole process backend.
+        if (is_win()) {
+            $pm->windowsThreadBackend = false;
+        }
         $pm->setWaitTimeout(0);
         $pm->parentFunc = function () {
         };
