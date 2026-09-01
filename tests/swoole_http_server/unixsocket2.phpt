@@ -9,13 +9,14 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Http\Server;
 use Swoole\Http\Response;
 
-const SOCKET = __DIR__ . '/server.sock';
+$socket = tempnam(sys_get_temp_dir(), 'swoole-http-server-');
+unlink($socket);
 
 $pm = new SwooleTest\ProcessManager;
 
-$pm->parentFunc = function ($pid) use ($pm) {
+$pm->parentFunc = function ($pid) use ($pm, $socket) {
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, SOCKET);
+    curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socket);
     curl_setopt($ch, CURLOPT_URL, "http://localhost/?a=hello&b=12345&test=world");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $output = curl_exec($ch);
@@ -23,8 +24,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm) {
-    $serv = new Server(SOCKET, 0, SWOOLE_PROCESS, SWOOLE_SOCK_UNIX_STREAM);
+$pm->childFunc = function () use ($pm, $socket) {
+    $serv = new Server($socket, 0, SWOOLE_PROCESS, SWOOLE_SOCK_UNIX_STREAM);
     $serv->set([
         'log_file' => '/dev/null',
     ]);
@@ -39,6 +40,7 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
+@unlink($socket);
 ?>
 --EXPECT--
 string(40) "{"a":"hello","b":"12345","test":"world"}"
