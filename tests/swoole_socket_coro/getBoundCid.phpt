@@ -13,16 +13,22 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert($sock->connect('127.0.0.1', $pm->getFreePort()));
         set_socket_coro_buffer_size($sock, 8192);
         $write_co = $read_co = -1;
-        go(function () use ($pm, $sock, &$write_co, &$read_co) {
+        $waitGroup = new Swoole\Coroutine\WaitGroup();
+        $waitGroup->add(2);
+        go(function () use ($pm, $sock, $waitGroup, &$write_co, &$read_co) {
             Co::sleep(0.001);
             echo "CLOSE\n";
             Assert::eq($sock->getBoundCid(SWOOLE_EVENT_READ), $read_co);
             Assert::eq($sock->getBoundCid(SWOOLE_EVENT_WRITE), $write_co);
             $sock->close();
+            $waitGroup->wait();
             $pm->kill();
             echo "DONE\n";
         });
-        $write_co = go(function () use ($sock) {
+        $write_co = go(function () use ($sock, $waitGroup) {
+            Co\defer(function () use ($waitGroup) {
+                $waitGroup->done();
+            });
             echo "SEND\n";
             $data = str_repeat('S', 16 * 1024 * 1024);
             do {
@@ -32,7 +38,10 @@ $pm->parentFunc = function () use ($pm) {
             Assert::eq($sock->errCode, SOCKET_ECANCELED);
             echo "SEND CLOSED\n";
         });
-        $read_co = go(function () use ($sock) {
+        $read_co = go(function () use ($sock, $waitGroup) {
+            Co\defer(function () use ($waitGroup) {
+                $waitGroup->done();
+            });
             echo "RECV\n";
             Assert::false($sock->recv(-1));
             Assert::eq($sock->errCode, SOCKET_ECANCELED);
