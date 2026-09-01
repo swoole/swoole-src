@@ -131,7 +131,6 @@ BEGIN_EXTERN_C()
 #include "ext/sockets/php_sockets.h"
 #ifdef PHP_WIN32
 #undef sockaddr_un
-#undef IS_INVALID_SOCKET
 #undef WINDOWS_COMMON_H
 #endif
 #define SWOOLE_SOCKETS_SUPPORT
