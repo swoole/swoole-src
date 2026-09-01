@@ -69,6 +69,7 @@ class ProcessManager
     protected $childThread;
     protected $syncQueue;
     protected $stopFlag;
+    protected $childStopTimer;
     protected $windowsThreadBackend = false;
 
     public function __construct()
@@ -278,20 +279,32 @@ class ProcessManager
 
     public function runChildFunc()
     {
-        if (!$this->windowsThreadBackend) {
-            return call_user_func($this->childFunc);
-        }
-
-        $timerId = \Swoole\Timer::tick(10, function () {
-            if ($this->stopFlag->get() === 1) {
-                Event::exit();
-            }
-        });
         try {
             return call_user_func($this->childFunc);
         } finally {
-            \Swoole\Timer::clear($timerId);
+            if ($this->childStopTimer) {
+                \Swoole\Timer::clear($this->childStopTimer);
+            }
         }
+    }
+
+    /**
+     * Register cooperative cleanup for a long-running child fixture.
+     * POSIX still terminates its child process; Windows invokes this callback
+     * in the child thread when the parent calls kill().
+     */
+    public function onChildStop(callable $callback): void
+    {
+        if (!$this->windowsThreadBackend || !$this->onlyChild) {
+            return;
+        }
+        $this->childStopTimer = \Swoole\Timer::tick(10, function (int $timerId) use ($callback) {
+            if ($this->stopFlag->get() === 1) {
+                \Swoole\Timer::clear($timerId);
+                $this->childStopTimer = null;
+                $callback();
+            }
+        });
     }
 
     /**

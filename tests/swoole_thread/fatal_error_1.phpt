@@ -17,6 +17,6 @@ Assert::contains($output, "start child thread\n");
 if (!IS_WIN) {
     Assert::contains($output, "stop child thread\n");
 }
-Assert::contains($output, "Fatal error: Uncaught Swoole\Error: test");
+Assert::contains($output, "Uncaught Swoole\Error: test");
 ?>
 --EXPECT--

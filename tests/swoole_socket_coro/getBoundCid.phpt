@@ -42,6 +42,9 @@ $pm->childFunc = function () use ($pm) {
         $server = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
         Assert::assert($server->listen());
+        $pm->onChildStop(function () {
+            Swoole\Event::exit();
+        });
         go(function () use ($pm, $server) {
             if (Assert::assert(($conn = $server->accept()) && $conn instanceof Co\Socket)) {
                 switch_process();

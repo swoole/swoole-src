@@ -38,6 +38,7 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     run(function () use ($pm) {
         $server = new Server('127.0.0.1', $pm->getFreePort(), false);
+        $pm->onChildStop([$server, 'shutdown']);
 
         $server->handle(function (Connection $conn) use ($server) {
             while (true) {
