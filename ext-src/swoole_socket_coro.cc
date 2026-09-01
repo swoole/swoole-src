@@ -129,13 +129,18 @@ static const zend_function_entry swoole_socket_coro_methods[] =
 };
 // clang-format on
 
+static sw_inline int socket_coro_public_error_code(int code);
+
 #define swoole_get_socket_coro(_sock, _zobject)                                                                        \
     SocketObject *_sock = socket_coro_fetch_object(Z_OBJ_P(_zobject));                                                 \
     if (UNEXPECTED(!sock->socket)) {                                                                                   \
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");                                   \
     }                                                                                                                  \
     if (UNEXPECTED(_sock->socket->is_closed())) {                                                                      \
-        zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errCode"), EBADF);          \
+        zend_update_property_long(swoole_socket_coro_ce,                                                               \
+                                  SW_Z8_OBJ_P(_zobject),                                                               \
+                                  ZEND_STRL("errCode"),                                                               \
+                                  socket_coro_public_error_code(EBADF));                                               \
         zend_update_property_string(                                                                                   \
             swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errMsg"), strerror(EBADF));                       \
         RETURN_FALSE;                                                                                                  \

@@ -24,8 +24,11 @@ $pm->parentFunc = function () use ($pm) {
         });
         $write_co = go(function () use ($sock) {
             echo "SEND\n";
-            $size = 16 * 1024 * 1024;
-            Assert::lessThan($sock->sendAll(str_repeat('S', $size)), $size);
+            $data = str_repeat('S', 16 * 1024 * 1024);
+            do {
+                $sent = $sock->sendAll($data);
+            } while ($sent === strlen($data));
+            Assert::lessThan($sent, strlen($data));
             Assert::eq($sock->errCode, SOCKET_ECANCELED);
             echo "SEND CLOSED\n";
         });

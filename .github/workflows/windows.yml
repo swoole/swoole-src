@@ -82,13 +82,21 @@ jobs:
         id: windows-core
         continue-on-error: true
         timeout-minutes: 2
-        shell: cmd
+        shell: powershell
         run: |
-          set PHPT=1
-          set TEST_PHP_EXECUTABLE=php
-          set SKIP_ONLINE_TESTS=1
-          set NO_INTERACTION=1
-          php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_windows\atomic_compat.phpt tests\swoole_windows\bootstrap.phpt tests\swoole_windows\iocp_cancel.phpt tests\swoole_windows\iocp_curl.phpt tests\swoole_windows\iocp_curl_multi.phpt tests\swoole_windows\iocp_file.phpt tests\swoole_windows\iocp_shutdown.phpt tests\swoole_windows\iocp_socket.phpt tests\swoole_windows\local_ip.phpt tests\swoole_windows\local_mac.phpt
+          $tests = @(
+            'tests\swoole_windows\atomic_compat.phpt',
+            'tests\swoole_windows\bootstrap.phpt',
+            'tests\swoole_windows\iocp_cancel.phpt',
+            'tests\swoole_windows\iocp_curl.phpt',
+            'tests\swoole_windows\iocp_curl_multi.phpt',
+            'tests\swoole_windows\iocp_file.phpt',
+            'tests\swoole_windows\iocp_shutdown.phpt',
+            'tests\swoole_windows\iocp_socket.phpt',
+            'tests\swoole_windows\local_ip.phpt',
+            'tests\swoole_windows\local_mac.phpt'
+          )
+          & .github\workflows\windows-phpt.ps1 -Path $tests -TimeoutSeconds 12
 
       - name: Run Windows function and atomic tests
         id: function-atomic
