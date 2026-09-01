@@ -17,21 +17,22 @@ if (empty($args)) {
     $rdata = random_bytes(random_int(1024, 2048));
     Co\run(function () use ($rdata) {
         if (IS_WIN) {
-            $server = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-            Assert::true($server->bind('127.0.0.1', 0));
-            Assert::true($server->listen());
-            $address = $server->getsockname();
-            $client = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-            Assert::true($client->connect('127.0.0.1', $address['port']));
-            $peer = $server->accept();
-            Assert::isInstanceOf($peer, Swoole\Coroutine\Socket::class);
-            $server->close();
+            $server = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+            Assert::notEmpty($server);
+            $address = stream_socket_get_name($server, false);
+            $client = stream_socket_client("tcp://{$address}", $errno, $errstr, 5);
+            Assert::notEmpty($client);
+            $peer = stream_socket_accept($server, 5);
+            Assert::notEmpty($peer);
+            fclose($server);
             $sockets = [$client, $peer];
         } else {
             $sockets = swoole_coroutine_socketpair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
         }
         $thread = new Thread(__FILE__, $sockets[1], $rdata);
-        Assert::eq($sockets[0]->recv(8192), $rdata);
+        $reader = IS_WIN ? Swoole\Coroutine\Socket::import($sockets[0]) : $sockets[0];
+        Assert::isInstanceOf($reader, Swoole\Coroutine\Socket::class);
+        Assert::eq($reader->recv(8192), $rdata);
         $thread->join();
         Assert::same($thread->getExitStatus(), 0);
         echo "DONE\n";
@@ -40,6 +41,10 @@ if (empty($args)) {
     $socket = $args[0];
     $rdata = $args[1];
     Co\run(function () use ($socket, $rdata, $argv) {
+        if (IS_WIN) {
+            $socket = Swoole\Coroutine\Socket::import($socket);
+            Assert::isInstanceOf($socket, Swoole\Coroutine\Socket::class);
+        }
         usleep(100);
         if (IS_WIN) {
             usleep(10000);

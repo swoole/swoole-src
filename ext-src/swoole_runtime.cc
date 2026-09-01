@@ -1837,6 +1837,12 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
 }
 
 bool PHPCoroutine::disable_hook() {
+    // Runtime hooks replace process-wide PHP handlers. Reactor teardown may
+    // happen while another PHP thread is still active, so defer restoration
+    // until the main thread is the only remaining request.
+    if (!sw_is_main_thread() || sw_active_thread_count() > 1) {
+        return false;
+    }
     return enable_hook(0);
 }
 
