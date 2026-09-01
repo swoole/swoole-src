@@ -1285,11 +1285,21 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             return $data;
         }
 
-        if (!$pipes) {
-            $stat = proc_get_status($proc);
-            if (!$stat['running']) {
-                break;
+        $currentStat = proc_get_status($proc);
+        if (!$currentStat['running']) {
+            $stat = $currentStat;
+            foreach ($pipes as $pipe) {
+                stream_set_blocking($pipe, false);
+                while (($line = fread($pipe, 8192)) !== '') {
+                    $data .= $line;
+                }
+                fclose($pipe);
             }
+            $pipes = [];
+            break;
+        }
+
+        if (!$pipes) {
             usleep((int) min(10000, $remaining * 1000000));
             continue;
         }
@@ -1299,20 +1309,17 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
         $w = null;
         $e = null;
 
-        $seconds = (int) $remaining;
-        $microseconds = (int) (($remaining - $seconds) * 1000000);
+        // Poll the process itself as descendants may inherit its pipes and keep
+        // them open after the test process has already exited.
+        $selectTimeout = min($remaining, 1.0);
+        $seconds = (int) $selectTimeout;
+        $microseconds = (int) (($selectTimeout - $seconds) * 1000000);
         $n = @stream_select($r, $w, $e, $seconds, $microseconds);
 
         if ($n === false) {
             continue;
         } else if ($n === 0) {
-            /* timed out */
-            $data .= "\n ** ERROR: process timed out after {$timeout} seconds **\n";
-            proc_terminate($proc, 9);
-            foreach ($pipes as $pipe) {
-                fclose($pipe);
-            }
-            return $data;
+            continue;
         } else if ($n > 0) {
             foreach ($r as $readyPipe) {
                 $pipeIndex = array_search($readyPipe, $pipes, true);
