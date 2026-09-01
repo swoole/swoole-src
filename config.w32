@@ -350,6 +350,10 @@ if (PHP_SWOOLE != "no") {
 		ADD_EXTENSION_DEP("swoole", "curl");
 	}
 
+	if (PHP_PHP_SOCKETS == "yes") {
+		ADD_EXTENSION_DEP("swoole", "sockets");
+	}
+
 	if (PHP_SWOOLE_SQLITE == "yes") {
 		ADD_EXTENSION_DEP("swoole", "pdo");
 	}
