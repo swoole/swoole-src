@@ -298,6 +298,17 @@ class ReactorIocp final : public ReactorImpl {
         Iocp::init(reactor_);
     }
 
+    ~ReactorIocp() override {
+        for (auto &kv : states_) {
+            auto *operation = kv.second.operation;
+            if (operation) {
+                operation->reactor = nullptr;
+                cancel(operation);
+            }
+        }
+        states_.clear();
+    }
+
     bool ready() override {
         return SwooleTG.iocp && SwooleTG.iocp->ready();
     }

@@ -134,7 +134,6 @@ static bool bind_connect_ex_socket(swSocketFd fd, const sockaddr *addr) {
 }
 
 Iocp::Iocp(Reactor *reactor_) {
-    reactor = reactor_;
     port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0);
     if (port == nullptr) {
         set_system_error(GetLastError());
@@ -143,6 +142,15 @@ Iocp::Iocp(Reactor *reactor_) {
     }
 
     swoole_trace_log(SW_TRACE_EVENT, "IOCP created: port=%p", port);
+
+    attach(reactor_);
+}
+
+void Iocp::attach(Reactor *reactor_) {
+    if (reactor == reactor_) {
+        return;
+    }
+    reactor = reactor_;
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_IOCP, [](Reactor *reactor, size_t &event_num) -> bool {
         if (SwooleTG.iocp && SwooleTG.iocp->get_blocking_task_num() > 0) {
@@ -157,13 +165,19 @@ Iocp::Iocp(Reactor *reactor_) {
         }
     });
 
-    reactor->add_destroy_callback([](void *data) {
-        if (!SwooleTG.iocp) {
-            return;
-        }
-        delete SwooleTG.iocp;
-        SwooleTG.iocp = nullptr;
-    });
+    reactor->add_destroy_callback(
+        [](void *data) {
+            if (SwooleTG.iocp) {
+                SwooleTG.iocp->detach(static_cast<Reactor *>(data));
+            }
+        },
+        reactor);
+}
+
+void Iocp::detach(Reactor *reactor_) {
+    if (reactor == reactor_) {
+        reactor = nullptr;
+    }
 }
 
 Iocp::~Iocp() {
@@ -271,6 +285,9 @@ Iocp *Iocp::get_instance() {
 
 bool Iocp::init(Reactor *reactor) {
     if (SwooleTG.iocp) {
+        if (reactor) {
+            SwooleTG.iocp->attach(reactor);
+        }
         return SwooleTG.iocp->ready();
     }
     if (!reactor) {
@@ -288,6 +305,11 @@ bool Iocp::init(Reactor *reactor) {
         return false;
     }
     return true;
+}
+
+void Iocp::shutdown() {
+    delete SwooleTG.iocp;
+    SwooleTG.iocp = nullptr;
 }
 
 bool Iocp::associate(swSocketFd fd) {

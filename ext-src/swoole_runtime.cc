@@ -405,7 +405,10 @@ void php_swoole_runtime_rinit() {
 }
 
 void php_swoole_runtime_rshutdown() {
-    if (!sw_is_main_thread()) {
+    // Runtime hooks are process-wide PHP handler mutations. A child request
+    // must never restore them, and the main request must defer restoration
+    // while another PHP thread is still completing its request shutdown.
+    if (!sw_is_main_thread() || sw_active_thread_count() > 1) {
         return;
     }
 
