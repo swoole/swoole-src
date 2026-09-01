@@ -457,7 +457,7 @@ void Table::delete_row(TableRow *root, TableRow *row, TableRow *previous) {
         free_row(row);
     }
 
-    sw_atomic_fetch_add(&(delete_count), 1);
+    sw_atomic_long_fetch_add(&(delete_count), 1);
     sw_atomic_fetch_sub(&(row_num), 1);
 }
 
@@ -530,9 +530,9 @@ TableRow *Table::set(const char *key, size_t keylen, TableRow **rowlock, int *ou
     }
 
     if (flags & SW_TABLE_FLAG_NEW_ROW) {
-        sw_atomic_fetch_add(&(insert_count), 1);
+        sw_atomic_long_fetch_add(&(insert_count), 1);
     } else {
-        sw_atomic_fetch_add(&(update_count), 1);
+        sw_atomic_long_fetch_add(&(update_count), 1);
     }
 
     return row;
@@ -607,7 +607,7 @@ bool Table::add(const char *key, size_t keylen, const TableValues &values, bool 
 
     clear_row(row);
     apply_values(row, values);
-    sw_atomic_fetch_add(&(insert_count), 1);
+    sw_atomic_long_fetch_add(&(insert_count), 1);
     root->unlock();
     return true;
 }
@@ -627,7 +627,7 @@ bool Table::update(const char *key, size_t keylen, const TableValues &values) {
     }
 
     apply_values(row, values);
-    sw_atomic_fetch_add(&(update_count), 1);
+    sw_atomic_long_fetch_add(&(update_count), 1);
     root->unlock();
     return true;
 }
@@ -647,7 +647,7 @@ bool Table::cmpset(const char *key, size_t keylen, const TableValues &expected, 
     }
 
     apply_values(row, values);
-    sw_atomic_fetch_add(&(update_count), 1);
+    sw_atomic_long_fetch_add(&(update_count), 1);
     root->unlock();
     return true;
 }

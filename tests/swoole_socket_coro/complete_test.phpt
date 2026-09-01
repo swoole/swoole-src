@@ -11,13 +11,12 @@ use Swoole\Coroutine\Socket;
 use Swoole\Event;
 
 $pm = new ProcessManager();
-$port = get_one_free_port();
-$pm->parentFunc = function ($pid) use ($pm, $port) {
+$pm->parentFunc = function ($pid) use ($pm) {
     $socket = new Socket(AF_INET, SOCK_STREAM, 0);
     Assert::isInstanceOf($socket, Socket::class);
     Assert::same($socket->errCode, 0);
-    go(function () use ($socket, $port) {
-        Assert::assert($socket->connect('localhost', $port));
+    go(function () use ($socket, $pm) {
+        Assert::assert($socket->connect('localhost', $pm->getFreePort()));
         $i = 0.000;
         while (true) {
             $socket->send('hello');
@@ -35,9 +34,9 @@ $pm->parentFunc = function ($pid) use ($pm, $port) {
     Event::wait();
 };
 
-$pm->childFunc = function () use ($pm, $port) {
+$pm->childFunc = function () use ($pm) {
     $socket = new Socket(AF_INET, SOCK_STREAM, 0);
-    Assert::assert($socket->bind('127.0.0.1', $port));
+    Assert::assert($socket->bind('127.0.0.1', $pm->getFreePort()));
     Assert::assert($socket->listen(128));
     go(function () use ($socket, $pm) {
         $pm->wakeup();

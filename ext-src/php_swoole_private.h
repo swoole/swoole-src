@@ -35,6 +35,7 @@ BEGIN_EXTERN_C()
 #include <ext/standard/php_var.h>
 #include <ext/standard/basic_functions.h>
 #include <ext/standard/php_http.h>
+#include <main/php_network.h>
 
 #define PHP_SWOOLE_VERSION SWOOLE_VERSION
 
@@ -111,7 +112,27 @@ BEGIN_EXTERN_C()
 #endif
 
 #ifdef SW_SOCKETS
+#ifdef PHP_WIN32
+/*
+ * ext/sockets/windows_common.h maps errno and close() to their Winsock
+ * variants. Those process-wide macros break Swoole's mixed file/socket C++
+ * code (and even member functions named close). We only need the public
+ * sockets declarations here, so provide its one required helper and keep the
+ * compatibility macros contained inside the sockets extension itself.
+ *
+ * PHP also declares its own unguarded sockaddr_un on Windows. Rename that
+ * private declaration while parsing the header; Swoole uses the equivalent
+ * definition from swoole_win32.h.
+ */
+#define WINDOWS_COMMON_H
+#define IS_INVALID_SOCKET(socket) ((socket)->bsd_socket == INVALID_SOCKET)
+#define sockaddr_un php_sockets_sockaddr_un
+#endif
 #include "ext/sockets/php_sockets.h"
+#ifdef PHP_WIN32
+#undef sockaddr_un
+#undef WINDOWS_COMMON_H
+#endif
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 

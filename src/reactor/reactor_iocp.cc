@@ -29,6 +29,7 @@ class ReactorIocp final : public ReactorImpl {
 
     struct PollState {
         Socket *socket = nullptr;
+        // The IOCP completion owns this operation and reaps it before the reactor implementation is deleted.
         PollOperation *operation = nullptr;
         HANDLE wait_handle = INVALID_HANDLE_VALUE;
         int events = 0;
@@ -106,11 +107,7 @@ class ReactorIocp final : public ReactorImpl {
         if (!operation || operation->event.completed) {
             return;
         }
-        if (SwooleTG.iocp) {
-            SwooleTG.iocp->cancel_submission(&operation->event);
-        } else {
-            operation->event.orphaned = true;
-        }
+        operation->event.orphaned = true;
         CancelIoEx(reinterpret_cast<HANDLE>(operation->event.fd), &operation->event.overlapped);
     }
 
@@ -134,10 +131,10 @@ class ReactorIocp final : public ReactorImpl {
                                   &operation->event.overlapped);
         const DWORD error = ok ? ERROR_SUCCESS : GetLastError();
         if (!ok && error != ERROR_IO_PENDING) {
-            SwooleTG.iocp->cancel_submission(&operation->event);
+            SwooleTG.iocp->discard_submission(&operation->event);
             state->operation = nullptr;
             delete operation;
-            Iocp::set_error(error);
+            Iocp::set_system_error(error);
             return SW_ERR;
         }
 
@@ -173,7 +170,7 @@ class ReactorIocp final : public ReactorImpl {
             if (result == WAIT_OBJECT_0) {
                 ready_fds.push_back(kv.first);
             } else if (result == WAIT_FAILED) {
-                Iocp::set_file_error(GetLastError());
+                Iocp::set_system_error(GetLastError());
                 return SW_ERR;
             }
         }
@@ -215,7 +212,7 @@ class ReactorIocp final : public ReactorImpl {
         if (result == WAIT_TIMEOUT) {
             return 0;
         }
-        Iocp::set_file_error(GetLastError());
+        Iocp::set_system_error(GetLastError());
         return SW_ERR;
     }
 
@@ -303,13 +300,13 @@ class ReactorIocp final : public ReactorImpl {
 
     ~ReactorIocp() override {
         for (auto &kv : states_) {
-            if (kv.second.operation) {
-                cancel(kv.second.operation);
-                kv.second.operation->reactor = nullptr;
-                delete kv.second.operation;
-                kv.second.operation = nullptr;
+            auto *operation = kv.second.operation;
+            if (operation) {
+                operation->reactor = nullptr;
+                cancel(operation);
             }
         }
+        states_.clear();
     }
 
     bool ready() override {
@@ -354,7 +351,7 @@ class ReactorIocp final : public ReactorImpl {
             }
             HANDLE wait_handle = get_os_handle(socket->fd);
             if (wait_handle == INVALID_HANDLE_VALUE) {
-                Iocp::set_file_error(ERROR_INVALID_HANDLE);
+                Iocp::set_system_error(ERROR_INVALID_HANDLE);
                 return SW_ERR;
             }
             states_[socket->fd] = PollState{socket, nullptr, wait_handle, events, false};

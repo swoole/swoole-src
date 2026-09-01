@@ -10,6 +10,17 @@
 require_once __DIR__ . '/config.php'; // (`once` because it may be required in skip when we run phpt)
 require  __DIR__ . '/../../tools/bootstrap.php';
 
+// Windows builds expose thread-safe atomics instead of the process-shared variants.
+// Keep the common PHPT API available for tests that run within a process or thread.
+if (is_win()) {
+    if (!class_exists(Swoole\Atomic::class, false) && class_exists(Swoole\Thread\Atomic::class, false)) {
+        class_alias(Swoole\Thread\Atomic::class, Swoole\Atomic::class);
+    }
+    if (!class_exists(Swoole\Atomic\Long::class, false) && class_exists(Swoole\Thread\Atomic\Long::class, false)) {
+        class_alias(Swoole\Thread\Atomic\Long::class, Swoole\Atomic\Long::class);
+    }
+}
+
 // PHP settings
 error_reporting(E_ALL ^ E_DEPRECATED);
 ini_set('memory_limit', '1024M');
@@ -59,8 +70,8 @@ if ($traceFlags) {
 // Components
 require __DIR__ . '/lib/vendor/autoload.php';
 
+class_alias(SwooleTest\ProcessManager::class, ProcessManager::class);
 if (!is_win()) {
-    class_alias(SwooleTest\ProcessManager::class, ProcessManager::class);
     class_alias(SwooleTest\ServerManager::class, ServerManager::class);
 }
 class_alias(SwooleTest\RandStr::class, RandStr::class);

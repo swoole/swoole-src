@@ -42,6 +42,9 @@
 #include "swoole_async.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_ssl.h"
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+#include "swoole_iocp.h"
+#endif
 
 #include "swoole_api.h"
 #include "swoole_coroutine_api.h"
@@ -406,6 +409,11 @@ void swoole_thread_clean(bool main_thread) {
     if (SwooleTG.reactor) {
         swoole_event_free();
     }
+#if defined(_WIN32) && defined(SW_USE_IOCP)
+    if (SwooleTG.iocp) {
+        swoole::Iocp::shutdown();
+    }
+#endif
     if (SwooleTG.buffer_stack) {
         delete SwooleTG.buffer_stack;
         SwooleTG.buffer_stack = nullptr;

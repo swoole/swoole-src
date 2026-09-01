@@ -9,42 +9,39 @@ skip_if_nts();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Runtime;
+use Swoole\Coroutine\Socket;
 use Swoole\Thread;
-use Swoole\Thread\Queue;
 
 $tm = new \SwooleTest\ThreadManager();
 $tm->initFreePorts(increment: crc32(__FILE__) % 1000);
 
 $tm->parentFunc = function () use ($tm) {
-    Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
-    Co\run(function () use ($tm) {
-        $queue = new Queue();
-        $fp = stream_socket_server('tcp://127.0.0.1:' . $tm->getFreePort(), $errno, $errstr);
-        $queue->push($fp);
-        $thread = new Thread(__FILE__, $queue);
-        var_dump('main thread');
-        $thread->join();
-    });
+    $fp = stream_socket_server('tcp://127.0.0.1:' . $tm->getFreePort(), $errno, $errstr);
+    Assert::notEmpty($fp);
+    $thread = new Thread(__FILE__, $fp);
+    var_dump('main thread');
+    $thread->join();
+    Assert::same($thread->getExitStatus(), 0);
 };
 
-$tm->childFunc = function ($queue) use ($tm) {
+$tm->childFunc = function ($fp) use ($tm) {
     var_dump('child thread');
-    $fp = $queue->pop();
     Co\run(function () use ($fp, $tm) {
         var_dump('child thread, co 0');
+        $server = Socket::import($fp);
+        Assert::isInstanceOf($server, Socket::class);
         Co\go(function () use ($tm) {
             var_dump('child thread, co 1');
-            $client = stream_socket_client('tcp://127.0.0.1:' . $tm->getFreePort(), $errno, $errstr);
-            Assert::notEmpty($client);
-            $data = fread($client, 8192);
-            Assert::eq($data, "hello world\n");
-            fclose($client);
+            $client = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+            Assert::true($client->connect('127.0.0.1', $tm->getFreePort()));
+            Assert::eq($client->recv(), "hello world\n");
+            $client->close();
         });
-        $conn = stream_socket_accept($fp, -1);
-        fwrite($conn, "hello world\n");
-        fclose($conn);
-        fclose($fp);
+        $conn = $server->accept();
+        Assert::isInstanceOf($conn, Socket::class);
+        $conn->sendAll("hello world\n");
+        $conn->close();
+        $server->close();
     });
 };
 

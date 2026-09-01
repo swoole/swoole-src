@@ -989,41 +989,6 @@ static PHP_METHOD(swoole_process, daemon) {
 }
 
 #ifdef HAVE_CPU_AFFINITY
-bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set) {
-    if (php_swoole_array_length(array) == 0) {
-        return false;
-    }
-
-    if (php_swoole_array_length(array) > SW_CPU_NUM) {
-        php_swoole_fatal_error(E_WARNING, "More than the number of CPU");
-        return false;
-    }
-
-    zval *value = nullptr;
-    CPU_ZERO(cpu_set);
-
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), value)
-    if (zval_get_long(value) >= SW_CPU_NUM) {
-        php_swoole_fatal_error(E_WARNING, "invalid cpu id [%d]", (int) Z_LVAL_P(value));
-        return false;
-    }
-    CPU_SET(Z_LVAL_P(value), cpu_set);
-    SW_HASHTABLE_FOREACH_END();
-
-    return true;
-}
-
-void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set) {
-    array_init(array);
-
-    int cpu_n = SW_CPU_NUM;
-    SW_LOOP_N(cpu_n) {
-        if (CPU_ISSET(i, cpu_set)) {
-            add_next_index_long(array, i);
-        }
-    }
-}
-
 static PHP_METHOD(swoole_process, setAffinity) {
     zval *array;
     ZEND_PARSE_PARAMETERS_START(1, 1)

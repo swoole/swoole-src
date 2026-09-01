@@ -665,6 +665,14 @@ int sw_open(const char *path, int oflags, int mode) {
 		} else {
 			posix_flags = _O_RDONLY;
 		}
+		if (oflags & O_APPEND) {
+			posix_flags |= _O_APPEND;
+		}
+#ifdef O_BINARY
+		if (oflags & O_BINARY) {
+			posix_flags |= _O_BINARY;
+		}
+#endif
 
 		fd_ = _open_osfhandle((intptr_t)hFile, posix_flags);
 		if (fd_ < 0) {
@@ -958,11 +966,12 @@ int sw_socket_errno(void) {
         return EHOSTDOWN;
     case WSAEHOSTUNREACH:
         return EHOSTUNREACH;
+    // IOCP socket completions report Win32 system codes through GetQueuedCompletionStatus().
+    case WSA_OPERATION_ABORTED:
     case WSAECANCELLED:
         return ECANCELED;
     default:
-        // For unknown WSA errors, return the raw value + a base offset
-        // to avoid colliding with standard errno values
+        // Return unknown WSA errors unchanged.
         return wsa_err;
     }
 }

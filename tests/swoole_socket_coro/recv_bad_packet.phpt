@@ -3,6 +3,7 @@ swoole_socket_coro: recv bad packet
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist(Swoole\Server::class);
 ?>
 --FILE--
 <?php
@@ -42,6 +43,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm) {
     $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $pm->onChildStop([$serv, 'shutdown']);
     $serv->set(array(
         "worker_num" => 4,
         'log_level' => SWOOLE_LOG_ERROR,

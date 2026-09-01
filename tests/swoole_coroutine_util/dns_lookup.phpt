@@ -4,6 +4,7 @@ swoole_coroutine_util: dns lookup
 <?php require __DIR__ . '/../include/skipif.inc';
 skip_if_offline();
 skip_if_no_database();
+skip_if_class_not_exist(Swoole\Http\Server::class);
 ?>
 --FILE--
 <?php

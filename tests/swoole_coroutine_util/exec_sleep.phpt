@@ -2,6 +2,7 @@
 swoole_coroutine_util: coroutine exec
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
+skip_if_win();
 ?>
 --FILE--
 <?php

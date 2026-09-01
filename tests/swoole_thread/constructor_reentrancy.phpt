@@ -81,12 +81,14 @@ try {
 // Broken constructors reject before parameter parsing, so this is the discriminating assertion.
 Assert::true($reentered);
 
-$server = (new ReflectionClass(Server::class))->newInstanceWithoutConstructor();
-try {
-    $server->__construct(new ReentrantHost($server), 0, SWOOLE_BASE);
-    Assert::true(false);
-} catch (Error $error) {
-    Assert::contains($error->getMessage(), 'Constructor of Swoole\Server can only be called once');
+if (class_exists(Server::class, false)) {
+    $server = (new ReflectionClass(Server::class))->newInstanceWithoutConstructor();
+    try {
+        $server->__construct(new ReentrantHost($server), 0, SWOOLE_BASE);
+        Assert::true(false);
+    } catch (Error $error) {
+        Assert::contains($error->getMessage(), 'Constructor of Swoole\Server can only be called once');
+    }
 }
 ?>
 --EXPECT--

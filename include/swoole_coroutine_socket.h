@@ -488,6 +488,18 @@ class Socket {
         if (event != SW_EVENT_NULL) {
             check_bound_co(event);
         }
+#ifdef _WIN32
+        // Winsock may leave an overlapped operation pending after SD_RECEIVE or
+        // SD_SEND. Reject operations on a shut-down direction synchronously.
+        if (event == SW_EVENT_READ && shutdown_read) {
+            set_err(ENOTCONN);
+            return false;
+        }
+        if (event == SW_EVENT_WRITE && shutdown_write) {
+            set_err(EPIPE);
+            return false;
+        }
+#endif
         if (sw_unlikely(is_closed())) {
             set_err(EBADF);
             return false;

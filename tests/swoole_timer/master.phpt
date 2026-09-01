@@ -2,7 +2,9 @@
 swoole_timer: timer in master
 --SKIPIF--
 <?php
-require __DIR__ . '/../include/skipif.inc'; ?>
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist(Swoole\Server::class);
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

@@ -142,7 +142,7 @@ int ProcessPool::create_message_bus() {
     }
     *message_bus_msg_id = 1;
     message_bus = new MessageBus();
-    message_bus->set_id_generator([this]() { return sw_atomic_fetch_add(message_bus_msg_id, 1); });
+    message_bus->set_id_generator([this]() { return sw_atomic_long_fetch_add(message_bus_msg_id, 1); });
     size_t ipc_max_size;
 #ifndef __linux__
     ipc_max_size = SW_IPC_MAX_SIZE;
