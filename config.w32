@@ -16,7 +16,6 @@ ARG_WITH("swoole-ssh2", "enable ssh2 support", "no");
 ARG_ENABLE("swoole-ftp", "enable Async FTP support", "no");
 ARG_ENABLE("thread-context", "use thread context", "no");
 ARG_ENABLE("swoole-thread", "enable swoole thread support", "no");
-ARG_ENABLE("swoole-stdext", "enable swoole stdext support", "no");
 ARG_ENABLE("swoole-coro-time", "calculate coroutine execution time", "no");
 ARG_ENABLE("swoole-sqlite", "enable sqlite support", "no");
 ARG_ENABLE("swoole-odbc", "enable odbc support", "no");
@@ -55,7 +54,6 @@ if (PHP_SWOOLE != "no") {
 	swoole_source_files += "ext-src\\swoole_name_resolver.cc ";
 	swoole_source_files += "ext-src\\swoole_runtime.cc ";
 	swoole_source_files += "ext-src\\swoole_socket_coro.cc ";
-	swoole_source_files += "ext-src\\swoole_stdext.cc ";
 	swoole_source_files += "ext-src\\swoole_thread.cc ";
 	swoole_source_files += "ext-src\\swoole_thread_arraylist.cc ";
 	swoole_source_files += "ext-src\\swoole_thread_atomic.cc ";
@@ -315,10 +313,6 @@ if (PHP_SWOOLE != "no") {
 
 	if (PHP_SWOOLE_THREAD != "no") {
 		AC_DEFINE("SW_THREAD", 1, "Enable swoole thread support");
-	}
-
-	if (PHP_SWOOLE_STDEXT != "no") {
-		AC_DEFINE("SW_STDEXT", 1, "Enable swoole stdext support");
 	}
 
 	if (PHP_SWOOLE_CORO_TIME != "no") {

@@ -181,12 +181,6 @@ Thread support does not turn the IOCP backend into a multi-threaded connection
 balancer. Each PHP thread must be treated as owning its own runtime context
 unless an API explicitly documents that sharing is supported.
 
-### Standard Extension Helpers
-
-The standard extension helper module is optional:
-
-- Build option: `--enable-swoole-stdext`
-
 ### Database Coroutine Clients
 
 Database coroutine clients are optional and depend on both build flags and

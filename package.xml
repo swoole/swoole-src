@@ -476,12 +476,6 @@
             <file role="doc" name="examples/ssl/webserver.php" />
             <file role="doc" name="examples/ssl/websocket_client.html" />
             <file role="doc" name="examples/ssl/websocket_server.php" />
-            <file role="doc" name="examples/stdext/array.php" />
-            <file role="doc" name="examples/stdext/foreach.php" />
-            <file role="doc" name="examples/stdext/ref.php" />
-            <file role="doc" name="examples/stdext/string.php" />
-            <file role="doc" name="examples/stdext/typed_array.php" />
-            <file role="doc" name="examples/stdext/typed_array_map.php" />
             <file role="doc" name="examples/table/deadlock.php" />
             <file role="doc" name="examples/table/iterator.php" />
             <file role="doc" name="examples/table/server.php" />
@@ -570,7 +564,6 @@
             <file role="src" name="ext-src/php_swoole_ssh2.h" />
             <file role="src" name="ext-src/php_swoole_ssh2_def.h" />
             <file role="src" name="ext-src/php_swoole_ssh2_hook.h" />
-            <file role="src" name="ext-src/php_swoole_stdext.h" />
             <file role="src" name="ext-src/php_swoole_thread.h" />
             <file role="src" name="ext-src/php_swoole_websocket.h" />
             <file role="src" name="ext-src/stubs/php_swoole.stub.php" />
@@ -631,8 +624,6 @@
             <file role="src" name="ext-src/stubs/php_swoole_socket_coro_arginfo.h" />
             <file role="src" name="ext-src/stubs/php_swoole_ssh2.stub.php" />
             <file role="src" name="ext-src/stubs/php_swoole_ssh2_arginfo.h" />
-            <file role="src" name="ext-src/stubs/php_swoole_stdext.stub.php" />
-            <file role="src" name="ext-src/stubs/php_swoole_stdext_arginfo.h" />
             <file role="src" name="ext-src/stubs/php_swoole_table.stub.php" />
             <file role="src" name="ext-src/stubs/php_swoole_table_arginfo.h" />
             <file role="src" name="ext-src/stubs/php_swoole_thread.stub.php" />
@@ -691,7 +682,6 @@
             <file role="src" name="ext-src/swoole_server_port.cc" />
             <file role="src" name="ext-src/swoole_socket_coro.cc" />
             <file role="src" name="ext-src/swoole_sqlite.cc" />
-            <file role="src" name="ext-src/swoole_stdext.cc" />
             <file role="src" name="ext-src/swoole_table.cc" />
             <file role="src" name="ext-src/swoole_thread.cc" />
             <file role="src" name="ext-src/swoole_thread_arraylist.cc" />
@@ -2548,37 +2538,6 @@
             <file role="test" name="tests/swoole_ssh2/ssh2_test.inc" />
             <file role="test" name="tests/swoole_ssh2/testkey_ed25519" />
             <file role="test" name="tests/swoole_ssh2/testkey_ed25519.pub" />
-            <file role="test" name="tests/swoole_stdext/array_method/0.phpt" />
-            <file role="test" name="tests/swoole_stdext/array_method/1.phpt" />
-            <file role="test" name="tests/swoole_stdext/array_method/2.phpt" />
-            <file role="test" name="tests/swoole_stdext/array_method/method.phpt" />
-            <file role="test" name="tests/swoole_stdext/stream_method/0.phpt" />
-            <file role="test" name="tests/swoole_stdext/string_method/0.phpt" />
-            <file role="test" name="tests/swoole_stdext/string_method/1.phpt" />
-            <file role="test" name="tests/swoole_stdext/string_method/json.phpt" />
-            <file role="test" name="tests/swoole_stdext/string_method/marshal.phpt" />
-            <file role="test" name="tests/swoole_stdext/string_method/match.phpt" />
-            <file role="test" name="tests/swoole_stdext/string_method/mbstring.phpt" />
-            <file role="test" name="tests/swoole_stdext/string_method/method.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/0.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/1.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/10.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/11.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/2.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/3.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/4.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/5.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/6.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/7.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/8.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/9.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/array_pop.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/array_push.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/array_shift.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/array_splice.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/array_unshift.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/resource.phpt" />
-            <file role="test" name="tests/swoole_stdext/typed_array/sort.phpt" />
             <file role="test" name="tests/swoole_table/big_size.phpt" />
             <file role="test" name="tests/swoole_table/bug_2263.phpt" />
             <file role="test" name="tests/swoole_table/bug_2290.phpt" />

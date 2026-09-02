@@ -10,7 +10,6 @@ COMPILE_PARAMS=" \
 --enable-cares \
 --enable-zstd \
 --enable-swoole-pgsql \
---enable-swoole-stdext \
 --with-swoole-firebird \
 --enable-uring-socket \
 --with-swoole-ssh2 \

@@ -37,9 +37,6 @@ BEGIN_EXTERN_C()
 #endif
 #include "stubs/php_swoole_ex_arginfo.h"
 #include "stubs/php_swoole_tracer_arginfo.h"
-#ifdef SW_STDEXT
-#include "stubs/php_swoole_stdext_arginfo.h"
-#endif
 #ifdef SW_HAVE_SSH2LIB
 #include "stubs/php_swoole_ssh2_arginfo.h"
 #endif
@@ -128,10 +125,6 @@ static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 static PHP_FUNCTION(swoole_implicit_fn);
 SW_EXTERN_C_END
 
-#ifdef SW_STDEXT
-#include "php_swoole_stdext.h"
-#endif
-
 #ifdef SW_HAVE_SSH2LIB
 #include "php_swoole_ssh2_def.h"
 #endif
@@ -191,32 +184,6 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_name_resolver_lookup, arginfo_swoole_name_resolver_lookup)
     ZEND_FE(swoole_name_resolver_add,    arginfo_swoole_name_resolver_add)
     ZEND_FE(swoole_name_resolver_remove, arginfo_swoole_name_resolver_remove)
-    // for stdext
-#ifdef SW_STDEXT
-    ZEND_FE(swoole_call_array_method,    arginfo_swoole_call_array_method)
-    ZEND_FE(swoole_call_string_method,   arginfo_swoole_call_string_method)
-    ZEND_FE(swoole_call_stream_method,   arginfo_swoole_call_stream_method)
-    ZEND_FE(swoole_array_search,         arginfo_swoole_array_search)
-    ZEND_FE(swoole_array_contains,       arginfo_swoole_array_contains)
-    ZEND_FE(swoole_array_join,           arginfo_swoole_array_join)
-    ZEND_FE(swoole_array_key_exists,     arginfo_swoole_array_key_exists)
-    ZEND_FE(swoole_array_map,            arginfo_swoole_array_map)
-    ZEND_FE(swoole_str_split,            arginfo_swoole_str_split)
-    ZEND_FE(swoole_parse_str,            arginfo_swoole_parse_str)
-    ZEND_FE(swoole_hash,                 arginfo_swoole_hash)
-    ZEND_FE(swoole_typed_array,          arginfo_swoole_typed_array)
-    ZEND_FE(swoole_array_is_typed,       arginfo_swoole_array_is_typed)
-    ZEND_FE(swoole_str_is_empty,         arginfo_swoole_str_is_empty)
-    ZEND_FE(swoole_array_is_empty,       arginfo_swoole_array_is_empty)
-    ZEND_FE(swoole_str_match,            arginfo_swoole_str_match)
-    ZEND_FE(swoole_str_match_all,        arginfo_swoole_str_match_all)
-    ZEND_FE(swoole_str_json_decode,      arginfo_swoole_str_json_decode)
-    ZEND_FE(swoole_str_json_decode_to_object, arginfo_swoole_str_json_decode_to_object)
-    ZEND_FE(swoole_str_replace,          arginfo_swoole_str_replace)
-    ZEND_FE(swoole_str_ireplace,         arginfo_swoole_str_ireplace)
-    ZEND_FE(swoole_array_replace_str,    arginfo_swoole_array_replace_str)
-    ZEND_FE(swoole_array_ireplace_str,   arginfo_swoole_array_ireplace_str)
-#endif
 #ifdef SW_HAVE_SSH2LIB
 	ZEND_FE(ssh2_connect, arginfo_ssh2_connect)
 	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
@@ -1022,10 +989,6 @@ PHP_MINIT_FUNCTION(swoole) {
             CG(function_table), "swoole_coroutine_create", CG(function_table), "go", arginfo_swoole_coroutine_create);
         SW_FUNCTION_ALIAS(
             CG(function_table), "swoole_coroutine_defer", CG(function_table), "defer", arginfo_swoole_coroutine_defer);
-#ifdef SW_STDEXT
-        SW_FUNCTION_ALIAS(
-            CG(function_table), "swoole_typed_array", CG(function_table), "typed_array", arginfo_swoole_typed_array);
-#endif
     }
 
     swoole_init();
@@ -1114,9 +1077,6 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_thread_queue_minit(module_number);
     php_swoole_thread_map_minit(module_number);
     php_swoole_thread_arraylist_minit(module_number);
-#endif
-#ifdef SW_STDEXT
-    php_swoole_stdext_minit(module_number);
 #endif
     php_swoole_tracer_minit(module_number);
 
