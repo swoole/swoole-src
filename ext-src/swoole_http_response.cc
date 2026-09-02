@@ -1210,7 +1210,11 @@ static PHP_METHOD(swoole_http_response, ping) {
     } else if (ctx->websocket) {
         String *buffer = ctx->get_write_buffer();
         buffer->clear();
-        WebSocket::encode(buffer, ZSTR_VAL(zdata), ZSTR_LEN(zdata), WebSocket::OPCODE_PING, WebSocket::FLAG_FIN);
+        if (sw_unlikely(!WebSocket::encode(
+                buffer, ZSTR_VAL(zdata), ZSTR_LEN(zdata), WebSocket::OPCODE_PING, WebSocket::FLAG_FIN))) {
+            swoole_set_last_error(SW_ERROR_WEBSOCKET_PACK_FAILED);
+            RETURN_FALSE;
+        }
         RETURN_BOOL(ctx->send(ctx, buffer->str, buffer->length));
     } else {
         php_swoole_fatal_error(E_WARNING, "only supports websocket or http2 client");
