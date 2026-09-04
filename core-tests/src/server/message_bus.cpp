@@ -29,6 +29,64 @@ using namespace swoole;
 
 constexpr int DATA_SIZE = 2 * SW_NUM_MILLION;
 
+static size_t packet_allocator_allocations = 0;
+static size_t packet_allocator_frees = 0;
+
+static void *test_packet_malloc(size_t size) {
+    packet_allocator_allocations++;
+    return malloc(size);
+}
+
+static void test_packet_free(void *ptr) {
+    packet_allocator_frees++;
+    free(ptr);
+}
+
+TEST(message_bus, buffer_uses_standard_allocator) {
+    Allocator allocator{test_packet_malloc, calloc, realloc, test_packet_free};
+    MessageBus message_bus;
+    message_bus.set_allocator(&allocator);
+
+    packet_allocator_allocations = 0;
+    packet_allocator_frees = 0;
+    message_bus.free_buffer();
+    ASSERT_EQ(message_bus.get_buffer(), nullptr);
+    ASSERT_EQ(packet_allocator_allocations, 0);
+    ASSERT_EQ(packet_allocator_frees, 0);
+
+    ASSERT_TRUE(message_bus.alloc_buffer());
+    ASSERT_NE(message_bus.get_buffer(), nullptr);
+    ASSERT_EQ(packet_allocator_allocations, 0);
+    ASSERT_EQ(packet_allocator_frees, 0);
+    message_bus.free_buffer();
+    ASSERT_EQ(message_bus.get_buffer(), nullptr);
+    message_bus.free_buffer();
+    ASSERT_EQ(message_bus.get_buffer(), nullptr);
+    ASSERT_EQ(packet_allocator_allocations, 0);
+    ASSERT_EQ(packet_allocator_frees, 0);
+}
+
+TEST(message_bus, release_pipe_sockets) {
+    UnixSocket pipe(true, SOCK_DGRAM);
+    ASSERT_TRUE(pipe.ready());
+
+    auto socket = pipe.get_socket(true);
+    auto fd = socket->get_fd();
+    MessageBus message_bus;
+
+    message_bus.init_pipe_socket(socket);
+    ASSERT_NE(message_bus.get_pipe_socket(socket), socket);
+    message_bus.release_pipe_sockets();
+    ASSERT_EQ(message_bus.get_pipe_socket(socket), nullptr);
+    ASSERT_TRUE(test::is_valid_fd(fd));
+
+    message_bus.release_pipe_sockets();
+    message_bus.init_pipe_socket(socket);
+    ASSERT_NE(message_bus.get_pipe_socket(socket), nullptr);
+    message_bus.release_pipe_sockets();
+    ASSERT_TRUE(test::is_valid_fd(fd));
+}
+
 struct TestPacket {
     SessionId fd;
     std::string data;
@@ -109,10 +167,15 @@ TEST(message_bus, read) {
 
     uint64_t msg_id = 0;
 
+    Allocator allocator{test_packet_malloc, calloc, realloc, test_packet_free};
     TestMB tmb{};
+    tmb.mb.set_allocator(&allocator);
     tmb.mb.set_buffer_size(65536);
     tmb.mb.set_id_generator([&msg_id]() { return msg_id++; });
-    tmb.mb.alloc_buffer();
+    packet_allocator_allocations = 0;
+    packet_allocator_frees = 0;
+    ASSERT_TRUE(tmb.mb.alloc_buffer());
+    ASSERT_EQ(packet_allocator_allocations, 0);
 
     tmb.read_func = [&tmb](network::Socket *sock) { return tmb.mb.read(sock); };
 
@@ -132,6 +195,7 @@ TEST(message_bus, read) {
     tmb.send_empty_packet(p.get_socket(true));
 
     ASSERT_EQ(swoole_event_wait(), SW_OK);
+    ASSERT_GT(packet_allocator_allocations, 0);
 
     MB_ASSERT(1);
     MB_ASSERT(2);
