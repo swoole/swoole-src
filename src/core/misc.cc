@@ -42,25 +42,46 @@ void sw_spinlock(sw_atomic_t *lock) {
 #ifdef HAVE_FUTEX
 #include <linux/futex.h>
 #include <sys/syscall.h>
+#include <chrono>
+
+using Clock = std::chrono::steady_clock;
 
 int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
-    if (sw_atomic_cmp_set(atomic, 1, 0)) {
-        return 0;
-    }
+    bool timed = timeout > 0;
+    auto deadline =
+        timed ? Clock::now() + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(timeout))
+              : Clock::time_point{};
 
-    int ret;
-    timespec _timeout;
+    int ret = 0;
 
-    if (timeout > 0) {
-        _timeout.tv_sec = static_cast<long>(timeout);
-        _timeout.tv_nsec = (timeout - _timeout.tv_sec) * 1000 * 1000 * 1000;
-        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, NULL, 0);
-    } else {
-        ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
-    }
-    if (ret == 0 && sw_atomic_cmp_set(atomic, 1, 0)) {
-        return 0;
-    } else {
+    while (true) {
+        if (sw_atomic_cmp_set(atomic, 1, 0)) {
+            return 0;
+        }
+
+        if (!timed) {
+            ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, NULL, NULL, 0);
+        } else {
+            auto remaining = deadline - Clock::now();
+            if (remaining <= Clock::duration::zero()) {
+                return -1;
+            }
+
+            auto seconds = std::chrono::duration_cast<std::chrono::seconds>(remaining);
+            timespec _timeout;
+            _timeout.tv_sec = seconds.count();
+            _timeout.tv_nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(remaining - seconds).count();
+            ret = syscall(SYS_futex, atomic, FUTEX_WAIT, 0, &_timeout, NULL, 0);
+        }
+
+        if (sw_unlikely(ret == -1 && (errno == EAGAIN || errno == EINTR))) {
+            continue;
+        }
+
+        if (ret == 0 && sw_atomic_cmp_set(atomic, 1, 0)) {
+            return 0;
+        }
+
         return -1;
     }
 }
