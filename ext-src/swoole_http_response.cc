@@ -17,6 +17,7 @@
 #include "php_swoole_http_server.h"
 #include "php_swoole_websocket.h"
 #include "swoole_util.h"
+#include "swoole_coroutine_api.h"
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_http_response_arginfo.h"
@@ -700,9 +701,14 @@ void HttpContext::send_trailer(zval *return_value) {
     }
 }
 
-bool HttpContext::send_file(zend_string *file, off_t offset, size_t length) {
+bool HttpContext::send_file(zend_string *file, off_t offset, size_t length, bool delete_file) {
     if (http2) {
-        return swoole_http2_server_send_file(this, file, offset, length);
+        bool retval = swoole_http2_server_send_file(this, file, offset, length);
+        // The HTTP/2 source is consumed synchronously, so deletion is safe on any result.
+        if (delete_file) {
+            swoole_coroutine_unlink(file->val);
+        }
+        return retval;
     }
 
     zval *zheader =
@@ -723,13 +729,27 @@ bool HttpContext::send_file(zend_string *file, off_t offset, size_t length) {
 
         if (!send(this, http_buffer->str, http_buffer->length)) {
             send_header_ = 0;
+            // Header dispatch failed before any transport took ownership of the file.
+            if (delete_file) {
+                swoole_coroutine_unlink(file->val);
+            }
             return false;
         }
     }
 
-    if (length > 0 && !sendfile(this, file, offset, length)) {
-        close(this);
-        return false;
+    if (length > 0) {
+        // The transport callback consumes the token when it takes ownership; if it declines
+        // without consuming it, the file is still ours to remove.
+        if (!sendfile(this, file, offset, length, delete_file)) {
+            close(this);
+            if (delete_file) {
+                swoole_coroutine_unlink(file->val);
+            }
+            return false;
+        }
+    } else if (delete_file) {
+        // An empty file never reaches the transport callback; delete at the success boundary.
+        swoole_coroutine_unlink(file->val);
     }
 
     end_ = 1;
@@ -950,12 +970,14 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     zend_string *file;
     zend_long offset = 0;
     zend_long length = 0;
+    zend_bool delete_file = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 3)
+    ZEND_PARSE_PARAMETERS_START(1, 4)
     Z_PARAM_STR(file)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(offset)
     Z_PARAM_LONG(length)
+    Z_PARAM_BOOL(delete_file)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (ZSTR_LEN(file) == 0) {
@@ -999,7 +1021,7 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
-    RETURN_BOOL(ctx->send_file(file, offset, length));
+    RETURN_BOOL(ctx->send_file(file, offset, length, delete_file));
 }
 
 static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
