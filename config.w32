@@ -360,7 +360,11 @@ if (PHP_SWOOLE != "no") {
 		ADD_EXTENSION_DEP("swoole", "pdo");
 	}
 
-	if (PHP_SWOOLE_ODBC == "yes") {
+	if (PHP_SWOOLE_ODBC != "no") {
+		ADD_EXTENSION_DEP("swoole", "pdo");
+	}
+
+	if (PHP_SWOOLE_FIREBIRD != "no") {
 		ADD_EXTENSION_DEP("swoole", "pdo");
 	}
 
