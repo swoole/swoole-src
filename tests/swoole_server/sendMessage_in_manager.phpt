@@ -6,11 +6,13 @@ require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 
+use Swoole\Atomic;
 use Swoole\Constant;
 use Swoole\Server;
 
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
+$connect = new Atomic();
 
 const N = 16;
 
@@ -34,24 +36,24 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm) {
+$pm->childFunc = function () use ($pm, $connect) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
     $serv->set([
         'log_file' => '/dev/null',
         'worker_num' => 2,
         'task_worker_num' => 2,
     ]);
-    $serv->on(Constant::EVENT_MANAGER_START, function (Server $serv) use ($pm) {
+    $serv->on(Constant::EVENT_MANAGER_START, function (Server $serv) use ($pm, $connect) {
         $pm->wakeup();
-        $pm->wait();
+        Assert::true($connect->wait(10));
         usleep(10000);
         swoole_loop_n(N, function ($i) use ($serv) {
             $wid = rand(0, 3);
             $serv->sendMessage("msg-" . $i, $wid);
         });
     });
-    $serv->on(Constant::EVENT_CONNECT, function ($serv, $fd, $reactor_id) use ($pm) {
-        $pm->wakeup();
+    $serv->on(Constant::EVENT_CONNECT, function ($serv, $fd, $reactor_id) use ($connect) {
+        $connect->wakeup();
     });
     $serv->on(Constant::EVENT_RECEIVE, function ($serv, $fd, $reactor_id, $data) {
     });

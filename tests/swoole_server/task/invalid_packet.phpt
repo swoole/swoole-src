@@ -41,13 +41,15 @@ $pm->childFunc = function () use ($pm, $file, $result) {
         'message_queue_key' => MSGQ_KEY,
         'log_file' => $file,
     ]);
-    $serv->on('WorkerStart', function (Server $serv) use ($pm) {
-        $pm->wakeup();
+    $serv->on('WorkerStart', function (Server $serv, int $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
     });
     $serv->on('receive', function (Server $serv, $fd, $rid, $data) {});
     $serv->on('task', function (Server $serv, $task_id, $worker_id, $data) use ($pm, $result) {
-        $pm->wakeup();
         $result->add(1);
+        $pm->wakeup();
     });
 
     $serv->start();
