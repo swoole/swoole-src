@@ -47,6 +47,7 @@ $pm->childFunc = function () use ($pm) {
             $response->end('<h1>Stop</h1>');
             $server->shutdown();
         });
+        $pm->wakeup();
         $server->start();
     });
     Event::wait();

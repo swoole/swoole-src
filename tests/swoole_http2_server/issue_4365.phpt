@@ -31,6 +31,11 @@ $pm->childFunc = function () use ($pm) {
         'log_level' => 1,
         'log_file' => TEST_LOG_FILE,
     ]);
+    $http->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $http->on('request', function ($request, $response) {
         $response->end(str_repeat('x', N - 4) . "\r\n\r\n");
     });
