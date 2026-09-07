@@ -615,8 +615,15 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
         if (!ctx->completed) {
             // Make sure the complete request package is received
-            if (ctx->recv_chunked && memcmp(buffer->str + buffer->length - (sizeof(SW_HTTP_CHUNK_EOF) - 1),
-                                            SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
+            if (ctx->recv_chunked && !buffer->ends_with(SW_STRL(SW_HTTP_CHUNK_EOF))) {
+                if (buffer->length >= sock->protocol.package_max_length) {
+                    ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
+                    break;
+                }
+                if (buffer->length == buffer->size) {
+                    buffer->extend(
+                        SW_MIN(buffer->size + SW_BUFFER_SIZE_BIG, (size_t) sock->protocol.package_max_length));
+                }
                 goto _recv_request;
             }
             if (buffer->length < total_length) {
