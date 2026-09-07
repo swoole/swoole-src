@@ -24,14 +24,15 @@ $pm->childFunc = function () use ($pm) {
         'enable_coroutine' => false,
         'hook_flags' => SWOOLE_HOOK_ALL,
     ]);
-    $server->on('start', function () {
-        Swoole\Coroutine::create(function () {
+    $server->on('start', function () use ($pm) {
+        Swoole\Coroutine::create(function () use ($pm) {
             $redis = new \Redis();
             $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
             $ret = $redis->set('foo', 'bar');
             Assert::assert($ret);
             $ret = $redis->get('foo');
             Assert::same($ret, 'bar');
+            $pm->wakeup();
         });
     });
     $server->on('workerStart', function ($server) {

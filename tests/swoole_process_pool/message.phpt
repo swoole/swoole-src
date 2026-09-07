@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP);
-    Assert::assert($client->connect('127.0.0.1', 8089, 5));
+    Assert::assert($client->connect('127.0.0.1', $pm->getFreePort(), 5));
     $data = "hello swoole!";
     $client->send(pack('N', strlen($data)) . $data);
     $ret = $client->recv();
@@ -24,16 +24,19 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $pool = new Swoole\Process\Pool(1, SWOOLE_IPC_SOCKET);
 
-    $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
+    $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) use ($pm) {
         $client = new Swoole\Client(SWOOLE_SOCK_TCP);
-        Assert::assert($client->connect('127.0.0.1', 8089, 5));
+        Assert::assert($client->connect('127.0.0.1', $pm->getFreePort(), 5));
         $data = "hello swoole! (from workerStart)";
         $client->send(pack('N', strlen($data)) . $data);
         $client->close();
     });
 
-    $pool->on("message", function (Swoole\Process\Pool $pool, string $message) {
+    $pool->on("message", function (Swoole\Process\Pool $pool, string $message) use ($pm) {
         echo "{$message}\n";
+        if ($message === "hello swoole! (from workerStart)") {
+            $pm->wakeup();
+        }
         if ($message === "hello swoole!") {
             $pool->write("hello ");
             $pool->write("client!");
@@ -41,7 +44,7 @@ $pm->childFunc = function () use ($pm) {
         }
     });
 
-    $pool->listen('127.0.0.1', 8089);
+    $pool->listen('127.0.0.1', $pm->getFreePort());
 
     $pool->start();
 };

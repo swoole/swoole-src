@@ -20,6 +20,7 @@ $table->set('control', ['release' => 0]);
 for ($i = 0; $i < 4; $i++) {
     $table->set((string) $i, ['busy' => 0]);
 }
+$ready = new Swoole\Atomic(0);
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm, $table) {
@@ -87,15 +88,15 @@ $pm->parentFunc = function () use ($pm, $table) {
     }
     echo "DONE\n";
 };
-$pm->childFunc = function () use ($pm, $table) {
+$pm->childFunc = function () use ($pm, $ready, $table) {
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'dispatch_mode' => SWOOLE_DISPATCH_CONCURRENT_LB,
         'worker_num' => 4,
         'log_file' => '/dev/null',
     ]);
-    $server->on('workerStart', function (Server $server, int $workerId) use ($pm) {
-        if ($workerId === 0) {
+    $server->on('workerStart', function (Server $server, int $workerId) use ($pm, $ready) {
+        if ($ready->add() === $server->setting['worker_num']) {
             $pm->wakeup();
         }
     });
