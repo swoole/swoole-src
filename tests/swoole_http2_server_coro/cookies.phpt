@@ -51,6 +51,7 @@ $pm->childFunc = function () use ($pm) {
                 }
                 $response->end('OK');
             });
+            $pm->wakeup();
             $http->start();
         });
     });

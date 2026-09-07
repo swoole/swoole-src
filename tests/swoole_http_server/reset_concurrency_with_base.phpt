@@ -17,6 +17,7 @@ use function Swoole\Coroutine\run;
 const N = 64;
 
 $counter = new Atomic(0);
+$ready = new Atomic(0);
 $table = new Table(1024);
 $table->column('pid', Table::TYPE_INT);
 $table->create();
@@ -46,19 +47,19 @@ $pm->parentFunc = function () use ($pm) {
     });
 };
 
-$pm->childFunc = function () use ($pm, $counter, $table) {
+$pm->childFunc = function () use ($pm, $counter, $ready, $table) {
     $http = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set([
         'worker_num' => 4,
         'max_concurrency' => 160,
         'log_file' => '/dev/null',
     ]);
-    $http->on('workerStart', function ($server, $wid) use ($pm, $table) {
-        if ($wid === 0) {
-            $pm->wakeup();
-        }
+    $http->on('workerStart', function ($server, $wid) use ($pm, $ready, $table) {
         $pid = posix_getpid();
         $table->set('worker_' . $wid, ['pid' => $pid]);
+        if ($ready->add() === $server->setting['worker_num']) {
+            $pm->wakeup();
+        }
         // echo "Worker #{$wid}(pid=$pid) is started\n";
     });
     $http->on('request', function (Request $request, Response $response) use ($http, $counter, $table) {
