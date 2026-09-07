@@ -165,6 +165,7 @@ class Table {
     bool add_column(const std::string &name, enum TableColumn::Type type, size_t size);
     TableColumn *get_column(const std::string &key) const;
     TableRow *set(const char *key, size_t keylen, TableRow **rowlock, int *out_flags);
+    bool set(const char *key, size_t keylen, const TableValues &values, bool *out_of_space = nullptr);
     TableRow *get(const char *key, size_t keylen, TableRow **rowlock) const;
     bool add(const char *key, size_t keylen, const TableValues &values, bool *out_of_space = nullptr);
     bool update(const char *key, size_t keylen, const TableValues &values);

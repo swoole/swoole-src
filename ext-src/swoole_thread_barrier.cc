@@ -114,16 +114,17 @@ void php_swoole_thread_barrier_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_thread_barrier, __construct) {
+    zend_long count;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(count)
+    ZEND_PARSE_PARAMETERS_END();
+
+    // Parameter parsing can run user code, so inspect native state only after it.
     auto bo = barrier_fetch_object(Z_OBJ_P(ZEND_THIS));
     if (bo->barrier != nullptr) {
         zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         return;
     }
-
-    zend_long count;
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_LONG(count)
-    ZEND_PARSE_PARAMETERS_END();
 
     if (count < 2) {
         zend_throw_exception(

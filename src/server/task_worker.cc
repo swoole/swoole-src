@@ -169,7 +169,7 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
     }
 
     if (retval == SW_OK) {
-        sw_atomic_fetch_add(&gs->task_count, 1);
+        sw_atomic_long_fetch_add(&gs->task_count, 1);
         return true;
     }
 

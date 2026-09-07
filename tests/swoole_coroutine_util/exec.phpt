@@ -3,6 +3,7 @@ swoole_coroutine_util: exec
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_win();
 skip_if_command_not_found('md5sum');
 ?>
 --FILE--

@@ -1,7 +1,10 @@
 --TEST--
 swoole_socket_coro: recv timeout
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist(Swoole\Server::class);
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -37,6 +40,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $pm->onChildStop([$server, 'shutdown']);
     $server->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });

@@ -630,11 +630,6 @@ int swoole_tmpfile(char *filename);
 #include <sys/cpuset.h>
 #include <pthread_np.h>
 typedef cpuset_t cpu_set_t;
-#elif defined(_WIN32)
-// Windows CPU affinity uses DWORD_PTR bitmask, provide compatibility typedef
-typedef struct {
-    unsigned long __bits[16];  // support up to 1024 CPUs
-} cpu_set_t;
 #endif
 int swoole_set_cpu_affinity(cpu_set_t *set);
 int swoole_get_cpu_affinity(cpu_set_t *set);

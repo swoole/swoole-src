@@ -1,7 +1,10 @@
 --TEST--
 swoole_coroutine_system: waitSignal 2
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_win();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

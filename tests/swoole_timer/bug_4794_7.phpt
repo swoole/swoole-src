@@ -1,7 +1,10 @@
 --TEST--
 swoole_timer: #4794 Timer::add() (ERRNO 505): msec value[0] is invalid
 --SKIPIF--
-<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist(Swoole\Client::class);
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

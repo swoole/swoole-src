@@ -40,31 +40,32 @@ function test($stream, $sock)
 }
 
 Co\run(function () {
+    $scheme = IS_WIN ? 'tcp' : 'udp';
     echo "normal\n";
-    $stream0 = stream_socket_server("udp://0.0.0.0:0", $errno, $errstr, STREAM_SERVER_BIND);
+    $stream0 = stream_socket_server("{$scheme}://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND);
     $sock0 = Swoole\Coroutine\Socket::import($stream0);
     test($stream0, $sock0);
 
     echo "\nunset stream\n";
-    $stream1 = stream_socket_server("udp://0.0.0.0:0", $errno, $errstr, STREAM_SERVER_BIND);
+    $stream1 = stream_socket_server("{$scheme}://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND);
     $sock1 = Swoole\Coroutine\Socket::import($stream1);
     unset($stream1);
     test(null, $sock1);
 
     echo "\nunset socket\n";
-    $stream2 = stream_socket_server("udp://0.0.0.0:0", $errno, $errstr, STREAM_SERVER_BIND);
+    $stream2 = stream_socket_server("{$scheme}://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND);
     $sock2 = Swoole\Coroutine\Socket::import($stream2);
     unset($sock2);
     test($stream2, null);
 
     echo "\nclose stream\n";
-    $stream3 = stream_socket_server("udp://0.0.0.0:0", $errno, $errstr, STREAM_SERVER_BIND);
+    $stream3 = stream_socket_server("{$scheme}://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND);
     $sock3 = Swoole\Coroutine\Socket::import($stream3);
     fclose($stream3);
     test($stream3, $sock3);
 
     echo "\nclose socket\n";
-    $stream4 = stream_socket_server("udp://0.0.0.0:0", $errno, $errstr, STREAM_SERVER_BIND);
+    $stream4 = stream_socket_server("{$scheme}://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND);
     $sock4 = Swoole\Coroutine\Socket::import($stream4);
     socket_close($sock4);
     test($stream4, $sock4);
@@ -76,12 +77,12 @@ Co\run(function () {
 normal
 stream_set_blocking 1
 socket_set_block 1
-socket_get_option 2
+socket_get_option %d
 
 
 unset stream
 socket_set_block 1
-socket_get_option 2
+socket_get_option %d
 
 
 unset socket
@@ -92,7 +93,7 @@ close stream
 stream_set_blocking TypeError: stream_set_blocking(): supplied resource is not a valid stream resource
 
 socket_set_block 1
-socket_get_option 2
+socket_get_option %d
 
 
 close socket
@@ -106,12 +107,12 @@ Done.
 normal
 stream_set_blocking 1
 socket_set_block 1
-socket_get_option 2
+socket_get_option %d
 
 
 unset stream
 socket_set_block 1
-socket_get_option 2
+socket_get_option %d
 
 
 unset socket
@@ -122,7 +123,7 @@ close stream
 stream_set_blocking TypeError: stream_set_blocking(): Argument #1 ($stream) must be an open stream resource
 
 socket_set_block 1
-socket_get_option 2
+socket_get_option %d
 
 
 close socket

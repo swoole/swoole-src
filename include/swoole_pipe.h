@@ -49,7 +49,7 @@ class SocketPair {
         blocking = _blocking;
         timeout = network::Socket::default_read_timeout;
     }
-    ~SocketPair();
+    virtual ~SocketPair();
 
     ssize_t read(void *_buf, size_t length) const;
     ssize_t write(const void *_buf, size_t length) const;
