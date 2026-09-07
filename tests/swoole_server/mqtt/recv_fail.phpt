@@ -34,6 +34,11 @@ $pm->childFunc = function () use ($pm) {
         'open_mqtt_protocol' => 1,
     ]);
 
+    $server->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $server->on('receive', function (Swoole\Server $serv, int $fd, int $rid, string $data) {
         $header = Helper::getHeader($data);
         Assert::eq($header['type'], 12);

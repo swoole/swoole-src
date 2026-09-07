@@ -44,6 +44,7 @@ $pm->childFunc = function () use ($pm) {
         });
         $pm->onChildStop([$server, 'shutdown']);
 
+        $pm->wakeup();
         $server->start();
     });
 };

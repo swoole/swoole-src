@@ -94,6 +94,7 @@ $pm->childFunc = function () use ($pm) {
         ]);
         Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
         Assert::assert($server->listen(MAX_CONCURRENCY));
+        $pm->wakeup();
         /** @var $conn Socket */
         while ($conn = $server->accept(-1)) {
             if (!Assert::assert($conn instanceof Co\Socket)) {
