@@ -881,6 +881,16 @@ static PHP_METHOD(swoole_client, recv) {
             eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
             if (eof >= 0) {
                 eof += protocol->package_eof_len;
+                if ((size_t) eof > protocol->package_max_length) {
+                    php_swoole_error_ex(E_WARNING,
+                                        SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                                        "package length exceeds package_max_length, length=%zu, "
+                                        "package_max_length=%u",
+                                        (size_t) eof,
+                                        protocol->package_max_length);
+                    buffer->length = 0;
+                    RETURN_FALSE;
+                }
 
                 if ((ssize_t) buffer->length > eof) {
                     cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, sw_zend_string_allocator());
@@ -897,18 +907,20 @@ static PHP_METHOD(swoole_client, recv) {
 
                 return;
             } else {
-                if (buffer->length == protocol->package_max_length) {
-                    php_swoole_error(E_WARNING, "no package eof");
+                if (buffer->length >= protocol->package_max_length) {
+                    php_swoole_error_ex(E_WARNING,
+                                        SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                                        "no package eof, length=%zu, package_max_length=%u",
+                                        buffer->length,
+                                        protocol->package_max_length);
                     buffer->length = 0;
                     RETURN_FALSE;
                 } else if (buffer->length == buffer->size) {
-                    if (buffer->size < protocol->package_max_length) {
-                        uint32_t new_size = buffer->size * 2;
-                        if (new_size > protocol->package_max_length) {
-                            new_size = protocol->package_max_length;
-                        }
-                        buffer->extend(new_size);
+                    size_t new_size = buffer->size * 2;
+                    if (new_size > protocol->package_max_length) {
+                        new_size = protocol->package_max_length;
                     }
+                    buffer->extend(new_size);
                 }
             }
         }

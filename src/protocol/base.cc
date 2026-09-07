@@ -69,6 +69,13 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
     }
 
     ssize_t n = buffer->split(package_eof, package_eof_len, [&](const char *data, size_t length) -> int {
+        if (length > package_max_length) {
+            proto_error(socket,
+                        SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                        "The received data packet is too large, length=%lu",
+                        (ulong_t) length);
+            return false;
+        }
         rdata.info.len = length;
         rdata.data = data;
         if (onPackage(this, socket, &rdata) < 0) {
@@ -274,7 +281,8 @@ _recv_data:
             } else {
                 return SW_OK;
             }
-        } else if (memcmp(buffer->str + buffer->length - package_eof_len, package_eof, package_eof_len) == 0) {
+        } else if (memcmp(buffer->str + buffer->length - package_eof_len, package_eof, package_eof_len) == 0 &&
+                   buffer->length <= package_max_length) {
             buffer->offset = buffer->length;
             rdata.info.len = buffer->length;
             rdata.data = buffer->str;
@@ -294,7 +302,7 @@ _recv_data:
         }
 
         // over max length, will discard
-        if (buffer->length == package_max_length) {
+        if (buffer->length >= package_max_length) {
             proto_error(socket,
                         SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                         "The received data packet is too large, length=%lu",
@@ -305,13 +313,11 @@ _recv_data:
         // buffer is full, may have not read data
         if (buffer->length == buffer->size) {
             recv_again = true;
-            if (buffer->size < package_max_length) {
-                uint32_t extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
-                if (extend_size > package_max_length) {
-                    extend_size = package_max_length;
-                }
-                buffer->extend(extend_size);
+            size_t extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
+            if (extend_size > package_max_length) {
+                extend_size = package_max_length;
             }
+            buffer->extend(extend_size);
         }
         // no eof
         if (recv_again) {

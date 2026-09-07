@@ -1470,14 +1470,28 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
     _find_eof:
         eof = swoole_strnpos(read_buffer->str, read_buffer->length, protocol.package_eof, protocol.package_eof_len);
         if (eof >= 0) {
-            return (read_buffer->offset = eof + protocol.package_eof_len);
+            size_t packet_length = eof + protocol.package_eof_len;
+            if (packet_length > protocol.package_max_length) {
+                read_buffer->clear();
+                set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                        std_string::format("package length exceeds package_max_length, length=%zu, "
+                                           "package_max_length=%u",
+                                           packet_length,
+                                           protocol.package_max_length));
+                return -1;
+            }
+            return (read_buffer->offset = packet_length);
         }
-        if (read_buffer->length == protocol.package_max_length) {
+        if (read_buffer->length >= protocol.package_max_length) {
+            size_t buffered_length = read_buffer->length;
             read_buffer->clear();
-            set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "no package eof, package_max_length exceeded");
+            set_err(
+                SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                std_string::format(
+                    "no package eof, length=%zu, package_max_length=%u", buffered_length, protocol.package_max_length));
             return -1;
         }
-        if (read_buffer->length == read_buffer->size && read_buffer->size < protocol.package_max_length) {
+        if (read_buffer->length == read_buffer->size) {
             size_t new_size = read_buffer->size * 2;
             if (new_size > protocol.package_max_length) {
                 new_size = protocol.package_max_length;
