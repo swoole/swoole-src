@@ -560,28 +560,6 @@ class Socket {
     };
 };
 
-class ProtocolSwitch {
-    bool ori_open_eof_check;
-    bool ori_open_length_check;
-    Protocol ori_protocol;
-    Socket *socket_;
-
-  public:
-    explicit ProtocolSwitch(Socket *socket) {
-        ori_open_eof_check = socket->open_eof_check;
-        ori_open_length_check = socket->open_length_check;
-        ori_protocol = socket->protocol;
-        socket_ = socket;
-    }
-
-    ~ProtocolSwitch() {
-        /* revert protocol settings */
-        socket_->open_eof_check = ori_open_eof_check;
-        socket_->open_length_check = ori_open_length_check;
-        socket_->protocol = ori_protocol;
-    }
-};
-
 std::vector<std::string> dns_lookup(const char *domain, int family = AF_INET, double timeout = 2.0);
 std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int family, double timeout);
 #ifdef SW_USE_CARES
