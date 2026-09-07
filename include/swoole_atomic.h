@@ -56,6 +56,9 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 #define sw_atomic_sub_fetch(value, sub) \
     (_InterlockedExchangeAdd(reinterpret_cast<volatile LONG *>(value), -static_cast<LONG>(sub)) - static_cast<LONG>(sub))
 
+#define sw_atomic_load(value) \
+    _InterlockedCompareExchange(reinterpret_cast<volatile LONG *>(value), 0, 0)
+
 // 64-bit atomic operations (for sw_atomic_int64_t / sw_atomic_long_t)
 #define sw_atomic_long_cmp_set(lock, old, set) \
     (_InterlockedCompareExchange64(reinterpret_cast<volatile __int64 *>(lock), \
@@ -87,6 +90,7 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 #define sw_atomic_memory_barrier() __sync_synchronize()
 #define sw_atomic_add_fetch(value, add) __sync_add_and_fetch(value, add)
 #define sw_atomic_sub_fetch(value, sub) __sync_sub_and_fetch(value, sub)
+#define sw_atomic_load(value) __sync_val_compare_and_swap(value, 0, 0)
 
 #define sw_atomic_long_cmp_set(lock, old, set) sw_atomic_cmp_set(lock, old, set)
 #define sw_atomic_long_fetch_add(value, add) sw_atomic_fetch_add(value, add)
