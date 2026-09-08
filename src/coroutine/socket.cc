@@ -1149,7 +1149,7 @@ bool Socket::ssl_context_create() {
     }
     ssl_context->http_v2 = http2;
     if (!ssl_context->create()) {
-        set_err();
+        set_err(SW_ERROR_SSL_CREATE_CONTEXT_FAILED);
         return false;
     }
     socket->ssl_send_ = 1;
