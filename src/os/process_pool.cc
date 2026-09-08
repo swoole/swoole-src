@@ -50,7 +50,7 @@ static inline void worker_end_callback() {
 /**
  * Process manager
  */
-int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ipc_mode) {
+int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ipc_mode, int _msgqueue_perms) {
 #ifndef HAVE_MSGQUEUE
     if (_ipc_mode == SW_IPC_MSGQUEUE) {
         swoole_warning("current platform does not support `sysvmsg`");
@@ -74,7 +74,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
     if (_ipc_mode == SW_IPC_MSGQUEUE) {
         use_msgqueue = 1;
         msgqueue_key = _msgqueue_key;
-        queue = new MsgQueue(msgqueue_key);
+        queue = new MsgQueue(msgqueue_key, true, _msgqueue_perms);
         if (!queue->ready()) {
             delete queue;
             queue = nullptr;
@@ -1020,10 +1020,10 @@ void ProcessPool::destroy() {
     }
 
     if (stream_info_) {
-        if (stream_info_->socket) {
+        if (stream_info_->socket && stream_info_->socket->is_local()) {
             unlink(stream_info_->socket_file);
-            sw_free(stream_info_->socket_file);
         }
+        sw_free(stream_info_->socket_file);
         if (stream_info_->socket) {
             stream_info_->socket->free();
             stream_info_->socket = nullptr;

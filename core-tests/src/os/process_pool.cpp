@@ -1,5 +1,6 @@
 #include "test_core.h"
 #include "swoole_process_pool.h"
+#include "swoole_util.h"
 
 #include <csignal>
 
@@ -85,6 +86,23 @@ TEST(process_pool, tcp) {
     ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
 
     test_func_task_protocol(pool);
+}
+
+TEST(process_pool, tcp_destroy_does_not_unlink_host_name) {
+    int fd = open(TEST_HOST, O_CREAT | O_EXCL | O_WRONLY, 0600);
+    ASSERT_GE(fd, 0);
+    close(fd);
+    ON_SCOPE_EXIT {
+        unlink(TEST_HOST);
+    };
+
+    ProcessPool pool{};
+    int svr_port = TEST_PORT + __LINE__;
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
+    pool.destroy();
+
+    ASSERT_EQ(access(TEST_HOST, F_OK), 0);
 }
 
 TEST(process_pool, unix_sock) {
