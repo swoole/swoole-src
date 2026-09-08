@@ -328,7 +328,7 @@ class Stream {
     Stream(const Session *client, uint32_t _id);
     ~Stream();
 
-    bool send_header(const String *body, bool end_stream) const;
+    bool send_header(const String *body, bool end_stream, bool is_head = false) const;
     bool send_body(const String *body,
                    bool end_stream,
                    const std::shared_ptr<Session> &session,
