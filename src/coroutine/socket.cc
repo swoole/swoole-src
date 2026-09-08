@@ -1242,6 +1242,10 @@ bool Socket::ssl_verify(bool allow_self_signed) {
         // SSL_get_verify_result() returns X509_V_OK when the peer did not provide a certificate.
         X509 *cert = socket->ssl_get_peer_certificate();
         if (cert == nullptr) {
+            swoole_error_log(SW_LOG_NOTICE,
+                             SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE,
+                             "peer certificate from fd#%d is required",
+                             socket->fd);
             set_err(SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE);
             return false;
         }
