@@ -2606,6 +2606,10 @@ TEST $file
         $cmd = $valgrind->wrapCommand($cmd, $memcheck_filename, str_contains($test_file, "pcre"));
     }
 
+    // A string command makes proc_open() start a shell. As in php-src's runner, replace it with the test
+    // process so proc_terminate() cannot leave the test running after a timeout.
+    $test_cmd = IS_WINDOWS ? $cmd : "exec $cmd";
+
     if ($DETAILED) echo "
 CONTENT_LENGTH  = " . $env['CONTENT_LENGTH'] . "
 CONTENT_TYPE    = " . $env['CONTENT_TYPE'] . "
@@ -2622,7 +2626,7 @@ COMMAND $cmd
     $hrtime = hrtime();
     $startTime = $hrtime[0] * 1000000000 + $hrtime[1];
 
-    $out = system_with_timeout($cmd, $env, $section_text['STDIN'] ?? null, $captureStdIn, $captureStdOut, $captureStdErr);
+    $out = system_with_timeout($test_cmd, $env, $section_text['STDIN'] ?? null, $captureStdIn, $captureStdOut, $captureStdErr);
 
     junit_finish_timer($shortname);
     $hrtime = hrtime();
