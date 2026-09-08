@@ -7,6 +7,7 @@ swoole_client_sync: long connection[3]
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
+$pm->initFreePorts(2);
 
 $pm->parentFunc = function () use ($pm) {
     $client1 = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP | SWOOLE_SYNC);
@@ -14,6 +15,11 @@ $pm->parentFunc = function () use ($pm) {
     Assert::true($r);
     $client1->send("hello");
     echo $client1->recv();
+
+    $failedClient = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SYNC);
+    Assert::false(@$failedClient->connect(TCP_SERVER_HOST, $pm->getFreePort(1), 0.5));
+    Assert::same(swoole_last_error(), SOCKET_ECONNREFUSED);
+
     $client1->close();
 
     $client2 = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_KEEP | SWOOLE_SYNC);
