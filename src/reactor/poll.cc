@@ -22,6 +22,7 @@ using network::Socket;
 
 class ReactorPoll final : public ReactorImpl {
     pollfd *events_;
+    Socket **event_sockets_;
     int max_events_;
     int set_events() const;
 
@@ -43,22 +44,25 @@ ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events) {
 
 ReactorPoll::ReactorPoll(Reactor *_reactor, int max_events) : ReactorImpl(_reactor) {
     events_ = new pollfd[max_events];
+    event_sockets_ = new Socket *[max_events];
     max_events_ = max_events;
     reactor_->max_event_num = max_events;
 }
 
 ReactorPoll::~ReactorPoll() {
     delete[] events_;
+    delete[] event_sockets_;
 }
 
 int ReactorPoll::set_events() const {
-    const auto sockets = reactor_->get_sockets();
+    const auto &sockets = reactor_->get_sockets();
     int count = 0;
-    for (const auto pair : sockets) {
+    for (const auto &pair : sockets) {
         const auto _socket = pair.second;
         events_[count].fd = _socket->fd;
         events_[count].events = translate_events_to_poll(_socket->events);
         events_[count].revents = 0;
+        event_sockets_[count] = _socket;
         count++;
     }
     return count;
@@ -166,19 +170,13 @@ int ReactorPoll::wait() {
             SW_REACTOR_CONTINUE;
         } else {
             for (int i = 0; i < event_num; i++) {
-                /**
-                 * A revents value of 0 indicates that no events have occurred on this socket,
-                 * so the next file descriptor should be checked;
-                 * likewise, if the file descriptor has already been removed, it should be skipped.
-                 * It is essential to check whether this file descriptor exists in the reactor,
-                 * as the event handler may remove a file descriptor with pending but already triggered readable or
-                 * writable events that have not yet been processed.
-                 */
-                if (events_[i].revents == 0 || !reactor_->exists(events_[i].fd)) {
+                if (events_[i].revents == 0) {
                     continue;
                 }
 
-                event.socket = reactor_->get_socket(events_[i].fd);
+                // An earlier handler may remove a socket and register a new one on the same fd, so dispatch the
+                // socket this entry was built from rather than whichever socket now holds that fd.
+                event.socket = event_sockets_[i];
                 event.fd = events_[i].fd;
                 event.reactor_id = reactor_->id;
                 event.type = event.socket->fd_type;
