@@ -3689,19 +3689,25 @@ TEST(server, no_idle_task_worker) {
     };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
-        SW_LOOP_N(1024) {
-            int _dst_worker_id = -1;
-            EventData buf{};
-            Server::task_pack(&buf, packet, strlen(packet));
-            buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
-            EXPECT_TRUE(serv->task(&buf, &_dst_worker_id));
+        auto *task_pool = serv->get_task_worker_pool();
+        SW_LOOP_N(serv->task_worker_num) {
+            task_pool->workers[i].set_status_to_busy();
+        }
+
+        int _dst_worker_id = -1;
+        EventData buf{};
+        Server::task_pack(&buf, packet, strlen(packet));
+        buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_CALLBACK);
+        EXPECT_TRUE(serv->task(&buf, &_dst_worker_id));
+
+        SW_LOOP_N(serv->task_worker_num) {
+            task_pool->workers[i].set_status_to_idle();
         }
         return SW_OK;
     };
 
     serv.onTask = [](Server *serv, EventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
-        usleep(10000);
         return 0;
     };
 

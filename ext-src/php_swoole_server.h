@@ -100,8 +100,12 @@ struct ServerObject {
     }
 
     bool isset_callback(ListenPort *port, int event_type) const {
-        return (php_swoole_server_get_port_property(port)->callbacks[event_type] ||
-                php_swoole_server_get_port_property(serv->get_primary_port())->callbacks[event_type]);
+        ServerPortProperty *port_property = php_swoole_server_get_port_property(port);
+        if (port_property && port_property->callbacks[event_type]) {
+            return true;
+        }
+        ServerPortProperty *primary_property = php_swoole_server_get_port_property(serv->get_primary_port());
+        return primary_property && primary_property->callbacks[event_type];
     }
 
     bool isset_callback(int event_type) const {

@@ -1,7 +1,10 @@
 --TEST--
 swoole_redis_server: test big packet
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_extension_not_exist('redis');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

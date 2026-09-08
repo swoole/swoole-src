@@ -43,6 +43,16 @@ class IocpSocket : public Socket {
     ssize_t iocp_sendfile(const File &file, off_t *offset, size_t size);
     network::Socket *iocp_accept(double timeout);
 
+    void check_return_value(ssize_t retval) {
+        if (retval >= 0) {
+            set_err(0);
+        } else if (errno == ECANCELED || errno == ETIMEDOUT || errCode == 0) {
+            // close() temporarily records CO_SOCKET_CLOSE_WAIT while waking
+            // pending operations. Expose the final operation error instead.
+            set_err(errno);
+        }
+    }
+
     bool is_ssl() {
         return !!socket->ssl;
     }

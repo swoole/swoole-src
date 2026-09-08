@@ -241,6 +241,80 @@ TEST(table, conditional_writes) {
     ASSERT_EQ(table.get("php").id, 2);
 }
 
+TEST(table, values_set) {
+    table_t table(128);
+    auto ptr = table.ptr();
+
+    bool out_of_space = true;
+    ASSERT_TRUE(ptr->set("new", 3, {table_int(ptr, "id", 1)}, &out_of_space));
+    ASSERT_FALSE(out_of_space);
+    auto row = table.get("new");
+    ASSERT_EQ(row.id, 1);
+    ASSERT_EQ(row.name, "");
+    ASSERT_EQ(row.score, 0);
+    ASSERT_EQ(table.count(), 1);
+    ASSERT_EQ(ptr->insert_count, 1);
+    ASSERT_EQ(ptr->update_count, 0);
+
+    ASSERT_TRUE(ptr->set("new", 3, {table_string(ptr, "name", "updated")}, &out_of_space));
+    ASSERT_FALSE(out_of_space);
+    row = table.get("new");
+    ASSERT_EQ(row.id, 1);
+    ASSERT_EQ(row.name, "updated");
+    ASSERT_EQ(row.score, 0);
+    ASSERT_EQ(table.count(), 1);
+    ASSERT_EQ(ptr->insert_count, 1);
+    ASSERT_EQ(ptr->update_count, 1);
+
+    ASSERT_TRUE(ptr->set("empty", 5, {}));
+    ASSERT_TRUE(ptr->set("empty", 5, {}));
+    ASSERT_EQ(table.count(), 2);
+    ASSERT_EQ(ptr->insert_count, 2);
+    ASSERT_EQ(ptr->update_count, 2);
+
+    const auto insert_count = ptr->insert_count;
+    const auto update_count = ptr->update_count;
+    out_of_space = true;
+    ASSERT_FALSE(ptr->set("", 0, {}, &out_of_space));
+    ASSERT_FALSE(out_of_space);
+    ASSERT_EQ(table.count(), 2);
+    ASSERT_EQ(ptr->insert_count, insert_count);
+    ASSERT_EQ(ptr->update_count, update_count);
+}
+
+TEST(table, values_set_exhaustion) {
+    table_t table(4, 1.0);
+    auto ptr = table.ptr();
+    ptr->set_hash_func([](const char *key, size_t len) -> uint64_t { return 1; });
+
+    const size_t capacity = 1 + ptr->get_total_slice_num();
+    for (size_t i = 0; i < capacity; i++) {
+        std::string key = "k" + std::to_string(i);
+        ASSERT_TRUE(ptr->set(key.data(), key.size(), table_row(ptr, {key, (long) i, (double) i})));
+    }
+
+    const auto insert_count = ptr->insert_count;
+    const auto update_count = ptr->update_count;
+    TableRow *root = nullptr;
+    ASSERT_NE(ptr->get("k0", 2, &root), nullptr);
+    root->unlock();
+
+    bool out_of_space = false;
+    ASSERT_FALSE(ptr->set("overflow", 8, table_row(ptr, {"overflow", 99, 99}), &out_of_space));
+    ASSERT_TRUE(out_of_space);
+    ASSERT_EQ(root->lock_, 0);
+    ASSERT_EQ(table.count(), capacity);
+    ASSERT_EQ(ptr->insert_count, insert_count);
+    ASSERT_EQ(ptr->update_count, update_count);
+
+    ASSERT_TRUE(ptr->update("k0", 2, {table_int(ptr, "id", 100)}));
+    ASSERT_EQ(table.get("k0").id, 100);
+    ASSERT_TRUE(ptr->cmpdel("k1", 2, {table_int(ptr, "id", 1)}));
+    ASSERT_TRUE(ptr->set("replacement", 11, table_row(ptr, {"replacement", 101, 101}), &out_of_space));
+    ASSERT_FALSE(out_of_space);
+    ASSERT_EQ(table.count(), capacity);
+}
+
 TEST(table, exact_comparisons) {
     table_t table(128);
     auto ptr = table.ptr();

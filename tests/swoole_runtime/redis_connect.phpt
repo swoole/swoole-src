@@ -2,7 +2,7 @@
 swoole_runtime: hook stream redis connect
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
-skip_if_class_not_exist('Redis');
+skip_if_extension_not_exist('redis');
 ?>
 --FILE--
 <?php

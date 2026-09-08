@@ -81,6 +81,22 @@ constexpr int SW_WIN32_ERROR_TIMEOUT = 1460L;
 #include <process.h>
 #include <basetsd.h>
 
+#ifdef HAVE_CPU_AFFINITY
+typedef struct {
+    DWORD_PTR bits;
+} cpu_set_t;
+
+#ifndef CPU_SETSIZE
+#define CPU_SETSIZE (sizeof(DWORD_PTR) * 8)
+#endif
+
+#ifndef CPU_ZERO
+#define CPU_ZERO(set) ((set)->bits = 0)
+#define CPU_SET(i, set) ((set)->bits |= ((DWORD_PTR) 1 << (i)))
+#define CPU_ISSET(i, set) (((set)->bits & ((DWORD_PTR) 1 << (i))) != 0)
+#endif
+#endif
+
 // POSIX string functions not available on Windows
 // PHP's zend_config.w32.h already defines these, so guard with #ifndef
 #ifndef strncasecmp

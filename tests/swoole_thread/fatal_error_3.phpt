@@ -38,5 +38,4 @@ $tm->run();
 child thread
 main thread
 shutdown
-[%s]	WARNING	PHPCoroutine::enable_hook(): The runtime hook can only set on the main thread and no child threads have been created
 [%s]	WARNING	php_swoole_thread_rshutdown(): Fatal Error: 2 active threads are running, cannot exit safely.

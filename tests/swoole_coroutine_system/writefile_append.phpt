@@ -15,6 +15,7 @@ run(function () use ($filename) {
     $n += System::writeFile($filename, "first line\n", FILE_APPEND);
     $n += System::writeFile($filename, "second line\n", FILE_APPEND);
     $n += System::writeFile($filename, "third line\n", FILE_APPEND);
+    clearstatcache(true, $filename);
     Assert::same($n, filesize($filename));
     Assert::same(md5_file($filename), md5(System::readFile($filename)));
     unlink($filename);

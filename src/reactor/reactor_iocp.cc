@@ -29,7 +29,7 @@ class ReactorIocp final : public ReactorImpl {
 
     struct PollState {
         Socket *socket = nullptr;
-        // The IOCP completion clears this pointer and reaps the operation before the reactor implementation is deleted.
+        // The IOCP completion owns this operation and reaps it before the reactor implementation is deleted.
         PollOperation *operation = nullptr;
         HANDLE wait_handle = INVALID_HANDLE_VALUE;
         int events = 0;
@@ -38,7 +38,7 @@ class ReactorIocp final : public ReactorImpl {
 
     struct PollOperation {
         IocpEvent event;
-        ReactorIocp *const reactor;
+        ReactorIocp *reactor;
         afd::PollInfo poll_info;
 
         PollOperation(ReactorIocp *reactor_, Socket *socket, ULONG events)
@@ -52,7 +52,10 @@ class ReactorIocp final : public ReactorImpl {
         static void on_complete(IocpEvent *event, DWORD transferred, DWORD error) {
             (void) transferred;
             auto *operation = static_cast<PollOperation *>(event->private_data);
-            operation->reactor->complete(operation, error);
+            ReactorIocp *reactor = operation->reactor;
+            if (reactor && !event->orphaned) {
+                reactor->complete(operation, error);
+            }
             delete operation;
         }
     };
@@ -101,7 +104,7 @@ class ReactorIocp final : public ReactorImpl {
     }
 
     void cancel(PollOperation *operation) {
-        if (!operation) {
+        if (!operation || operation->event.completed) {
             return;
         }
         operation->event.orphaned = true;
@@ -178,7 +181,8 @@ class ReactorIocp final : public ReactorImpl {
 
         int dispatched = 0;
         for (const auto &ready : ready_handles) {
-            // The descriptor may have been re-registered since the snapshot was taken.
+            // Reject a descriptor re-registered to another socket. Check existence first because get_socket() inserts
+            // an entry for an unknown descriptor.
             if (!reactor_->exists(ready.fd) || reactor_->get_socket(ready.fd) != ready.socket) {
                 continue;
             }
@@ -226,17 +230,12 @@ class ReactorIocp final : public ReactorImpl {
     void complete(PollOperation *operation, DWORD error) {
         const swSocketFd fd = operation->event.fd;
         auto iter = states_.find(fd);
-        // A cancelled operation can complete after del() erased the state or submit_all() replaced it;
-        // only clear the pointer we still own.
         if (iter == states_.end() || iter->second.operation != operation) {
             return;
         }
 
-        iter->second.operation = nullptr;
-        // Teardown drains through here inside ~Reactor(); release ownership but never run handlers.
-        if (operation->event.orphaned) {
-            return;
-        }
+        PollState *state = &iter->second;
+        state->operation = nullptr;
 
         const auto &handle = operation->poll_info.handles[0];
         const int events = events_from_afd(handle.events, handle.status, error);
@@ -308,6 +307,17 @@ class ReactorIocp final : public ReactorImpl {
     ReactorIocp(Reactor *_reactor, int max_events) : ReactorImpl(_reactor), max_events_(max_events) {
         reactor_->max_event_num = max_events;
         Iocp::init(reactor_);
+    }
+
+    ~ReactorIocp() override {
+        for (auto &kv : states_) {
+            auto *operation = kv.second.operation;
+            if (operation) {
+                operation->reactor = nullptr;
+                cancel(operation);
+            }
+        }
+        states_.clear();
     }
 
     bool ready() override {

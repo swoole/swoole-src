@@ -42,6 +42,16 @@ ListenPort::ListenPort(Server *server) {
     protocol.private_data_2 = server;
 }
 
+ListenPort::~ListenPort() {
+    if (socket) {
+        socket->free();
+        socket = nullptr;
+    }
+#ifdef SW_SUPPORT_DTLS
+    delete dtls_sessions;
+#endif
+}
+
 bool ListenPort::ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx) {
     if (!ssl_context_create(ctx.get())) {
         return false;
@@ -323,6 +333,7 @@ bool ListenPort::import(int sock) {
     _fail:
         tmp_sock->move_fd();
         delete tmp_sock;
+        socket = nullptr;
         return false;
     }
 
@@ -776,6 +787,7 @@ void ListenPort::close() {
         }
 #ifdef SW_SUPPORT_DTLS
         delete dtls_sessions;
+        dtls_sessions = nullptr;
 #endif
     }
 
@@ -882,6 +894,7 @@ int ListenPort::create_socket() {
     __cleanup:
         swoole_set_last_error(errno);
         socket->free();
+        socket = nullptr;
         return SW_ERR;
     }
 

@@ -178,7 +178,7 @@ function skip_if_not_darwin()
 
 function skip_if_nts()
 {
-    skip('not support in nts', !defined('SWOOLE_THREAD'));
+    skip('thread support is required', !class_exists(Swoole\Thread::class, false));
 }
 
 function skip_if_not_linux()
@@ -317,7 +317,7 @@ function skip_if_no_ftp()
 
 function skip_if_not_root()
 {
-    skip('not root user', posix_geteuid() !== 0);
+    skip('not root user', !function_exists('posix_geteuid') || posix_geteuid() !== 0);
 }
 
 function skip_if_no_iouring() {

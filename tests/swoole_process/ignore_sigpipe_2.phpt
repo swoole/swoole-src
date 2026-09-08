@@ -43,6 +43,9 @@ $pm->childFunc = function () use ($pm) {
         "worker_num" => 1,
         'hook_flags' => SWOOLE_HOOK_ALL,
         'log_level' => SWOOLE_LOG_WARNING,
+        // the connection is closed on accept, data that arrives afterwards is
+        // discarded by the worker, which logs a warning that must not pollute stdout
+        'log_file' => '/dev/null',
     ));
     $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();

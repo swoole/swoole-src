@@ -665,6 +665,14 @@ int sw_open(const char *path, int oflags, int mode) {
 		} else {
 			posix_flags = _O_RDONLY;
 		}
+		if (oflags & O_APPEND) {
+			posix_flags |= _O_APPEND;
+		}
+#ifdef O_BINARY
+		if (oflags & O_BINARY) {
+			posix_flags |= _O_BINARY;
+		}
+#endif
 
 		fd_ = _open_osfhandle((intptr_t)hFile, posix_flags);
 		if (fd_ < 0) {

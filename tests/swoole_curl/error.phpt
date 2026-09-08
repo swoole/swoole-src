@@ -29,7 +29,8 @@ run(function () {
     $output = curl_exec($ch);
     Assert::isEmpty($output);
     Assert::eq(curl_errno($ch), CURLE_COULDNT_CONNECT);
-    Assert::eq(preg_match('#Failed to connect to 127.0.0.1 port \d+#i', curl_error($ch)), 1);
+    // libcurl >= 8.17 prints "127.0.0.1:49494", older versions print "127.0.0.1 port 49494"
+    Assert::eq(preg_match('#Failed to connect to 127\.0\.0\.1[: ]+(port )?\d+#i', curl_error($ch)), 1);
 
     $info = curl_getinfo($ch);
     Assert::isArray($info);

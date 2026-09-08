@@ -30,7 +30,7 @@ $tm->childFunc = function ($lock) {
     $lock->lock();
     usleep(100_000);
     Co\run(function () {
-        shell_exec('ls /tmp');
+        shell_exec(escapeshellarg(PHP_BINARY) . ' -r "echo 1;"');
         sleep(1);
         gethostbyname('www.baidu.com');
     });

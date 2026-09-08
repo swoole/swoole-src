@@ -86,6 +86,8 @@ class Iocp {
     std::unordered_map<int, int> file_flags;
 
     explicit Iocp(Reactor *reactor_);
+    void attach(Reactor *reactor_);
+    void detach(Reactor *reactor_);
     bool associate(swSocketFd fd);
     bool associate(HANDLE handle, ULONG_PTR key);
     ssize_t execute(IocpEvent *event, double timeout);
@@ -108,6 +110,7 @@ class Iocp {
     ~Iocp();
 
     static bool init(Reactor *reactor = nullptr);
+    static void shutdown();
     static void set_socket_error(DWORD error);
     static void set_system_error(DWORD error);
 

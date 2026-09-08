@@ -186,8 +186,8 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         return SW_ERR;
     }
 
-    sw_atomic_fetch_add(&serv->gs->close_count, 1);
-    sw_atomic_fetch_add(&port->gs->close_count, 1);
+    sw_atomic_long_fetch_add(&serv->gs->close_count, 1);
+    sw_atomic_long_fetch_add(&port->gs->close_count, 1);
 
     if (serv->is_base_mode()) {
         sw_atomic_fetch_sub(&serv->gs->connection_nums[reactor->id], 1);
@@ -582,8 +582,8 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
 
     long socket_recv_bytes = event->socket->total_recv_bytes - last_recv_bytes;
     if (socket_recv_bytes > 0) {
-        sw_atomic_fetch_add(&port->gs->total_recv_bytes, socket_recv_bytes);
-        sw_atomic_fetch_add(&serv->gs->total_recv_bytes, socket_recv_bytes);
+        sw_atomic_long_fetch_add(&port->gs->total_recv_bytes, socket_recv_bytes);
+        sw_atomic_long_fetch_add(&serv->gs->total_recv_bytes, socket_recv_bytes);
     }
     if (!conn->active) {
         return retval;
@@ -946,8 +946,8 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
             ReactorThread *thread = serv->get_thread(conn->reactor_id);
             thread->dispatch_count++;
         }
-        sw_atomic_fetch_add(&serv->gs->dispatch_count, 1);
-        sw_atomic_fetch_add(&port->gs->dispatch_count, 1);
+        sw_atomic_long_fetch_add(&serv->gs->dispatch_count, 1);
+        sw_atomic_long_fetch_add(&port->gs->dispatch_count, 1);
         return SW_OK;
     }
 }

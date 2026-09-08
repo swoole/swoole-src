@@ -154,18 +154,19 @@ void php_swoole_thread_lock_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_thread_lock, __construct) {
-    auto o = thread_lock_fetch_object(Z_OBJ_P(ZEND_THIS));
-    if (o->lock != nullptr) {
-        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_FALSE;
-    }
-
     zend_long type = Lock::MUTEX;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(type)
     ZEND_PARSE_PARAMETERS_END();
+
+    // Parameter parsing can run user code, so inspect native state only after it.
+    auto o = thread_lock_fetch_object(Z_OBJ_P(ZEND_THIS));
+    if (o->lock != nullptr) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
 
     o->lock = new ThreadLockResource(type);
 }
