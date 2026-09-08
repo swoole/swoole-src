@@ -1079,7 +1079,10 @@ SW_API bool php_swoole_socket_set(Socket *cli, const zval *zset) {
             auto socks5_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp)) {
                 user = zend::String(ztmp).to_std_string();
-                if (!user.empty() && php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
+                if (user.empty()) {
+                    php_swoole_fatal_error(E_WARNING, "socks5_username should not be empty");
+                    ret = false;
+                } else if (php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
                     pwd = zend::String(ztmp).to_std_string();
                 } else {
                     php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
@@ -1108,10 +1111,13 @@ SW_API bool php_swoole_socket_set(Socket *cli, const zval *zset) {
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) ||
                 php_swoole_array_get_value(vht, "http_proxy_user", ztmp)) {
                 user = zend::String(ztmp).to_std_string();
-                if (!user.empty() && php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
+                if (user.empty()) {
+                    php_swoole_fatal_error(E_WARNING, "http_proxy_username should not be empty");
+                    ret = false;
+                } else if (php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
                     pwd = zend::String(ztmp).to_std_string();
                 } else {
-                    php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
+                    php_swoole_fatal_error(E_WARNING, "http_proxy_password should not be null");
                     ret = false;
                 }
             }
