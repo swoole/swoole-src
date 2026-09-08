@@ -111,6 +111,17 @@ TEST(ssl, password) {
 }
 
 TEST(ssl, server_client_certificate) {
+    // Peer verification without a trust source is valid only when self-signed certificates are allowed.
+    SSLContext invalid_ctx{};
+    invalid_ctx.verify_peer = 1;
+    ASSERT_FALSE(invalid_ctx.create(SW_SSL_SERVER));
+
+    SSLContext self_signed_ctx{};
+    self_signed_ctx.verify_peer = 1;
+    self_signed_ctx.allow_self_signed = 1;
+    ASSERT_TRUE(self_signed_ctx.create(SW_SSL_SERVER));
+
+    // Use a distinct default CA to prove server contexts do not import it.
     const char *cert_file = getenv("SSL_CERT_FILE");
     bool cert_file_was_set = cert_file != nullptr;
     std::string previous_cert_file = cert_file_was_set ? cert_file : "";
@@ -129,6 +140,7 @@ TEST(ssl, server_client_certificate) {
     ctx.client_cert_file = ssl_dir + "/ca-cert.pem";
     ASSERT_TRUE(ctx.create(SW_SSL_SERVER));
     EXPECT_TRUE(SSL_CTX_get_verify_mode(ctx.get_context()) & SSL_VERIFY_PEER);
+    // client_cert_file must not force OpenSSL's verification depth to zero.
     EXPECT_NE(SSL_CTX_get_verify_depth(ctx.get_context()), 0);
 
     auto configured_ca = verify_certificate(ctx.get_context(), ssl_dir + "/client-cert.pem");

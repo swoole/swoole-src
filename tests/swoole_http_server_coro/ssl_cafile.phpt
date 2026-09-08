@@ -26,11 +26,11 @@ $pm->parentFunc = function () use ($pm) {
         );
         Assert::same(shell_exec($command) ?: '', '');
 
-        // client.crt is expired and is not signed by ca-cert.pem; either failure proves chain validation ran.
+        // server.crt is valid for client authentication but is signed by a CA that is not trusted here.
         $command = sprintf(
             'curl --silent --insecure --max-time 10 --cert %s --key %s %s',
-            escapeshellarg(SSL_FILE_DIR . '/client.crt'),
-            escapeshellarg(SSL_FILE_DIR . '/client.key'),
+            escapeshellarg(SSL_FILE_DIR . '/server.crt'),
+            escapeshellarg(SSL_FILE_DIR . '/server.key'),
             escapeshellarg($url),
         );
         Assert::same(shell_exec($command) ?: '', '');
@@ -71,5 +71,6 @@ $pm->run();
 echo "DONE\n";
 ?>
 --EXPECTF--
-[%s]	NOTICE	Socket::ssl_verify() (ERRNO %d): can not verify peer from fd#%d with error#%d: %s
+[%s]	NOTICE	Socket::ssl_verify() (ERRNO %d): peer certificate from fd#%d is required
+[%s]	NOTICE	Socket::ssl_verify() (ERRNO %d): can not verify peer from fd#%d with error#21: unable to verify the first certificate
 DONE

@@ -41,7 +41,6 @@ $pm->parentFunc = function ($pid) use ($pm, $html) {
 $pm->childFunc = function () use ($pm, $html) {
     $serv = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
-        'log_file' => '/dev/null',
         'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
         'ssl_key_file' => SSL_FILE_DIR . '/server.key',
         'ssl_verify_peer' => true,
@@ -60,5 +59,6 @@ $pm->childFunc = function () use ($pm, $html) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
+[%s]	NOTICE	ReactorThread_verify_ssl_state() (ERRNO %d): peer certificate from fd#%d is required
 DONE
