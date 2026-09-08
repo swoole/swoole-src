@@ -179,6 +179,11 @@ bool decode(Frame *frame, char *data, size_t length) {
     frame->payload_length = total_length - pl.header_len;
     frame->header_length = pl.header_len;
 
+    if (sw_unlikely(frame->header.RSV1 && is_control_frame(frame->header.OPCODE))) {
+        swoole_warning("invalid compressed websocket control frame received: opcode=%u", frame->header.OPCODE);
+        return false;
+    }
+
     swoole_trace_log(SW_TRACE_WEBSOCKET,
                      "decode frame, payload_length=%ld, mask=%d, opcode=%d",
                      frame->payload_length,
