@@ -2898,12 +2898,6 @@ COMMAND $cmd
         }
         show_file_block('diff', $diff);
 
-        // swoole patch: clear port
-        if (preg_match('/bind\([^:]+?:(?<port>\d+?)\)/', $diff, $matches)) {
-            $port = $matches['port'];
-            @shell_exec("lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9 > /dev/null 2>&1");
-        }
-
         if (str_contains($log_format, 'D') && file_put_contents($diff_filename, $diff) === false) {
             error("Cannot create test diff - $diff_filename");
         }

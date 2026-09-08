@@ -33,14 +33,6 @@ function switch_process(): void
     usleep((USE_VALGRIND ? 100 : 25) * 1000);
 }
 
-function clear_php()
-{
-    if (is_win()) {
-        return;
-    }
-    shell_exec("ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1");
-}
-
 function puts($msg)
 {
     echo $msg . "\n";
