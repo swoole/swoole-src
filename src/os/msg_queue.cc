@@ -48,7 +48,7 @@ MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
     blocking_ = blocking;
     msg_id_ = msgget(msg_key, IPC_CREAT | perms);
     if (msg_id_ < 0) {
-        swoole_sys_warning("msgget() failed");
+        swoole_sys_warning("msgget(key=%ld, uid=%d) failed", (long) msg_key, (int) geteuid());
     } else {
         set_blocking(blocking);
     }
@@ -59,6 +59,63 @@ MsgQueue::~MsgQueue() {
     if (msg_key_ == IPC_PRIVATE && msg_id_ >= 0) {
         destroy();
     }
+}
+
+bool MsgQueue::set_access(uid_t uid, gid_t gid, mode_t mode) {
+    msqid_ds status;
+    if (msgctl(msg_id_, IPC_STAT, &status) < 0) {
+        swoole_sys_warning("msgctl(%d, IPC_STAT) failed", msg_id_);
+        return false;
+    }
+
+    bool root = geteuid() == 0;
+    bool trusted_uid = status.msg_perm.uid == uid || (root && status.msg_perm.uid == 0);
+    // The creator keeps owner-class access even after ownership changes.
+    bool trusted_cuid = status.msg_perm.cuid == uid || (root && status.msg_perm.cuid == 0);
+    bool replace = !trusted_uid || !trusted_cuid || (status.msg_perm.mode & 0022);
+    size_t pending = 0;
+
+    if (replace) {
+        if (msg_key_ == IPC_PRIVATE) {
+            // Server initialization cannot reach this, but replacing a private queue would silently orphan it.
+            swoole_warning("cannot replace a private message queue");
+            return false;
+        }
+
+        pending = status.msg_qnum;
+        if (msgctl(msg_id_, IPC_RMID, nullptr) < 0) {
+            swoole_sys_warning("msgctl(%d, IPC_RMID) failed", msg_id_);
+            return false;
+        }
+        msg_id_ = msgget(msg_key_, IPC_CREAT | IPC_EXCL | (mode & 0777));
+        if (msg_id_ < 0) {
+            swoole_sys_warning("msgget(key=%ld) failed", (long) msg_key_);
+            return false;
+        }
+        if (msgctl(msg_id_, IPC_STAT, &status) < 0) {
+            swoole_sys_warning("msgctl(%d, IPC_STAT) failed", msg_id_);
+            destroy();
+            return false;
+        }
+    }
+
+    status.msg_perm.uid = uid;
+    status.msg_perm.gid = gid;
+    status.msg_perm.mode = (status.msg_perm.mode & ~0777) | (mode & 0777);
+    if (msgctl(msg_id_, IPC_SET, &status) < 0) {
+        swoole_sys_warning("msgctl(%d, IPC_SET) failed", msg_id_);
+        if (replace) {
+            destroy();
+        }
+        return false;
+    }
+    if (replace) {
+        swoole_warning("message queue[key=%ld] was replaced; discarded %zu pending message%s",
+                       (long) msg_key_,
+                       pending,
+                       pending == 1 ? "" : "s");
+    }
+    return true;
 }
 
 ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) const {
@@ -121,6 +178,10 @@ MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
 }
 
 void MsgQueue::set_blocking(bool blocking) {}
+
+bool MsgQueue::set_access(uid_t uid, gid_t gid, mode_t mode) {
+    return false;
+}
 
 bool MsgQueue::set_capacity(size_t queue_bytes) const {
     return false;

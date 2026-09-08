@@ -54,6 +54,7 @@ class MsgQueue {
     }
 
     void set_blocking(bool blocking);
+    bool set_access(uid_t uid, gid_t gid, mode_t mode);
     bool set_capacity(size_t queue_bytes) const;
     bool push(const QueueNode *in, size_t mdata_length) const;
     ssize_t pop(QueueNode *out, size_t mdata_size) const;
