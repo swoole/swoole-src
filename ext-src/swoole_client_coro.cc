@@ -137,6 +137,7 @@ static void client_coro_socket_dtor(ClientCoroObject *client) {
         client->socket->protocol.private_data_1 = nullptr;
     }
     client->socket = nullptr;
+    zend_update_property_long(Z_OBJCE_P(&client->zobject), SW_Z8_OBJ_P(&client->zobject), ZEND_STRL("fd"), -1);
     zend_update_property_null(Z_OBJCE_P(&client->zobject), SW_Z8_OBJ_P(&client->zobject), ZEND_STRL("socket"));
     zend_update_property_bool(Z_OBJCE_P(&client->zobject), SW_Z8_OBJ_P(&client->zobject), ZEND_STRL("connected"), 0);
     zval_ptr_dtor(&client->zsocket);
