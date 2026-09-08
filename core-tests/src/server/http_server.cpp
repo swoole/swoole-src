@@ -876,16 +876,15 @@ static std::string make_multipart_upload_request(const std::string &boundary, co
 }
 
 static void check_reserved_header_upload(Context &ctx, const std::string &probe_file, const std::string &content) {
-    // The wrapper currently keeps quotes around multipart parameter values.
     EXPECT_EQ(ctx.files.count("\"evil\""), 0);
-    auto iter = ctx.files.find("\"file\"");
-    if (iter == ctx.files.end()) {
-        ADD_FAILURE();
+    EXPECT_EQ(ctx.files.size(), 1);
+    if (ctx.files.size() != 1) {
         ctx.end(TEST_STR);
         return;
     }
-    EXPECT_NE(iter->second, probe_file);
-    auto file_content = file_get_contents(iter->second);
+    const auto &file = ctx.files.begin()->second;
+    EXPECT_NE(file, probe_file);
+    auto file_content = file_get_contents(file);
     if (file_content) {
         EXPECT_EQ(file_content->to_std_string(), content);
     } else {
@@ -956,7 +955,7 @@ TEST(http_server, upload_preprocessed_file) {
             }
 
             std::string boundary = "------------------------d3f990cdce762596";
-            std::string body = make_multipart_upload_body(boundary, upload_content, probe_file, false);
+            std::string body = make_multipart_upload_body(boundary, upload_content, probe_file, true);
             std::string request = make_multipart_upload_request(boundary, body);
             SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, server->get_primary_port()->port);

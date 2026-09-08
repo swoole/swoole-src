@@ -42,6 +42,37 @@ function build_file_body(string $boundary, string $content, ?string $probe = nul
     return implode("\r\n", $headers);
 }
 
+function build_malformed_file_body(string $boundary, string $content, string $disposition): string
+{
+    return implode("\r\n", [
+        '--' . $boundary,
+        'Content-Disposition: ' . $disposition,
+        'Content-Type: text/plain',
+        '',
+        $content,
+        '--' . $boundary . '--',
+        '',
+    ]);
+}
+
+function build_field_and_file_body(string $boundary, string $content, string $probe): string
+{
+    return implode("\r\n", [
+        '--' . $boundary,
+        'Content-Disposition: form-data; name="evil"',
+        'Swoole-Upload-File: ' . $probe,
+        '',
+        'value',
+        '--' . $boundary,
+        'Content-Disposition: form-data; name="file"; filename="test.txt"',
+        'Content-Type: text/plain',
+        '',
+        $content,
+        '--' . $boundary . '--',
+        '',
+    ]);
+}
+
 function send_raw_request(ProcessManager $pm, string $request): array
 {
     $sock = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}");
@@ -53,11 +84,26 @@ function send_raw_request(ProcessManager $pm, string $request): array
     return explode("\r\n\r\n", $response, 2);
 }
 
+function assert_server_is_alive(ProcessManager $pm): void
+{
+    [$responseHeader, $responseBody] = send_raw_request($pm, implode("\r\n", [
+        'GET /health HTTP/1.1',
+        'Host: 127.0.0.1',
+        'Connection: close',
+        '',
+        '',
+    ]));
+    Assert::contains($responseHeader, '200 OK');
+    Assert::same($responseBody, 'OK');
+}
+
 function run_upload_reserved_header(int $mode): void
 {
     $pm = new ProcessManager;
+    $uploadDir = sys_get_temp_dir() . '/swoole-upload-' . getmypid() . '-' . $mode;
+    mkdir_if_not_exists($uploadDir);
 
-    $pm->parentFunc = function () use ($pm) {
+    $pm->parentFunc = function () use ($pm, $uploadDir) {
         $probe = tempnam(sys_get_temp_dir(), 'swoole-upload-probe-');
         file_put_contents($probe, 'probe');
         $boundary = '------------------------d3f990cdce762596';
@@ -75,29 +121,67 @@ function run_upload_reserved_header(int $mode): void
         unlink($probe);
 
         $content = str_repeat('A', 80 * 1024);
-        $body = build_file_body($boundary, $content);
-        [, $responseBody] = send_raw_request($pm, build_multipart_request($boundary, $body));
+        $probe = tempnam(sys_get_temp_dir(), 'swoole-upload-probe-');
+        file_put_contents($probe, 'probe');
+        $body = build_file_body($boundary, $content, $probe);
+        [, $responseBody] = send_raw_request($pm, build_multipart_request($boundary, $body, $probe));
         $json = json_decode($responseBody, true);
         Assert::true(is_array($json));
         Assert::true($json['has_file']);
         Assert::same($json['md5'], md5($content));
+        Assert::false($json['tmp_name_is_probe']);
+        Assert::false($json['probe_uploaded']);
         Assert::same($json['file_count'], 1);
+        Assert::true(file_exists($probe));
+        unlink($probe);
+
+        $probe = tempnam(sys_get_temp_dir(), 'swoole-upload-probe-');
+        file_put_contents($probe, 'probe');
+        $body = build_field_and_file_body($boundary, $content, $probe);
+        [, $responseBody] = send_raw_request($pm, build_multipart_request($boundary, $body, $probe));
+        $json = json_decode($responseBody, true);
+        Assert::true(is_array($json));
+        Assert::true($json['has_file']);
+        Assert::same($json['md5'], md5($content));
+        Assert::false($json['tmp_name_is_probe']);
+        Assert::false($json['probe_uploaded']);
+        Assert::same($json['file_count'], 1);
+        Assert::true(file_exists($probe));
+        unlink($probe);
+        assert_server_is_alive($pm);
+
+        foreach ([
+            'form-data; filename="test.txt"',
+            'invalid; filename="test.txt"',
+        ] as $disposition) {
+            $body = build_malformed_file_body($boundary, str_repeat('B', 80 * 1024), $disposition);
+            [$responseHeader] = send_raw_request($pm, build_multipart_request($boundary, $body));
+            Assert::contains($responseHeader, '400 Bad Request');
+            Assert::same(glob($uploadDir . '/swoole.upfile.*'), []);
+            assert_server_is_alive($pm);
+        }
 
         $pm->kill();
+        rmdir($uploadDir);
     };
 
-    $pm->childFunc = function () use ($pm, $mode) {
+    $pm->childFunc = function () use ($pm, $uploadDir, $mode) {
         $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), $mode);
         $http->set([
             'log_file' => '/dev/null',
             'worker_num' => 1,
             'package_max_length' => 64 * 1024,
             'upload_max_filesize' => 1024 * 1024,
+            'upload_tmp_dir' => $uploadDir,
         ]);
         $http->on('workerStart', function () use ($pm) {
             $pm->wakeup();
         });
         $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
+            if ($request->server['request_uri'] === '/health') {
+                $response->end('OK');
+                return;
+            }
             $probe = $request->header['x-probe-file'] ?? '';
             $file = $request->files['file'] ?? null;
             $tmpName = $file['tmp_name'] ?? '';
