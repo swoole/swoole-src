@@ -33,6 +33,7 @@ run(function () use ($port, &$warnings) {
     ];
     Assert::same($results, [false, false]);
     Assert::eq($client->errCode, SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::same($client->fd, -1);
     Assert::null($client->socket);
     Assert::count($warnings, 2);
     foreach ($warnings as $warning) {
@@ -42,14 +43,59 @@ run(function () use ($port, &$warnings) {
     $warnings = [];
     $client = new Client(SWOOLE_SOCK_TCP);
     Assert::true($client->set([
+        'socks5_host' => '127.0.0.1',
+        'socks5_port' => $port,
+        'socks5_username' => '',
+        'socks5_password' => 'secret',
+    ]));
+    Assert::false($client->connect('127.0.0.1', $port));
+    Assert::eq($client->errCode, SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::same($client->fd, -1);
+    Assert::null($client->socket);
+    Assert::count($warnings, 1);
+    Assert::endsWith($warnings[0], 'socks5_username should not be empty');
+
+    $warnings = [];
+    $client = new Client(SWOOLE_SOCK_TCP);
+    Assert::true($client->set([
         'http_proxy_host' => '127.0.0.1',
         'http_proxy_port' => null,
     ]));
     Assert::false($client->connect('127.0.0.1', $port));
     Assert::eq($client->errCode, SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::same($client->fd, -1);
     Assert::null($client->socket);
     Assert::count($warnings, 1);
     Assert::endsWith($warnings[0], 'http_proxy_port should not be null');
+
+    $warnings = [];
+    $client = new Client(SWOOLE_SOCK_TCP);
+    Assert::true($client->set([
+        'http_proxy_host' => '127.0.0.1',
+        'http_proxy_port' => $port,
+        'http_proxy_username' => 'user',
+    ]));
+    Assert::false($client->connect('127.0.0.1', $port));
+    Assert::eq($client->errCode, SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::same($client->fd, -1);
+    Assert::null($client->socket);
+    Assert::count($warnings, 1);
+    Assert::endsWith($warnings[0], 'http_proxy_password should not be null');
+
+    $warnings = [];
+    $client = new Client(SWOOLE_SOCK_TCP);
+    Assert::true($client->set([
+        'http_proxy_host' => '127.0.0.1',
+        'http_proxy_port' => $port,
+        'http_proxy_username' => '',
+        'http_proxy_password' => 'secret',
+    ]));
+    Assert::false($client->connect('127.0.0.1', $port));
+    Assert::eq($client->errCode, SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::same($client->fd, -1);
+    Assert::null($client->socket);
+    Assert::count($warnings, 1);
+    Assert::endsWith($warnings[0], 'http_proxy_username should not be empty');
 
     $warnings = [];
     $client = new Client(SWOOLE_SOCK_TCP);
@@ -58,9 +104,22 @@ run(function () use ($port, &$warnings) {
     ]));
     Assert::false($client->connect('127.0.0.1', $port));
     Assert::eq($client->errCode, SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::same($client->fd, -1);
     Assert::null($client->socket);
     Assert::count($warnings, 1);
     Assert::endsWith($warnings[0], "Unknown package_length_type name '?', see pack(). Link: https://php.net/pack");
+
+    $warnings = [];
+    $client = new Client(SWOOLE_SOCK_TCP);
+    Assert::true($client->connect('127.0.0.1', $port));
+    Assert::greaterThanEq($client->fd, 0);
+    Assert::true($client->close());
+    Assert::same($client->fd, -1);
+    Assert::true($client->connect('127.0.0.1', $port));
+    Assert::greaterThanEq($client->fd, 0);
+    Assert::true($client->close());
+    Assert::same($client->fd, -1);
+    Assert::count($warnings, 0);
 });
 
 restore_error_handler();
