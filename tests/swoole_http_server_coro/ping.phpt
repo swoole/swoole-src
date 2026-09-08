@@ -7,8 +7,6 @@ swoole_http_server_coro: test ping function
 require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Coroutine\Http\Client;
 use Swoole\Coroutine\Http\Server;
-use Swoole\Http\Request;
-use Swoole\Http\Response;
 use SwooleTest\ProcessManager as ProcessManager;
 
 $pm = new ProcessManager;
@@ -19,12 +17,15 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         Assert::true($client->upgrade('/'));
         Assert::true($client->push('Hello World'));
         $frame = $client->recv();
-        Assert::true($frame->opcode == SWOOLE_WEBSOCKET_OPCODE_PING);
-        Assert::true($frame->data == 'Hello World');
+        Assert::same($frame->opcode, SWOOLE_WEBSOCKET_OPCODE_PING);
+        Assert::same($frame->data, str_repeat('A', 125));
+        $frame = $client->recv();
+        Assert::same($frame->opcode, SWOOLE_WEBSOCKET_OPCODE_PING);
+        Assert::same($frame->data, 'Hello World');
         Assert::true($client->ping());
         $frame = $client->recv();
-        Assert::true($frame->opcode == SWOOLE_WEBSOCKET_OPCODE_PING);
-        Assert::true($frame->data == '');
+        Assert::same($frame->opcode, SWOOLE_WEBSOCKET_OPCODE_PING);
+        Assert::same($frame->data, '');
     });
     $pm->kill();
 };
@@ -35,8 +36,11 @@ $pm->childFunc = function () use ($pm) {
         $server->handle('/', function ($request, $response) {
             $response->upgrade();
             $response->recv();
-            $response->ping('Hello World');
-            $response->ping();
+            Assert::false($response->ping(str_repeat('A', 126)));
+            Assert::same(swoole_last_error(), SWOOLE_ERROR_WEBSOCKET_PACK_FAILED);
+            Assert::true($response->ping(str_repeat('A', 125)));
+            Assert::true($response->ping('Hello World'));
+            Assert::true($response->ping());
         });
         $pm->wakeup();
         $server->start();
@@ -46,4 +50,5 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
+[%s]	WARNING	websocket::encode(): invalid websocket control frame: opcode=9, fin=1, payload_length=126
