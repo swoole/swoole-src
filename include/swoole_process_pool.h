@@ -417,7 +417,7 @@ struct ProcessPool {
     bool del_worker(const Worker *worker) const;
     Worker *get_worker_by_pid(pid_t pid) const;
     void destroy();
-    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
+    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE, int msgqueue_perms = 0);
     int create_message_box(size_t memory_size);
     int create_message_bus();
     int push_message(uint8_t _type, const void *data, size_t length) const;
