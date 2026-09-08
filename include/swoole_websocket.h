@@ -132,6 +132,10 @@ enum CloseReason {
     CLOSE_TLS = 1015,
 };
 
+static inline bool is_control_frame(uchar opcode) {
+    return opcode == OPCODE_CLOSE || opcode == OPCODE_PING || opcode == OPCODE_PONG;
+}
+
 static inline uint16_t get_ext_flags(uchar opcode, uchar flags) {
     uint16_t ext_flags = opcode;
     ext_flags = ext_flags << 8;
