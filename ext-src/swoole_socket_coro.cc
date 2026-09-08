@@ -1173,6 +1173,13 @@ SW_API bool php_swoole_socket_set_ssl(Socket *sock, const zval *zset) {
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
         sock->set_ssl_allow_self_signed(zval_is_true(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "ssl_client_cert_file", ztmp)) {
+        zend::String str_v(ztmp);
+        if (!sock->set_ssl_client_cert_file(str_v.to_std_string())) {
+            php_swoole_fatal_error(E_WARNING, "ssl client cert file[%s] not found", str_v.val());
+            return false;
+        }
+    }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
         sock->set_ssl_cafile(zend::String(ztmp).to_std_string());
     }
