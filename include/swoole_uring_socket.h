@@ -42,7 +42,7 @@ class UringSocket : public Socket {
     ssize_t uring_sendfile(const File &file, off_t *offset, size_t size);
     network::Socket *uring_accept(double timeout);
 
-    bool is_ssl() {
+    bool is_ssl() const {
         return !!socket->ssl;
     }
 
@@ -72,6 +72,8 @@ class UringSocket : public Socket {
     ssize_t sendto(const std::string &host, int port, const void *_buf, size_t _n) override;
     ssize_t recv(void *_buf, size_t _n) override;
     ssize_t send(const void *_buf, size_t _n) override;
+    ssize_t recv_once(void *_buf, size_t _n) override;
+    ssize_t send_once(const void *_buf, size_t _n) override;
     ssize_t recv_all(void *_buf, size_t _n) override;
     ssize_t send_all(const void *_buf, size_t _n) override;
     bool sendfile(const char *filename, off_t offset, size_t length) override;

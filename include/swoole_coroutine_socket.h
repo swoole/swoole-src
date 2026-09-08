@@ -82,6 +82,9 @@ class Socket {
     virtual ssize_t recv(void *_buf, size_t _n);
     virtual ssize_t send(const void *_buf, size_t _n);
 
+    virtual ssize_t recv_once(void *_buf, size_t _n);
+    virtual ssize_t send_once(const void *_buf, size_t _n);
+
     ssize_t send(const std::string &buf) {
         return send(buf.c_str(), buf.length());
     }
