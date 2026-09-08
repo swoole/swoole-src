@@ -30,6 +30,7 @@ static void test_func(ProcessPool &pool) {
     int worker_id = -1;
     ASSERT_EQ(pool.dispatch_sync(&data, &worker_id), SW_OK);
 
+    pool.get_worker(0)->init();
     pool.running = true;
     pool.ptr = &rmem;
     if (pool.onWorkerStart) {
@@ -99,6 +100,114 @@ TEST(process_pool, unix_sock) {
     test_func_task_protocol(pool);
 }
 
+TEST(process_pool, task_protocol_rejects_malformed_packets) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    pool.set_protocol(SW_PROTOCOL_TASK);
+    pool.get_worker(0)->init();
+    pool.running = true;
+    size_t dispatched = 0;
+    pool.ptr = &dispatched;
+    pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
+        (*static_cast<size_t *>(pool->ptr))++;
+        if (task->info.len == 1 && task->data[0] == 'x') {
+            pool->running = false;
+        }
+        return SW_OK;
+    };
+
+    EventData task{};
+    task.info.len = UINT32_MAX;
+    ASSERT_EQ(pool.get_worker(0)->send_pipe_message(&task, sizeof(task.info) - 1, SW_PIPE_MASTER),
+              sizeof(task.info) - 1);
+
+    task.info.len = 5000;
+    ASSERT_EQ(pool.get_worker(0)->send_pipe_message(&task, 100, SW_PIPE_MASTER), 100);
+
+    task.info.ext_flags = SW_TASK_TMPFILE;
+    task.info.len = 1;
+    task.data[0] = 't';
+    ASSERT_EQ(pool.get_worker(0)->send_pipe_message(&task, sizeof(task.info) + 1, SW_PIPE_MASTER),
+              sizeof(task.info) + 1);
+
+    task.info.ext_flags = 0;
+    task.info.len = sizeof(task.data);
+    ASSERT_EQ(pool.get_worker(0)->send_pipe_message(&task, sizeof(task), SW_PIPE_MASTER), sizeof(task));
+
+    task.info.len = 1;
+    task.data[0] = 'x';
+    ASSERT_EQ(pool.get_worker(0)->send_pipe_message(&task, sizeof(task.info) + 1, SW_PIPE_MASTER),
+              sizeof(task.info) + 1);
+
+    pool.main_loop(&pool, pool.get_worker(0));
+
+    EXPECT_EQ(dispatched, 2);
+    EXPECT_ERREQ(SW_ERROR_PROTOCOL_ERROR);
+    pool.destroy();
+}
+
+TEST(process_pool, task_protocol_rejects_malformed_socket_packet) {
+    signal(SIGPIPE, SIG_IGN);
+    const char *socket_file = "/tmp/swoole_process_pool_task.sock";
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
+    ASSERT_EQ(pool.listen(socket_file, 128), SW_OK);
+    pool.set_protocol(SW_PROTOCOL_TASK);
+    pool.get_worker(0)->init();
+    pool.running = true;
+    size_t dispatched = 0;
+    pool.ptr = &dispatched;
+    pool.onTask = [](ProcessPool *pool, Worker *worker, EventData *task) -> int {
+        (*static_cast<size_t *>(pool->ptr))++;
+        if (task->info.len == 1 && task->data[0] == 'x') {
+            pool->running = false;
+        }
+        return SW_OK;
+    };
+
+    bool connected = false;
+    ssize_t acknowledgment_received = SW_ERR;
+    int acknowledgment = -1;
+    swResultCode valid_packet_sent = SW_ERR;
+    std::thread sender([&]() {
+        swoole_thread_init(false);
+        network::SyncClient client(SW_SOCK_UNIX_STREAM);
+        connected = client.connect(socket_file, 0);
+        EXPECT_TRUE(connected);
+        if (connected) {
+            client.get_client()->set_timeout(1, SW_TIMEOUT_READ);
+            EventData invalid_task{};
+            invalid_task.info.len = UINT32_MAX;
+            uint32_t packet_length = htonl(sizeof(invalid_task.info) - 1);
+            EXPECT_EQ(client.send(reinterpret_cast<char *>(&packet_length), sizeof(packet_length)), sizeof(uint32_t));
+            EXPECT_EQ(client.send(reinterpret_cast<char *>(&invalid_task), sizeof(invalid_task.info) - 1),
+                      sizeof(DataHead) - 1);
+            acknowledgment_received =
+                client.recv(reinterpret_cast<char *>(&acknowledgment), sizeof(acknowledgment), MSG_WAITALL);
+            client.close();
+        }
+
+        EventData valid_task{};
+        valid_task.info.len = 1;
+        valid_task.data[0] = 'x';
+        int worker_id = -1;
+        valid_packet_sent = pool.dispatch_sync(&valid_task, &worker_id);
+        if (valid_packet_sent != SW_OK) {
+            pool.stream_info_->socket->shutdown(SHUT_RDWR);
+        }
+        swoole_thread_clean(false);
+    });
+
+    pool.main_loop(&pool, pool.get_worker(0));
+    sender.join();
+
+    EXPECT_EQ(acknowledgment_received, sizeof(int));
+    EXPECT_EQ(acknowledgment, 0);
+    EXPECT_EQ(valid_packet_sent, SW_OK);
+    EXPECT_EQ(dispatched, 1);
+    pool.destroy();
+}
+
 TEST(process_pool, tcp_raw) {
     constexpr uint32_t size = 2 * 1024 * 1024;
     String data(size);
@@ -131,6 +240,7 @@ TEST(process_pool, tcp_raw) {
         swoole_thread_clean(false);
     });
 
+    pool.get_worker(0)->init();
     pool.main_loop(&pool, pool.get_worker(0));
     sender.join();
 
@@ -205,6 +315,59 @@ TEST(process_pool, stream_protocol) {
 
     test_func_stream_protocol(pool);
 }
+
+TEST(process_pool, stream_protocol_small_packet) {
+    // The one-byte allocation exposes the former QueueNode write under ASAN.
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
+    pool.set_max_packet_size(1);
+    pool.set_protocol(SW_PROTOCOL_STREAM);
+    pool.get_worker(0)->init();
+    pool.running = true;
+    pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
+        EXPECT_EQ(rdata->info.len, 1);
+        EXPECT_EQ(rdata->data[0], 'x');
+        pool->running = false;
+    };
+
+    ASSERT_EQ(pool.get_worker(0)->send_pipe_message("x", 1, SW_PIPE_MASTER), 1);
+    pool.main_loop(&pool, pool.get_worker(0));
+    EXPECT_FALSE(pool.running);
+    pool.destroy();
+}
+
+#ifdef HAVE_MSGQUEUE
+TEST(process_pool, stream_protocol_msgqueue_package_limit) {
+    constexpr size_t max_packet_size = 1024;
+    std::vector<char> oversized_message(offsetof(QueueNode, mdata) + max_packet_size + 1);
+    std::vector<char> valid_message(offsetof(QueueNode, mdata) + max_packet_size);
+    auto *oversized_node = reinterpret_cast<QueueNode *>(oversized_message.data());
+    auto *valid_node = reinterpret_cast<QueueNode *>(valid_message.data());
+    oversized_node->mtype = 1;
+    valid_node->mtype = 1;
+
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, IPC_PRIVATE, SW_IPC_MSGQUEUE), SW_OK);
+    pool.set_max_packet_size(max_packet_size);
+    pool.set_protocol(SW_PROTOCOL_STREAM);
+    pool.get_worker(0)->init();
+    pool.running = true;
+    size_t received = 0;
+    pool.ptr = &received;
+    pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
+        *static_cast<size_t *>(pool->ptr) = rdata->info.len;
+        pool->running = false;
+    };
+
+    ASSERT_TRUE(pool.queue->push(oversized_node, max_packet_size + 1));
+    ASSERT_TRUE(pool.queue->push(valid_node, max_packet_size));
+    pool.main_loop(&pool, pool.get_worker(0));
+
+    EXPECT_EQ(received, max_packet_size);
+    EXPECT_ERREQ(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+    pool.destroy();
+}
+#endif
 
 TEST(process_pool, stream_protocol_with_msgq) {
     ProcessPool pool{};
