@@ -438,7 +438,7 @@ TEST(reactor, poll_extra) {
     ASSERT_EQ(reactor.del(&fake_sock3), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SOCKET_NOT_EXISTS);
 
-    network::Socket fake_socks[32];
+    network::Socket fake_socks[32]{};
     SW_LOOP_N(32) {
         fake_socks[i].fd = i + 1024;
         if (i <= 30) {
@@ -448,8 +448,7 @@ TEST(reactor, poll_extra) {
         }
     }
 
-    for (auto i = 31; i <= 0; i--) {
-        fake_socks[i].fd = i + 1024;
+    for (auto i = 31; i >= 0; i--) {
         if (i <= 30) {
             ASSERT_EQ(reactor.del(&fake_socks[i]), SW_OK);
         } else {
