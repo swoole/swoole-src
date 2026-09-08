@@ -84,11 +84,7 @@ void IocpEvent::set_result(DWORD transferred, DWORD err) {
         error = 0;
     } else {
         result = -1;
-        if (socket_event) {
-            Iocp::set_socket_error(err);
-        } else {
-            Iocp::set_system_error(err);
-        }
+        Iocp::set_system_error(err);
         error = errno;
     }
 }
@@ -245,6 +241,28 @@ void Iocp::set_system_error(DWORD error) {
         break;
     case ERROR_OPERATION_ABORTED:
         errno = ECANCELED;
+        break;
+    case ERROR_NETNAME_DELETED:
+        errno = ECONNRESET;
+        break;
+    case ERROR_CONNECTION_ABORTED:
+        errno = ECONNABORTED;
+        break;
+    case ERROR_CONNECTION_REFUSED:
+    case ERROR_PORT_UNREACHABLE:
+        errno = ECONNREFUSED;
+        break;
+    case ERROR_HOST_UNREACHABLE:
+        errno = EHOSTUNREACH;
+        break;
+    case ERROR_NETWORK_UNREACHABLE:
+        errno = ENETUNREACH;
+        break;
+    case ERROR_SEM_TIMEOUT:
+        errno = ETIMEDOUT;
+        break;
+    case ERROR_NO_SYSTEM_RESOURCES:
+        errno = ENOBUFS;
         break;
     case ERROR_NOT_ENOUGH_MEMORY:
     case ERROR_OUTOFMEMORY:

@@ -1,5 +1,5 @@
 --TEST--
-swoole_windows: iocp shutdown drains pending operations
+swoole_windows: iocp shutdown drains pending operations before later destroy callbacks
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -16,6 +16,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine;
 use Swoole\Coroutine\Socket;
+use Swoole\Coroutine\System;
 use Swoole\Event;
 use Swoole\Timer;
 
@@ -26,6 +27,11 @@ $coroutineId = null;
 Coroutine::set(['enable_deadlock_check' => false]);
 
 run(function () use (&$coroutineId) {
+    // The first async task creates AsyncThreads, whose reactor destroy callback is registered after
+    // IOCP's and removes its notification socket. That ordering is what this test covers.
+    $content = System::readFile(__FILE__);
+    Assert::same($content, file_get_contents(__FILE__));
+
     $listener = new Socket(AF_INET, SOCK_STREAM, 0);
     Assert::true($listener->bind('127.0.0.1', 0));
     Assert::true($listener->listen());
