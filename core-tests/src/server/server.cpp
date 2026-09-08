@@ -412,6 +412,19 @@ TEST(server, base) {
     test_base();
 }
 
+TEST(server, task_finish_rejects_task_worker_source) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+    serv.task_worker_num = 1;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    EventData task{};
+    task.info.type = SW_SERVER_EVENT_TASK;
+    task.info.reactor_id = serv.worker_num;
+    EXPECT_FALSE(serv.finish("result", sizeof("result") - 1, 0, &task));
+}
+
 static void test_process(bool single_thread = false) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
