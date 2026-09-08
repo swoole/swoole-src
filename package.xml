@@ -2724,6 +2724,9 @@
             <file role="test" name="tests/swoole_websocket_server/set_cookie_on_before_handshake_response.phpt" />
             <file role="test" name="tests/swoole_websocket_server/set_cookie_on_handshake.phpt" />
             <file role="test" name="tests/swoole_websocket_server/websocket_compress_on_handshake.phpt" />
+            <file role="test" name="tests/swoole_windows/iocp_cancel.phpt" />
+            <file role="test" name="tests/swoole_windows/iocp_descriptor_reuse.phpt" />
+            <file role="test" name="tests/swoole_windows/iocp_shutdown.phpt" />
             <file role="test" name="tests/template" />
             <file role="test" name="tests/test.sql" />
             <file role="doc" name="thirdparty/boost/asm/LICENSE" />
