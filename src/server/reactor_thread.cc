@@ -50,6 +50,10 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
     if (!port->get_ssl_client_cert_file().empty()) {
         if (!_socket->ssl_get_peer_certificate(sw_tg_buffer())) {
             if (port->get_ssl_verify_peer()) {
+                swoole_error_log(SW_LOG_NOTICE,
+                                 SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE,
+                                 "peer certificate from fd#%d is required",
+                                 _socket->fd);
                 return SW_ERROR;
             }
         } else {
@@ -70,6 +74,10 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
         // SSL_get_verify_result() returns X509_V_OK when the peer did not provide a certificate.
         X509 *cert = _socket->ssl_get_peer_certificate();
         if (cert == nullptr) {
+            swoole_error_log(SW_LOG_NOTICE,
+                             SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE,
+                             "peer certificate from fd#%d is required",
+                             _socket->fd);
             return SW_ERROR;
         }
         X509_free(cert);

@@ -190,6 +190,11 @@ bool SSLContext::create(int flags) {
     if (!openssl_init) {
         swoole_ssl_init();
     }
+    if ((flags & SW_SSL_SERVER) && verify_peer && !allow_self_signed && cafile.empty() && capath.empty() &&
+        client_cert_file.empty()) {
+        swoole_warning("server SSL peer verification requires ssl_client_cert_file, ssl_cafile, or ssl_capath");
+        return false;
+    }
 
     const SSL_METHOD *method;
 #ifdef SW_SUPPORT_DTLS
