@@ -601,7 +601,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
          * remains, so mark the request completed after consuming the generated marker.
          */
         std::string tmp_file(at, length);
-        // Client markers are removed before dispatch, so an unmatched marker is a generated path that can be removed.
+        // Client markers are rejected before dispatch, so an unmatched marker is a generated path that can be removed.
         if (ctx->current_multipart_header == nullptr) {
             swoole_warning("upload file marker has no matching multipart file metadata");
             unlink(tmp_file.c_str());

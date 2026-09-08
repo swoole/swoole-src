@@ -113,6 +113,7 @@ namespace swoole {
 class Server;
 namespace http_server {
 //-----------------------------------------------------------------
+// SW_SERVER_EVENT_RECV_DATA shares ext_flags with WebSocket frames; connection state selects the interpretation.
 enum {
     SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED = 1u << 0,
 };
