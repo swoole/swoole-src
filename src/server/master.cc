@@ -24,6 +24,8 @@
 #include "swoole_api.h"
 
 #include <cassert>
+#include <grp.h>
+#include <pwd.h>
 
 using swoole::network::Address;
 using swoole::network::SendfileTask;
@@ -535,8 +537,33 @@ bool Server::create_task_workers() {
 
     ProcessPool *pool = get_task_worker_pool();
     *pool = {};
-    if (pool->create(task_worker_num, key, ipc_mode) < 0) {
+
+    uid_t worker_uid = geteuid();
+    gid_t worker_gid = getegid();
+    if (swoole_is_root_user()) {
+        if (!user_.empty()) {
+            auto *passwd = getpwnam(user_.c_str());
+            if (passwd) {
+                worker_uid = passwd->pw_uid;
+            }
+        }
+        if (!group_.empty()) {
+            auto *group = getgrnam(group_.c_str());
+            if (group) {
+                worker_gid = group->gr_gid;
+            }
+        }
+    }
+
+    int msgqueue_perms = ipc_mode == SW_IPC_MSGQUEUE ? 0600 : 0;
+    if (pool->create(task_worker_num, key, ipc_mode, msgqueue_perms) < 0) {
         swoole_warning("[Master] create task_workers failed");
+        return false;
+    }
+    if (ipc_mode == SW_IPC_MSGQUEUE && !pool->queue->set_access(worker_uid, worker_gid, 0600)) {
+        swoole_warning("[Master] configure task message queue[key=%ld, uid=%d] failed", (long) key, (int) geteuid());
+        pool->destroy();
+        *pool = {};
         return false;
     }
 
@@ -546,8 +573,23 @@ bool Server::create_task_workers() {
 
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
-        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
-        if (get_task_worker_pool()->listen(sockfile, 2048) < 0) {
+        // Task workers are initialized before daemonization, so use the creating process ID here.
+        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", getpid());
+        {
+            mode_t old_umask = umask(0177);
+            ON_SCOPE_EXIT {
+                umask(old_umask);
+            };
+            if (pool->listen(sockfile, 2048) < 0) {
+                pool->destroy();
+                *pool = {};
+                return false;
+            }
+        }
+        if ((worker_uid != geteuid() || worker_gid != getegid()) && chown(sockfile, worker_uid, worker_gid) < 0) {
+            swoole_sys_warning("chown(%s, %d, %d) failed", sockfile, (int) worker_uid, (int) worker_gid);
+            pool->destroy();
+            *pool = {};
             return false;
         }
     }
