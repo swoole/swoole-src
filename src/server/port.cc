@@ -645,18 +645,19 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _bad_request;
             }
-            request_length = buffer->size + SW_BUFFER_SIZE_BIG;
-            if (request_length > protocol->package_max_length) {
+            if (buffer->length >= protocol->package_max_length) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_HTTP_INVALID_PROTOCOL,
-                                 "Request Entity Too Large: request length (chunked) has already been greater than the "
+                                 "Request Entity Too Large: the chunked request length (%zu) has reached the "
                                  "package_max_length(%u)" CLIENT_INFO_FMT,
+                                 buffer->length,
                                  protocol->package_max_length,
                                  CLIENT_INFO_ARGS);
                 goto _too_large;
             }
             if (buffer->length == buffer->size) {
-                buffer->extend(request_length);
+                // The limit check above guarantees that the new size is larger.
+                buffer->extend(SW_MIN(buffer->size + SW_BUFFER_SIZE_BIG, (size_t) protocol->package_max_length));
             }
             goto _recv_data;
         } else {
