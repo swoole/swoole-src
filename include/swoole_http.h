@@ -18,6 +18,7 @@
 #include "swoole_protocol.h"
 
 #include <unordered_map>
+#include <vector>
 
 enum swHttpVersion {
     SW_HTTP_VERSION_10 = 1,
@@ -151,6 +152,7 @@ struct Request {
 
     FormData *form_data_;
     String *buffer_;
+    std::vector<std::string> upload_tmpfile_paths_;
 
     Request() {
         clean();
@@ -160,6 +162,7 @@ struct Request {
     ~Request();
     void clean() {
         memset(&method, 0, offsetof(Request, form_data_));
+        upload_tmpfile_paths_.clear();
     }
     int get_protocol();
     int get_header_length();
