@@ -112,6 +112,24 @@ TEST(reactor, wait) {
     ASSERT_EQ(SwooleTG.reactor, nullptr);
 }
 
+TEST(reactor, get_missing_socket) {
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+
+    auto sock = p.get_socket(false);
+    const int fd = sock->get_fd();
+
+    // Use nonfatal assertions so the reactor is always freed before later tests.
+    EXPECT_EQ(swoole_event_get_socket(fd), nullptr);
+    EXPECT_FALSE(SwooleTG.reactor->exists(fd));
+    EXPECT_EQ(SwooleTG.reactor->get_event_num(), 0);
+    EXPECT_EQ(swoole_event_add(sock, SW_EVENT_READ), SW_OK);
+    EXPECT_EQ(swoole_event_get_socket(fd), sock);
+    EXPECT_EQ(swoole_event_del(sock), SW_OK);
+    EXPECT_EQ(swoole_event_free(), SW_OK);
+}
+
 TEST(reactor, write) {
     int ret;
     UnixSocket p(true, SOCK_DGRAM);
