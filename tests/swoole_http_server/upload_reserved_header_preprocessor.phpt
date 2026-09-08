@@ -175,6 +175,12 @@ $pm->parentFunc = function () use (
     ), 1);
     Assert::greaterThan((int) $match[1], strlen($tooLargeBody));
 
+    $response = send_request($pm, build_request($boundary, $fileBody));
+    Assert::contains($response, md5(str_repeat('D', 80 * 1024)));
+    $response = send_request($pm, $getRequest);
+    Assert::contains($response, 'UNEXPECTED');
+    Assert::same(glob($uploadDir . '/swoole.upfile.*'), []);
+
     Assert::true(rmdir($uploadDir));
     $response = send_request($pm, build_request($boundary, $fileBody));
     Assert::contains($response, '503 Service Unavailable');
@@ -202,6 +208,11 @@ $pm->childFunc = function () use ($pm, $probes, $handlerMarker, $uploadDir, $log
         $pm->wakeup();
     });
     $http->on('Request', function (Request $request, Response $response) use ($probes, $handlerMarker) {
+        $file = $request->files['file'] ?? null;
+        if (is_array($file)) {
+            $response->end(md5_file($file['tmp_name']));
+            return;
+        }
         foreach ($probes as $probe) {
             if (is_uploaded_file($probe)) {
                 file_put_contents($handlerMarker, 'uploaded');
