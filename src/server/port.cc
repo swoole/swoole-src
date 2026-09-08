@@ -566,7 +566,12 @@ _parse:
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
-                request->init_multipart_parser(serv);
+                if (!request->init_multipart_parser(serv)) {
+                    // destroy_multipart_parser() requires a fully initialized FormData.
+                    delete request->form_data_;
+                    request->form_data_ = nullptr;
+                    goto _bad_request;
+                }
                 request->upload_preprocessed = 1;
 
                 buffer = request->buffer_;
@@ -718,6 +723,7 @@ _parse:
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
         goto _close_fd;
     }
+    request->upload_tmpfile_paths_.clear();
 
     if (conn->active && !_socket->removed) {
         port->destroy_http_request(conn);
