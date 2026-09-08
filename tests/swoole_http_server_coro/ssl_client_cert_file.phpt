@@ -61,5 +61,6 @@ $pm->childFirst();
 $pm->run();
 echo "DONE\n";
 ?>
---EXPECT--
+--EXPECTF--
+[%s]	NOTICE	Socket::ssl_verify() (ERRNO %d): peer certificate from fd#%d is required
 DONE
