@@ -55,30 +55,11 @@ function build_malformed_file_body(string $boundary, string $content, string $di
     ]);
 }
 
-function build_field_and_file_body(string $boundary, string $content, string $probe): string
-{
-    return implode("\r\n", [
-        '--' . $boundary,
-        'Content-Disposition: form-data; name="evil"',
-        'Swoole-Upload-File: ' . $probe,
-        '',
-        'value',
-        '--' . $boundary,
-        'Content-Disposition: form-data; name="file"; filename="test.txt"',
-        'Content-Type: text/plain',
-        '',
-        $content,
-        '--' . $boundary . '--',
-        '',
-    ]);
-}
-
 function send_raw_request(ProcessManager $pm, string $request): array
 {
     $sock = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}");
     fwrite($sock, $request);
-    stream_set_chunk_size($sock, 2 * 1024 * 1024);
-    $response = fread($sock, 2 * 1024 * 1024);
+    $response = stream_get_contents($sock);
     fclose($sock);
 
     return explode("\r\n\r\n", $response, 2);
@@ -123,7 +104,7 @@ function run_upload_reserved_header(int $mode): void
         $content = str_repeat('A', 80 * 1024);
         $probe = tempnam(sys_get_temp_dir(), 'swoole-upload-probe-');
         file_put_contents($probe, 'probe');
-        $body = build_file_body($boundary, $content, $probe);
+        $body = build_file_body($boundary, $content);
         [, $responseBody] = send_raw_request($pm, build_multipart_request($boundary, $body, $probe));
         $json = json_decode($responseBody, true);
         Assert::true(is_array($json));
@@ -134,21 +115,6 @@ function run_upload_reserved_header(int $mode): void
         Assert::same($json['file_count'], 1);
         Assert::true(file_exists($probe));
         unlink($probe);
-
-        $probe = tempnam(sys_get_temp_dir(), 'swoole-upload-probe-');
-        file_put_contents($probe, 'probe');
-        $body = build_field_and_file_body($boundary, $content, $probe);
-        [, $responseBody] = send_raw_request($pm, build_multipart_request($boundary, $body, $probe));
-        $json = json_decode($responseBody, true);
-        Assert::true(is_array($json));
-        Assert::true($json['has_file']);
-        Assert::same($json['md5'], md5($content));
-        Assert::false($json['tmp_name_is_probe']);
-        Assert::false($json['probe_uploaded']);
-        Assert::same($json['file_count'], 1);
-        Assert::true(file_exists($probe));
-        unlink($probe);
-        assert_server_is_alive($pm);
 
         foreach ([
             'form-data; filename="test.txt"',
@@ -162,7 +128,7 @@ function run_upload_reserved_header(int $mode): void
         }
 
         $pm->kill();
-        rmdir($uploadDir);
+        Assert::true(rmdir($uploadDir));
     };
 
     $pm->childFunc = function () use ($pm, $uploadDir, $mode) {

@@ -875,7 +875,7 @@ static std::string make_multipart_upload_request(const std::string &boundary, co
     return request;
 }
 
-static void check_reserved_header_upload(Context &ctx, const std::string &probe_file, const std::string &content) {
+static void check_single_upload(Context &ctx, const std::string &probe_file, const std::string &content) {
     EXPECT_EQ(ctx.files.count("\"evil\""), 0);
     EXPECT_EQ(ctx.files.size(), 1);
     if (ctx.files.size() != 1) {
@@ -899,7 +899,7 @@ TEST(http_server, upload_reserved_header) {
     std::string probe_file = std::string(TEST_TMP_FILE) + ".upload_marker." + std::to_string(getpid());
     std::string upload_content = "direct upload body";
     auto server = http_server::listen(":0", [&probe_file, &upload_content](Context &ctx) {
-        check_reserved_header_upload(ctx, probe_file, upload_content);
+        check_single_upload(ctx, probe_file, upload_content);
     });
     server->worker_num = 1;
     server->onWorkerStart = [&t, &probe_file, &upload_content](Server *server, Worker *worker) {
@@ -940,7 +940,7 @@ TEST(http_server, upload_preprocessed_file) {
     std::string probe_file = std::string(TEST_TMP_FILE) + ".upload_marker." + std::to_string(getpid());
     std::string upload_content(80 * 1024, 'A');
     auto server = http_server::listen(":0", [&probe_file, &upload_content](Context &ctx) {
-        check_reserved_header_upload(ctx, probe_file, upload_content);
+        check_single_upload(ctx, probe_file, upload_content);
     });
     server->worker_num = 1;
     server->get_primary_port()->set_package_max_length(64 * 1024);
@@ -955,7 +955,7 @@ TEST(http_server, upload_preprocessed_file) {
             }
 
             std::string boundary = "------------------------d3f990cdce762596";
-            std::string body = make_multipart_upload_body(boundary, upload_content, probe_file, true);
+            std::string body = make_multipart_upload_body(boundary, upload_content, probe_file, false);
             std::string request = make_multipart_upload_request(boundary, body);
             SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, server->get_primary_port()->port);

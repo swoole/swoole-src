@@ -40,8 +40,7 @@ $request = implode("\r\n", [
 $pm->parentFunc = function () use ($pm, $request, $probe, $content) {
     $sock = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}");
     fwrite($sock, $request);
-    stream_set_chunk_size($sock, 2 * 1024 * 1024);
-    $response = fread($sock, 2 * 1024 * 1024);
+    $response = stream_get_contents($sock);
     fclose($sock);
     [, $responseBody] = explode("\r\n\r\n", $response, 2);
     $json = json_decode($responseBody, true);
