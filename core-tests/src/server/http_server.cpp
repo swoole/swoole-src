@@ -741,6 +741,26 @@ TEST(http_server, websocket_encode) {
     unlink(log_file);
 }
 
+TEST(http_server, websocket_compressed_control_frame) {
+    auto buffer = sw_tg_buffer();
+    websocket::Frame frame;
+    const uint8_t control_opcodes[] = {
+        websocket::OPCODE_CLOSE,
+        websocket::OPCODE_PING,
+        websocket::OPCODE_PONG,
+    };
+
+    for (auto opcode : control_opcodes) {
+        buffer->clear();
+        ASSERT_TRUE(websocket::encode(buffer, "", 0, opcode, websocket::FLAG_FIN | websocket::FLAG_RSV1));
+        ASSERT_FALSE(websocket::decode(&frame, buffer->str, buffer->length));
+    }
+
+    buffer->clear();
+    ASSERT_TRUE(websocket::encode(buffer, "", 0, websocket::OPCODE_TEXT, websocket::FLAG_FIN | websocket::FLAG_RSV1));
+    ASSERT_TRUE(websocket::decode(&frame, buffer->str, buffer->length));
+}
+
 TEST(http_server, node_websocket_client_1) {
     unlink(TEST_LOG_FILE);
 
