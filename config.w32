@@ -213,6 +213,7 @@ if (PHP_SWOOLE != "no") {
 
 	CHECK_LIB("ws2_32.lib", "swoole", null);
 	CHECK_LIB("iphlpapi.lib", "swoole", null);
+	CHECK_LIB("synchronization.lib", "swoole", null);
 	CHECK_LIB("libssl.lib;ssleay32.lib", "swoole", null);
 	CHECK_LIB("libcrypto.lib;libeay32.lib", "swoole", null);
 	CHECK_LIB("zlib_a.lib;zlib.lib", "swoole", null);
