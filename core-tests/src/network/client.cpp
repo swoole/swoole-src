@@ -324,6 +324,8 @@ TEST(client, async_tcp_socks5_proxy_handshake_fail) {
     ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
 
     swoole_event_wait();
+
+    ASSERT_FALSE(success);
 }
 
 TEST(client, sleep) {
