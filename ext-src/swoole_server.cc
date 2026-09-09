@@ -2223,31 +2223,36 @@ static PHP_METHOD(swoole_server, set) {
     }
     // cpu affinity set
     if (php_swoole_array_get_value(vht, "cpu_affinity_ignore", ztmp)) {
-        int ignore_num = zend_hash_num_elements(Z_ARRVAL_P(ztmp));
-        if (ignore_num >= SW_CPU_NUM) {
-            php_swoole_fatal_error(E_ERROR, "cpu_affinity_ignore num must be less than cpu num (%d)", SW_CPU_NUM);
+        if (!ZVAL_IS_ARRAY(ztmp)) {
+            php_swoole_fatal_error(E_ERROR, "cpu_affinity_ignore must be array");
             RETURN_FALSE;
         }
-        int available_num = SW_CPU_NUM - ignore_num;
-        int *available_cpu = (int *) sw_malloc(sizeof(int) * available_num);
-        if (!available_cpu) {
-            php_swoole_fatal_error(E_WARNING, "malloc() failed");
-            RETURN_FALSE;
-        }
-        int flag, i, available_i = 0;
-
+        std::vector<bool> ignored_cpus(SW_CPU_NUM, false);
+        int ignore_num = 0;
         zval *zval_core = nullptr;
-        for (i = 0; i < SW_CPU_NUM; i++) {
-            flag = 1;
-            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), zval_core)
-            if (i == zval_get_long(zval_core)) {
-                flag = 0;
-                break;
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), zval_core)
+        zend_long cpu_id = zval_get_long(zval_core);
+        if (cpu_id >= 0 && cpu_id < SW_CPU_NUM && !ignored_cpus[cpu_id]) {
+            ignored_cpus[cpu_id] = true;
+            ignore_num++;
+        }
+        SW_HASHTABLE_FOREACH_END();
+
+        int available_num = 0;
+        int *available_cpu = nullptr;
+        if (ignore_num > 0 && ignore_num < SW_CPU_NUM) {
+            available_num = SW_CPU_NUM - ignore_num;
+            available_cpu = (int *) sw_malloc(sizeof(int) * available_num);
+            if (!available_cpu) {
+                php_swoole_fatal_error(E_WARNING, "malloc() failed");
+                RETURN_FALSE;
             }
-            SW_HASHTABLE_FOREACH_END();
-            if (flag) {
-                available_cpu[available_i] = i;
-                available_i++;
+            int available_i = 0;
+            for (int i = 0; i < SW_CPU_NUM; i++) {
+                if (!ignored_cpus[i]) {
+                    available_cpu[available_i] = i;
+                    available_i++;
+                }
             }
         }
         serv->cpu_affinity_available_num = available_num;
