@@ -403,10 +403,6 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
         ctx->set_compression_method(at, length);
     }
 #endif
-    else if (SW_STRCASEEQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
-        ctx->recv_chunked = 1;
-    }
-
 _add_header:
     zval tmp;
     ZVAL_STRINGL(&tmp, (char *) at, length);
@@ -476,6 +472,7 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
         (ctx->request.version == 101 ? SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11) : SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP10)));
 
     ctx->keepalive = llhttp_should_keep_alive(parser);
+    ctx->recv_chunked = !!(parser->flags & F_CHUNKED);
     ctx->current_header_name = nullptr;
 
     return 0;
@@ -787,7 +784,7 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
         ctx->request.body_length += length;
     }
 
-    if (ctx->mt_parser != nullptr) {
+    if (ctx->mt_parser != nullptr && !ctx->recv_chunked) {
         if (is_beginning) {
             /* Compatibility: some clients may send extra EOL */
             do {
@@ -809,6 +806,21 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
 static int http_request_message_complete(llhttp_t *parser) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
     size_t content_length = ctx->request.chunked_body ? ctx->request.chunked_body->length : ctx->request.body_length;
+
+    if (ctx->mt_parser != nullptr && ctx->request.chunked_body != nullptr) {
+        // The bundled multipart parser rejects calls that end inside a part header. llhttp body spans can end at
+        // receive boundaries, so parse the dechunked body in one pass here instead of parsing each span.
+        const char *at = ctx->request.chunked_body->str;
+        size_t length = ctx->request.chunked_body->length;
+        /* Compatibility: some clients may send extra EOL */
+        while (length != 0 && (*at == '\r' || *at == '\n')) {
+            at++;
+            length--;
+        }
+        if (!ctx->parse_multipart_data(at, length)) {
+            return -1;
+        }
+    }
 
     if (ctx->request.chunked_body != nullptr && ctx->parse_body && ctx->request.post_form_urlencoded) {
         /* parse dechunked content */
