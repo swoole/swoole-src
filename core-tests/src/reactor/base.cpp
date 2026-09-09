@@ -31,9 +31,8 @@
 using namespace std;
 using namespace swoole;
 
-#ifdef HAVE_EPOLL
+static int reactor_create_count;
 static int reactor_destroy_count;
-#endif
 
 TEST(reactor, create) {
     swoole_event_init(0);
@@ -530,14 +529,15 @@ TEST(reactor, priority_idle_task) {
 }
 
 TEST(reactor, hook) {
-    Reactor *reactor = new Reactor(1024, Reactor::TYPE_POLL);
-    reactor->wait_exit = true;
+    reactor_create_count = 0;
+    reactor_destroy_count = 0;
 
     swoole_add_hook(
         SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
         [](void *data) -> void {
             Reactor *reactor = (Reactor *) data;
             ASSERT_EQ(Reactor::TYPE_POLL, reactor->type_);
+            reactor_create_count++;
         },
         1);
 
@@ -546,6 +546,7 @@ TEST(reactor, hook) {
         [](void *data) -> void {
             Reactor *reactor = (Reactor *) data;
             ASSERT_EQ(Reactor::TYPE_POLL, reactor->type_);
+            reactor_destroy_count++;
         },
         1);
 
@@ -556,8 +557,13 @@ TEST(reactor, hook) {
         SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
     };
 
+    Reactor *reactor = new Reactor(1024, Reactor::TYPE_POLL);
+    reactor->wait_exit = true;
     reactor_test_func(reactor);
     delete reactor;
+
+    ASSERT_EQ(reactor_create_count, 1);
+    ASSERT_EQ(reactor_destroy_count, 1);
 }
 
 TEST(reactor, set_fd) {
