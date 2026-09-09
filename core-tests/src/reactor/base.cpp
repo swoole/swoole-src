@@ -550,6 +550,8 @@ TEST(reactor, hook) {
         1);
 
     ON_SCOPE_EXIT {
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE]);
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]);
         SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE] = nullptr;
         SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
     };
