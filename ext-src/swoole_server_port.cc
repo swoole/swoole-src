@@ -554,6 +554,8 @@ static PHP_METHOD(swoole_server_port, set) {
     zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_port_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     property->zsetting = zsetting;
+
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_server_port, on) {
