@@ -316,7 +316,7 @@ class Socket {
     }
 
     void set_err() {
-        errCode = swoole_get_last_error() ? swoole_get_last_error() : errno;
+        errCode = swoole_get_last_error() ? swoole_get_last_error() : sw_errno();
         errMsg = swoole_strerror(errCode);
     }
 
@@ -460,7 +460,7 @@ class Socket {
         if (retval >= 0) {
             set_err(0);
         } else if (errCode == 0) {
-            set_err(errno);
+            set_err(sw_errno());
         }
     }
 

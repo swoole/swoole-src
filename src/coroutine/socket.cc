@@ -409,7 +409,7 @@ bool Socket::getsockname() const {
 bool Socket::getpeername(network::Address *sa) {
     sa->len = sizeof(sa->addr);
     if (::getpeername(sock_fd, reinterpret_cast<sockaddr *>(&sa->addr), &sa->len) != 0) {
-        set_err(errno);
+        set_err(sw_errno());
         return false;
     }
     sa->type = type;
@@ -661,7 +661,8 @@ bool Socket::check_liveness() {
         return false;
     }
     if (!socket->check_liveness()) {
-        set_err(errno ? errno : ECONNRESET);
+        const int error = sw_errno();
+        set_err(error ? error : ECONNRESET);
         return false;
     }
     set_err(0);
@@ -1079,7 +1080,7 @@ bool Socket::listen(int backlog) {
     }
     this->backlog = backlog <= 0 ? SW_BACKLOG : backlog;
     if (socket->listen(this->backlog) < 0) {
-        set_err(errno);
+        set_err(sw_errno());
         return false;
     }
     ssl_is_server = true;
@@ -1520,14 +1521,18 @@ ssize_t Socket::recv_packet(double timeout) {
 
 bool Socket::shutdown(int _how) {
     set_err(0);
+    int error = 0;
     if (!is_connected() || (_how == SHUT_RD && shutdown_read) || (_how == SHUT_WR && shutdown_write)) {
-        errno = ENOTCONN;
+        error = ENOTCONN;
     } else {
         if (socket->ssl) {
             socket->ssl_shutdown();
         }
-        if (::shutdown(sock_fd, _how) == 0 || errno == ENOTCONN) {
-            if (errno == ENOTCONN) {
+        if (::shutdown(sock_fd, _how) < 0) {
+            error = sw_errno();
+        }
+        if (error == 0 || error == ENOTCONN) {
+            if (error == ENOTCONN) {
                 // connection reset by server side
                 _how = SHUT_RDWR;
             }
@@ -1548,7 +1553,7 @@ bool Socket::shutdown(int _how) {
             return true;
         }
     }
-    set_err(errno);
+    set_err(error);
     return false;
 }
 
