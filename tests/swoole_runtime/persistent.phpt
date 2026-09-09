@@ -8,38 +8,61 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$redis = new Redis();
-$redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-$redis->rawCommand('CLIENT', 'KILL', 'TYPE', 'normal');
-$redis->close();
-usleep(100);
-
 Swoole\Runtime::enableCoroutine();
 
 $map = [];
+$activeCallbacks = 0;
+$clientName = 'swoole-runtime-persistent-' . getmypid();
 
-$timer_id = Swoole\Timer::tick(1000 / MAX_CONCURRENCY_MID, function () use (&$map) {
+$countClients = static function (Redis $redis) use ($clientName): int {
+    // Match the full field so Redis's lib-name field is not counted.
+    return preg_match_all(
+        '/(?:^| )name=' . preg_quote($clientName, '/') . '(?: |$)/m',
+        $redis->rawCommand('CLIENT', 'LIST')
+    );
+};
+
+$waitForClients = static function (Redis $redis, int $expected) use ($countClients): void {
+    $deadline = microtime(true) + 1;
+    do {
+        $count = $countClients($redis);
+        if ($count === $expected) {
+            return;
+        }
+        Co::sleep(0.001);
+    } while (microtime(true) < $deadline);
+    Assert::same($count, $expected, "Timed out waiting for {$expected} clients, found {$count}");
+};
+
+$timer_id = Swoole\Timer::tick(1000 / MAX_CONCURRENCY_MID, function () use (&$map, &$activeCallbacks, $clientName) {
+    $activeCallbacks++;
     $redis = new Redis();
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
+    Assert::assert($redis->rawCommand('CLIENT', 'SETNAME', $clientName));
     Assert::assert($redis->set('foo', 'bar'));
     Assert::same($redis->get('foo'), 'bar');
     $map[] = $redis;
+    $activeCallbacks--;
 });
 
-go(function () use ($timer_id, &$map) {
+go(function () use ($timer_id, &$map, &$activeCallbacks, $countClients, $waitForClients) {
     Co::sleep(1);
     Swoole\Timer::clear($timer_id);
+    $deadline = microtime(true) + 1;
+    while ($activeCallbacks > 0 && microtime(true) < $deadline) {
+        Co::sleep(0.001);
+    }
+    Assert::same($activeCallbacks, 0, "Timed out waiting for {$activeCallbacks} callbacks to finish");
+    // A second unnamed client makes server-global counting fail; the observer alone would not.
+    $unrelatedRedis = new Redis();
+    $unrelatedRedis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
     $redis = new Redis();
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-    $info = (array)$redis->info('clients');
-    phpt_var_dump($info);
-    Assert::same($info['connected_clients'], count($map) + 1, var_dump_return($info));
+    Assert::greaterThan(count($map), 0);
+    $clientCount = $countClients($redis);
+    Assert::same($clientCount, count($map), "Expected " . count($map) . " retained clients, found {$clientCount}");
     $map = []; // destruct
-    Co::sleep(0.001); // defer close
-    switch_process();
-    $info = (array)$redis->info('clients');
-    phpt_var_dump($info);
-    Assert::same($info['connected_clients'], 1, var_dump_return($info));
+    $waitForClients($redis, 0);
     echo "DONE\n";
 });
 
