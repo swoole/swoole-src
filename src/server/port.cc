@@ -45,7 +45,7 @@ ListenPort::ListenPort(Server *server) {
 #ifdef SW_USE_OPENSSL
 
 bool ListenPort::ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx) {
-    if (!ssl_context_create(ctx.get())) {
+    if (!ssl_context_create(ctx.get(), false)) {
         return false;
     }
     sni_contexts.emplace(name, ctx);
@@ -139,7 +139,7 @@ bool ListenPort::ssl_context_init() {
 }
 
 bool ListenPort::ssl_init() const {
-    if (!ssl_context_create(ssl_context.get())) {
+    if (!ssl_context_create(ssl_context.get(), has_sni_contexts())) {
         return false;
     }
     if (!sni_contexts.empty()) {
@@ -160,8 +160,8 @@ bool ListenPort::ssl_create(Socket *sock) {
     return true;
 }
 
-bool ListenPort::ssl_context_create(SSLContext *context) const {
-    if (context->cert_file.empty() || context->key_file.empty()) {
+bool ListenPort::ssl_context_create(SSLContext *context, bool allow_empty_cert) const {
+    if (context->cert_file.empty() != context->key_file.empty() || (context->cert_file.empty() && !allow_empty_cert)) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "require `ssl_cert_file` and `ssl_key_file` options");
         return false;
     }
