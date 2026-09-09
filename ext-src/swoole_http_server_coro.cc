@@ -597,40 +597,39 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             // The HTTP header must be parsed first
             // Header contains CRLFx2
             header_length += 4;
+            // Check the header first so package_max_length - header_length cannot underflow.
+            if (header_length > sock->protocol.package_max_length) {
+                ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
+                break;
+            }
             size_t parsed_n = ctx->parse(buffer->str, header_length);
             if (parsed_n != header_length) {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
                 break;
             }
             buffer->offset += header_length;
-            total_length = header_length + ctx->get_content_length();
-            if (ctx->get_content_length() > 0 && total_length > sock->protocol.package_max_length) {
+            if (ctx->get_content_length() > sock->protocol.package_max_length - header_length) {
                 ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
                 break;
             }
+            total_length = header_length + ctx->get_content_length();
             if (total_length > buffer->size) {
                 buffer->extend(total_length);
             }
         }
 
         if (!ctx->completed) {
-            // Make sure the complete request package is received
-            if (ctx->recv_chunked && !buffer->ends_with(SW_STRL(SW_HTTP_CHUNK_EOF))) {
-                if (buffer->length >= sock->protocol.package_max_length) {
-                    ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
-                    break;
-                }
-                if (buffer->length == buffer->size) {
-                    buffer->extend(
-                        SW_MIN(buffer->size + SW_BUFFER_SIZE_BIG, (size_t) sock->protocol.package_max_length));
-                }
-                goto _recv_request;
-            }
-            if (buffer->length < total_length) {
+            if (!ctx->recv_chunked && buffer->length < total_length) {
                 goto _recv_request;
             }
 
-            size_t parsed_n = ctx->parse(buffer->str + buffer->offset, buffer->length - buffer->offset);
+            size_t parse_length = buffer->length - buffer->offset;
+            if (ctx->recv_chunked) {
+                // Header and incomplete-body checks keep the offset within the limit. Do not run body callbacks for
+                // bytes that the request limit will reject.
+                parse_length = SW_MIN(parse_length, sock->protocol.package_max_length - (size_t) buffer->offset);
+            }
+            size_t parsed_n = ctx->parse(buffer->str + buffer->offset, parse_length);
             buffer->offset += parsed_n;
 
             swoole_trace_log(SW_TRACE_CO_HTTP_SERVER,
@@ -643,6 +642,22 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             if (ctx->parser.error != HPE_OK && ctx->parser.error != HPE_PAUSED_H2_UPGRADE) {
                 ctx->response.status = SW_HTTP_BAD_REQUEST;
                 break;
+            }
+
+            if (ctx->recv_chunked) {
+                if (!ctx->completed) {
+                    if (buffer->length >= sock->protocol.package_max_length) {
+                        ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
+                        break;
+                    }
+                    if (buffer->length == buffer->size) {
+                        buffer->extend(
+                            SW_MIN(buffer->size + SW_BUFFER_SIZE_BIG, (size_t) sock->protocol.package_max_length));
+                    }
+                    goto _recv_request;
+                }
+                // llhttp pauses at the exact end of this request, before any pipelined bytes.
+                total_length = buffer->offset;
             }
         }
 
