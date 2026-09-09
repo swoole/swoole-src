@@ -444,7 +444,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
             }
             ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
             while (true) {
-                const ssize_t n = cli->recv(recv_buf->str, recv_buf->size, 0);
+                const ssize_t n = cli->recv(recv_buf->str, ctx->get_recv_length(), 0);
                 if (n > 0 && cli->socks5_handshake(recv_buf->str, n)) {
                     if (cli->socks5_proxy->state == SW_SOCKS5_STATE_READY) {
                         break;
@@ -752,12 +752,11 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     }
 
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
-        n = event->socket->recv(buf, buf_size, 0);
+        n = event->socket->recv(buf, cli->socks5_proxy->get_recv_length(), 0);
         if (n <= 0) {
             swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
             goto _connect_fail;
         }
-        cli->buffer->length += n;
         if (!cli->socks5_handshake(buf, n)) {
             swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
             goto _connect_fail;
@@ -765,7 +764,6 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         if (cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
             return SW_OK;
         }
-        cli->buffer->clear();
         if (!do_ssl_handshake) {
             execute_onConnect(cli);
             return SW_OK;

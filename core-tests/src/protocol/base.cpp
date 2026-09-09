@@ -262,6 +262,166 @@ TEST(protocol, socks5_dns_tunnel_target_host_length) {
     delete proxy;
 }
 
+TEST(protocol, socks5_fragmented_no_auth_response) {
+    auto proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
+    ASSERT_NE(proxy, nullptr);
+    proxy->target_host = "socks5-target.test";
+    proxy->target_port = 80;
+
+    ASSERT_EQ(proxy->pack_negotiate_request(), 3);
+    ASSERT_MEMEQ(proxy->buf, "\x05\x01\x00", 3);
+    proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
+
+    std::vector<std::string> requests;
+    auto send_fn = [&requests](const char *buf, size_t len) {
+        requests.emplace_back(buf, len);
+        return static_cast<ssize_t>(len);
+    };
+
+    ASSERT_TRUE(proxy->handshake("\x05", 1, send_fn));
+    ASSERT_EQ(proxy->get_recv_length(), 1);
+    ASSERT_EQ(proxy->pack_negotiate_request(), 3);
+    ASSERT_EQ(proxy->get_recv_length(), 2);
+    ASSERT_TRUE(proxy->handshake("\x05", 1, send_fn));
+    ASSERT_EQ(proxy->get_recv_length(), 1);
+    ASSERT_TRUE(proxy->handshake("\x00", 1, send_fn));
+    ASSERT_EQ(proxy->state, SW_SOCKS5_STATE_CONNECT);
+    ASSERT_EQ(proxy->get_recv_length(), 4);
+    ASSERT_EQ(requests.size(), 1);
+    ASSERT_EQ(requests[0].length(), 25);
+    ASSERT_MEMEQ(requests[0].data(), "\x05\x01\x00\x03", 4);
+    ASSERT_EQ(static_cast<uchar>(requests[0][4]), 18);
+    ASSERT_MEMEQ(requests[0].data() + 5, "socks5-target.test", 18);
+
+    const std::string response("\x05\x00\x00\x01\x7f\x00\x00\x01\x1f\x90", 10);
+    const size_t remaining[] = {3, 2, 1, 6, 5, 4, 3, 2, 1, 0};
+    for (size_t i = 0; i < response.length(); i++) {
+        ASSERT_TRUE(proxy->handshake(response.data() + i, 1, send_fn));
+        ASSERT_EQ(proxy->get_recv_length(), remaining[i]);
+    }
+    ASSERT_EQ(proxy->state, SW_SOCKS5_STATE_READY);
+}
+
+TEST(protocol, socks5_fragmented_auth_and_domain_response) {
+    auto proxy =
+        std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "username", "password"));
+    ASSERT_NE(proxy, nullptr);
+    proxy->target_host = "socks5-target.test";
+    proxy->target_port = 80;
+
+    ASSERT_EQ(proxy->pack_negotiate_request(), 3);
+    ASSERT_MEMEQ(proxy->buf, "\x05\x01\x02", 3);
+    proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
+
+    std::vector<std::string> requests;
+    auto send_fn = [&requests](const char *buf, size_t len) {
+        requests.emplace_back(buf, len);
+        return static_cast<ssize_t>(len);
+    };
+
+    ASSERT_TRUE(proxy->handshake("\x05", 1, send_fn));
+    ASSERT_EQ(proxy->get_recv_length(), 1);
+    ASSERT_TRUE(proxy->handshake("\x02", 1, send_fn));
+    ASSERT_EQ(proxy->state, SW_SOCKS5_STATE_AUTH);
+    ASSERT_EQ(proxy->get_recv_length(), 2);
+    ASSERT_EQ(requests.size(), 1);
+    ASSERT_EQ(requests[0].length(), 19);
+    ASSERT_MEMEQ(requests[0].data(), "\x01\x08username\x08password", 19);
+
+    ASSERT_TRUE(proxy->handshake("\x01", 1, send_fn));
+    ASSERT_EQ(proxy->get_recv_length(), 1);
+    ASSERT_TRUE(proxy->handshake("\x00", 1, send_fn));
+    ASSERT_EQ(proxy->state, SW_SOCKS5_STATE_CONNECT);
+    ASSERT_EQ(proxy->get_recv_length(), 4);
+    ASSERT_EQ(requests.size(), 2);
+
+    const std::string response("\x05\x00\x00\x03\x03"
+                               "abc\x1f\x90",
+                               10);
+    const size_t remaining[] = {3, 2, 1, 1, 5, 4, 3, 2, 1, 0};
+    for (size_t i = 0; i < response.length(); i++) {
+        ASSERT_TRUE(proxy->handshake(response.data() + i, 1, send_fn));
+        ASSERT_EQ(proxy->get_recv_length(), remaining[i]);
+    }
+    ASSERT_EQ(proxy->state, SW_SOCKS5_STATE_READY);
+}
+
+TEST(protocol, socks5_fragmented_ipv6_response) {
+    auto send_fn = [](const char *, size_t len) { return static_cast<ssize_t>(len); };
+
+    auto ipv6_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP6, "::1", 1080, "", ""));
+    ASSERT_NE(ipv6_proxy, nullptr);
+    ipv6_proxy->state = SW_SOCKS5_STATE_CONNECT;
+    const std::string ipv6_response(
+        "\x05\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x1f\x90", 22);
+    for (size_t i = 0; i < ipv6_response.length(); i++) {
+        ASSERT_TRUE(ipv6_proxy->handshake(ipv6_response.data() + i, 1, send_fn));
+        ASSERT_EQ(ipv6_proxy->get_recv_length(), i < 3 ? 3 - i : 21 - i);
+    }
+    ASSERT_EQ(ipv6_proxy->state, SW_SOCKS5_STATE_READY);
+}
+
+TEST(protocol, socks5_long_domain_response) {
+    auto send_fn = [](const char *, size_t len) { return static_cast<ssize_t>(len); };
+    auto domain_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
+    ASSERT_NE(domain_proxy, nullptr);
+    domain_proxy->state = SW_SOCKS5_STATE_CONNECT;
+    const std::string domain_header("\x05\x00\x00\x03\xff", 5);
+    ASSERT_TRUE(domain_proxy->handshake(domain_header.data(), 4, send_fn));
+    ASSERT_EQ(domain_proxy->get_recv_length(), 1);
+    ASSERT_TRUE(domain_proxy->handshake(domain_header.data() + 4, 1, send_fn));
+    ASSERT_EQ(domain_proxy->get_recv_length(), 257);
+    std::string domain(255, 'a');
+    domain.append("\x1f\x90", 2);
+    ASSERT_TRUE(domain_proxy->handshake(domain.data(), domain.length(), send_fn));
+    ASSERT_EQ(domain_proxy->state, SW_SOCKS5_STATE_READY);
+}
+
+TEST(protocol, socks5_response_errors) {
+    auto send_fn = [](const char *, size_t len) { return static_cast<ssize_t>(len); };
+
+    auto version_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
+    ASSERT_NE(version_proxy, nullptr);
+    version_proxy->state = SW_SOCKS5_STATE_CONNECT;
+    ASSERT_FALSE(version_proxy->handshake("\x04\x00\x00\x01", 4, send_fn));
+    ASSERT_ERREQ(SW_ERROR_SOCKS5_UNSUPPORT_VERSION);
+
+    auto server_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
+    ASSERT_NE(server_proxy, nullptr);
+    server_proxy->state = SW_SOCKS5_STATE_CONNECT;
+    ASSERT_FALSE(server_proxy->handshake("\x05\x05\x00\xff", 4, send_fn));
+    ASSERT_ERREQ(SW_ERROR_SOCKS5_SERVER_ERROR);
+
+    auto address_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
+    ASSERT_NE(address_proxy, nullptr);
+    address_proxy->state = SW_SOCKS5_STATE_CONNECT;
+    ASSERT_FALSE(address_proxy->handshake("\x05\x00\x00\xff", 4, send_fn));
+    ASSERT_ERREQ(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
+
+    auto method_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
+    ASSERT_NE(method_proxy, nullptr);
+    ASSERT_EQ(method_proxy->pack_negotiate_request(), 3);
+    method_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
+    ASSERT_FALSE(method_proxy->handshake("\x05\x02", 2, send_fn));
+    ASSERT_ERREQ(SW_ERROR_SOCKS5_UNSUPPORT_METHOD);
+
+    auto auth_version_proxy =
+        std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "username", "password"));
+    ASSERT_NE(auth_version_proxy, nullptr);
+    ASSERT_EQ(auth_version_proxy->pack_negotiate_request(), 3);
+    auth_version_proxy->state = SW_SOCKS5_STATE_AUTH;
+    ASSERT_FALSE(auth_version_proxy->handshake("\x02\x00", 2, send_fn));
+    ASSERT_ERREQ(SW_ERROR_SOCKS5_UNSUPPORT_VERSION);
+
+    auto auth_proxy =
+        std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "username", "password"));
+    ASSERT_NE(auth_proxy, nullptr);
+    ASSERT_EQ(auth_proxy->pack_negotiate_request(), 3);
+    auth_proxy->state = SW_SOCKS5_STATE_AUTH;
+    ASSERT_FALSE(auth_proxy->handshake("\x01\x01", 2, send_fn));
+    ASSERT_ERREQ(SW_ERROR_SOCKS5_AUTH_FAILED);
+}
+
 TEST(protocol, swap_byte_order) {
     {
         EXPECT_EQ(swoole_swap_endian16(0x1234), 0x3412);
