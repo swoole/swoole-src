@@ -563,7 +563,9 @@ _parse:
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
-                request->init_multipart_parser(serv);
+                if (!request->init_multipart_parser(serv)) {
+                    goto _bad_request;
+                }
 
                 buffer = request->buffer_;
             } else {

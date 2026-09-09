@@ -325,10 +325,7 @@ void HttpContext::free() {
     if (res->reason) {
         efree(res->reason);
     }
-    if (mt_parser) {
-        multipart_parser_free(mt_parser);
-        mt_parser = nullptr;
-    }
+    destroy_multipart_parser();
     if (current_form_data_name) {
         efree(current_form_data_name);
         current_form_data_name = nullptr;
@@ -338,11 +335,6 @@ void HttpContext::free() {
         sw_zval_free(current_multipart_header);
         current_multipart_header = nullptr;
     }
-    if (form_data_buffer) {
-        delete form_data_buffer;
-        form_data_buffer = nullptr;
-    }
-
     if (is_co_socket()) {
         zval_ptr_dtor(&zsocket);
     }
