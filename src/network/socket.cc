@@ -1860,6 +1860,11 @@ Socket *make_server_socket(SocketType type, const char *address, int port, int b
         swoole_sys_warning("socket() failed");
         return nullptr;
     }
+    // Only TCP sockets need to rebind addresses held by TIME_WAIT. Enabling reuse for datagram sockets can allow
+    // duplicate binds.
+    if (sock->is_tcp() && sock->set_reuse_addr() < 0) {
+        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", sock->get_fd());
+    }
     if (sock->bind(address, port) < 0) {
         swoole_sys_warning("bind(%d, %s:%d, %d) failed", sock->get_fd(), address, port, backlog);
         goto __cleanup;
