@@ -50,8 +50,12 @@ TEST(server_port, create) {
     ASSERT_EQ(port->protocol.package_eof_len, SW_DATA_EOF_MAXLEN);
 
     ASSERT_TRUE(port->ssl_context_init());
-    ASSERT_FALSE(port->ssl_context_create(port->ssl_context.get()));
+    ASSERT_FALSE(port->ssl_context_create(port->ssl_context.get(), false));
     ASSERT_ERREQ(SW_ERROR_WRONG_OPERATION);
+    port->ssl_context->cert_file = "server.crt";
+    ASSERT_FALSE(port->ssl_context_create(port->ssl_context.get(), true));
+    port->ssl_context->cert_file.clear();
+    ASSERT_TRUE(port->ssl_context_create(port->ssl_context.get(), true));
 }
 
 TEST(server_port, dgram) {
