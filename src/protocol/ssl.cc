@@ -208,6 +208,13 @@ bool SSLContext::create() {
         ssl_error("SSL_CTX_new() failed");
         return false;
     }
+    bool created = false;
+    ON_SCOPE_EXIT {
+        if (!created) {
+            SSL_CTX_free(context);
+            context = nullptr;
+        }
+    };
 
 #ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
     SSL_CTX_set_options(context, SSL_OP_MICROSOFT_SESS_ID_BUG);
@@ -314,7 +321,7 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_file(context, cert_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             ssl_error("SSL_CTX_use_certificate_file(%s) failed", cert_file.c_str());
-            return true;
+            return false;
         }
         /*
          * if the crt file have many certificate entry ,means certificate chain
@@ -394,6 +401,7 @@ bool SSLContext::create() {
         return false;
     }
 
+    created = true;
     return true;
 }
 

@@ -67,9 +67,16 @@ TEST(ssl, get_error) {
 }
 
 TEST(ssl, password) {
-    SSLContext ctx;
+    SSLContext ctx{};
     ctx.key_file = swoole::test::get_ssl_dir() + "/passwd_key.pem";
     ctx.passphrase = "swoole";
     ctx.cert_file = swoole::test::get_ssl_dir() + "/passwd.crt";
     ASSERT_TRUE(ctx.create());
+}
+
+TEST(ssl, failed_create) {
+    SSLContext ctx{};
+    ctx.cert_file = swoole::test::get_ssl_dir() + "/server.key";
+    ASSERT_FALSE(ctx.create());
+    ASSERT_FALSE(ctx.ready());
 }
