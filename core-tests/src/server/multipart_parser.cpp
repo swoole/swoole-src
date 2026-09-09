@@ -79,6 +79,14 @@ static int multipart_on_body_end(multipart_parser *p) {
     return 0;
 }
 
+static int multipart_on_data_error(multipart_parser *p, const char *at, size_t length) {
+    return MPPE_ERROR;
+}
+
+static int multipart_on_notify_error(multipart_parser *p) {
+    return MPPE_ERROR;
+}
+
 static multipart_parser_settings _settings{
     multipart_on_header_field,
     multipart_on_header_value,
@@ -156,6 +164,32 @@ TEST(multipart_parser, error_message) {
     create_error(parser, MPPE_INVALID_HEADER_VALUE_CHAR, "invalid char in header value: ");
     create_error(parser, MPPE_BAD_PART_END, "no next part or final hyphen: expecting CR or '-' ");
     create_error(parser, MPPE_END_BOUNDARY_NO_DASH, "bad final hyphen: ");
+    multipart_parser_free(parser);
+}
+
+TEST(multipart_parser, callback_error) {
+    char buf[1024];
+    std::string header = create_header();
+    MppResult result;
+
+    auto settings = _settings;
+    settings.on_header_field = multipart_on_data_error;
+    auto parser = multipart_parser_init(boundary.c_str(), boundary.length(), &settings);
+    parser->data = &result;
+    ASSERT_EQ(multipart_parser_execute(parser, header.c_str(), header.length()), MPPE_ERROR);
+    int result_len = multipart_parser_error_msg(parser, buf, sizeof(buf));
+    ASSERT_GT(result_len, 0);
+    ASSERT_EQ(std::string(buf, result_len), "callback error");
+    multipart_parser_free(parser);
+
+    settings = _settings;
+    settings.on_part_data_begin = multipart_on_notify_error;
+    parser = multipart_parser_init(boundary.c_str(), boundary.length(), &settings);
+    parser->data = &result;
+    ASSERT_EQ(multipart_parser_execute(parser, header.c_str(), header.length()), MPPE_ERROR);
+    result_len = multipart_parser_error_msg(parser, buf, sizeof(buf));
+    ASSERT_GT(result_len, 0);
+    ASSERT_EQ(std::string(buf, result_len), "callback error");
     multipart_parser_free(parser);
 }
 

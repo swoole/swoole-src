@@ -39,6 +39,7 @@ enum multipart_error {
     MPPE_INVALID_HEADER_VALUE_CHAR,
     MPPE_BAD_PART_END,
     MPPE_END_BOUNDARY_NO_DASH,
+    MPPE_CALLBACK_ERROR,
 };
 
 #define MPPE_ERROR -1

@@ -34,6 +34,7 @@
             if ((ret = p->settings->on_##FOR(p)) == MPPE_PAUSED) {                                                     \
                 return r;                                                                                              \
             } else if (ret != MPPE_OK) {                                                                               \
+                p->error_reason = MPPE_CALLBACK_ERROR;                                                                 \
                 return MPPE_ERROR;                                                                                     \
             }                                                                                                          \
         }                                                                                                              \
@@ -45,6 +46,7 @@
             if ((ret = p->settings->on_##FOR(p, ptr, len)) == MPPE_PAUSED) {                                           \
                 return r;                                                                                              \
             } else if (ret != MPPE_OK) {                                                                               \
+                p->error_reason = MPPE_CALLBACK_ERROR;                                                                 \
                 return MPPE_ERROR;                                                                                     \
             }                                                                                                          \
         }                                                                                                              \
@@ -135,6 +137,8 @@ int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len) {
         return snprintf(buf, len, "parser paused");
     case MPPE_UNKNOWN:
         return snprintf(buf, len, "parser unknown");
+    case MPPE_CALLBACK_ERROR:
+        return snprintf(buf, len, "callback error");
     default:
         return snprintf(buf, len, "parser abort");
     case MPPE_BOUNDARY_END_NO_CRLF:
