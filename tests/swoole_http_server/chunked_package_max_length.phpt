@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Socket;
 
-const PACKAGE_MAX_LENGTH = 100000;
+const PACKAGE_MAX_LENGTH = 100001;
 
 function make_chunked_request(string $path, string $body): string
 {
@@ -53,9 +53,12 @@ $pm->parentFunc = function () use ($pm) {
         Assert::contains($response, 'HTTP/1.1 200 OK');
         Assert::same(explode("\r\n\r\n", $response, 2)[1], strlen($exactBody) . ':' . md5($exactBody));
 
-        $request = make_chunked_request('/above', str_repeat('X', PACKAGE_MAX_LENGTH));
-        Assert::greaterThan(strlen($request), PACKAGE_MAX_LENGTH);
+        $overhead = strlen(make_chunked_request('/above', $exactBody)) - strlen($exactBody);
+        $aboveBody = str_repeat('X', PACKAGE_MAX_LENGTH + 1 - $overhead);
+        $request = make_chunked_request('/above', $aboveBody);
+        Assert::same(strlen($request), PACKAGE_MAX_LENGTH + 1);
 
+        // Preserve rejection while ensuring the declared chunk cannot consume allocator padding.
         $response = send_chunked_request($pm, $request);
         Assert::contains($response, 'HTTP/1.1 413 Request Entity Too Large');
     });
