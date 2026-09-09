@@ -1346,6 +1346,10 @@ ssize_t Socket::recvfrom(void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
+    // The kernel writes no address for an unnamed UNIX peer, so stale bytes must not survive.
+    if (socket->is_local()) {
+        memset(&socket->info.addr, 0, sizeof(socket->info.addr));
+    }
     socket->info.len = sizeof(socket->info.addr);
     return recvfrom(_buf, _n, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len);
 }
