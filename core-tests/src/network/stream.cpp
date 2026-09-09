@@ -18,11 +18,41 @@
 */
 
 #include "test_core.h"
+#include "swoole_pipe.h"
 #include "swoole_server.h"
 
 using namespace std;
 using namespace swoole;
 using namespace swoole::network;
+
+TEST(stream, recv_sync_rejects_truncated_packet) {
+    char buffer[2048];
+
+    {
+        UnixSocket sockets(true, SOCK_STREAM);
+        ASSERT_TRUE(sockets.ready());
+
+        uint32_t packet_len = htonl(sizeof(buffer));
+        auto *sender = sockets.get_socket(true);
+        ASSERT_EQ(sender->send_sync(&packet_len, sizeof(packet_len) - 1), static_cast<ssize_t>(sizeof(packet_len) - 1));
+        ASSERT_EQ(sender->shutdown(SHUT_WR), 0);
+
+        EXPECT_EQ(Stream::recv_sync(sockets.get_socket(false), buffer, sizeof(buffer)), SW_ERR);
+    }
+
+    {
+        UnixSocket sockets(true, SOCK_STREAM);
+        ASSERT_TRUE(sockets.ready());
+
+        uint32_t packet_len = htonl(8);
+        auto *sender = sockets.get_socket(true);
+        ASSERT_EQ(sender->send_sync(&packet_len, sizeof(packet_len)), static_cast<ssize_t>(sizeof(packet_len)));
+        ASSERT_EQ(sender->send_sync(SW_STRL("ab")), 2);
+        ASSERT_EQ(sender->shutdown(SHUT_WR), 0);
+
+        EXPECT_EQ(Stream::recv_sync(sockets.get_socket(false), buffer, sizeof(buffer)), SW_ERR);
+    }
+}
 
 TEST(stream, send) {
     Server serv(Server::MODE_BASE);

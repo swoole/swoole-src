@@ -136,14 +136,15 @@ int Stream::send(const char *data, size_t length) {
 ssize_t Stream::recv_sync(Socket *sock, void *_buf, size_t _len) {
     int tmp = 0;
     ssize_t ret = sock->recv_sync(&tmp, sizeof(tmp), MSG_WAITALL);
-    if (ret <= 0) {
+    if (ret != static_cast<ssize_t>(sizeof(tmp))) {
         return SW_ERR;
     }
     const int length = static_cast<int>(ntohl(tmp));
     if (length <= 0 || length > static_cast<int>(_len)) {
         return SW_ERR;
     }
-    return sock->recv_sync(_buf, length, MSG_WAITALL);
+    ret = sock->recv_sync(_buf, length, MSG_WAITALL);
+    return ret == static_cast<ssize_t>(length) ? ret : SW_ERR;
 }
 
 }  // namespace network
