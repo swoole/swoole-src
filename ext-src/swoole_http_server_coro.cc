@@ -616,6 +616,14 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             if (total_length > buffer->size) {
                 buffer->extend(total_length);
             }
+            // This block runs once per request, so the interim response is not repeated while the body arrives.
+            if (!ctx->completed) {
+                zval *zexpect = zend_hash_str_find(Z_ARRVAL_P(ctx->request.zheader), ZEND_STRL("expect"));
+                if (zexpect && Z_TYPE_P(zexpect) == IS_STRING &&
+                    SW_STRCASEEQ(Z_STRVAL_P(zexpect), Z_STRLEN_P(zexpect), "100-continue")) {
+                    sock->send_all(SW_STRL(SW_HTTP_100_CONTINUE_PACKET));
+                }
+            }
         }
 
         if (!ctx->completed) {
