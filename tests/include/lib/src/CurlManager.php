@@ -2,8 +2,10 @@
 
 namespace SwooleTest;
 
+use RuntimeException;
 use Swoole\Process;
 use Swoole;
+use Throwable;
 use function Swoole\Coroutine\run as run;
 
 class CurlManager
@@ -27,18 +29,34 @@ class CurlManager
     protected function runCliServer($port)
     {
         $proc = new Process(function (Process $p) use ($port) {
-            $exec = "/usr/bin/env php -t " . __DIR__ . " -n -S 127.0.0.1:{$port} " . __DIR__ . "/responder/get.php";
+            $exec = "exec /usr/bin/env php -t " . __DIR__ . " -n -S 127.0.0.1:{$port} " . __DIR__ . "/responder/get.php";
             $p->exec('/bin/sh', ['-c', $exec]);
         }, true, 1);
 
-        $proc->start();
-        while (1) {
+        if (!$proc->start()) {
+            throw new RuntimeException('Unable to start the PHP CLI server process');
+        }
+
+        $i = 0;
+        while ($i++ < 500) {
             usleep(10000);
             if (@file_get_contents($this->getUrlBase() . '/')) {
-                break;
+                return $proc;
             }
         }
-        return $proc;
+
+        $this->stopCliServer($proc);
+        throw new RuntimeException('PHP CLI server did not become ready');
+    }
+
+    protected function stopCliServer(Process $proc)
+    {
+        @Process::kill($proc->pid);
+        if (!function_exists('pcntl_waitpid')) {
+            Process::wait();
+        } else {
+            pcntl_waitpid($proc->pid, $status);
+        }
     }
 
     function run(callable $fn, $createCliServer = true)
@@ -56,15 +74,23 @@ class CurlManager
             Swoole\Runtime::enableCoroutine($flags);
         }
 
-        run(function () use ($fn, $proc) {
-            $fn("127.0.0.1:{$this->port}");
+        $throwable = null;
+        try {
+            run(function () use ($fn, &$throwable) {
+                try {
+                    $fn("127.0.0.1:{$this->port}");
+                } catch (Throwable $e) {
+                    $throwable = $e;
+                }
+            });
+        } finally {
             if ($proc) {
-                Swoole\Process::kill($proc->pid);
+                $this->stopCliServer($proc);
             }
-        });
+        }
 
-        if ($createCliServer) {
-            Process::wait();
+        if ($throwable) {
+            throw $throwable;
         }
     }
 }
