@@ -327,7 +327,7 @@ static void http_request_add_upload_file(HttpContext *ctx, const char *file, siz
 }
 
 bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
-    if (0 == length || length >= sw_tg_buffer()->size) {
+    if (0 == length) {
         return false;
     }
     if (SW_STRCASEEQ(at, length, value)) {
@@ -340,8 +340,9 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
     size_t var_len;
 
     char *_c = sw_tg_buffer()->str;
-    memcpy(_c, at, length);
-    _c[length] = '\0';
+    size_t copy_length = SW_MIN(length, sw_tg_buffer()->size - 1);
+    memcpy(_c, at, copy_length);
+    _c[copy_length] = '\0';
 
     var = php_strtok_r(_c, separator, &strtok_buf);
     while (var) {
