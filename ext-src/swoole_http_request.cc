@@ -327,7 +327,7 @@ static void http_request_add_upload_file(HttpContext *ctx, const char *file, siz
 }
 
 bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
-    if (0 == length) {
+    if (0 == length || length >= sw_tg_buffer()->size) {
         return false;
     }
     if (SW_STRCASEEQ(at, length, value)) {
