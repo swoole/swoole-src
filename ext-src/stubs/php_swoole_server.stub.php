@@ -13,7 +13,7 @@ namespace Swoole {
         public function start(): bool {}
         public function stop(int $workerId = -1): bool {}
         public function send(int|string $fd, string $send_data, int $serverSocket = -1): bool {}
-        public function sendfile(int $conn_fd, string $filename, int $offset = 0, int $length = 0): bool {}
+        public function sendfile(int $conn_fd, string $filename, int $offset = 0, int $length = 0, bool $delete_file = false): bool {}
         public function stats(): array {}
         public function bind(int $fd, int $uid): bool {}
         public function sendto(string $ip, int $port, string $send_data, int $server_socket = -1): bool {}

@@ -872,6 +872,14 @@ int Socket::handle_send() {
     return SW_OK;
 }
 
+SendfileRequest::~SendfileRequest() {
+    if (delete_file) {
+        // Close before unlink so the handle is released first, which Windows requires.
+        file.close();
+        ::unlink(file.get_path().c_str());
+    }
+}
+
 static void Socket_sendfile_destructor(BufferChunk *chunk) {
     auto *task = static_cast<SendfileRequest *>(chunk->value.ptr);
     delete task;
@@ -885,8 +893,8 @@ ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
     }
 }
 
-int Socket::sendfile_async(const char *filename, off_t offset, size_t length) {
-    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset));
+int Socket::sendfile_async(const char *filename, off_t offset, size_t length, bool delete_file) {
+    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset, delete_file));
 
     if (!check_sendfile_parameters(&task->file, offset, length, &task->end)) {
         return SW_ERR;
