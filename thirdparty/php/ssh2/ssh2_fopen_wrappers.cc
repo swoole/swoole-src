@@ -678,7 +678,7 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session,
     }
 
     /* Turn it into a stream */
-    channel_data = php_ssh2_channel_data_create(channel, resource, false);
+    channel_data = php_ssh2_channel_data_create(channel, resource, true);
 
     stream = php_stream_alloc(&php_ssh2_channel_stream_ops, channel_data, 0, "r+");
 
