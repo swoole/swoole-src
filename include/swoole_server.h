@@ -84,6 +84,9 @@ struct Connection {
     uint8_t high_watermark;
     uint8_t http_upgrade;
     uint8_t http2_stream;
+    uint8_t http_request_in_flight;
+    uint8_t http_request_waiting;
+    uint8_t recv_paused;
     uint8_t websocket_compression;
     // If it is equal to 1, it means server actively closed the connection
     uint8_t close_actively;
@@ -639,6 +642,10 @@ enum ServerEventType {
     SW_SERVER_EVENT_SHUTDOWN,
     SW_SERVER_EVENT_COMMAND_REQUEST,
     SW_SERVER_EVENT_COMMAND_RESPONSE,
+};
+
+enum ServerSendFlag {
+    SW_SERVER_SEND_MORE_DATA = 1u << 0,
 };
 
 class Server {
@@ -1523,6 +1530,7 @@ class Server {
     static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
 
     int send_to_connection(const SendData *) const;
+    void resume_http_request(Connection *) const;
     ssize_t send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags);
     bool has_kernel_nobufs_error(SessionId session_id) const;
 
@@ -1537,7 +1545,7 @@ class Server {
      * This function is used for sending data to the client in the server.
      * @return true on success, false on failure.
      */
-    bool send(SessionId session_id, const void *data, uint32_t length) const;
+    bool send(SessionId session_id, const void *data, uint32_t length, uint16_t ext_flags = 0) const;
     /**
      * Send file to session.
      * This function is used for sending files in the HTTP server.

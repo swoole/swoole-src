@@ -577,11 +577,42 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
         conn->waiting_time = 1;
         conn->timer =
             swoole_timer_add((long) conn->waiting_time, false, ReactorThread_resume_data_receiving, event->socket);
-        if (conn->timer) {
+        if (conn->timer && (event->socket->events & SW_EVENT_READ)) {
             reactor->remove_read_event(event->socket);
         }
     }
     return retval;
+}
+
+void Server::resume_http_request(Connection *conn) const {
+    if (!conn->http_request_waiting || conn->http_request_in_flight || conn->recv_paused || conn->timer) {
+        return;
+    }
+
+    Reactor *reactor = SwooleTG.reactor;
+    SessionId session_id = conn->session_id;
+    reactor->defer([this, reactor, session_id](void *) {
+        Connection *conn = get_connection_verify(session_id);
+        if (!conn || !conn->http_request_waiting || conn->http_request_in_flight || conn->recv_paused || conn->timer) {
+            return;
+        }
+
+        Socket *socket = conn->socket;
+        // The HTTP parser checks the registration after dispatch and must see reading restored.
+        if (!(socket->events & SW_EVENT_READ)) {
+            reactor->add_read_event(socket);
+        }
+        conn->http_request_waiting = 0;
+        socket->skip_recv = 1;
+
+        Event event{};
+        event.fd = conn->fd;
+        event.reactor_id = reactor->id;
+        event.type = SW_FD_SESSION;
+        event.socket = socket;
+        ListenPort *port = get_port_by_server_fd(conn->server_fd);
+        port->onRead(reactor, port, &event);
+    });
 }
 
 static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
@@ -886,8 +917,12 @@ static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) 
         }
     }
 
-    timer->get_reactor()->add_read_event(_socket);
     conn->timer = nullptr;
+    if (conn->http_request_waiting) {
+        sw_server()->resume_http_request(conn);
+    } else {
+        timer->get_reactor()->add_read_event(_socket);
+    }
 }
 
 /**

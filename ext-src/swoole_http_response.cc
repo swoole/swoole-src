@@ -720,7 +720,7 @@ bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, siz
 
         build_header(http_buffer, nullptr, length);
 
-        if (!send(this, http_buffer->str, http_buffer->length)) {
+        if (!send_with_flags(http_buffer->str, http_buffer->length, length > 0 ? SW_SERVER_SEND_MORE_DATA : 0)) {
             send_header_ = 0;
             return false;
         }
@@ -749,7 +749,7 @@ void HttpContext::write(zval *zdata, zval *return_value) {
         send_chunked = 1;
         http_buffer->clear();
         build_header(http_buffer, nullptr, 0);
-        if (!send(this, http_buffer->str, http_buffer->length)) {
+        if (!send_with_flags(http_buffer->str, http_buffer->length, SW_SERVER_SEND_MORE_DATA)) {
             send_chunked = 0;
             send_header_ = 0;
             RETURN_FALSE;
@@ -774,7 +774,7 @@ void HttpContext::write(zval *zdata, zval *return_value) {
     http_buffer->append(ZEND_STRL("\r\n"));
     sw_free(hex_string);
 
-    RETURN_BOOL(send(this, http_buffer->str, http_buffer->length));
+    RETURN_BOOL(send_with_flags(http_buffer->str, http_buffer->length, SW_SERVER_SEND_MORE_DATA));
 }
 
 void HttpContext::end(zval *zdata, zval *return_value) {
@@ -791,7 +791,7 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             }
         }
         if (send_trailer_) {
-            if (!send(this, ZEND_STRL("0\r\n"))) {
+            if (!send_with_flags(ZEND_STRL("0\r\n"), SW_SERVER_SEND_MORE_DATA)) {
                 RETURN_FALSE;
             }
             send_trailer(return_value);
@@ -848,7 +848,7 @@ void HttpContext::end(zval *zdata, zval *return_value) {
 #endif
             // send twice to reduce memory copy
             if (length > SW_HTTP_MAX_APPEND_DATA) {
-                if (!send(this, http_buffer->str, http_buffer->length)) {
+                if (!send_with_flags(http_buffer->str, http_buffer->length, SW_SERVER_SEND_MORE_DATA)) {
                     send_header_ = 0;
                     RETURN_FALSE;
                 }
