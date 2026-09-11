@@ -715,7 +715,11 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
 
     // remove EPOLLOUT event
     if (!conn->peer_closed && !socket->removed && Buffer::empty(socket->out_buffer)) {
-        reactor->set(socket, SW_EVENT_READ);
+        if (conn->recv_paused || conn->http_request_waiting) {
+            reactor->del(socket);
+        } else {
+            reactor->set(socket, SW_EVENT_READ);
+        }
     }
     return SW_OK;
 }
@@ -937,7 +941,7 @@ static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) 
     conn->timer = nullptr;
     if (conn->http_request_waiting) {
         sw_server()->resume_http_request(conn);
-    } else {
+    } else if (!conn->recv_paused) {
         timer->get_reactor()->add_read_event(_socket);
     }
 }
