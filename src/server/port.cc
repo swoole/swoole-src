@@ -566,7 +566,12 @@ _parse:
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
-                request->init_multipart_parser(serv);
+                if (!request->init_multipart_parser(serv)) {
+                    // destroy_multipart_parser() requires a fully initialized FormData.
+                    delete request->form_data_;
+                    request->form_data_ = nullptr;
+                    goto _bad_request;
+                }
 
                 buffer = request->buffer_;
             } else {
@@ -713,7 +718,12 @@ _parse:
     dispatch_data.data = buffer->str;
     dispatch_data.info.len = buffer->length;
 
+    // dispatch_request() may run the worker inline in BASE mode and destroy request.
+    auto upload_tmpfile_paths = std::move(request->upload_tmpfile_paths_);
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
+        for (const auto &tmpfile : upload_tmpfile_paths) {
+            unlink(tmpfile.c_str());
+        }
         goto _close_fd;
     }
 
