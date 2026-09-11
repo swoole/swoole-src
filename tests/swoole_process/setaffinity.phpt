@@ -4,24 +4,20 @@ swoole_process: setAffinity
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_no_process_affinity();
-$cpus = Swoole\Process::getAffinity();
-$cpus = array_filter($cpus, fn ($cpu) => $cpu < swoole_cpu_num());
-skip('no usable cpu id', !$cpus);
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $original = Swoole\Process::getAffinity();
-$cpus = array_values(array_filter($original, fn ($cpu) => $cpu < swoole_cpu_num()));
-$cpu = $cpus[0];
+$cpu = $original[0];
 
 try {
     Assert::true(Swoole\Process::setAffinity([(string) $cpu]));
     Assert::same(Swoole\Process::getAffinity(), [$cpu]);
 
-    if (count($cpus) > 1) {
-        Assert::true(Swoole\Process::setAffinity([$cpus[0], $cpus[1]]));
-        Assert::same(Swoole\Process::getAffinity(), [$cpus[0], $cpus[1]]);
+    if (count($original) > 1) {
+        Assert::true(Swoole\Process::setAffinity([$original[0], $original[1]]));
+        Assert::same(Swoole\Process::getAffinity(), [$original[0], $original[1]]);
     }
 
     $warning = null;
