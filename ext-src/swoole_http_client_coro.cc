@@ -1783,6 +1783,11 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
     Z_PARAM_BOOL(ssl)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (hcc->client) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
+
     zend_update_property_stringl(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, host_len);
     zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), port);
     zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
