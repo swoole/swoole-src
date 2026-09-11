@@ -6,6 +6,7 @@ require __DIR__ . '/../include/skipif.inc';
 if (strpos(shell_exec("nghttpd --version 2>&1"), 'nghttp2') === false) {
     skip('no nghttpd');
 }
+skip_if_function_not_exist('pcntl_exec');
 ?>
 --FILE--
 <?php
@@ -24,7 +25,6 @@ $pm->parentFunc = function ($pid) use ($pm) {
         Assert::contains($resp->headers['server'], 'nghttpd');
         Assert::eq($resp->data, file_get_contents(TEST_IMAGE));
 
-        shell_exec("ps -A | grep nghttpd | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1");
         echo "DONE\n";
         $pm->kill();
     });
@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $root = ROOT_DIR . '/examples';
     $pm->wakeup();
-    shell_exec("nghttpd -v -d {$root}/ -a 0.0.0.0 {$pm->getFreePort()} --no-tls&");
+    pcntl_exec('/bin/sh', ['-c', "exec nghttpd -v -d {$root}/ -a 0.0.0.0 {$pm->getFreePort()} --no-tls > /dev/null 2>&1"]);
 };
 $pm->childFirst();
 $pm->run();

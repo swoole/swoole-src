@@ -9,17 +9,14 @@ require __DIR__ . '/../../include/skipif.inc';
 require __DIR__ . '/../../include/bootstrap.php';
 require_once TESTS_LIB_PATH . '/vendor/autoload.php';
 
-use Swoole\Runtime;
 use GuzzleHttp\Client;
 use GuzzleHttp\TransferStats;
+use SwooleTest\CurlManager;
 
-use function Swoole\Coroutine\run;
-
-Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
-
-run(function () {
+$cm = new CurlManager;
+$cm->run(function ($server) {
     $client = new Client();
-    $host = 'http://httpcan.org/stream/1024';
+    $host = "http://{$server}/get.php";
     $client->request('GET', $host, [
         'on_stats' => function (TransferStats $stats) use ($host) {
             Assert::eq($stats->getEffectiveUri(), $host);
