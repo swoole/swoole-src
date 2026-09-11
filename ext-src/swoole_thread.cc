@@ -280,7 +280,7 @@ static PHP_METHOD(swoole_thread, setAffinity) {
         RETURN_FALSE;
     }
 
-    if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set) < 0) {
+    if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set) != 0) {
         php_swoole_error(E_WARNING, "pthread_setaffinity_np() failed");
         RETURN_FALSE;
     }
