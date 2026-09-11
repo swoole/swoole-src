@@ -384,6 +384,11 @@ static PHP_METHOD(swoole_process, useQueue) {
 
     Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
 
+    if (msgkey > 0 && (zend_ulong) (std::make_unsigned<key_t>::type) msgkey != (zend_ulong) msgkey) {
+        php_swoole_fatal_error(E_WARNING, "message queue key is out of range [" ZEND_LONG_FMT "]", (zend_long) msgkey);
+        RETURN_FALSE;
+    }
+
     if (msgkey <= 0) {
         msgkey = ftok(zend_get_executed_filename(), 1);
     }
