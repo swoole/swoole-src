@@ -348,10 +348,10 @@ void HttpContext::free() {
 #ifndef _WIN32
 bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     auto *serv = ctx->get_async_server();
-    bool retval = serv->send(ctx->fd, data, length);
+    bool retval = serv->send(ctx->fd, data, length, ctx->send_ext_flags);
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         auto sdata = zend_string_init(data, length, false);
-        auto rv = php_swoole_server_send_yield(serv, ctx->fd, sdata);
+        auto rv = php_swoole_server_send_yield(serv, ctx->fd, sdata, ctx->send_ext_flags);
         zend_string_release(sdata);
         return rv;
     }
