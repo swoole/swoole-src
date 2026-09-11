@@ -804,6 +804,11 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
     Z_PARAM_BOOL(ssl)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (http2_client_coro_get_client(ZEND_THIS)) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
+
     if (host_len == 0) {
         zend_throw_exception(swoole_http2_client_coro_exception_ce, "host is empty", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
