@@ -1788,7 +1788,8 @@ void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
     }
 }
 
-void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdata, zval *return_value) {
+void php_swoole_server_send_yield(
+    Server *serv, SessionId session_id, zval *zdata, zval *return_value, uint16_t ext_flags) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     Coroutine *co = Coroutine::get_current_safe();
     char *data;
@@ -1813,7 +1814,7 @@ void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdat
             co_list->erase(iter);
             RETURN_FALSE;
         }
-        bool ret = serv->send(session_id, data, length);
+        bool ret = serv->send(session_id, data, length, ext_flags);
         if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield) {
             continue;
         } else {

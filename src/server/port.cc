@@ -464,9 +464,15 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
     }
 
     String *buffer = request->buffer_;
+    ssize_t n;
+
+    if (_socket->skip_recv) {
+        _socket->skip_recv = 0;
+        goto _parse;
+    }
 
 _recv_data:
-    ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
+    n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
         switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
@@ -500,6 +506,14 @@ _recv_data:
     }
 
     buffer->length += n;
+    if (conn->http_request_in_flight) {
+        conn->http_request_waiting = 1;
+        if (_socket->events & SW_EVENT_READ) {
+            reactor->remove_read_event(_socket);
+        }
+        return SW_OK;
+    }
+    conn->http_request_waiting = 0;
 
 _parse:
     if (request->method == 0 && request->get_protocol() < 0) {
@@ -614,6 +628,7 @@ _parse:
                 // dynamic request, dispatch to worker
                 dispatch_data.info.len = request->header_length_;
                 dispatch_data.data = buffer->str;
+                conn->http_request_in_flight = 1;
                 if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
                     goto _close_fd;
                 }
@@ -625,6 +640,13 @@ _parse:
                 // http pipeline, multi requests, parse the next one
                 buffer->reduce(request->header_length_);
                 request->clean();
+                if (conn->http_request_in_flight) {
+                    conn->http_request_waiting = 1;
+                    if (_socket->events & SW_EVENT_READ) {
+                        reactor->remove_read_event(_socket);
+                    }
+                    return SW_OK;
+                }
                 goto _parse;
             } else {
                 port->destroy_http_request(conn);
@@ -686,7 +708,12 @@ _parse:
         if (buffer->length < request_length) {
             // Expect: 100-continue
             if (request->has_expect_header()) {
-                _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+                SendData send_data{};
+                send_data.info.fd = conn->session_id;
+                send_data.info.type = SW_SERVER_EVENT_SEND_DATA;
+                send_data.info.len = sizeof(SW_HTTP_100_CONTINUE_PACKET) - 1;
+                send_data.data = SW_HTTP_100_CONTINUE_PACKET;
+                serv->send_to_connection(&send_data);
             } else {
                 swoole_trace_log(
                     SW_TRACE_SERVER,
@@ -713,6 +740,7 @@ _parse:
     dispatch_data.data = buffer->str;
     dispatch_data.info.len = buffer->length;
 
+    conn->http_request_in_flight = 1;
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
         goto _close_fd;
     }
