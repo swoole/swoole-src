@@ -566,6 +566,9 @@ _parse:
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
+                if (buffer->length == request->header_length_ && request->has_expect_header()) {
+                    _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+                }
                 request->init_multipart_parser(serv);
 
                 buffer = request->buffer_;
@@ -598,16 +601,8 @@ _parse:
 
     // content length (equal to 0) or (field not found but not chunked)
     if (!request->tried_to_dispatch) {
-        // recv nobody_chunked eof
-        if (request->nobody_chunked) {
-            if (buffer->length < request->header_length_ + (sizeof(SW_HTTP_CHUNK_EOF) - 1)) {
-                goto _recv_data;
-            }
-            request->header_length_ += (sizeof(SW_HTTP_CHUNK_EOF) - 1);
-        }
         request->tried_to_dispatch = 1;
-        // (know content-length is equal to 0) or (no content-length field and no chunked)
-        if (request->content_length_ == 0 && (request->known_length || !request->chunked)) {
+        if (request->content_length_ == 0 && !request->chunked) {
             buffer->offset = request->header_length_;
             // send static file content directly in the reactor thread
             if (!serv->enable_static_handler || !serv->select_static_handler(request, conn)) {
@@ -638,6 +633,9 @@ _parse:
     if (request->chunked) {
         /* unknown length, should find chunked eof */
         if (request->get_chunked_body_length() < 0) {
+            if (request->too_large) {
+                goto _too_large;
+            }
             if (request->excepted) {
                 swoole_error_log(SW_LOG_TRACE,
                                  SW_ERROR_HTTP_INVALID_PROTOCOL,
@@ -645,18 +643,22 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _bad_request;
             }
-            request_length = buffer->size + SW_BUFFER_SIZE_BIG;
-            if (request_length > protocol->package_max_length) {
+            if (buffer->length >= protocol->package_max_length) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_HTTP_INVALID_PROTOCOL,
-                                 "Request Entity Too Large: request length (chunked) has already been greater than the "
+                                 "Request Entity Too Large: the chunked request length (%zu) has reached the "
                                  "package_max_length(%u)" CLIENT_INFO_FMT,
+                                 buffer->length,
                                  protocol->package_max_length,
                                  CLIENT_INFO_ARGS);
                 goto _too_large;
             }
+            if (buffer->length == request->header_length_ && request->has_expect_header()) {
+                _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+            }
             if (buffer->length == buffer->size) {
-                buffer->extend(request_length);
+                // The limit check above guarantees that the new size is larger.
+                buffer->extend(SW_MIN(buffer->size + SW_BUFFER_SIZE_BIG, (size_t) protocol->package_max_length));
             }
             goto _recv_data;
         } else {
@@ -665,8 +667,8 @@ _parse:
         swoole_trace_log(
             SW_TRACE_SERVER, "received chunked eof, real content-length=%" PRIu64, request->content_length_);
     } else {
-        request_length = request->header_length_ + request->content_length_;
-        if (request_length > protocol->package_max_length) {
+        // Header parsing is capped at the minimum package_max_length before this subtraction.
+        if (request->content_length_ > protocol->package_max_length - request->header_length_) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
                              "Request Entity Too Large: header-length (%u) + content-length (%" PRIu64
@@ -678,6 +680,7 @@ _parse:
                              CLIENT_INFO_ARGS);
             goto _too_large;
         }
+        request_length = request->header_length_ + request->content_length_;
 
         if (request_length > buffer->size) {
             buffer->extend(request_length);
@@ -685,7 +688,7 @@ _parse:
 
         if (buffer->length < request_length) {
             // Expect: 100-continue
-            if (request->has_expect_header()) {
+            if (buffer->length == request->header_length_ && request->has_expect_header()) {
                 _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
             } else {
                 swoole_trace_log(
@@ -699,25 +702,20 @@ _parse:
         }
     }
 
-    // discard the redundant data
-    if (buffer->length > request_length) {
-        swoole_error_log(SW_LOG_TRACE,
-                         SW_ERROR_HTTP_INVALID_PROTOCOL,
-                         "Invalid Request: %zu bytes has been discard" CLIENT_INFO_FMT,
-                         buffer->length - request_length,
-                         CLIENT_INFO_ARGS);
-        buffer->length = request_length;
-    }
-
     buffer->offset = request_length;
     dispatch_data.data = buffer->str;
-    dispatch_data.info.len = buffer->length;
+    dispatch_data.info.len = request_length;
 
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
         goto _close_fd;
     }
 
     if (conn->active && !_socket->removed) {
+        if (buffer->length > request_length) {
+            buffer->reduce(request_length);
+            request->clean();
+            goto _parse;
+        }
         port->destroy_http_request(conn);
         if (_socket->recv_buffer && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
             delete _socket->recv_buffer;

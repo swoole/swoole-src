@@ -775,9 +775,6 @@ void Request::parse_header_info() {
     }
 
     header_parsed = 1;
-    if (chunked && known_length && content_length_ == 0) {
-        nobody_chunked = 1;
-    }
 }
 
 bool Request::init_multipart_parser(const Server *server) {
@@ -895,53 +892,231 @@ int Request::get_header_length() {
     return SW_ERR;
 }
 
-int Request::get_chunked_body_length() {
-    const char *p = buffer_->str + buffer_->offset;
-    const char *pe = buffer_->str + buffer_->length;
+static bool is_http_token_char(unsigned char c) {
+    if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+        return true;
+    }
+    switch (c) {
+    case '!':
+    case '#':
+    case '$':
+    case '%':
+    case '&':
+    case '\'':
+    case '*':
+    case '+':
+    case '-':
+    case '.':
+    case '^':
+    case '_':
+    case '`':
+    case '|':
+    case '~':
+        return true;
+    default:
+        return false;
+    }
+}
 
-    /**
-     * Ending with SW_HTTP_CHUNK_EOF indicates that the HTTP request may have been fully received,
-     * but this is not certain. It is still necessary to skip over the data sections based on
-     * the length of each chunk of the HTTP data until SW_HTTP_CHUNK_EOF (\0\r\n\r\n) is found.
-     */
-    if (static_cast<size_t>(pe - p) < sizeof(SW_HTTP_CHUNK_EOF) - 1 ||
-        memcmp(pe - sizeof(SW_HTTP_CHUNK_EOF) + 1, SW_STRL(SW_HTTP_CHUNK_EOF)) != 0) {
-        return SW_ERR;
+static bool is_http_quoted_char(unsigned char c) {
+    return c == '\t' || (c >= 0x20 && c != 0x7f && c != '"' && c != '\\');
+}
+
+static bool is_http_quoted_pair_char(unsigned char c) {
+    return c == '\t' || (c >= 0x20 && c != 0x7f);
+}
+
+static ChunkSizeResult parse_chunk_size(const char *p, const char *pe, size_t max_length, size_t *chunk_length) {
+    size_t length = 0;
+    const char *start = p;
+
+    while (p < pe) {
+        unsigned char c = *p;
+        uint8_t digit;
+        if (c >= '0' && c <= '9') {
+            digit = c - '0';
+        } else if (c >= 'a' && c <= 'f') {
+            digit = c - 'a' + 10;
+        } else if (c >= 'A' && c <= 'F') {
+            digit = c - 'A' + 10;
+        } else {
+            break;
+        }
+        if (digit > max_length || length > (max_length - digit) / 16) {
+            return CHUNK_SIZE_TOO_LARGE;
+        }
+        length = length * 16 + digit;
+        p++;
+    }
+
+    if (p == start) {
+        return CHUNK_SIZE_MALFORMED;
+    }
+
+    while (p < pe) {
+        if (*p++ != ';') {
+            return CHUNK_SIZE_MALFORMED;
+        }
+
+        const char *name = p;
+        while (p < pe && is_http_token_char(*p)) {
+            p++;
+        }
+        if (p == name) {
+            return CHUNK_SIZE_MALFORMED;
+        }
+        if (p == pe) {
+            break;
+        }
+        if (*p != '=') {
+            continue;
+        }
+
+        p++;
+        if (p == pe) {
+            return CHUNK_SIZE_MALFORMED;
+        }
+        if (*p == '"') {
+            bool closed = false;
+            for (p++; p < pe; p++) {
+                unsigned char c = *p;
+                if (c == '"') {
+                    closed = true;
+                    p++;
+                    break;
+                }
+                if (c == '\\') {
+                    if (++p == pe || !is_http_quoted_pair_char(*p)) {
+                        return CHUNK_SIZE_MALFORMED;
+                    }
+                } else if (!is_http_quoted_char(c)) {
+                    return CHUNK_SIZE_MALFORMED;
+                }
+            }
+            if (!closed) {
+                return CHUNK_SIZE_MALFORMED;
+            }
+        } else {
+            const char *value = p;
+            while (p < pe && is_http_token_char(*p)) {
+                p++;
+            }
+            if (p == value) {
+                return CHUNK_SIZE_MALFORMED;
+            }
+        }
+    }
+
+    *chunk_length = length;
+    return CHUNK_SIZE_OK;
+}
+
+int Request::get_chunked_body_length() {
+    const char *buffer = buffer_->str;
+    const char *pe = buffer + buffer_->length;
+    const size_t chunk_data_end_length = sizeof("\r\n") - 1 + sizeof(SW_HTTP_CHUNK_EOF) - 1;
+    const size_t trailer_end_length = sizeof("\r\n") - 1;
+
+    if (chunk_offset_ == 0) {
+        // clean() leaves zero as the uninitialized offset, and the header has been parsed here.
+        chunk_offset_ = chunk_scan_offset_ = header_length_;
     }
 
     while (true) {
-        char *endptr;
-        size_t chunk_length = strtoul(p, &endptr, 16);
-        if (endptr == nullptr || *endptr != '\r') {
-            break;
+        if (chunk_state_ == CHUNK_STATE_DATA) {
+            if (chunk_offset_ > buffer_->length || chunk_length_ > buffer_->length - chunk_offset_) {
+                return SW_ERR;
+            }
+            size_t chunk_end = chunk_offset_ + chunk_length_;
+            if (chunk_end == buffer_->length) {
+                return SW_ERR;
+            }
+            if (buffer[chunk_end] != '\r') {
+                excepted = 1;
+                return SW_ERR;
+            }
+            if (chunk_end + 1 == buffer_->length) {
+                return SW_ERR;
+            }
+            if (buffer[chunk_end + 1] != '\n') {
+                excepted = 1;
+                return SW_ERR;
+            }
+            chunk_offset_ = chunk_scan_offset_ = chunk_end + 2;
+            chunk_length_ = 0;
+            chunk_state_ = CHUNK_STATE_SIZE;
+            continue;
         }
 
-        swoole_trace_log(SW_TRACE_HTTP, "chunk_length=%zu, chunk_len_str=%.*s\n", chunk_length, (int) (endptr - p), p);
-
-        // Found the HTTP Chunk EOF
-        if (chunk_length == 0) {
-            known_length = 1;
-            content_length_ = endptr - (buffer_->str + header_length_) + 4;
-            return SW_OK;
-        } else {
-            // chunk length [hex str] + CRLF + data + CRLF
-            p = endptr + 2 + chunk_length + 2;
-            // Continue to parse the next segment of HTTP CHUNK data.
-            if (p < pe) {
-                continue;
+        const char *p = buffer + chunk_scan_offset_;
+        const char *line_start = buffer + chunk_offset_;
+        while (p < pe && *p != '\r') {
+            if (*p == '\n') {
+                excepted = 1;
+                return SW_ERR;
             }
-            /**
-             * If the calculated data length exceeds the length of the currently received data,
-             * then SW_HTTP_CHUNK_EOF may be part of the data,
-             * necessitating the reception of additional data and recalculating the HTTP Chunk length.
-             */
+            p++;
+        }
+        if (p == pe) {
+            chunk_scan_offset_ = p - buffer;
             return SW_ERR;
         }
-        break;
-    }
+        if (p + 1 == pe) {
+            chunk_scan_offset_ = p - buffer;
+            return SW_ERR;
+        }
+        if (p[1] != '\n') {
+            excepted = 1;
+            return SW_ERR;
+        }
 
-    excepted = 1;
-    return SW_ERR;
+        const char *line_end = p;
+        p += 2;
+        chunk_offset_ = chunk_scan_offset_ = p - buffer;
+
+        if (chunk_state_ == CHUNK_STATE_TRAILER) {
+            if (chunk_offset_ > max_length_) {
+                too_large = 1;
+                return SW_ERR;
+            }
+            if (line_end == line_start) {
+                known_length = 1;
+                content_length_ = chunk_offset_ - header_length_;
+                return SW_OK;
+            }
+            continue;
+        }
+
+        ChunkSizeResult result = parse_chunk_size(line_start, line_end, max_length_, &chunk_length_);
+        if (result == CHUNK_SIZE_TOO_LARGE) {
+            too_large = 1;
+            return SW_ERR;
+        }
+        if (result != CHUNK_SIZE_OK) {
+            excepted = 1;
+            return SW_ERR;
+        }
+        swoole_trace_log(SW_TRACE_HTTP,
+                         "chunk_length=%zu, chunk_len_str=%.*s\n",
+                         chunk_length_,
+                         (int) (line_end - line_start),
+                         line_start);
+
+        if (chunk_length_ == 0) {
+            chunk_state_ = CHUNK_STATE_TRAILER;
+            if (chunk_offset_ > max_length_ || max_length_ - chunk_offset_ < trailer_end_length) {
+                too_large = 1;
+                return SW_ERR;
+            }
+        } else {
+            chunk_state_ = CHUNK_STATE_DATA;
+            if (chunk_offset_ > max_length_ || max_length_ - chunk_offset_ < chunk_data_end_length ||
+                chunk_length_ > max_length_ - chunk_offset_ - chunk_data_end_length) {
+                too_large = 1;
+                return SW_ERR;
+            }
+        }
+    }
 }
 
 std::string Request::get_header(const char *name) const {
