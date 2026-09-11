@@ -329,6 +329,12 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     Z_PARAM_BOOL(reuse_port)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    HttpServerObject *hsc = http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+    if (hsc->server) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
+
     zend_update_property_stringl(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, l_host);
     zend_update_property_bool(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
 
@@ -338,7 +344,6 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         RETURN_FALSE;
     }
 
-    HttpServerObject *hsc = http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     std::string host_str(host, l_host);
     hsc->server = new HttpServer(swoole::network::Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;
