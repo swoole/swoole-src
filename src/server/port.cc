@@ -566,6 +566,9 @@ _parse:
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
+                if (buffer->length == request->header_length_ && request->has_expect_header()) {
+                    _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+                }
                 request->init_multipart_parser(serv);
 
                 buffer = request->buffer_;
@@ -650,6 +653,9 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _too_large;
             }
+            if (buffer->length == request->header_length_ && request->has_expect_header()) {
+                _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+            }
             if (buffer->length == buffer->size) {
                 // The limit check above guarantees that the new size is larger.
                 buffer->extend(SW_MIN(buffer->size + SW_BUFFER_SIZE_BIG, (size_t) protocol->package_max_length));
@@ -682,7 +688,7 @@ _parse:
 
         if (buffer->length < request_length) {
             // Expect: 100-continue
-            if (request->has_expect_header()) {
+            if (buffer->length == request->header_length_ && request->has_expect_header()) {
                 _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
             } else {
                 swoole_trace_log(
