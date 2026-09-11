@@ -46,6 +46,7 @@ using swoole::Thread;
 
 struct PhpThread {
     std::shared_ptr<Thread> thread;
+    bool constructed = false;
 
     PhpThread() : thread(std::make_shared<Thread>()) {}
 
@@ -192,12 +193,17 @@ static PHP_METHOD(swoole_thread, __construct) {
     Z_PARAM_VARIADIC('+', args, argc)
     ZEND_PARSE_PARAMETERS_END();
 
+    auto pt = thread_get_php_thread(ZEND_THIS);
+    if (pt->constructed) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        return;
+    }
+
     if (l_script_file < 1) {
         zend_throw_exception(swoole_exception_ce, "exec file name is empty", SW_ERROR_INVALID_PARAMS);
         return;
     }
 
-    auto pt = thread_get_php_thread(ZEND_THIS);
     zend_string *file = zend_string_init(script_file, l_script_file, true);
 
     if (argc > 0) {
@@ -214,6 +220,7 @@ static PHP_METHOD(swoole_thread, __construct) {
         return;
     }
 
+    pt->constructed = true;
     zend::object_set(ZEND_THIS, ZEND_STRL("id"), (zend_long) pt->thread->get_id());
 }
 
