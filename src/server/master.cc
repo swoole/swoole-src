@@ -633,7 +633,48 @@ void Server::destroy_worker(Worker *worker) {
 /**
  * [Worker]
  */
+#ifdef HAVE_CPU_AFFINITY
+int Server::get_cpu_affinity(int index) const {
+    if (cpu_affinity_available_num) {
+        return cpu_affinity_available[index % cpu_affinity_available_num];
+    }
+
+    cpu_set_t cpu_set;
+    if (swoole_get_cpu_affinity(&cpu_set) < 0) {
+        swoole_sys_warning("swoole_get_cpu_affinity() failed");
+        return -1;
+    }
+    int cpu_num = 0;
+    for (int i = 0; i < CPU_SETSIZE; i++) {
+        if (CPU_ISSET(i, &cpu_set)) {
+            cpu_num++;
+        }
+    }
+    int offset = index % cpu_num;
+    for (int i = 0; i < CPU_SETSIZE; i++) {
+        if (CPU_ISSET(i, &cpu_set) && offset-- == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+#endif
+
 void Server::init_event_worker(Worker *worker) const {
+#ifdef HAVE_CPU_AFFINITY
+    if (open_cpu_affinity && !is_thread_mode()) {
+        int cpu_id = get_cpu_affinity(worker->id);
+        if (cpu_id >= 0) {
+            cpu_set_t cpu_set;
+            CPU_ZERO(&cpu_set);
+            CPU_SET(cpu_id, &cpu_set);
+            if (swoole_set_cpu_affinity(&cpu_set) < 0) {
+                swoole_sys_warning("swoole_set_cpu_affinity() failed");
+            }
+        }
+    }
+#endif
+
     worker->init();
     worker->set_max_request(max_request, max_request_grace);
 }
