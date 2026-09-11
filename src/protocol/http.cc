@@ -182,6 +182,9 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
         ParseCookieCallback cb = [request, form_data, p, &failed](
                                      char *key, size_t key_len, char *value, size_t value_len) {
             if (SW_STRCASEEQ(key, key_len, "filename")) {
+                if (SW_STREQ(value, value_len, "\"\"")) {
+                    return false;
+                }
                 memcpy(form_data->upload_tmpfile->str,
                        form_data->upload_tmpfile_fmt_.c_str(),
                        form_data->upload_tmpfile_fmt_.length());
@@ -196,9 +199,6 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
                 FILE *fp = fdopen(tmpfile, "wb+");
                 if (fp == nullptr) {
                     swoole_sys_warning("fopen(%s) failed", form_data->upload_tmpfile->str);
-                    close(tmpfile);
-                    unlink(form_data->upload_tmpfile->str);
-                    failed = true;
                     return false;
                 }
                 p->fp = fp;
