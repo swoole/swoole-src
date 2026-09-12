@@ -27,3 +27,10 @@ function ssh2t_writes_remote()
         skip('TEST_SSH2_TEMPDIR is empty');
     }
 }
+
+function ssh2t_needs_truncated_scp()
+{
+    if (!TEST_SSH2_TRUNCATED_SCP_USER || !TEST_SSH2_TRUNCATED_SCP_PASS) {
+        skip('Truncated SCP fixture is not configured');
+    }
+}

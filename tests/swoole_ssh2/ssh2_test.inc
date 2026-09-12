@@ -15,6 +15,8 @@ ssh2t_defenv('TEST_SSH2_TEMPDIR', '/tmp');
 ssh2t_defenv('TEST_SSH2_AUTH', TEST_SSH2_PASS ? 'password' : 'none');
 ssh2t_defenv('TEST_SSH2_PUB_KEY', __DIR__ . '/testkey_ed25519.pub');
 ssh2t_defenv('TEST_SSH2_PRIV_KEY', __DIR__ . '/testkey_ed25519');
+ssh2t_defenv('TEST_SSH2_TRUNCATED_SCP_USER');
+ssh2t_defenv('TEST_SSH2_TRUNCATED_SCP_PASS');
 
 function ssh2t_getenv($env, $def = false)
 {
