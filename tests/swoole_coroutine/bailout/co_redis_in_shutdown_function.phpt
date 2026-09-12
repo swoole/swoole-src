@@ -1,7 +1,11 @@
 --TEST--
 swoole_coroutine/bailout: call co redis in shutdown function
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; skip_if_win(); ?>
+<?php
+require __DIR__ . '/../../include/skipif.inc';
+skip_if_win();
+skip_if_extension_not_exist('redis');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

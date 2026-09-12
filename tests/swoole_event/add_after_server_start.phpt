@@ -3,6 +3,7 @@ swoole_event: add event after server start
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 skip_if_offline();
+skip_if_class_not_exist(Swoole\Server::class);
 ?>
 --FILE--
 <?php

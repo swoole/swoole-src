@@ -379,11 +379,11 @@ int Multi::post_event(Socket *curl_socket, int bitmask) {
                     error);
 
     if (!retval) {
-        if (error != WSA_IO_PENDING) {
-            iocp->cancel_submission(&operation->event);
+        if (error != ERROR_IO_PENDING) {
+            iocp->discard_submission(&operation->event);
             curl_socket->operation = nullptr;
             delete operation;
-            Iocp::set_error(error);
+            Iocp::set_system_error(error);
             return SW_ERR;
         }
     }
@@ -402,11 +402,7 @@ void Multi::cancel_event(IocpOperation *operation) {
         return;
     }
     CURL_IOCP_DEBUG("cancel_event fd=%d", (int) operation->event.fd);
-    if (SwooleTG.iocp) {
-        SwooleTG.iocp->cancel_submission(&operation->event);
-    } else {
-        operation->event.orphaned = true;
-    }
+    operation->event.orphaned = true;
     CancelIoEx(reinterpret_cast<HANDLE>(operation->event.fd), &operation->event.overlapped);
 }
 

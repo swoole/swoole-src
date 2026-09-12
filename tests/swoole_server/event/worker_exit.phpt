@@ -1,7 +1,13 @@
 --TEST--
 swoole_server/event: onWorkerExit
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../../include/skipif.inc';
+// master/manager/worker are only synchronized by a barrier before the workers are
+// forked, the order in which onStart/onManagerStart/onWorkerStart write the log
+// is not guaranteed and differs on the slower macOS runners
+skip_if_darwin_todo('log write order between master, manager and worker is racy');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

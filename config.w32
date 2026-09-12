@@ -16,7 +16,6 @@ ARG_WITH("swoole-ssh2", "enable ssh2 support", "no");
 ARG_ENABLE("swoole-ftp", "enable Async FTP support", "no");
 ARG_ENABLE("thread-context", "use thread context", "no");
 ARG_ENABLE("swoole-thread", "enable swoole thread support", "no");
-ARG_ENABLE("swoole-stdext", "enable swoole stdext support", "no");
 ARG_ENABLE("swoole-coro-time", "calculate coroutine execution time", "no");
 ARG_ENABLE("swoole-sqlite", "enable sqlite support", "no");
 ARG_ENABLE("swoole-odbc", "enable odbc support", "no");
@@ -55,7 +54,6 @@ if (PHP_SWOOLE != "no") {
 	swoole_source_files += "ext-src\\swoole_name_resolver.cc ";
 	swoole_source_files += "ext-src\\swoole_runtime.cc ";
 	swoole_source_files += "ext-src\\swoole_socket_coro.cc ";
-	swoole_source_files += "ext-src\\swoole_stdext.cc ";
 	swoole_source_files += "ext-src\\swoole_thread.cc ";
 	swoole_source_files += "ext-src\\swoole_thread_arraylist.cc ";
 	swoole_source_files += "ext-src\\swoole_thread_atomic.cc ";
@@ -206,6 +204,7 @@ if (PHP_SWOOLE != "no") {
 	// Check for required libraries and headers
 	var swoole_ok = true;
 
+	AC_DEFINE("HAVE_CPU_AFFINITY", 1, "CPU affinity support");
 	AC_DEFINE("SW_USE_OPENSSL", 1, "Enable OpenSSL support");
 	AC_DEFINE("SW_HAVE_ZLIB", 1, "Have zlib");
 	AC_DEFINE("SW_HAVE_BROTLI", 1, "Have Brotli");
@@ -214,6 +213,7 @@ if (PHP_SWOOLE != "no") {
 
 	CHECK_LIB("ws2_32.lib", "swoole", null);
 	CHECK_LIB("iphlpapi.lib", "swoole", null);
+	CHECK_LIB("synchronization.lib", "swoole", null);
 	CHECK_LIB("libssl.lib;ssleay32.lib", "swoole", null);
 	CHECK_LIB("libcrypto.lib;libeay32.lib", "swoole", null);
 	CHECK_LIB("zlib_a.lib;zlib.lib", "swoole", null);
@@ -316,15 +316,11 @@ if (PHP_SWOOLE != "no") {
 		AC_DEFINE("SW_THREAD", 1, "Enable swoole thread support");
 	}
 
-	if (PHP_SWOOLE_STDEXT != "no") {
-		AC_DEFINE("SW_STDEXT", 1, "Enable swoole stdext support");
-	}
-
 	if (PHP_SWOOLE_CORO_TIME != "no") {
 		AC_DEFINE("SW_CORO_TIME", 1, "Calculate coroutine execution time");
 	}
 
-	if (PHP_SOCKETS == "yes") {
+	if (PHP_PHP_SOCKETS == "yes") {
 		AC_DEFINE("SW_SOCKETS", 1, "Enable sockets support");
 		AC_DEFINE("HAVE_SOCKETS", 1, "Whether sockets extension is enabled");
 	}
@@ -349,6 +345,10 @@ if (PHP_SWOOLE != "no") {
 		ADD_EXTENSION_DEP("swoole", "curl");
 	}
 
+	if (PHP_PHP_SOCKETS == "yes") {
+		ADD_EXTENSION_DEP("swoole", "sockets");
+	}
+
 	if (PHP_SWOOLE_SQLITE == "yes") {
 		ADD_EXTENSION_DEP("swoole", "pdo");
 	}
@@ -361,7 +361,11 @@ if (PHP_SWOOLE != "no") {
 		ADD_EXTENSION_DEP("swoole", "pdo");
 	}
 
-	if (PHP_SWOOLE_ODBC == "yes") {
+	if (PHP_SWOOLE_ODBC != "no") {
+		ADD_EXTENSION_DEP("swoole", "pdo");
+	}
+
+	if (PHP_SWOOLE_FIREBIRD != "no") {
 		ADD_EXTENSION_DEP("swoole", "pdo");
 	}
 

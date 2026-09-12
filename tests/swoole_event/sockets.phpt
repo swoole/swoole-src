@@ -3,6 +3,7 @@ swoole_event: add event after server start
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 skip_if_extension_not_exist('sockets');
+skip_if_class_not_exist(Swoole\Server::class);
 ?>
 --FILE--
 <?php

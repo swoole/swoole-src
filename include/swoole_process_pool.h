@@ -227,7 +227,7 @@ struct Worker {
 struct StreamInfo {
     network::Socket *socket;
     network::Socket *last_connection;
-    char *socket_file;
+    char *socket_address;
     int socket_port;
     String *response_buffer;
 };

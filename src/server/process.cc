@@ -283,7 +283,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     Worker *worker = server_->get_worker(target_worker_id);
 
     if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
-        sw_atomic_fetch_add(&worker->dispatch_count, 1);
+        sw_atomic_long_fetch_add(&worker->dispatch_count, 1);
     }
 
     SendData _task;

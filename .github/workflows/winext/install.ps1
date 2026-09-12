@@ -85,7 +85,9 @@ if ($dumpbinPath) {
     $notFound = @()
     foreach ($dll in $imports) {
         if ($dll | IsSystemDll) { continue }
-        if (Test-Path "$phppath\$dll") { continue }
+        # PHP extensions normally live in extension_dir, and extension DLLs
+        # imported by another extension are resolvable from there as well.
+        if ((Test-Path "$phppath\$dll") -or (Test-Path "$extdir\$dll")) { continue }
         if ($dllIndex.ContainsKey($dll)) {
             info "Copy dep DLL: $dll -> $phppath"
             Copy-Item $dllIndex[$dll] $phppath
@@ -103,7 +105,9 @@ if ($dumpbinPath) {
 } else {
     warn "dumpbin not available, copying all non-system DLLs from index"
     foreach ($kv in $dllIndex.GetEnumerator()) {
-        if (($kv.Key | IsSystemDll) -or (Test-Path "$phppath\$($kv.Key)")) { continue }
+        if (($kv.Key | IsSystemDll) -or
+            (Test-Path "$phppath\$($kv.Key)") -or
+            (Test-Path "$extdir\$($kv.Key)")) { continue }
         info "Copy dep DLL: $($kv.Key) -> $phppath"
         Copy-Item $kv.Value $phppath
         $copiedCount++
@@ -147,7 +151,8 @@ if ($dumpbinPath) {
     $missingDlls = @()
     foreach ($dll in $allImports) {
         if ($dll | IsSystemDll) { continue }
-        if (-not (Test-Path "$phppath\$dll")) {
+        if ((-not (Test-Path "$phppath\$dll")) -and
+            (-not (Test-Path "$extdir\$dll"))) {
             $missingDlls += $dll
         }
     }
@@ -155,7 +160,7 @@ if ($dumpbinPath) {
     if ($missingDlls.Count) {
         Write-Host "`nMISSING DLLs:" -ForegroundColor Red
         $missingDlls | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
-        err "Cannot load swoole: $($missingDlls.Count) DLL(s) not found in $phppath"
+        err "Cannot load swoole: $($missingDlls.Count) DLL(s) not found in $phppath or $extdir"
         $checkOk = $false
     } else {
         Write-Host "`nAll $($allImports.Count) dependency DLLs resolved" -ForegroundColor Green

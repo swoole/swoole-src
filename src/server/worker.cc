@@ -108,7 +108,7 @@ static sw_inline void Worker_do_task(Server *serv, Worker *worker, const DataHea
 
     if (callback(serv, &recv_data) == SW_OK) {
         worker->add_request_count();
-        sw_atomic_fetch_add(&serv->gs->request_count, 1);
+        sw_atomic_long_fetch_add(&serv->gs->request_count, 1);
     }
 }
 

@@ -258,9 +258,21 @@ void php_swoole_process_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_process, __construct) {
-    auto po = php_swoole_process_fetch_object(ZEND_THIS);
-    Server *server = sw_server();
+    zend::Function func;
+    zend_bool redirect_stdin_and_stdout = false;
+    zend_long pipe_type = PIPE_TYPE_DGRAM;
+    zend_bool enable_coroutine = false;
 
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
+    Z_PARAM_FUNC(func.fci, func.fci_cache);
+    Z_PARAM_OPTIONAL
+    Z_PARAM_BOOL(redirect_stdin_and_stdout)
+    Z_PARAM_LONG(pipe_type)
+    Z_PARAM_BOOL(enable_coroutine)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    // Callable resolution can run user code, so inspect native state only after parsing.
+    auto po = php_swoole_process_fetch_object(ZEND_THIS);
     if (po->worker) {
         zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
@@ -272,6 +284,7 @@ static PHP_METHOD(swoole_process, __construct) {
         RETURN_FALSE;
     }
 
+    Server *server = sw_server();
     if (server && server->is_started() && server->is_master()) {
         zend_throw_error(nullptr, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
@@ -282,21 +295,8 @@ static PHP_METHOD(swoole_process, __construct) {
         RETURN_FALSE;
     }
 
-    zend::Function func;
-    zend_bool redirect_stdin_and_stdout = false;
-    zend_long pipe_type = PIPE_TYPE_DGRAM;
-    zend_bool enable_coroutine = false;
-
-    po->worker = new Worker();
-    Worker *process = po->worker;
-
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
-    Z_PARAM_FUNC(func.fci, func.fci_cache);
-    Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(redirect_stdin_and_stdout)
-    Z_PARAM_LONG(pipe_type)
-    Z_PARAM_BOOL(enable_coroutine)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    Worker *process = new Worker();
+    po->worker = process;
 
     if (server && server->is_worker_thread()) {
         Worker *shared_worker;
@@ -495,14 +495,19 @@ static PHP_METHOD(swoole_process, signal) {
     if (zcallback == nullptr) {
         fci_cache = signal_fci_caches[signo];
         if (fci_cache) {
-#ifdef SW_USE_THREAD_CONTEXT
-            swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
-#else
-            swoole_signal_set(signo, nullptr);
-#endif
             signal_fci_caches[signo] = nullptr;
-            swoole_event_defer(sw_callable_free, fci_cache);
             SwooleG.signal_listener_num--;
+            if (swoole_event_is_available()) {
+#ifdef SW_USE_THREAD_CONTEXT
+                swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
+#else
+                swoole_signal_set(signo, nullptr);
+#endif
+                swoole_event_defer(sw_callable_free, fci_cache);
+            } else {
+                swoole_signal_set(signo, nullptr);
+                sw_callable_free(fci_cache);
+            }
             RETURN_TRUE;
         } else {
             php_swoole_error(E_WARNING, "unable to find the callback of signal [" ZEND_LONG_FMT "]", signo);
@@ -526,7 +531,16 @@ static PHP_METHOD(swoole_process, signal) {
         }
         signal_fci_caches[signo] = fci_cache;
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler, true); }, nullptr);
+        /**
+         * In a sync process without an event loop (e.g. the manager process), there is no reactor,
+         * so swoole_event_defer() would dereference a null pointer and the deferred callback would never run.
+         * Set the signal handler directly instead.
+         */
+        if (swoole_event_is_available()) {
+            swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler, true); }, nullptr);
+        } else {
+            swoole_signal_set(signo, handler, true);
+        }
 #else
         swoole_signal_set(signo, handler, true);
 #endif
@@ -975,41 +989,6 @@ static PHP_METHOD(swoole_process, daemon) {
 }
 
 #ifdef HAVE_CPU_AFFINITY
-bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set) {
-    if (php_swoole_array_length(array) == 0) {
-        return false;
-    }
-
-    if (php_swoole_array_length(array) > SW_CPU_NUM) {
-        php_swoole_fatal_error(E_WARNING, "More than the number of CPU");
-        return false;
-    }
-
-    zval *value = nullptr;
-    CPU_ZERO(cpu_set);
-
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), value)
-    if (zval_get_long(value) >= SW_CPU_NUM) {
-        php_swoole_fatal_error(E_WARNING, "invalid cpu id [%d]", (int) Z_LVAL_P(value));
-        return false;
-    }
-    CPU_SET(Z_LVAL_P(value), cpu_set);
-    SW_HASHTABLE_FOREACH_END();
-
-    return true;
-}
-
-void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set) {
-    array_init(array);
-
-    int cpu_n = SW_CPU_NUM;
-    SW_LOOP_N(cpu_n) {
-        if (CPU_ISSET(i, cpu_set)) {
-            add_next_index_long(array, i);
-        }
-    }
-}
-
 static PHP_METHOD(swoole_process, setAffinity) {
     zval *array;
     ZEND_PARSE_PARAMETERS_START(1, 1)

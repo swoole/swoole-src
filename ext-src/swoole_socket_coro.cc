@@ -129,13 +129,18 @@ static const zend_function_entry swoole_socket_coro_methods[] =
 };
 // clang-format on
 
+static sw_inline int socket_coro_public_error_code(int code);
+
 #define swoole_get_socket_coro(_sock, _zobject)                                                                        \
     SocketObject *_sock = socket_coro_fetch_object(Z_OBJ_P(_zobject));                                                 \
     if (UNEXPECTED(!sock->socket)) {                                                                                   \
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");                                   \
     }                                                                                                                  \
     if (UNEXPECTED(_sock->socket->is_closed())) {                                                                      \
-        zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errCode"), EBADF);          \
+        zend_update_property_long(swoole_socket_coro_ce,                                                               \
+                                  SW_Z8_OBJ_P(_zobject),                                                               \
+                                  ZEND_STRL("errCode"),                                                               \
+                                  socket_coro_public_error_code(EBADF));                                               \
         zend_update_property_string(                                                                                   \
             swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errMsg"), strerror(EBADF));                       \
         RETURN_FALSE;                                                                                                  \
@@ -745,8 +750,34 @@ void php_swoole_socket_coro_minit(int module_number) {
 #endif
 }
 
+static sw_inline int socket_coro_public_error_code(int code) {
+#ifdef _WIN32
+    // ext/sockets exposes Winsock error constants on Windows, while Swoole
+    // uses CRT errno values internally. Keep errCode comparable with the
+    // visible SOCKET_E* constants when both extensions are loaded.
+    if (zend_hash_str_find_ptr(&module_registry, ZEND_STRL("sockets"))) {
+        switch (code) {
+        case EINVAL:
+            return WSAEINVAL;
+        case EBADF:
+            return WSAEBADF;
+        case ENOTCONN:
+            return WSAENOTCONN;
+        case ETIMEDOUT:
+            return WSAETIMEDOUT;
+        default:
+            break;
+        }
+    }
+#endif
+    return code;
+}
+
 static sw_inline void socket_coro_sync_properties(const zval *zobject, const SocketObject *sock) {
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->socket->errCode);
+    zend_update_property_long(swoole_socket_coro_ce,
+                              SW_Z8_OBJ_P(zobject),
+                              ZEND_STRL("errCode"),
+                              socket_coro_public_error_code(sock->socket->errCode));
     zend_update_property_string(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->socket->errMsg);
 }
 
@@ -807,6 +838,7 @@ SW_API zend_object *php_swoole_create_socket(swSocketType type) {
 }
 
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code, const char *msg) {
+    code = socket_coro_public_error_code(code);
     swoole_set_last_error(code);
     zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), code);
     zend_update_property_string(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);

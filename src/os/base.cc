@@ -237,21 +237,124 @@ void swoole_set_process_death_signal(int signal) {
 }
 
 #ifdef HAVE_CPU_AFFINITY
+#ifdef _WIN32
+static DWORD_PTR swoole_cpu_set_to_mask(cpu_set_t *set) {
+    return set->bits;
+}
+
+static void swoole_mask_to_cpu_set(DWORD_PTR mask, cpu_set_t *set) {
+    set->bits = mask;
+}
+
 int swoole_set_cpu_affinity(cpu_set_t *set) {
-#ifdef __FreeBSD__
-    return cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
-#else
-    return sched_setaffinity(getpid(), sizeof(*set), set);
-#endif
+    DWORD_PTR mask = swoole_cpu_set_to_mask(set);
+    if (mask == 0 || !SetProcessAffinityMask(GetCurrentProcess(), mask)) {
+        errno = EINVAL;
+        return -1;
+    }
+    return 0;
 }
 
 int swoole_get_cpu_affinity(cpu_set_t *set) {
-#ifdef __FreeBSD__
+    DWORD_PTR process_mask = 0;
+    DWORD_PTR system_mask = 0;
+    if (!GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask)) {
+        errno = EINVAL;
+        return -1;
+    }
+    swoole_mask_to_cpu_set(process_mask, set);
+    return 0;
+}
+
+int swoole_thread_set_cpu_affinity(cpu_set_t *set) {
+    DWORD_PTR mask = swoole_cpu_set_to_mask(set);
+    if (mask == 0 || SetThreadAffinityMask(GetCurrentThread(), mask) == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return 0;
+}
+
+int swoole_thread_get_cpu_affinity(cpu_set_t *set) {
+    DWORD_PTR process_mask = 0;
+    DWORD_PTR system_mask = 0;
+    if (!GetProcessAffinityMask(GetCurrentProcess(), &process_mask, &system_mask)) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    HANDLE thread = GetCurrentThread();
+    DWORD_PTR current_mask = SetThreadAffinityMask(thread, process_mask);
+    if (current_mask == 0 || SetThreadAffinityMask(thread, current_mask) == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    swoole_mask_to_cpu_set(current_mask, set);
+    return 0;
+}
+#elif defined(__FreeBSD__)
+int swoole_set_cpu_affinity(cpu_set_t *set) {
+    return cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
+}
+
+int swoole_get_cpu_affinity(cpu_set_t *set) {
     return cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
+}
+
+int swoole_thread_set_cpu_affinity(cpu_set_t *set) {
+    int retval = pthread_setaffinity_np(pthread_self(), sizeof(*set), set);
+    if (retval != 0) {
+        errno = retval;
+        return -1;
+    }
+    return 0;
+}
+
+int swoole_thread_get_cpu_affinity(cpu_set_t *set) {
+    int retval = pthread_getaffinity_np(pthread_self(), sizeof(*set), set);
+    if (retval != 0) {
+        errno = retval;
+        return -1;
+    }
+    return 0;
+}
 #else
+int swoole_set_cpu_affinity(cpu_set_t *set) {
+    return sched_setaffinity(getpid(), sizeof(*set), set);
+}
+
+int swoole_get_cpu_affinity(cpu_set_t *set) {
     return sched_getaffinity(getpid(), sizeof(*set), set);
+}
+
+int swoole_thread_set_cpu_affinity(cpu_set_t *set) {
+#ifdef __linux__
+    int retval = pthread_setaffinity_np(pthread_self(), sizeof(*set), set);
+    if (retval != 0) {
+        errno = retval;
+        return -1;
+    }
+    return 0;
+#else
+    errno = ENOTSUP;
+    return -1;
 #endif
 }
+
+int swoole_thread_get_cpu_affinity(cpu_set_t *set) {
+#ifdef __linux__
+    int retval = pthread_getaffinity_np(pthread_self(), sizeof(*set), set);
+    if (retval != 0) {
+        errno = retval;
+        return -1;
+    }
+    return 0;
+#else
+    errno = ENOTSUP;
+    return -1;
+#endif
+}
+#endif
 #endif
 
 #if defined(__linux__)
