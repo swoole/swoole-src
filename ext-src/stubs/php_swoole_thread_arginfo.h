@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 46ec6a19af2d6a669e9c74651c12805626f832c8 */
+ * Stub hash: c365efcb773785337bad5e82365c0f40d7b433bb */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Thread___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, script_file, IS_STRING, 0)
@@ -48,7 +48,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Thread_setPriority, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, priority, IS_LONG, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, policy, IS_LONG, 0, "0")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, policy, IS_LONG, 0, "-1")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Thread_getPriority arginfo_class_Swoole_Thread_getInfo

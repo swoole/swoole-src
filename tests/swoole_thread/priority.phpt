@@ -26,6 +26,11 @@ function test_thread_priority($priority, $policy)
     $r = Thread::getPriority();
     Assert::eq($r['policy'], $policy);
     Assert::eq($r['priority'], $priority);
+
+    Assert::assert(Thread::setPriority($priority + 1));
+    $r = Thread::getPriority();
+    Assert::eq($r['policy'], $policy);
+    Assert::eq($r['priority'], $priority + 1);
 }
 
 $tm->parentFunc = function () {

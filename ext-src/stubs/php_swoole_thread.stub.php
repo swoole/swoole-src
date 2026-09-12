@@ -21,7 +21,7 @@ namespace Swoole {
         public static function setAffinity(array $cpu_settings): bool {}
         public static function getAffinity(): array {}
         #endif
-        public static function setPriority(int $priority, int $policy = 0): bool {}
+        public static function setPriority(int $priority, int $policy = -1): bool {}
         public static function getPriority(): array {}
         public static function getNativeId(): int {}
     }
