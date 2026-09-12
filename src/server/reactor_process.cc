@@ -88,7 +88,11 @@ int Server::start_reactor_processes() {
         return retval;
     }
 
-    return start_manager_process();
+    int retval = start_manager_process();
+    if (retval == SW_OK) {
+        pool->destroy();
+    }
+    return retval;
 }
 
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {

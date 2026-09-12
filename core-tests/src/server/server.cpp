@@ -2783,6 +2783,23 @@ TEST(server, startup_error) {
     ASSERT_NE(strstr(server->get_startup_error_message(), "require 'onPacket' callback"), nullptr);
 }
 
+TEST(server, base_event_worker_pool_cleanup) {
+    Server server(Server::MODE_BASE);
+    server.worker_num = 2;
+    ASSERT_NE(server.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(server.create(), SW_OK);
+
+    server.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
+    server.onManagerStart = [](Server *server) {
+        swoole_timer_after(50, [server](TIMER_PARAMS) { server->shutdown(); });
+    };
+
+    ASSERT_EQ(server.start(), SW_OK);
+    ASSERT_EQ(server.get_event_worker_pool()->pipes, nullptr);
+    ASSERT_EQ(server.get_event_worker_pool()->map_, nullptr);
+    ASSERT_EQ(server.get_event_worker_pool()->message_box, nullptr);
+}
+
 TEST(server, abort_worker) {
     Server *server = new Server(Server::MODE_BASE);
     server->worker_num = 2;
