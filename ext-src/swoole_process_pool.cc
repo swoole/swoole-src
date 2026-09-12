@@ -594,7 +594,7 @@ static PHP_METHOD(swoole_process_pool, start) {
 #endif
 
     if (pp->enable_message_bus) {
-        if (pool->create_message_bus() != SW_OK) {
+        if (pool->message_bus == nullptr && pool->create_message_bus() != SW_OK) {
             RETURN_FALSE;
         }
         pool->message_bus->set_allocator(sw_zend_string_allocator());
