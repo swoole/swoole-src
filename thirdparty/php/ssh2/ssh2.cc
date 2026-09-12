@@ -84,9 +84,12 @@ static void php_ssh2_session_data_free(php_ssh2_session_data *data) {
     php_ssh2_callback_free(data->macerror_cb);
     php_ssh2_callback_free(data->disconnect_cb);
     // close() cancels bound coroutines so they stop retrying libssh2 calls against freed resources.
-    // Cancellation resumes synchronously; if no binding remains afterwards, deletion is safe.
+    // Cancellation resumes synchronously; if no binding remains afterwards, deletion is safe. A
+    // remaining binding cannot resume, so close its descriptor while retaining the socket object.
     if (data->socket->close() || !data->socket->has_bound()) {
         delete data->socket;
+    } else {
+        ::close(data->socket->move_fd());
     }
     efree(data);
 }
