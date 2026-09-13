@@ -597,7 +597,12 @@ static PHP_METHOD(swoole_process_pool, start) {
         if (pool->create_message_bus() != SW_OK) {
             RETURN_FALSE;
         }
+
         pool->message_bus->set_allocator(sw_zend_string_allocator());
+        if (!pool->message_bus->alloc_buffer()) {
+            RETURN_FALSE;
+        }
+
         pool->set_protocol(SW_PROTOCOL_MESSAGE);
     } else {
         pool->set_protocol(SW_PROTOCOL_STREAM);

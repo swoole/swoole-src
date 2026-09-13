@@ -853,6 +853,10 @@ void ServerObject::on_before_start() {
         }
     }
 
+    /**
+     * Before deleting this code, please first review the changes in PR #6237. This is because in SWOOLE_THREAD mode,
+     * each thread obtains its corresponding allocator from here and assigns it to its own MessageBus.
+     */
     serv->message_bus.set_allocator(sw_zend_string_allocator());
 
     if (serv->is_base_mode() || serv->is_thread_mode()) {

@@ -156,9 +156,6 @@ int ProcessPool::create_message_bus() {
     ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE);
 #endif
     message_bus->set_buffer_size(ipc_max_size);
-    if (!message_bus->alloc_buffer()) {
-        return SW_ERR;
-    }
     return SW_OK;
 }
 
@@ -792,8 +789,8 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
         }
     };
 
-    if (pool->message_bus == nullptr) {
-        pool->create_message_bus();
+    if (pool->message_bus == nullptr && (!pool->create_message_bus() || !pool->message_bus->alloc_buffer())) {
+        return SW_ERR;
     }
 
     pool->at_worker_enter(worker);

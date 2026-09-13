@@ -284,7 +284,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) const {
         iov[1].iov_base = (void *) payload;
         iov[1].iov_len = l_payload;
 
-        if (send_fn(sock, iov, 2) == (ssize_t) (sizeof(resp->info) + l_payload)) {
+        if (send_fn(sock, iov, 2) == (ssize_t)(sizeof(resp->info) + l_payload)) {
             return true;
         }
         if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_IPC_MSG_MIN) {
@@ -344,7 +344,7 @@ size_t MessageBus::get_memory_size() const {
 
 void MessageBus::init_pipe_socket(const Socket *sock) {
     int pipe_fd = sock->get_fd();
-    if ((size_t) pipe_fd >= pipe_sockets_.size()) {
+    if (static_cast<size_t>(pipe_fd) >= pipe_sockets_.size()) {
         pipe_sockets_.resize(pipe_fd + 1);
     }
     auto _socket = make_socket(pipe_fd, SW_FD_PIPE);
@@ -355,13 +355,18 @@ void MessageBus::init_pipe_socket(const Socket *sock) {
     pipe_sockets_[pipe_fd] = _socket;
 }
 
-MessageBus::~MessageBus() {
+void MessageBus::release_pipe_sockets() {
     for (auto _socket : pipe_sockets_) {
         if (_socket) {
             _socket->fd = -1;
             _socket->free();
         }
     }
+
+    pipe_sockets_.clear();
 }
 
+MessageBus::~MessageBus() {
+    release_pipe_sockets();
+}
 }  // namespace swoole

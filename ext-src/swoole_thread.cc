@@ -64,9 +64,13 @@ struct ThreadObject {
 };
 
 static void thread_register_stdio_file_handles(bool no_close);
+static void thread_unregister_stdio_file_handles();
 
 static thread_local zval thread_argv = {};
 static thread_local JMP_BUF *thread_bailout = nullptr;
+static thread_local php_socket_t s_in_fd = SOCK_ERR;
+static thread_local php_socket_t s_out_fd = SOCK_ERR;
+static thread_local php_socket_t s_err_fd = SOCK_ERR;
 static std::atomic<size_t> thread_num(1);
 
 static sw_inline ThreadObject *thread_fetch_object(zend_object *obj) {
@@ -372,12 +376,11 @@ void php_swoole_thread_rshutdown() {
 
 static void thread_register_stdio_file_handles(bool no_close) {
     php_stream *s_in, *s_out, *s_err;
-    php_stream_context *sc_in = nullptr, *sc_out = nullptr, *sc_err = nullptr;
     zend_constant ic, oc, ec;
 
-    s_in = php_stream_open_wrapper_ex("php://stdin", "rb", 0, NULL, sc_in);
-    s_out = php_stream_open_wrapper_ex("php://stdout", "wb", 0, NULL, sc_out);
-    s_err = php_stream_open_wrapper_ex("php://stderr", "wb", 0, NULL, sc_err);
+    s_in = php_stream_open_wrapper_ex("php://stdin", "rb", 0, NULL, nullptr);
+    s_out = php_stream_open_wrapper_ex("php://stdout", "wb", 0, NULL, nullptr);
+    s_err = php_stream_open_wrapper_ex("php://stderr", "wb", 0, NULL, nullptr);
 
     if (s_in == nullptr || s_out == nullptr || s_err == nullptr) {
         if (s_in) php_stream_close(s_in);
@@ -387,9 +390,23 @@ static void thread_register_stdio_file_handles(bool no_close) {
     }
 
     if (no_close) {
+        /**
+         * During the program shutdown phase, other extensions may still read from or write to STDIN, STDOUT, and STDERR.
+         * To ensure these three standard streams survive until the process fully terminates, the PHP_STREAM_FLAG_NO_CLOSE flag
+         * must be set to prevent them from being closed prematurely.
+         */
         s_in->flags |= PHP_STREAM_FLAG_NO_CLOSE;
         s_out->flags |= PHP_STREAM_FLAG_NO_CLOSE;
         s_err->flags |= PHP_STREAM_FLAG_NO_CLOSE;
+
+        /**
+         * However, this approach prevents fd from being closed automatically when the program exits,
+         * resulting in connection leaks. Therefore, each fd must be saved and closed manually
+         * after request shutdown to avoid connection leaks.
+         */
+        php_stream_cast(s_in, PHP_STREAM_AS_FD, (void **) &s_in_fd, 0);
+        php_stream_cast(s_out, PHP_STREAM_AS_FD, (void **) &s_out_fd, 0);
+        php_stream_cast(s_err, PHP_STREAM_AS_FD, (void **) &s_err_fd, 0);
     }
 
     php_stream_to_zval(s_in, &ic.value);
@@ -407,6 +424,23 @@ static void thread_register_stdio_file_handles(bool no_close) {
     ZEND_CONSTANT_SET_FLAGS(&ec, CONST_CS, 0);
     ec.name = zend_string_init_interned("STDERR", sizeof("STDERR") - 1, false);
     zend_register_constant(&ec);
+}
+
+static void thread_unregister_stdio_file_handles() {
+    if (s_in_fd != SOCK_ERR) {
+        close(s_in_fd);
+        s_in_fd = SOCK_ERR;
+    }
+
+    if (s_out_fd != SOCK_ERR) {
+        close(s_out_fd);
+        s_out_fd = SOCK_ERR;
+    }
+
+    if (s_err_fd != SOCK_ERR) {
+        close(s_err_fd);
+        s_err_fd = SOCK_ERR;
+    }
 }
 
 void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, ZendArray *argv) {
@@ -461,6 +495,7 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
 
     php_request_shutdown(nullptr);
     file_handle.filename = nullptr;
+    thread_unregister_stdio_file_handles();
 
 _startup_error:
     zend_string_release(file);
