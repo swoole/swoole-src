@@ -1050,9 +1050,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_http_cookie_minit(module_number);
 #ifndef _WIN32
     php_swoole_http_server_minit(module_number);
-    php_swoole_websocket_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);
 #endif
+    php_swoole_websocket_server_minit(module_number);
     php_swoole_http_server_coro_minit(module_number);
     php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
