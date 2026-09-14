@@ -499,7 +499,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     if (abstract->blocking) {
         didwrite = sock->send_all(buf, count);
     } else {
-        didwrite = sock->get_socket()->send(buf, count, 0);
+        didwrite = sock->send_once(buf, count);
         sock->set_err(errno);
     }
 
@@ -552,7 +552,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
     if (abstract->blocking) {
         nr_bytes = sock->recv(buf, count);
     } else {
-        nr_bytes = sock->get_socket()->recv(buf, count, 0);
+        nr_bytes = sock->recv_once(buf, count);
         sock->set_err(errno);
     }
 

@@ -1,5 +1,3 @@
-
-
 /*
   +----------------------------------------------------------------------+
   | Swoole                                                               |
@@ -677,6 +675,64 @@ ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) 
     }
 
     return total;
+}
+
+ssize_t UringSocket::send_once(const void *buf, size_t count) {
+    NetSocket *socket = get_socket();
+    if (!is_ssl()) {
+        return socket->send(buf, count, 0);
+    }
+
+    ssize_t send_bytes = 0;
+    do {
+        send_bytes = socket->send(buf, count, 0);
+        if (send_bytes == SW_ERR && socket->ssl_want_read == 0 && socket->ssl_want_write == 0) {
+            return -1;
+        }
+
+        if (!ssl_bio_prepare()) {
+            return -1;
+        }
+
+        if (socket->ssl_want_read == 1 && !ssl_bio_read()) {
+            return -1;
+        }
+
+        if (socket->ssl_want_write == 1 && !ssl_bio_write()) {
+            return -1;
+        }
+    } while (send_bytes < 0);
+
+    return send_bytes;
+}
+
+ssize_t UringSocket::recv_once(void *buf, size_t count) {
+    NetSocket *socket = get_socket();
+    if (!is_ssl()) {
+        return socket->recv(buf, count, 0);
+    }
+
+    ssize_t recv_bytes = 0;
+    do {
+        recv_bytes = socket->recv(buf, count, 0);
+        if (recv_bytes == SW_ERR && socket->ssl_want_read == 0 && socket->ssl_want_write == 0) {
+            return -1;
+        }
+
+        if (!ssl_bio_prepare()) {
+            return -1;
+        }
+
+        if (socket->ssl_want_read == 1 && !ssl_bio_read()) {
+            return -1;
+        }
+
+        if (socket->ssl_want_write == 1 && !ssl_bio_write()) {
+            return -1;
+        }
+    } while (recv_bytes < 0);
+
+    return recv_bytes;
 }
 };  // namespace coroutine
 };  // namespace swoole
