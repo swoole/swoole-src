@@ -112,6 +112,18 @@ namespace swoole {
 class Server;
 namespace http_server {
 //-----------------------------------------------------------------
+enum ChunkState {
+    CHUNK_STATE_SIZE,
+    CHUNK_STATE_DATA,
+    CHUNK_STATE_TRAILER,
+};
+
+enum ChunkSizeResult {
+    CHUNK_SIZE_OK,
+    CHUNK_SIZE_MALFORMED,
+    CHUNK_SIZE_TOO_LARGE,
+};
+
 struct FormData {
     const char *multipart_boundary_buf;
     uint32_t multipart_boundary_len;
@@ -139,7 +151,6 @@ struct Request {
     uchar known_length : 1;
     uchar keep_alive : 1;
     uchar chunked : 1;
-    uchar nobody_chunked : 1;
 
     uint32_t url_offset_;
     uint32_t url_length_;
@@ -148,6 +159,10 @@ struct Request {
     uint32_t request_line_length_; /* without \r\n  */
     uint32_t header_length_;       /* include request_line_length + \r\n */
     uint64_t content_length_;
+    uint8_t chunk_state_;
+    size_t chunk_length_;
+    size_t chunk_offset_;
+    size_t chunk_scan_offset_;
 
     FormData *form_data_;
     String *buffer_;
