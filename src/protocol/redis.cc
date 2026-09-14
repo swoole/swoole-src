@@ -91,17 +91,25 @@ _recv_data:
     } else {
         buffer->length += n;
 
-        if (strncmp(buffer->str + buffer->length - SW_CRLF_LEN, SW_CRLF, SW_CRLF_LEN) != 0) {
-            if (buffer->size < protocol->package_max_length) {
-                uint32_t extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
-                if (extend_size > protocol->package_max_length) {
-                    extend_size = protocol->package_max_length;
+        if (buffer->length < SW_CRLF_LEN ||
+            strncmp(buffer->str + buffer->length - SW_CRLF_LEN, SW_CRLF, SW_CRLF_LEN) != 0) {
+            if (buffer->length == buffer->size) {
+                if (buffer->size < protocol->package_max_length) {
+                    size_t extend_size;
+                    if (buffer->size >= protocol->package_max_length / 2) {
+                        extend_size = protocol->package_max_length;
+                    } else {
+                        extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
+                        if (extend_size > protocol->package_max_length) {
+                            extend_size = protocol->package_max_length;
+                        }
+                    }
+                    buffer->extend(extend_size);
+                } else {
+                _package_too_big:
+                    swoole_warning("Package is too big. package_length=%zu", buffer->length);
+                    return SW_ERR;
                 }
-                buffer->extend(extend_size);
-            } else if (buffer->length == buffer->size) {
-            _package_too_big:
-                swoole_warning("Package is too big. package_length=%ld", buffer->length);
-                return SW_ERR;
             }
             goto _recv_data;
         }
