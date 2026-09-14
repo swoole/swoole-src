@@ -306,12 +306,13 @@ static PHP_METHOD(swoole_thread, setPriority) {
     ZEND_PARSE_PARAMETERS_END();
 
     struct sched_param param;
+    int sched_policy = policy;
     if (policy == -1) {
-        pthread_setschedparam(pthread_self(), policy, &param);
+        pthread_getschedparam(pthread_self(), &sched_policy, &param);
     }
 
     param.sched_priority = priority;
-    int retval = pthread_setschedparam(pthread_self(), policy, &param);
+    int retval = pthread_setschedparam(pthread_self(), sched_policy, &param);
     if (retval == 0) {
         RETURN_TRUE;
     } else {
