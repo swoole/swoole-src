@@ -132,7 +132,34 @@ static void http2_server_send_window_update(HttpContext *ctx, uint32_t stream_id
     ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
 }
 
-static ssize_t http2_server_build_trailer(const HttpContext *ctx, uchar *buffer) {
+static nghttp2_ssize http2_server_deflate_header_block(const std::shared_ptr<Http2Session> &client,
+                                                       Http2::HeaderSet &headers,
+                                                       String *buffer) {
+    size_t buflen = nghttp2_hd_deflate_bound(client->deflater, headers.get(), headers.len());
+    size_t buffer_size = SW_HTTP2_FRAME_HEADER_SIZE + buflen;
+    buffer->clear();
+    if (buffer_size > buffer->size) {
+        buffer->reserve(buffer_size);
+    }
+
+    nghttp2_ssize rv = nghttp2_hd_deflate_hd2(
+        client->deflater, (uchar *) buffer->str + SW_HTTP2_FRAME_HEADER_SIZE, buflen, headers.get(), headers.len());
+    if (rv < 0) {
+        swoole_warning("nghttp2_hd_deflate_hd2() failed with error: %s", nghttp2_strerror((int) rv));
+        return rv;
+    }
+    if ((uint64_t) rv > client->remote_settings.max_frame_size) {
+        swoole_warning("encoded HTTP/2 header block size %" PRId64 " exceeds peer max frame size %u",
+                       (int64_t) rv,
+                       client->remote_settings.max_frame_size);
+        return NGHTTP2_ERR_FRAME_SIZE_ERROR;
+    }
+
+    buffer->length = SW_HTTP2_FRAME_HEADER_SIZE + rv;
+    return rv;
+}
+
+static nghttp2_ssize http2_server_build_trailer(const HttpContext *ctx, String *buffer) {
     zval *ztrailer =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     uint32_t size = php_swoole_array_length_safe(ztrailer);
@@ -151,7 +178,6 @@ static ssize_t http2_server_build_trailer(const HttpContext *ctx, uchar *buffer)
         }
         ZEND_HASH_FOREACH_END();
 
-        ssize_t rv;
         auto client = http2_sessions[ctx->fd];
         auto deflater = client->deflater;
 
@@ -164,21 +190,7 @@ static ssize_t http2_server_build_trailer(const HttpContext *ctx, uchar *buffer)
             client->deflater = deflater;
         }
 
-        size_t buflen = nghttp2_hd_deflate_bound(deflater, trailer.get(), trailer.len());
-#if 0
-        if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE) {
-            php_swoole_error(E_WARNING,
-                             "header cannot bigger than remote max_header_list_size %u",
-                             SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
-            return -1;
-        }
-#endif
-        rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, trailer.get(), trailer.len());
-        if (rv < 0) {
-            swoole_warning("nghttp2_hd_deflate_hd() failed with error: %s", nghttp2_strerror((int) rv));
-            return -1;
-        }
-        return rv;
+        return http2_server_deflate_header_block(client, trailer, buffer);
     }
     return 0;
 }
@@ -321,7 +333,7 @@ _destroy:
     zval_ptr_dtor(ctx->response.zobject);
 }
 
-static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const String *body) {
+static nghttp2_ssize http2_server_build_header(HttpContext *ctx, String *buffer, const String *body) {
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     zval *zcookie =
@@ -454,18 +466,9 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
         client->deflater = deflater;
     }
 
-    size_t buflen = nghttp2_hd_deflate_bound(deflater, headers.get(), headers.len());
-    /*
-    if (buflen > SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE)
-    {
-        php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u",
-    SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE); return -1;
-    }
-    */
-    ssize_t rv = nghttp2_hd_deflate_hd(deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
+    nghttp2_ssize rv = http2_server_deflate_header_block(client, headers, buffer);
     if (rv < 0) {
-        swoole_warning("nghttp2_hd_deflate_hd() failed with error: %s", nghttp2_strerror((int) rv));
-        return -1;
+        return rv;
     }
 
     ctx->send_header_ = 1;
@@ -509,14 +512,16 @@ bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const ch
 }
 
 bool Http2Stream::send_header(const String *body, bool end_stream) const {
-    char header_buffer[SW_BUFFER_SIZE_STD];
-    ssize_t bytes = http2_server_build_header(ctx, (uchar *) header_buffer, body);
+    String *http_buffer = ctx->get_write_buffer();
+    nghttp2_ssize bytes = http2_server_build_header(ctx, http_buffer, body);
     if (bytes < 0) {
+        auto client = http2_sessions[ctx->fd];
+        if (client->deflater) {
+            ctx->end_ = 1;
+            ctx->close(ctx);
+        }
         return false;
     }
-
-    String *http_buffer = ctx->get_write_buffer();
-    http_buffer->clear();
 
     /**
      +---------------+
@@ -531,18 +536,13 @@ bool Http2Stream::send_header(const String *body, bool end_stream) const {
      |                           Padding (*)                       ...
      +---------------------------------------------------------------+
      */
-    char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
-
     if (end_stream && (!body || body->length == 0)) {
         http2::set_frame_header(
-            frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
+            http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
         ctx->end_ = 1;
     } else {
-        http2::set_frame_header(frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, id);
+        http2::set_frame_header(http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, id);
     }
-
-    http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
-    http_buffer->append(header_buffer, bytes);
 
     if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
         ctx->send_header_ = 0;
@@ -566,7 +566,7 @@ bool Http2Stream::send_body(
 
     int flags = end_stream ? SW_HTTP2_FLAG_END_STREAM : SW_HTTP2_FLAG_NONE;
     String *http_buffer = ctx->get_write_buffer();
-    auto max_frame_size = session->local_settings.max_frame_size;
+    auto max_frame_size = session->remote_settings.max_frame_size;
 
     while (l > 0) {
         size_t send_n;
@@ -631,17 +631,16 @@ bool Http2Stream::send_body(
 }
 
 bool Http2Stream::send_trailer() const {
-    char header_buffer[SW_BUFFER_SIZE_STD] = {};
-    char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     String *http_buffer = ctx->get_write_buffer();
 
     http_buffer->clear();
-    ssize_t bytes = http2_server_build_trailer(ctx, (uchar *) header_buffer);
+    nghttp2_ssize bytes = http2_server_build_trailer(ctx, http_buffer);
+    if (bytes < 0) {
+        return false;
+    }
     if (bytes > 0) {
         http2::set_frame_header(
-            frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
-        http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
-        http_buffer->append(header_buffer, bytes);
+            http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
         if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
             return false;
         }
@@ -981,17 +980,14 @@ static int http2_server_parse_header(
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "method")) {
                     add_assoc_stringl_ex(zserver, ZEND_STRL("request_method"), (char *) nv.value, nv.valuelen);
                 } else if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "path")) {
-                    char *pathbuf = sw_tg_buffer()->str;
-                    char *v_str = strchr((char *) nv.value, '?');
+                    const char *v_str = (const char *) memchr(nv.value, '?', nv.valuelen);
                     zend_string *zstr_path;
                     if (v_str) {
                         v_str++;
-                        int k_len = v_str - (char *) nv.value - 1;
-                        int v_len = nv.valuelen - k_len - 1;
-                        memcpy(pathbuf, nv.value, k_len);
-                        pathbuf[k_len] = 0;
+                        size_t k_len = v_str - (const char *) nv.value - 1;
+                        size_t v_len = nv.valuelen - k_len - 1;
                         add_assoc_stringl_ex(zserver, ZEND_STRL("query_string"), v_str, v_len);
-                        zstr_path = zend_string_init(pathbuf, k_len, false);
+                        zstr_path = zend_string_init((char *) nv.value, k_len, false);
                         // parse url params
                         sapi_module.treat_data(
                             PARSE_STRING,
@@ -1120,6 +1116,11 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: init_window_size=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
+                if (value < SW_HTTP2_DEFAULT_MAX_FRAME_SIZE || value > SW_HTTP2_MAX_FRAME_SIZE) {
+                    swoole_warning("invalid SETTINGS_MAX_FRAME_SIZE value %u", value);
+                    client->default_ctx->close(client->default_ctx);
+                    return SW_ERR;
+                }
                 client->remote_settings.max_frame_size = value;
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_frame_size=%u", value);
                 break;
