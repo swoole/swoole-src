@@ -494,7 +494,11 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->blocking) {
+    if (abstract->blocking
+#if PHP_VERSION_ID >= 80300
+        && !stream->has_buffered_data
+#endif
+    ) {
         nr_bytes = sock->recv(buf, count);
     } else {
         nr_bytes = sock->get_socket()->recv(buf, count, 0);
