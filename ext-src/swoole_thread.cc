@@ -452,7 +452,7 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
             argv->to_array(&thread_argv);
             argv->del_ref();
         }
-        thread_register_stdio_file_handles(true);
+        thread_register_stdio_file_handles(false);
         php_execute_script(&file_handle);
     }
     zend_end_try();

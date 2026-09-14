@@ -1304,8 +1304,10 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
         stream->flags |= PHP_STREAM_FLAG_NO_CLOSE;
     };
     /* do not close the stdout and stderr */
-    php_swoole_set_stdio_no_close(ZEND_STRL("STDOUT"));
-    php_swoole_set_stdio_no_close(ZEND_STRL("STDERR"));
+    if (sw_is_main_thread()) {
+        php_swoole_set_stdio_no_close(ZEND_STRL("STDOUT"));
+        php_swoole_set_stdio_no_close(ZEND_STRL("STDERR"));
+    }
 #endif
 
     return SUCCESS;
