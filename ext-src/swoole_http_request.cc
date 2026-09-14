@@ -321,9 +321,12 @@ void swoole_http_parse_cookie(zval *zcookies, const char *at, size_t length) {
 static void http_request_add_upload_file(HttpContext *ctx, const char *file, size_t l_file) {
     zval *zfiles = swoole_http_init_and_read_property(
         swoole_http_request_ce, ctx->request.zobject, &ctx->request.ztmpfiles, SW_ZSTR_KNOWN(SW_ZEND_STR_TMPFILES));
-    add_next_index_stringl(zfiles, file, l_file);
-    // support is_upload_file
-    zend_hash_str_add_ptr(SG(rfc1867_uploaded_files), file, l_file, (char *) file);
+    zend_string *path = zend_string_init(file, l_file, 0);
+    add_next_index_str(zfiles, zend_string_copy(path));
+    // Registers the path for is_uploaded_file() and move_uploaded_file(). The hash key holds the reference that
+    // keeps the value pointer valid for PHP's request-shutdown cleanup.
+    zend_hash_add_ptr(SG(rfc1867_uploaded_files), path, path);
+    zend_string_release(path);
 }
 
 bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
