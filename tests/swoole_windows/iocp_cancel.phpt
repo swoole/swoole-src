@@ -43,8 +43,7 @@ run(function () {
     });
     Assert::true(Coroutine::cancel($coroutineId));
     $cancellationError = $completion->pop(1);
-    Assert::integer($cancellationError);
-    Assert::greaterThan($cancellationError, 0);
+    Assert::same($cancellationError, SOCKET_ECANCELED);
     Assert::notSame($cancellationError, $timeoutError);
 
     $completion = new Channel(1);

@@ -90,6 +90,7 @@ jobs:
             'tests\swoole_windows\iocp_cancel.phpt',
             'tests\swoole_windows\iocp_curl.phpt',
             'tests\swoole_windows\iocp_curl_multi.phpt',
+            'tests\swoole_windows\iocp_descriptor_reuse.phpt',
             'tests\swoole_windows\iocp_file.phpt',
             'tests\swoole_windows\iocp_shutdown.phpt',
             'tests\swoole_windows\iocp_socket.phpt',
