@@ -162,6 +162,7 @@ struct Context {
     uchar parse_body : 1;
     uchar parse_files : 1;
     uchar http2 : 1;
+    uint16_t send_ext_flags;
 
     zval zsocket;
     uint32_t stream_id;
@@ -225,6 +226,13 @@ struct Context {
     HTTP_API void end(zval *zdata, zval *return_value);
     HTTP_API void write(zval *zdata, zval *return_value);
     HTTP_API bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
+
+    bool send_with_flags(const char *data, size_t length, uint16_t ext_flags) {
+        send_ext_flags = ext_flags;
+        bool retval = send(this, data, length);
+        send_ext_flags = 0;
+        return retval;
+    }
 
     String *get_write_buffer();
 
