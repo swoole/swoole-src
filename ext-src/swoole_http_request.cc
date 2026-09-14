@@ -47,6 +47,9 @@ static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_headers_complete(llhttp_t *parser);
 static int http_request_message_complete(llhttp_t *parser);
+static int http_request_parse_on_url(llhttp_t *parser, const char *at, size_t length);
+static int http_request_parse_on_header_field(llhttp_t *parser, const char *at, size_t length);
+static int http_request_parse_on_header_value(llhttp_t *parser, const char *at, size_t length);
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length);
@@ -117,6 +120,35 @@ static constexpr llhttp_settings_t http_parser_settings =
     nullptr,                                // on_chunk_header
     nullptr,                                // on_chunk_complete
     nullptr,                                // on_reset
+};
+
+static constexpr llhttp_settings_t http_request_parser_settings =
+{
+    nullptr,                                      // on_message_begin
+    nullptr,                                      // on_protocol
+    http_request_parse_on_url,                    // on_url
+    nullptr,                                      // on_status
+    nullptr,                                      // on_method
+    nullptr,                                      // on_version
+    http_request_parse_on_header_field,           // on_header_field
+    http_request_parse_on_header_value,           // on_header_value
+    nullptr,                                      // on_chunk_extension_name
+    nullptr,                                      // on_chunk_extension_value
+    http_request_on_headers_complete,             // on_headers_complete
+    http_request_on_body,                         // on_body
+    http_request_message_complete,                // on_message_complete
+    nullptr,                                      // on_protocol_complete
+    nullptr,                                      // on_url_complete
+    nullptr,                                      // on_status_complete
+    nullptr,                                      // on_method_complete
+    nullptr,                                      // on_version_complete
+    nullptr,                                      // on_header_field_complete
+    nullptr,                                      // on_header_value_complete
+    nullptr,                                      // on_chunk_extension_name_complete
+    nullptr,                                      // on_chunk_extension_value_complete
+    nullptr,                                      // on_chunk_header
+    nullptr,                                      // on_chunk_complete
+    nullptr,                                      // on_reset
 };
 
 static constexpr multipart_parser_settings mt_parser_settings =
@@ -286,6 +318,47 @@ static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t
     ctx->current_header_name = at;
     ctx->current_header_name_len = length;
     return 0;
+}
+
+static int http_request_parse_on_url(llhttp_t *parser, const char *at, size_t length) {
+    auto *ctx = static_cast<HttpContext *>(parser->data);
+    auto *state = ctx->request.parser_state;
+    state->url_length += length;
+
+    // llhttp flushes unfinished spans at the end of each input buffer.
+    if (at + length == Z_STRVAL(ctx->request.zdata) + Z_STRLEN(ctx->request.zdata)) {
+        return 0;
+    }
+
+    return http_request_on_url(parser, at + length - state->url_length, state->url_length);
+}
+
+static int http_request_parse_on_header_field(llhttp_t *parser, const char *at, size_t length) {
+    auto *ctx = static_cast<HttpContext *>(parser->data);
+    auto *state = ctx->request.parser_state;
+    if (state->header_name_length == 0) {
+        state->header_name_offset = static_cast<size_t>(at - Z_STRVAL(ctx->request.zdata));
+    }
+    state->header_name_length += length;
+    return 0;
+}
+
+static int http_request_parse_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+    auto *ctx = static_cast<HttpContext *>(parser->data);
+    auto *state = ctx->request.parser_state;
+    state->header_value_length += length;
+    if (at + length == Z_STRVAL(ctx->request.zdata) + Z_STRLEN(ctx->request.zdata)) {
+        return 0;
+    }
+
+    const char *header_name = Z_STRVAL(ctx->request.zdata) + state->header_name_offset;
+    http_request_on_header_field(parser, header_name, state->header_name_length);
+
+    int result =
+        http_request_on_header_value(parser, at + length - state->header_value_length, state->header_value_length);
+    state->header_name_length = 0;
+    state->header_value_length = 0;
+    return result;
 }
 
 bool HttpContext::init_multipart_parser(const char *boundary_str, int boundary_len) {
@@ -939,6 +1012,7 @@ static PHP_METHOD(swoole_http_request, create) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     auto *ctx = new HttpContext();
+    ctx->request.parser_state = new swoole::http::RequestParserState();
     object_init_ex(return_value, swoole_http_request_ce);
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
@@ -1023,7 +1097,10 @@ static PHP_METHOD(swoole_http_request, parse) {
         ZVAL_STR(&ctx->request.zdata, new_str);
     }
 
-    RETURN_LONG(ctx->parse(str, l_str));
+    RETURN_LONG(swoole_llhttp_parser_execute(&ctx->parser,
+                                             &http_request_parser_settings,
+                                             Z_STRVAL(ctx->request.zdata) + Z_STRLEN(ctx->request.zdata) - l_str,
+                                             l_str));
 }
 
 static PHP_METHOD(swoole_http_request, getMethod) {
