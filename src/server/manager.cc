@@ -55,7 +55,8 @@ int Server::start_manager_process() {
         return SW_ERR;
     }
 
-    if (get_event_worker_pool()->create_message_box(SW_MESSAGE_BOX_SIZE) == SW_ERR) {
+    if (get_event_worker_pool()->message_box == nullptr &&
+        get_event_worker_pool()->create_message_box(SW_MESSAGE_BOX_SIZE) == SW_ERR) {
         return SW_ERR;
     }
 
