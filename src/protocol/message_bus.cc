@@ -370,13 +370,18 @@ void MessageBus::init_pipe_socket(const Socket *sock) {
     pipe_sockets_[pipe_fd] = _socket;
 }
 
-MessageBus::~MessageBus() {
+void MessageBus::release_pipe_sockets() {
     for (auto _socket : pipe_sockets_) {
         if (_socket) {
             _socket->fd = SW_BAD_SOCKET;
             _socket->free();
         }
     }
+
+    pipe_sockets_.clear();
 }
 
+MessageBus::~MessageBus() {
+    release_pipe_sockets();
+}
 }  // namespace swoole

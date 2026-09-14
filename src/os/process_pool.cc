@@ -125,7 +125,7 @@ int ProcessPool::create_message_box(size_t memory_size) {
     return SW_OK;
 }
 
-int ProcessPool::create_message_bus() {
+int ProcessPool::create_message_bus(const Allocator *allocator) {
     if (ipc_mode != SW_IPC_UNIXSOCK) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "not support, ipc_mode must be SW_IPC_UNIXSOCK");
@@ -157,6 +157,9 @@ int ProcessPool::create_message_bus() {
     ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE);
 #endif
     message_bus->set_buffer_size(ipc_max_size);
+    if (allocator) {
+        message_bus->set_allocator(allocator);
+    }
     if (!message_bus->alloc_buffer()) {
         delete message_bus;
         message_bus = nullptr;

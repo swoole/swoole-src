@@ -86,12 +86,31 @@ class MessageBus {
         return packet_pool_.size();
     }
 
+    /**
+     * For use only in SWOOLE_THREAD mode.
+     * When a PHP thread exits, the memory it allocated is reclaimed as a whole,
+     * and the pointers in packet_pool_ immediately become invalid memory.
+     * Therefore, the pointers are directly set to null to avoid mistakenly freeing already-invalid memory during the
+     * cleanup phase.
+     */
+    void invalidate_packet_pool() {
+        for (auto &kv : packet_pool_) {
+            String *packet = kv.second.get();
+            packet->str = nullptr;
+        }
+        packet_pool_.clear();
+    }
+
     void clear() {
         packet_pool_.clear();
     }
 
     void set_allocator(const Allocator *allocator) {
         allocator_ = allocator;
+    }
+
+    const Allocator *get_allocator() const {
+        return allocator_;
     }
 
     void set_id_generator(const std::function<uint64_t(void)> &id_generator) {
@@ -169,5 +188,6 @@ class MessageBus {
         return pipe_sockets_[sock->get_fd()];
     }
     void init_pipe_socket(const network::Socket *sock);
+    void release_pipe_sockets();
 };
 }  // namespace swoole

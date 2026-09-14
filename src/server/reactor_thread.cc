@@ -824,6 +824,9 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     message_bus.set_id_generator(serv->msg_id_generator);
     message_bus.set_buffer_size(serv->ipc_max_size);
     message_bus.set_always_chunked_transfer();
+    if (serv->is_thread_mode()) {
+        message_bus.set_allocator(serv->message_bus.get_allocator());
+    }
     if (!message_bus.alloc_buffer()) {
         return SW_ERR;
     }
@@ -882,6 +885,7 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     swoole_event_wait();
     if (serv->is_thread_mode()) {
         serv->call_worker_stop_callback(serv->get_worker(reactor_id));
+        return;
     }
     thread->clean();
 }

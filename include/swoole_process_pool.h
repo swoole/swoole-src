@@ -444,7 +444,7 @@ struct ProcessPool {
     void destroy();
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
     int create_message_box(size_t memory_size);
-    int create_message_bus();
+    int create_message_bus(const Allocator *allocator = nullptr);
     int push_message(uint8_t _type, const void *data, size_t length) const;
     int push_message(const EventData *msg) const;
     bool send_message(WorkerId worker_id, const char *message, size_t l_message) const;
