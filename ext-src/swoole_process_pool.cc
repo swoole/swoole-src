@@ -635,11 +635,11 @@ static PHP_METHOD(swoole_process_pool, start) {
     };
 
     if (pp->enable_message_bus) {
-        if (pool->create_message_bus() != SW_OK) {
+        if (pool->create_message_bus(sw_zend_string_allocator()) != SW_OK) {
             restore_signal_handlers();
             RETURN_FALSE;
         }
-        pool->message_bus->set_allocator(sw_zend_string_allocator());
+
         pool->set_protocol(SW_PROTOCOL_MESSAGE);
     } else {
         pool->set_protocol(SW_PROTOCOL_STREAM);

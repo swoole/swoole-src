@@ -125,6 +125,7 @@ void ThreadFactory::create_message_bus() const {
     auto mb = new MessageBus();
     mb->set_id_generator(server_->msg_id_generator);
     mb->set_buffer_size(server_->ipc_max_size);
+    mb->set_allocator(server_->message_bus.get_allocator());
     mb->set_always_chunked_transfer();
     if (!mb->alloc_buffer()) {
         throw std::bad_alloc();
@@ -133,9 +134,18 @@ void ThreadFactory::create_message_bus() const {
     SwooleTG.message_bus = mb;
 }
 
-void ThreadFactory::destroy_message_bus() {
-    SwooleTG.message_bus->clear();
-    delete SwooleTG.message_bus;
+void ThreadFactory::destroy_message_bus(int process_type) {
+    SwooleTG.message_bus->invalidate_packet_pool();
+
+    /**
+     * In SW_EVENT_WORKER mode, there is no need to free memory, and the MessageBus can be reused. In other cases, the
+     * MessageBus has the same lifetime as the thread, and once the thread restarts, the MessageBus will be released.
+     */
+    if (process_type == SW_EVENT_WORKER) {
+        SwooleTG.message_bus->release_pipe_sockets();
+    } else {
+        delete SwooleTG.message_bus;
+    }
     SwooleTG.message_bus = nullptr;
 }
 
@@ -149,6 +159,7 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         SwooleWG.worker = worker;
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
 
+        destroy_message_bus(SW_EVENT_WORKER);
         at_thread_exit(worker);
     });
 }
@@ -157,7 +168,6 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
     threads_[i]->start([=]() {
         at_thread_enter(i, SW_TASK_WORKER);
 
-        create_message_bus();
         Worker *worker = server_->get_worker(i);
         worker->type = SW_TASK_WORKER;
         worker->pid = swoole_get_worker_pid();
@@ -165,6 +175,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         SwooleWG.worker = worker;
         const auto pool = server_->get_task_worker_pool();
         server_->worker_thread_start(threads_[i], [=]() {
+            create_message_bus();
             if (pool->onWorkerStart != nullptr) {
                 pool->onWorkerStart(pool, worker);
             }
@@ -173,8 +184,8 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
                 pool->onWorkerStop(pool, worker);
             }
         });
-        destroy_message_bus();
 
+        destroy_message_bus(SW_TASK_WORKER);
         at_thread_exit(worker);
     });
 }
@@ -183,14 +194,16 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
     threads_[i]->start([=]() {
         at_thread_enter(i, SW_USER_WORKER);
 
-        create_message_bus();
         Worker *worker = server_->get_worker(i);
         worker->type = SW_USER_WORKER;
         worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
-        server_->worker_thread_start(threads_[i], [=]() { server_->onUserWorkerStart(server_, worker); });
-        destroy_message_bus();
+        server_->worker_thread_start(threads_[i], [=]() {
+            create_message_bus();
+            server_->onUserWorkerStart(server_, worker);
+        });
 
+        destroy_message_bus(SW_USER_WORKER);
         at_thread_exit(worker);
     });
 }
