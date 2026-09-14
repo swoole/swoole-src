@@ -1688,5 +1688,13 @@ bool Socket::TimeoutController::has_timedout(TimeoutType _type) {
     }
     return false;
 }
+
+ssize_t Socket::recv_once(void *buf, size_t count) {
+    return get_socket()->recv(buf, count, 0);
+}
+
+ssize_t Socket::send_once(const void *buf, size_t count) {
+    return get_socket()->send(buf, count, 0);
+}
 }  // namespace coroutine
 }  // namespace swoole
