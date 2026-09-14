@@ -1235,6 +1235,38 @@ function error_report($testname, $logname, $tested)
     }
 }
 
+function terminate_process_tree($proc)
+{
+    $status = proc_get_status($proc);
+    if (!$status['running']) {
+        return;
+    }
+    $pid = $status['pid'];
+
+    if (IS_WINDOWS) {
+        exec("taskkill /F /T /PID $pid >NUL 2>&1");
+        return;
+    }
+
+    $processes = shell_exec('ps -A -o pid= -o ppid=');
+    if (!$processes) {
+        return;
+    }
+
+    preg_match_all('/^\s*(\d+)\s+(\d+)\s*$/m', $processes, $matches, PREG_SET_ORDER);
+    $children = [];
+    foreach ($matches as $match) {
+        $children[$match[2]][] = $match[1];
+    }
+
+    $pids = [$pid];
+    for ($i = 0; $i < count($pids); $i++) {
+        array_push($pids, ...($children[$pids[$i]] ?? []));
+    }
+
+    exec('kill -9 ' . implode(' ', $pids) . ' 2>/dev/null');
+}
+
 function system_with_timeout($commandline, $env = null, $stdin = null, $captureStdIn = true, $captureStdOut = true, $captureStdErr = true)
 {
     global $valgrind;
@@ -1278,6 +1310,8 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
         $remaining = $deadline - microtime(true);
         if ($remaining <= 0) {
             $data .= "\n ** ERROR: process timed out after {$timeout} seconds **\n";
+            // SIGKILL skips the test's shutdown cleanup, so stop its children too.
+            terminate_process_tree($proc);
             proc_terminate($proc, 9);
             foreach ($pipes as $pipe) {
                 fclose($pipe);
@@ -2606,6 +2640,10 @@ TEST $file
         $cmd = $valgrind->wrapCommand($cmd, $memcheck_filename, str_contains($test_file, "pcre"));
     }
 
+    // A string command makes proc_open() start a shell. As in php-src's runner, replace it with the test
+    // process so proc_terminate() cannot leave the test running after a timeout.
+    $test_cmd = IS_WINDOWS ? $cmd : "exec $cmd";
+
     if ($DETAILED) echo "
 CONTENT_LENGTH  = " . $env['CONTENT_LENGTH'] . "
 CONTENT_TYPE    = " . $env['CONTENT_TYPE'] . "
@@ -2622,7 +2660,7 @@ COMMAND $cmd
     $hrtime = hrtime();
     $startTime = $hrtime[0] * 1000000000 + $hrtime[1];
 
-    $out = system_with_timeout($cmd, $env, $section_text['STDIN'] ?? null, $captureStdIn, $captureStdOut, $captureStdErr);
+    $out = system_with_timeout($test_cmd, $env, $section_text['STDIN'] ?? null, $captureStdIn, $captureStdOut, $captureStdErr);
 
     junit_finish_timer($shortname);
     $hrtime = hrtime();
@@ -2897,12 +2935,6 @@ COMMAND $cmd
             $diff = "# original source file: $orig_shortname\n" . $diff;
         }
         show_file_block('diff', $diff);
-
-        // swoole patch: clear port
-        if (preg_match('/bind\([^:]+?:(?<port>\d+?)\)/', $diff, $matches)) {
-            $port = $matches['port'];
-            @shell_exec("lsof -i:{$port} | grep LISTEN | awk '{print $2}' | xargs kill -9 > /dev/null 2>&1");
-        }
 
         if (str_contains($log_format, 'D') && file_put_contents($diff_filename, $diff) === false) {
             error("Cannot create test diff - $diff_filename");

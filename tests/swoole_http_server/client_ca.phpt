@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm, $html) {
         'ssl_key_file' => SSL_FILE_DIR . '/server.key',
         'ssl_verify_peer' => true,
         'ssl_verify_depth' => 10,
-        'ssl_cafile' => SSL_FILE_DIR . '/ca.crt',
+        'ssl_client_cert_file' => SSL_FILE_DIR . '/ca.crt',
     ]);
     $serv->on("workerStart", function ($serv) use ($pm) {
         $pm->wakeup();
