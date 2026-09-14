@@ -70,7 +70,9 @@ float System::get_dns_cache_hit_ratio() {
 
 int System::sleep(double sec) {
 #if SW_USE_IOURING
-    return Iouring::sleep(sec);
+    if (sw_likely(Iouring::available())) {
+        return Iouring::sleep(sec);
+    }
 #endif
     Coroutine *co = Coroutine::get_current_safe();
     if (sec < SW_TIMER_MIN_SEC) {
@@ -541,11 +543,13 @@ pid_t System::waitpid_safe(pid_t _pid, int *_stat_loc, int _options) {
     }
 
 #if SW_USE_IOURING
-    auto rs = Iouring::waitpid(_pid, _stat_loc, _options, -1);
-    if (rs < 0) {
-        swoole_set_last_error(errno);
+    if (sw_likely(Iouring::available())) {
+        auto rs = Iouring::waitpid(_pid, _stat_loc, _options, -1);
+        if (rs < 0) {
+            swoole_set_last_error(errno);
+        }
+        return rs;
     }
-    return rs;
 #endif
 
     pid_t retval = -1;

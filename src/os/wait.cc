@@ -113,7 +113,9 @@ pid_t System::wait(int *_stat_loc, double timeout) {
  */
 pid_t System::waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout) {
 #if SW_USE_IOURING
-    return iouring_waitpid(_pid, _stat_loc, _options, timeout);
+    if (sw_likely(Iouring::available())) {
+        return iouring_waitpid(_pid, _stat_loc, _options, timeout);
+    }
 #endif
     if (_pid < 0) {
         if (!child_processes.empty()) {
