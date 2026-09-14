@@ -287,7 +287,7 @@ bool UringSocket::poll(EventType _type, double timeout) {
     fds[0].fd = socket->get_fd();
     fds[0].revents = 0;
 
-    auto rc = Iouring::poll(fds, 1, timeout > 0 ? timeout * 1000 : timeout) == 1;
+    int rc = Iouring::poll(fds, 1, timeout > 0 ? timeout * 1000 : timeout);
     if (rc != 1) {
         set_err(rc == 0 ? ETIMEDOUT : errno);
         return false;
