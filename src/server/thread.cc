@@ -134,7 +134,6 @@ void ThreadFactory::create_message_bus() const {
 }
 
 void ThreadFactory::destroy_message_bus() {
-    SwooleTG.message_bus->clear();
     delete SwooleTG.message_bus;
     SwooleTG.message_bus = nullptr;
 }

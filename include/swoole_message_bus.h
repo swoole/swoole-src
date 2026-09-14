@@ -59,11 +59,14 @@ struct PacketTask {
 
 class MessageBus {
   private:
-    const Allocator *allocator_;
+    // Assembled packets must be released before the configured allocator's lifetime ends.
+    const Allocator *packet_allocator_ = sw_std_allocator();
+    // The scratch buffer may outlive the PHP request that configures the packet allocator.
+    const Allocator *buffer_allocator_ = sw_std_allocator();
     std::unordered_map<uint64_t, std::shared_ptr<String>> packet_pool_;
     std::vector<network::Socket *> pipe_sockets_;
     std::function<uint64_t(void)> id_generator_;
-    size_t buffer_size_;
+    size_t buffer_size_ = SW_BUFFER_SIZE_STD;
     PipeBuffer *buffer_ = nullptr;
     bool always_chunked_transfer_ = false;
 
@@ -71,11 +74,6 @@ class MessageBus {
     ReturnCode prepare_packet(uint16_t &recv_chunk_count, String *packet_buffer);
 
   public:
-    MessageBus() {
-        allocator_ = sw_std_allocator();
-        buffer_size_ = SW_BUFFER_SIZE_STD;
-    }
-
     ~MessageBus();
 
     bool empty() const {
@@ -90,8 +88,11 @@ class MessageBus {
         packet_pool_.clear();
     }
 
+    // Socket::free() defers reclamation while a reactor is active, so release only after it stops.
+    void release_pipe_sockets();
+
     void set_allocator(const Allocator *allocator) {
-        allocator_ = allocator;
+        packet_allocator_ = allocator;
     }
 
     void set_id_generator(const std::function<uint64_t(void)> &id_generator) {
@@ -113,12 +114,8 @@ class MessageBus {
     size_t get_memory_size() const;
     bool alloc_buffer();
 
-    /**
-     * If use the zend_string_allocator, must manually call this function to release the memory,
-     * otherwise coredump will occur when php shutdown, because zend_string has been released
-     */
     void free_buffer() {
-        allocator_->free(buffer_);
+        buffer_allocator_->free(buffer_);
         buffer_ = nullptr;
     }
 
