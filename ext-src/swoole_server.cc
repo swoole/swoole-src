@@ -1708,12 +1708,10 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
         auto _i_co_list = server_object->property->send_coroutine_map.find(session_id);
         if (_i_co_list != server_object->property->send_coroutine_map.end()) {
             auto co_list = _i_co_list->second;
-            server_object->property->send_coroutine_map.erase(session_id);
+            server_object->property->send_coroutine_map.erase(_i_co_list);
             while (!co_list->empty()) {
                 Coroutine *co = co_list->front();
-                co_list->pop_front();
-                swoole_set_last_error(ECONNRESET);
-                co->resume();
+                co->cancel();
             }
             delete co_list;
         }
@@ -1868,7 +1866,7 @@ void php_swoole_server_onBufferEmpty(Server *serv, DataHead *info) {
         auto _i_co_list = server_object->property->send_coroutine_map.find(info->fd);
         if (_i_co_list != server_object->property->send_coroutine_map.end()) {
             auto co_list = _i_co_list->second;
-            server_object->property->send_coroutine_map.erase(info->fd);
+            server_object->property->send_coroutine_map.erase(_i_co_list);
             while (!co_list->empty()) {
                 Coroutine *co = co_list->front();
                 co_list->pop_front();
