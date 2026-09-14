@@ -21,9 +21,6 @@
 #include <functional>
 
 #define SW_SOCKS5_VERSION_CODE 0x05
-#define SW_HTTP_PROXY_CHECK_MESSAGE 0
-#define SW_HTTP_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established\r\n"
-
 #define SW_HTTP_PROXY_FMT                                                                                              \
     "CONNECT %.*s:%d HTTP/1.1\r\n"                                                                                     \
     "Host: %.*s:%d\r\n"                                                                                                \
@@ -34,6 +31,12 @@ enum swHttpProxyState {
     SW_HTTP_PROXY_STATE_WAIT = 0,
     SW_HTTP_PROXY_STATE_HANDSHAKE,
     SW_HTTP_PROXY_STATE_READY,
+};
+
+enum swHttpProxyResponseStatus {
+    SW_HTTP_PROXY_RESPONSE_ERROR = -1,
+    SW_HTTP_PROXY_RESPONSE_WAIT,
+    SW_HTTP_PROXY_RESPONSE_READY,
 };
 
 enum swSocks5State {
@@ -64,7 +67,7 @@ struct HttpProxy {
 
     std::string get_auth_str() const;
     size_t pack(const String *send_buffer, const std::string &host_name) const;
-    static bool handshake(const String *recv_buffer);
+    static swHttpProxyResponseStatus parse_response(const char *buf, size_t len, size_t *response_length);
 
     static HttpProxy *create(const std::string &host, int port, const std::string &user, const std::string &pwd);
 };
