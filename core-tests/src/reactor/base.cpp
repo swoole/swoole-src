@@ -24,8 +24,15 @@
 #include "swoole_util.h"
 #include "swoole_api.h"
 
+#ifdef HAVE_EPOLL
+#include <sys/resource.h>
+#endif
+
 using namespace std;
 using namespace swoole;
+
+static int reactor_create_count;
+static int reactor_destroy_count;
 
 TEST(reactor, create) {
     swoole_event_init(0);
@@ -62,6 +69,46 @@ TEST(reactor, create) {
 
     swoole_event_free();
 }
+
+#ifdef HAVE_EPOLL
+TEST(reactor, create_failure) {
+    ASSERT_EQ(SwooleTG.reactor, nullptr);
+
+    void *previous_hook = SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY];
+    SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
+    ON_SCOPE_EXIT {
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]);
+        SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = previous_hook;
+    };
+
+    reactor_destroy_count = 0;
+    swoole_add_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, [](void *) { reactor_destroy_count++; }, 1);
+
+    rlimit original_limit;
+    ASSERT_EQ(getrlimit(RLIMIT_NOFILE, &original_limit), 0);
+    rlimit limit = original_limit;
+    limit.rlim_cur = 0;
+    ASSERT_EQ(setrlimit(RLIMIT_NOFILE, &limit), 0);
+    ON_SCOPE_EXIT {
+        setrlimit(RLIMIT_NOFILE, &original_limit);
+    };
+
+    swoole_clear_last_error();
+    int retval = swoole_event_init(0);
+    int error = swoole_get_last_error();
+    int restore_result = setrlimit(RLIMIT_NOFILE, &original_limit);
+
+    ASSERT_EQ(restore_result, 0);
+    ASSERT_EQ(retval, SW_ERR);
+    ASSERT_EQ(error, EMFILE);
+    ASSERT_EQ(SwooleTG.reactor, nullptr);
+    ASSERT_EQ(reactor_destroy_count, 1);
+
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    ASSERT_EQ(swoole_event_free(), SW_OK);
+    ASSERT_EQ(reactor_destroy_count, 2);
+}
+#endif
 
 TEST(reactor, set_handler) {
     Reactor reactor;
@@ -482,14 +529,15 @@ TEST(reactor, priority_idle_task) {
 }
 
 TEST(reactor, hook) {
-    Reactor *reactor = new Reactor(1024, Reactor::TYPE_POLL);
-    reactor->wait_exit = true;
+    reactor_create_count = 0;
+    reactor_destroy_count = 0;
 
     swoole_add_hook(
         SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
         [](void *data) -> void {
             Reactor *reactor = (Reactor *) data;
             ASSERT_EQ(Reactor::TYPE_POLL, reactor->type_);
+            reactor_create_count++;
         },
         1);
 
@@ -498,16 +546,24 @@ TEST(reactor, hook) {
         [](void *data) -> void {
             Reactor *reactor = (Reactor *) data;
             ASSERT_EQ(Reactor::TYPE_POLL, reactor->type_);
+            reactor_destroy_count++;
         },
         1);
 
     ON_SCOPE_EXIT {
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE]);
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]);
         SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE] = nullptr;
         SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
     };
 
+    Reactor *reactor = new Reactor(1024, Reactor::TYPE_POLL);
+    reactor->wait_exit = true;
     reactor_test_func(reactor);
     delete reactor;
+
+    ASSERT_EQ(reactor_create_count, 1);
+    ASSERT_EQ(reactor_destroy_count, 1);
 }
 
 TEST(reactor, set_fd) {

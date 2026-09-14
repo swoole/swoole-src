@@ -35,7 +35,7 @@ using network::Socket;
 class ReactorKqueue : public ReactorImpl {
     int epfd_;
     int event_max_;
-    struct kevent *events_;
+    struct kevent *events_ = nullptr;
 
     bool fetch_event(Event *event, void *udata) {
         event->socket = (Socket *) udata;
