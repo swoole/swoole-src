@@ -634,6 +634,21 @@ void Server::destroy_worker(Worker *worker) {
  * [Worker]
  */
 void Server::init_event_worker(Worker *worker) const {
+#ifdef HAVE_CPU_AFFINITY
+    if (open_cpu_affinity && !is_thread_mode()) {
+        cpu_set_t cpu_set;
+        CPU_ZERO(&cpu_set);
+        if (cpu_affinity_available_num) {
+            CPU_SET(cpu_affinity_available[worker->id % cpu_affinity_available_num], &cpu_set);
+        } else {
+            CPU_SET(worker->id % SW_CPU_NUM, &cpu_set);
+        }
+        if (swoole_set_cpu_affinity(&cpu_set) < 0) {
+            swoole_sys_warning("swoole_set_cpu_affinity() failed");
+        }
+    }
+#endif
+
     worker->init();
     worker->set_max_request(max_request, max_request_grace);
 }
