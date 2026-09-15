@@ -19,7 +19,6 @@
 #include <chrono>
 #include <cmath>
 #include <mutex>
-#include <thread>
 
 void sw_spinlock(sw_atomic_t *lock) {
     uint32_t i, n;
