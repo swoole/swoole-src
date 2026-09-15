@@ -94,7 +94,8 @@ jobs:
             'tests\swoole_windows\iocp_shutdown.phpt',
             'tests\swoole_windows\iocp_socket.phpt',
             'tests\swoole_windows\local_ip.phpt',
-            'tests\swoole_windows\local_mac.phpt'
+            'tests\swoole_windows\local_mac.phpt',
+            'tests\swoole_windows\socket_error_domain.phpt'
           )
           & .github\workflows\windows-phpt.ps1 -Path $tests -TimeoutSeconds 12
 
