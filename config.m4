@@ -50,12 +50,12 @@ PHP_ARG_ENABLE([iouring],
   [enable io-uring support],
   [AS_HELP_STRING([--enable-iouring],
     [Enable io-uring])], [no], [no])
-    
+
 PHP_ARG_WITH([liburing_dir],
   [dir of liburing],
   [AS_HELP_STRING([[--with-liburing-dir[=DIR]]],
     [Include liburing support (requires liburing >= 2.13)])], [no], [no])
-    
+
 PHP_ARG_ENABLE([uring_socket],
   [enable uring_socket support],
   [AS_HELP_STRING([--enable-uring-socket],
@@ -1285,12 +1285,12 @@ EOF
         PKG_CHECK_MODULES([SSL], [libssl])
         PHP_EVAL_LIBLINE($SSL_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($SSL_CFLAGS)
-        
+
         PKG_CHECK_MODULES([CRYPTO], [libcrypto])
         PHP_EVAL_LIBLINE($CRYPTO_LIBS, SWOOLE_SHARED_LIBADD)
         PHP_EVAL_INCLINE($CRYPTO_CFLAGS)
     fi
-    
+
     if test "$PHP_NGHTTP2_DIR" != "no"; then
         PHP_ADD_INCLUDE("${PHP_NGHTTP2_DIR}/include")
         PHP_ADD_LIBRARY_WITH_PATH(nghttp2, "${PHP_NGHTTP2_DIR}/${PHP_LIBDIR}")
