@@ -948,7 +948,7 @@ static inline int socket_xport_api(php_stream *stream, SocketImpl *sock, php_str
     case STREAM_XPORT_OP_CONNECT:
     case STREAM_XPORT_OP_CONNECT_ASYNC:
         xparam->outputs.returncode = socket_connect(stream, sock, xparam);
-        if (sock->ssl_is_enable() &&
+        if (xparam->outputs.returncode == 0 && sock->ssl_is_enable() &&
             (socket_xport_crypto_setup(stream) < 0 || socket_xport_crypto_enable(stream, 1) < 0)) {
             xparam->outputs.returncode = -1;
         }

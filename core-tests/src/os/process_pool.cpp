@@ -18,10 +18,9 @@ static Worker *current_worker = nullptr;
 
 static void test_func(ProcessPool &pool) {
     EventData data{};
-    size_t size = swoole_system_random(1024, 4096);
+    size_t size = swoole_system_random(1024, SW_MIN(4096, (int) sizeof(data.data)));
     String rmem(size);
-    rmem.append_random_bytes(size - 1);
-    rmem.append("\0");
+    ASSERT_TRUE(rmem.append_random_bytes(size));
 
     data.info.len = size;
     memcpy(data.data, rmem.value(), size);
@@ -101,28 +100,42 @@ TEST(process_pool, unix_sock) {
 }
 
 TEST(process_pool, tcp_raw) {
+    constexpr uint32_t size = 2 * 1024 * 1024;
+    String data(size);
+    ASSERT_TRUE(data.append_random_bytes(size));
+
     ProcessPool pool{};
-    constexpr int size = 2 * 1024 * 1024;
     int svr_port = TEST_PORT + __LINE__;
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
     ASSERT_EQ(pool.listen(TEST_HOST, svr_port, 128), SW_OK);
     pool.set_max_packet_size(size);
     pool.set_protocol(SW_PROTOCOL_STREAM);
-
-    String data(size);
-    data.append_random_bytes(size - 1);
-    data.append("\0");
-
-    ASSERT_EQ(pool.dispatch_sync(data.str, data.length), SW_OK);
-
     pool.running = true;
     pool.ptr = &data;
     pool.onMessage = [](ProcessPool *pool, RecvData *rdata) -> void {
         pool->running = false;
-        String *_data = (String *) pool->ptr;
+        auto *_data = static_cast<String *>(pool->ptr);
+        ASSERT_EQ(rdata->info.len, _data->length);
         EXPECT_MEMEQ(_data->str, rdata->data, rdata->info.len);
     };
+
+    // The sender must run alongside the receive loop because the frame may exceed the available socket buffers.
+    swResultCode dispatch_result = SW_ERR;
+    std::thread sender([&]() {
+        swoole_thread_init(false);
+        dispatch_result = pool.dispatch_sync(data.str, data.length);
+        if (dispatch_result != SW_OK) {
+            // On Linux, shutting the listener down makes the blocked accept() return so the receive loop can exit.
+            pool.stream_info_->socket->shutdown(SHUT_RDWR);
+        }
+        swoole_thread_clean(false);
+    });
+
     pool.main_loop(&pool, pool.get_worker(0));
+    sender.join();
+
+    EXPECT_EQ(dispatch_result, SW_OK);
+    EXPECT_FALSE(pool.running);
     pool.destroy();
 }
 
