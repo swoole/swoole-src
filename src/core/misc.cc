@@ -171,7 +171,7 @@ int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
                 return -1;
             }
         } while (0);
-        sw_usleep(1000);
+        usleep(1000);
     }
 }
 
