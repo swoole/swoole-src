@@ -13,14 +13,14 @@ use function Swoole\Coroutine\run;
 use function Swoole\Coroutine\go;
 
 run(function () {
-    $client = new Client('httpbin.org', 443, true);
+    $client = new Client('nghttp2.org', 443, true);
     $chan = new Channel(1);
     go(function () use ($client, $chan) {
         $client->connect();
         $req = new Request();
         $uuid = uniqid();
         $req->method = 'GET';
-        $req->path = '/base64/' . base64_encode($uuid);
+        $req->path = '/httpbin/base64/' . base64_encode($uuid);
         $client->send($req);
         $chan->push(true);
         $resp = $client->recv();
@@ -34,7 +34,7 @@ run(function () {
         $uuid = uniqid();
         $req = new Request();
         $req->method = 'GET';
-        $req->path = '/base64/' . base64_encode($uuid);
+        $req->path = '/httpbin/base64/' . base64_encode($uuid);
         $client->send($req);
         $chan->push(true);
         Assert::eq($client->recv(), false);
