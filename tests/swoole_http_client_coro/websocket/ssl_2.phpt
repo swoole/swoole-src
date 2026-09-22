@@ -23,15 +23,17 @@ Co\run(function ()  {
         return;
     }
     echo "CONNECT SUCCESS, StatusCode={$cli->getStatusCode()}\n";
-    $n = 16;
     $cli->push('{"op": "subscribe", "args": ["orderBookL2_25:XBTUSD"]}');
-    while ($n--) {
+
+    $subscribed = $snapshot = false;
+    while (!$subscribed || !$snapshot) {
         $frame = $cli->recv();
-        if (!$frame or empty($frame->data)) {
-            echo "ERROR $n [2]\n";
-            var_dump($cli->errCode, $cli->errMsg);
-            break;
-        }
+        Assert::true(is_object($frame));
+        Assert::notEmpty($frame->data);
+        $message = json_decode($frame->data, true);
+        $subscribed = $subscribed || ($message['success'] ?? false);
+        $snapshot = $snapshot || (($message['table'] ?? null) === 'orderBookL2_25'
+            && ($message['action'] ?? null) === 'partial');
     }
     echo "FINISH\n";
 });
