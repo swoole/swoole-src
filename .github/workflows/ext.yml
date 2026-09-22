@@ -41,7 +41,8 @@ jobs:
           make clean && make -j$(nproc)
 
   build-macos-latest:
-    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[macos]')"
+    needs: build-ubuntu-latest
+    if: "always() && (!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[macos]'))"
     runs-on: macos-latest
     steps:
       - name: install dependencies
@@ -70,12 +71,13 @@ jobs:
           make clean && make -j$(sysctl -n hw.ncpu)
 
   build-alpine-latest:
-    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[alpine]')"
+    needs: build-macos-latest
+    if: "always() && (!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[alpine]'))"
     runs-on: ubuntu-latest
     strategy:
       matrix:
         php-version: [ '8.1', '8.2', '8.3', '8.4' ]
-      max-parallel: 8
+      max-parallel: 1
       fail-fast: false
     steps:
       - uses: actions/checkout@v5

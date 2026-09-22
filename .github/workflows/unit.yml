@@ -8,6 +8,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php: ['8.1', '8.2', '8.3', '8.4']
         os: [ ubuntu-24.04, ubuntu-24.04-arm ]
@@ -44,11 +45,13 @@ jobs:
         export PHP_VERSION=${{ matrix.php }}
         ${{runner.workspace}}/swoole-src/scripts/route.sh
   macos:
+    needs: linux
     runs-on: macos-latest
-    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[macos-unit]')"
+    if: "always() && (!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[macos-unit]'))"
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
 #        php-version: [ '8.1', '8.2', '8.3', '8.4' ]
         php-version: [ '8.1' ]
