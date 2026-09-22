@@ -157,7 +157,8 @@ function get_test_port_range(): array
 {
     $min = 10000;
     $max = 32000;
-    if (preg_match('/(\d+)\s+(\d+)/', (string) @file_get_contents('/proc/sys/net/ipv4/ip_local_port_range'), $match)) {
+    $rangeFile = '/proc/sys/net/ipv4/ip_local_port_range';
+    if (is_readable($rangeFile) && preg_match('/(\d+)\s+(\d+)/', (string) file_get_contents($rangeFile), $match)) {
         $max = min($max, (int) $match[1] - 1);
     }
     if ($max <= $min) {
@@ -178,7 +179,11 @@ function get_used_ports(): array
 {
     $ports = [];
     foreach (['tcp', 'tcp6', 'udp', 'udp6'] as $protocol) {
-        $lines = @file("/proc/net/{$protocol}");
+        $path = "/proc/net/{$protocol}";
+        if (!is_readable($path)) {
+            continue;
+        }
+        $lines = file($path);
         if (!$lines) {
             continue;
         }
