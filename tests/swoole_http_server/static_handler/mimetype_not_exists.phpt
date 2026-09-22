@@ -17,6 +17,17 @@ define('TEST_RANDOM_BYTES', random_bytes(rand(2048, 8192)));
 const TEST_FILE = TEST_DOCUMENT_ROOT . '/examples/exists.xyz';
 
 file_put_contents(TEST_FILE, TEST_RANDOM_BYTES);
+/**
+ * The test file is created in the repository, it must be removed even if an assertion fails.
+ * The child process(forked later by ProcessManager) inherits the shutdown function, so only the
+ * process which created the file is allowed to remove it.
+ */
+$startup_pid = getmypid();
+register_shutdown_function(function () use ($startup_pid) {
+    if (getmypid() === $startup_pid) {
+        unlink(TEST_FILE);
+    }
+});
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
@@ -49,7 +60,6 @@ $pm->childFunc = function () use ($pm) {
 };
 $pm->childFirst();
 $pm->run();
-//unlink(TEST_FILE);
 ?>
 --EXPECT--
 DONE

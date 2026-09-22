@@ -25,6 +25,16 @@ $cleanup_fn = function () use ($doc_root, $image_dir, $image_link) {
     rmdir($doc_root . '/' . $image_dir);
     rmdir($doc_root);
 };
+/**
+ * The temporary files must be removed even if the test fails. The child process(forked later by
+ * ProcessManager) inherits the shutdown function, so only the process which created them removes them.
+ */
+$startup_pid = getmypid();
+register_shutdown_function(function () use ($cleanup_fn, $startup_pid) {
+    if (getmypid() === $startup_pid) {
+        $cleanup_fn();
+    }
+});
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm, $doc_root, $image_dir, $image_link) {
@@ -53,7 +63,6 @@ $pm->childFunc = function () use ($pm, $doc_root, $image_dir, $image_link) {
 };
 $pm->childFirst();
 $pm->run();
-$cleanup_fn();
 ?>
 --EXPECT--
 DONE

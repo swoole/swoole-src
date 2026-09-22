@@ -24,6 +24,16 @@ $cleanup_fn = function () use ($doc1_root, $doc2_root) {
     rmdir($doc1_root);
     rmdir($doc2_root);
 };
+/**
+ * The temporary files must be removed even if the test fails. The child process(forked later by
+ * ProcessManager) inherits the shutdown function, so only the process which created them removes them.
+ */
+$startup_pid = getmypid();
+register_shutdown_function(function () use ($cleanup_fn, $startup_pid) {
+    if (getmypid() === $startup_pid) {
+        $cleanup_fn();
+    }
+});
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm, $doc1_root, $doc2_root) {
@@ -54,7 +64,6 @@ $pm->childFunc = function () use ($pm, $doc1_root, $doc2_root) {
 };
 $pm->childFirst();
 $pm->run();
-$cleanup_fn();
 ?>
 --EXPECT--
 DONE

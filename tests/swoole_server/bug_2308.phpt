@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $server = new Server('0.0.0.0', 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $server = new Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $server->set([
         'worker_num' => MAX_PROCESS_NUM,
         'log_file' => '/dev/null',

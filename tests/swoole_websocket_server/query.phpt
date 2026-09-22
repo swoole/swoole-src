@@ -6,8 +6,6 @@ swoole_websocket_server: query
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
-$pm->useConstantPorts = true;
-$pm->initFreePorts();
 
 $pm->parentFunc = function (int $pid) use ($pm) {
     go(function() use ($pm) {

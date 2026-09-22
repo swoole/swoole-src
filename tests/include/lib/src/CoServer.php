@@ -62,7 +62,7 @@ class CoServer
             $options['type'] ?? SOCK_STREAM,
             $options['protocol'] ?? IPPROTO_IP
         );
-        if (!$this->server->bind($options['host'] ?? '127.0.0.1', $options['port'] ?? 9501)) {
+        if (!$this->server->bind($options['host'] ?? '127.0.0.1', $options['port'] ?? 0)) {
             throw new RuntimeException("bind failed due to {$this->server->errMsg}");
         }
         if (!$this->server->listen($options['backlog'] ?? 128)) {

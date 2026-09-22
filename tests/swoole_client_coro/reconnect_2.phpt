@@ -19,7 +19,7 @@ $pm->parentFunc = function () use ($pm) {
 
         $n = 2;
         while ($n--) {
-            Assert::true($client->connect('127.0.0.1', 9501));
+            Assert::true($client->connect('127.0.0.1', $pm->getFreePort()));
             Assert::true($client->close());
         }
         echo "DONE\n";
@@ -29,7 +29,7 @@ $pm->parentFunc = function () use ($pm) {
 
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new Server('127.0.0.1', 9501);
+    $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set([
         'log_file' => '/dev/null',
     ]);
