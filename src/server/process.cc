@@ -219,6 +219,8 @@ bool Server::create_worker_pipes() {
 
     init_ipc_max_size();
     create_pipe_buffers();
+
+    return true;
 }
 
 bool ProcessFactory::start() {

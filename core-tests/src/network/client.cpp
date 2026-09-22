@@ -224,6 +224,36 @@ TEST(client, async_tcp_dns_fail) {
 }
 
 TEST(client, async_tcp_ssl_handshake_fail) {
+    int port = swoole::test::get_random_port();
+    Pipe p(true);
+    ASSERT_TRUE(p.ready());
+
+    // A plaintext TCP server which echoes the received data. The SSL handshake must fail,
+    // because the server does not speak TLS. It replaces a public host to make the test hermetic.
+    Process proc([&](Process *proc) {
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
+
+        serv.set_private_data("pipe", &p);
+
+        serv.on("Receive", [](ON_RECEIVE_PARAMS) {
+            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
+            return 0;
+        });
+
+        serv.on("WorkerStart", [](ON_WORKER_START_PARAMS) {
+            Pipe *p = (Pipe *) SERVER_THIS->get_private_data("pipe");
+            int64_t value = 1;
+            p->write(&value, sizeof(value));
+        });
+
+        serv.start();
+    });
+
+    pid_t pid = proc.start();
+    int64_t value;
+    p.set_timeout(10);
+    p.read(&value, sizeof(value));
+
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     Client ac(SW_SOCK_TCP, true);
@@ -251,11 +281,15 @@ TEST(client, async_tcp_ssl_handshake_fail) {
 
     ac.enable_ssl_encrypt();
 
-    ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
+    ASSERT_EQ(ac.connect(TEST_HOST, port, 1.0), SW_OK);
 
     swoole_event_wait();
 
     ASSERT_FALSE(success);
+
+    kill(pid, SIGTERM);
+    int status;
+    wait(&status);
 }
 
 TEST(client, async_tcp_http_proxy_handshake_fail) {
