@@ -21,7 +21,10 @@
 #include "swoole_signal.h"
 #include "swoole_api.h"
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <bcrypt.h>
+#include <limits>
+#else
 #include <pwd.h>
 #include <grp.h>
 #endif
@@ -113,9 +116,9 @@ int swoole_daemon(int nochdir, int noclose) {
 }
 #endif
 
-#ifdef HAVE_GETRANDOM
+#if defined(HAVE_GETRANDOM)
 #include <sys/random.h>
-#else
+#elif !defined(_WIN32)
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 #if defined(HAVE_CCRANDOMGENERATEBYTES)
     /*
@@ -161,6 +164,18 @@ int pthread_getname_np(pthread_t thread, char *buf, size_t len) {
 size_t swoole_random_bytes(char *buf, size_t size) {
     size_t read_bytes = 0;
 
+#ifdef _WIN32
+    while (read_bytes < size) {
+        const auto amount_to_read = static_cast<ULONG>(SW_MIN(size - read_bytes, std::numeric_limits<ULONG>::max()));
+        NTSTATUS status = BCryptGenRandom(
+            nullptr, reinterpret_cast<PUCHAR>(buf + read_bytes), amount_to_read, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+        if (!BCRYPT_SUCCESS(status)) {
+            errno = EIO;
+            break;
+        }
+        read_bytes += amount_to_read;
+    }
+#else
     while (read_bytes < size) {
         size_t amount_to_read = size - read_bytes;
         ssize_t n = getrandom(buf + read_bytes, amount_to_read, 0);
@@ -173,6 +188,7 @@ size_t swoole_random_bytes(char *buf, size_t size) {
         }
         read_bytes += (size_t) n;
     }
+#endif
 
     return read_bytes;
 }
