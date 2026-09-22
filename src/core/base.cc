@@ -135,6 +135,9 @@ void swoole_init() {
 
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
+#if !defined(HAVE_FUTEX) && !defined(_WIN32)
+    sw_atomic_wait_init();
+#endif
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
     rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
