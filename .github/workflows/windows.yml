@@ -9,6 +9,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[win-unit]')"
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         os: [ 'windows-2022' ]
         ts: [ 'ts' ]
