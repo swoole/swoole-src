@@ -1,8 +1,7 @@
 name: Framework Tests
 
 on:
-  push:
-  pull_request:
+  workflow_call:
 
 jobs:
   linux:
