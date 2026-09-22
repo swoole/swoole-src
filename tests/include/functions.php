@@ -149,6 +149,94 @@ function get_server_ips(): array
     return $ips;
 }
 
+/**
+ * The range used by the probed test ports, it always stays below the local ephemeral
+ * port range(net.ipv4.ip_local_port_range), see get_one_free_port().
+ */
+function get_test_port_range(): array
+{
+    $min = 10000;
+    $max = 32000;
+    if (preg_match('/(\d+)\s+(\d+)/', (string) @file_get_contents('/proc/sys/net/ipv4/ip_local_port_range'), $match)) {
+        $max = min($max, (int) $match[1] - 1);
+    }
+    if ($max <= $min) {
+        $max = $min + 1000;
+    }
+    return [$min, $max];
+}
+
+/**
+ * The snapshot of the ports which are currently occupied.
+ *
+ * It is read from the procfs and covers both TCP and UDP, because the same port can be
+ * occupied by a UDP test server. Notice: it is only a snapshot, the ports may change at
+ * any time, so it is used to skip the obviously busy candidates and the authoritative
+ * check is still the bind() probe in find_free_port().
+ */
+function get_used_ports(): array
+{
+    $ports = [];
+    foreach (['tcp', 'tcp6', 'udp', 'udp6'] as $protocol) {
+        $lines = @file("/proc/net/{$protocol}");
+        if (!$lines) {
+            continue;
+        }
+        foreach ($lines as $line) {
+            // the local address column looks like "0100007F:1F90"
+            $columns = preg_split('/\s+/', trim($line));
+            if (!isset($columns[1]) || strpos($columns[1], ':') === false) {
+                continue;
+            }
+            $ports[(int) hexdec(explode(':', $columns[1])[1])] = true;
+        }
+    }
+    return $ports;
+}
+
+/**
+ * Sweep the test port range and return the first port which passes $probe.
+ *
+ * The ports which are known to be busy are skipped, so in the common case the probe
+ * succeeds at the first attempt and the sweep is just a fallback. The range is swept from
+ * a per-process offset, so the parallel test workers do not fight for the same ports.
+ *
+ * @param callable(int): bool $probe
+ * @return int the port, or -1 if there is no free port
+ */
+function find_free_port(callable $probe): int
+{
+    /**
+     * The ports handed out by this process, they are kept reserved until the server binds
+     * them, otherwise two servers of the same test may get the same port.
+     */
+    static $handed_out = [];
+    [$min, $max] = get_test_port_range();
+    $used = get_used_ports();
+    $size = $max - $min + 1;
+    $offset = getmypid() % $size;
+    for ($i = 0; $i < $size; $i++) {
+        $port = $min + ($offset + $i) % $size;
+        if (isset($used[$port]) || isset($handed_out[$port])) {
+            continue;
+        }
+        if ($probe($port)) {
+            $handed_out[$port] = true;
+            return $port;
+        }
+    }
+    return -1;
+}
+
+/**
+ * Probe a free port which does NOT come from the local ephemeral port range.
+ *
+ * The port is only probed here but bound later, by the server process, so it must not
+ * come from the ephemeral range: the kernel hands those out to every outgoing
+ * connection, and a parallel test can occupy the port in the window between the probe
+ * and the bind. The server then fails to listen and the client gets ECONNREFUSED.
+ * Ports below the range are only used by the test servers themselves.
+ */
 function get_one_free_port(): int
 {
     /**
@@ -160,14 +248,23 @@ function get_one_free_port(): int
     if ($flags !== 0) {
         Runtime::enableCoroutine(0);
     }
-    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or exit('Unable to create socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
-    socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
-    if (defined('SO_REUSEPORT')) {
-        socket_set_option($socket, SOL_SOCKET, SO_REUSEPORT, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+
+    $port = find_free_port(function (int $port): bool {
+        $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or exit('Unable to create socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+        socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1) or exit('Unable to set socket option: ' . socket_strerror(socket_last_error()) . PHP_EOL);
+        /**
+         * SO_REUSEPORT must not be set here, it would make the probe succeed on a port
+         * which is already in use by another test server.
+         */
+        $bound = @socket_bind($socket, '127.0.0.1', $port);
+        socket_close($socket);
+        return (bool) $bound;
+    });
+    if ($port < 0) {
+        [$min, $max] = get_test_port_range();
+        exit("Unable to find a free port in [{$min}, {$max}]" . PHP_EOL);
     }
-    socket_bind($socket, '127.0.0.1', 0) or exit('Unable to bind socket: ' . socket_strerror(socket_last_error()) . PHP_EOL);
-    socket_getsockname($socket, $addr, $port);
-    socket_close($socket);
+
     if ($flags !== 0) {
         Runtime::enableCoroutine($flags);
     }
@@ -185,16 +282,19 @@ function get_one_free_port_ipv6(): int
     if ($hookFlags !== 0) {
         Runtime::enableCoroutine(0);
     }
-    $server = @stream_socket_server('tcp://[::1]:0');
-    if (!$server) {
-        $port = -1;
-    } else {
-        $name = stream_socket_get_name($server, false);
-        if (empty($name)) {
-            $port = -1;
-        } else {
-            $port = explode(']:', $name)[1];
-        }
+
+    $port = -1;
+    // IPv6 may be unavailable, do not sweep the whole range in that case
+    if ($server = @stream_socket_server('tcp://[::1]:0')) {
+        fclose($server);
+        $port = find_free_port(function (int $port): bool {
+            $server = @stream_socket_server("tcp://[::1]:{$port}");
+            if (!$server) {
+                return false;
+            }
+            fclose($server);
+            return true;
+        });
     }
 
     if ($hookFlags !== 0) {
