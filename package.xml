@@ -52,7 +52,7 @@
     <date>2026-07-08</date>
     <time>22:00:00</time>
     <version>
-        <release>6.2.2</release>
+        <release>6.2.3</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,12 +61,20 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Refactored the communication between multi-thread pools from `Pipe` to `Unix Socket` to enhance the reliability of high-concurrency transmission for asynchronous file operations.
-        - Resolved sporadic segmentation faults when `Worker` parses `HTTP` parameters, eliminating the risk of process crashes.
-        - Fixed a fatal `Error::__toString` error during the `PHP` request shutdown (rshutdown) phase when interacting with the database.
-        - Fixed the `Poll` event initialization exception after coroutine conversion of `pdo_pgsql`, ensuring the stability of blocking mode.
-        - Removed duplicate and redundant `Server` property configurations in `Swoole\Coroutine\Http\Server`.
-        - Fixed an issue in `Swoole\ArrayObject::valid()` where, under `PHP 8.5`, using `null` as the key parameter for `array_key_exists()` would trigger a deprecation warning: "Using null as the key parameter for array_key_exists() is deprecated."
+        - Fixed an issue in `SWOOLE_THREAD` mode where `Swoole\Server` could not start if the `set()` method was not called.
+        - Fixed a NULL pointer dereference that occurred when querying port properties during server shutdown, caused by the `ListenPort` pointer being `NULL`.
+        - Fixed an issue where, after a hooked `TLS` stream completed its handshake in `Socket::connect()`, the stream transport layer would attempt to enable encryption again instead of returning failure directly when the call failed or was canceled.
+        - Fixed an issue where the coroutine `HTTP` server still returned success when the protocol setting was rejected or `accept` failed.
+        - Fixed an issue where `HTTP` compression used the wrong data format when returning `deflate` encoding.
+        - Fixed an issue where destroying a native `CurlHandle` did not hand the object destruction work back to `ext-curl` when native `hook` was not enabled, resulting in incorrect destruction logic.
+        - Fixed an issue in `cURL multi` where, under `CURL_POLL_INOUT`, the "readable and writable simultaneously" event mask was not correctly restored, causing `HTTP/2` duplex transmission to be repeatedly woken up during flow-control blocking and form a busy loop.
+        - Fixed the lack of timeout support for `wait/wakeup` in atomic operations (`Atomic`) on the `Windows` platform.
+        - Fixed an issue where, after enabling `send_yield`, the peer closing the connection prevented the coroutine from being woken up, resulting in a coroutine leak.
+        - Fixed an issue where the `WebSocket` decoder did not reject control frames (`CLOSE`, `PING`, `PONG`) with the compression flag (`RSV1`), causing illegal frames to be incorrectly accepted.
+        - Fixed incorrect read/write behavior in coroutine `socket` with `iouring` enabled when `SSL/TLS` was enabled.
+        - Fixed an issue where improper maintenance of the `Swoole` coroutine context chain (`origin_ctx`) produced dangling pointers, causing occasional segmentation faults when a `Worker` parsed `HTTP` parameters.
+        - Fixed a NULL pointer dereference crash caused by passing a `NULL` port pointer when querying port properties (`ServerPortProperty`) while the `Swoole` server was closing a port.
+        - Fixed issues in `Swoole\Coroutine\Socket`'s `setOption()` on `SO_LINGER`, `SO_RCVTIMEO`, and `SO_SNDTIMEO`, including incorrect parameter validation, incorrect error messages, and crashes when an object was passed in.
     </notes>
     <contents>
         <dir name="/">
