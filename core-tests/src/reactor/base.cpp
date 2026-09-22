@@ -24,8 +24,15 @@
 #include "swoole_util.h"
 #include "swoole_api.h"
 
+#ifdef HAVE_EPOLL
+#include <sys/resource.h>
+#endif
+
 using namespace std;
 using namespace swoole;
+
+static int reactor_create_count;
+static int reactor_destroy_count;
 
 TEST(reactor, create) {
     swoole_event_init(0);
@@ -62,6 +69,46 @@ TEST(reactor, create) {
 
     swoole_event_free();
 }
+
+#ifdef HAVE_EPOLL
+TEST(reactor, create_failure) {
+    ASSERT_EQ(SwooleTG.reactor, nullptr);
+
+    void *previous_hook = SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY];
+    SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
+    ON_SCOPE_EXIT {
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]);
+        SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = previous_hook;
+    };
+
+    reactor_destroy_count = 0;
+    swoole_add_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, [](void *) { reactor_destroy_count++; }, 1);
+
+    rlimit original_limit;
+    ASSERT_EQ(getrlimit(RLIMIT_NOFILE, &original_limit), 0);
+    rlimit limit = original_limit;
+    limit.rlim_cur = 0;
+    ASSERT_EQ(setrlimit(RLIMIT_NOFILE, &limit), 0);
+    ON_SCOPE_EXIT {
+        setrlimit(RLIMIT_NOFILE, &original_limit);
+    };
+
+    swoole_clear_last_error();
+    int retval = swoole_event_init(0);
+    int error = swoole_get_last_error();
+    int restore_result = setrlimit(RLIMIT_NOFILE, &original_limit);
+
+    ASSERT_EQ(restore_result, 0);
+    ASSERT_EQ(retval, SW_ERR);
+    ASSERT_EQ(error, EMFILE);
+    ASSERT_EQ(SwooleTG.reactor, nullptr);
+    ASSERT_EQ(reactor_destroy_count, 1);
+
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    ASSERT_EQ(swoole_event_free(), SW_OK);
+    ASSERT_EQ(reactor_destroy_count, 2);
+}
+#endif
 
 TEST(reactor, set_handler) {
     Reactor reactor;
@@ -110,6 +157,24 @@ TEST(reactor, wait) {
     ret = swoole_event_wait();
     ASSERT_EQ(ret, SW_OK);
     ASSERT_EQ(SwooleTG.reactor, nullptr);
+}
+
+TEST(reactor, get_missing_socket) {
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+
+    auto sock = p.get_socket(false);
+    const int fd = sock->get_fd();
+
+    // Use nonfatal assertions so the reactor is always freed before later tests.
+    EXPECT_EQ(swoole_event_get_socket(fd), nullptr);
+    EXPECT_FALSE(SwooleTG.reactor->exists(fd));
+    EXPECT_EQ(SwooleTG.reactor->get_event_num(), 0);
+    EXPECT_EQ(swoole_event_add(sock, SW_EVENT_READ), SW_OK);
+    EXPECT_EQ(swoole_event_get_socket(fd), sock);
+    EXPECT_EQ(swoole_event_del(sock), SW_OK);
+    EXPECT_EQ(swoole_event_free(), SW_OK);
 }
 
 TEST(reactor, write) {
@@ -338,6 +403,76 @@ TEST(reactor, poll) {
     reactor_test_func(&reactor);
 }
 
+struct PollSocketState {
+    network::Socket *sockets[2];
+    network::Socket *dispatched_socket = nullptr;
+    network::Socket *replacement_socket = nullptr;
+    int source_fd = -1;
+    int replacement_count = 0;
+};
+
+TEST(reactor, poll_readiness_after_fd_reuse) {
+    UnixSocket sockets[2] = {
+        UnixSocket(false, SOCK_STREAM),
+        UnixSocket(false, SOCK_STREAM),
+    };
+    ASSERT_TRUE(sockets[0].ready());
+    ASSERT_TRUE(sockets[1].ready());
+
+    int pipe_fds[2];
+    ASSERT_EQ(pipe(pipe_fds), 0);
+
+    Reactor reactor(32, Reactor::TYPE_POLL);
+    reactor.once = true;
+
+    PollSocketState state;
+    state.sockets[0] = sockets[0].get_socket(false);
+    state.sockets[1] = sockets[1].get_socket(false);
+    state.source_fd = pipe_fds[0];
+    state.sockets[0]->fd_type = SW_FD_STREAM;
+    state.sockets[1]->fd_type = SW_FD_STREAM;
+    state.sockets[0]->object = &state;
+    state.sockets[1]->object = &state;
+
+    reactor.set_handler(SW_FD_STREAM, SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
+        auto *state = static_cast<PollSocketState *>(event->socket->object);
+        char data;
+        EXPECT_EQ(event->socket->read(&data, sizeof(data)), 1);
+        state->dispatched_socket = event->socket;
+
+        network::Socket *other_socket = event->socket == state->sockets[0] ? state->sockets[1] : state->sockets[0];
+        EXPECT_EQ(reactor->del(other_socket), SW_OK);
+        const int fd = other_socket->move_fd();
+        EXPECT_EQ(dup2(state->source_fd, fd), fd);
+
+        state->replacement_socket = make_socket(fd, SW_FD_USER);
+        state->replacement_socket->object = &state->replacement_count;
+        EXPECT_EQ(reactor->add(state->replacement_socket, SW_EVENT_READ), SW_OK);
+        return SW_OK;
+    });
+    reactor.set_handler(SW_FD_USER, SW_EVENT_READ, [](Reactor *, Event *event) -> int {
+        (*(int *) event->socket->object)++;
+        return SW_OK;
+    });
+
+    ASSERT_EQ(reactor.add(state.sockets[0], SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(reactor.add(state.sockets[1], SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(sockets[0].get_socket(true)->write("x", 1), 1);
+    ASSERT_EQ(sockets[1].get_socket(true)->write("x", 1), 1);
+    ASSERT_EQ(reactor.wait(), SW_OK);
+
+    ASSERT_EQ(state.replacement_count, 0);
+    ASSERT_NE(state.dispatched_socket, nullptr);
+    ASSERT_NE(state.replacement_socket, nullptr);
+
+    // A local Reactor does not defer Socket::free(), so release sockets after the batch.
+    ASSERT_EQ(reactor.del(state.dispatched_socket), SW_OK);
+    ASSERT_EQ(reactor.del(state.replacement_socket), SW_OK);
+    state.replacement_socket->free();
+    ASSERT_EQ(close(pipe_fds[0]), 0);
+    ASSERT_EQ(close(pipe_fds[1]), 0);
+}
+
 TEST(reactor, poll_extra) {
     Reactor reactor(32, Reactor::TYPE_POLL);
 
@@ -368,7 +503,7 @@ TEST(reactor, poll_extra) {
     ASSERT_EQ(reactor.del(&fake_sock3), SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_SOCKET_NOT_EXISTS);
 
-    network::Socket fake_socks[32];
+    network::Socket fake_socks[32]{};
     SW_LOOP_N(32) {
         fake_socks[i].fd = i + 1024;
         if (i <= 30) {
@@ -378,8 +513,7 @@ TEST(reactor, poll_extra) {
         }
     }
 
-    for (auto i = 31; i <= 0; i--) {
-        fake_socks[i].fd = i + 1024;
+    for (auto i = 31; i >= 0; i--) {
         if (i <= 30) {
             ASSERT_EQ(reactor.del(&fake_socks[i]), SW_OK);
         } else {
@@ -482,14 +616,15 @@ TEST(reactor, priority_idle_task) {
 }
 
 TEST(reactor, hook) {
-    Reactor *reactor = new Reactor(1024, Reactor::TYPE_POLL);
-    reactor->wait_exit = true;
+    reactor_create_count = 0;
+    reactor_destroy_count = 0;
 
     swoole_add_hook(
         SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
         [](void *data) -> void {
             Reactor *reactor = (Reactor *) data;
             ASSERT_EQ(Reactor::TYPE_POLL, reactor->type_);
+            reactor_create_count++;
         },
         1);
 
@@ -498,16 +633,24 @@ TEST(reactor, hook) {
         [](void *data) -> void {
             Reactor *reactor = (Reactor *) data;
             ASSERT_EQ(Reactor::TYPE_POLL, reactor->type_);
+            reactor_destroy_count++;
         },
         1);
 
     ON_SCOPE_EXIT {
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE]);
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]);
         SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE] = nullptr;
         SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
     };
 
+    Reactor *reactor = new Reactor(1024, Reactor::TYPE_POLL);
+    reactor->wait_exit = true;
     reactor_test_func(reactor);
     delete reactor;
+
+    ASSERT_EQ(reactor_create_count, 1);
+    ASSERT_EQ(reactor_destroy_count, 1);
 }
 
 TEST(reactor, set_fd) {

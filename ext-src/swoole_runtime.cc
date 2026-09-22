@@ -507,19 +507,16 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     if (didwrite < 0) {
         abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
 
-        if (sock->errCode != ETIMEDOUT && sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
-            didwrite = 0;
-        } else {
-            php_error_docref(nullptr,
-                             E_NOTICE,
-                             "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
-                             (zend_long) count,
-                             sock->errCode,
-                             sock->errMsg);
-
-            if (sock->errCode == ETIMEDOUT) {
+        if (sock->errCode != ETIMEDOUT) {
+            if (sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
                 didwrite = 0;
             } else {
+                php_error_docref(nullptr,
+                                 E_NOTICE,
+                                 "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
+                                 (zend_long) count,
+                                 sock->errCode,
+                                 sock->errMsg);
                 stream->eof = 1;
             }
         }
@@ -549,7 +546,11 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->blocking) {
+    if (abstract->blocking
+#if PHP_VERSION_ID >= 80300
+        && !stream->has_buffered_data
+#endif
+    ) {
         nr_bytes = sock->recv(buf, count);
     } else {
         nr_bytes = sock->recv_once(buf, count);
@@ -560,8 +561,8 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }
 
-    if (nr_bytes < 0) {
-        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_read_error(sock->errCode) == SW_WAIT) {
+    if (nr_bytes < 0 && sock->errCode != ETIMEDOUT) {
+        if (sock->get_socket()->catch_read_error(sock->errCode) == SW_WAIT) {
             nr_bytes = 0;
         } else {
             stream->eof = 1;
