@@ -55,14 +55,13 @@ $destroyed = new Atomic(0);
 
 $process = new Process(function () use ($table, $destroyed): void {
     while ($destroyed->get() === 0) {
-        $destroyed->wait(1.0);
+        usleep(1000);
     }
     $table->getdel('row');
 }, true, SOCK_STREAM);
 $process->start();
 $table->destroy();
 $destroyed->set(1);
-$destroyed->wakeup();
 $output = $process->read();
 $status = Process::wait();
 Assert::contains($output, 'table is not created or has been destroyed');
