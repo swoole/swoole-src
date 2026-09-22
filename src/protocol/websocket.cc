@@ -209,10 +209,16 @@ bool parse_frame(Frame *frame, const char *data, size_t length) {
     frame->payload_length = total_length - pl.header_len;
     frame->header_length = pl.header_len;
 
+    /**
+     * A control frame must not be compressed(RFC 6455: the RSV1 bit must be 0 for control frames),
+     * rejecting such a frame here keeps it away from the permessage-deflate path, see RFC 7692.
+     */
     if (sw_unlikely(is_control_frame(frame->header.OPCODE) &&
-                    (!frame->header.FIN || frame->payload_length > SW_WEBSOCKET_CONTROL_FRAME_PAYLOAD_MAX_LEN))) {
-        swoole_warning("invalid websocket control frame received: opcode=%u, fin=%u, payload_length=%zu",
+                    (frame->header.RSV1 || !frame->header.FIN ||
+                     frame->payload_length > SW_WEBSOCKET_CONTROL_FRAME_PAYLOAD_MAX_LEN))) {
+        swoole_warning("invalid websocket control frame received: opcode=%u, rsv1=%u, fin=%u, payload_length=%zu",
                        frame->header.OPCODE,
+                       frame->header.RSV1,
                        frame->header.FIN,
                        frame->payload_length);
         return false;
