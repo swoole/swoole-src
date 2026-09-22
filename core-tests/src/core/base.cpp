@@ -26,6 +26,10 @@
 
 #include "swoole_api.h"
 
+#include <atomic>
+#include <chrono>
+#include <csignal>
+#include <pthread.h>
 #include <sys/resource.h>
 
 using namespace swoole;
@@ -472,6 +476,56 @@ TEST(base, futex) {
     t1.join();
     t2.join();
 }
+
+#ifdef HAVE_FUTEX
+static volatile sig_atomic_t atomic_wait_signal_count;
+
+static void atomic_wait_signal_handler(int) {
+    atomic_wait_signal_count++;
+}
+
+TEST(base, futex_interrupted) {
+    struct sigaction action = {};
+    struct sigaction old_action = {};
+    action.sa_handler = atomic_wait_signal_handler;
+    sigemptyset(&action.sa_mask);
+    ASSERT_EQ(sigaction(SIGUSR1, &action, &old_action), 0);
+
+    sw_atomic_t value = 0;
+    std::atomic<bool> started{false};
+    std::atomic<bool> completed{false};
+    int wait_result = SW_ERR;
+    atomic_wait_signal_count = 0;
+
+    std::thread waiter([&] {
+        started = true;
+        wait_result = sw_atomic_futex_wait(&value, 5);
+        completed = true;
+    });
+
+    while (!started) {
+        std::this_thread::yield();
+    }
+    usleep(20000);
+    const int kill_result = pthread_kill(waiter.native_handle(), SIGUSR1);
+    const auto signal_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    while (atomic_wait_signal_count == 0 && std::chrono::steady_clock::now() < signal_deadline) {
+        std::this_thread::yield();
+    }
+    usleep(20000);
+    const bool completed_after_interrupt = completed;
+
+    sw_atomic_futex_wakeup(&value, 1);
+    waiter.join();
+    const int restore_result = sigaction(SIGUSR1, &old_action, nullptr);
+
+    EXPECT_EQ(kill_result, 0);
+    EXPECT_GT(atomic_wait_signal_count, 0);
+    EXPECT_FALSE(completed_after_interrupt);
+    EXPECT_EQ(wait_result, SW_OK);
+    EXPECT_EQ(restore_result, 0);
+}
+#endif
 
 static int test_fork_fail(const std::function<void(void)> &after_fork_fail = nullptr) {
     rlimit rl{};
