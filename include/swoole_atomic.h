@@ -111,5 +111,8 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 #endif  // _MSC_VER
 
 void sw_spinlock(sw_atomic_t *lock);
+#if !defined(HAVE_FUTEX) && !defined(_WIN32)
+void sw_atomic_wait_init();
+#endif
 int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout);
 int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n);
