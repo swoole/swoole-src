@@ -27,6 +27,7 @@ using swoole::network::Socket;
 int swoole_event_init(int flags) {
     auto *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
     if (!reactor->ready()) {
+        delete reactor;
         return SW_ERR;
     }
 
