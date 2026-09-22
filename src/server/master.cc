@@ -1474,6 +1474,17 @@ int Server::send_to_connection(const SendData *_send) const {
     }
 
     if (!is_process_mode() && conn->overflow) {
+        /**
+         * The peer has already closed the connection, this state is terminal: the output buffer
+         * will never be drained again(conn->overflow is only reset by the write event), so the send
+         * must not be reported as a transient overflow. Otherwise a send-yield caller(coroutine)
+         * would re-enqueue itself and never be woken up again, because neither the buffer-empty
+         * nor the close event will fire after the peer is gone.
+         */
+        if (conn->peer_closed) {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
+            return SW_ERR;
+        }
         if (send_yield) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {
@@ -1563,13 +1574,13 @@ int Server::send_to_connection(const SendData *_send) const {
     } else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         auto *task = (SendfileTask *) _send_data;
         if (conn->socket->sendfile_async(task->filename, task->offset, task->length) < 0) {
-            return false;
+            return SW_ERR;
         }
     } else {
         // connection is closed
         if (conn->peer_closed) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
-            return false;
+            return SW_ERR;
         }
         // connection output buffer overflow
         if (_socket->out_buffer->length() >= _socket->buffer_size) {

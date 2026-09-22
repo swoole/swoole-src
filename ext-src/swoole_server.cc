@@ -1753,7 +1753,14 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
             server_object->property->send_coroutine_map.erase(_i_co_list);
             while (!co_list->empty()) {
                 Coroutine *co = co_list->front();
-                co->cancel();
+                /**
+                 * cancel() resumes the coroutine, php_swoole_server_send_yield() removes it from
+                 * the list when yield_ex() reports the cancellation. If it cannot be canceled(no
+                 * cancel function was installed), drop it here so that the loop always terminates.
+                 */
+                if (!co->cancel()) {
+                    co_list->pop_front();
+                }
             }
             delete co_list;
         }

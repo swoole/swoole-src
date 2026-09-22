@@ -37,7 +37,7 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => 1,
         'send_yield' => true,
         'send_timeout' => 0,
-        'log_level' => '/dev/null',
+        'log_file' => '/dev/null',
         'hook_flags' => SWOOLE_HOOK_ALL,
         'enable_coroutine' => true,
     ]);
