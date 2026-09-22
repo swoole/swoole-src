@@ -381,6 +381,12 @@ static PHP_METHOD(swoole_process_pool, __construct) {
         RETURN_FALSE;
     }
 
+    if (ipc_type == SW_IPC_MSGQUEUE && (zend_long) (key_t) msgq_key != msgq_key &&
+        (zend_ulong) (std::make_unsigned<key_t>::type) msgq_key != (zend_ulong) msgq_key) {
+        zend_throw_exception_ex(swoole_exception_ce, errno, "the parameter $msgqueue_key is out of range");
+        RETURN_FALSE;
+    }
+
     if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK) {
         ipc_type = SW_IPC_UNIXSOCK;
         zend_throw_error(nullptr, "the parameter $ipc_type must be SWOOLE_IPC_UNIXSOCK when enable coroutine");
