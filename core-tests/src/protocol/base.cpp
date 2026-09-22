@@ -251,6 +251,27 @@ TEST(protocol, socks5_strerror) {
     }
 }
 
+TEST(protocol, socks5_dns_tunnel_target_host_max_length) {
+    auto proxy = Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", "");
+    ASSERT_NE(proxy, nullptr);
+    proxy->dns_tunnel = 1;
+    proxy->target_host = std::string(UINT8_MAX, 'a');
+    proxy->target_port = 80;
+
+    ASSERT_EQ(proxy->pack_connect_request(), 262);
+    ASSERT_EQ(static_cast<uint8_t>(proxy->buf[3]), 0x03);
+    ASSERT_EQ(static_cast<uint8_t>(proxy->buf[4]), UINT8_MAX);
+    ASSERT_MEMEQ(proxy->buf + 5, proxy->target_host.data(), proxy->target_host.length());
+    uint16_t port;
+    memcpy(&port, proxy->buf + 5 + proxy->target_host.length(), sizeof(port));
+    ASSERT_EQ(ntohs(port), 80);
+
+    proxy->target_host = std::string(UINT8_MAX + 1, 'a');
+    ASSERT_EQ(proxy->pack_connect_request(), SW_ERR);
+    ASSERT_ERREQ(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
+    delete proxy;
+}
+
 TEST(protocol, swap_byte_order) {
     {
         EXPECT_EQ(swoole_swap_endian16(0x1234), 0x3412);
