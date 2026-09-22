@@ -36,3 +36,9 @@ jobs:
     if: always()
     uses: ./.github/workflows/framework.yml
     secrets: inherit
+
+  windows:
+    needs: framework
+    if: always()
+    uses: ./.github/workflows/windows.yml
+    secrets: inherit
