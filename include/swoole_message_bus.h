@@ -91,9 +91,7 @@ class MessageBus {
     }
 
     void set_allocator(const Allocator *allocator) {
-    	free_buffer();
         allocator_ = allocator;
-        alloc_buffer();
     }
 
     void set_id_generator(const std::function<uint64_t(void)> &id_generator) {
@@ -113,14 +111,15 @@ class MessageBus {
     }
 
     size_t get_memory_size() const;
-    bool alloc_buffer();
+    void alloc_buffer();
 
     /**
      * If use the zend_string_allocator, must manually call this function to release the memory,
      * otherwise coredump will occur when php shutdown, because zend_string has been released
      */
     void free_buffer() {
-        allocator_->free(buffer_);
+        Allocator **allocator = (Allocator **) buffer_ + buffer_size_;
+        (*allocator)->free(buffer_);
         buffer_ = nullptr;
     }
 

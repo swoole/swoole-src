@@ -74,9 +74,7 @@ int Server::start_reactor_processes() {
     }
 
     init_ipc_max_size();
-    if (create_pipe_buffers() < 0) {
-        return SW_ERR;
-    }
+    create_pipe_buffers();
 
     if (is_single_worker()) {
         Worker *worker = &pool->workers[0];

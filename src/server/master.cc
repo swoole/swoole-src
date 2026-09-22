@@ -1649,7 +1649,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
+                         (uint32_t) (SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -2328,9 +2328,9 @@ void Server::init_pipe_sockets(MessageBus *mb) const {
 /**
  * allocate memory for Server::pipe_buffers
  */
-int Server::create_pipe_buffers() {
+void Server::create_pipe_buffers() {
     message_bus.set_buffer_size(ipc_max_size);
-    return message_bus.alloc_buffer() ? SW_OK : SW_ERR;
+    message_bus.alloc_buffer();
 }
 
 void Server::release_pipe_buffers() {

@@ -157,13 +157,7 @@ int ProcessPool::create_message_bus() {
     ipc_max_size = SW_MIN(bufsize, SW_IPC_BUFFER_MAX_SIZE);
 #endif
     message_bus->set_buffer_size(ipc_max_size);
-    if (!message_bus->alloc_buffer()) {
-        delete message_bus;
-        message_bus = nullptr;
-        sw_mem_pool()->free((void *) message_bus_msg_id);
-        message_bus_msg_id = nullptr;
-        return SW_ERR;
-    }
+    message_bus->alloc_buffer();
     return SW_OK;
 }
 

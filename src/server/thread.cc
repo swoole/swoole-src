@@ -126,16 +126,16 @@ void ThreadFactory::create_message_bus() const {
     mb->set_id_generator(server_->msg_id_generator);
     mb->set_buffer_size(server_->ipc_max_size);
     mb->set_always_chunked_transfer();
-    if (!mb->alloc_buffer()) {
-        throw std::bad_alloc();
-    }
+    mb->alloc_buffer();
     server_->init_pipe_sockets(mb);
     SwooleTG.message_bus = mb;
 }
 
 void ThreadFactory::destroy_message_bus() {
-    SwooleTG.message_bus->clear();
-    delete SwooleTG.message_bus;
+    auto mb = SwooleTG.message_bus;
+    mb->free_buffer();
+    mb->clear();
+    delete mb;
     SwooleTG.message_bus = nullptr;
 }
 

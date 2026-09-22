@@ -43,15 +43,15 @@ PacketPtr MessageBus::get_packet() const {
     return pkt;
 }
 
-bool MessageBus::alloc_buffer() {
-    void *_ptr = allocator_->malloc(buffer_size_);
-    if (_ptr) {
-        buffer_ = (PipeBuffer *) _ptr;
-        sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
-        return true;
-    } else {
-        return false;
+void MessageBus::alloc_buffer() {
+    void *_ptr = allocator_->malloc(buffer_size_ + sizeof(void *));
+    if (_ptr == nullptr) {
+        throw std::bad_alloc();
     }
+    buffer_ = (PipeBuffer *) _ptr;
+    sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
+    const Allocator **allocator = (const Allocator **) _ptr + buffer_size_;
+    *allocator = allocator_;
 }
 
 void MessageBus::pass(const SendData *task) const {
@@ -180,7 +180,8 @@ _read_from_pipe:
     if (recv_n > 0 && remain_len > 0) {
         ssize_t n2 = recv(sock->get_fd(),
                           packet_buffer->str + packet_buffer->length,
-                          SW_MIN(buffer_size_ - sizeof(buffer_->info), remain_len), 0);
+                          SW_MIN(buffer_size_ - sizeof(buffer_->info), remain_len),
+                          0);
         if (n2 > 0) {
             recv_n += n2;
         }
