@@ -1,0 +1,38 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  core:
+    uses: ./.github/workflows/core.yml
+    secrets: inherit
+
+  compile:
+    needs: core
+    if: always()
+    uses: ./.github/workflows/ext.yml
+    secrets: inherit
+
+  unit:
+    needs: compile
+    if: always()
+    uses: ./.github/workflows/unit.yml
+    secrets: inherit
+
+  thread:
+    needs: unit
+    if: always()
+    uses: ./.github/workflows/thread.yml
+    secrets: inherit
+
+  iouring:
+    needs: thread
+    if: always()
+    uses: ./.github/workflows/iouring.yml
+    secrets: inherit
+
+  framework:
+    needs: iouring
+    if: always()
+    uses: ./.github/workflows/framework.yml
+    secrets: inherit

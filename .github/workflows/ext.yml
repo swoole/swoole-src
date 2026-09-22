@@ -1,6 +1,7 @@
 name: Compile Tests
 
-on: [ push, pull_request ]
+on:
+  workflow_call:
 
 env:
   CPPFLAGS: "-I/opt/homebrew/opt/pcre2/include/"

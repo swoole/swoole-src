@@ -1,6 +1,7 @@
 name: Linux io_uring Tests
 
-on: [push, pull_request]
+on:
+  workflow_call:
 
 jobs:
   linux:
