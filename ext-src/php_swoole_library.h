@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 6b77c9c11ca791c77fa13aad72117300071c32ca */
+/* $Id: bb1b7cb692944bca64f4893f7c360fc6ba791486 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -1873,8 +1873,9 @@ static const char* swoole_library_source_core_coroutine_server =
     "                if ($socket->errCode == SOCKET_ECANCELED) {\n"
     "                    break;\n"
     "                }\n"
+    "                $this->errCode = $socket->errCode;\n"
     "                trigger_error(\"accept failed, Error: {$socket->errMsg}[{$socket->errCode}]\", E_USER_WARNING);\n"
-    "                break;\n"
+    "                return false;\n"
     "            }\n"
     "        }\n"
     "\n"
