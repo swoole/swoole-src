@@ -8,6 +8,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php: ['8.4']
         os: [ ubuntu-24.04, ubuntu-24.04-arm ]

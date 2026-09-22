@@ -8,6 +8,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php: [ '8.4' ]
         os: [ ubuntu-24.04, ubuntu-24.04-arm ]
@@ -39,4 +40,3 @@ jobs:
           export SWOOLE_BUILD_DIR=$(realpath .)
           export PHP_VERSION=${{ matrix.php }}
           ${SWOOLE_BUILD_DIR}/scripts/route.sh
-
