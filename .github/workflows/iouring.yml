@@ -7,6 +7,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[iouring]')"
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php: [ '8.2', '8.3', '8.4', '8.5' ]
         os: [ ubuntu-24.04, ubuntu-24.04-arm ]
@@ -38,4 +39,3 @@ jobs:
           export SWOOLE_BUILD_DIR=$(realpath .)
           export PHP_VERSION=${{ matrix.php }}
           ${SWOOLE_BUILD_DIR}/scripts/route.sh
-

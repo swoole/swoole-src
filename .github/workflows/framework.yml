@@ -10,6 +10,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[framework]')"
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php-version: [ '8.2', '8.3', '8.4', '8.5' ]
         framework: [ 'Laravel Octane', 'Hyperf', 'Simps' ]
@@ -81,10 +82,12 @@ jobs:
           composer test
 
   macos:
-    if: "!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[framework]')"
+    needs: linux
+    if: "always() && (!contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[framework]'))"
     runs-on: macos-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php-version: [ '8.2', '8.3', '8.4', '8.5' ]
         framework: [ 'Simps' ]
@@ -119,4 +122,3 @@ jobs:
           cd mqtt/
           composer install -o
           composer test
-
