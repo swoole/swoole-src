@@ -346,13 +346,13 @@ static PHP_METHOD(swoole_thread, setPriority) {
 
 #ifdef _WIN32
     int winPriorities[] = {
-        THREAD_PRIORITY_IDLE,           // 0
-        THREAD_PRIORITY_LOWEST,         // 1
-        THREAD_PRIORITY_BELOW_NORMAL,   // 2
-        THREAD_PRIORITY_NORMAL,         // 3
-        THREAD_PRIORITY_ABOVE_NORMAL,   // 4
-        THREAD_PRIORITY_HIGHEST,        // 5
-        THREAD_PRIORITY_TIME_CRITICAL   // 6
+        THREAD_PRIORITY_IDLE,          // 0
+        THREAD_PRIORITY_LOWEST,        // 1
+        THREAD_PRIORITY_BELOW_NORMAL,  // 2
+        THREAD_PRIORITY_NORMAL,        // 3
+        THREAD_PRIORITY_ABOVE_NORMAL,  // 4
+        THREAD_PRIORITY_HIGHEST,       // 5
+        THREAD_PRIORITY_TIME_CRITICAL  // 6
     };
 
     int idx = priority;
@@ -395,47 +395,47 @@ static PHP_METHOD(swoole_thread, getPriority) {
 
     int combinedPriority = 0;
     switch (processClass) {
-        case REALTIME_PRIORITY_CLASS:
-            combinedPriority = 20;
-            break;
-        case HIGH_PRIORITY_CLASS:
-            combinedPriority = 10;
-            break;
-        case ABOVE_NORMAL_PRIORITY_CLASS:
-            combinedPriority = 5;
-            break;
-        case NORMAL_PRIORITY_CLASS:
-            combinedPriority = 0;
-            break;
-        case BELOW_NORMAL_PRIORITY_CLASS:
-            combinedPriority = -5;
-            break;
-        case IDLE_PRIORITY_CLASS:
-            combinedPriority = -15;
-            break;
+    case REALTIME_PRIORITY_CLASS:
+        combinedPriority = 20;
+        break;
+    case HIGH_PRIORITY_CLASS:
+        combinedPriority = 10;
+        break;
+    case ABOVE_NORMAL_PRIORITY_CLASS:
+        combinedPriority = 5;
+        break;
+    case NORMAL_PRIORITY_CLASS:
+        combinedPriority = 0;
+        break;
+    case BELOW_NORMAL_PRIORITY_CLASS:
+        combinedPriority = -5;
+        break;
+    case IDLE_PRIORITY_CLASS:
+        combinedPriority = -15;
+        break;
     }
 
     switch (threadPriority) {
-        case THREAD_PRIORITY_TIME_CRITICAL:
-            combinedPriority += 5;
-            break;
-        case THREAD_PRIORITY_HIGHEST:
-            combinedPriority += 3;
-            break;
-        case THREAD_PRIORITY_ABOVE_NORMAL:
-            combinedPriority += 1;
-            break;
-        case THREAD_PRIORITY_NORMAL:
-            break;
-        case THREAD_PRIORITY_BELOW_NORMAL:
-            combinedPriority -= 1;
-            break;
-        case THREAD_PRIORITY_LOWEST:
-            combinedPriority -= 3;
-            break;
-        case THREAD_PRIORITY_IDLE:
-            combinedPriority -= 5;
-            break;
+    case THREAD_PRIORITY_TIME_CRITICAL:
+        combinedPriority += 5;
+        break;
+    case THREAD_PRIORITY_HIGHEST:
+        combinedPriority += 3;
+        break;
+    case THREAD_PRIORITY_ABOVE_NORMAL:
+        combinedPriority += 1;
+        break;
+    case THREAD_PRIORITY_NORMAL:
+        break;
+    case THREAD_PRIORITY_BELOW_NORMAL:
+        combinedPriority -= 1;
+        break;
+    case THREAD_PRIORITY_LOWEST:
+        combinedPriority -= 3;
+        break;
+    case THREAD_PRIORITY_IDLE:
+        combinedPriority -= 5;
+        break;
     }
 
     add_assoc_long_ex(return_value, ZEND_STRL("policy"), processClass);
@@ -512,9 +512,9 @@ static void thread_register_stdio_file_handles(bool no_close) {
 
     if (no_close) {
         /**
-         * During the program shutdown phase, other extensions may still read from or write to STDIN, STDOUT, and STDERR.
-         * To ensure these three standard streams survive until the process fully terminates, the PHP_STREAM_FLAG_NO_CLOSE flag
-         * must be set to prevent them from being closed prematurely.
+         * During the program shutdown phase, other extensions may still read from or write to STDIN, STDOUT, and
+         * STDERR. To ensure these three standard streams survive until the process fully terminates, the
+         * PHP_STREAM_FLAG_NO_CLOSE flag must be set to prevent them from being closed prematurely.
          */
         s_in->flags |= PHP_STREAM_FLAG_NO_CLOSE;
         s_out->flags |= PHP_STREAM_FLAG_NO_CLOSE;
@@ -525,9 +525,13 @@ static void thread_register_stdio_file_handles(bool no_close) {
          * resulting in connection leaks. Therefore, each fd must be saved and closed manually
          * after request shutdown to avoid connection leaks.
          */
-        php_stream_cast(s_in, PHP_STREAM_AS_FD, (void **) &s_in_fd, 0);
-        php_stream_cast(s_out, PHP_STREAM_AS_FD, (void **) &s_out_fd, 0);
-        php_stream_cast(s_err, PHP_STREAM_AS_FD, (void **) &s_err_fd, 0);
+        bool casted = true;
+        casted &= (php_stream_cast(s_in, PHP_STREAM_AS_FD, (void **) &s_in_fd, 0) == SUCCESS);
+        casted &= (php_stream_cast(s_out, PHP_STREAM_AS_FD, (void **) &s_out_fd, 0) == SUCCESS);
+        casted &= (php_stream_cast(s_err, PHP_STREAM_AS_FD, (void **) &s_err_fd, 0) == SUCCESS);
+        if (sw_unlikely(!casted)) {
+            swoole_warning("failed to cast the stdio streams to fd, the file descriptors may leak");
+        }
     }
 
     php_stream_to_zval(s_in, &ic.value);
@@ -547,21 +551,22 @@ static void thread_register_stdio_file_handles(bool no_close) {
     zend_register_constant(&ec);
 }
 
+static void thread_close_stdio_fd(php_socket_t &fd) {
+    if (fd == SOCK_ERR) {
+        return;
+    }
+    sw_close_file(fd);
+    fd = SOCK_ERR;
+}
+
+/**
+ * The stdio streams are marked with PHP_STREAM_FLAG_NO_CLOSE, so their fds are not closed when the
+ * streams are destroyed during request shutdown, they must be closed manually here.
+ */
 static void thread_unregister_stdio_file_handles() {
-    if (s_in_fd != SOCK_ERR) {
-        close(s_in_fd);
-        s_in_fd = SOCK_ERR;
-    }
-
-    if (s_out_fd != SOCK_ERR) {
-        close(s_out_fd);
-        s_out_fd = SOCK_ERR;
-    }
-
-    if (s_err_fd != SOCK_ERR) {
-        close(s_err_fd);
-        s_err_fd = SOCK_ERR;
-    }
+    thread_close_stdio_fd(s_in_fd);
+    thread_close_stdio_fd(s_out_fd);
+    thread_close_stdio_fd(s_err_fd);
 }
 
 void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, ZendArray *argv) {
@@ -648,8 +653,8 @@ static swSocketFd php_swoole_thread_socket_dup(swSocketFd sockfd) {
         errno = sw_socket_errno();
         return SW_BAD_SOCKET;
     }
-    swSocketFd newfd = WSASocketW(
-        FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, &protocol_info, 0, WSA_FLAG_OVERLAPPED);
+    swSocketFd newfd =
+        WSASocketW(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, &protocol_info, 0, WSA_FLAG_OVERLAPPED);
     if (newfd == SW_BAD_SOCKET) {
         errno = sw_socket_errno();
     }
