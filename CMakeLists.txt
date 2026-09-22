@@ -139,7 +139,7 @@ endif()
 
 set(php_dir "" CACHE STRING "Set the root directory of PHP")
 
-if (DEFINED php_dir)
+if (NOT php_dir STREQUAL "")
     set(PHP_CONFIG "${php_dir}/bin/php-config")
 else ()
     set(PHP_CONFIG "php-config")

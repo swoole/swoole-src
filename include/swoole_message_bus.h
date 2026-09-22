@@ -114,12 +114,14 @@ class MessageBus {
     void alloc_buffer();
 
     /**
-     * If use the zend_string_allocator, must manually call this function to release the memory,
-     * otherwise coredump will occur when php shutdown, because zend_string has been released
+     * The buffer is the internal scratch memory of MessageBus, it is never exposed to PHP,
+     * so it does not use the allocator(set by set_allocator), must be released manually.
      */
     void free_buffer() {
-        Allocator **allocator = (Allocator **) buffer_ + buffer_size_;
-        (*allocator)->free(buffer_);
+        if (buffer_ == nullptr) {
+            return;
+        }
+        delete[] reinterpret_cast<char *>(buffer_);
         buffer_ = nullptr;
     }
 

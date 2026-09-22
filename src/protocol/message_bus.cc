@@ -44,14 +44,13 @@ PacketPtr MessageBus::get_packet() const {
 }
 
 void MessageBus::alloc_buffer() {
-    void *_ptr = allocator_->malloc(buffer_size_ + sizeof(void *));
-    if (_ptr == nullptr) {
-        throw std::bad_alloc();
+    if (buffer_ != nullptr) {
+        return;
     }
-    buffer_ = (PipeBuffer *) _ptr;
+    // The buffer is only used internally, it does not depend on the allocator set by set_allocator().
+    // The allocator is used for the strings in packet_pool_, which may be moved to PHP.
+    buffer_ = reinterpret_cast<PipeBuffer *>(new char[buffer_size_]);
     sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
-    const Allocator **allocator = (const Allocator **) _ptr + buffer_size_;
-    *allocator = allocator_;
 }
 
 void MessageBus::pass(const SendData *task) const {
