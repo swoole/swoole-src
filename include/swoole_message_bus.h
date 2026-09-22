@@ -91,7 +91,9 @@ class MessageBus {
     }
 
     void set_allocator(const Allocator *allocator) {
+    	free_buffer();
         allocator_ = allocator;
+        alloc_buffer();
     }
 
     void set_id_generator(const std::function<uint64_t(void)> &id_generator) {
