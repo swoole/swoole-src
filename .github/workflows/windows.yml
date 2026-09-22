@@ -85,6 +85,7 @@ jobs:
         shell: powershell
         run: |
           $tests = @(
+            'tests\swoole_http_server_coro\websocket_compression.phpt',
             'tests\swoole_windows\atomic_compat.phpt',
             'tests\swoole_windows\bootstrap.phpt',
             'tests\swoole_windows\iocp_cancel.phpt',
