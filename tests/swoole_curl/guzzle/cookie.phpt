@@ -24,13 +24,15 @@ run(function () {
             'some_cookie' => 'foo',
             'other_cookie' => 'barbaz1234'
         ],
-        'httpcan.org'
+        'httpbin.io'
     );
-    $r = $client->request('GET', 'http://httpcan.org/cookies', [
+    $r = $client->request('GET', 'https://httpbin.io/cookies', [
         'cookies' => $jar
     ]);
     Assert::eq($r->getStatusCode(), 200);
-    Assert::eq(json_decode($r->getBody()->getContents(), true)['cookies']['some_cookie'], 'foo');
+    $cookies = json_decode($r->getBody()->getContents(), true);
+    Assert::eq($cookies['some_cookie'], 'foo');
+    Assert::eq($cookies['other_cookie'], 'barbaz1234');
     echo 'Done' . PHP_EOL;
 });
 ?>
