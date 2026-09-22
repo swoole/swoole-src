@@ -108,6 +108,15 @@ void mask(char *data, size_t len, const char *mask_key) {
 }
 
 bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uint8_t _flags) {
+    if (sw_unlikely(is_control_frame(opcode) &&
+                    ((_flags & FLAG_FIN) == 0 || length > SW_WEBSOCKET_CONTROL_FRAME_PAYLOAD_MAX_LEN))) {
+        swoole_warning("invalid websocket control frame: opcode=%u, fin=%u, payload_length=%zu",
+                       opcode,
+                       !!(_flags & FLAG_FIN),
+                       length);
+        return false;
+    }
+
     int pos = 0;
     char frame_header[16];
     auto *header = (Header *) frame_header;
