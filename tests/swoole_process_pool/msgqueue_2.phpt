@@ -12,7 +12,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Process\Pool;
 
-const MSGQ_KEY = 0x70000001;
+const MSGQ_KEY = 0;
 
 $pool = new Pool(2, SWOOLE_IPC_MSGQUEUE, MSGQ_KEY);
 
@@ -24,6 +24,7 @@ $pool->on('workerStart', function (Pool $pool, int $workerId) {
         echo $pool->getProcess()->pop();
         $pool->shutdown();
     }
+    Swoole\Event::wait();
 });
 
 $pool->on('workerStop', function (Pool $pool, int $workerId) {
