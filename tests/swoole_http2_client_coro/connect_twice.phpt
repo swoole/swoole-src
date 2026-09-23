@@ -16,7 +16,7 @@ use function Swoole\Coroutine\run;
 use function Swoole\Coroutine\go;
 
 run(function () {
-    $domain = 'nghttp2.org';
+    $domain = 'httpbingo.org';
     $client = new Client($domain, 443, true);
     $client->set([
         'timeout' => 5,
@@ -32,8 +32,13 @@ run(function () {
             return;
         }
         $req = new Request();
+        $uuid = uniqid();
         $req->method = 'GET';
-        $req->path = '/';
+        $req->path = '/base64/' . base64_encode($uuid);
+        $req->headers = [
+            'host' => $domain,
+            'user-agent' => 'swoole-http2-client',
+        ];
         $streamId = $client->send($req);
         Assert::greaterThan(
             $streamId,
@@ -48,15 +53,20 @@ run(function () {
             "recv failed: {$client->errCode} {$client->errMsg}"
         )) {
             Assert::eq($resp->statusCode, 200);
-            Assert::contains($resp->data, $domain);
+            Assert::eq($resp->data, $uuid);
         }
         $chan->pop();
     });
-    go(function () use ($client, $chan) {
+    go(function () use ($client, $chan, $domain) {
         Assert::eq($client->connect(), false);
+        $uuid = uniqid();
         $req = new Request();
         $req->method = 'GET';
-        $req->path = '/';
+        $req->path = '/base64/' . base64_encode($uuid);
+        $req->headers = [
+            'host' => $domain,
+            'user-agent' => 'swoole-http2-client',
+        ];
         $client->send($req);
         $chan->push(true);
         Assert::eq($client->recv(), false);
