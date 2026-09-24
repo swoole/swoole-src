@@ -71,7 +71,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             Assert::assert($frame);
             $json = json_decode($frame->data);
             Assert::eq($json->count, 5);
-            Assert::eq($json->list, $conns_1);
+            Assert::eq(array_arrange($json->list), array_arrange($conns_1));
         }
     );
 
@@ -86,7 +86,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             Assert::assert($frame);
             $json = json_decode($frame->data);
             Assert::eq($json->count, 3);
-            Assert::eq($json->list, $conns_2);
+            Assert::eq(array_arrange($json->list), array_arrange($conns_2));
         }
     );
 
