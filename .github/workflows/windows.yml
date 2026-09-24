@@ -113,6 +113,63 @@ jobs:
           set NO_INTERACTION=1
           php tests\run-tests -P -q -d extension=php_swoole -d swoole.use_shortname=On --show-diff -g PASS,FAIL,BORK,LEAK,XLEAK --show-slow 1000 --set-timeout 10 tests\swoole_function tests\swoole_atomic\atomic.phpt tests\swoole_atomic\wait_and_wakeup.phpt
 
+      - name: Run Windows supported core API coverage
+        id: supported-core
+        continue-on-error: true
+        timeout-minutes: 4
+        shell: powershell
+        run: |
+          $tests = @(
+            'tests\swoole_client_coro\close_in_other_co.phpt',
+            'tests\swoole_client_coro\close_socket_property.phpt',
+            'tests\swoole_client_coro\close_twice.phpt',
+            'tests\swoole_client_coro\export_socket_before_connect.phpt',
+            'tests\swoole_client_coro\peek_invalid_length.phpt',
+            'tests\swoole_coroutine\array_walk.phpt',
+            'tests\swoole_coroutine\array_walk_deep.phpt',
+            'tests\swoole_coroutine\async_callback\event_cycle.phpt',
+            'tests\swoole_coroutine\async_callback\timer.phpt',
+            'tests\swoole_coroutine\autoload_not_found_not_in_coroutine.phpt',
+            'tests\swoole_coroutine\autoload_not_in_coroutine.phpt',
+            'tests\swoole_coroutine\bug_5699.phpt',
+            'tests\swoole_coroutine\c_stack_size.phpt',
+            'tests\swoole_coroutine\call_user_func_array.phpt',
+            'tests\swoole_coroutine\call_with_args.phpt',
+            'tests\swoole_coroutine\cancel\sleep.phpt',
+            'tests\swoole_coroutine\cancel\wait_event.phpt',
+            'tests\swoole_coroutine\current.phpt',
+            'tests\swoole_coroutine\defer\defer.phpt',
+            'tests\swoole_coroutine\empty.phpt',
+            'tests\swoole_coroutine\exit_84.phpt',
+            'tests\swoole_coroutine\exists.phpt',
+            'tests\swoole_coroutine\getContext.phpt',
+            'tests\swoole_coroutine\getElasped.phpt',
+            'tests\swoole_coroutine\getPcid.phpt',
+            'tests\swoole_coroutine\nested1.phpt',
+            'tests\swoole_coroutine\resume_loop.phpt',
+            'tests\swoole_coroutine\stats.phpt',
+            'tests\swoole_coroutine\timeout.phpt',
+            'tests\swoole_curl\error.phpt',
+            'tests\swoole_curl\multi\curl_multi_init_basic.phpt',
+            'tests\swoole_http_client_coro\invalid_port.phpt',
+            'tests\swoole_http_client_coro\max_retries_negative.phpt',
+            'tests\swoole_http_client_coro\write_func_invalid.phpt',
+            'tests\swoole_http2_client_coro\error.phpt',
+            'tests\swoole_runtime\base.phpt',
+            'tests\swoole_runtime\file_hook\fgets.phpt',
+            'tests\swoole_runtime\file_hook\fread.phpt',
+            'tests\swoole_runtime\file_hook\read.phpt',
+            'tests\swoole_runtime\get_hook_flags.phpt',
+            'tests\swoole_runtime\hook_default.phpt',
+            'tests\swoole_runtime\hook_enable_coroutine.phpt',
+            'tests\swoole_runtime\hook_set_flags.phpt',
+            'tests\swoole_runtime\out_of_coroutine.phpt',
+            'tests\swoole_runtime\set_hook_flags.phpt',
+            'tests\swoole_runtime\sleep_yield.phpt',
+            'tests\swoole_runtime\sockets\basic\socket_create_pair.phpt'
+          )
+          & .github\workflows\windows-phpt.ps1 -Path $tests -TimeoutSeconds 20
+
       - name: Run Windows channel and lock tests
         id: channel-lock
         continue-on-error: true
@@ -209,6 +266,7 @@ jobs:
             '${{ steps.iocp-curl-cancel.outcome }}',
             '${{ steps.windows-core.outcome }}',
             '${{ steps.function-atomic.outcome }}',
+            '${{ steps.supported-core.outcome }}',
             '${{ steps.channel-lock.outcome }}',
             '${{ steps.scheduler.outcome }}',
             '${{ steps.coroutine-util.outcome }}',
