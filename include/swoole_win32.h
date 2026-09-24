@@ -523,24 +523,16 @@ typedef SOCKET swSocketFd;
 int sw_socket_errno(void);
 
 // On Windows, use closesocket() for sockets
-static inline int sw_close_socket(swSocketFd fd) {
-	return ::closesocket(fd);
-}
+int sw_close_socket(swSocketFd fd);
 
 // On Windows, close() cannot be used for sockets; use closesocket() instead.
 // For file descriptors, use _close() instead of close().
 // Use sw_close_socket() for sockets (already defined above) and sw_close_file for files.
-static inline int sw_close_file(swSocketFd fd) {
-	return ::_close(fd);
-}
+int sw_close_file(int fd);
 
-static inline int sw_errno() {
-	return sw_socket_errno();
-}
+int sw_errno();
 
-static inline void sw_set_errno(int e) {
-	WSASetLastError(e);
-}
+void sw_set_errno(int error);
 
 // AF_UNIX support: Windows 10 1803+ supports AF_UNIX
 // For older Windows, this will fail at runtime
@@ -870,9 +862,6 @@ int sw_nanosleep(const struct timespec *req, struct timespec *rem);
 // strptime() replacement
 char *sw_strptime(const char *buf, const char *fmt, struct tm *tm);
 
-// waitpid() replacement
-int sw_waitpid(pid_t pid, int *status, int options);
-
 SW_EXTERN_C_END
 
 // ============================================================================
@@ -903,27 +892,7 @@ SW_EXTERN_C_END
 // strptime -> sw_strptime (implemented in src/os/win32.cc)
 #define strptime sw_strptime
 
-static inline const char *sw_win32_strerror(DWORD error) {
-    static char buf[256];
-    buf[0] = '\0';
-
-    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                   NULL,
-                   error,
-                   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
-                   buf,
-                   sizeof(buf),
-                   NULL);
-    char *p = buf;
-    while (*p) {
-        if (*p == '\r' || *p == '\n') {
-            *p = '\0';
-            break;
-        }
-        p++;
-    }
-    return buf;
-}
+const char *sw_win32_strerror(DWORD error);
 
 // ============================================================================
 // pthread compatibility (minimal stubs for header compilation)

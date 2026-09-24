@@ -16,19 +16,12 @@
 
 #include "swoole.h"
 
-#if !defined(HAVE_FUTEX)
-#include <algorithm>
-#endif
-
 #if !defined(HAVE_FUTEX) && !defined(_WIN32)
 #include "swoole_memory.h"
-#elif defined(_WIN32)
-#include <mutex>
-#include <unordered_map>
+#include <algorithm>
+#include <chrono>
 #endif
 
-#include <chrono>
-#include <cmath>
 #include <thread>
 
 void sw_spinlock(sw_atomic_t *lock) {
@@ -85,146 +78,7 @@ int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {
         return 0;
     }
 }
-#elif defined(_WIN32)
-using AtomicWaitClock = std::chrono::steady_clock;
-
-struct WindowsAtomicWaitEntry {
-    uint32_t waiters = 0;
-    uint32_t generation = 0;
-    uint32_t notifications = 0;
-};
-
-static std::mutex windows_atomic_wait_mutex;
-static std::unordered_map<uintptr_t, WindowsAtomicWaitEntry> windows_atomic_wait_entries;
-
-static void windows_atomic_waiter_remove(
-    std::unordered_map<uintptr_t, WindowsAtomicWaitEntry>::iterator entry_iterator) {
-    WindowsAtomicWaitEntry &entry = entry_iterator->second;
-    entry.waiters--;
-    if (entry.waiters == 0) {
-        windows_atomic_wait_entries.erase(entry_iterator);
-    }
-}
-
-static DWORD atomic_wait_timeout_msec(bool finite, const AtomicWaitClock::time_point &deadline) {
-    if (!finite) {
-        return INFINITE;
-    }
-
-    double remaining = std::chrono::duration<double, std::milli>(deadline - AtomicWaitClock::now()).count();
-    if (remaining <= 0) {
-        return 0;
-    }
-    if (remaining >= static_cast<double>(INFINITE - 1)) {
-        return INFINITE - 1;
-    }
-    return static_cast<DWORD>(std::ceil(remaining));
-}
-
-int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
-    if (sw_atomic_cmp_set(atomic, 1, 0)) {
-        return 0;
-    }
-
-    const bool finite = timeout > 0;
-    const auto deadline = finite ? AtomicWaitClock::now() + std::chrono::duration_cast<AtomicWaitClock::duration>(
-                                                                std::chrono::duration<double>(timeout))
-                                 : AtomicWaitClock::time_point::max();
-    uint32_t expected = 0;
-    const uintptr_t address = reinterpret_cast<uintptr_t>(atomic);
-    uint32_t generation;
-
-    {
-        std::lock_guard<std::mutex> lock(windows_atomic_wait_mutex);
-        // Close the race between the initial acquire and registering this
-        // waiter. Only zero is a waitable state, matching FUTEX_WAIT.
-        if (sw_atomic_cmp_set(atomic, 1, 0)) {
-            return 0;
-        }
-        if (sw_atomic_load(atomic) != 0) {
-            return sw_atomic_cmp_set(atomic, 1, 0) ? 0 : -1;
-        }
-        WindowsAtomicWaitEntry &entry = windows_atomic_wait_entries[address];
-        generation = entry.generation;
-        entry.waiters++;
-    }
-
-    while (true) {
-        DWORD timeout_msec = atomic_wait_timeout_msec(finite, deadline);
-        BOOL awakened = FALSE;
-        DWORD error = SW_WIN32_ERROR_TIMEOUT;
-        if (!finite || timeout_msec != 0) {
-            awakened = WaitOnAddress(atomic, &expected, sizeof(expected), timeout_msec);
-            if (!awakened) {
-                error = GetLastError();
-            }
-        }
-
-        std::lock_guard<std::mutex> lock(windows_atomic_wait_mutex);
-        auto entry_iterator = windows_atomic_wait_entries.find(address);
-        WindowsAtomicWaitEntry &entry = entry_iterator->second;
-
-        if (entry.generation != generation) {
-            generation = entry.generation;
-            if (entry.notifications > 0) {
-                entry.notifications--;
-                windows_atomic_waiter_remove(entry_iterator);
-                return sw_atomic_cmp_set(atomic, 1, 0) ? 0 : -1;
-            }
-        }
-
-        if (!awakened && error != SW_WIN32_ERROR_TIMEOUT) {
-            windows_atomic_waiter_remove(entry_iterator);
-            swoole_set_last_error(error);
-            return -1;
-        }
-
-        if (finite && AtomicWaitClock::now() >= deadline) {
-            windows_atomic_waiter_remove(entry_iterator);
-            swoole_set_last_error(ETIMEDOUT);
-            return -1;
-        }
-
-        // WaitOnAddress may return early. Keep waiting unless wakeup() has
-        // assigned this waiter a notification. A nonzero value other than one
-        // is not waitable and must fail immediately, as FUTEX_WAIT does.
-        if (sw_atomic_load(atomic) != 0) {
-            windows_atomic_waiter_remove(entry_iterator);
-            return sw_atomic_cmp_set(atomic, 1, 0) ? 0 : -1;
-        }
-    }
-}
-
-int sw_atomic_futex_wakeup(sw_atomic_t *atomic, int n) {
-    if (n < 1) {
-        swoole_set_last_error(EINVAL);
-        return -1;
-    }
-    uint32_t notified = 0;
-    {
-        std::lock_guard<std::mutex> lock(windows_atomic_wait_mutex);
-        if (!sw_atomic_cmp_set(atomic, 0, 1)) {
-            return 0;
-        }
-
-        auto entry_iterator = windows_atomic_wait_entries.find(reinterpret_cast<uintptr_t>(atomic));
-        if (entry_iterator != windows_atomic_wait_entries.end()) {
-            WindowsAtomicWaitEntry &entry = entry_iterator->second;
-            const uint32_t available = entry.waiters > entry.notifications ? entry.waiters - entry.notifications : 0;
-            notified = std::min<uint32_t>(n, available);
-            if (notified > 0) {
-                entry.notifications += notified;
-                entry.generation++;
-            }
-        }
-    }
-
-    for (uint32_t i = 0; i < notified; i++) {
-        WakeByAddressSingle(const_cast<uint32_t *>(atomic));
-    }
-    return notified;
-}
-#else
+#elif !defined(_WIN32)
 using AtomicWaitClock = std::chrono::steady_clock;
 
 constexpr size_t SW_ATOMIC_WAIT_ENTRY_COUNT = 1024;
