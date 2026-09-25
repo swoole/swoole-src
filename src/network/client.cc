@@ -258,7 +258,7 @@ int Client::ssl_handshake() const {
     }
     if (!ssl_context->ready()) {
         ssl_context->http_v2 = http2;
-        if (!ssl_context->create()) {
+        if (!ssl_context->create(SW_SSL_CLIENT)) {
             return SW_ERR;
         }
     }

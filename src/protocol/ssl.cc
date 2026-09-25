@@ -186,9 +186,14 @@ static int ssl_passwd_callback(char *buf, int num, int verify, void *data) {
     return 0;
 }
 
-bool SSLContext::create() {
+bool SSLContext::create(int flags) {
     if (!openssl_init) {
         swoole_ssl_init();
+    }
+    if ((flags & SW_SSL_SERVER) && verify_peer && !allow_self_signed && cafile.empty() && capath.empty() &&
+        client_cert_file.empty()) {
+        swoole_warning("server SSL peer verification requires ssl_client_cert_file, ssl_cafile, or ssl_capath");
+        return false;
     }
 
     const SSL_METHOD *method;
@@ -351,11 +356,15 @@ bool SSLContext::create() {
     }
 #endif
 
-    auto rs = set_capath();
-    if (verify_peer) {
-        if (!rs) {
-            return false;
-        }
+    auto rs = set_capath(flags);
+    if (verify_peer && !rs) {
+        return false;
+    }
+
+    // client_cert_file also requests a certificate for optional capture when verification is disabled.
+    const bool verify_client = (flags & SW_SSL_SERVER) && (verify_peer || !client_cert_file.empty());
+    if (verify_client) {
+        SSL_CTX_set_verify(context, SSL_VERIFY_PEER, swoole_ssl_verify_callback);
     } else {
         SSL_CTX_set_verify(context, SSL_VERIFY_NONE, nullptr);
     }
@@ -385,7 +394,7 @@ bool SSLContext::create() {
     SSL_CTX_set_grease_enabled(context, grease);
 #endif
 
-    if (!client_cert_file.empty() && !set_client_certificate()) {
+    if ((flags & SW_SSL_SERVER) && !client_cert_file.empty() && !set_client_certificate()) {
         return false;
     }
 
@@ -397,14 +406,14 @@ bool SSLContext::create() {
     return true;
 }
 
-bool SSLContext::set_capath() const {
+bool SSLContext::set_capath(int flags) const {
     if (!cafile.empty() || !capath.empty()) {
         const char *_cafile = cafile.empty() ? nullptr : cafile.c_str();
         const char *_capath = capath.empty() ? nullptr : capath.c_str();
         if (!SSL_CTX_load_verify_locations(context, _cafile, _capath)) {
             return false;
         }
-    } else {
+    } else if (!(flags & SW_SSL_SERVER)) {
         if (!SSL_CTX_set_default_verify_paths(context)) {
             ssl_error("SSL_CTX_set_default_verify_paths() failed");
             return false;
@@ -450,10 +459,6 @@ bool SSLContext::set_ciphers() const {
 
 bool SSLContext::set_client_certificate() const {
     const char *_cert_file = client_cert_file.c_str();
-    int depth = verify_depth;
-
-    SSL_CTX_set_verify(context, SSL_VERIFY_PEER, swoole_ssl_verify_callback);
-    SSL_CTX_set_verify_depth(context, depth);
 
     if (SSL_CTX_load_verify_locations(context, _cert_file, nullptr) == 0) {
         ssl_error("SSL_CTX_load_verify_locations(\"%s\") failed", _cert_file);

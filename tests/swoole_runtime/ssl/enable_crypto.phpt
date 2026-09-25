@@ -19,7 +19,7 @@ go(function () use ($ready) {
     stream_context_set_option($context, 'ssl', 'verify_peer', true);
     stream_context_set_option($context, 'ssl', 'local_cert', SSL_FILE_DIR.'/server.crt');
     stream_context_set_option($context, 'ssl', 'local_pk', SSL_FILE_DIR.'/server.key');
-    stream_context_set_option($context, 'ssl', 'cafile', SSL_FILE_DIR.'/ca.crt');
+    stream_context_set_option($context, 'ssl', 'cafile', SSL_FILE_DIR.'/ca-cert.pem');
 
     $socket = stream_socket_server("ssl://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
     if (!$socket) {
@@ -43,8 +43,8 @@ go(function () use ($ready) {
         echo "$errstr ($errno)<br />\n";
     } else {
         stream_context_set_option($fp, ["ssl" => [
-            "local_cert" => SSL_FILE_DIR . '/client.crt',
-            "local_pk" => SSL_FILE_DIR . '/client.key',
+            "local_cert" => SSL_FILE_DIR . '/client-cert.pem',
+            "local_pk" => SSL_FILE_DIR . '/client-key.pem',
         ]]);
         // Enable SSL encryption after the connection is established
         Assert::assert(stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT));

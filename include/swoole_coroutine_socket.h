@@ -167,6 +167,10 @@ class Socket {
         return ssl_context->set_cert_file(file);
     }
 
+    bool set_ssl_client_cert_file(const std::string &file) const {
+        return ssl_context->set_client_cert_file(file);
+    }
+
     void set_ssl_cafile(const std::string &file) const {
         ssl_context->cafile = file;
     }

@@ -1,5 +1,5 @@
 --TEST--
-swoole_server/ssl: server verify client failed
+swoole_server/ssl: server rejects client without certificate
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -44,3 +44,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
+[%s]	NOTICE	ReactorThread_verify_ssl_state() (ERRNO %d): peer certificate from fd#%d is required
