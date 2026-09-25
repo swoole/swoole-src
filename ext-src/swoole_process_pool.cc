@@ -580,17 +580,23 @@ static PHP_METHOD(swoole_process_pool, start) {
     }
 
     ProcessPoolObject *pp = process_pool_fetch_object(ZEND_THIS);
-    std::unordered_map<int, swSignalHandler> ori_handlers;
+    std::unordered_map<int, struct sigaction> ori_handlers;
 
     // The reactor must be cleaned up before registering signal
     swoole_event_free();
-    ori_handlers[SIGTERM] = swoole_signal_set(SIGTERM, process_pool_signal_handler);
-    ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, process_pool_signal_handler);
-    ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, process_pool_signal_handler);
-    ori_handlers[SIGIO] = swoole_signal_set(SIGIO, process_pool_signal_handler);
-    ori_handlers[SIGWINCH] = swoole_signal_set(SIGWINCH, process_pool_signal_handler);
+    sigaction(SIGTERM, nullptr, &ori_handlers[SIGTERM]);
+    swoole_signal_set(SIGTERM, process_pool_signal_handler);
+    sigaction(SIGUSR1, nullptr, &ori_handlers[SIGUSR1]);
+    swoole_signal_set(SIGUSR1, process_pool_signal_handler);
+    sigaction(SIGUSR2, nullptr, &ori_handlers[SIGUSR2]);
+    swoole_signal_set(SIGUSR2, process_pool_signal_handler);
+    sigaction(SIGIO, nullptr, &ori_handlers[SIGIO]);
+    swoole_signal_set(SIGIO, process_pool_signal_handler);
+    sigaction(SIGWINCH, nullptr, &ori_handlers[SIGWINCH]);
+    swoole_signal_set(SIGWINCH, process_pool_signal_handler);
 #ifdef SIGRTMIN
-    ori_handlers[SIGRTMIN] = swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
+    sigaction(SIGRTMIN, nullptr, &ori_handlers[SIGRTMIN]);
+    swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
 #endif
 
     if (pp->enable_message_bus) {
@@ -645,7 +651,8 @@ static PHP_METHOD(swoole_process_pool, start) {
     current_pool = nullptr;
 
     for (auto &ori_handler : ori_handlers) {
-        swoole_signal_set(ori_handler.first, ori_handler.second);
+        swoole_signal_set(ori_handler.first, reinterpret_cast<swSignalHandler>(-1), 0, 0);
+        sigaction(ori_handler.first, &ori_handler.second, nullptr);
     }
 }
 
