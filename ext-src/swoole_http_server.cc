@@ -347,11 +347,11 @@ void HttpContext::free() {
 
 bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     auto *serv = ctx->get_async_server();
-    bool retval = serv->send(ctx->fd, data, length);
+    bool retval = serv->send(ctx->fd, data, length, ctx->send_ext_flags);
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         zval yield_data, return_value;
         ZVAL_STRINGL(&yield_data, data, length);
-        php_swoole_server_send_yield(serv, ctx->fd, &yield_data, &return_value);
+        php_swoole_server_send_yield(serv, ctx->fd, &yield_data, &return_value, ctx->send_ext_flags);
         zval_ptr_dtor(&yield_data);
         return Z_BVAL_P(&return_value);
     }
