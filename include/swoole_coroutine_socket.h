@@ -326,7 +326,8 @@ class Socket {
     void set_err(const int e, const char *s) {
         errCode = errno = e;
         swoole_set_last_error(errCode);
-        errMsg = s;
+        errString = s;
+        errMsg = errString.c_str();
     }
 
     void set_err(const int e, const std::string &s) {
