@@ -90,6 +90,13 @@ class Session;
 }  // namespace http2
 
 namespace http {
+struct RequestParserState {
+    size_t url_length;
+    size_t header_name_offset;
+    size_t header_name_length;
+    size_t header_value_length;
+};
+
 struct Request {
     int version;
     char *path;
@@ -103,6 +110,7 @@ struct Request {
     size_t body_length;
     String *chunked_body;
     String *h2_data_buffer;
+    RequestParserState *parser_state;
 
     // Notice: Do not change the order
     zval *zobject;
