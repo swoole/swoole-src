@@ -376,6 +376,12 @@ static PHP_METHOD(swoole_process_pool, __construct) {
         RETURN_FALSE;
     }
 
+    auto pp = process_pool_fetch_object(ZEND_THIS);
+    if (pp->pool) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
+
     if (worker_num <= 0) {
         zend_throw_exception_ex(swoole_exception_ce, errno, "the parameter $worker_num must be greater than 0");
         RETURN_FALSE;
@@ -398,7 +404,6 @@ static PHP_METHOD(swoole_process_pool, __construct) {
     pool->ptr = sw_zval_dup(zobject);
     pool->async = enable_coroutine;
 
-    auto pp = process_pool_fetch_object(ZEND_THIS);
     pp->enable_coroutine = enable_coroutine;
     pp->pool = pool;
 }
