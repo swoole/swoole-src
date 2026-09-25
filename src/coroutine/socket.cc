@@ -1086,13 +1086,7 @@ bool Socket::listen(int backlog) {
     return true;
 }
 
-Socket *Socket::accept(double timeout) {
-    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
-        return nullptr;
-    }
-    if (ssl_is_enable() && sw_unlikely(ssl_context->context == nullptr) && !ssl_context_create()) {
-        return nullptr;
-    }
+network::Socket *Socket::accept_raw(double timeout) {
     network::Socket *conn = socket->accept();
     if (conn == nullptr && errno == EAGAIN) {
         TimerController timer(&read_timer, timeout == 0 ? socket->read_timeout : timeout, this, timer_callback);
@@ -1103,6 +1097,20 @@ Socket *Socket::accept(double timeout) {
     }
     if (conn == nullptr) {
         set_err(errno);
+        return nullptr;
+    }
+    return conn;
+}
+
+Socket *Socket::accept(double timeout) {
+    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+        return nullptr;
+    }
+    if (ssl_is_enable() && sw_unlikely(ssl_context->context == nullptr) && !ssl_context_create()) {
+        return nullptr;
+    }
+    network::Socket *conn = accept_raw(timeout);
+    if (conn == nullptr) {
         return nullptr;
     }
 

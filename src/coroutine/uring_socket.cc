@@ -29,6 +29,11 @@ typedef swoole::network::Socket NetSocket;
 namespace swoole {
 namespace coroutine {
 bool UringSocket::connect(const sockaddr *addr, socklen_t addrlen) {
+    // When io_uring is unusable at runtime (e.g., blocked by seccomp), all UringSocket operations delegate
+    // to the base class, which implements the same semantics on top of the reactor (epoll) event loop.
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::connect(addr, addrlen);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
@@ -55,13 +60,21 @@ UringSocket *UringSocket::accept(double timeout) {
         return nullptr;
     }
 
-    read_co = Coroutine::get_current_safe();
-    network::Socket *conn = uring_accept(timeout == 0 ? socket->read_timeout : timeout);
-    read_co = nullptr;
+    network::Socket *conn;
+    if (sw_unlikely(!Iouring::available())) {
+        conn = accept_raw(timeout);
+        if (conn == nullptr) {
+            return nullptr;
+        }
+    } else {
+        read_co = Coroutine::get_current_safe();
+        conn = uring_accept(timeout == 0 ? socket->read_timeout : timeout);
+        read_co = nullptr;
 
-    if (conn == nullptr) {
-        set_err(errno);
-        return nullptr;
+        if (conn == nullptr) {
+            set_err(errno);
+            return nullptr;
+        }
     }
 
     auto *client_sock = new UringSocket(conn, this);
@@ -76,6 +89,9 @@ UringSocket *UringSocket::accept(double timeout) {
 }
 
 bool UringSocket::cancel(EventType event) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::cancel(event);
+    }
     Coroutine *co = get_bound_co(event);
     if (!co) {
         return false;
@@ -130,6 +146,9 @@ ssize_t UringSocket::uring_sendfile(const File &file, off_t *offset, size_t size
 }
 
 ssize_t UringSocket::read(void *_buf, size_t _n) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::read(_buf, _n);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
@@ -141,6 +160,9 @@ ssize_t UringSocket::read(void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::write(const void *_buf, size_t _n) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::write(_buf, _n);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
@@ -152,6 +174,9 @@ ssize_t UringSocket::write(const void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::recvmsg(msghdr *msg, int flags) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::recvmsg(msg, flags);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
@@ -163,6 +188,9 @@ ssize_t UringSocket::recvmsg(msghdr *msg, int flags) {
 }
 
 ssize_t UringSocket::sendmsg(const msghdr *msg, int flags) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::sendmsg(msg, flags);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
@@ -174,6 +202,9 @@ ssize_t UringSocket::sendmsg(const msghdr *msg, int flags) {
 }
 
 ssize_t UringSocket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::recvfrom(_buf, _n, _addr, _socklen);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
@@ -185,6 +216,9 @@ ssize_t UringSocket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t 
 }
 
 ssize_t UringSocket::sendto(const std::string &host, int port, const void *_buf, size_t _n) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::sendto(host, port, _buf, _n);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
@@ -224,6 +258,9 @@ ssize_t UringSocket::sendto(const std::string &host, int port, const void *_buf,
 }
 
 ssize_t UringSocket::recv(void *_buf, size_t _n) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::recv(_buf, _n);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
@@ -242,6 +279,9 @@ ssize_t UringSocket::recv(void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::send(const void *_buf, size_t _n) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::send(_buf, _n);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
@@ -260,6 +300,9 @@ ssize_t UringSocket::send(const void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::recv_all(void *_buf, size_t _n) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::recv_all(_buf, _n);
+    }
     ssize_t retval = 0;
     size_t total_bytes = 0;
 
@@ -276,6 +319,9 @@ ssize_t UringSocket::recv_all(void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::send_all(const void *_buf, size_t _n) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::send_all(_buf, _n);
+    }
     ssize_t retval = 0;
     size_t total_bytes = 0;
 
@@ -292,6 +338,9 @@ ssize_t UringSocket::send_all(const void *_buf, size_t _n) {
 }
 
 bool UringSocket::poll(EventType _type, double timeout) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::poll(_type, timeout);
+    }
     if (sw_unlikely(!is_available(_type))) {
         return false;
     }
@@ -310,6 +359,9 @@ bool UringSocket::poll(EventType _type, double timeout) {
 }
 
 bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::sendfile(filename, offset, length);
+    }
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return false;
     }
@@ -346,6 +398,9 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
 }
 
 ssize_t UringSocket::readv(network::IOVector *io_vector) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::readv(io_vector);
+    }
     ssize_t retval;
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
@@ -367,6 +422,9 @@ ssize_t UringSocket::readv(network::IOVector *io_vector) {
 }
 
 ssize_t UringSocket::writev(network::IOVector *io_vector) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::writev(io_vector);
+    }
     ssize_t retval;
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
@@ -388,6 +446,9 @@ ssize_t UringSocket::writev(network::IOVector *io_vector) {
 }
 
 ssize_t UringSocket::readv_all(network::IOVector *io_vector) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::readv_all(io_vector);
+    }
     ssize_t retval = 0;
     size_t total_bytes = 0;
 
@@ -404,6 +465,9 @@ ssize_t UringSocket::readv_all(network::IOVector *io_vector) {
 }
 
 ssize_t UringSocket::writev_all(network::IOVector *io_vector) {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::writev_all(io_vector);
+    }
     ssize_t retval = 0;
     size_t total_bytes = 0;
 
@@ -534,6 +598,9 @@ bool UringSocket::ssl_bio_perform(int rc, const char *fn) {
 }
 
 bool UringSocket::ssl_handshake() {
+    if (sw_unlikely(!Iouring::available())) {
+        return Socket::ssl_handshake();
+    }
     if (ssl_handshaked) {
         set_err(SW_ERROR_WRONG_OPERATION);
         return false;
