@@ -450,8 +450,8 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
 
 static void socket_free_defer(void *ptr) {
     auto *sock = static_cast<Socket *>(ptr);
-    if (sock->is_local() && sock->bound) {
-        ::unlink(sock->get_addr());
+    if (!sock->bind_path.empty()) {
+        ::unlink(sock->bind_path.c_str());
     }
     if (sock->fd != -1 && close(sock->fd) != 0) {
         swoole_sys_warning("close(%d) failed", sock->fd);
@@ -523,7 +523,11 @@ int Socket::bind(const struct sockaddr *sa, socklen_t len) {
     if (::bind(fd, sa, len) < 0) {
         return SW_ERR;
     }
-    bound = 1;
+    if (is_local() && sa->sa_family == AF_UNIX) {
+        auto *un = reinterpret_cast<const sockaddr_un *>(sa);
+        size_t path_max = len > offsetof(sockaddr_un, sun_path) ? len - offsetof(sockaddr_un, sun_path) : 0;
+        bind_path.assign(un->sun_path, strnlen(un->sun_path, SW_MIN(path_max, sizeof(un->sun_path))));
+    }
     return SW_OK;
 }
 

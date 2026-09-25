@@ -204,7 +204,6 @@ struct Socket {
     uchar nonblock : 1;
     uchar cloexec : 1;
     uchar direct_send : 1;
-    uchar bound : 1;
     uchar listened : 1;
 #ifdef SW_USE_OPENSSL
     uchar ssl_send_ : 1;
@@ -245,9 +244,11 @@ struct Socket {
 #endif
 
     /**
-     * Only used for getsockname, written by the OS, not user. This is the exact actual address.
+     * The local address written by get_name(), or the peer address written by accept() or recvfrom().
+     * Local UNIX sockets keep their cleanup path separately in bind_path.
      */
     Address info;
+    std::string bind_path;
     double dns_timeout = default_dns_timeout;
     double connect_timeout = default_connect_timeout;
     double read_timeout = default_read_timeout;
