@@ -535,11 +535,9 @@ static PHP_METHOD(swoole_server_port, set) {
             ZEND_HASH_FOREACH_END();
         }
 
-        if (!port->get_ssl_cert_file().empty() || !port->has_sni_contexts()) {
-            if (!port->ssl_init()) {
-                php_swoole_fatal_error(E_ERROR, "ssl_init() failed");
-                RETURN_FALSE;
-            }
+        if (!port->ssl_init()) {
+            php_swoole_fatal_error(E_ERROR, "ssl_init() failed");
+            RETURN_FALSE;
         }
     }
 #endif
