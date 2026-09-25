@@ -135,10 +135,11 @@ class Client {
         return true;
     }
 
-    void apply_setting(const zval *zset) const {
+    bool apply_setting(const zval *zset) const {
         if (socket_ && ZVAL_IS_ARRAY(zset)) {
-            php_swoole_socket_set(socket_, zset);
+            return php_swoole_socket_set(socket_, zset);
         }
+        return true;
     }
 
     bool recv_packet(double _timeout) const {
@@ -438,8 +439,12 @@ bool Client::connect() {
     socket_->protocol.package_body_offset = 0;
     socket_->protocol.get_package_length = Http2::get_frame_length;
 
-    apply_setting(
-        sw_zend_read_property_ex(swoole_http2_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0));
+    if (!apply_setting(
+            sw_zend_read_property_ex(swoole_http2_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0))) {
+        update_error_properties(SW_ERROR_INVALID_PARAMS, swoole_strerror(SW_ERROR_INVALID_PARAMS));
+        close();
+        return false;
+    }
 
     if (!socket_->connect(host, port)) {
         io_error();
@@ -841,9 +846,7 @@ static PHP_METHOD(swoole_http2_client_coro, set) {
         sw_zend_read_and_convert_property_array(swoole_http2_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
 
-    h2c->apply_setting(zset);
-
-    RETURN_TRUE;
+    RETURN_BOOL(h2c->apply_setting(zset));
 }
 
 /**
