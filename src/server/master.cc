@@ -767,6 +767,7 @@ Server::~Server() {
     for (auto port : ports) {
         delete port;
     }
+    sw_free(cpu_affinity_available);
     sw_shm_free(gs);
 }
 
