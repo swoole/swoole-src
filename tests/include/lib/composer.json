@@ -14,9 +14,9 @@
     }
   },
   "require": {
-    "guzzlehttp/guzzle": "^7.8",
-    "guzzlehttp/promises": "^2.0",
-    "guzzlehttp/psr7": "^2.6",
+    "guzzlehttp/guzzle": "^7.13",
+    "guzzlehttp/promises": "^2.5",
+    "guzzlehttp/psr7": "^2.11",
     "php-http/async-client-implementation": "^1.0",
     "php-http/client-common": "^1.5|^2.0",
     "php-http/discovery": "^1.6.1",

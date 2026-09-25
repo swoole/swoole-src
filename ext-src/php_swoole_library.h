@@ -11929,7 +11929,7 @@ static const char* swoole_library_source_functions =
     "    $print_log(\"remote object server pid: {$status['pid']}\");\n"
     "\n"
     "    if (Swoole\\Coroutine::getCid() > 0) {\n"
-    "        $exitStatus = Swoole\\Coroutine\\System::waitpid($status['pid']);\n"
+    "        $exitStatus = Swoole\\Coroutine\\System::waitPid($status['pid']);\n"
     "    } else {\n"
     "        pcntl_waitpid($status['pid'], $status);\n"
     "        $exitStatus['code'] = $status;\n"

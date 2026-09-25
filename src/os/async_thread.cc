@@ -173,6 +173,8 @@ class ThreadPool {
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = microtime();
         _event_copy->pipe_socket = SwooleTG.async_threads->write_socket;
+        // Schedule after the push so the queued task is counted; a task that arrives while every
+        // worker is blocked would otherwise never trigger pool growth.
         queue_.push(_event_copy);
         schedule();
         lock.unlock();
