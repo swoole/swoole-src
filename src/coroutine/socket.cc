@@ -271,31 +271,52 @@ bool Socket::http_proxy_handshake() {
         return false;
     }
 
-    String *recv_buffer = get_read_buffer();
-    ON_SCOPE_EXIT {
-        recv_buffer->clear();
-    };
-
-    ProtocolSwitch ps(this);
-    open_eof_check = true;
-    open_length_check = false;
-    protocol.package_eof_len = sizeof("\r\n\r\n") - 1;
-    memcpy(protocol.package_eof, SW_STRS("\r\n\r\n"));
-
-    if (recv_packet() <= 0) {
+    String recv_buffer(SW_BUFFER_SIZE_BIG);
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
+    if (!timer.start()) {
         return false;
     }
+    while (recv_buffer.length < recv_buffer.size) {
+        ssize_t n_peek = socket->peek(recv_buffer.str + recv_buffer.length, recv_buffer.size - recv_buffer.length, 0);
+        if (n_peek < 0) {
+            if (socket->catch_read_error(errno) == SW_WAIT) {
+                if (poll(SW_EVENT_READ)) {
+                    continue;
+                }
+            }
+            return false;
+        }
+        if (n_peek == 0) {
+            set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, "connection closed before the HTTP proxy response was complete");
+            return false;
+        }
 
-    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", (int) n, recv_buffer->str);
+        size_t response_length = 0;
+        // Parse the consumed prefix with the queued bytes. Incomplete fragments are consumed so the next peek
+        // advances, while bytes after a complete proxy header remain queued.
+        recv_buffer.length += n_peek;
+        auto status = HttpProxy::parse_response(recv_buffer.str, recv_buffer.length, &response_length);
+        recv_buffer.length -= n_peek;
+        if (status == SW_HTTP_PROXY_RESPONSE_ERROR) {
+            set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, "invalid HTTP proxy response");
+            return false;
+        }
 
-    if (!http_proxy->handshake(recv_buffer)) {
-        set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE,
-                std::string("wrong http_proxy response received, \n[Request]: ") + send_buffer->to_std_string() +
-                    "\n[Response]: " + send_buffer->to_std_string());
-        return false;
+        size_t consume_length = status == SW_HTTP_PROXY_RESPONSE_READY ? response_length - recv_buffer.length : n_peek;
+        ssize_t n_read = recv_all(recv_buffer.str + recv_buffer.length, consume_length);
+        if (n_read != (ssize_t) consume_length) {
+            return false;
+        }
+        recv_buffer.length += n_read;
+        if (status == SW_HTTP_PROXY_RESPONSE_READY) {
+            swoole_trace_log(
+                SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", (int) recv_buffer.length, recv_buffer.str);
+            return true;
+        }
     }
 
-    return true;
+    set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, "HTTP proxy response header is too large");
+    return false;
 }
 
 void Socket::init_sock_type(SocketType _type) {
@@ -664,7 +685,9 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     }
     // http proxy
     if (http_proxy && !http_proxy->dont_handshake && !http_proxy_handshake()) {
-        set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
+        if (errCode != SW_ERROR_HTTP_PROXY_BAD_RESPONSE) {
+            set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
+        }
         return false;
     }
 #ifdef SW_USE_OPENSSL
