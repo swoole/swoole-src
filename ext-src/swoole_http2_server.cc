@@ -508,7 +508,7 @@ bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const ch
     return rv;
 }
 
-bool Http2Stream::send_header(const String *body, bool end_stream) const {
+bool Http2Stream::send_header(const String *body, bool end_stream, bool is_head) const {
     char header_buffer[SW_BUFFER_SIZE_STD];
     ssize_t bytes = http2_server_build_header(ctx, (uchar *) header_buffer, body);
     if (bytes < 0) {
@@ -533,7 +533,9 @@ bool Http2Stream::send_header(const String *body, bool end_stream) const {
      */
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
 
-    if (end_stream && (!body || body->length == 0)) {
+    // A HEAD response must not include content: end the stream on the HEADERS frame, no DATA.
+    // See: https://www.rfc-editor.org/rfc/rfc9110#section-9.3.2
+    if (end_stream && (is_head || !body || body->length == 0)) {
         http2::set_frame_header(
             frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
         ctx->end_ = 1;
@@ -695,9 +697,18 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
         ztrailer = nullptr;
     }
 
-    bool end_stream = (ztrailer == nullptr);
+    // A HEAD response carries GET's header fields but no content; suppress the body below.
+    bool is_head = false;
+    zval *zrequest_method = zend_hash_str_find(Z_ARR_P(ctx->request.zserver), ZEND_STRL("request_method"));
+    if (zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING &&
+        SW_STRCASEEQ(Z_STRVAL_P(zrequest_method), Z_STRLEN_P(zrequest_method), "HEAD")) {
+        is_head = true;
+    }
 
-    if (!ctx->send_header_ && !stream->send_header(body, end_stream)) {
+    // HEAD ends the stream on the HEADERS frame even when a trailer was set; there is no content for it to follow.
+    bool end_stream = (ztrailer == nullptr) || is_head;
+
+    if (!ctx->send_header_ && !stream->send_header(body, end_stream, is_head)) {
         return false;
     }
 
@@ -713,7 +724,9 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
 #endif
 
     SW_LOOP {
-        if (ctx->send_chunked && body->length == 0 && !stream->send_end_stream_data_frame()) {
+        if (is_head) {
+            // HEAD: no body
+        } else if (ctx->send_chunked && body->length == 0 && !stream->send_end_stream_data_frame()) {
             break;
         } else if (!stream->send_body(body, end_stream, client)) {
             break;
