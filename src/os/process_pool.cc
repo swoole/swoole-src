@@ -592,15 +592,20 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         if (n < 0) {
             goto _end;
         }
-        if (n != (ssize_t) out.buf.size()) {
-            swoole_warning("[Worker#%d] bad task packet, The received data-length[%ld] is inconsistent with the "
-                           "packet-length[%ld]",
-                           worker->id,
-                           n,
-                           out.buf.info.len + sizeof(out.buf.info));
-        }
-        if (pool->onTask(pool, worker, &out.buf) < 0) {
-            swoole_warning("[Worker#%d] the execution of task#%ld has failed", worker->id, pool->get_task_id(&out.buf));
+        {
+            uint64_t packet_size = sizeof(out.buf.info) + (uint64_t) out.buf.info.len;
+            if ((uint64_t) n != packet_size ||
+                ((out.buf.info.ext_flags & SW_TASK_TMPFILE) && out.buf.info.len != sizeof(PacketTask))) {
+                swoole_error_log(SW_LOG_WARNING,
+                                 SW_ERROR_PROTOCOL_ERROR,
+                                 "[Worker#%d] bad task packet, received data length[%zd], packet length[%" PRIu64 "]",
+                                 worker->id,
+                                 n,
+                                 packet_size);
+            } else if (pool->onTask(pool, worker, &out.buf) < 0) {
+                swoole_warning(
+                    "[Worker#%d] the execution of task#%ld has failed", worker->id, pool->get_task_id(&out.buf));
+            }
         }
         if (pool->use_socket && pool->stream_info_->last_connection) {
             int _end = 0;
@@ -668,13 +673,19 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
     RecvData msg{};
     msg.info.reactor_id = -1;
 
-    pool->packet_buffer = new char[pool->max_packet_size_];
+    QueueNode *outbuf = nullptr;
+    if (pool->use_msgqueue) {
+        // MsgQueue::pop() does not truncate oversized messages. Receive the protocol maximum, including the message
+        // type prefix written by msgrcv(), then enforce max_packet_size_ after receipt.
+        pool->packet_buffer = new char[offsetof(QueueNode, mdata) + SW_MSGMAX];
+        outbuf = reinterpret_cast<QueueNode *>(pool->packet_buffer);
+        outbuf->mtype = 0;
+    } else {
+        pool->packet_buffer = new char[pool->max_packet_size_];
+    }
     if (pool->stream_info_) {
         pool->stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
     }
-
-    auto *outbuf = reinterpret_cast<QueueNode *>(pool->packet_buffer);
-    outbuf->mtype = 0;
 
     pool->at_worker_enter(worker);
     while (pool->is_worker_running(worker)) {
@@ -686,14 +697,25 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             /**
              * A fatal error has occurred; the message queue is no longer available, and the loop must be exited.
              */
-            if (n < 0 && catch_system_error(errno) == SW_ERROR) {
-                swoole_sys_warning("[Worker#%d] msgrcv(%d) failed", worker->id, pool->queue->get_id());
-                break;
+            if (n < 0) {
+                if (catch_system_error(errno) == SW_ERROR) {
+                    swoole_sys_warning("[Worker#%d] msgrcv(%d) failed", worker->id, pool->queue->get_id());
+                    break;
+                }
+                goto _end;
             }
             swoole_trace_log(SW_TRACE_WORKER, "pop from MsgQ#%d %lu bytes", pool->queue->get_id(), (ulong_t) n);
-            msg.info.len = n - sizeof(msg.info);
-            msg.data = outbuf->mdata;
             outbuf->mtype = 0;
+            if ((size_t) n > pool->max_packet_size_) {
+                swoole_error_log(SW_LOG_WARNING,
+                                 SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                                 "[Worker#%d] message is too large, length=%zd, max_package_size=%u",
+                                 worker->id,
+                                 n,
+                                 pool->max_packet_size_);
+                goto _end;
+            }
+            msg.data = outbuf->mdata;
         } else if (pool->use_socket) {
             Socket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
