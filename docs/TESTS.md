@@ -57,7 +57,7 @@ cd swoole-src
 phpize
 ./configure ${options}
 make -j$(nproc)
-make install
+sudo make install
 ```
 Need to configure `php.ini`, add `extension=swoole.so` to enable `ext-swoole`.
 
