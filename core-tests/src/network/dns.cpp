@@ -23,6 +23,7 @@
 
 #include "swoole_util.h"
 
+#include <algorithm>
 #include <atomic>
 
 using namespace swoole;
@@ -95,6 +96,17 @@ TEST(dns, getaddrinfo) {
     for (auto &ip : ip_list) {
         ASSERT_TRUE(network::Address::verify_ip(AF_INET, ip));
     }
+}
+
+TEST(dns, getaddrinfo_without_service) {
+    // An empty service must be treated as no service at all; musl rejects an empty string with EAI_SERVICE.
+    GetaddrinfoRequest req("localhost", AF_INET, SOCK_STREAM, 0, "");
+    ASSERT_EQ(network::getaddrinfo(&req), 0);
+    ASSERT_GT(req.count, 0);
+
+    std::vector<std::string> ip_list;
+    req.parse_result(ip_list);
+    ASSERT_NE(std::find(ip_list.begin(), ip_list.end(), "127.0.0.1"), ip_list.end());
 }
 
 TEST(dns, getaddrinfo_fail) {

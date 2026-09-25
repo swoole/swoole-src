@@ -868,7 +868,10 @@ int getaddrinfo(GetaddrinfoRequest *req) {
     hints.ai_socktype = req->socktype;
     hints.ai_protocol = req->protocol;
 
-    int ret = ::getaddrinfo(req->hostname.c_str(), req->service.c_str(), &hints, &result);
+    // An empty service means "no service": it must be passed as a null pointer. glibc accepts an empty string, but
+    // musl (e.g., on Alpine Linux) rejects it with EAI_SERVICE.
+    const char *service = req->service.empty() ? nullptr : req->service.c_str();
+    int ret = ::getaddrinfo(req->hostname.c_str(), service, &hints, &result);
     if (sw_unlikely(ret != 0)) {
         req->error = ret;
         return SW_ERR;
