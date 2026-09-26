@@ -16,6 +16,7 @@
 
 #include "php_swoole_cxx.h"
 #include "php_swoole_thread.h"
+#include "swoole_message_bus.h"
 
 #ifdef SW_THREAD
 
@@ -624,6 +625,9 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
 
     zend_destroy_file_handle(&file_handle);
 
+    if (SwooleTG.message_bus) {
+        SwooleTG.message_bus->clear();
+    }
     php_request_shutdown(nullptr);
     file_handle.filename = nullptr;
     thread_unregister_stdio_file_handles();
