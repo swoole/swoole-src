@@ -160,7 +160,11 @@ class ReactorIocp final : public ReactorImpl {
     }
 
     int dispatch_ready_handles() {
-        std::vector<swSocketFd> ready_fds;
+        struct ReadyHandle {
+            swSocketFd fd;
+            Socket *socket;
+        };
+        std::vector<ReadyHandle> ready_handles;
         for (auto &kv : states_) {
             auto &state = kv.second;
             if (state.socket_poll || !state.socket || state.socket->removed) {
@@ -168,17 +172,24 @@ class ReactorIocp final : public ReactorImpl {
             }
             const DWORD result = WaitForSingleObject(state.wait_handle, 0);
             if (result == WAIT_OBJECT_0) {
-                ready_fds.push_back(kv.first);
+                ready_handles.push_back({kv.first, state.socket});
             } else if (result == WAIT_FAILED) {
                 Iocp::set_system_error(GetLastError());
                 return SW_ERR;
             }
         }
 
-        for (auto fd : ready_fds) {
-            dispatch(fd, SW_EVENT_READ);
+        int dispatched = 0;
+        for (const auto &ready : ready_handles) {
+            // Reject a descriptor re-registered to another socket. Check existence first because get_socket() inserts
+            // an entry for an unknown descriptor.
+            if (!reactor_->exists(ready.fd) || reactor_->get_socket(ready.fd) != ready.socket) {
+                continue;
+            }
+            dispatch(ready.fd, SW_EVENT_READ);
+            dispatched++;
         }
-        return static_cast<int>(ready_fds.size());
+        return dispatched;
     }
 
     int wait_for_handles(int timeout_msec) {
