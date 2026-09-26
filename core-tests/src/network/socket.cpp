@@ -666,6 +666,34 @@ TEST(socket, make_server_socket) {
     sock->free();
 }
 
+TEST(socket, make_server_socket_rebind_after_time_wait) {
+    auto server = make_server_socket(SW_SOCK_TCP, TEST_HOST);
+    ASSERT_NE(server, nullptr);
+    auto port = server->get_port();
+    ASSERT_GT(port, 0);
+
+    network::Address address;
+    ASSERT_TRUE(address.assign(SW_SOCK_TCP, TEST_HOST, port));
+    auto client = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(client, nullptr);
+    ASSERT_EQ(client->connect_sync(address), SW_OK);
+
+    auto connection = server->accept();
+    ASSERT_NE(connection, nullptr);
+    // The server endpoint must close first so TIME_WAIT lands on the listener port. If the client closed first, it
+    // would land on the client's ephemeral port and this test would pass without the fix.
+    connection->free();
+
+    char buf;
+    ASSERT_EQ(client->recv_sync(&buf, sizeof(buf), 0), 0);
+    client->free();
+    server->free();
+
+    server = make_server_socket(SW_SOCK_TCP, TEST_HOST, port);
+    ASSERT_NE(server, nullptr);
+    server->free();
+}
+
 TEST(socket, ssl_get_error_reason) {
     swoole_ssl_init();
     {
