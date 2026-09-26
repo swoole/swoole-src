@@ -527,12 +527,14 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name")))) {
+            zval_ptr_dtor(&tmp_array);
             return ret;
         }
 
         if (Z_STRLEN_P(zform_name) >= SW_HTTP_FORM_KEYLEN) {
             swoole_warning("form_name[%s] is too large", Z_STRVAL_P(zform_name));
             ret = -1;
+            zval_ptr_dtor(&tmp_array);
             return ret;
         }
 
@@ -551,6 +553,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN) {
                 swoole_warning("filename[%s] is too large", Z_STRVAL_P(zfilename));
                 ret = -1;
+                zval_ptr_dtor(&tmp_array);
                 return ret;
             }
             ctx->current_input_name = estrndup(tmp, value_len);
@@ -592,17 +595,20 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             ctx->tmp_content_type = at;
             ctx->tmp_content_type_len = length;
         }
-    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE) && ctx->upload_preprocessed) {
         /**
-         * When the "SW_HTTP_UPLOAD_FILE" header appears in the request, it indicates that the uploaded file has been
-         * saved in a temporary file. The binary content in the message body will be replaced with the temporary
-         * filename. However, the Content-Length still reflects the original message size, causing llhttp to believe
-         * there is still data to be received. As a result, llhttp fails to trigger the message callback. Therefore, we
-         * need to set `ctx->completed = 1` to indicate that the message processing is complete.
+         * Preprocessed upload bodies replace file content with a temporary file path. The original Content-Length
+         * remains, so mark the request completed after consuming the generated marker.
          */
+        std::string tmp_file(at, length);
+        // Client markers are rejected before dispatch, so an unmatched marker is a generated path that can be removed.
+        if (ctx->current_multipart_header == nullptr) {
+            swoole_warning("upload file marker has no matching multipart file metadata");
+            unlink(tmp_file.c_str());
+            return -1;
+        }
         ctx->completed = 1;
         zval *z_multipart_header = ctx->current_multipart_header;
-        std::string tmp_file(at, length);
         add_assoc_stringl(z_multipart_header, "tmp_name", at, length);
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_FILE_READY);
         add_assoc_long(z_multipart_header, "size", swoole::file_get_size(tmp_file));

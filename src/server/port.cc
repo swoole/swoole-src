@@ -572,6 +572,7 @@ _parse:
                     request->form_data_ = nullptr;
                     goto _bad_request;
                 }
+                request->upload_preprocessed = 1;
 
                 buffer = request->buffer_;
             } else {
@@ -717,6 +718,7 @@ _parse:
     buffer->offset = request_length;
     dispatch_data.data = buffer->str;
     dispatch_data.info.len = buffer->length;
+    dispatch_data.info.ext_flags = request->upload_preprocessed ? http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED : 0;
 
     // dispatch_request() may run the worker inline in BASE mode and destroy request.
     auto upload_tmpfile_paths = std::move(request->upload_tmpfile_paths_);

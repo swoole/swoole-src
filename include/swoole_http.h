@@ -113,6 +113,11 @@ namespace swoole {
 class Server;
 namespace http_server {
 //-----------------------------------------------------------------
+// SW_SERVER_EVENT_RECV_DATA shares ext_flags with WebSocket frames; connection state selects the interpretation.
+enum {
+    SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED = 1u << 0,
+};
+
 struct FormData {
     const char *multipart_boundary_buf;
     uint32_t multipart_boundary_len;
@@ -136,6 +141,7 @@ struct Request {
     uchar header_parsed : 1;
     uchar tried_to_dispatch : 1;
     uchar multipart_header_parsed : 1;
+    uchar upload_preprocessed : 1;
 
     uchar known_length : 1;
     uchar keep_alive : 1;

@@ -161,6 +161,7 @@ struct Context {
     uchar parse_cookie : 1;
     uchar parse_body : 1;
     uchar parse_files : 1;
+    uchar upload_preprocessed : 1;
     uchar http2 : 1;
 
     zval zsocket;
