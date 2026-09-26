@@ -706,7 +706,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
                 }
             }
             uint32_t packet_len = 0;
-            if (conn->recv_sync(&packet_len, sizeof(packet_len), MSG_WAITALL) <= 0) {
+            if (conn->recv_sync(&packet_len, sizeof(packet_len), MSG_WAITALL) != (ssize_t) sizeof(packet_len)) {
                 goto _close;
             }
             n = ntohl(packet_len);
@@ -719,7 +719,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             } else if (n > pool->max_packet_size_) {
                 goto _close;
             }
-            if (conn->recv_sync(pool->packet_buffer, n, MSG_WAITALL) <= 0) {
+            if (conn->recv_sync(pool->packet_buffer, n, MSG_WAITALL) != n) {
             _close:
                 conn->free();
                 goto _end;
