@@ -1096,9 +1096,9 @@ static PHP_METHOD(swoole_client, close) {
         php_swoole_error(E_WARNING, "client socket is closed");
         RETURN_FALSE;
     }
-    // Connection error, or short tcp connection.
-    // No keep connection
-    if (force || !cli->keep || cli->socket->catch_error(swoole_get_last_error()) == SW_CLOSE) {
+    // A half-closed socket cannot be reused, so it must not enter the connection pool.
+    // Dead sockets are rejected when a pooled client is retrieved.
+    if (force || !cli->keep || cli->shutdown_read || cli->shutdown_write) {
         ret = cli->close();
         php_swoole_client_free(ZEND_THIS, cli);
     } else {
