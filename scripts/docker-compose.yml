@@ -24,6 +24,8 @@ services:
       TEST_SSH2_USER: swoole_ssh2_test_user
       TEST_SSH2_PASS: swoole_ssh2_test_pass
       TEST_SSH2_AUTH: password
+      TEST_SSH2_TRUNCATED_SCP_USER: swoole_ssh2_truncated_scp_user
+      TEST_SSH2_TRUNCATED_SCP_PASS: swoole_ssh2_truncated_scp_pass
     command: tail -f /etc/group
   mysql:
     container_name: "mysql"
