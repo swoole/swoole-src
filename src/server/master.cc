@@ -1495,6 +1495,7 @@ int Server::send_to_connection(SendData *_send) const {
          */
         if (conn->peer_closed) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
+            drop_owned_sendfile(_send);
             return SW_ERR;
         }
         if (send_yield) {
