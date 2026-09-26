@@ -72,9 +72,10 @@ struct SendfileRequest {
     int8_t corked;
     off_t begin;
     off_t end;
+    bool delete_file;
 
   public:
-    SendfileRequest(const char *filename, off_t _offset)
+    SendfileRequest(const char *filename, off_t _offset, bool _delete_file)
 #ifdef _WIN32
         : file(filename, _O_RDONLY | _O_BINARY) {
 #else
@@ -83,7 +84,10 @@ struct SendfileRequest {
         begin = _offset;
         end = 0;
         corked = 0;
+        delete_file = _delete_file;
     }
+
+    ~SendfileRequest();
 
     const char *get_filename() const {
         return file.get_path().c_str();
@@ -369,7 +373,7 @@ struct Socket {
     bool set_tcp_nodelay(int nodelay = 1);
     bool check_liveness();
 
-    int sendfile_async(const char *filename, off_t offset, size_t length);
+    int sendfile_async(const char *filename, off_t offset, size_t length, bool delete_file = false);
     int sendfile_sync(const char *filename, off_t offset, size_t length);
     ssize_t sendfile(const File &fp, off_t *offset, size_t length);
 
