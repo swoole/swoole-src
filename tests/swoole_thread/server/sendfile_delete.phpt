@@ -12,18 +12,17 @@ require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Thread;
 
 $port = get_constant_port(__FILE__);
-// A deterministic path and body: SWOOLE_THREAD re-runs this script in every thread, so
-// each thread writes the same content to the same path before the server starts serving.
 $path    = sys_get_temp_dir() . '/swoole_thread_sendfile_delete_' . $port . '.bin';
 $content = str_repeat('swoole thread sendfile delete payload ', 4096);
-file_put_contents($path, $content);
 
 $serv = new Swoole\Http\Server('127.0.0.1', $port, SWOOLE_THREAD);
 $serv->set([
     'worker_num'     => 1,
     'log_level'      => SWOOLE_LOG_ERROR,
-    'init_arguments' => function () {
+    'init_arguments' => function () use ($path, $content) {
         global $atomic;
+        // Worker threads re-run this script, so create the file once here, before they start.
+        file_put_contents($path, $content);
         $atomic = new Thread\Atomic(0);
         return [$atomic];
     },
