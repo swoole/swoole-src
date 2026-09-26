@@ -913,11 +913,28 @@ static PHP_METHOD(swoole_websocket_server, unpack) {
         RETURN_FALSE;
     }
 
-    zval zpayload{};
     uint8_t flags = frame.get_flags();
+    zval zpayload{};
 
     if (frame.compressed()) {
-        if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length))) {
+        const char *payload = frame.payload;
+        zval zmasked_payload;
+        bool masked = frame.header.MASK && frame.payload_length > 0;
+
+        if (masked) {
+            // The payload is masked after compression, and mask() modifies its buffer in place,
+            // so unmask a copy rather than the caller's string.
+            ZVAL_STRINGL(&zmasked_payload, frame.payload, frame.payload_length);
+            WebSocket::mask(Z_STRVAL(zmasked_payload), frame.payload_length, frame.mask_key);
+            payload = Z_STRVAL(zmasked_payload);
+        }
+
+        bool result = FrameObject::uncompress(&zpayload, payload, frame.payload_length);
+        if (masked) {
+            zval_ptr_dtor(&zmasked_payload);
+        }
+
+        if (sw_unlikely(!result)) {
             swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
             RETURN_FALSE;
         }
