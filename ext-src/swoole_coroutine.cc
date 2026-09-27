@@ -71,7 +71,6 @@ SW_THREAD_LOCAL bool PHPCoroutine::interrupt_thread_running = false;
 
 extern void php_swoole_load_library();
 
-static SW_THREAD_LOCAL zend_atomic_bool *zend_vm_interrupt = nullptr;
 static SW_THREAD_LOCAL unordered_map<long, Coroutine *> user_yield_coros;
 static zend_function swoole_coroutine_internal_function;
 
@@ -503,12 +502,13 @@ void PHPCoroutine::interrupt_thread_start() {
     if (interrupt_thread_running) {
         return;
     }
-    zend_vm_interrupt = &EG(vm_interrupt);
+    auto *running = &interrupt_thread_running;
+    auto *vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running = true;
-    interrupt_thread = std::thread([]() {
+    interrupt_thread = std::thread([running, vm_interrupt]() {
         swoole_signal_block_all();
-        while (interrupt_thread_running) {
-            zend_atomic_bool_store(zend_vm_interrupt, 1);
+        while (*running) {
+            zend_atomic_bool_store(vm_interrupt, 1);
             std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));
         }
     });
