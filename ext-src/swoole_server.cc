@@ -2388,7 +2388,7 @@ static PHP_METHOD(swoole_server, set) {
     // message queue key
     if (php_swoole_array_get_value(vht, "message_queue_key", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        if (v > 0 && (zend_ulong) (std::make_unsigned<key_t>::type) v != (zend_ulong) v) {
+        if (v > 0 && !php_swoole_msgqueue_key_is_valid(v)) {
             php_swoole_fatal_error(E_ERROR, "message_queue_key is out of range");
             RETURN_FALSE;
         }
