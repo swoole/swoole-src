@@ -78,17 +78,14 @@ int Server::start_reactor_processes() {
         return SW_ERR;
     }
 
+    int retval;
     if (is_single_worker()) {
         Worker *worker = &pool->workers[0];
         SwooleWG.worker = worker;
-        int retval = reactor_process_main_loop(pool, worker);
-        if (retval == SW_OK) {
-            pool->destroy();
-        }
-        return retval;
+        retval = reactor_process_main_loop(pool, worker);
+    } else {
+        retval = start_manager_process();
     }
-
-    int retval = start_manager_process();
     if (retval == SW_OK) {
         pool->destroy();
     }
