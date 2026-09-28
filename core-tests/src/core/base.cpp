@@ -247,6 +247,14 @@ TEST(base, set_task_tmpdir) {
     ASSERT_TRUE(swoole_set_task_tmpdir(ori_tmpdir));
 }
 
+TEST(base, set_task_tmpdir_in_foreign_thread) {
+    auto ori_tmpdir = swoole_get_task_tmpdir();
+    std::thread t([]() { ASSERT_TRUE(swoole_set_task_tmpdir("/tmp")); });
+    t.join();
+    ASSERT_EQ(swoole_get_task_tmpdir(), "/tmp/" SW_TASK_TMP_FILE);
+    SwooleG.task_tmpfile = ori_tmpdir;
+}
+
 TEST(base, version) {
     ASSERT_STREQ(swoole_version(), SWOOLE_VERSION);
     ASSERT_EQ(swoole_version_id(), SWOOLE_VERSION_ID);

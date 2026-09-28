@@ -526,7 +526,7 @@ static inline bool sw_zval_is_process(zval *val) {
 bool sw_zval_is_serializable(const zval *struc);
 
 static inline bool sw_is_main_thread() {
-#ifdef SW_THREAD
+#ifdef ZTS
     return tsrm_is_main_thread();
 #else
     return true;
