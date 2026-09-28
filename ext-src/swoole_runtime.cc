@@ -116,6 +116,7 @@ struct NetStream {
     php_netstream_data_t stream;
     std::shared_ptr<Socket> socket;
     bool blocking;
+    bool zero_timeout = false;
 };
 
 static struct {
@@ -484,6 +485,7 @@ _exit:
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count) {
     std::shared_ptr<Socket> sock;
     ssize_t nr_bytes = -1;
+    bool dont_wait = false;
 
     auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
@@ -495,11 +497,13 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->blocking
 #if PHP_VERSION_ID >= 80300
-        && !stream->has_buffered_data
+    dont_wait = stream->has_buffered_data || abstract->zero_timeout;
+#else
+    dont_wait = abstract->zero_timeout;
 #endif
-    ) {
+
+    if (abstract->blocking && !dont_wait) {
         nr_bytes = sock->recv(buf, count);
     } else {
         nr_bytes = sock->get_socket()->recv(buf, count, 0);
@@ -1102,7 +1106,11 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
-        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_READ);
+        timeval *timeout = static_cast<timeval *>(ptrparam);
+        if (sw_likely(timeout->tv_sec >= 0)) {
+            abstract->zero_timeout = timeout->tv_sec == 0 && timeout->tv_usec == 0;
+            abstract->socket->set_timeout(timeout, SW_TIMEOUT_READ);
+        }
         break;
     }
 #ifdef SW_USE_OPENSSL
