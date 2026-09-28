@@ -98,7 +98,8 @@ Iouring::Iouring(Reactor *_reactor) {
         io_uring_queue_init(entries, &ring, (SwooleG.iouring_flag == IORING_SETUP_SQPOLL ? IORING_SETUP_SQPOLL : 0));
     if (ret < 0) {
         errno = -ret;
-        swoole_sys_error("Failed to initialize io_uring instance");
+        swoole_sys_error("Failed to initialize io_uring instance; grant the process permission to use io_uring "
+                         "(for Docker, use privileged mode), or rebuild Swoole without --enable-iouring");
         return;
     }
 
