@@ -660,7 +660,8 @@ bool Socket::check_liveness() {
         return false;
     }
     if (!socket->check_liveness()) {
-        set_err(errno ? errno : ECONNRESET);
+        const int error = errno;
+        set_err(error ? error : ECONNRESET);
         return false;
     }
     set_err(0);
@@ -1509,14 +1510,18 @@ ssize_t Socket::recv_packet(double timeout) {
 
 bool Socket::shutdown(int _how) {
     set_err(0);
+    int error = 0;
     if (!is_connected() || (_how == SHUT_RD && shutdown_read) || (_how == SHUT_WR && shutdown_write)) {
-        errno = ENOTCONN;
+        error = ENOTCONN;
     } else {
         if (socket->ssl) {
             socket->ssl_shutdown();
         }
-        if (::shutdown(sock_fd, _how) == 0 || errno == ENOTCONN) {
-            if (errno == ENOTCONN) {
+        if (::shutdown(sock_fd, _how) < 0) {
+            error = errno;
+        }
+        if (error == 0 || error == ENOTCONN) {
+            if (error == ENOTCONN) {
                 // connection reset by server side
                 _how = SHUT_RDWR;
             }
@@ -1537,7 +1542,7 @@ bool Socket::shutdown(int _how) {
             return true;
         }
     }
-    set_err(errno);
+    set_err(error);
     return false;
 }
 
