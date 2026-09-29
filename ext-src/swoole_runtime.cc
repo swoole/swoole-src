@@ -2099,6 +2099,23 @@ static PHP_FUNCTION(swoole_stream_select) {
     RETURN_LONG(retval);
 }
 
+static bool init_php_func_cache(PhpFunc *rf, zend_string *fn_str) {
+    if (rf->fci_cache) {
+        return true;
+    }
+
+    std::string func("swoole_");
+    func.append(ZSTR_VAL(fn_str), ZSTR_LEN(fn_str));
+    ZVAL_STRINGL(&rf->name, func.c_str(), func.length());
+    rf->fci_cache = sw_callable_create(&rf->name);
+    if (!rf->fci_cache) {
+        zval_ptr_dtor(&rf->name);
+        ZVAL_UNDEF(&rf->name);
+        return false;
+    }
+    return true;
+}
+
 static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_internal_arg_info *arg_info) {
     auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     bool use_php_func = false;
@@ -2111,6 +2128,9 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
 
     if (rf) {
+        if (use_php_func && !init_php_func_cache(rf, rf->function->common.function_name)) {
+            return;
+        }
         rf->function->internal_function.handler = handler;
         if (arg_info) {
             rf->function->internal_function.arg_info = arg_info;
@@ -2145,16 +2165,9 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
 
     if (use_php_func) {
-        char func[128];
-        memcpy(func, ZEND_STRL("swoole_"));
-        memcpy(func + 7, fn_str->val, fn_str->len);
-
-        ZVAL_STRINGL(&rf->name, func, fn_str->len + 7);
-        auto fci_cache = sw_callable_create(&rf->name);
-        if (!fci_cache) {
+        if (!init_php_func_cache(rf, fn_str)) {
             return;
         }
-        rf->fci_cache = fci_cache;
     }
 
     zend_hash_add_ptr(hook_function_table, fn_str, rf);
