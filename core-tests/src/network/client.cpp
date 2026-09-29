@@ -293,36 +293,65 @@ TEST(client, async_tcp_ssl_handshake_fail) {
 }
 
 TEST(client, async_tcp_http_proxy_handshake_fail) {
+    int port = swoole::test::get_random_port();
+    Pipe p(true);
+    ASSERT_TRUE(p.ready());
+
+    Process proc([&](Process *proc) {
+        Server serv(TEST_HOST, port, swoole::Server::MODE_BASE, SW_SOCK_TCP);
+        serv.set_private_data("pipe", &p);
+        serv.on("Receive", [](ON_RECEIVE_PARAMS) {
+            static constexpr char response[] = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n";
+            SERVER_THIS->send(req->info.fd, response, sizeof(response) - 1);
+            return 0;
+        });
+        serv.on("WorkerStart", [](ON_WORKER_START_PARAMS) {
+            Pipe *p = (Pipe *) SERVER_THIS->get_private_data("pipe");
+            int64_t value = 1;
+            p->write(&value, sizeof(value));
+        });
+        serv.start();
+    });
+
+    pid_t pid = proc.start();
+    int64_t value;
+    p.set_timeout(10);
+    ASSERT_EQ(p.read(&value, sizeof(value)), sizeof(value));
+
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     Client ac(SW_SOCK_TCP, true);
 
-    bool success = true;
+    bool handshake_failed = false;
 
-    ac.onConnect = [&success](Client *ac) {
-        ac->send(SW_STRS(GREETER));
-        success = true;
+    ac.onConnect = [](Client *ac) {
+        ADD_FAILURE() << "HTTP proxy handshake unexpectedly succeeded";
+        ac->close();
     };
 
     ac.onClose = [](Client *ac) {};
 
-    ac.onError = [&success](Client *ac) {
-        DEBUG() << "connect failed, ERROR: " << errno << "\n";
-        ASSERT_ERREQ(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
-        success = false;
+    ac.onError = [&handshake_failed](Client *ac) {
+        EXPECT_ERREQ(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
+        handshake_failed = true;
     };
 
     ac.onReceive = [](Client *ac, const char *data, size_t len) {
-        ASSERT_EQ(len, GREETER_SIZE);
-        ASSERT_STREQ(GREETER, data);
+        ADD_FAILURE() << "HTTP proxy response reached the application";
         ac->close();
     };
 
-    ac.set_http_proxy("www.baidu.com", 80);
+    ac.set_http_proxy(TEST_HOST, port);
 
-    ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
+    ASSERT_EQ(ac.connect("target.invalid", 80, 1.0), SW_OK);
 
     swoole_event_wait();
+
+    EXPECT_TRUE(handshake_failed);
+
+    kill(pid, SIGTERM);
+    int status;
+    waitpid(pid, &status, 0);
 }
 
 TEST(client, async_tcp_socks5_proxy_handshake_fail) {
