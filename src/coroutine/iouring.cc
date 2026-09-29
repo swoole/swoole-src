@@ -76,11 +76,12 @@ struct IouringEvent {
 Iouring::Iouring(Reactor *_reactor) {
     const int liburing_runtime_major = io_uring_major_version();
     const int liburing_runtime_minor = io_uring_minor_version();
-    if (liburing_runtime_major != IO_URING_VERSION_MAJOR || liburing_runtime_minor != IO_URING_VERSION_MINOR) {
-        swoole_error("liburing version mismatch: Swoole was compiled with liburing %d.%d, but liburing %d.%d was loaded "
-                     "at runtime",
+    if (liburing_runtime_major != IO_URING_VERSION_MAJOR || liburing_runtime_minor < IO_URING_VERSION_MINOR) {
+        swoole_error("unsupported liburing version: Swoole requires liburing %d.%d or later with ABI major %d, but "
+                     "liburing %d.%d was loaded at runtime",
                      IO_URING_VERSION_MAJOR,
                      IO_URING_VERSION_MINOR,
+                     IO_URING_VERSION_MAJOR,
                      liburing_runtime_major,
                      liburing_runtime_minor);
     }
