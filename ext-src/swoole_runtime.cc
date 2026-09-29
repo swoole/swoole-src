@@ -1123,6 +1123,8 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
+        // Despite its name, PHP socket streams use this option as the shared timeout for both blocking reads and
+        // writes (see php_sockop_read() and php_sockop_write()).
         abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_RDWR);
         break;
     }
