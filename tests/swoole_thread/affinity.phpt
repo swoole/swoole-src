@@ -23,7 +23,7 @@ $selectCpu = static function (array $cpus, bool $last = false): array {
 $tm->parentFunc = function () use ($selectCpu) {
     $thread = new Thread(__FILE__, 'child');
     $r = Thread::getAffinity();
-    Assert::false(@Thread::setAffinity([1023]));
+    Assert::false(@Thread::setAffinity([swoole_cpu_num()]));
     $cpu = $selectCpu($r, true);
     Assert::assert(Thread::setAffinity($cpu));
     Assert::eq(Thread::getAffinity(), $cpu);
