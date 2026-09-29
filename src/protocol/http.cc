@@ -34,7 +34,7 @@ using swoole::network::Socket;
 static const char *method_strings[] = {
     "DELETE", "GET", "HEAD", "POST", "PUT", "PATCH", "CONNECT", "OPTIONS", "TRACE", "COPY", "LOCK", "MKCOL", "MOVE",
     "PROPFIND", "PROPPATCH", "UNLOCK", "REPORT", "MKACTIVITY", "CHECKOUT", "MERGE", "M-SEARCH", "NOTIFY",
-    "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "PRI",
+    "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "QUERY", "PRI",
 };
 // clang-format on
 

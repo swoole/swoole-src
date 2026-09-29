@@ -383,7 +383,7 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
             conn->websocket_status = swoole::websocket::STATUS_CONNECTION;
         }
     } else if ((parser->method == HTTP_POST || parser->method == HTTP_PUT || parser->method == HTTP_DELETE ||
-                parser->method == HTTP_PATCH) &&
+                parser->method == HTTP_PATCH || parser->method == HTTP_QUERY) &&
                SW_STRCASEEQ(header_name, header_len, "content-type")) {
         if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
             ctx->request.post_form_urlencoded = 1;
