@@ -24,18 +24,7 @@ SW_EXTERN_C_BEGIN
 #include <curl/curl.h>
 #include <curl/multi.h>
 
-/**
- * Since `swoole_runtime.cc` includes both `swoole_curl_interface.h` and `swoole_file_hook.h`, both of
- * which define macros for `fread` and `fwrite`, a redefinition error occurs during compilation.
- * To address this, the `SW_CURL_COROUTINE_FILE` macro is introduced as a conditional compilation switch.
- * Since this macro is not defined in `swoole_runtime.cc`, the relevant logic will not be included during compilation,
- * thus avoiding the conflict.
- */
-#ifdef SW_CURL_COROUTINE_FILE
-#define fread swoole_coroutine_fread
-#define fwrite swoole_coroutine_fwrite
-#endif
-
+/* Curl's FILE* may be a PHP stream cookie, so fread/fwrite must not run in an AIO thread. */
 #define curl_easy_reset swoole_curl_easy_reset
 
 /* Cached class entry pointers for PHP curl extension classes.
