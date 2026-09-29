@@ -57,6 +57,7 @@ enum swHttpMethod {
     SW_HTTP_UNSUBSCRIBE,
     /* proxy */
     SW_HTTP_PURGE,
+    SW_HTTP_QUERY,
     /* Http2 */
     SW_HTTP_PRI,
 };
