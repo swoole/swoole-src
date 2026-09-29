@@ -1830,6 +1830,9 @@ TEST(server, task_worker_3) {
     serv.task_worker_num = 2;
     test::counter_init();
 
+    // A missed worker restart must fail the test instead of leaving the server running until the CI watchdog fires.
+    serv.onManagerStart = [](Server *serv) { swoole_timer_after(5000, [serv](TIMER_PARAMS) { serv->shutdown(); }); };
+
     auto port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_NE(port, nullptr);
 
@@ -1837,11 +1840,17 @@ TEST(server, task_worker_3) {
 
     serv.onWorkerStart = [](Server *serv, Worker *worker) {
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
+        test::counter_incr(2 + worker->id);
         if (test::counter_incr(1) == 5) {
             swoole_timer_after(100, [serv](TIMER_PARAMS) { serv->shutdown(); });
         }
         if (worker->id == 0) {
-            swoole_timer_after(50, [serv](TIMER_PARAMS) { kill(serv->get_worker_pid(2), SIGTERM); });
+            swoole_timer_after(50, [serv](TIMER_PARAMS) {
+                pid_t pid = serv->get_worker_pid(2);
+                if (pid <= 0 || kill(pid, SIGTERM) < 0) {
+                    test::counter_set(31, 1);
+                }
+            });
             swoole_timer_after(60, [serv](TIMER_PARAMS) { kill(serv->get_manager_pid(), SIGRTMIN); });
         }
         if (worker->id == 1 && test::counter_get(30) == 0) {
@@ -1855,7 +1864,11 @@ TEST(server, task_worker_3) {
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.start(), SW_OK);
 
-    ASSERT_EQ(test::counter_get(1), 5);  // onWorkerStart
+    EXPECT_EQ(test::counter_get(1), 5);  // onWorkerStart
+    EXPECT_EQ(test::counter_get(2), 1);  // event worker
+    EXPECT_EQ(test::counter_get(3), 2);  // task worker 1
+    EXPECT_EQ(test::counter_get(4), 2);  // task worker 2
+    EXPECT_EQ(test::counter_get(31), 0);  // SIGTERM was sent to task worker 2
 }
 
 TEST(server, reload_single_process) {
