@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 5aeb8b373fa093e6f901211be3ee11ff52d73e8d */
+/* $Id: 3892f45776259e692bbf8d7c49dd6dd0b88ebf38 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -3990,8 +3990,8 @@ static const char* swoole_library_source_core_database_pdo_statement_proxy =
     "                foreach ($this->bindColumnContext as $column => $item) {\n"
     "                    $this->__object->bindColumn($column, ...$item);\n"
     "                }\n"
-    "                foreach ($this->bindValueContext as $value => $item) {\n"
-    "                    $this->__object->bindParam($value, ...$item);\n"
+    "                foreach ($this->bindValueContext as $parameter => $item) {\n"
+    "                    $this->__object->bindValue($parameter, ...$item);\n"
     "                }\n"
     "                $ret = $this->__object->{$name}(...$arguments);\n"
     "            } else {\n"
@@ -4021,13 +4021,15 @@ static const char* swoole_library_source_core_database_pdo_statement_proxy =
     "\n"
     "    public function bindParam($parameter, &$variable, $data_type = \\PDO::PARAM_STR, $length = 0, $driver_options = null): bool\n"
     "    {\n"
-    "        $this->bindParamContext[$parameter] = [$variable, $data_type, $length, $driver_options];\n"
+    "        // The variable is kept by reference: a statement prepared again after a reconnect is bound to the variable of\n"
+    "        // the caller, as the first one was, and not to the value the variable had at the time of this call.\n"
+    "        $this->bindParamContext[$parameter] = [&$variable, $data_type, $length, $driver_options];\n"
     "        return $this->__object->bindParam($parameter, $variable, $data_type, $length, $driver_options);\n"
     "    }\n"
     "\n"
-    "    public function bindColumn($column, &$param, $type = null, $maxlen = null, $driverdata = null): bool\n"
+    "    public function bindColumn($column, &$param, $type = \\PDO::PARAM_STR, $maxlen = 0, $driverdata = null): bool\n"
     "    {\n"
-    "        $this->bindColumnContext[$column] = [$param, $type, $maxlen, $driverdata];\n"
+    "        $this->bindColumnContext[$column] = [&$param, $type, $maxlen, $driverdata];\n"
     "        return $this->__object->bindColumn($column, $param, $type, $maxlen, $driverdata);\n"
     "    }\n"
     "\n"
