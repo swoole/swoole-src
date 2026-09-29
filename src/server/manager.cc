@@ -339,7 +339,10 @@ void Manager::reopen_logger() const {
 
 void Manager::signal_handler(int signo) {
     Server *_server = sw_server();
-    if (!_server || !_server->manager_) {
+    // A newly forked worker briefly inherits the manager's signal handlers before
+    // swoole_fork() clears them. It must never execute manager-only actions here:
+    // reopening the log would broadcast SIGWINCH back to itself indefinitely.
+    if (!_server || !_server->manager_ || getpid() != _server->gs->manager_pid) {
         return;
     }
     Manager *manager = _server->manager_;
