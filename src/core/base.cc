@@ -245,9 +245,7 @@ SW_API void swoole_set_print_backtrace_on_error(bool enable) {
 }
 
 bool swoole_set_task_tmpdir(const std::string &dir) {
-#ifdef SW_THREAD
     std::unique_lock<std::mutex> _lock(sw_thread_lock);
-#endif
 
     if (dir.at(0) != '/') {
         swoole_warning("wrong absolute path '%s'", dir.c_str());
@@ -259,8 +257,7 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
         return false;
     }
 
-    sw_tg_buffer()->format("%s/" SW_TASK_TMP_FILE, dir.c_str());
-    SwooleG.task_tmpfile = sw_tg_buffer()->to_std_string();
+    SwooleG.task_tmpfile = dir + "/" SW_TASK_TMP_FILE;
 
     if (SwooleG.task_tmpfile.length() >= SW_TASK_TMP_PATH_SIZE) {
         swoole_warning("task tmp_dir is too large, the max size is '%d'", SW_TASK_TMP_PATH_SIZE - 1);
@@ -270,7 +267,8 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     return true;
 }
 
-const std::string &swoole_get_task_tmpdir() {
+std::string swoole_get_task_tmpdir() {
+    std::unique_lock<std::mutex> _lock(sw_thread_lock);
     return SwooleG.task_tmpfile;
 }
 
