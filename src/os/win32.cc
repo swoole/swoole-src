@@ -1150,6 +1150,21 @@ int sw_socket_errno(void) {
     case WSAEHOSTUNREACH:
         return EHOSTUNREACH;
     // IOCP socket completions report Win32 system codes through GetQueuedCompletionStatus().
+    case ERROR_NETNAME_DELETED:
+        return ECONNRESET;
+    case ERROR_CONNECTION_ABORTED:
+        return ECONNABORTED;
+    case ERROR_CONNECTION_REFUSED:
+    case ERROR_PORT_UNREACHABLE:
+        return ECONNREFUSED;
+    case ERROR_HOST_UNREACHABLE:
+        return EHOSTUNREACH;
+    case ERROR_NETWORK_UNREACHABLE:
+        return ENETUNREACH;
+    case ERROR_SEM_TIMEOUT:
+        return ETIMEDOUT;
+    case ERROR_NO_SYSTEM_RESOURCES:
+        return ENOBUFS;
     case WSA_OPERATION_ABORTED:
     case WSAECANCELLED:
         return ECANCELED;
