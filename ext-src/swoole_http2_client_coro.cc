@@ -100,6 +100,7 @@ class Client {
         open_ssl = _ssl;
         _zobject = *zobj;
         zobject = &_zobject;
+        ZVAL_NULL(&zsocket);
         Http2::init_settings(&local_settings);
         local_window_size = local_settings.init_window_size;
     }
