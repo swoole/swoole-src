@@ -217,7 +217,8 @@ class PHPCoroutine {
     }
 
     static inline bool is_schedulable(PHPContext *ctx) {
-        return ctx->enable_scheduler && (Timer::get_absolute_msec() - ctx->last_msec > MAX_EXEC_MSEC);
+        return interrupt_thread_running && ctx->enable_scheduler &&
+               (Timer::get_absolute_msec() - ctx->last_msec > MAX_EXEC_MSEC);
     }
 
     static inline bool enable_scheduler() {
