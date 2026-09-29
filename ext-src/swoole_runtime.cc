@@ -1123,7 +1123,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
-        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_READ);
+        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_RDWR);
         break;
     }
     case PHP_STREAM_OPTION_CRYPTO_API: {
