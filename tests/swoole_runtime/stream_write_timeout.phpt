@@ -22,7 +22,10 @@ run(function () {
     }
 
     stream_set_blocking($writer, true);
+    stream_set_timeout($writer, 0, 200000);
+    $start = microtime(true);
     Assert::false(@fwrite($writer, 'x'));
+    Assert::lessThan(microtime(true) - $start, 0.5);
 
     $metadata = stream_get_meta_data($writer);
     Assert::true($metadata['timed_out']);
