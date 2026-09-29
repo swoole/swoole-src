@@ -1023,8 +1023,6 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp)) {
         zend_long v = php_swoole_parse_to_size(ztmp);
         sock->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
-    } else {
-        sock->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
     }
 
     return ret;
