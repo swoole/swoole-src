@@ -19,7 +19,7 @@ $tm->parentFunc = function () {
     $thread = new Thread(__FILE__, 'child');
     $r = Thread::getAffinity();
     Assert::eq(count($r), swoole_cpu_num());
-    Assert::false(@Thread::setAffinity([1023]));
+    Assert::false(@Thread::setAffinity([swoole_cpu_num()]));
     Assert::assert(Thread::setAffinity([1]));
     Assert::eq(Thread::getAffinity(), [1]);
     $thread->join();
