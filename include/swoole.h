@@ -186,10 +186,11 @@ typedef unsigned long ulong_t;
 
 #ifdef SW_THREAD
 #define SW_THREAD_LOCAL thread_local
-extern std::mutex sw_thread_lock;
 #else
 #define SW_THREAD_LOCAL
 #endif
+
+extern std::mutex sw_thread_lock;
 
 /**
  * API naming rules
@@ -621,7 +622,7 @@ bool swoole_is_root_user();
 void swoole_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
 bool swoole_set_task_tmpdir(const std::string &dir);
 void swoole_set_process_death_signal(int signal);
-const std::string &swoole_get_task_tmpdir();
+std::string swoole_get_task_tmpdir();
 int swoole_tmpfile(char *filename);
 
 #ifdef HAVE_CPU_AFFINITY
