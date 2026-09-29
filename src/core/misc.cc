@@ -208,7 +208,7 @@ int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
         }
 
         atomic_wait_registry_unlock();
-        sw_usleep(1000);
+        usleep(1000);
     }
 }
 
