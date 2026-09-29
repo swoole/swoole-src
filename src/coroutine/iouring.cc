@@ -73,18 +73,18 @@ struct IouringEvent {
     }
 };
 
-static void parse_kernel_version(const char *release, int *major, int *minor) {
-    char copy[SW_STRUCT_MEMBER_SIZE(utsname, release)];
-    strcpy(copy, release);
-
-    char *token = strtok(copy, ".-");
-    *major = token ? sw_atoi(token) : 0;
-
-    token = strtok(nullptr, ".-");
-    *minor = token ? sw_atoi(token) : 0;
-}
-
 Iouring::Iouring(Reactor *_reactor) {
+    const int liburing_runtime_major = io_uring_major_version();
+    const int liburing_runtime_minor = io_uring_minor_version();
+    if (liburing_runtime_major != IO_URING_VERSION_MAJOR || liburing_runtime_minor != IO_URING_VERSION_MINOR) {
+        swoole_error("liburing version mismatch: Swoole was compiled with liburing %d.%d, but liburing %d.%d was loaded "
+                     "at runtime",
+                     IO_URING_VERSION_MAJOR,
+                     IO_URING_VERSION_MINOR,
+                     liburing_runtime_major,
+                     liburing_runtime_minor);
+    }
+
     reactor = _reactor;
     if (SwooleG.iouring_entries > 0) {
         uint32_t i = 6;
@@ -103,6 +103,28 @@ Iouring::Iouring(Reactor *_reactor) {
         return;
     }
 
+#if defined(HAVE_IOURING_FUTEX) || defined(HAVE_IOURING_FTRUNCATE)
+    io_uring_probe *probe = io_uring_get_probe_ring(&ring);
+    if (!probe) {
+        swoole_error("Failed to query the io_uring opcodes supported by the running kernel");
+    }
+
+#ifdef HAVE_IOURING_FUTEX
+    if (!io_uring_opcode_supported(probe, IORING_OP_FUTEX_WAIT) ||
+        !io_uring_opcode_supported(probe, IORING_OP_FUTEX_WAKE)) {
+        swoole_error("The running kernel does not support IORING_OP_FUTEX_WAIT and IORING_OP_FUTEX_WAKE");
+    }
+#endif
+
+#ifdef HAVE_IOURING_FTRUNCATE
+    if (!io_uring_opcode_supported(probe, IORING_OP_FTRUNCATE)) {
+        swoole_error("The running kernel does not support IORING_OP_FTRUNCATE");
+    }
+#endif
+
+    io_uring_free_probe(probe);
+#endif
+
     if (SwooleG.iouring_workers > 0) {
         uint32_t workers[2] = {SwooleG.iouring_workers, SwooleG.iouring_workers};
         ret = io_uring_register_iowq_max_workers(&ring, workers);
@@ -112,21 +134,6 @@ Iouring::Iouring(Reactor *_reactor) {
             return;
         }
     }
-
-    int major, minor;
-    parse_kernel_version(SwooleG.uname.release, &major, &minor);
-
-#ifdef HAVE_IOURING_FUTEX
-    if (!(major >= 6 && minor >= 7)) {
-        swoole_error("The Iouring::futex_wait()/Iouring::futex_wakeup() requires `6.7` or higher Linux kernel");
-    }
-#endif
-
-#ifdef HAVE_IOURING_FTRUNCATE
-    if (!(major >= 6 && minor >= 9)) {
-        swoole_error("The Iouring::ftruncate() requires `6.9` or higher Linux kernel");
-    }
-#endif
 
     ring_socket = make_socket(ring.ring_fd, SW_FD_IOURING);
     ring_socket->object = this;
