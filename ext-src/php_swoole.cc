@@ -1401,6 +1401,12 @@ PHP_RINIT_FUNCTION(swoole) {
         return SUCCESS;
     }
 
+#if defined(ZTS) && !defined(SW_THREAD)
+    if (!tsrm_is_main_thread()) {
+        return SUCCESS;
+    }
+#endif
+
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
 
     // Use `sys_get_temp_dir` to obtain the system temporary file directory.
@@ -1466,6 +1472,12 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     if (!SWOOLE_G(cli)) {
         return SUCCESS;
     }
+
+#if defined(ZTS) && !defined(SW_THREAD)
+    if (!tsrm_is_main_thread()) {
+        return SUCCESS;
+    }
+#endif
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
 
