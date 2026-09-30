@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: cpu_affinity_ignore requires an array
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_no_process_affinity();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

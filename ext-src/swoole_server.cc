@@ -2219,38 +2219,46 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "open_cpu_affinity", ztmp)) {
         serv->open_cpu_affinity = zval_is_true(ztmp);
     }
+#ifdef HAVE_CPU_AFFINITY
     // cpu affinity set
     if (php_swoole_array_get_value(vht, "cpu_affinity_ignore", ztmp)) {
         if (!ZVAL_IS_ARRAY(ztmp)) {
             php_swoole_fatal_error(E_ERROR, "cpu_affinity_ignore must be array");
             RETURN_FALSE;
         }
-        std::vector<bool> ignored_cpus(SW_CPU_NUM, false);
-        int ignore_num = 0;
+        cpu_set_t cpu_set;
+        if (swoole_get_cpu_affinity(&cpu_set) < 0) {
+            php_swoole_sys_error(E_WARNING, "sched_getaffinity() failed");
+            RETURN_FALSE;
+        }
+
         zval *zval_core = nullptr;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), zval_core)
         zend_long cpu_id = zval_get_long(zval_core);
-        if (cpu_id >= 0 && cpu_id < SW_CPU_NUM && !ignored_cpus[cpu_id]) {
-            ignored_cpus[cpu_id] = true;
-            ignore_num++;
+        if (cpu_id >= 0 && cpu_id < CPU_SETSIZE) {
+            CPU_CLR(cpu_id, &cpu_set);
         }
         SW_HASHTABLE_FOREACH_END();
 
         int available_num = 0;
-        int *available_cpu = nullptr;
-        if (ignore_num > 0 && ignore_num < SW_CPU_NUM) {
-            available_num = SW_CPU_NUM - ignore_num;
-            available_cpu = (int *) sw_malloc(sizeof(int) * available_num);
-            if (!available_cpu) {
-                php_swoole_fatal_error(E_WARNING, "malloc() failed");
-                RETURN_FALSE;
+        for (int i = 0; i < CPU_SETSIZE; i++) {
+            if (CPU_ISSET(i, &cpu_set)) {
+                available_num++;
             }
-            int available_i = 0;
-            for (int i = 0; i < SW_CPU_NUM; i++) {
-                if (!ignored_cpus[i]) {
-                    available_cpu[available_i] = i;
-                    available_i++;
-                }
+        }
+        if (available_num == 0) {
+            php_swoole_fatal_error(E_ERROR, "cpu_affinity_ignore excludes all available CPUs");
+            RETURN_FALSE;
+        }
+        int *available_cpu = (int *) sw_malloc(sizeof(int) * available_num);
+        if (!available_cpu) {
+            php_swoole_fatal_error(E_WARNING, "malloc() failed");
+            RETURN_FALSE;
+        }
+        int available_i = 0;
+        for (int i = 0; i < CPU_SETSIZE; i++) {
+            if (CPU_ISSET(i, &cpu_set)) {
+                available_cpu[available_i++] = i;
             }
         }
         serv->cpu_affinity_available_num = available_num;
@@ -2259,6 +2267,7 @@ static PHP_METHOD(swoole_server, set) {
         }
         serv->cpu_affinity_available = available_cpu;
     }
+#endif
     // parse cookie header
     if (php_swoole_array_get_value(vht, "http_parse_cookie", ztmp)) {
         serv->http_parse_cookie = zval_is_true(ztmp);

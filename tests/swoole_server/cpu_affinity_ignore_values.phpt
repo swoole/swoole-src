@@ -1,24 +1,27 @@
 --TEST--
 swoole_server: cpu_affinity_ignore ignores unusable CPU IDs
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_no_process_affinity();
+skip('requires two CPUs', count(Swoole\Process::getAffinity()) < 2);
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Server;
+use Swoole\Process;
 
 $server = new Server('127.0.0.1', 0);
-$cpuNum = swoole_cpu_num();
+$affinity = Process::getAffinity();
+$outsideAffinity = max($affinity) + 1;
 
 $server->set([
-    'cpu_affinity_ignore' => [-1, $cpuNum, 0, 0],
+    'cpu_affinity_ignore' => [-1, $outsideAffinity, $affinity[0], $affinity[0]],
 ]);
 $server->set([
-    'cpu_affinity_ignore' => [-1, $cpuNum],
-]);
-$server->set([
-    'cpu_affinity_ignore' => range(0, $cpuNum - 1),
+    'cpu_affinity_ignore' => [-1, $outsideAffinity],
 ]);
 
 echo "DONE\n";
