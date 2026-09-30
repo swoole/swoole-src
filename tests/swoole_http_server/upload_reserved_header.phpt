@@ -55,6 +55,24 @@ function build_malformed_file_body(string $boundary, string $content, string $di
     ]);
 }
 
+function build_mixed_file_body(string $boundary, string $content): string
+{
+    return implode("\r\n", [
+        '--' . $boundary,
+        'Content-Disposition: form-data; filename="ignored.txt"',
+        'Content-Type: text/plain',
+        '',
+        str_repeat('A', 40 * 1024),
+        '--' . $boundary,
+        'Content-Disposition: form-data; name="file"; filename="test.txt"',
+        'Content-Type: text/plain',
+        '',
+        $content,
+        '--' . $boundary . '--',
+        '',
+    ]);
+}
+
 function send_raw_request(ProcessManager $pm, string $request): array
 {
     $sock = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}");
@@ -127,7 +145,17 @@ function run_upload_reserved_header(int $mode): void
             assert_server_is_alive($pm);
         }
 
+        $content = str_repeat('C', 40 * 1024);
+        $body = build_mixed_file_body($boundary, $content);
+        [, $responseBody] = send_raw_request($pm, build_multipart_request($boundary, $body));
+        $json = json_decode($responseBody, true);
+        Assert::true(is_array($json));
+        Assert::true($json['has_file']);
+        Assert::same($json['md5'], md5($content));
+        Assert::same($json['file_count'], 1);
+
         $pm->kill();
+        Assert::same(glob($uploadDir . '/swoole.upfile.*'), []);
         Assert::true(rmdir($uploadDir));
     };
 
