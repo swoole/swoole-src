@@ -1433,6 +1433,14 @@ int Server::schedule_worker(int fd, SendData *data) {
     return key % worker_num;
 }
 
+void Server::discard_sendfile(DataHead *info, const char *data) {
+    if (info->type == SW_SERVER_EVENT_SEND_FILE && (info->ext_flags & SW_SERVER_SENDFILE_DELETE)) {
+        const auto *task = reinterpret_cast<const SendfileTask *>(data);
+        swoole_coroutine_unlink(task->filename);
+        info->ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
+    }
+}
+
 /**
  * [Master] send to client or append to out_buffer
  * @return SW_OK or SW_ERR
@@ -1441,16 +1449,6 @@ int Server::send_to_connection(SendData *_send) const {
     const SessionId session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
-
-    // A SEND_FILE event that owns its file is dropped here before reaching sendfile_async(),
-    // so delete the file and clear the token before returning an error.
-    auto drop_owned_sendfile = [](SendData *_send) {
-        if (_send->info.type == SW_SERVER_EVENT_SEND_FILE && (_send->info.ext_flags & SW_SERVER_SENDFILE_DELETE)) {
-            const auto *task = reinterpret_cast<const SendfileTask *>(_send->data);
-            swoole_coroutine_unlink(task->filename);
-            _send->info.ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
-        }
-    };
 
     Connection *conn;
     if (_send->info.type != SW_SERVER_EVENT_CLOSE) {
@@ -1472,7 +1470,7 @@ int Server::send_to_connection(SendData *_send) const {
                              _send->info.type,
                              session_id);
         }
-        drop_owned_sendfile(_send);
+        discard_sendfile(&_send->info, _send->data);
         return SW_ERR;
     }
 
@@ -1495,7 +1493,7 @@ int Server::send_to_connection(SendData *_send) const {
          */
         if (conn->peer_closed) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
-            drop_owned_sendfile(_send);
+            discard_sendfile(&_send->info, _send->data);
             return SW_ERR;
         }
         if (send_yield) {
@@ -1503,7 +1501,7 @@ int Server::send_to_connection(SendData *_send) const {
         } else {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
         }
-        drop_owned_sendfile(_send);
+        discard_sendfile(&_send->info, _send->data);
         return SW_ERR;
     }
 
@@ -1724,8 +1722,8 @@ bool Server::sendfile(
 
     // The handoff failed before any layer consumed the event token, so clean up here. A
     // synchronous base/thread path that already handled cleanup has cleared the flag.
-    if (!accepted && (send_data.info.ext_flags & SW_SERVER_SENDFILE_DELETE)) {
-        swoole_coroutine_unlink(req->filename);
+    if (!accepted) {
+        discard_sendfile(&send_data.info, send_data.data);
     }
 
     return accepted;

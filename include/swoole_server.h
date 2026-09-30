@@ -1611,6 +1611,7 @@ class Server {
     static int accept_command_result(Reactor *reactor, Event *event);
     static int close_connection(Reactor *reactor, network::Socket *_socket);
     static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
+    static void discard_sendfile(DataHead *info, const char *data);
 
     int send_to_connection(SendData *) const;
     ssize_t send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags);
