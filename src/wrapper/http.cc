@@ -84,6 +84,7 @@ struct ContextImpl {
     std::string current_header_name;
     std::string current_input_name;
     std::string current_form_data_name;
+    bool upload_preprocessed = false;
     String *form_data_buffer;
 
     bool completed = false;
@@ -209,22 +210,33 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         };
         parse_cookie(at, length, cb);
         auto name = info.find("name");
+        if (name == info.end()) {
+            return 0;
+        }
         auto filename = info.find("filename");
         if (filename == info.end()) {
             impl->current_form_data_name = name->second;
         } else {
-            impl->current_input_name = filename->second;
+            impl->current_input_name = name->second;
         }
-    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE) && impl->upload_preprocessed) {
         /**
-         * When the "SW_HTTP_UPLOAD_FILE" header appears in the request, it indicates that the uploaded file has been
-         * saved in a temporary file. The binary content in the message body will be replaced with the temporary
-         * filename. However, the Content-Length still reflects the original message size, causing llhttp to believe
-         * there is still data to be received. As a result, llhttp fails to trigger the message callback. Therefore, we
-         * need to set `ctx->completed = 1` to indicate that the message processing is complete.
+         * Preprocessed upload bodies replace file content with a temporary file path. The original Content-Length
+         * remains, so mark the request completed after consuming the generated marker.
          */
+        std::string tmp_file(at, length);
+        // Client markers are rejected before dispatch, so a rejected marker is a generated path that can be removed.
+        if (impl->current_input_name.empty()) {
+            swoole_warning("upload file marker has no matching multipart file metadata");
+            unlink(tmp_file.c_str());
+            return 0;
+        }
+        if (ctx->files.find(impl->current_input_name) != ctx->files.end()) {
+            unlink(tmp_file.c_str());
+            return 0;
+        }
         impl->completed = true;
-        ctx->files[impl->current_form_data_name] = std::string(at, length);
+        ctx->files[impl->current_input_name] = tmp_file;
     }
 
     return 0;
@@ -242,7 +254,7 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
     }
     ssize_t n = fwrite(at, sizeof(char), length, p->fp);
     if (n != (off_t) length) {
-        ctx->files[impl->current_form_data_name] = "ERROR(1)";
+        ctx->files[impl->current_input_name] = "ERROR(1)";
         fclose(p->fp);
         p->fp = nullptr;
         swoole_sys_warning("write upload file failed");
@@ -257,7 +269,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
         return 0;
     }
 
-    if (ctx->files.find(impl->current_form_data_name) != ctx->files.end()) {
+    if (ctx->files.find(impl->current_input_name) != ctx->files.end()) {
         return 0;
     }
 
@@ -273,7 +285,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
         return 0;
     }
     p->fp = fp;
-    ctx->files[impl->current_form_data_name] = file_path;
+    ctx->files[impl->current_input_name] = file_path;
 
     return 0;
 }
@@ -379,6 +391,7 @@ std::shared_ptr<Server> listen(const std::string &addr, const std::function<void
             return SW_OK;
         }
         ContextImpl impl;
+        impl.upload_preprocessed = (req->info.ext_flags & SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED) != 0;
         Context ctx(server, session_id, &impl);
         if (impl.parse(ctx, req->data, req->info.len)) {
             http_server_on_request(ctx);

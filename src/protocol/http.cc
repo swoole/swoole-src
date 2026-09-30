@@ -164,14 +164,27 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
     auto *request = static_cast<Request *>(p->data);
     auto *form_data = request->form_data_;
 
+    if (SW_STRCASEEQ(form_data->current_header_name, form_data->current_header_name_len, SW_HTTP_UPLOAD_FILE)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "Bad Request: the reserved header '%s' may not be sent by clients",
+                         SW_HTTP_UPLOAD_FILE);
+        return MPPE_ERROR;
+    }
+
     form_data->multipart_buffer_->append(form_data->current_header_name, form_data->current_header_name_len);
     form_data->multipart_buffer_->append(SW_STRL(": "));
     form_data->multipart_buffer_->append(at, length);
     form_data->multipart_buffer_->append(SW_STRL("\r\n"));
 
     if (SW_STRCASEEQ(form_data->current_header_name, form_data->current_header_name_len, "content-disposition")) {
-        ParseCookieCallback cb = [request, form_data, p](char *key, size_t key_len, char *value, size_t value_len) {
+        bool failed = false;
+        ParseCookieCallback cb = [request, form_data, p, &failed](
+                                     char *key, size_t key_len, char *value, size_t value_len) {
             if (SW_STRCASEEQ(key, key_len, "filename")) {
+                if (SW_STREQ(value, value_len, "\"\"")) {
+                    return false;
+                }
                 memcpy(form_data->upload_tmpfile->str,
                        form_data->upload_tmpfile_fmt_.c_str(),
                        form_data->upload_tmpfile_fmt_.length());
@@ -179,7 +192,7 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
                 form_data->upload_filesize = 0;
                 int tmpfile = swoole_tmpfile(form_data->upload_tmpfile->str);
                 if (tmpfile < 0) {
-                    request->excepted = true;
+                    failed = true;
                     return false;
                 }
 
@@ -189,12 +202,18 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
                     return false;
                 }
                 p->fp = fp;
+                request->upload_tmpfile_paths_.emplace_back(form_data->upload_tmpfile->str);
 
                 return false;
             }
             return true;
         };
         parse_cookie(at, length, cb);
+        if (failed) {
+            request->excepted = 1;
+            request->unavailable = 1;
+            return MPPE_PAUSED;
+        }
     }
 
     return 0;
@@ -209,7 +228,7 @@ static int multipart_on_data(multipart_parser *p, const char *at, size_t length)
         if (form_data->multipart_buffer_->length + length > request->max_length_) {
             request->excepted = 1;
             request->unavailable = 1;
-            return 1;
+            return MPPE_PAUSED;
         }
         form_data->multipart_buffer_->append(at, length);
         return 0;
@@ -219,7 +238,7 @@ static int multipart_on_data(multipart_parser *p, const char *at, size_t length)
     if (form_data->upload_filesize > form_data->upload_max_filesize) {
         request->excepted = 1;
         request->too_large = 1;
-        return 1;
+        return MPPE_PAUSED;
     }
 
     ssize_t n = fwrite(at, sizeof(char), length, p->fp);
@@ -229,7 +248,7 @@ static int multipart_on_data(multipart_parser *p, const char *at, size_t length)
         request->excepted = 1;
         request->unavailable = 1;
         swoole_sys_warning("failed to write upload file");
-        return 1;
+        return MPPE_PAUSED;
     }
 
     return 0;
@@ -814,7 +833,6 @@ void Request::destroy_multipart_parser() {
     form_data_->multipart_buffer_ = nullptr;
     if (form_data_->multipart_parser_->fp) {
         fclose(form_data_->multipart_parser_->fp);
-        unlink(form_data_->upload_tmpfile->str);
     }
     multipart_parser_free(form_data_->multipart_parser_);
     form_data_->multipart_parser_ = nullptr;
@@ -852,6 +870,9 @@ bool Request::parse_multipart_data(String *buffer) {
 Request::~Request() {
     if (form_data_) {
         destroy_multipart_parser();
+    }
+    for (const auto &tmpfile : upload_tmpfile_paths_) {
+        unlink(tmpfile.c_str());
     }
 }
 
