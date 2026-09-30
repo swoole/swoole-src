@@ -188,6 +188,7 @@ struct Context {
     uint16_t input_var_num;
     const char *current_header_name;
     size_t current_header_name_len;
+    size_t current_header_value_len;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
@@ -432,7 +433,7 @@ static sw_inline bool swoole_http_has_crlf(const char *value, size_t length) {
 }
 
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
-bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value);
+int swoole_http_token_list_contains_value(const char *at, size_t length, const char *value);
 
 swoole::http::Context *php_swoole_http_request_get_context(const zval *zobject);
 void php_swoole_http_request_set_context(const zval *zobject, swoole::http::Context *ctx);
