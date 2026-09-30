@@ -28,6 +28,7 @@
 #include "zend_fibers.h"
 #include "zend_observer.h"
 
+#include <atomic>
 #include <stack>
 #include <thread>
 
@@ -272,7 +273,7 @@ class PHPCoroutine {
     static SW_THREAD_LOCAL PHPContext main_context;
     static SW_THREAD_LOCAL Config config;
 
-    static SW_THREAD_LOCAL bool interrupt_thread_running;
+    static SW_THREAD_LOCAL std::atomic_bool interrupt_thread_running;
     static SW_THREAD_LOCAL std::thread interrupt_thread;
 
     static void activate();
