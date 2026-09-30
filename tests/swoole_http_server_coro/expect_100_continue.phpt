@@ -79,6 +79,20 @@ Coroutine\run(function () {
     Assert::notContains($response, 'HTTP/1.1 100 Continue');
     Assert::contains($response, $body);
 
+    // HTTP/1.0 clients do not understand informational responses. Send the body immediately rather than waiting for
+    // 100 Continue, and verify that the server ignores the expectation.
+    $body = 'http-1.0-body';
+    $request = "POST / HTTP/1.0\r\n" .
+        "Host: localhost\r\n" .
+        "Expect: 100-continue\r\n" .
+        'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
+    $socket = connect_to($server);
+    Assert::same($socket->sendAll($request), strlen($request));
+    $response = recv_all($socket);
+    Assert::notContains($response, $continue);
+    Assert::contains($response, '200 OK');
+    Assert::contains($response, $body);
+
     $server->shutdown();
 
     echo "DONE\n";
