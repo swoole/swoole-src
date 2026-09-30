@@ -728,6 +728,9 @@ void Request::parse_header_info() {
     char *p = buffer_->str + request_line_length_ + (sizeof("\r\n") - 1);
     // point-end: start + strlen(all-header) without strlen("\r\n\r\n")
     char *pe = buffer_->str + header_length_ - (sizeof("\r\n\r\n") - 1);
+    bool transfer_encoding = false;
+    bool chunked_seen = false;
+    bool after_chunked = false;
 
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
@@ -753,13 +756,32 @@ void Request::parse_header_info() {
             } else if (SW_STR_ISTARTS_WITH(p, pe - p, "Transfer-Encoding:")) {
                 // strlen("Transfer-Encoding:")
                 p += (sizeof("Transfer-Encoding:") - 1);
-                // skip spaces
-                while (*p == ' ') {
+                char *value_end = (char *) memchr(p, '\r', pe - p + 1);
+                transfer_encoding = true;
+                while (true) {
+                    while (p < value_end && (*p == ' ' || *p == '\t')) {
+                        p++;
+                    }
+                    char *coding = p;
+                    while (p < value_end && *p != ',') {
+                        p++;
+                    }
+                    char *coding_end = p;
+                    while (coding_end > coding && coding_end[-1] == ' ') {
+                        coding_end--;
+                    }
+                    if (chunked_seen) {
+                        after_chunked = true;
+                    }
+                    if (SW_STRCASEEQ(coding, coding_end - coding, "chunked")) {
+                        chunked_seen = true;
+                    }
+                    if (p == value_end) {
+                        break;
+                    }
                     p++;
                 }
-                if (SW_STR_ISTARTS_WITH(p, pe - p, "chunked")) {
-                    chunked = 1;
-                }
+                p = value_end;
             } else if (SW_STR_ISTARTS_WITH(p, pe - p, "Content-Type:")) {
                 p += (sizeof("Content-Type:") - 1);
                 while (*p == ' ') {
@@ -774,6 +796,12 @@ void Request::parse_header_info() {
         }
     }
 
+    if (transfer_encoding) {
+        chunked = chunked_seen && !after_chunked;
+        if (!chunked) {
+            excepted = 1;
+        }
+    }
     header_parsed = 1;
 }
 

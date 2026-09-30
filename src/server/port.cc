@@ -557,6 +557,13 @@ _parse:
     // parse http header and got http body length
     if (!request->header_parsed) {
         request->parse_header_info();
+        if (request->excepted) {
+            swoole_error_log(SW_LOG_TRACE,
+                             SW_ERROR_HTTP_INVALID_PROTOCOL,
+                             "Bad Request: invalid Transfer-Encoding" CLIENT_INFO_FMT,
+                             CLIENT_INFO_ARGS);
+            goto _bad_request;
+        }
         request->max_length_ = protocol->package_max_length;
         swoole_trace_log(SW_TRACE_SERVER,
                          "content-length=%" PRIu64 ", keep-alive=%u, chunked=%u",

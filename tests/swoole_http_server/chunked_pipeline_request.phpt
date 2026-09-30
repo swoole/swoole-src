@@ -72,6 +72,17 @@ $pm->parentFunc = function () use ($pm) {
         $request =
             "POST /chunk HTTP/1.1\r\n" .
             "Host: localhost\r\n" .
+            "Transfer-Encoding: gzip, chunked\r\n\r\n" .
+            "5\r\nhello\r\n0\r\n\r\n" .
+            "GET /next HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        Assert::same($socket->sendAll($request), strlen($request));
+        Assert::same(getHttpBody($socket->recvPacket()), 'chunk:hello');
+        Assert::same(getHttpBody($socket->recvPacket()), 'next');
+
+        $socket = connectHttpSocket($pm);
+        $request =
+            "POST /chunk HTTP/1.1\r\n" .
+            "Host: localhost\r\n" .
             "Transfer-Encoding: chunked\r\n\r\n" .
             "5\r\nhello\r\n0\r\nX-Split";
         Assert::same($socket->sendAll($request), strlen($request));
@@ -113,6 +124,20 @@ $pm->parentFunc = function () use ($pm) {
             "Connection: close\r\n\r\n0\r\n\r\n";
         $response = sendAndClose($pm, $request);
         Assert::same(substr_count($response, 'HTTP/1.1 400 Bad Request'), 1);
+
+        foreach ([
+            "Transfer-Encoding: chunked, gzip\r\n",
+            "Transfer-Encoding: chunked\r\nTransfer-Encoding: chunked\r\n",
+        ] as $transferEncoding) {
+            $request =
+                "POST / HTTP/1.1\r\n" .
+                "Host: localhost\r\n" .
+                $transferEncoding .
+                "Connection: close\r\n\r\n" .
+                "5\r\nhello\r\n0\r\n\r\n";
+            $response = sendAndClose($pm, $request);
+            Assert::same(substr_count($response, 'HTTP/1.1 400 Bad Request'), 1);
+        }
 
         $request =
             "POST / HTTP/1.1\r\n" .
