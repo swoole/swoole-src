@@ -285,6 +285,7 @@ static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t
     auto *ctx = static_cast<HttpContext *>(parser->data);
     ctx->current_header_name = at;
     ctx->current_header_name_len = length;
+    ctx->current_header_value_len = 0;
     return 0;
 }
 
@@ -326,12 +327,16 @@ static void http_request_add_upload_file(HttpContext *ctx, const char *file, siz
     zend_hash_str_add_ptr(SG(rfc1867_uploaded_files), file, l_file, (char *) file);
 }
 
-bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
+// Return -1 when the token list cannot fit in the scratch buffer, 0 when absent, and 1 when found.
+int swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
     if (0 == length) {
-        return false;
+        return 0;
+    }
+    if (length >= SW_STACK_BUFFER_SIZE || length >= sw_tg_buffer()->size) {
+        return -1;
     }
     if (SW_STRCASEEQ(at, length, value)) {
-        return true;
+        return 1;
     }
 
     char *var;
@@ -340,20 +345,19 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
     size_t var_len;
 
     char *_c = sw_tg_buffer()->str;
-    size_t copy_length = SW_MIN(length, sw_tg_buffer()->size - 1);
-    memcpy(_c, at, copy_length);
-    _c[copy_length] = '\0';
+    memcpy(_c, at, length);
+    _c[length] = '\0';
 
     var = php_strtok_r(_c, separator, &strtok_buf);
     while (var) {
         var_len = swoole::ltrim(&var, strlen(var));
         var_len = swoole::rtrim(var, var_len);
         if (swoole_strcaseeq(var, var_len, value, strlen(value))) {
-            return true;
+            return 1;
         }
         var = php_strtok_r(nullptr, separator, &strtok_buf);
     }
-    return false;
+    return 0;
 }
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
@@ -367,8 +371,21 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
             swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE));
         swoole_http_parse_cookie(zcookie, at, length);
         return 0;
-    } else if (SW_STRCASEEQ(header_name, header_len, "upgrade") &&
-               swoole_http_token_list_contains_value(at, length, "websocket")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "upgrade")) {
+        constexpr size_t max_length = SW_STACK_BUFFER_SIZE - 1;
+        if (ctx->current_header_value_len > max_length || length > max_length - ctx->current_header_value_len) {
+            llhttp_set_error_reason(parser, "Upgrade header value exceeds the maximum length");
+            return HPE_USER;
+        }
+        ctx->current_header_value_len += length;
+        int contains_websocket = swoole_http_token_list_contains_value(at, length, "websocket");
+        if (contains_websocket < 0) {
+            llhttp_set_error_reason(parser, "Upgrade header value exceeds the maximum length");
+            return HPE_USER;
+        }
+        if (!contains_websocket) {
+            goto _add_header;
+        }
         ctx->websocket = 1;
         if (ctx->is_co_socket()) {
             goto _add_header;
