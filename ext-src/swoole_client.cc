@@ -732,6 +732,7 @@ static PHP_METHOD(swoole_client, send) {
     swoole_set_last_error(0);
     ssize_t ret = cli->send(data, data_len, flags);
     if (ret < 0) {
+        cli->reusable = false;
         php_swoole_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
         zend_update_property_long(
             swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
@@ -801,6 +802,7 @@ static PHP_METHOD(swoole_client, sendfile) {
     swoole_set_last_error(0);
     int ret = cli->sendfile(file, offset, length);
     if (ret < 0) {
+        cli->reusable = false;
         swoole_set_last_error(errno);
         php_swoole_fatal_error(E_WARNING,
                                "sendfile() failed. Error: %s [%d]",
@@ -861,6 +863,7 @@ static PHP_METHOD(swoole_client, recv) {
 
             ret = cli->recv(buf, buf_len, 0);
             if (ret < 0) {
+                cli->reusable = false;
                 php_swoole_sys_error(E_WARNING, "recv() failed");
                 zend_update_property_long(
                     swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
@@ -898,6 +901,7 @@ static PHP_METHOD(swoole_client, recv) {
                 return;
             } else {
                 if (buffer->length == protocol->package_max_length) {
+                    cli->reusable = false;
                     php_swoole_error(E_WARNING, "no package eof");
                     buffer->length = 0;
                     RETURN_FALSE;
@@ -946,12 +950,14 @@ static PHP_METHOD(swoole_client, recv) {
 
         // error package
         if (buf_len < 0) {
+            cli->reusable = false;
             RETURN_EMPTY_STRING();
         }
         // empty package
         else if (buf_len == header_len) {
             RETURN_STRINGL(buffer->str, header_len);
         } else if (buf_len > protocol->package_max_length) {
+            cli->reusable = false;
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                              "Package is too big. package_length=%d",
@@ -986,6 +992,7 @@ static PHP_METHOD(swoole_client, recv) {
     }
 
     if (ret < 0) {
+        cli->reusable = false;
         php_swoole_sys_error(E_WARNING, "recv() failed");
         zend_update_property_long(
             swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
@@ -1096,9 +1103,9 @@ static PHP_METHOD(swoole_client, close) {
         php_swoole_error(E_WARNING, "client socket is closed");
         RETURN_FALSE;
     }
-    // A half-closed socket cannot be reused, so it must not enter the connection pool.
+    // Failed I/O and half-closed sockets cannot be reused.
     // Dead sockets are rejected when a pooled client is retrieved.
-    if (force || !cli->keep || cli->shutdown_read || cli->shutdown_write) {
+    if (force || !cli->keep || !cli->reusable || cli->shutdown_read || cli->shutdown_write) {
         ret = cli->close();
         php_swoole_client_free(ZEND_THIS, cli);
     } else {
