@@ -89,7 +89,7 @@ static void php_ssh2_session_data_free(php_ssh2_session_data *data) {
     if (data->socket->close() || !data->socket->has_bound()) {
         delete data->socket;
     } else {
-        ::close(data->socket->move_fd());
+        sw_close_socket(data->socket->move_fd());
     }
     efree(data);
 }
@@ -1296,6 +1296,9 @@ static void php_ssh2_session_dtor(zend_resource *rsrc) {
                          "Unable to free SSH2 session(%d): %s; resources retained",
                          rc,
                          error_msg ? error_msg : "Unknown error");
+        // Its resource is already destroyed, so nothing can use the retained session's descriptor again.
+        session_data->socket->close();
+        sw_close_socket(session_data->socket->move_fd());
         return;
     }
 
