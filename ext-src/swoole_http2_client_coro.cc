@@ -120,7 +120,7 @@ class Client {
         }
     }
 
-    nghttp2_ssize build_header(const zval *zobj, zval *zrequest, String *buffer);
+    ssize_t build_header(const zval *zobj, zval *zrequest, String *buffer);
 
     void update_error_properties(int code, const char *msg) const {
         php_swoole_socket_set_error_properties(zobject, code, msg);
@@ -988,7 +988,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
     return SW_OK;
 }
 
-nghttp2_ssize Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
+ssize_t Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
     Client *h2c = http2_client_coro_get_client(zobj);
     zval *zmethod = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_METHOD), 0);
     zval *zpath = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH), 0);
@@ -1082,10 +1082,10 @@ nghttp2_ssize Client::build_header(const zval *zobj, zval *zrequest, String *buf
         buffer->reserve(buffer_size);
     }
 
-    nghttp2_ssize rv = nghttp2_hd_deflate_hd2(
+    ssize_t rv = nghttp2_hd_deflate_hd(
         h2c->deflater, (uchar *) buffer->str + SW_HTTP2_FRAME_HEADER_SIZE, buflen, headers.get(), headers.len());
     if (rv < 0) {
-        h2c->nghttp2_error(rv, "nghttp2_hd_deflate_hd2() failed");
+        h2c->nghttp2_error(rv, "nghttp2_hd_deflate_hd() failed");
         h2c->close();
         return rv;
     }
@@ -1199,7 +1199,7 @@ uint32_t Client::send_request(zval *zrequest) {
      * send headers
      */
     String *buffer = sw_tg_buffer();
-    nghttp2_ssize bytes = build_header(zobject, zrequest, buffer);
+    ssize_t bytes = build_header(zobject, zrequest, buffer);
 
     if (bytes < 0) {
         return 0;
