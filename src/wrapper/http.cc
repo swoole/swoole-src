@@ -225,8 +225,19 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
          * Preprocessed upload bodies replace file content with a temporary file path. The original Content-Length
          * remains, so mark the request completed after consuming the generated marker.
          */
+        std::string tmp_file(at, length);
+        // Client markers are rejected before dispatch, so a rejected marker is a generated path that can be removed.
+        if (!impl->current_part_is_file || impl->current_form_data_name.empty()) {
+            swoole_warning("upload file marker has no matching multipart file metadata");
+            unlink(tmp_file.c_str());
+            return 0;
+        }
+        if (ctx->files.find(impl->current_form_data_name) != ctx->files.end()) {
+            unlink(tmp_file.c_str());
+            return 0;
+        }
         impl->completed = true;
-        ctx->files[impl->current_form_data_name] = std::string(at, length);
+        ctx->files[impl->current_form_data_name] = tmp_file;
     }
 
     return 0;
