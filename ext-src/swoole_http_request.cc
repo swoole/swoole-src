@@ -605,7 +605,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         if (ctx->current_multipart_header == nullptr) {
             swoole_warning("upload file marker has no matching multipart file metadata");
             unlink(tmp_file.c_str());
-            return -1;
+            return 0;
         }
         ctx->completed = 1;
         zval *z_multipart_header = ctx->current_multipart_header;
