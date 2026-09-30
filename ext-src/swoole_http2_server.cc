@@ -132,9 +132,9 @@ static void http2_server_send_window_update(HttpContext *ctx, uint32_t stream_id
     ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
 }
 
-static nghttp2_ssize http2_server_deflate_header_block(const std::shared_ptr<Http2Session> &client,
-                                                       Http2::HeaderSet &headers,
-                                                       String *buffer) {
+static ssize_t http2_server_deflate_header_block(const std::shared_ptr<Http2Session> &client,
+                                                 Http2::HeaderSet &headers,
+                                                 String *buffer) {
     size_t buflen = nghttp2_hd_deflate_bound(client->deflater, headers.get(), headers.len());
     size_t buffer_size = SW_HTTP2_FRAME_HEADER_SIZE + buflen;
     buffer->clear();
@@ -142,10 +142,10 @@ static nghttp2_ssize http2_server_deflate_header_block(const std::shared_ptr<Htt
         buffer->reserve(buffer_size);
     }
 
-    nghttp2_ssize rv = nghttp2_hd_deflate_hd2(
+    ssize_t rv = nghttp2_hd_deflate_hd(
         client->deflater, (uchar *) buffer->str + SW_HTTP2_FRAME_HEADER_SIZE, buflen, headers.get(), headers.len());
     if (rv < 0) {
-        swoole_warning("nghttp2_hd_deflate_hd2() failed with error: %s", nghttp2_strerror((int) rv));
+        swoole_warning("nghttp2_hd_deflate_hd() failed with error: %s", nghttp2_strerror((int) rv));
         return rv;
     }
     if ((uint64_t) rv > client->remote_settings.max_frame_size) {
@@ -159,7 +159,7 @@ static nghttp2_ssize http2_server_deflate_header_block(const std::shared_ptr<Htt
     return rv;
 }
 
-static nghttp2_ssize http2_server_build_trailer(const HttpContext *ctx, String *buffer) {
+static ssize_t http2_server_build_trailer(const HttpContext *ctx, String *buffer) {
     zval *ztrailer =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     uint32_t size = php_swoole_array_length_safe(ztrailer);
@@ -333,7 +333,7 @@ _destroy:
     zval_ptr_dtor(ctx->response.zobject);
 }
 
-static nghttp2_ssize http2_server_build_header(HttpContext *ctx, String *buffer, const String *body) {
+static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const String *body) {
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     zval *zcookie =
@@ -466,7 +466,7 @@ static nghttp2_ssize http2_server_build_header(HttpContext *ctx, String *buffer,
         client->deflater = deflater;
     }
 
-    nghttp2_ssize rv = http2_server_deflate_header_block(client, headers, buffer);
+    ssize_t rv = http2_server_deflate_header_block(client, headers, buffer);
     if (rv < 0) {
         return rv;
     }
@@ -513,7 +513,7 @@ bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const ch
 
 bool Http2Stream::send_header(const String *body, bool end_stream) const {
     String *http_buffer = ctx->get_write_buffer();
-    nghttp2_ssize bytes = http2_server_build_header(ctx, http_buffer, body);
+    ssize_t bytes = http2_server_build_header(ctx, http_buffer, body);
     if (bytes < 0) {
         auto client = http2_sessions[ctx->fd];
         if (client->deflater) {
@@ -634,7 +634,7 @@ bool Http2Stream::send_trailer() const {
     String *http_buffer = ctx->get_write_buffer();
 
     http_buffer->clear();
-    nghttp2_ssize bytes = http2_server_build_trailer(ctx, http_buffer);
+    ssize_t bytes = http2_server_build_trailer(ctx, http_buffer);
     if (bytes < 0) {
         return false;
     }
