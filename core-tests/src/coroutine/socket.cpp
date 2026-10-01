@@ -1087,7 +1087,7 @@ TEST(coroutine_socket, sendfile) {
 
         char data[250000];
         Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
-        ssize_t result = sock.read(data, 250000);
+        ssize_t result = sock.recv_all(data, 250000);
         data[result] = '\0';
         sock.close();
         ASSERT_GT(result, 0);
