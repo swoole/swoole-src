@@ -84,10 +84,14 @@ struct Socks5Proxy {
     int target_port;
     int socket_type;
     char buf[512];
+    std::string response;
 
     ssize_t pack_negotiate_request();
     ssize_t pack_auth_request();
     ssize_t pack_connect_request();
+    // Returns the bytes needed to complete the current response stage. Callers must not read more because any
+    // following bytes belong to the target connection.
+    size_t get_recv_length() const;
     bool handshake(const char *rbuf, size_t rlen, const std::function<ssize_t(const char *buf, size_t len)> &send_fn);
 
     static const char *strerror(int code);
