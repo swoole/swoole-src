@@ -67,11 +67,10 @@ SW_THREAD_LOCAL PHPCoroutine::Config PHPCoroutine::config{
 
 SW_THREAD_LOCAL PHPContext PHPCoroutine::main_context{};
 SW_THREAD_LOCAL std::thread PHPCoroutine::interrupt_thread;
-SW_THREAD_LOCAL bool PHPCoroutine::interrupt_thread_running = false;
+SW_THREAD_LOCAL std::atomic_bool PHPCoroutine::interrupt_thread_running{false};
 
 extern void php_swoole_load_library();
 
-static SW_THREAD_LOCAL zend_atomic_bool *zend_vm_interrupt = nullptr;
 static SW_THREAD_LOCAL unordered_map<long, Coroutine *> user_yield_coros;
 static zend_function swoole_coroutine_internal_function;
 
@@ -492,23 +491,24 @@ void PHPCoroutine::deadlock_check() {
 }
 
 void PHPCoroutine::interrupt_thread_stop() {
-    if (!interrupt_thread_running) {
+    if (!interrupt_thread_running.load(std::memory_order_acquire)) {
         return;
     }
-    interrupt_thread_running = false;
+    interrupt_thread_running.store(false, std::memory_order_release);
     interrupt_thread.join();
 }
 
 void PHPCoroutine::interrupt_thread_start() {
-    if (interrupt_thread_running) {
+    if (interrupt_thread_running.load(std::memory_order_acquire)) {
         return;
     }
-    zend_vm_interrupt = &EG(vm_interrupt);
-    interrupt_thread_running = true;
-    interrupt_thread = std::thread([]() {
+    auto *running = &interrupt_thread_running;
+    auto *vm_interrupt = &EG(vm_interrupt);
+    interrupt_thread_running.store(true, std::memory_order_release);
+    interrupt_thread = std::thread([running, vm_interrupt]() {
         swoole_signal_block_all();
-        while (interrupt_thread_running) {
-            zend_atomic_bool_store(zend_vm_interrupt, 1);
+        while (running->load(std::memory_order_acquire)) {
+            zend_atomic_bool_store(vm_interrupt, 1);
             std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));
         }
     });
