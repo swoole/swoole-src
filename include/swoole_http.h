@@ -120,8 +120,8 @@ struct FormData {
     String *multipart_buffer_;
     String *upload_tmpfile;
     std::string upload_tmpfile_fmt_;
-    const char *current_header_name;
-    size_t current_header_name_len;
+    std::string current_header_name;
+    std::string current_header_value;
     size_t upload_filesize;
     size_t upload_max_filesize;
 };
@@ -135,7 +135,6 @@ struct Request {
 
     uchar header_parsed : 1;
     uchar tried_to_dispatch : 1;
-    uchar multipart_header_parsed : 1;
 
     uchar known_length : 1;
     uchar keep_alive : 1;
@@ -149,6 +148,7 @@ struct Request {
     uint32_t request_line_length_; /* without \r\n  */
     uint32_t header_length_;       /* include request_line_length + \r\n */
     uint64_t content_length_;
+    uint64_t multipart_body_length_;
 
     FormData *form_data_;
     String *buffer_;
@@ -190,7 +190,7 @@ char *url_encode(char const *str, size_t len);
 int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 bool parse_multipart_boundary(
     const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
-void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
+bool parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
 
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 uint8_t get_package_length_size(network::Socket *conn);

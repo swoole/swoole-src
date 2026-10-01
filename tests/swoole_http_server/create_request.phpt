@@ -65,5 +65,61 @@ $req3 = Request::create();
 $req3->parse($data);
 Assert::eq("POST", $req3->getMethod());
 
+$body = 'first=one&second=two';
+$duplicate = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$duplicate .= "Content-Type: multipart/form-data; boundary=ignored\r\n";
+$duplicate .= "Content-Type: application/x-www-form-urlencoded\r\n";
+$duplicate .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
+$request = Request::create();
+Assert::same($request->parse($duplicate), strlen($duplicate));
+Assert::true($request->isCompleted());
+Assert::same($request->post, ['first' => 'one', 'second' => 'two']);
+
+$empty = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$empty .= "Content-Type: multipart/form-data; boundary=empty\r\n";
+$empty .= "Content-Length: 0\r\n\r\n";
+$request = Request::create();
+Assert::same($request->parse($empty), strlen($empty));
+Assert::true($request->isCompleted());
+Assert::null($request->post);
+Assert::null($request->files);
+
+$body = "--incomplete\r\nContent-Disposition: form-data; name=\"unfinished";
+$incomplete = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$incomplete .= "Content-Type: multipart/form-data; boundary=incomplete\r\n";
+$incomplete .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
+$request = Request::create();
+Assert::same($request->parse($incomplete), strlen($incomplete));
+Assert::false($request->isCompleted());
+Assert::null($request->post);
+Assert::null($request->files);
+
+$boundary = 'fragmented-boundary';
+$body = "--{$boundary}\r\n";
+$body .= "Content-Type: text/plain\r\n";
+$body .= "Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\r\n";
+$body .= "file-value\r\n";
+$body .= "--{$boundary}\r\n";
+$body .= "Content-Disposition: form-data; name=\"field\"\r\n\r\n";
+$body .= "field-value\r\n";
+$body .= "--{$boundary}--\r\n";
+$duplicate = "POST / HTTP/1.1\r\nHost: localhost\r\n";
+$duplicate .= "Content-Type: application/x-www-form-urlencoded\r\n";
+$duplicate .= "Content-Type: multipart/form-data; boundary={$boundary}\r\n";
+$duplicate .= 'Content-Length: ' . strlen($body) . "\r\n\r\n{$body}";
+// Split one part-header field name and one part-header value across parse calls.
+$fieldSplit = strpos($duplicate, 'Content-Disposition: form-data; name="file"') + strlen('Content-Dis');
+$valueSplit = strpos($duplicate, 'name="field"') + strlen('name="fi');
+$request = Request::create();
+Assert::same($request->parse(substr($duplicate, 0, $fieldSplit)), $fieldSplit);
+$length = $valueSplit - $fieldSplit;
+Assert::same($request->parse(substr($duplicate, $fieldSplit, $length)), $length);
+Assert::same($request->parse(substr($duplicate, $valueSplit)), strlen($duplicate) - $valueSplit);
+Assert::true($request->isCompleted());
+Assert::same($request->post['field'], 'field-value');
+Assert::same($request->files['file']['name'], 'test.txt');
+Assert::same($request->files['file']['type'], 'text/plain');
+Assert::same(file_get_contents($request->files['file']['tmp_name']), 'file-value');
+
 ?>
 --EXPECT--
