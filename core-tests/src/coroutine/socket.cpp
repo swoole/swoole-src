@@ -519,6 +519,94 @@ TEST(coroutine_socket, eof_6) {
                     }});
 }
 
+TEST(coroutine_socket, eof_package_max_length_complete) {
+    coroutine::run([](void *arg) {
+        int pairs[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pairs), 0);
+
+        Coroutine::create([fd = pairs[1]](void *arg) {
+            Socket peer(fd, SW_SOCK_UNIX_STREAM);
+            std::string packet(1023, 'A');
+            ASSERT_EQ(peer.send_all(packet.data(), packet.length()), packet.length());
+            System::sleep(0.01);
+            ASSERT_EQ(peer.send_all(SW_STRL(CRLF)), strlen(CRLF));
+            peer.close();
+        });
+
+        Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+        socket_set_eof_protocol(sock);
+        sock.protocol.package_max_length = 1024;
+
+        EXPECT_EQ(sock.recv_packet(RECV_TIMEOUT), -1);
+        EXPECT_EQ(sock.errCode, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+        sock.close();
+    });
+
+    coroutine::run([](void *arg) {
+        int pairs[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pairs), 0);
+
+        std::string packets(1022, 'A');
+        packets.append(CRLF "B" CRLF);
+        Coroutine::create([fd = pairs[1], packets](void *arg) {
+            Socket peer(fd, SW_SOCK_UNIX_STREAM);
+            ASSERT_EQ(peer.send_all(packets.data(), packets.length()), packets.length());
+            peer.close();
+        });
+
+        Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+        socket_set_eof_protocol(sock);
+        sock.protocol.package_max_length = 1024;
+
+        EXPECT_EQ(sock.recv_packet(RECV_TIMEOUT), 1024);
+        EXPECT_EQ(sock.get_read_buffer()->length, packets.length());
+        EXPECT_EQ(sock.recv_packet(RECV_TIMEOUT), 3);
+        sock.close();
+    });
+}
+
+TEST(coroutine_socket, eof_package_max_length_unterminated) {
+    coroutine::run([](void *arg) {
+        int pairs[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pairs), 0);
+
+        std::string packet(100008, 'A');
+        Coroutine::create([fd = pairs[1], packet](void *arg) {
+            Socket peer(fd, SW_SOCK_UNIX_STREAM);
+            ASSERT_EQ(peer.send_all(packet.data(), packet.length()), packet.length());
+            peer.close();
+        });
+
+        Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+        socket_set_eof_protocol(sock);
+        sock.protocol.package_max_length = 100001;
+
+        EXPECT_EQ(sock.recv_packet(RECV_TIMEOUT), -1);
+        EXPECT_EQ(sock.errCode, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+        sock.close();
+    });
+
+    coroutine::run([](void *arg) {
+        int pairs[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pairs), 0);
+
+        std::string packet(2048, 'A');
+        Coroutine::create([fd = pairs[1], packet](void *arg) {
+            Socket peer(fd, SW_SOCK_UNIX_STREAM);
+            ASSERT_EQ(peer.send_all(packet.data(), packet.length()), packet.length());
+            peer.close();
+        });
+
+        Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+        socket_set_eof_protocol(sock);
+        sock.protocol.package_max_length = 1024;
+
+        EXPECT_EQ(sock.recv_packet(RECV_TIMEOUT), -1);
+        EXPECT_EQ(sock.errCode, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+        sock.close();
+    });
+}
+
 static void socket_set_length_protocol_1(Socket &sock) {
     sock.protocol = {};
 
