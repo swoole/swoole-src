@@ -1636,6 +1636,22 @@ bool Socket::close() {
     }
 }
 
+void Socket::close_fd() {
+#ifdef SW_USE_OPENSSL
+    ssl_shutdown();
+#endif
+    if (socket->fd == SW_BAD_SOCKET) {
+        return;
+    }
+    if (swoole_event_is_available() && !socket->removed) {
+        swoole_event_del(socket);
+    }
+    int fd = socket->move_fd();
+    if (::close(fd) != 0) {
+        swoole_sys_warning("close(%d) failed", fd);
+    }
+}
+
 /**
  * Warn:
  * the destructor should only be called in following two cases:
@@ -1658,9 +1674,7 @@ Socket::~Socket() {
         return;
     }
     /* {{{ release socket resources */
-#ifdef SW_USE_OPENSSL
-    ssl_shutdown();
-#endif
+    close_fd();
     socket->free();
 }
 
