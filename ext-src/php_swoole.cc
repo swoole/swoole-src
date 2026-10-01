@@ -356,6 +356,12 @@ PHP_INI_END()
 // clang-format on
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
+    // The globals block is registered from MINIT via ZEND_INIT_MODULE_GLOBALS, which under ZTS
+    // hands out a raw malloc()'d, unzeroed buffer (TSRM.c allocate_new_resource). Every field
+    // must therefore be initialized here, otherwise `cli` below keeps whatever garbage the
+    // allocator left behind and SAPI detection silently takes the wrong branch.
+    memset(swoole_globals, 0, sizeof(*swoole_globals));
+
     swoole_globals->enable_library = true;
     swoole_globals->enable_fiber_mock = false;
     swoole_globals->enable_preemptive_scheduler = false;
@@ -599,6 +605,8 @@ static int g_module_number_;
 int sw_module_number() {
     return g_module_number_;
 }
+
+static void sw_after_fork(void *args);
 
 /* {{{ PHP_MINIT_FUNCTION
  */
@@ -962,6 +970,11 @@ PHP_MINIT_FUNCTION(swoole) {
     }
 
     swoole_init();
+
+    // The after-fork hook list is process-global and idempotent, register it only once here.
+    // Registering it in RINIT leaks a list node per request and races when Swoole\Thread
+    // runs RINIT concurrently on the shared SwooleG.hooks list.
+    swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
     // init bug report message
     bug_report_message_init();
@@ -1395,8 +1408,6 @@ PHP_RINIT_FUNCTION(swoole) {
     /* Disable warning even in ZEND_DEBUG because we may register our own signal handlers  */
     SIGG(check) = false;
 #endif
-
-    swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
     php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();
