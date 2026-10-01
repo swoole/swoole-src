@@ -690,7 +690,8 @@ void HttpContext::send_trailer(zval *return_value) {
     String *http_buffer = get_write_buffer();
 
     http_buffer->clear();
-    if (build_trailer(http_buffer) == 0) {
+    build_trailer(http_buffer);
+    if (http_buffer->length == 0) {
         return;
     }
     if (!send(this, http_buffer->str, http_buffer->length)) {
@@ -796,6 +797,9 @@ void HttpContext::end(zval *zdata, zval *return_value) {
             }
             send_trailer(return_value);
             send_trailer_ = 0;
+            if (end_) {
+                RETURN_FALSE;
+            }
         } else {
             if (!send(this, ZEND_STRL("0\r\n\r\n"))) {
                 RETURN_FALSE;
