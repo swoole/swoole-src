@@ -585,21 +585,48 @@ static PHP_METHOD(swoole_process_pool, start) {
     }
 
     ProcessPoolObject *pp = process_pool_fetch_object(ZEND_THIS);
-    std::unordered_map<int, swSignalHandler> ori_handlers;
+    struct SignalState {
+        swSignalHandler handler;
+        struct sigaction action;
+    };
+    std::unordered_map<int, SignalState> ori_handlers;
 
     // The reactor must be cleaned up before registering signal
     swoole_event_free();
-    ori_handlers[SIGTERM] = swoole_signal_set(SIGTERM, process_pool_signal_handler);
-    ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, process_pool_signal_handler);
-    ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, process_pool_signal_handler);
-    ori_handlers[SIGIO] = swoole_signal_set(SIGIO, process_pool_signal_handler);
-    ori_handlers[SIGWINCH] = swoole_signal_set(SIGWINCH, process_pool_signal_handler);
+    ori_handlers[SIGTERM].handler = swoole_signal_get_handler(SIGTERM);
+    sigaction(SIGTERM, nullptr, &ori_handlers[SIGTERM].action);
+    swoole_signal_set(SIGTERM, process_pool_signal_handler);
+    ori_handlers[SIGUSR1].handler = swoole_signal_get_handler(SIGUSR1);
+    sigaction(SIGUSR1, nullptr, &ori_handlers[SIGUSR1].action);
+    swoole_signal_set(SIGUSR1, process_pool_signal_handler);
+    ori_handlers[SIGUSR2].handler = swoole_signal_get_handler(SIGUSR2);
+    sigaction(SIGUSR2, nullptr, &ori_handlers[SIGUSR2].action);
+    swoole_signal_set(SIGUSR2, process_pool_signal_handler);
+    ori_handlers[SIGIO].handler = swoole_signal_get_handler(SIGIO);
+    sigaction(SIGIO, nullptr, &ori_handlers[SIGIO].action);
+    swoole_signal_set(SIGIO, process_pool_signal_handler);
+    ori_handlers[SIGWINCH].handler = swoole_signal_get_handler(SIGWINCH);
+    sigaction(SIGWINCH, nullptr, &ori_handlers[SIGWINCH].action);
+    swoole_signal_set(SIGWINCH, process_pool_signal_handler);
 #ifdef SIGRTMIN
-    ori_handlers[SIGRTMIN] = swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
+    ori_handlers[SIGRTMIN].handler = swoole_signal_get_handler(SIGRTMIN);
+    sigaction(SIGRTMIN, nullptr, &ori_handlers[SIGRTMIN].action);
+    swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
 #endif
+    auto restore_signal_handlers = [&ori_handlers]() {
+        for (auto &ori_handler : ori_handlers) {
+            if (ori_handler.second.handler) {
+                swoole_signal_set(ori_handler.first, ori_handler.second.handler);
+            } else {
+                swoole_signal_set(ori_handler.first, reinterpret_cast<swSignalHandler>(-1), 0, 0);
+            }
+            sigaction(ori_handler.first, &ori_handler.second.action, nullptr);
+        }
+    };
 
     if (pp->enable_message_bus) {
         if (pool->message_bus == nullptr && pool->create_message_bus() != SW_OK) {
+            restore_signal_handlers();
             RETURN_FALSE;
         }
         pool->message_bus->set_allocator(sw_zend_string_allocator());
@@ -610,9 +637,11 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     if (pp->onWorkerStart == nullptr && pp->onMessage == nullptr) {
         if (pool->async) {
+            restore_signal_handlers();
             php_swoole_fatal_error(E_ERROR, "require 'onWorkerStart' callback");
             RETURN_FALSE;
         } else if (pool->ipc_mode != SW_IPC_NONE && pp->onMessage == nullptr) {
+            restore_signal_handlers();
             php_swoole_fatal_error(E_ERROR, "require 'onMessage' callback");
             RETURN_FALSE;
         }
@@ -621,6 +650,7 @@ static PHP_METHOD(swoole_process_pool, start) {
     if (pp->onWorkerExit && !pp->enable_coroutine) {
         zend_throw_exception(
             swoole_exception_ce, "cannot set `onWorkerExit` without enable_coroutine", SW_ERROR_INVALID_PARAMS);
+        restore_signal_handlers();
         RETURN_FALSE;
     }
 
@@ -642,6 +672,7 @@ static PHP_METHOD(swoole_process_pool, start) {
     }
 
     if (pool->start() < 0) {
+        restore_signal_handlers();
         RETURN_FALSE;
     }
 
@@ -649,9 +680,7 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     current_pool = nullptr;
 
-    for (auto &ori_handler : ori_handlers) {
-        swoole_signal_set(ori_handler.first, ori_handler.second);
-    }
+    restore_signal_handlers();
 }
 
 static PHP_METHOD(swoole_process_pool, detach) {
