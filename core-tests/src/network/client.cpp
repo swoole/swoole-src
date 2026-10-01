@@ -298,7 +298,7 @@ TEST(client, async_tcp_http_proxy_handshake_fail) {
     ac.onClose = [](Client *ac) {};
 
     ac.onError = [&handshake_failed](Client *ac) {
-        EXPECT_ERREQ(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
+        EXPECT_ERREQ(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
         handshake_failed = true;
     };
 
@@ -351,6 +351,8 @@ TEST(client, async_tcp_socks5_proxy_handshake_fail) {
     ASSERT_EQ(ac.connect("www.baidu.com", 80, 1.0), SW_OK);
 
     swoole_event_wait();
+
+    ASSERT_FALSE(success);
 }
 
 TEST(client, sleep) {
