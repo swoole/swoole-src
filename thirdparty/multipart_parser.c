@@ -34,6 +34,7 @@
             if ((ret = p->settings->on_##FOR(p)) == MPPE_PAUSED) {                                                     \
                 return r;                                                                                              \
             } else if (ret != MPPE_OK) {                                                                               \
+                p->error_reason = MPPE_CALLBACK_ERROR;                                                                 \
                 return MPPE_ERROR;                                                                                     \
             }                                                                                                          \
         }                                                                                                              \
@@ -45,6 +46,7 @@
             if ((ret = p->settings->on_##FOR(p, ptr, len)) == MPPE_PAUSED) {                                           \
                 return r;                                                                                              \
             } else if (ret != MPPE_OK) {                                                                               \
+                p->error_reason = MPPE_CALLBACK_ERROR;                                                                 \
                 return MPPE_ERROR;                                                                                     \
             }                                                                                                          \
         }                                                                                                              \
@@ -98,6 +100,9 @@ multipart_parser *multipart_parser_init(const char *boundary,
                                         size_t boundary_length,
                                         const multipart_parser_settings *settings) {
     multipart_parser *p = calloc(sizeof(multipart_parser) + boundary_length + boundary_length + 9 + 4, sizeof(char));
+    if (!p) {
+        return NULL;
+    }
     memcpy(p->boundary, "--", 2);
     memcpy(p->boundary + 2, boundary, boundary_length);
     p->boundary[2 + boundary_length] = 0;
@@ -119,6 +124,10 @@ void multipart_parser_free(multipart_parser *p) {
     free(p);
 }
 
+int multipart_parser_is_complete(const multipart_parser *p) {
+    return p->state == s_end;
+}
+
 int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len) {
     int ret;
     switch (p->error_reason) {
@@ -128,6 +137,8 @@ int multipart_parser_error_msg(multipart_parser *p, char *buf, size_t len) {
         return snprintf(buf, len, "parser paused");
     case MPPE_UNKNOWN:
         return snprintf(buf, len, "parser unknown");
+    case MPPE_CALLBACK_ERROR:
+        return snprintf(buf, len, "callback error");
     default:
         return snprintf(buf, len, "parser abort");
     case MPPE_BOUNDARY_END_NO_CRLF:
@@ -279,8 +290,9 @@ ssize_t multipart_parser_execute(multipart_parser *p, const char *buf, size_t le
             if (c == CR) {
                 p->state = s_header_value_almost_done;
                 EMIT_DATA_CB(header_value, i + 1, buf + mark, i - mark);
+                NOTIFY_CB(header_value_complete, i + 1);
             } else if (is_last) {
-                ERROR_EXPECT(MPPE_HEADER_VALUE_INCOMPLETE, CR);
+                EMIT_DATA_CB(header_value, i + 1, buf + mark, i - mark + 1);
             }
             break;
         case s_header_value_almost_done:

@@ -575,9 +575,6 @@ _parse:
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
                 if (!request->init_multipart_parser(serv)) {
-                    // destroy_multipart_parser() requires a fully initialized FormData.
-                    delete request->form_data_;
-                    request->form_data_ = nullptr;
                     goto _bad_request;
                 }
                 request->upload_preprocessed = 1;
@@ -591,9 +588,6 @@ _parse:
     }
 
     if (request->form_data_) {
-        if (!request->multipart_header_parsed && memmem(buffer->str, buffer->length, SW_STRL("\r\n\r\n")) == nullptr) {
-            return SW_OK;
-        }
         if (!request->parse_multipart_data(buffer)) {
             goto _bad_request;
         }
@@ -604,6 +598,9 @@ _parse:
             goto _unavailable;
         }
         if (!request->tried_to_dispatch) {
+            if (request->multipart_body_length_ >= request->content_length_) {
+                goto _bad_request;
+            }
             return SW_OK;
         }
         request->destroy_multipart_parser();
