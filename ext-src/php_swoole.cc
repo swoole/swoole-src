@@ -356,12 +356,6 @@ PHP_INI_END()
 // clang-format on
 
 static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
-    // The globals block is registered from MINIT via ZEND_INIT_MODULE_GLOBALS, which under ZTS
-    // hands out a raw malloc()'d, unzeroed buffer (TSRM.c allocate_new_resource). Every field
-    // must therefore be initialized here, otherwise `cli` below keeps whatever garbage the
-    // allocator left behind and SAPI detection silently takes the wrong branch.
-    memset(swoole_globals, 0, sizeof(*swoole_globals));
-
     swoole_globals->enable_library = true;
     swoole_globals->enable_fiber_mock = false;
     swoole_globals->enable_preemptive_scheduler = false;
@@ -373,6 +367,10 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->blocking_threshold = 100000;
     swoole_globals->profile = false;
     swoole_globals->leak_detection = false;
+    // `cli` is only set below on the CLI-family SAPIs. It must be defaulted to false here, because
+    // under ZTS ZEND_INIT_MODULE_GLOBALS hands out a pemalloc()'d, unzeroed block (TSRM.c
+    // ts_resource_init) and every other field is assigned above.
+    swoole_globals->cli = false;
 
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
         strcmp("embed", sapi_module.name) == 0 || strcmp("micro", sapi_module.name) == 0) {
