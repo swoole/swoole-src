@@ -95,7 +95,7 @@ int _pdo_pgsql_error(pdo_dbh_t *dbh,
         einfo->errmsg = _pdo_pgsql_trim_message(errmsg, dbh->is_persistent);
     }
 
-    if (!dbh->methods) {
+    if (!dbh->methods && !EG(exception)) {
         pdo_throw_exception(einfo->errcode, einfo->errmsg, pdo_err);
     }
 

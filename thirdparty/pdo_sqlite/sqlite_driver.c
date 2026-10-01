@@ -72,7 +72,7 @@ int _pdo_sqlite_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int li
 			break;
 	}
 
-	if (!dbh->methods) {
+	if (!dbh->methods && !EG(exception)) {
 		pdo_throw_exception(einfo->errcode, einfo->errmsg, pdo_err);
 	}
 

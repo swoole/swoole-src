@@ -176,7 +176,7 @@ ub4 _oci_error(OCIError *err,
     }
 
     /* little mini hack so that we can use this code from the dbh ctor */
-    if (!dbh->methods && status != OCI_SUCCESS_WITH_INFO) {
+    if (!dbh->methods && status != OCI_SUCCESS_WITH_INFO && !EG(exception)) {
         zend_throw_exception_ex(php_pdo_get_exception(), einfo->errcode, "SQLSTATE[%s]: %s", *pdo_err, einfo->errmsg);
     }
 

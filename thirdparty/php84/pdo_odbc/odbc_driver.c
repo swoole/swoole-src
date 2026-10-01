@@ -103,7 +103,7 @@ void pdo_odbc_error(
 
     strcpy(*pdo_err, einfo->last_state);
     /* printf("@@ SQLSTATE[%s] %s\n", *pdo_err, einfo->last_err_msg); */
-    if (!dbh->methods) {
+    if (!dbh->methods && !EG(exception)) {
         zend_throw_exception_ex(php_pdo_get_exception(),
                                 einfo->last_error,
                                 "SQLSTATE[%s] %s: %d %s",
