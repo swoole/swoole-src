@@ -848,6 +848,22 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
         return;
     }
 
+#ifdef HAVE_CPU_AFFINITY
+    if (serv->open_cpu_affinity) {
+        int cpu_id = serv->get_cpu_affinity(reactor_id);
+        if (cpu_id >= 0) {
+            cpu_set_t cpu_set;
+            CPU_ZERO(&cpu_set);
+            CPU_SET(cpu_id, &cpu_set);
+            int error = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set);
+            if (error != 0) {
+                errno = error;
+                swoole_sys_warning("pthread_setaffinity_np() failed");
+            }
+        }
+    }
+#endif
+
     if (serv->is_thread_mode()) {
         serv->call_worker_start_callback(serv->get_worker(reactor_id));
     } else {

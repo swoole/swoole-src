@@ -1563,6 +1563,9 @@ class Server {
     bool send_pipe_message(WorkerId worker_id, const char *data, size_t len);
 
     void init_reactor(Reactor *reactor);
+#ifdef HAVE_CPU_AFFINITY
+    int get_cpu_affinity(int index) const;
+#endif
     void init_event_worker(Worker *worker) const;
     bool init_task_workers();
     void init_signal_handler() const;
