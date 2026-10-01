@@ -68,6 +68,7 @@ static inline bool swoole_signalfd_is_available() {
 #endif
 static Signal signals[SW_SIGNO_MAX];
 static bool triggered_signals[SW_SIGNO_MAX];
+static struct sigaction origin_actions[SW_SIGNO_MAX];
 
 char *swoole_signal_to_str(int sig) {
     static char buf[64];
@@ -163,6 +164,15 @@ SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
         return swoole_signal_kqueue_set(signo, handler);
     }
 #endif
+
+    if (handler == nullptr && signals[signo].activated) {
+        sw_memset_zero(&signals[signo], sizeof(Signal));
+        sigaction(signo, &origin_actions[signo], nullptr);
+        return nullptr;
+    }
+    if (!signals[signo].activated) {
+        sigaction(signo, nullptr, &origin_actions[signo]);
+    }
 
     signals[signo].handler = handler;
     signals[signo].activated = true;
@@ -399,12 +409,19 @@ static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler) 
 
     // clear signal
     if (handler == nullptr) {
-        signal(signo, SIG_DFL);
+        if (signals[signo].activated) {
+            sigaction(signo, &origin_actions[signo], nullptr);
+        } else {
+            signal(signo, SIG_DFL);
+        }
         sw_memset_zero(&signals[signo], sizeof(Signal));
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
     }
     // add/update signal
     else {
+        if (!signals[signo].activated) {
+            sigaction(signo, nullptr, &origin_actions[signo]);
+        }
         signal(signo, SIG_IGN);
         origin_handler = signals[signo].handler;
         signals[signo].handler = handler;
