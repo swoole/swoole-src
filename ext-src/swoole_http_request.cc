@@ -50,6 +50,7 @@ static int http_request_message_complete(llhttp_t *parser);
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length);
+static int multipart_body_on_header_value_complete(multipart_parser *p);
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length);
 static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
@@ -64,6 +65,9 @@ static sw_inline void multipart_body_reset_current_part(HttpContext *ctx) {
         efree(ctx->current_multipart_header);
         ctx->current_multipart_header = nullptr;
     }
+    ctx->current_part_header_name.clear();
+    ctx->current_part_header_value.clear();
+    ctx->tmp_content_type.clear();
     ctx->current_part_is_file = 0;
 }
 
@@ -149,6 +153,7 @@ static constexpr multipart_parser_settings mt_parser_settings =
 {
     multipart_body_on_header_field,
     multipart_body_on_header_value,
+    multipart_body_on_header_value_complete,
     multipart_body_on_data,
     nullptr,
     multipart_body_on_header_complete,
@@ -326,6 +331,18 @@ bool HttpContext::init_multipart_parser(const char *boundary_str, int boundary_l
     return true;
 }
 
+void HttpContext::destroy_multipart_parser() {
+    if (mt_parser) {
+        if (mt_parser->fp) {
+            fclose(mt_parser->fp);
+        }
+        multipart_parser_free(mt_parser);
+        mt_parser = nullptr;
+    }
+    delete form_data_buffer;
+    form_data_buffer = nullptr;
+}
+
 bool HttpContext::get_multipart_boundary(
     const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len) {
     if (!http_server::parse_multipart_boundary(at, length, offset, out_boundary_str, out_boundary_len)) {
@@ -434,6 +451,9 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
     } else if ((parser->method == HTTP_POST || parser->method == HTTP_PUT || parser->method == HTTP_DELETE ||
                 parser->method == HTTP_PATCH || parser->method == HTTP_QUERY) &&
                SW_STRCASEEQ(header_name, header_len, "content-type")) {
+        // A repeated Content-Type replaces the parser state derived from the previous value.
+        ctx->request.post_form_urlencoded = 0;
+        ctx->destroy_multipart_parser();
         if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
             ctx->request.post_form_urlencoded = 1;
         } else if (SW_STR_ISTARTS_WITH(at, length, "multipart/form-data")) {
@@ -444,7 +464,9 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
                 return -1;
             }
             swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
-            ctx->init_multipart_parser(boundary_str, boundary_len);
+            if (!ctx->init_multipart_parser(boundary_str, boundary_len)) {
+                return -1;
+            }
         }
     }
 #ifdef SW_HAVE_COMPRESSION
@@ -529,15 +551,28 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(p->data);
-    return http_request_on_header_field(&ctx->parser, at, length);
+    ctx->current_part_header_name.append(at, length);
+    return SW_OK;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
+    auto *ctx = static_cast<HttpContext *>(p->data);
+    ctx->current_part_header_value.append(at, length);
+    return SW_OK;
+}
+
+static int multipart_body_on_header_value_complete(multipart_parser *p) {
     char value_buf[SW_HTTP_FORM_KEYLEN];
     size_t value_len;
     int ret = 0;
 
     auto *ctx = static_cast<HttpContext *>(p->data);
+    std::string header_name;
+    std::string header_value;
+    header_name.swap(ctx->current_part_header_name);
+    header_value.swap(ctx->current_part_header_value);
+    const char *at = header_value.c_str();
+    size_t length = header_value.length();
     /**
      * Hash collision attack
      */
@@ -551,12 +586,12 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         ctx->input_var_num++;
     }
 
-    size_t header_len = ctx->current_header_name_len;
+    size_t header_len = header_name.length();
     zend::CharPtr _header_name;
-    _header_name.assign_tolower(ctx->current_header_name, header_len);
-    char *header_name = _header_name.get();
+    _header_name.assign_tolower(header_name.c_str(), header_len);
+    char *header_name_ptr = _header_name.get();
 
-    if (SW_STRCASEEQ(header_name, header_len, "content-disposition")) {
+    if (SW_STRCASEEQ(header_name_ptr, header_len, "content-disposition")) {
         if (sw_unlikely(ctx->current_multipart_header != nullptr)) {
             multipart_body_abort_current_part(p, ctx);
             swoole_warning("unexpected multipart state detected before current part finished");
@@ -608,9 +643,10 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             zval *z_multipart_header = sw_malloc_zval();
             array_init(z_multipart_header);
 
-            if (ctx->tmp_content_type) {
-                add_assoc_stringl(z_multipart_header, "type", ctx->tmp_content_type, ctx->tmp_content_type_len);
-                ctx->tmp_content_type = nullptr;
+            if (!ctx->tmp_content_type.empty()) {
+                add_assoc_stringl(
+                    z_multipart_header, "type", ctx->tmp_content_type.c_str(), ctx->tmp_content_type.length());
+                ctx->tmp_content_type.clear();
             } else {
                 add_assoc_string(z_multipart_header, "type", (char *) "");
             }
@@ -630,7 +666,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             ctx->current_multipart_header = z_multipart_header;
         }
         zval_ptr_dtor(&tmp_array);
-    } else if (SW_STRCASEEQ(header_name, header_len, "content-type")) {
+    } else if (SW_STRCASEEQ(header_name_ptr, header_len, "content-type")) {
         if (ctx->current_multipart_header) {
             zval *z_multipart_header = ctx->current_multipart_header;
             zval *zerr = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"));
@@ -638,10 +674,9 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
                 add_assoc_stringl(z_multipart_header, "type", (char *) at, length);
             }
         } else {
-            ctx->tmp_content_type = at;
-            ctx->tmp_content_type_len = length;
+            ctx->tmp_content_type.assign(at, length);
         }
-    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+    } else if (SW_STRCASEEQ(header_name_ptr, header_len, SW_HTTP_UPLOAD_FILE)) {
         /**
          * When the "SW_HTTP_UPLOAD_FILE" header appears in the request, it indicates that the uploaded file has been
          * saved in a temporary file. The binary content in the message body will be replaced with the temporary
@@ -723,6 +758,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         close(tmpfile);
+        unlink(file_path);
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         swoole_sys_warning("fopen(%s) failed", file_path);
         return 0;
@@ -856,8 +892,7 @@ static int http_request_message_complete(llhttp_t *parser) {
     size_t content_length = ctx->request.chunked_body ? ctx->request.chunked_body->length : ctx->request.body_length;
 
     if (ctx->mt_parser != nullptr && ctx->request.chunked_body != nullptr) {
-        // The bundled multipart parser rejects calls that end inside a part header. llhttp body spans can end at
-        // receive boundaries, so parse the dechunked body in one pass here instead of parsing each span.
+        // Chunked bodies are collected in chunked_body, so parse the dechunked multipart body in one pass here.
         const char *at = ctx->request.chunked_body->str;
         size_t length = ctx->request.chunked_body->length;
         /* Compatibility: some clients may send extra EOL */
@@ -868,6 +903,10 @@ static int http_request_message_complete(llhttp_t *parser) {
         if (!ctx->parse_multipart_data(at, length)) {
             return -1;
         }
+    }
+
+    if (ctx->mt_parser && content_length > 0 && !multipart_parser_is_complete(ctx->mt_parser)) {
+        return -1;
     }
 
     if (ctx->request.chunked_body != nullptr && ctx->parse_body && ctx->request.post_form_urlencoded) {
@@ -884,14 +923,7 @@ static int http_request_message_complete(llhttp_t *parser) {
             swoole_http_init_and_read_property(
                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
     }
-    if (ctx->mt_parser) {
-        multipart_parser_free(ctx->mt_parser);
-        ctx->mt_parser = nullptr;
-    }
-    if (ctx->form_data_buffer) {
-        delete ctx->form_data_buffer;
-        ctx->form_data_buffer = nullptr;
-    }
+    ctx->destroy_multipart_parser();
 
     ctx->completed = 1;
 
