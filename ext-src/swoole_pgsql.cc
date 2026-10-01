@@ -26,6 +26,7 @@
 using swoole::Coroutine;
 using swoole::EventType;
 using swoole::Reactor;
+using swoole::Timer;
 using swoole::translate_events_to_poll;
 using swoole::coroutine::Socket;
 
@@ -38,7 +39,7 @@ static bool swoole_pgsql_blocking = true;
 static const double swoole_pgsql_poll_timeout = 0.1;
 
 static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_nonblock = false) {
-    if (swoole_pgsql_blocking) {
+    if (swoole_pgsql_blocking || !Coroutine::get_current()) {
         struct pollfd fds[1];
         fds[0].fd = PQsocket(conn);
         fds[0].events = translate_events_to_poll(event);
@@ -120,10 +121,29 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         PQsetnonblocking(conn, 0);
     }
 
+    // PQconnectPoll() ignores connect_timeout, so the caller has to enforce it.
+    long timeout = 0;
+    PQconninfoOption *options = PQconninfo(conn);
+    for (PQconninfoOption *option = options; option && option->keyword; option++) {
+        if (strcmp(option->keyword, "connect_timeout") == 0 && option->val) {
+            timeout = strtol(option->val, nullptr, 10);
+            break;
+        }
+    }
+    PQconninfoFree(options);
+    std::string host, port;
+    int64_t start_msec = Timer::get_absolute_msec();
+
     SW_LOOP {
         int r = PQconnectPoll(conn);
         if (r == PGRES_POLLING_OK || r == PGRES_POLLING_FAILED) {
             break;
+        }
+        // Like libpq, give each host its own connect_timeout.
+        if (host != PQhost(conn) || port != PQport(conn)) {
+            host = PQhost(conn);
+            port = PQport(conn);
+            start_msec = Timer::get_absolute_msec();
         }
         EventType event;
 
@@ -141,6 +161,9 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         }
 
         if (swoole_pgsql_socket_poll(conn, event) < 0) {
+            break;
+        }
+        if (timeout > 0 && (Timer::get_absolute_msec() - start_msec) / 1000 >= timeout) {
             break;
         }
     }
