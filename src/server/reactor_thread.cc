@@ -470,7 +470,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
 
     while (!Buffer::empty(buffer)) {
         const BufferChunk *chunk = buffer->front();
-        const auto *send_data = reinterpret_cast<EventData *>(chunk->value.str);
+        auto *send_data = reinterpret_cast<EventData *>(chunk->value.str);
 
         // server actively closed connection, should discard the data
         if (Server::is_stream_event(send_data->info.type)) {
@@ -484,6 +484,11 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
                                      "Session#%ld is closed by server",
                                      send_data->info.fd);
                 _discard:
+                    // Only the first packet of a chunked message starts with its SendfileTask.
+                    if (!(send_data->info.flags & SW_EVENT_DATA_CHUNK) ||
+                        (send_data->info.flags & SW_EVENT_DATA_BEGIN)) {
+                        Server::discard_sendfile(&send_data->info, send_data->data);
+                    }
                     buffer->pop();
                     continue;
                 }
