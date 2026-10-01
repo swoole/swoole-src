@@ -574,7 +574,9 @@ _parse:
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
-                request->init_multipart_parser(serv);
+                if (!request->init_multipart_parser(serv)) {
+                    goto _bad_request;
+                }
 
                 buffer = request->buffer_;
             } else {
@@ -585,9 +587,6 @@ _parse:
     }
 
     if (request->form_data_) {
-        if (!request->multipart_header_parsed && memmem(buffer->str, buffer->length, SW_STRL("\r\n\r\n")) == nullptr) {
-            return SW_OK;
-        }
         if (!request->parse_multipart_data(buffer)) {
             goto _bad_request;
         }
@@ -598,6 +597,9 @@ _parse:
             goto _unavailable;
         }
         if (!request->tried_to_dispatch) {
+            if (request->multipart_body_length_ >= request->content_length_) {
+                goto _bad_request;
+            }
             return SW_OK;
         }
         request->destroy_multipart_parser();
