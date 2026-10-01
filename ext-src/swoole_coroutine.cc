@@ -1431,7 +1431,7 @@ static PHP_METHOD(swoole_coroutine, setTimeLimit) {
     }
 
     long cid = co->get_cid();
-    swoole_timer_add((long) timeout * 1000, false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
+    swoole_timer_add(swoole::sec2msec(timeout), false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
         swoole_timer_del(tnode);
         if (PHPCoroutine::get_context_by_cid(cid) != nullptr) {
             php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
