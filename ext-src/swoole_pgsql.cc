@@ -39,7 +39,7 @@ static bool swoole_pgsql_blocking = true;
 static const double swoole_pgsql_poll_timeout = 0.1;
 
 static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_nonblock = false) {
-    if (swoole_pgsql_blocking || !Coroutine::get_current()) {
+    if (swoole_pgsql_blocking) {
         struct pollfd fds[1];
         fds[0].fd = PQsocket(conn);
         fds[0].events = translate_events_to_poll(event);
