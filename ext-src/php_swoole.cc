@@ -604,8 +604,6 @@ int sw_module_number() {
     return g_module_number_;
 }
 
-static void sw_after_fork(void *args);
-
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(swoole) {
@@ -968,11 +966,6 @@ PHP_MINIT_FUNCTION(swoole) {
     }
 
     swoole_init();
-
-    // The after-fork hook list is process-global and idempotent, register it only once here.
-    // Registering it in RINIT leaks a list node per request and races when Swoole\Thread
-    // runs RINIT concurrently on the shared SwooleG.hooks list.
-    swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
     // init bug report message
     bug_report_message_init();
@@ -1406,6 +1399,10 @@ PHP_RINIT_FUNCTION(swoole) {
     /* Disable warning even in ZEND_DEBUG because we may register our own signal handlers  */
     SIGG(check) = false;
 #endif
+
+    if (!swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
+        swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
+    }
 
     php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();
