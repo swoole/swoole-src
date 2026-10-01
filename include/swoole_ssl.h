@@ -131,8 +131,7 @@ struct SSLContext {
     uchar verify_peer : 1;
     uchar allow_self_signed : 1;
     uint32_t protocols;
-    uint8_t create_flag;
-    SSL_CTX *context;
+    SSL_CTX *context = nullptr;
 
     SSL_CTX *get_context() const {
         return context;
@@ -173,8 +172,8 @@ struct SSLContext {
         return true;
     }
 
-    bool create();
-    bool set_capath() const;
+    bool create(int flags);
+    bool set_capath(int flags) const;
     bool set_ciphers() const;
     bool set_client_certificate() const;
     bool set_ecdh_curve() const;
