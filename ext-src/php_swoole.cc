@@ -367,6 +367,10 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
     swoole_globals->blocking_threshold = 100000;
     swoole_globals->profile = false;
     swoole_globals->leak_detection = false;
+    // `cli` is only set below on the CLI-family SAPIs. It must be defaulted to false here, because
+    // under ZTS ZEND_INIT_MODULE_GLOBALS hands out a pemalloc()'d, unzeroed block (TSRM.c
+    // ts_resource_init) and every other field is assigned above.
+    swoole_globals->cli = false;
 
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0 ||
         strcmp("embed", sapi_module.name) == 0 || strcmp("micro", sapi_module.name) == 0) {
@@ -1396,7 +1400,9 @@ PHP_RINIT_FUNCTION(swoole) {
     SIGG(check) = false;
 #endif
 
-    swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
+    if (!swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
+        swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
+    }
 
     php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();
