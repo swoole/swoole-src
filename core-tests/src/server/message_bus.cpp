@@ -29,6 +29,23 @@ using namespace swoole;
 
 constexpr int DATA_SIZE = 2 * SW_NUM_MILLION;
 
+TEST(message_bus, release_pipe_sockets) {
+    UnixSocket pipe(true, SOCK_DGRAM);
+    ASSERT_TRUE(pipe.ready());
+
+    auto socket = pipe.get_socket(true);
+    auto fd = socket->get_fd();
+    MessageBus message_bus;
+
+    message_bus.init_pipe_socket(socket);
+    ASSERT_NE(message_bus.get_pipe_socket(socket), nullptr);
+    message_bus.release_pipe_sockets();
+    ASSERT_EQ(message_bus.get_pipe_socket(socket), nullptr);
+    ASSERT_TRUE(test::is_valid_fd(fd));
+
+    message_bus.release_pipe_sockets();
+}
+
 struct TestPacket {
     SessionId fd;
     std::string data;

@@ -293,5 +293,9 @@ class MessageBus {
      * Create the socket object of the given pipe fd, see get_pipe_socket().
      */
     void init_pipe_socket(const network::Socket *sock);
+    /**
+     * Free socket objects created by init_pipe_socket() without closing the pipe fds.
+     */
+    void release_pipe_sockets();
 };
 }  // namespace swoole
