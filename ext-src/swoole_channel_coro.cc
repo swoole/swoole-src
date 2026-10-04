@@ -159,6 +159,7 @@ static PHP_METHOD(swoole_channel_coro, push) {
         zval data;
         ZVAL_COPY(&data, zdata);
         if (EXPECTED(chan->push_data(data))) {
+            zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), PHPChannel::ERROR_OK);
             RETURN_TRUE;
         }
         zval_ptr_dtor(&data);
@@ -178,6 +179,7 @@ static PHP_METHOD(swoole_channel_coro, pop) {
 
     zval zdata;
     if (EXPECTED(chan->pop(&zdata, timeout))) {
+        zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), PHPChannel::ERROR_OK);
         RETURN_ZVAL(&zdata, 0, 0);
     }
     zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), chan->get_error());
