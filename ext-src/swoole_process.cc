@@ -623,7 +623,7 @@ zend_bool php_swoole_signal_isset_handler(int signo) {
     return signal_fci_caches[signo] != nullptr;
 }
 
-void php_swoole_process_clean() {
+void php_swoole_process_signal_clean() {
     for (auto &signal_fci_cache : signal_fci_caches) {
         const auto fci_cache = signal_fci_cache;
         if (fci_cache) {
@@ -631,6 +631,11 @@ void php_swoole_process_clean() {
             signal_fci_cache = nullptr;
         }
     }
+    SwooleG.signal_listener_num = 0;
+}
+
+void php_swoole_process_clean() {
+    php_swoole_process_signal_clean();
 #ifndef SW_THREAD
     if (swoole_get_worker_type() != SW_USER_WORKER) {
         swoole_set_worker_type(0);
