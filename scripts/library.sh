@@ -43,6 +43,11 @@ wget -nv -O instantclient-sdk-linux${arch}.zip https://download.oracle.com/otn_s
 unzip instantclient-sdk-linux${arch}.zip && rm instantclient-sdk-linux${arch}.zip
 mv instantclient_*_* ./instantclient
 rm ./instantclient/sdk/include/ldap.h
+# Debian Trixie uses a new libaio SONAME; Oracle 19 still loads libaio.so.1.
+multiarch=$(gcc -dumpmachine)
+if [ ! -e "/usr/lib/${multiarch}/libaio.so.1" ] && [ -e "/usr/lib/${multiarch}/libaio.so.1t64" ]; then
+    ln -s "/usr/lib/${multiarch}/libaio.so.1t64" ./instantclient/libaio.so.1
+fi
 # fix debug build warning: zend_signal: handler was replaced for signal (2) after startup
 echo DISABLE_INTERRUPT=on > ./instantclient/network/admin/sqlnet.ora
 mv ./instantclient /usr/local/
