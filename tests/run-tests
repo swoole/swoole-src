@@ -1382,7 +1382,7 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
     $stat ??= proc_get_status($proc);
 
     if ($stat['signaled']) {
-        $data .= "\nTermsig=" . $stat['stopsig'] . "\n";
+        $data .= "\nTermsig=" . $stat['termsig'] . "\n";
     }
     if ($stat["exitcode"] > 128 && $stat["exitcode"] < 160) {
         $data .= "\nTermsig=" . ($stat["exitcode"] - 128) . "\n";

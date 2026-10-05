@@ -19,7 +19,9 @@ $pm->parentFunc = function ($pid) use ($pm, $rdata) {
         exit("connect failed\n");
     }
     $client->send($rdata);
-    Assert::notEq($client->recv(), "Swoole $rdata");
+    // Rejecting plaintext during the TLS handshake may close or reset the connection.
+    $data = @$client->recv();
+    Assert::true($data === '' || $data === false);
     $pm->kill();
 };
 
