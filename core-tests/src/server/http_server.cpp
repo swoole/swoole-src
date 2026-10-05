@@ -527,7 +527,13 @@ TEST(http_server, static_get) {
 }
 
 TEST(http_server, static_files) {
-    test_base_server([](Server *serv) {
+    File index_file(test::get_root_path() + "/README.md", O_RDONLY);
+    ASSERT_TRUE(index_file.ready());
+    auto index_content = index_file.read_content();
+    ASSERT_NE(index_content, nullptr);
+    const auto expected_index = index_content->to_std_string();
+
+    test_base_server([expected_index](Server *serv) {
         serv->http_autoindex = true;
         serv->add_static_handler_location("");
 
@@ -558,8 +564,8 @@ TEST(http_server, static_files) {
         // try again
         serv->add_static_handler_index_files("README.md");
         resp = cli.Get("/");
-        postion = resp->body.find("<h2 align=center>");
-        EXPECT_TRUE(postion != std::string::npos);
+        EXPECT_EQ(resp->status, 200);
+        EXPECT_EQ(resp->body, expected_index);
 
         kill(getpid(), SIGTERM);
     });

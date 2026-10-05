@@ -5,6 +5,8 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 export DOCKER_COMPOSE_VERSION="v2.33.1"
 if [ "${SWOOLE_BRANCH}" = "alpine" ]; then
     export PHP_VERSION="${PHP_VERSION}-alpine"
+else
+    export PHP_VERSION="${PHP_VERSION}-trixie"
 fi
 
 echo "\n🗻 With PHP version ${PHP_VERSION} on ${SWOOLE_BRANCH} branch"
@@ -46,8 +48,10 @@ create_docker_images(){
       echo "\n 📢 create ${PHP_VERSION} aarch64 docker image"
       git clone https://github.com/swoole/php-docker.git
       cd php-docker
-      cd ${PHP_VERSION} && sed -i '/odbc-mariadb \\/d' Dockerfile && docker build . -t phpswoole/php:${PHP_VERSION} && cd -
+      cd "${PHP_VERSION%-trixie}" && sed -i '/odbc-mariadb \\/d' Dockerfile && docker build --pull . -t "phpswoole/php:${PHP_VERSION}" && cd - || return 1
       cd ../
+  else
+      cd "${__DIR__}" && docker-compose pull swoole || return 1
   fi
 }
 
@@ -104,7 +108,7 @@ remove_tests_resources(){
 }
 
 check_docker_dependency
-create_docker_images
+create_docker_images || exit 1
 echo "\n📖 Prepare for files...\n"
 prepare_data_files
 
