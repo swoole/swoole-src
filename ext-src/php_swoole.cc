@@ -482,6 +482,12 @@ int sw_module_number() {
     return g_module_number_;
 }
 
+static void sw_after_fork(void *args) {
+#ifdef ZEND_MAX_EXECUTION_TIMERS
+    zend_max_execution_timer_init();
+#endif
+}
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(swoole) {
@@ -846,6 +852,7 @@ PHP_MINIT_FUNCTION(swoole) {
     }
 
     swoole_init();
+    swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
     // init bug report message
     bug_report_message_init();
@@ -1196,12 +1203,6 @@ again:
     return true;
 }
 
-static void sw_after_fork(void *args) {
-#ifdef ZEND_MAX_EXECUTION_TIMERS
-    zend_max_execution_timer_init();
-#endif
-}
-
 PHP_RINIT_FUNCTION(swoole) {
     if (!SWOOLE_G(cli)) {
         return SUCCESS;
@@ -1247,8 +1248,6 @@ PHP_RINIT_FUNCTION(swoole) {
     /* Disable warning even in ZEND_DEBUG because we may register our own signal handlers  */
     SIGG(check) = false;
 #endif
-
-    swoole_add_hook(SW_GLOBAL_HOOK_AFTER_FORK, sw_after_fork, 0);
 
     php_swoole_http_server_rinit();
     php_swoole_coroutine_rinit();
