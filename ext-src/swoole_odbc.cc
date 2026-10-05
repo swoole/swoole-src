@@ -46,7 +46,15 @@ RETCODE swoole_odbc_SQLConnect(SQLHDBC ConnectionHandle,
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLConnect(server=%s)", ServerName);
     php_swoole_async(swoole_odbc_blocking, [&]() {
-        rc = SQLConnect(ConnectionHandle, ServerName, NameLength1, UserName, NameLength2, Authentication, NameLength3);
+        // PDO passes SQL_NTS for omitted credentials. unixODBC's connection pool compares these strings,
+        // so NULL credentials must have a zero length instead of being treated as null-terminated strings.
+        rc = SQLConnect(ConnectionHandle,
+                        ServerName,
+                        NameLength1,
+                        UserName,
+                        UserName ? NameLength2 : 0,
+                        Authentication,
+                        Authentication ? NameLength3 : 0);
     });
     return rc;
 }
