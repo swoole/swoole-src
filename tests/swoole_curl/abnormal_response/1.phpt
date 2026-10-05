@@ -38,10 +38,9 @@ $pm->childFunc = function () use ($pm) {
     $server->on("start", function ($server) use ($pm) {
         $pm->wakeup();
     });
-    $server->on('Connect', function ($serv, $fd, $wid) {
-        $serv->close($fd);
-    });
     $server->on('Receive', function ($serv, $fd, $wid, $data) {
+        // Wait for a request so this tests response failure after a successful connection.
+        $serv->close($fd);
     });
     $server->start();
 };

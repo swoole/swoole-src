@@ -19,11 +19,13 @@ go(function () use ($ready) {
     stream_context_set_option($context, 'ssl', 'verify_peer', false);
     stream_context_set_option($context, 'ssl', 'local_cert', SSL_FILE_DIR.'/server.crt');
     stream_context_set_option($context, 'ssl', 'local_pk', SSL_FILE_DIR.'/server.key');
-    $socket = stream_socket_server("ssl://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
+    $socket = stream_socket_server("ssl://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
     if (!$socket) {
         echo "$errstr ($errno)<br />\n";
     } else {
-        $ready->push(true);
+        $address = stream_socket_get_name($socket, false);
+        $port = (int) substr(strrchr($address, ':'), 1);
+        $ready->push($port);
         $conn = stream_socket_accept($socket);
         fwrite($conn, 'The local time is ' . date('n/j/Y g:i a'));
         fclose($conn);
@@ -33,8 +35,8 @@ go(function () use ($ready) {
 });
 
 go(function () use ($ready) {
-    $ready->pop();
-    $fp = stream_socket_client("ssl://127.0.0.1:8000", $errno, $errstr, 30);
+    $port = $ready->pop();
+    $fp = stream_socket_client("ssl://127.0.0.1:{$port}", $errno, $errstr, 30);
     if (!$fp) {
         echo "$errstr ($errno)<br />\n";
     } else {
