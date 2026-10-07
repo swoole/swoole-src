@@ -25,6 +25,7 @@
 
 bool swoole_http_server_onBeforeRequest(swoole::http::Context *ctx);
 void swoole_http_server_onAfterResponse(swoole::http::Context *ctx);
+bool swoole_http_server_is_ip_cache_enabled(const swoole::Server *server);
 void swoole_http_server_populate_ip_and_port(
     swoole::Server *server, HashTable *ht, swoole::Connection *conn, swoole::SessionId session_id, bool keepalive);
 

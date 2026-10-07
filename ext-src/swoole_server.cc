@@ -1037,7 +1037,7 @@ void ServerObject::on_before_start() {
 
     if (find_http_port) {
         serv->onReceive = php_swoole_http_server_onReceive;
-        if (serv->is_base_mode()) {
+        if (swoole_http_server_is_ip_cache_enabled(serv)) {
             serv->onClose = php_swoole_http_server_onClose;
         }
     }

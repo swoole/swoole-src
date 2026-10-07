@@ -442,6 +442,12 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     }
 }
 
+// the addresses of a keep-alive session stay cached until php_swoole_http_server_onClose() erases them
+// so cache them only when the close event of the session reaches the same worker
+bool swoole_http_server_is_ip_cache_enabled(const Server *server) {
+    return server->is_base_mode() || (server->is_process_mode() && server->dispatch_mode == Server::DISPATCH_FDMOD);
+}
+
 /**
  * When calculating the server-side IP and client-side IP, since these two calculations
  * share the same memory block, they cannot be performed simultaneously; otherwise,
@@ -481,8 +487,7 @@ void swoole_http_server_populate_ip_and_port(
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), SW_ZSTR_KNOWN(key));
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(key));
     } else {
-        if (keepalive && (server->is_base_mode() ||
-                          (server->is_process_mode() && server->dispatch_mode == Server::DISPATCH_FDMOD))) {
+        if (keepalive && swoole_http_server_is_ip_cache_enabled(server)) {
             http_server_session_track_ip(
                 server, ht, conn, session_id, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), server_ips);
             http_server_session_track_ip(
