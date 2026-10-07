@@ -97,6 +97,9 @@ bool Http2Session::remove_stream(uint32_t stream_id) {
 
     auto stream = iter->second;
     streams.erase(iter);
+    if (stream->waiting_coroutine) {
+        stream->waiting_coroutine->resume();
+    }
     return true;
 }
 
@@ -587,6 +590,10 @@ bool Http2Stream::send_body(
                 swoole_warning("The data sent exceeded remote_window_size");
             } else {
                 if (remote_window_size == 0) {
+                    if (!session->get_stream(id)) {
+                        ctx->end_ = 1;
+                        return false;
+                    }
                     waiting_coroutine = Coroutine::get_current();
                     waiting_coroutine->yield();
                     waiting_coroutine = nullptr;
@@ -724,10 +731,10 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
         break;
     }
 
-    if (error) {
-        ctx->close(ctx);
-    } else {
+    if (!error) {
         client->remove_stream(stream->id);
+    } else if (client->get_stream(stream->id)) {
+        ctx->close(ctx);
     }
 
     if (client->shutting_down && client->streams.empty()) {
@@ -844,10 +851,10 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
         }
     }
 
-    if (error) {
-        ctx->close(ctx);
-    } else {
+    if (!error) {
         client->remove_stream(ctx->stream_id);
+    } else if (client->get_stream(ctx->stream_id)) {
+        ctx->close(ctx);
     }
 
     return true;
@@ -909,10 +916,10 @@ bool swoole_http2_server_send_file(HttpContext *ctx, const char *file, uint32_t 
         }
     }
 
-    if (error) {
-        ctx->close(ctx);
-    } else {
+    if (!error) {
         client->remove_stream(stream->id);
+    } else if (client->get_stream(stream->id)) {
+        ctx->close(ctx);
     }
 
     return true;
@@ -1313,7 +1320,11 @@ void swoole_http2_server_session_free(swoole::SessionId fd) {
     if (iter == http2_sessions.end()) {
         return;
     }
+    auto session = iter->second;
     /* default_ctx does not blong to session object */
-    iter->second->default_ctx = nullptr;
+    session->default_ctx = nullptr;
+    while (!session->streams.empty()) {
+        session->remove_stream(session->streams.begin()->first);
+    }
     http2_sessions.erase(iter);
 }
