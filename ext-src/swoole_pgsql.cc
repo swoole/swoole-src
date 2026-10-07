@@ -36,6 +36,8 @@ static bool swoole_pgsql_blocking = true;
  * and let the libpq underlying code determine whether the connection is ready or if an error has occurred.
  */
 static const double swoole_pgsql_poll_timeout = 0.1;
+// swoole_pgsql_socket_poll() returns it when Coroutine::cancel() ended the wait
+static const int swoole_pgsql_poll_canceled = -2;
 
 void swoole_libpq_version(char *buf, size_t len)
 {
@@ -51,7 +53,7 @@ void swoole_libpq_version(char *buf, size_t len)
     }
 }
 
-static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_nonblock = false) {
+static int swoole_pgsql_socket_poll(PGconn *conn, EventType event) {
     if (swoole_pgsql_blocking) {
         struct pollfd fds[1];
         fds[0].fd = PQsocket(conn);
@@ -70,19 +72,21 @@ static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_no
     sock.get_socket()->nonblock = 1;
 
     bool retval = sock.poll(event, swoole_pgsql_poll_timeout);
-    while (check_nonblock && event == SW_EVENT_READ) {
-        if (PQconsumeInput(conn) == 0) {
-            retval = false;
-            break;
-        }
-        if (PQisBusy(conn) == 0) {
-            break;
-        }
-        retval = sock.poll(event, swoole_pgsql_poll_timeout);
-    }
+    int error = sock.errCode;
 
     sock.move_fd();
-    return retval ? 1 : sock.errCode == ETIMEDOUT ? 0 : -1;
+    if (retval) {
+        return 1;
+    }
+    return error == ETIMEDOUT ? 0 : error == ECANCELED ? swoole_pgsql_poll_canceled : -1;
+}
+
+// the rest of the reply is still on its way so the connection cannot be used again
+static void swoole_pgsql_abort(PGconn *conn) {
+    swoole_trace_log(SW_TRACE_CO_PGSQL, "abort(conn=%p)", conn);
+    shutdown(PQsocket(conn), SHUT_RDWR);
+    // libpq reads the end of the stream and marks the connection bad
+    PQconsumeInput(conn);
 }
 
 static int swoole_pgsql_flush(PGconn *conn) {
@@ -91,6 +95,9 @@ static int swoole_pgsql_flush(PGconn *conn) {
     do {
         int ret = swoole_pgsql_socket_poll(conn, SW_EVENT_WRITE);
         if (sw_unlikely(ret < 0)) {
+            if (ret == swoole_pgsql_poll_canceled) {
+                swoole_pgsql_abort(conn);
+            }
             return -1;
         }
         swoole_trace_log(SW_TRACE_CO_PGSQL, "PQflush(conn=%p)", conn);
@@ -100,21 +107,39 @@ static int swoole_pgsql_flush(PGconn *conn) {
     return flush_ret;
 }
 
+// PQgetResult() blocks the process while PQisBusy() so wait for each part of the reply in the coroutine
+static bool swoole_pgsql_wait_result(PGconn *conn) {
+    while (PQisBusy(conn)) {
+        if (swoole_pgsql_socket_poll(conn, SW_EVENT_READ) == swoole_pgsql_poll_canceled) {
+            swoole_pgsql_abort(conn);
+            return false;
+        }
+        if (PQconsumeInput(conn) == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static PGresult *swoole_pgsql_get_result(PGconn *conn) {
     PGresult *result, *last_result = nullptr;
-    // PQgetResult will block the process; it is necessary to forcibly check if the data is ready.
-    int poll_ret = swoole_pgsql_socket_poll(conn, SW_EVENT_READ, true);
-    if (sw_unlikely(poll_ret < 0)) {
+    // without the hook PQgetResult() may block
+    if (swoole_pgsql_blocking && sw_unlikely(swoole_pgsql_socket_poll(conn, SW_EVENT_READ) < 0)) {
         return nullptr;
     }
 
-    swoole_trace_log(SW_TRACE_CO_PGSQL, "PQgetResult(conn=%p)", conn);
-    while ((result = PQgetResult(conn))) {
+    while (swoole_pgsql_blocking || swoole_pgsql_wait_result(conn)) {
+        swoole_trace_log(SW_TRACE_CO_PGSQL, "PQgetResult(conn=%p)", conn);
+        result = PQgetResult(conn);
+        if (!result) {
+            return last_result;
+        }
         PQclear(last_result);
         last_result = result;
     }
 
-    return last_result;
+    PQclear(last_result);
+    return nullptr;
 }
 
 static PGresult *swoole_pgsql_get_result_after_send(PGconn *conn, int send_ret) {
