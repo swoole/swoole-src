@@ -1109,6 +1109,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         timeval *timeout = static_cast<timeval *>(ptrparam);
         if (sw_likely(timeout->tv_sec >= 0)) {
             abstract->zero_timeout = timeout->tv_sec == 0 && timeout->tv_usec == 0;
+            // When the timeout is 0, Socket::set_timeout returns directly.
             abstract->socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
         }
         break;
