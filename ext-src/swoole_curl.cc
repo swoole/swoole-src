@@ -340,10 +340,6 @@ long Multi::select(php_curlm *mh, double timeout) {
         return 0;
     }
 
-    if (curl_multi_socket_all(multi_handle_, &running_handles_) != CURLM_OK) {
-        return CURLE_FAILED_INIT;
-    }
-
     selector_prepare();
     set_timer();
 

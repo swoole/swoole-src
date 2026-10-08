@@ -156,7 +156,8 @@ class Multi {
     CURLMcode remove_handle(Handle *handle) const;
 
     CURLMcode perform() {
-        return curl_multi_perform(multi_handle_, &running_handles_);
+        // curl_multi_perform() does not report every socket change that select() waits on.
+        return curl_multi_socket_all(multi_handle_, &running_handles_);
     }
 
     int get_event(int action) {
