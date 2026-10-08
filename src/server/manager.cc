@@ -55,7 +55,8 @@ int Server::start_manager_process() {
         return SW_ERR;
     }
 
-    if (get_event_worker_pool()->create_message_box(SW_MESSAGE_BOX_SIZE) == SW_ERR) {
+    if (get_event_worker_pool()->message_box == nullptr &&
+        get_event_worker_pool()->create_message_box(SW_MESSAGE_BOX_SIZE) == SW_ERR) {
         return SW_ERR;
     }
 
@@ -338,7 +339,10 @@ void Manager::reopen_logger() const {
 
 void Manager::signal_handler(int signo) {
     Server *_server = sw_server();
-    if (!_server || !_server->manager_) {
+    // A newly forked worker briefly inherits the manager's signal handlers before
+    // swoole_fork() clears them. It must never execute manager-only actions here:
+    // reopening the log would broadcast SIGWINCH back to itself indefinitely.
+    if (!_server || !_server->manager_ || getpid() != _server->gs->manager_pid) {
         return;
     }
     Manager *manager = _server->manager_;

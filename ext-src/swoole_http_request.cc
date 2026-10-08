@@ -285,6 +285,7 @@ static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t
     auto *ctx = static_cast<HttpContext *>(parser->data);
     ctx->current_header_name = at;
     ctx->current_header_name_len = length;
+    ctx->current_header_value_len = 0;
     return 0;
 }
 
@@ -321,17 +322,24 @@ void swoole_http_parse_cookie(zval *zcookies, const char *at, size_t length) {
 static void http_request_add_upload_file(HttpContext *ctx, const char *file, size_t l_file) {
     zval *zfiles = swoole_http_init_and_read_property(
         swoole_http_request_ce, ctx->request.zobject, &ctx->request.ztmpfiles, SW_ZSTR_KNOWN(SW_ZEND_STR_TMPFILES));
-    add_next_index_stringl(zfiles, file, l_file);
-    // support is_upload_file
-    zend_hash_str_add_ptr(SG(rfc1867_uploaded_files), file, l_file, (char *) file);
+    zend_string *path = zend_string_init(file, l_file, 0);
+    add_next_index_str(zfiles, zend_string_copy(path));
+    // Registers the path for is_uploaded_file() and move_uploaded_file(). The hash key holds the reference that
+    // keeps the value pointer valid for PHP's request-shutdown cleanup.
+    zend_hash_add_ptr(SG(rfc1867_uploaded_files), path, path);
+    zend_string_release(path);
 }
 
-bool swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
+// Return -1 when the token list cannot fit in the scratch buffer, 0 when absent, and 1 when found.
+int swoole_http_token_list_contains_value(const char *at, size_t length, const char *value) {
     if (0 == length) {
-        return false;
+        return 0;
+    }
+    if (length >= SW_STACK_BUFFER_SIZE || length >= sw_tg_buffer()->size) {
+        return -1;
     }
     if (SW_STRCASEEQ(at, length, value)) {
-        return true;
+        return 1;
     }
 
     char *var;
@@ -348,11 +356,11 @@ bool swoole_http_token_list_contains_value(const char *at, size_t length, const 
         var_len = swoole::ltrim(&var, strlen(var));
         var_len = swoole::rtrim(var, var_len);
         if (swoole_strcaseeq(var, var_len, value, strlen(value))) {
-            return true;
+            return 1;
         }
         var = php_strtok_r(nullptr, separator, &strtok_buf);
     }
-    return false;
+    return 0;
 }
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
@@ -366,8 +374,21 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
             swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE));
         swoole_http_parse_cookie(zcookie, at, length);
         return 0;
-    } else if (SW_STRCASEEQ(header_name, header_len, "upgrade") &&
-               swoole_http_token_list_contains_value(at, length, "websocket")) {
+    } else if (SW_STRCASEEQ(header_name, header_len, "upgrade")) {
+        constexpr size_t max_length = SW_STACK_BUFFER_SIZE - 1;
+        if (ctx->current_header_value_len > max_length || length > max_length - ctx->current_header_value_len) {
+            llhttp_set_error_reason(parser, "Upgrade header value exceeds the maximum length");
+            return HPE_USER;
+        }
+        ctx->current_header_value_len += length;
+        int contains_websocket = swoole_http_token_list_contains_value(at, length, "websocket");
+        if (contains_websocket < 0) {
+            llhttp_set_error_reason(parser, "Upgrade header value exceeds the maximum length");
+            return HPE_USER;
+        }
+        if (!contains_websocket) {
+            goto _add_header;
+        }
         ctx->websocket = 1;
         if (ctx->is_co_socket()) {
             goto _add_header;
@@ -383,7 +404,7 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
             conn->websocket_status = swoole::websocket::STATUS_CONNECTION;
         }
     } else if ((parser->method == HTTP_POST || parser->method == HTTP_PUT || parser->method == HTTP_DELETE ||
-                parser->method == HTTP_PATCH) &&
+                parser->method == HTTP_PATCH || parser->method == HTTP_QUERY) &&
                SW_STRCASEEQ(header_name, header_len, "content-type")) {
         if (SW_STR_ISTARTS_WITH(at, length, "application/x-www-form-urlencoded")) {
             ctx->request.post_form_urlencoded = 1;
@@ -403,10 +424,6 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
         ctx->set_compression_method(at, length);
     }
 #endif
-    else if (SW_STRCASEEQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
-        ctx->recv_chunked = 1;
-    }
-
 _add_header:
     zval tmp;
     ZVAL_STRINGL(&tmp, (char *) at, length);
@@ -476,6 +493,7 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
         (ctx->request.version == 101 ? SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP11) : SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP10)));
 
     ctx->keepalive = llhttp_should_keep_alive(parser);
+    ctx->recv_chunked = !!(parser->flags & F_CHUNKED);
     ctx->current_header_name = nullptr;
 
     return 0;
@@ -667,6 +685,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     sw_snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir.c_str());
     int tmpfile = swoole_tmpfile(file_path);
     if (tmpfile < 0) {
+        add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         return 0;
     }
 
@@ -787,7 +806,7 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
         ctx->request.body_length += length;
     }
 
-    if (ctx->mt_parser != nullptr) {
+    if (ctx->mt_parser != nullptr && !ctx->recv_chunked) {
         if (is_beginning) {
             /* Compatibility: some clients may send extra EOL */
             do {
@@ -809,6 +828,21 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
 static int http_request_message_complete(llhttp_t *parser) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
     size_t content_length = ctx->request.chunked_body ? ctx->request.chunked_body->length : ctx->request.body_length;
+
+    if (ctx->mt_parser != nullptr && ctx->request.chunked_body != nullptr) {
+        // The bundled multipart parser rejects calls that end inside a part header. llhttp body spans can end at
+        // receive boundaries, so parse the dechunked body in one pass here instead of parsing each span.
+        const char *at = ctx->request.chunked_body->str;
+        size_t length = ctx->request.chunked_body->length;
+        /* Compatibility: some clients may send extra EOL */
+        while (length != 0 && (*at == '\r' || *at == '\n')) {
+            at++;
+            length--;
+        }
+        if (!ctx->parse_multipart_data(at, length)) {
+            return -1;
+        }
+    }
 
     if (ctx->request.chunked_body != nullptr && ctx->parse_body && ctx->request.post_form_urlencoded) {
         /* parse dechunked content */

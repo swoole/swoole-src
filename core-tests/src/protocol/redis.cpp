@@ -136,3 +136,31 @@ TEST(redis, parse) {
     auto rs = redis::parse(SW_STRL(":3\r\n"));
     ASSERT_EQ(rs[0], "3");
 }
+
+TEST(redis, recv_packet_with_partially_filled_buffer) {
+    int pairs[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pairs), 0);
+    ASSERT_EQ(send(pairs[0], "*", 1, 0), 1);
+    close(pairs[0]);
+
+    network::Socket socket{};
+    socket.fd = pairs[1];
+    socket.socket_type = SW_SOCK_UNIX_STREAM;
+
+    Connection conn{};
+    conn.fd = pairs[1];
+    conn.socket = &socket;
+
+    Protocol protocol{};
+    protocol.package_max_length = SW_BUFFER_SIZE_BIG * 2;
+
+    String buffer(SW_BUFFER_SIZE_BIG);
+    size_t buffer_size = buffer.size;
+
+    ASSERT_EQ(redis::recv_packet(&protocol, &conn, &buffer), SW_ERR);
+    ASSERT_EQ(buffer.length, 1);
+    ASSERT_EQ(buffer.size, buffer_size);
+
+    sw_free(conn.object);
+    close(pairs[1]);
+}

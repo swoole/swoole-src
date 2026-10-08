@@ -247,6 +247,28 @@ TEST(base, set_task_tmpdir) {
     ASSERT_TRUE(swoole_set_task_tmpdir(ori_tmpdir));
 }
 
+TEST(base, set_task_tmpdir_in_threads) {
+    auto ori_tmpdir = swoole_get_task_tmpdir();
+    std::string dirs[] = {"/tmp", "/tmp/swoole/core_tests/set_task_tmpdir_in_threads"};
+
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 8; i++) {
+        threads.emplace_back([&dirs, i]() {
+            for (int j = 0; j < 1000; j++) {
+                ASSERT_TRUE(swoole_set_task_tmpdir(dirs[i % 2]));
+                auto tmpdir = swoole_get_task_tmpdir();
+                ASSERT_TRUE(tmpdir == dirs[0] + "/" SW_TASK_TMP_FILE || tmpdir == dirs[1] + "/" SW_TASK_TMP_FILE);
+            }
+        });
+    }
+    for (auto &t : threads) {
+        t.join();
+    }
+
+    rmdir(dirs[1].c_str());
+    SwooleG.task_tmpfile = ori_tmpdir;
+}
+
 TEST(base, version) {
     ASSERT_STREQ(swoole_version(), SWOOLE_VERSION);
     ASSERT_EQ(swoole_version_id(), SWOOLE_VERSION_ID);
