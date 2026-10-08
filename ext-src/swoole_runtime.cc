@@ -445,7 +445,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         return sock->get_socket()->send_sync(buf, count, 0);
     }
 
-    if (abstract->blocking) {
+    if (abstract->blocking && !abstract->zero_timeout) {
         didwrite = sock->send_all(buf, count);
     } else {
         didwrite = sock->get_socket()->send(buf, count, 0);

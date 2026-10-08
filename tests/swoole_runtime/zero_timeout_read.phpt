@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime: zero timeout stream data without waiting
+swoole_runtime: zero timeout stream read without waiting
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -11,7 +11,6 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Runtime;
 use Swoole\Coroutine;
-use Swoole\Coroutine\Channel;
 
 use function Swoole\Coroutine\run;
 
@@ -19,25 +18,21 @@ Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
 
 run(function () {
     $port = get_one_free_port();
-    $ready = new Channel(1);
 
-    go(function () use ($port, $ready) {
+    $server = null;
+    $connection = null;
+
+    go(function () use ($port, &$server, &$connection) {
         $server = stream_socket_server("tcp://127.0.0.1:{$port}", $errno, $errstr);
         Assert::true($server !== false, "server create failed: {$errstr}");
-
-        $ready->push(true);
 
         $connection = stream_socket_accept($server, 5);
         Assert::true($connection !== false, "accept failed");
 
-        Coroutine::sleep(0.5);
+        Coroutine::sleep(1.5);
         fwrite($connection, "line\nrecord1\n");
-
-        fclose($connection);
-        fclose($server);
     });
 
-    $ready->pop();
 
     $stream = stream_socket_client("tcp://127.0.0.1:{$port}", $errno, $errstr, 5);
     Assert::true($stream !== false, "connect failed: {$errstr}");
@@ -51,10 +46,17 @@ run(function () {
 
     Assert::false(feof($stream));
 
-    $data = fread($stream, 8192);
+    $data = '';
+    while(!$data) {
+        $data = fread($stream, 8192);
+        Coroutine::sleep(0.2);
+    }
+
     Assert::same($data, "line\nrecord1\n");
 
     fclose($stream);
+    fclose($connection);
+    fclose($server);
 });
 
 echo "OK\n";
