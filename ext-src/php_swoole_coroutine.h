@@ -30,6 +30,7 @@
 
 #include <stack>
 #include <thread>
+#include <vector>
 
 #define SW_DEFAULT_MAX_CORO_NUM 100000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE 8192
@@ -90,6 +91,7 @@ struct PHPContext {
     void *stack_limit;
 #endif
     std::stack<zend::Function *> *defer_tasks;
+    std::vector<long> *time_limit_timers;
     SwapCallback *on_yield;
     SwapCallback *on_resume;
     SwapCallback *on_close;
