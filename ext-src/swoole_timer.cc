@@ -124,20 +124,22 @@ bool php_swoole_timer_clear_all() {
         return false;
     }
 
-    size_t num = sw_timer()->count(), index = 0;
-    auto **list = static_cast<TimerNode **>(emalloc(num * sizeof(TimerNode *)));
+    // not emalloc() since the request heap can be at its memory limit here
+    // a fatal error here would leave the PHP timers to swoole_clean() after the request heap is released
+    std::vector<long> list;
     for (auto &kv : sw_timer()->get_map()) {
-        TimerNode *tnode = kv.second;
-        if (tnode->type == TimerNode::TYPE_PHP) {
-            list[index++] = tnode;
+        if (kv.second->type == TimerNode::TYPE_PHP) {
+            list.push_back(kv.first);
         }
     }
 
-    while (index--) {
-        swoole_timer_del(list[index]);
+    // a destructor can clear other timers of the list so look each one up again
+    for (auto iter = list.rbegin(); iter != list.rend(); iter++) {
+        TimerNode *tnode = swoole_timer_get(*iter);
+        if (tnode) {
+            swoole_timer_del(tnode);
+        }
     }
-
-    efree(list);
 
     return true;
 }
