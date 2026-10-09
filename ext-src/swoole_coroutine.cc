@@ -24,7 +24,7 @@
 #include "swoole_signal.h"
 #include "swoole_async.h"
 #include "swoole_iouring.h"
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
 #include "swoole_iocp.h"
 #endif
 
@@ -1171,7 +1171,7 @@ static PHP_METHOD(swoole_coroutine, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("iouring_waiting_task_num"), iouring->get_waiting_task_num());
     }
 #endif
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
     add_assoc_long_ex(return_value, ZEND_STRL("iocp_task_num"), SwooleTG.iocp ? SwooleTG.iocp->get_task_num() : 0);
     add_assoc_long_ex(return_value,
                       ZEND_STRL("iocp_blocking_task_num"),

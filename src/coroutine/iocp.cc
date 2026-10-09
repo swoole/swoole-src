@@ -17,7 +17,7 @@
 #include "swoole_iocp.h"
 #include "swoole_coroutine_system.h"
 
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
 
 #include <algorithm>
 #include <io.h>
@@ -188,8 +188,7 @@ Iocp::~Iocp() {
     }
     if (ready()) {
         for (auto *event : submissions) {
-            event->orphaned = true;
-            CancelIoEx(event->handle, &event->overlapped);
+            cancel(event);
         }
 
         /*
@@ -331,6 +330,37 @@ bool Iocp::associate(HANDLE handle, ULONG_PTR key) {
         return false;
     }
     return true;
+}
+
+int Iocp::submit_poll(IocpEvent *event, afd::PollInfo *poll_info) {
+    submit(event);
+    DWORD bytes = 0;
+    const BOOL ok = DeviceIoControl(event->handle,
+                                    afd::IOCTL_POLL,
+                                    poll_info,
+                                    sizeof(*poll_info),
+                                    poll_info,
+                                    sizeof(*poll_info),
+                                    &bytes,
+                                    &event->overlapped);
+    if (!ok) {
+        const DWORD error = GetLastError();
+        if (error != ERROR_IO_PENDING) {
+            discard_submission(event);
+            set_system_error(error);
+            return SW_ERR;
+        }
+    }
+    return SW_OK;
+}
+
+void Iocp::cancel(IocpEvent *event) {
+    if (!event || event->completed) {
+        return;
+    }
+    // Cancellation is asynchronous; keep the event alive until its completion packet is dequeued.
+    event->orphaned = true;
+    CancelIoEx(event->handle, &event->overlapped);
 }
 
 ssize_t Iocp::execute(IocpEvent *event, double timeout) {
@@ -1004,7 +1034,7 @@ int Iocp::shutdown(swSocketFd fd, int how) {
 
 int Iocp::close(swSocketFd fd) {
     if (SwooleTG.iocp) {
-        SwooleTG.iocp->associated_sockets.erase(fd);
+        SwooleTG.iocp->forget_socket(fd);
     }
     return closesocket(fd);
 }

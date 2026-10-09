@@ -338,7 +338,7 @@ if (PHP_SWOOLE != "no") {
 	CHECK_LIB("brotlicommon.lib", "swoole", null);
 
 	// Register the extension
-	EXTENSION("swoole", swoole_source_files, PHP_SWOOLE_SHARED, "/D ENABLE_PHP_SWOOLE /D SW_USE_ASM_CONTEXT /D SW_USE_IOCP /D SW_USE_IOCP_SOCKET /DHAVE_RWLOCK /EHsc");
+	EXTENSION("swoole", swoole_source_files, PHP_SWOOLE_SHARED, "/D ENABLE_PHP_SWOOLE /D SW_USE_ASM_CONTEXT /D SW_USE_IOCP_SOCKET /DHAVE_RWLOCK /EHsc");
 
 	ADD_EXTENSION_DEP("swoole", "spl");
 

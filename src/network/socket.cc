@@ -19,7 +19,7 @@
 #include "swoole_util.h"
 #include "swoole_string.h"
 #include "swoole_timer.h"
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
 #include "swoole_iocp.h"
 #endif
 
@@ -461,11 +461,7 @@ static void socket_free_defer(void *ptr) {
     }
     if (sock->fd != SW_BAD_SOCKET &&
 #ifdef _WIN32
-#ifdef SW_USE_IOCP
         Iocp::close(sock->fd) != 0
-#else
-        closesocket(sock->fd) != 0
-#endif
 #else
         close(sock->fd) != 0
 #endif
@@ -1847,7 +1843,7 @@ int socket(int sock_domain, int sock_type, int socket_protocol, int flags) {
     bool nonblock = flags & SW_SOCK_NONBLOCK;
     bool cloexec = flags & SW_SOCK_CLOEXEC;
 
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
     swSocketFd sockfd = WSASocketW(sock_domain, sock_type, socket_protocol, nullptr, 0, WSA_FLAG_OVERLAPPED);
     if (sockfd == SW_BAD_SOCKET) {
         return -1;

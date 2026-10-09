@@ -37,9 +37,8 @@ SW_EXTERN_C_END
 
 #include <unordered_set>
 
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
 #include "swoole_iocp.h"
-#define SW_CURL_USE_IOCP 1
 #endif
 
 CURLcode swoole_curl_easy_perform(CURL *cp);
@@ -50,11 +49,13 @@ namespace swoole {
 namespace curl {
 
 class Multi;
+#ifdef _WIN32
 struct IocpOperation;
+#endif
 
 struct Socket {
     Multi *multi;
-#ifdef SW_CURL_USE_IOCP
+#ifdef _WIN32
     IocpOperation *operation;
 #else
     network::Socket *socket;
@@ -66,7 +67,7 @@ struct Socket {
 
     Socket()
         : multi(nullptr),
-#ifdef SW_CURL_USE_IOCP
+#ifdef _WIN32
           operation(nullptr),
 #else
           socket(nullptr),
@@ -139,12 +140,12 @@ class Multi {
 
     CURLcode read_info() const;
 
-#ifdef SW_CURL_USE_IOCP
-    int post_event(Socket *curl_socket, int bitmask);
+#ifdef _WIN32
+    int post_event(Socket *curl_socket);
     void cancel_event(IocpOperation *operation);
+#endif
     void release_socket(Socket *curl_socket);
     void try_free_socket(Socket *curl_socket);
-#endif
     int set_event(void *socket_ptr, curl_socket_t sockfd, int action);
     int del_event(void *socket_ptr, curl_socket_t sockfd);
     CURLMcode selector_finish();

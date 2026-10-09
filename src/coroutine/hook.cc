@@ -49,7 +49,7 @@ using swoole::coroutine::System;
 
 #ifdef SW_USE_IOURING
 using swoole::Iouring;
-#elif defined(_WIN32) && defined(SW_USE_IOCP)
+#elif defined(_WIN32)
 using swoole::Iocp;
 #define SW_USE_IOCP_FILE 1
 #define SW_USE_ASYNC 1
@@ -489,7 +489,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
         return open(pathname, flags, mode);
     }
 
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
     return Iocp::open_file(pathname, flags, mode);
 #else
 #ifdef SW_USE_ASYNC

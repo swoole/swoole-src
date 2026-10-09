@@ -1271,7 +1271,7 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_URING_SOCKET
     php_info_print_table_row(2, "uring_socket", "enabled");
 #endif
-#ifdef SW_USE_IOCP
+#ifdef _WIN32
     php_info_print_table_row(2, "iocp", "enabled");
 #endif
 #ifdef SW_USE_IOCP_SOCKET

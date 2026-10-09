@@ -335,7 +335,7 @@ The native Windows build is configured through `config.w32`.
 
 Important build characteristics:
 
-- `SW_USE_IOCP` enables the Windows IOCP backend.
+- Native Windows builds always use the IOCP backend, guarded by `_WIN32`.
 - `SW_USE_IOCP_SOCKET` enables IOCP-backed coroutine socket support.
 - The Windows reactor source is compiled as a separate implementation unit and
   uses AFD readiness polling on top of IOCP for `Swoole\Event`.

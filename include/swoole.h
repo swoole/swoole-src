@@ -233,7 +233,7 @@ class AsyncThreads;
 #ifdef SW_USE_IOURING
 class Iouring;
 #endif
-#ifdef SW_USE_IOCP
+#ifdef _WIN32
 class Iocp;
 #endif
 namespace async {
@@ -696,7 +696,7 @@ struct ThreadGlobal {
 #ifdef SW_USE_IOURING
     Iouring *iouring;
 #endif
-#ifdef SW_USE_IOCP
+#ifdef _WIN32
     Iocp *iocp;
 #endif
     bool signal_blocking_all;
