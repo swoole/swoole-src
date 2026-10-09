@@ -1,5 +1,7 @@
 --TEST--
 swoole_timer: clear the PHP timers after a memory limit fatal error with many sleeping coroutines
+--INI--
+fatal_error_backtraces=0
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
