@@ -399,9 +399,8 @@ void php_swoole_runtime_rinit() {
     ori_factory.tls = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tls"));
 
     memcpy(&ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-#ifndef _WIN32
+    // Include streams need the original stdio handlers on every platform.
     memcpy(&ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-#endif
 }
 
 void php_swoole_runtime_rshutdown() {
