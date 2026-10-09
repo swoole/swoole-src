@@ -313,6 +313,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->co = Coroutine::get_current();
     ctx->co->set_task((void *) ctx);
     ctx->defer_tasks = nullptr;
+    ctx->time_limit_timer = nullptr;
     ctx->pcid = ctx->co->get_origin_cid();
     ctx->context = nullptr;
     ctx->on_yield = nullptr;
@@ -687,6 +688,11 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
     long cid = ctx->co->get_cid();
     long origin_cid = ctx->co->get_origin_cid();
 #endif
+
+    if (ctx->time_limit_timer) {
+        swoole_timer_del(ctx->time_limit_timer);
+        ctx->time_limit_timer = nullptr;
+    }
 
     if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_STOP)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, ctx);
@@ -1431,12 +1437,21 @@ static PHP_METHOD(swoole_coroutine, setTimeLimit) {
     }
 
     long cid = co->get_cid();
-    swoole_timer_add((long) timeout * 1000, false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
+    auto *timer = swoole_timer_add(swoole::sec2msec(timeout), false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
         swoole_timer_del(tnode);
-        if (PHPCoroutine::get_context_by_cid(cid) != nullptr) {
+        auto *ctx = PHPCoroutine::get_context_by_cid(cid);
+        if (ctx != nullptr) {
+            ctx->time_limit_timer = nullptr;
             php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
         }
     });
+    if (timer) {
+        auto *ctx = PHPCoroutine::get_context();
+        if (ctx->time_limit_timer) {
+            swoole_timer_del(ctx->time_limit_timer);
+        }
+        ctx->time_limit_timer = timer;
+    }
 
     RETURN_TRUE;
 }

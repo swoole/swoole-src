@@ -90,6 +90,7 @@ struct PHPContext {
     void *stack_limit;
 #endif
     std::stack<zend::Function *> *defer_tasks;
+    TimerNode *time_limit_timer;
     SwapCallback *on_yield;
     SwapCallback *on_resume;
     SwapCallback *on_close;
