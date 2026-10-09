@@ -417,10 +417,13 @@ void Multi::release_socket(Socket *curl_socket) {
     if (!curl_socket || curl_socket->deleted) {
         return;
     }
-    CURL_IOCP_DEBUG("release_socket socket=%p fd=%d operation=%p",
-                    curl_socket,
-                    (int) curl_socket->sockfd,
-                    curl_socket->operation);
+    // libcurl closes its sockets without Iocp::close(), so their handles may be reused outside the cache.
+    if (SwooleTG.iocp) {
+        SwooleTG.iocp->forget_socket(curl_socket->sockfd);
+    }
+    CURL_IOCP_DEBUG(
+        "release_socket socket=%p fd=%d operation=%p", curl_socket, (int) curl_socket->sockfd, curl_socket->operation);
+    selector.active_sockets.erase(curl_socket);
     curl_socket->deleted = true;
     cancel_event(curl_socket->operation);
     if (selector.executing && !curl_socket->operation) {
@@ -492,6 +495,7 @@ int Multi::del_event(void *socket_ptr, curl_socket_t sockfd) {
     }
 
     auto curl_socket = static_cast<Socket *>(socket_ptr);
+    selector.active_sockets.erase(curl_socket);
     if (curl_socket->socket->events && sw_likely(swoole_event_is_available())) {
         curl_socket->socket->silent_remove = 1;
         swoole_event_del(curl_socket->socket);
@@ -579,7 +583,7 @@ CURLMcode Multi::add_handle(Handle *handle) {
     return retval;
 }
 
-CURLMcode Multi::remove_handle(Handle *handle) const {
+CURLMcode Multi::remove_handle(Handle *handle) {
     swoole_trace_log(SW_TRACE_CO_CURL,
                      SW_ECHO_RED " handle=%p, curl=%p, multi=%p, running_handles=%d",
                      "[REMOVE_HANDLE]",
@@ -590,6 +594,10 @@ CURLMcode Multi::remove_handle(Handle *handle) const {
 
     const auto rc = curl_multi_remove_handle(multi_handle_, handle->cp);
     handle->multi = nullptr;
+    if (rc == CURLM_OK) {
+        // Refresh the running count even if removing the handle leaves no socket events.
+        selector.timer_callback = true;
+    }
     return rc;
 }
 
@@ -720,19 +728,87 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     return 0;
 }
 
-void Multi::selector_finish() {
+CURLMcode Multi::selector_poll() {
+    if (sockets.empty()) {
+        return CURLM_OK;
+    }
+
+    std::vector<pollfd> fds;
+    fds.reserve(sockets.size());
+    for (const auto &entry : sockets) {
+        fds.push_back({entry.first, static_cast<short>(translate_events_to_poll(get_event(entry.second->action))), 0});
+    }
+
+    // curl_multi_exec() must also make progress when the caller does not use select().
+    int count = poll(fds.data(), static_cast<nfds_t>(fds.size()), 0);
+    if (count < 0) {
+        return sw_errno() == EINTR ? CURLM_OK : CURLM_INTERNAL_ERROR;
+    }
+    for (const auto &fd : fds) {
+        if (fd.revents == 0) {
+            continue;
+        }
+        int bitmask = 0;
+        if (fd.revents & (POLLIN | POLLHUP)) {
+            bitmask |= CURL_CSELECT_IN;
+        }
+        if (fd.revents & POLLOUT) {
+            bitmask |= CURL_CSELECT_OUT;
+        }
+        if (fd.revents & (POLLERR | POLLNVAL)) {
+            bitmask |= CURL_CSELECT_ERR;
+        }
+        auto *curl_socket = sockets.at(fd.fd);
+        curl_socket->bitmask |= bitmask;
+        selector.active_sockets.insert(curl_socket);
+    }
+    return CURLM_OK;
+}
+
+CURLMcode Multi::perform() {
+    check_bound_co();
+
+    long timeout_ms = -1;
+    auto rc = curl_multi_timeout(multi_handle_, &timeout_ms);
+    if (rc != CURLM_OK) {
+        return rc;
+    }
+    // Adding a handle schedules an immediate timeout that starts the socket API.
+    if (timeout_ms == 0) {
+        selector.timer_callback = true;
+    }
+    if (!selector.timer_callback && selector.active_sockets.empty()) {
+        rc = selector_poll();
+        if (rc != CURLM_OK) {
+            return rc;
+        }
+    }
+    rc = selector_finish();
+    if (rc == CURLM_OK && running_handles_ > 0) {
+        set_timer();
+    } else {
+        del_timer();
+    }
+    return rc;
+}
+
+CURLMcode Multi::selector_finish() {
     del_timer();
 
     selector.executing = true;
+    CURLMcode result = CURLM_OK;
 
     if (selector.timer_callback) {
         selector.timer_callback = false;
         auto rc = curl_multi_socket_action(multi_handle_, CURL_SOCKET_TIMEOUT, 0, &running_handles_);
         CURL_IOCP_DEBUG("socket_action timer rc=%d running=%d sockets=%zu", rc, running_handles_, sockets.size());
         swoole_trace_log(SW_TRACE_CO_CURL, "socket_action[timer], running_handles=%d", running_handles_);
+        if (rc != CURLM_OK) {
+            result = rc;
+        }
     }
 
-    while (!selector.active_sockets.empty()) {
+    while (result == CURLM_OK && !selector.active_sockets.empty()) {
         auto active_sockets = selector.active_sockets;
         selector.active_sockets.clear();
 
@@ -759,11 +835,16 @@ void Multi::selector_finish() {
                                 rc,
                                 running_handles_,
                                 sockets.size());
+                if (rc != CURLM_OK) {
+                    result = rc;
+                    break;
+                }
             }
         }
     }
 
     selector.executing = false;
+    selector.active_sockets.clear();
     for (auto curl_socket : selector.release_sockets) {
 #ifdef SW_CURL_USE_IOCP
         try_free_socket(curl_socket);
@@ -772,6 +853,7 @@ void Multi::selector_finish() {
 #endif
     }
     selector.release_sockets.clear();
+    return result;
 }
 
 long Multi::select(php_curlm *mh, double timeout) {
@@ -779,8 +861,15 @@ long Multi::select(php_curlm *mh, double timeout) {
         return 0;
     }
 
-    if (curl_multi_socket_all(multi_handle_, &running_handles_) != CURLM_OK) {
-        return CURLE_FAILED_INIT;
+    auto *current_co = check_bound_co();
+    if (!selector.active_sockets.empty() || selector.timer_callback) {
+        return static_cast<long>(selector.active_sockets.size());
+    }
+    if (timeout == 0) {
+        if (selector_poll() != CURLM_OK) {
+            return -1;
+        }
+        return static_cast<long>(selector.active_sockets.size());
     }
 
     selector_prepare();
@@ -791,16 +880,13 @@ long Multi::select(php_curlm *mh, double timeout) {
         return 0;
     }
 
-    co = check_bound_co();
+    co = current_co;
     co->yield_ex(timeout);
     co = nullptr;
 
     swoole_trace_log(SW_TRACE_CO_CURL, "yield timeout, count=%lu", zend_llist_count(&mh->easyh));
 
-    const auto count = selector.active_sockets.size();
-    selector_finish();
-
-    return static_cast<long>(count);
+    return static_cast<long>(selector.active_sockets.size());
 }
 
 void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {

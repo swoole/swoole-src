@@ -147,7 +147,8 @@ class Multi {
 #endif
     int set_event(void *socket_ptr, curl_socket_t sockfd, int action);
     int del_event(void *socket_ptr, curl_socket_t sockfd);
-    void selector_finish();
+    CURLMcode selector_finish();
+    CURLMcode selector_poll();
     void selector_prepare();
 
     bool wait_event() const {
@@ -192,11 +193,9 @@ class Multi {
     }
 
     CURLMcode add_handle(Handle *handle);
-    CURLMcode remove_handle(Handle *handle) const;
+    CURLMcode remove_handle(Handle *handle);
 
-    CURLMcode perform() {
-        return curl_multi_perform(multi_handle_, &running_handles_);
-    }
+    CURLMcode perform();
 
     int get_event(int action) {
         switch (action) {

@@ -133,6 +133,10 @@ class Iocp {
         return associate(fd);
     }
 
+    void forget_socket(swSocketFd fd) {
+        associated_sockets.erase(fd);
+    }
+
     void submit(IocpEvent *event) {
         event->completed = false;
         if (!event->submitted) {
