@@ -11,32 +11,25 @@ require __DIR__ . '/../../include/bootstrap.php';
 // disable file hook
 Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL & ~SWOOLE_HOOK_FILE);
 
-$count = 0;
-$running = true;
-
 Co\run(function () {
-    $fp = fopen("async.file://" . TEST_IMAGE, "r");
+    $finished = false;
     $content = '';
-
-    Co\go(function () {
-        global $count, $running;
-        while($running) {
-            usleep(1000);
-            $count++;
-        }   
+    $cid = Co\go(function () use (&$finished, &$content) {
+        $fp = fopen("async.file://" . TEST_IMAGE, "r");
+        while (!feof($fp)) {
+            $content .= fread($fp, 512);
+        }
+        fclose($fp);
+        $finished = true;
     });
 
-    while(!feof($fp)) {
-        $content .= fread($fp, 512);
-    }
-    fclose($fp);
-
-    global $count, $running;
-    $running = false;
-    // Iouring is too fast, no coroutine switching will occur, and the file has already been completed
+    // Thread-pool I/O must yield before the reader finishes; no timer needs to fire.
+    // io_uring may complete a cached read without yielding.
     if (!defined('SWOOLE_IOURING_DEFAULT')) {
-        Assert::true($count >= 1);
+        Assert::false($finished);
     }
+    Co::join([$cid]);
+    Assert::true($finished);
     Swoole\Runtime::enableCoroutine(false);
     Assert::same(md5($content), md5_file(TEST_IMAGE));
 });

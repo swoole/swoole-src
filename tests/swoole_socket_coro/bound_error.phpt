@@ -16,6 +16,10 @@ go(function () use ($port) {
     $server = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     Assert::assert($server->bind('127.0.0.1', $port));
     Assert::assert($server->listen());
+    // Keep both sockets alive while the client attempts concurrent reads.
+    $connection = $server->accept();
+    Assert::isInstanceOf($connection, Socket::class);
+    $connection->recv();
 });
 go(function () use ($port) {
     $cli = new Client(SWOOLE_SOCK_TCP);

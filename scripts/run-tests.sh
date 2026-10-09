@@ -58,20 +58,27 @@ should_exit_with_error(){
 touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
-cpu_num="$(/usr/bin/env php -r "echo swoole_cpu_num() * 2;")"
+if [ -n "${SWOOLE_TEST_JOBS}" ]; then
+    cpu_num="${SWOOLE_TEST_JOBS}"
+elif [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
+    # Each PHPT may start several server processes on the shared macOS runner.
+    cpu_num="$(/usr/bin/env php -r "echo min(4, max(1, swoole_cpu_num()));")"
+else
+    cpu_num="$(/usr/bin/env php -r "echo swoole_cpu_num() * 2;")"
+fi
+case "${cpu_num}" in
+    ''|*[!0-9]*|0)
+        echo 'SWOOLE_TEST_JOBS must be a positive integer'
+        exit 1
+        ;;
+esac
 
-#if [ "$SWOOLE_CI_IN_MACOS" = 1 ]; then
-#    options=""
-#else
-#    options="-j${cpu_num}"
-#fi
-
-options="-j${cpu_num}"
+options=""
 
 echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
     dir="base"
-    options="${options} -m"
+    options="-m"
 elif [ "$SWOOLE_THREAD" = 1 ]; then
     dir="swoole_thread"
 elif [ "$SWOOLE_IOURING" = 1 ]; then
@@ -97,8 +104,12 @@ do
         fi
         cat tests.list
         timeout=`echo | expr ${i} \* 15 + 15`
-        options="${options} --set-timeout ${timeout}"
-        run_tests tests.list "${options}"
+        test_jobs="${cpu_num}"
+        if [ "$SWOOLE_CI_IN_MACOS" = 1 ] && [ ${i} -gt 1 ]; then
+            test_jobs=1
+        fi
+        echo "PHPT workers: ${test_jobs}, timeout: ${timeout}s"
+        run_tests tests.list "-j${test_jobs} ${options} --set-timeout ${timeout}"
     else
         break
     fi
