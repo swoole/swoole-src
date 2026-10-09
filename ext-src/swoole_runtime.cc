@@ -133,6 +133,7 @@ struct NetStream {
     php_netstream_data_t stream;
     std::shared_ptr<SocketImpl> socket;
     bool blocking;
+    bool zero_timer = false;
 };
 
 static struct {
@@ -495,7 +496,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         return sock->get_socket()->send_sync(buf, count, 0);
     }
 
-    if (abstract->blocking) {
+    if (abstract->blocking && !abstract->zero_timer) {
         didwrite = sock->send_all(buf, count);
     } else {
         didwrite = sock->send_once(buf, count);
@@ -534,6 +535,7 @@ _exit:
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count) {
     std::shared_ptr<SocketImpl> sock;
     ssize_t nr_bytes = -1;
+    bool dont_wait = false;
 
     auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
@@ -545,11 +547,13 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->blocking
 #if PHP_VERSION_ID >= 80300
-        && !stream->has_buffered_data
+    dont_wait = stream->has_buffered_data || abstract->zero_timer;
+#else
+    dont_wait = abstract->zero_timer;
 #endif
-    ) {
+
+    if (abstract->blocking && !dont_wait) {
         nr_bytes = sock->recv(buf, count);
     } else {
         nr_bytes = sock->recv_once(buf, count);
@@ -1134,9 +1138,14 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
+        auto timeout = static_cast<timeval *>(ptrparam);
+
+        // When the timeout is 0, all reads and writes are fully asynchronous.
+        abstract->zero_timer = timeout->tv_sec == 0 && timeout->tv_usec == 0;
+
         // Despite its name, PHP socket streams use this option as the shared timeout for both blocking reads and
         // writes (see php_sockop_read() and php_sockop_write()).
-        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_RDWR);
+        abstract->socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
         break;
     }
     case PHP_STREAM_OPTION_CRYPTO_API: {
@@ -1299,7 +1308,7 @@ static php_stream *socket_create(const char *proto,
 
     auto abstract = new NetStream();
     abstract->socket.reset(sock);
-    abstract->stream.socket = (int)sock->get_fd();
+    abstract->stream.socket = (int) sock->get_fd();
     abstract->blocking = true;
 
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
@@ -1601,7 +1610,7 @@ static void hook_all_func(uint32_t flags) {
             SW_UNHOOK_FUNC(proc_terminate);
         }
     }
-#endif // _WIN32
+#endif  // _WIN32
     // ext-sockets
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
@@ -1953,7 +1962,7 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
 
 #ifdef _WIN32
         // Windows: use Sleep for millisecond resolution
-        Sleep((DWORD)(tv_sec * 1000 + tv_nsec / 1000000));
+        Sleep((DWORD) (tv_sec * 1000 + tv_nsec / 1000000));
         RETURN_TRUE;
 #else
         if (nanosleep(&php_req, &php_rem) == 0) {
@@ -2018,12 +2027,12 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<swSock
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), index, key, elem) {
         ZVAL_DEREF(elem);
         php_socket_t sock = php_swoole_convert_to_fd(elem);
-        if (sock < (php_socket_t)0) {
+        if (sock < (php_socket_t) 0) {
             continue;
         }
-        auto i = fds.find((swSocketFd)sock);
+        auto i = fds.find((swSocketFd) sock);
         if (i == fds.end()) {
-            fds.emplace((swSocketFd)sock, PollSocket(event, new zend::KeyValue(index, key, elem)));
+            fds.emplace((swSocketFd) sock, PollSocket(event, new zend::KeyValue(index, key, elem)));
         } else {
             i->second.events |= event;
         }
@@ -2265,7 +2274,7 @@ php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int
         abstract->socket->set_timeout((double) FG(default_socket_timeout));
     }
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
-    abstract->stream.socket = (int)abstract->socket->get_fd();
+    abstract->stream.socket = (int) abstract->socket->get_fd();
     abstract->blocking = true;
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
