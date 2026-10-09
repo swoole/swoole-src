@@ -40,6 +40,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
       - name: install dependencies
         run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client
 
