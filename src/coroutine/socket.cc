@@ -329,6 +329,11 @@ bool Socket::init_reactor_socket(swSocketFd _fd) {
     socket->nonblock = 1;
     socket->cloexec = 1;
     socket->info.type = type;
+
+    // An existing fd may already be connected, as with socketpair() or imported streams.
+    sockaddr_storage peer;
+    socklen_t peer_len = sizeof(peer);
+    connected = ::getpeername(_fd, reinterpret_cast<sockaddr *>(&peer), &peer_len) == 0;
     return true;
 }
 
