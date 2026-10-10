@@ -1193,6 +1193,9 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
         sock->set_ssl_verify_peer(zval_is_true(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "ssl_verify_host", ztmp)) {
+        sock->set_ssl_verify_host(zval_is_true(ztmp));
+    }
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
         sock->set_ssl_allow_self_signed(zval_is_true(ztmp));
     }

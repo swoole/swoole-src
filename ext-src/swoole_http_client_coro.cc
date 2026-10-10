@@ -167,6 +167,13 @@ class Client {
     WebSocketSettings websocket_settings;
 
     bool in_callback = false;
+    bool write_func_aborted = false;
+    bool collect_stats = false;
+    double stats_begin = 0;
+
+    zval *stats() const {
+        return sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("stats"), 0);
+    }
     bool has_upload_files = false;
 
     std::shared_ptr<AsyncFile> download_file;  // save http response to file
@@ -232,7 +239,10 @@ class Client {
         buf->append(ZEND_STRL("\r\n"));
     }
 
-    static void add_content_length(String *buf, size_t length) {
+    void add_content_length(String *buf, size_t length) const {
+        if (collect_stats) {
+            add_assoc_long(stats(), "upload_content_length", length);
+        }
         char content_length_str[64];
         size_t n = sw_snprintf(SW_STRS(content_length_str), "Content-Length: %zu\r\n\r\n", length);
         buf->append(content_length_str, n);
@@ -530,6 +540,15 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 
 static int http_parser_on_headers_complete(llhttp_t *parser) {
     auto *http = static_cast<Client *>(parser->data);
+    zend_update_property_long(
+        swoole_http_client_coro_ce, SW_Z8_OBJ_P(http->zobject), ZEND_STRL("statusCode"), parser->status_code);
+    if (http->collect_stats) {
+        zval *zstats = http->stats();
+        add_assoc_long(zstats, "http_version", parser->http_minor == 0 ? 1 : 2);
+        add_assoc_double(zstats,
+                         "download_content_length",
+                         parser->flags & F_CONTENT_LENGTH ? static_cast<double>(parser->content_length) : -1);
+    }
     if (http->method == SW_HTTP_HEAD || parser->status_code == SW_HTTP_NO_CONTENT) {
         return 1;
     }
@@ -538,15 +557,25 @@ static int http_parser_on_headers_complete(llhttp_t *parser) {
 
 static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
+    if (http->collect_stats) {
+        zval *zstats = http->stats();
+        zval *zsize = zend_hash_str_find(Z_ARRVAL_P(zstats), ZEND_STRL("size_download"));
+        add_assoc_long(zstats, "size_download", (zsize ? zval_get_long(zsize) : 0) + length);
+    }
     if (http->write_func) {
         zval zargv[2];
         zargv[0] = *http->zobject;
         ZVAL_STRINGL(&zargv[1], at, length);
+        zval retval;
+        ZVAL_UNDEF(&retval);
         http->in_callback = true;
-        bool success = http->write_func->call(2, zargv, nullptr);
+        bool success = http->write_func->call(2, zargv, &retval);
+        // Only explicit false aborts; callbacks without a return value keep receiving data.
+        http->write_func_aborted = Z_TYPE(retval) == IS_FALSE;
+        zval_ptr_dtor(&retval);
         http->in_callback = false;
         zval_ptr_dtor(&zargv[1]);
-        return success ? 0 : -1;
+        return success && !http->write_func_aborted ? 0 : -1;
     }
 #ifdef SW_HAVE_COMPRESSION
     else if (http->body_decompression && !http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
@@ -601,8 +630,6 @@ static int http_parser_on_message_complete(llhttp_t *parser) {
         return HPE_PAUSED;
     }
 
-    zend_update_property_long(
-        swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), parser->status_code);
     if (http->download_file == nullptr) {
         zend_update_property_stringl(
             swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("body"), SW_STRINGL(http->body));
@@ -826,6 +853,9 @@ bool Client::apply_setting(zval *zset, const bool check_all) {
             delete write_func;
             write_func = cb;
         }
+        if (php_swoole_array_get_value(vht, "collect_stats", ztmp)) {
+            collect_stats = zval_is_true(ztmp);
+        }
         WebSocket::apply_setting(websocket_settings, vht, false);
     }
     if (socket) {
@@ -902,6 +932,11 @@ bool Client::connect() {
     socket->set_buffer_allocator(sw_zend_string_allocator());
 
     if (!socket->connect(host, port)) {
+#ifdef SW_USE_OPENSSL
+        if (collect_stats && socket->get_socket()->ssl) {
+            add_assoc_long(stats(), "ssl_verify_result", SSL_get_verify_result(socket->get_socket()->ssl));
+        }
+#endif
         set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_CONNECT_FAILED);
         close();
         return false;
@@ -955,6 +990,20 @@ bool Client::send_request() {
 
     if (!keep_liveness()) {
         return false;
+    }
+    if (collect_stats) {
+        zval *zstats = stats();
+        add_assoc_double(zstats, "pretransfer_time", microtime() - stats_begin);
+        network::Address peer;
+        if (socket->getpeername(&peer)) {
+            add_assoc_string(zstats, "primary_ip", peer.get_addr());
+            add_assoc_long(zstats, "primary_port", peer.get_port());
+        }
+        if (socket->getsockname()) {
+            const auto &local = socket->get_socket()->info;
+            add_assoc_string(zstats, "local_ip", local.get_addr());
+            add_assoc_long(zstats, "local_port", local.get_port());
+        }
     }
 
     zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), 0);
@@ -1441,6 +1490,15 @@ bool Client::send_request() {
 
 bool Client::exec(const std::string &_path) {
     path = _path;
+    if (collect_stats) {
+        stats_begin = microtime();
+        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("stats"));
+    }
+    ON_SCOPE_EXIT {
+        if (collect_stats) {
+            add_assoc_double(stats(), "total_time", microtime() - stats_begin);
+        }
+    };
     // bzero when make a new reqeust
     resolve_context_ = {};
     if (use_default_port) {
@@ -1449,6 +1507,18 @@ bool Client::exec(const std::string &_path) {
     SW_LOOP_N(max_retries + 1) {
         if (send_request() == false) {
             return false;
+        }
+        if (collect_stats) {
+            String *buffer = socket->get_write_buffer();
+            ssize_t header_end = swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n"));
+            if (header_end >= 0) {
+                size_t header_size = header_end + 4;
+                zval *zstats = stats();
+                zval *zlength = zend_hash_str_find(Z_ARRVAL_P(zstats), ZEND_STRL("upload_content_length"));
+                size_t uploaded = zlength ? zval_get_long(zlength) : 0;
+                add_assoc_long(zstats, "request_size", header_size + uploaded);
+                add_assoc_long(zstats, "size_upload", uploaded);
+            }
         }
         if (defer) {
             return true;
@@ -1470,6 +1540,7 @@ bool Client::recv_response(double timeout) {
     if (!wait_response) {
         return false;
     }
+    write_func_aborted = false;
     ssize_t retval = 0;
     size_t total_bytes = 0, parsed_n = 0;
     String *buffer = socket->get_read_buffer();
@@ -1500,6 +1571,12 @@ bool Client::recv_response(double timeout) {
             }
             break;
         }
+        if (collect_stats) {
+            zval *zstats = stats();
+            if (!zend_hash_str_exists(Z_ARRVAL_P(zstats), ZEND_STRL("starttransfer_time"))) {
+                add_assoc_double(zstats, "starttransfer_time", microtime() - stats_begin);
+            }
+        }
 
         if (!header_completed) {
             buffer->length += retval;
@@ -1513,6 +1590,10 @@ bool Client::recv_response(double timeout) {
                 header_crlf_offset = buffer->length > 4 ? buffer->length - 4 : 0;
                 continue;
             } else {
+                if (collect_stats) {
+                    ssize_t header_end = swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n"));
+                    add_assoc_long(stats(), "header_size", header_end + 4);
+                }
                 header_completed = true;
                 header_crlf_offset = 0;
                 retval = buffer->length;
@@ -1555,6 +1636,9 @@ bool Client::recv_response(double timeout) {
     }
 
     if (!success) {
+        if (write_func_aborted) {
+            socket->set_err(ECANCELED);
+        }
         php_swoole_socket_set_error_properties(zobject, socket);
         zend::object_set(zobject,
                          ZEND_STRL("statusCode"),
@@ -1808,6 +1892,7 @@ void php_swoole_http_client_coro_minit(int module_number) {
     zend_declare_property_long(swoole_http_client_coro_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_http_client_coro_ce, ZEND_STRL("ssl"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_client_coro_ce, ZEND_STRL("setting"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_client_coro_ce, ZEND_STRL("stats"), ZEND_ACC_PUBLIC);
 
     // request properties
     zend_declare_property_null(swoole_http_client_coro_ce, ZEND_STRL("requestMethod"), ZEND_ACC_PUBLIC);

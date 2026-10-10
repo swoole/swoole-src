@@ -536,6 +536,9 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
+    if (ssl_context && ssl_context->verify_host == 1) {
+        ssl_host_name = _host;
+    }
 
     if (ssl_context && (socks5_proxy || http_proxy)) {
         /* If the proxy is enabled, the host will be replaced with the proxy ip,
@@ -1150,10 +1153,10 @@ bool Socket::ssl_create(SSLContext *ssl_context) {
     SSL_set_mode(socket->ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 #endif
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_context->tls_host_name.empty()) {
-        SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
-    } else if (!ssl_context->disable_tls_host_name && !ssl_host_name.empty()) {
-        SSL_set_tlsext_host_name(socket->ssl, ssl_host_name.c_str());
+    const auto &name = ssl_context->tls_host_name.empty() ? ssl_host_name : ssl_context->tls_host_name;
+    if (!ssl_context->disable_tls_host_name && !name.empty() && !network::Address::verify_ip(AF_INET, name) &&
+        !network::Address::verify_ip(AF_INET6, name)) {
+        SSL_set_tlsext_host_name(socket->ssl, name.c_str());
     }
 #endif
     return true;
@@ -1209,10 +1212,8 @@ bool Socket::ssl_handshake() {
             return false;
         }
     }
-    if (ssl_context->verify_peer) {
-        if (!ssl_verify(ssl_context->allow_self_signed)) {
-            return false;
-        }
+    if (!ssl_verify()) {
+        return false;
     }
     ssl_handshaked = true;
 
@@ -1224,8 +1225,23 @@ bool Socket::ssl_verify(bool allow_self_signed) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
+    return ssl_context->verify_host == 0 || ssl_verify_host();
+}
+
+bool Socket::ssl_verify() {
+    if (ssl_context->verify_peer) {
+        return ssl_verify(ssl_context->allow_self_signed);
+    }
+    return ssl_context->verify_host != 1 || ssl_verify_host();
+}
+
+bool Socket::ssl_verify_host() {
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_context->tls_host_name.empty() && !socket->ssl_check_host(ssl_context->tls_host_name.c_str())) {
+    const auto *name = &ssl_context->tls_host_name;
+    if (name->empty() && ssl_context->verify_host == 1) {
+        name = &ssl_host_name;
+    }
+    if (!name->empty() && !socket->ssl_check_host(name->c_str(), ssl_context->verify_host == 1)) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }

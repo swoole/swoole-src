@@ -1208,14 +1208,16 @@ static int ssl_check_name(const char *name, ASN1_STRING *pattern) {
 }
 #endif
 
-bool Socket::ssl_check_host(const char *tls_host_name) const {
+bool Socket::ssl_check_host(const char *tls_host_name, bool strict) const {
     X509 *cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
         return false;
     }
 #ifdef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
     /* X509_check_host() is only available in OpenSSL 1.0.2+ */
-    if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr) != 1) {
+    const bool is_ip = Address::verify_ip(AF_INET, tls_host_name) || Address::verify_ip(AF_INET6, tls_host_name);
+    if ((strict && is_ip ? X509_check_ip_asc(cert, tls_host_name, 0)
+                         : X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr)) != 1) {
         swoole_warning("X509_check_host(): no match");
         goto _failed;
     }

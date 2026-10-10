@@ -552,10 +552,8 @@ bool IocpSocket::ssl_handshake() {
         }
     }
 
-    if (ssl_context->verify_peer) {
-        if (!ssl_verify(ssl_context->allow_self_signed)) {
-            return false;
-        }
+    if (!ssl_verify()) {
+        return false;
     }
     ssl_handshaked = true;
 
