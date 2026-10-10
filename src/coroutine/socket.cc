@@ -672,8 +672,19 @@ bool Socket::check_liveness() {
     return true;
 }
 
-ssize_t Socket::peek(void *_buf, size_t _n) {
-    ssize_t retval = socket->peek(_buf, _n, 0);
+ssize_t Socket::peek(void *_buf, size_t _n, int flags) {
+    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+        return -1;
+    }
+    ssize_t retval;
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
+    do {
+        retval = socket->peek(_buf, _n, flags);
+    } while (retval < 0 && !(flags & MSG_DONTWAIT) && socket->catch_read_error(errno) == SW_WAIT && timer.start() &&
+             wait_event(SW_EVENT_READ));
+    if (retval < 0 && (flags & MSG_DONTWAIT)) {
+        set_err(sw_errno());
+    }
     check_return_value(retval);
     return retval;
 }

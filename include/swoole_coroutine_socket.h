@@ -78,7 +78,7 @@ class Socket {
     }
 
     bool check_liveness();
-    ssize_t peek(void *_buf, size_t _n);
+    ssize_t peek(void *_buf, size_t _n, int flags = 0);
     virtual ssize_t recv(void *_buf, size_t _n);
     virtual ssize_t send(const void *_buf, size_t _n);
 

@@ -1415,10 +1415,14 @@ static PHP_METHOD(swoole_socket_coro, getBoundCid) {
 
 static PHP_METHOD(swoole_socket_coro, peek) {
     zend_long length = SW_BUFFER_SIZE_BIG;
+    double timeout = 0;
+    zend_long flags = 0;
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 3)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(length)
+    Z_PARAM_DOUBLE(timeout)
+    Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (UNEXPECTED(length <= 0)) {
@@ -1428,7 +1432,8 @@ static PHP_METHOD(swoole_socket_coro, peek) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
     zend_string *buf = zend_string_alloc(length, false);
-    ssize_t bytes = sock->socket->peek(ZSTR_VAL(buf), length);
+    SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
+    ssize_t bytes = sock->socket->peek(ZSTR_VAL(buf), length, (int) flags);
     socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(bytes < 0)) {
         zend_string_free(buf);

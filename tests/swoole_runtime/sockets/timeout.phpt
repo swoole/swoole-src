@@ -33,7 +33,7 @@ run(function () {
         $s = microtime(true);
         $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
         socket_connect($sock, '127.0.0.1', $GLOBALS['port']);
-        socket_send($sock, "hello world", 0, 0);
+        socket_send($sock, "hello world", strlen("hello world"), 0);
 
         $timeout = array(
             "sec"=> 0,

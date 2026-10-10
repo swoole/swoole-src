@@ -162,7 +162,7 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags) {
 #endif
     }
     if (flags & MSG_PEEK) {
-        return socket->peek(buf, len);
+        return socket->peek(buf, len, flags);
     } else {
         return socket->recv(buf, len);
     }

@@ -8,7 +8,7 @@ namespace Swoole\Coroutine {
         public function connect(string $host, int $port = 0, float $timeout = 0): bool {}
         public function checkLiveness(): bool {}
         public function getBoundCid(int $event): int {}
-        public function peek(int $length = 65536): string|false {}
+        public function peek(int $length = 65536, float $timeout = 0, int $flags = 0): string|false {}
         public function recv(int $length = 65536, float $timeout = 0): string|false {}
         public function send(string $data, float $timeout = 0): int|false {}
         public function readVector(array $io_vector, float $timeout = 0): false|array {}

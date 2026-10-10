@@ -23,7 +23,8 @@ run(function () {
         socket_connect($sock, $server_addr, $server_port);
 
         Assert::true(socket_getsockname($sock, $client_addr, $client_port));
-        socket_send($sock, "$client_addr:$client_port", 0, 0);
+        $data = "$client_addr:$client_port";
+        socket_send($sock, $data, strlen($data), 0);
         socket_recv($sock, $buf, 1024, 0);
         Assert::eq($buf, "$server_addr:$server_port");
 
