@@ -21,7 +21,7 @@ Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
 run(function () {
 
     $s_c_l = socket_create_listen(0);
-    socket_set_nonblock($s_c_l);
+    @socket_set_nonblock($s_c_l);
     Assert::isInstanceOf($s_c_l, Swoole\Coroutine\Socket::class);
     //socket_accept($s_c_l);
     socket_close($s_c_l);

@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 7db5224d3c59332a0dda4d33afad422458f6e604 */
+/* $Id: 270ac62e413bca29626d3c6b4229f11725cbb937 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -12803,6 +12803,14 @@ static const char* swoole_library_source_ext_sockets =
     "    if ($socket->type != SOCK_DGRAM) {\n"
     "        throw new RuntimeException('only supports dgram type socket');\n"
     "    }\n"
+    "    if ($socket->domain === AF_UNIX && $length > 65536) {\n"
+    "        trigger_error(\n"
+    "            'socket_recvfrom(): Swoole sockets hook differs from the sockets extension: '\n"
+    "            . 'the receive buffer is limited to 64 KiB; larger UNIX datagrams may be truncated '\n"
+    "            . 'and excess data discarded even when a larger receive length is requested',\n"
+    "            E_USER_WARNING\n"
+    "        );\n"
+    "    }\n"
     "    $data = $socket->recvfrom($peer);\n"
     "    if ($data === false) {\n"
     "        return false;\n"
@@ -12945,6 +12953,13 @@ static const char* swoole_library_source_ext_sockets =
     "    if ($socket->__ext_sockets_nonblock) {\n"
     "        return true;\n"
     "    }\n"
+    "    trigger_error(\n"
+    "        'socket_set_nonblock(): Swoole sockets hook differs from the sockets extension: '\n"
+    "        . 'nonblocking reads are simulated with a 1 ms receive timeout, changing SO_RCVTIMEO; '\n"
+    "        . 'operations may suspend the coroutine and report ETIMEDOUT instead of EAGAIN/EWOULDBLOCK. '\n"
+    "        . 'Other operations may still wait',\n"
+    "        E_USER_WARNING\n"
+    "    );\n"
     "    $socket->__ext_sockets_nonblock = true;\n"
     "    $socket->__ext_sockets_timeout  = $socket->getOption(SOL_SOCKET, SO_RCVTIMEO);\n"
     "    $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, ['sec' => 0, 'usec' => 1000]);\n"
