@@ -1811,15 +1811,17 @@ static PHP_METHOD(swoole_socket_coro, recvfrom) {
     if (bytes < 0) {
         zend_string_free(buf);
         RETURN_FALSE;
-    } else if (bytes == 0) {
+    }
+
+    zval_dtor(peername);
+    array_init(peername);
+    add_assoc_string(peername, "address", (char *) sock->socket->get_addr());
+    add_assoc_long(peername, "port", sock->socket->get_port());
+
+    if (bytes == 0) {
         zend_string_free(buf);
         RETURN_EMPTY_STRING();
     } else {
-        zval_dtor(peername);
-        array_init(peername);
-        add_assoc_string(peername, "address", (char *) sock->socket->get_addr());
-        add_assoc_long(peername, "port", sock->socket->get_port());
-
         ZSTR_LEN(buf) = bytes;
         ZSTR_VAL(buf)[bytes] = 0;
         RETURN_STR(buf);
