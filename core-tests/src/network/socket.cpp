@@ -616,6 +616,49 @@ TEST(socket, dup) {
     test_socket_sync(sock_2, false);
 }
 
+TEST(socket, dup_fd) {
+    swSocketFd pair[2];
+#ifdef _WIN32
+    ASSERT_EQ(socketpair(AF_INET, SOCK_STREAM, 0, pair), 0);
+#else
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+#endif
+    swSocketFd copy = sw_dup(pair[0]);
+    ASSERT_NE(copy, SW_BAD_SOCKET);
+    ASSERT_NE(copy, pair[0]);
+    ASSERT_EQ(sw_close_socket(pair[0]), 0);
+    ASSERT_EQ(::send(copy, "x", 1, 0), 1);
+    char byte = 0;
+    ASSERT_EQ(::recv(pair[1], &byte, 1, 0), 1);
+    ASSERT_EQ(byte, 'x');
+    ASSERT_EQ(sw_close_socket(copy), 0);
+    ASSERT_EQ(::recv(pair[1], &byte, 1, 0), 0);
+    ASSERT_EQ(sw_close_socket(pair[1]), 0);
+}
+
+TEST(socket, dup_invalid_fd) {
+    errno = 0;
+    ASSERT_EQ(sw_dup(SW_BAD_SOCKET), SW_BAD_SOCKET);
+    ASSERT_NE(errno, 0);
+}
+
+TEST(socket, dup_ssl) {
+    auto *sock = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(sock, nullptr);
+    SSL_CTX *context = SSL_CTX_new(TLS_method());
+    ASSERT_NE(context, nullptr);
+    sock->ssl = SSL_new(context);
+    ASSERT_NE(sock->ssl, nullptr);
+    errno = 0;
+    ASSERT_EQ(sock->dup(), nullptr);
+    ASSERT_EQ(errno, EOPNOTSUPP);
+    ASSERT_NE(sock->fd, SW_BAD_SOCKET);
+    SSL_free(sock->ssl);
+    sock->ssl = nullptr;
+    SSL_CTX_free(context);
+    sock->free();
+}
+
 TEST(socket, convert_to_type) {
     ASSERT_EQ(network::Socket::convert_to_type(AF_INET, SOCK_STREAM), SW_SOCK_TCP);
     ASSERT_EQ(network::Socket::convert_to_type(AF_INET6, SOCK_STREAM), SW_SOCK_TCP6);

@@ -35,5 +35,7 @@ namespace Swoole\Coroutine {
         public function isClosed(): bool {}
         /** @param resource $stream */
         public static function import($stream) : Socket | false {}
+        /** @return resource|false */
+        public function export() {}
     }
 }

@@ -87,6 +87,7 @@ static PHP_METHOD(swoole_socket_coro, getsockname);
 static PHP_METHOD(swoole_socket_coro, getpeername);
 static PHP_METHOD(swoole_socket_coro, isClosed);
 static PHP_METHOD(swoole_socket_coro, import);
+static PHP_METHOD(swoole_socket_coro, export);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -125,6 +126,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, getsockname,   arginfo_class_Swoole_Coroutine_Socket_getsockname,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, isClosed,      arginfo_class_Swoole_Coroutine_Socket_isClosed,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, import,        arginfo_class_Swoole_Coroutine_Socket_import,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_socket_coro, export,        arginfo_class_Swoole_Coroutine_Socket_export,          ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -810,7 +812,7 @@ SW_API bool php_swoole_export_socket(zval *zobject, SocketImpl *_socket) {
 
 SW_API zend_object *php_swoole_dup_socket(swSocketFd fd, swSocketType type) {
     php_swoole_check_reactor();
-    swSocketFd new_fd = (swSocketFd)dup((int)fd);
+    swSocketFd new_fd = sw_dup(fd);
     if (new_fd == SW_BAD_SOCKET) {
         php_swoole_sys_error(E_WARNING, "dup(%d) failed", (int)fd);
         return nullptr;
@@ -888,6 +890,19 @@ SW_API SocketImpl *php_swoole_get_socket(const zval *zobject) {
 SW_API bool php_swoole_socket_is_closed(const zval *zobject) {
     auto *_sock = socket_coro_fetch_object(Z_OBJ_P(zobject));
     return _sock->socket == nullptr || _sock->socket->is_closed();
+}
+
+SW_API bool php_swoole_socket_is_ssl(const zval *zobject) {
+    auto *sock = socket_coro_fetch_object(Z_OBJ_P(zobject));
+    if (sock->socket && sock->socket->ssl_is_enable()) {
+        return true;
+    }
+    if (!Z_ISUNDEF(sock->zstream)) {
+        php_stream *stream = nullptr;
+        php_stream_from_zval_no_verify(stream, &sock->zstream);
+        return stream && php_swoole_stream_is_ssl(stream);
+    }
+    return false;
 }
 
 SW_API void php_swoole_init_socket_object(zval *zobject, SocketImpl *socket) {
@@ -2304,4 +2319,31 @@ static PHP_METHOD(swoole_socket_coro, import) {
     sock->socket->get_socket()->nonblock = (t & O_NONBLOCK);
 
     RETURN_OBJ(object);
+}
+
+static PHP_METHOD(swoole_socket_coro, export) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    swoole_get_socket_coro(sock, ZEND_THIS);
+    if (php_swoole_socket_is_ssl(ZEND_THIS)) {
+        php_swoole_socket_set_error_properties(ZEND_THIS, EOPNOTSUPP);
+        php_swoole_error(E_WARNING, "cannot export an SSL socket by duplicating its file descriptor");
+        RETURN_FALSE;
+    }
+
+    swSocketFd fd = sw_dup(sock->socket->get_fd());
+    if (fd == SW_BAD_SOCKET) {
+        php_swoole_socket_set_error_properties(ZEND_THIS, errno);
+        php_swoole_sys_error(E_WARNING, "dup() failed");
+        RETURN_FALSE;
+    }
+    php_stream *stream = php_swoole_create_stream_from_socket(fd,
+                                                              sock->socket->get_sock_domain(),
+                                                              sock->socket->get_sock_type(),
+                                                              sock->socket->get_sock_protocol() STREAMS_CC);
+    if (stream == nullptr) {
+        php_swoole_error(E_WARNING, "failed to create stream");
+        RETURN_FALSE;
+    }
+    php_stream_to_zval(stream, return_value);
 }

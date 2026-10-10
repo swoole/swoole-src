@@ -1631,6 +1631,7 @@ static void hook_all_func(uint32_t flags) {
             SW_HOOK_WITH_PHP_FUNC(socket_clear_error);
             SW_HOOK_WITH_PHP_FUNC(socket_last_error);
             SW_HOOK_WITH_PHP_FUNC(socket_import_stream);
+            SW_HOOK_WITH_PHP_FUNC(socket_export_stream);
 
             inherit_class(ZEND_STRL("Swoole\\Coroutine\\Socket"), ZEND_STRL("Socket"));
         }
@@ -1662,6 +1663,7 @@ static void hook_all_func(uint32_t flags) {
             SW_UNHOOK_FUNC(socket_clear_error);
             SW_UNHOOK_FUNC(socket_last_error);
             SW_UNHOOK_FUNC(socket_import_stream);
+            SW_UNHOOK_FUNC(socket_export_stream);
 
             detach_parent_class("Swoole\\Coroutine\\Socket");
         }
@@ -2258,6 +2260,27 @@ static void unhook_func(const char *name, size_t l_name) {
     rf->function->internal_function.arg_info = rf->ori_arg_info;
 }
 
+bool php_swoole_stream_is_ssl(php_stream *stream) {
+    if (stream->ops == &socket_ops) {
+        auto *abstract = static_cast<NetStream *>(stream->abstract);
+        return abstract && abstract->socket && abstract->socket->ssl_is_enable();
+    }
+    // OpenSSL also provides plain TCP streams, so the ops label alone is insufficient.
+    if (strcmp(stream->ops->label, "tcp_socket/ssl") != 0) {
+        return false;
+    }
+    if (stream->orig_path && (strncmp(stream->orig_path, "ssl", 3) == 0 || strncmp(stream->orig_path, "tls", 3) == 0)) {
+        return true;
+    }
+    // Detect TCP streams upgraded with stream_socket_enable_crypto().
+    zval metadata;
+    array_init(&metadata);
+    php_stream_set_option(stream, PHP_STREAM_OPTION_META_DATA_API, 0, &metadata);
+    bool ssl = zend_hash_str_exists(Z_ARRVAL(metadata), ZEND_STRL("crypto"));
+    zval_ptr_dtor(&metadata);
+    return ssl;
+}
+
 php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int type, int protocol STREAMS_DC) {
     auto *abstract = new NetStream();
     abstract->socket = std::make_shared<SocketImpl>(_fd, domain, type, protocol);
@@ -2265,7 +2288,7 @@ php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int
         abstract->socket->set_timeout((double) FG(default_socket_timeout));
     }
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
-    abstract->stream.socket = (int)abstract->socket->get_fd();
+    abstract->stream.socket = static_cast<php_socket_t>(abstract->socket->get_fd());
     abstract->blocking = true;
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");

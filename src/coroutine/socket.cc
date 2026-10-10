@@ -24,6 +24,9 @@
 
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#ifdef _WIN32
+#include "swoole_iocp.h"
+#endif
 
 namespace swoole {
 namespace coroutine {
@@ -1623,9 +1626,6 @@ bool Socket::close() {
         set_err(EBADF);
         return false;
     }
-    if (connected) {
-        shutdown();
-    }
     if (sw_unlikely(has_bound())) {
         socket->close_wait = 1;
         cancel(SW_EVENT_WRITE);
@@ -1633,7 +1633,22 @@ bool Socket::close() {
         set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
         return false;
     } else {
-        sock_fd = SW_BAD_SOCKET;
+        if (socket->ssl) {
+            ssl_close();
+        }
+        if (!socket->removed) {
+            swoole_event_del(socket);
+        }
+        // Close only this descriptor. shutdown() would affect all duplicated owners.
+        swSocketFd fd = move_fd();
+#ifdef _WIN32
+        int result = Iocp::close(fd);
+#else
+        int result = sw_close_socket(fd);
+#endif
+        if (result != 0) {
+            swoole_sys_warning("close(%d) failed", (int) fd);
+        }
         if (dtor_ != nullptr) {
             auto dtor = dtor_;
             dtor_ = nullptr;

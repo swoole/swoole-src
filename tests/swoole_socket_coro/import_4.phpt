@@ -62,6 +62,7 @@ Co\run(function () {
     $stream3 = stream_socket_server("{$scheme}://127.0.0.1:0", $errno, $errstr, STREAM_SERVER_BIND);
     $sock3 = Swoole\Coroutine\Socket::import($stream3);
     fclose($stream3);
+    // The stream has closed its fd; SO_TYPE must fail as it does with native PHP sockets.
     test($stream3, $sock3);
 
     echo "\nclose socket\n";
@@ -93,7 +94,9 @@ close stream
 stream_set_blocking TypeError: stream_set_blocking(): supplied resource is not a valid stream resource
 
 socket_set_block 1
-socket_get_option %d
+socket_get_option%w
+Warning: Swoole\Coroutine\Socket::getOption(): %s in %s on line %d
+0
 
 
 close socket
@@ -123,7 +126,9 @@ close stream
 stream_set_blocking TypeError: stream_set_blocking(): Argument #1 ($stream) must be an open stream resource
 
 socket_set_block 1
-socket_get_option %d
+socket_get_option%w
+Warning: Swoole\Coroutine\Socket::getOption(): %s in %s on line %d
+0
 
 
 close socket

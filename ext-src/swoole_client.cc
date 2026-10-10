@@ -1049,6 +1049,10 @@ static PHP_METHOD(swoole_client, getSocket) {
         php_swoole_fatal_error(E_WARNING, "the 'getSocket' method can't be used on persistent connection");
         RETURN_FALSE;
     }
+    if (cli->socket->ssl) {
+        php_swoole_error(E_WARNING, "cannot duplicate an SSL socket");
+        RETURN_FALSE;
+    }
     php_socket *socket_object = php_swoole_convert_to_socket(cli->socket->fd);
     if (!socket_object) {
         RETURN_FALSE;

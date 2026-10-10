@@ -611,9 +611,17 @@ bool Socket::uncork() {
 }
 
 Socket *Socket::dup() const {
+    if (ssl) {
+        errno = EOPNOTSUPP;
+        return nullptr;
+    }
+    swSocketFd new_fd = sw_dup(fd);
+    if (new_fd == SW_BAD_SOCKET) {
+        return nullptr;
+    }
     auto *_socket = new Socket();
     *_socket = *this;
-    _socket->fd = (swSocketFd)::dup(fd);
+    _socket->fd = new_fd;
     return _socket;
 }
 

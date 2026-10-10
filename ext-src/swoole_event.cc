@@ -405,13 +405,14 @@ int php_swoole_convert_to_fd_ex(zval *zsocket, int *async) {
 }
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
-php_socket *php_swoole_convert_to_socket(int sock) {
+php_socket *php_swoole_convert_to_socket(swSocketFd sock) {
     php_socket *socket_object;
     zval zsocket;
     object_init_ex(&zsocket, socket_ce);
     socket_object = Z_SOCKET_P(&zsocket);
-    auto new_sock = dup(sock);
-    if (new_sock < 0) {
+    auto new_sock = sw_dup(sock);
+    if (new_sock == SW_BAD_SOCKET) {
+        zval_ptr_dtor(&zsocket);
         return nullptr;
     }
     socket_import_file_descriptor(new_sock, socket_object);

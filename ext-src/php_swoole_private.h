@@ -406,7 +406,7 @@ int php_swoole_convert_to_fd(zval *zsocket);
 int php_swoole_convert_to_fd_ex(zval *zsocket, int *async);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
-php_socket *php_swoole_convert_to_socket(int sock);
+php_socket *php_swoole_convert_to_socket(swSocketFd sock);
 #endif
 
 #ifdef HAVE_CPU_AFFINITY

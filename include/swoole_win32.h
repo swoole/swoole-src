@@ -523,6 +523,8 @@ typedef SOCKET swSocketFd;
 int sw_socket_errno(void);
 
 // On Windows, use closesocket() for sockets
+// Duplicate socket handles only; TLS state must be rejected by the caller.
+swSocketFd sw_dup(swSocketFd fd);
 int sw_close_socket(swSocketFd fd);
 
 // On Windows, close() cannot be used for sockets; use closesocket() instead.

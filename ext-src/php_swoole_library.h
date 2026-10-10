@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 9d042350d82ec6f84e15864f2fdc5e479374c6c8 */
+/* $Id: b13aed5fb5f2d6015b8c27f42ebee8ae90f33ac0 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -12986,6 +12986,11 @@ static const char* swoole_library_source_ext_sockets =
     "function swoole_socket_import_stream(mixed $stream): Socket|false\n"
     "{\n"
     "    return Socket::import($stream);\n"
+    "}\n"
+    "\n"
+    "function swoole_socket_export_stream(Socket $socket): mixed\n"
+    "{\n"
+    "    return $socket->export();\n"
     "}\n";
 
 static const char* swoole_library_source_ext_standard =
