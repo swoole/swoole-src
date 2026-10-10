@@ -964,7 +964,6 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
     }
     if (php_swoole_array_get_value(vht, "open_fastcgi_protocol", ztmp)) {
 #define FCGI_HEADER_LEN 8
-#define FCGI_MAX_LENGTH 0xffff
         sock->open_length_check = zval_is_true(ztmp);
         sock->protocol.package_length_size = FCGI_HEADER_LEN;
         sock->protocol.package_length_offset = 0;
@@ -975,11 +974,7 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
                 ssize_t length = 0;
                 if (pl->buf_size >= FCGI_HEADER_LEN) {
                     length = ((p[4] << 8) | p[5]) + p[6];
-                    if (length > FCGI_MAX_LENGTH) {
-                        length = -1;
-                    } else {
-                        length += FCGI_HEADER_LEN;
-                    }
+                    length += FCGI_HEADER_LEN;
                 }
                 return length;
             };

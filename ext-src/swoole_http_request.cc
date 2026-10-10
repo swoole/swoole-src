@@ -399,7 +399,6 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
         zval *zcookie = swoole_http_init_and_read_property(
             swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE));
         swoole_http_parse_cookie(zcookie, at, length);
-        return 0;
     } else if (SW_STRCASEEQ(header_name, header_len, "upgrade")) {
         constexpr size_t max_length = SW_STACK_BUFFER_SIZE - 1;
         if (ctx->current_header_value_len > max_length || length > max_length - ctx->current_header_value_len) {

@@ -1122,6 +1122,15 @@ static int http2_server_parse_header(
                             swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie")),
                         (const char *) nv.value,
                         nv.valuelen);
+                    // RFC 9113 requires separate Cookie fields to be joined with "; " when forwarding them.
+                    zval *previous = zend_hash_str_find(Z_ARRVAL_P(zheader), ZEND_STRL("cookie"));
+                    if (previous) {
+                        zend_string *cookie = zend_string_append(
+                            Z_STR_P(previous), ZEND_STRL("; "), (const char *) nv.value, nv.valuelen);
+                        ZVAL_STR(previous, cookie);
+                    } else {
+                        add_assoc_stringl_ex(zheader, ZEND_STRL("cookie"), (const char *) nv.value, nv.valuelen);
+                    }
                     continue;
                 } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-length")) {
                     if (!Http2::parse_content_length((char *) nv.value, nv.valuelen, client->max_body_size, nullptr)) {

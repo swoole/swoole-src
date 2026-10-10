@@ -179,6 +179,56 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 
+struct zend_string_append_part {
+    const char *value;
+    size_t length;
+    uintptr_t offset;
+};
+
+static inline void zend_string_append_parts(zend_string_append_part *) {}
+
+template <typename... Args>
+static inline void zend_string_append_parts(zend_string_append_part *parts,
+                                            const char *value,
+                                            size_t length,
+                                            Args... args) {
+    *parts = {value, length, 0};
+    zend_string_append_parts(parts + 1, args...);
+}
+
+// Append pointer/length pairs with one allocation. Consumes one reference; use the returned pointer.
+template <typename... Args>
+static inline zend_string *zend_string_append(zend_string *str, const char *value, size_t length, Args... args) {
+    static_assert(sizeof...(args) % 2 == 0, "Expected pointer/length pairs");
+    zend_string_append_part parts[1 + sizeof...(args) / 2];
+    zend_string_append_parts(parts, value, length, args...);
+    const size_t original_length = ZSTR_LEN(str);
+    size_t total = original_length;
+    for (auto &part : parts) {
+        if (UNEXPECTED(part.length > ZSTR_MAX_LEN - total)) {
+            zend_error_noreturn(E_ERROR, "String size overflow");
+        }
+        total += part.length;
+        // Preserve sources inside str across a possible reallocation, including self-append.
+        part.offset = reinterpret_cast<uintptr_t>(part.value) - reinterpret_cast<uintptr_t>(ZSTR_VAL(str));
+    }
+    if (UNEXPECTED(total == original_length)) {
+        return str;
+    }
+    str = zend_string_extend(str, total, (GC_FLAGS(str) & IS_STR_PERSISTENT) != 0);
+    size_t offset = original_length;
+    for (const auto &part : parts) {
+        if (UNEXPECTED(part.length == 0)) {
+            continue;
+        }
+        const char *source = part.offset <= original_length ? ZSTR_VAL(str) + part.offset : part.value;
+        memmove(ZSTR_VAL(str) + offset, source, part.length);
+        offset += part.length;
+    }
+    ZSTR_VAL(str)[ZSTR_LEN(str)] = '\0';
+    return str;
+}
+
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #define SOL_TCP IPPROTO_TCP
 #endif
