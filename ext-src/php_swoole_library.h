@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 270ac62e413bca29626d3c6b4229f11725cbb937 */
+/* $Id: 9d042350d82ec6f84e15864f2fdc5e479374c6c8 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -12773,8 +12773,8 @@ static const char* swoole_library_source_ext_sockets =
     "        $buffer = null;\n"
     "        return false;\n"
     "    }\n"
-    "    $buffer = $data;\n"
-    "    return strlen($buffer);\n"
+    "    $buffer = $data === '' ? null : $data;\n"
+    "    return strlen($data);\n"
     "}\n"
     "\n"
     "function swoole_socket_sendto(Socket $socket, string $buffer, int $length, int $flags, string $addr, int $port = 0): int|false\n"
