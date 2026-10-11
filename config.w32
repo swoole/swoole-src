@@ -20,6 +20,7 @@ ARG_ENABLE("swoole-coro-time", "calculate coroutine execution time", "no");
 ARG_ENABLE("swoole-sqlite", "enable sqlite support", "no");
 ARG_ENABLE("swoole-odbc", "enable odbc support", "no");
 ARG_WITH("swoole-oracle", "enable oracle support", "no");
+ARG_WITH("nghttp2-dir", "dir of nghttp2", "no");
 
 if (PHP_SWOOLE != "no") {
 	// Calculate PHP version ID (e.g., PHP 8.4 -> 84, PHP 8.5 -> 85)
