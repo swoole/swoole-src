@@ -1387,9 +1387,8 @@ _get_length:
         return -1;
     }
 
-    read_buffer->offset = packet_len;
-
     if ((size_t) packet_len <= read_buffer->length) {
+        read_buffer->offset = packet_len;
         return packet_len;
     }
 
@@ -1401,8 +1400,9 @@ _get_length:
     if (retval > 0) {
         read_buffer->length += retval;
         if (read_buffer->length != (size_t) packet_len) {
-            retval = 0;
+            retval = errCode == ETIMEDOUT ? -1 : 0;
         } else {
+            read_buffer->offset = packet_len;
             return packet_len;
         }
     }
@@ -1502,7 +1502,8 @@ ssize_t Socket::recv_packet(double timeout) {
             read_buffer->length = read_buffer->offset = recv_bytes;
         }
     }
-    if (recv_bytes <= 0) {
+    // Keep incomplete length-prefixed packets for a subsequent read after a timeout.
+    if (recv_bytes <= 0 && !(open_length_check && recv_bytes < 0 && errCode == ETIMEDOUT)) {
         read_buffer->clear();
     }
     return recv_bytes;
