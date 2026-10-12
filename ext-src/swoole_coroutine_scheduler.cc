@@ -126,8 +126,6 @@ static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &even
 void php_swoole_coroutine_scheduler_rshutdown() {
     swoole_name_resolver_each([](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
         if (iter->type == NameResolver::TYPE_PHP) {
-            zval_dtor((zval *) iter->private_data);
-            efree(iter->private_data);
             return SW_TRAVERSE_REMOVE;
         } else {
             return SW_TRAVERSE_KEEP;

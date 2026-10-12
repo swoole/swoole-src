@@ -119,18 +119,18 @@ SW_API void swoole_set_hosts_path(const std::string &hosts_file) {
 
 SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) {
     if (append) {
-        SwooleG.name_resolvers.push_back(resolver);
+        SwooleTG.name_resolvers.push_back(resolver);
     } else {
-        SwooleG.name_resolvers.push_front(resolver);
+        SwooleTG.name_resolvers.push_front(resolver);
     }
 }
 
 SW_API void swoole_name_resolver_each(
     const std::function<swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
-    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end();) {
+    for (auto iter = SwooleTG.name_resolvers.begin(); iter != SwooleTG.name_resolvers.end();) {
         const swTraverseOperation op = fn(iter);
         if (op == SW_TRAVERSE_REMOVE) {
-            iter = SwooleG.name_resolvers.erase(iter);
+            iter = SwooleTG.name_resolvers.erase(iter);
         } else if (op == SW_TRAVERSE_STOP) {
             break;
         } else {
@@ -140,16 +140,47 @@ SW_API void swoole_name_resolver_each(
 }
 
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, NameResolver::Context *ctx) {
-    if (SwooleG.name_resolvers.empty()) {
-        goto _dns_lookup;
+    if (ctx->name != host_name || ctx->family != ctx->type) {
+        ctx->reset();
     }
-    for (auto &name_resolver : SwooleG.name_resolvers) {
+    ctx->name = host_name;
+    ctx->family = ctx->type;
+    ctx->final_ = false;
+    // Callbacks can yield or change the registry; never traverse the live list across a callback.
+    auto resolvers = SwooleTG.name_resolvers;
+    if (ctx->resolver) {
+        bool found = false;
+        for (const auto &resolver : resolvers) {
+            if (resolver.private_data == ctx->resolver) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            ctx->reset();
+            ctx->name = host_name;
+            ctx->family = ctx->type;
+        } else if (ctx->exhausted) {
+            ctx->final_ = true;
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return "";
+        }
+    }
+    for (auto &name_resolver : resolvers) {
+        if (ctx->resolver && ctx->resolver != name_resolver.private_data) {
+            continue;
+        }
         std::string result = name_resolver.resolve(host_name, ctx, name_resolver.private_data);
+        if (ctx->resolver == name_resolver.private_data) {
+            ctx->resolver_owner = name_resolver.owner;
+        }
         if (!result.empty() || ctx->final_) {
+            if (result.empty()) {
+                swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            }
             return result;
         }
     }
-_dns_lookup:
     /*
      * Use DNS to resolve host name by default
      */

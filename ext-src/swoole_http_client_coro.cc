@@ -1500,7 +1500,8 @@ bool Client::exec(const std::string &_path) {
         }
     };
     // bzero when make a new reqeust
-    resolve_context_ = {};
+    resolve_context_.reset();
+    resolve_context_.with_port = false;
     if (use_default_port) {
         resolve_context_.with_port = true;
     }

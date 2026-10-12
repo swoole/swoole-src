@@ -404,6 +404,7 @@ void swoole_thread_init(bool main_thread) {
 }
 
 void swoole_thread_clean(bool main_thread) {
+    SwooleTG.name_resolvers.clear();
     if (SwooleTG.timer) {
         swoole_timer_free();
     }

@@ -683,6 +683,58 @@ struct EventData {
     }
 };
 
+struct Allocator {
+    void *(*malloc)(size_t size);
+    void *(*calloc)(size_t nmemb, size_t size);
+    void *(*realloc)(void *ptr, size_t size);
+    void (*free)(void *ptr);
+};
+
+struct NameResolver {
+    enum Type {
+        TYPE_KERNEL,
+        TYPE_PHP,
+        TYPE_USER,
+    };
+    struct Context {
+        int type = 0;
+        double timeout = 0;
+        void *private_data = nullptr;
+        bool with_port = false;
+        bool cluster_ = false;
+        bool final_ = false;
+        bool exhausted = false;
+        std::function<void(Context *ctx)> dtor;
+        const void *resolver = nullptr;
+        std::string name;
+        int family = 0;
+        std::shared_ptr<void> resolver_owner;
+
+        void reset() {
+            if (private_data && dtor) {
+                dtor(this);
+            }
+            private_data = nullptr;
+            dtor = nullptr;
+            resolver = nullptr;
+            resolver_owner.reset();
+            cluster_ = final_ = false;
+            exhausted = false;
+            name.clear();
+            family = 0;
+        }
+
+        ~Context() {
+            reset();
+        }
+    };
+    std::function<std::string(const std::string &, Context *, void *)> resolve;
+    void *private_data;
+    Type type;
+    // Retain callback data while a lookup yields and another coroutine removes the resolver.
+    std::shared_ptr<void> owner;
+};
+
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
@@ -700,39 +752,8 @@ struct ThreadGlobal {
     Iocp *iocp;
 #endif
     bool signal_blocking_all;
-};
-
-struct Allocator {
-    void *(*malloc)(size_t size);
-    void *(*calloc)(size_t nmemb, size_t size);
-    void *(*realloc)(void *ptr, size_t size);
-    void (*free)(void *ptr);
-};
-
-struct NameResolver {
-    enum Type {
-        TYPE_KERNEL,
-        TYPE_PHP,
-        TYPE_USER,
-    };
-    struct Context {
-        int type;
-        double timeout;
-        void *private_data;
-        bool with_port;
-        bool cluster_;
-        bool final_;
-        std::function<void(Context *ctx)> dtor;
-
-        ~Context() {
-            if (private_data && dtor) {
-                dtor(this);
-            }
-        }
-    };
-    std::function<std::string(const std::string &, Context *, void *)> resolve;
-    void *private_data;
-    Type type;
+    // PHP resolver objects belong to the interpreter of the current thread.
+    std::list<NameResolver> name_resolvers;
 };
 
 struct DnsServer {
@@ -792,7 +813,6 @@ struct Global {
     int dns_tries;
     std::string dns_resolvconf_path;
     std::string dns_hosts_path;
-    std::list<NameResolver> name_resolvers;
     //-----------------------[AIO]----------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;

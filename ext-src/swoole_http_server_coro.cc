@@ -58,6 +58,7 @@ class HttpServer {
     std::unordered_map<std::string, zend::Callable *> handlers;
     bool running;
     zval zclients;
+    zval registration;
 
     /* options */
     bool parse_cookie;
@@ -79,6 +80,7 @@ class HttpServer {
         socket = new SocketImpl(type);
         default_handler = nullptr;
         array_init(&zclients);
+        ZVAL_UNDEF(&registration);
         running = true;
 
         parse_cookie = true;
@@ -98,6 +100,9 @@ class HttpServer {
     ~HttpServer() {
         sw_free(upload_tmp_dir);
         zval_ptr_dtor(&zclients);
+        if (!Z_ISUNDEF(registration)) {
+            zval_ptr_dtor(&registration);
+        }
         clear_handlers();
         delete socket;
     }
@@ -508,6 +513,35 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     }
 
     hs->running = true;
+
+    if (zend_hash_str_exists(vht, ZEND_STRL("service_name"))) {
+        zval args[2] = {*ZEND_THIS, *zsettings};
+        zend::Variable function(R"(\Swoole\NameResolver\ServiceRegistration::start)");
+        if (call_user_function(EG(function_table), nullptr, function.ptr(), &hs->registration, 2, args) != SUCCESS ||
+            EG(exception)) {
+            hs->running = false;
+            RETURN_THROWS();
+        }
+    }
+    ON_SCOPE_EXIT {
+        if (!Z_ISUNDEF(hs->registration) && Z_TYPE(hs->registration) == IS_OBJECT) {
+            // Stop renewal after every exit from the accept loop, including listener failure.
+            zend_object *exception = EG(exception);
+            EG(exception) = nullptr;
+            zval result;
+            ZVAL_UNDEF(&result);
+            sw_zend_call_method_with_0_params(&hs->registration, nullptr, nullptr, "stop", &result);
+            zval_ptr_dtor(&result);
+            zval_ptr_dtor(&hs->registration);
+            ZVAL_UNDEF(&hs->registration);
+            if (exception) {
+                if (EG(exception)) {
+                    zend_clear_exception();
+                }
+                EG(exception) = exception;
+            }
+        }
+    };
 
     while (hs->running) {
         auto conn = sock->accept();
