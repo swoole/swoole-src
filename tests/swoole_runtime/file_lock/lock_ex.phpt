@@ -8,25 +8,31 @@ swoole_runtime/file_lock: file_lock_1
 require __DIR__ . '/../../include/bootstrap.php';
 
 \Swoole\Runtime::enableCoroutine();
-const FILE = __DIR__ . '/test.data';
-$startTime = microtime(true);
-go(function () use ($startTime) {
-    $f = fopen(FILE, 'w+');
-    flock($f, LOCK_EX);
-    co::sleep(0.1);
-    flock($f, LOCK_UN);
+$file = tempnam(sys_get_temp_dir(), 'swoole-flock-');
+$shared = new Swoole\Coroutine\Channel(1);
+$release = new Swoole\Coroutine\Channel(1);
+go(function () use ($file, $shared, $release) {
+    $f = fopen($file, 'w+');
+    Assert::true(flock($f, LOCK_EX));
+    co::sleep(0.01);
+    Assert::true(flock($f, LOCK_UN));
 
-    flock($f, LOCK_SH);
-    flock($f, LOCK_UN);
-    Assert::assert((microtime(true) - $startTime) < 1);
+    // The other coroutine keeps its shared lock until we acquire ours too.
+    Assert::true($shared->pop(2));
+    Assert::true(flock($f, LOCK_SH | LOCK_NB));
+    Assert::true(flock($f, LOCK_UN));
+    $release->push(true);
+    fclose($f);
 });
-go(function () {
-    $f = fopen(FILE, 'w+');
-    flock($f, LOCK_SH);
-    co::sleep(2);
-    flock($f, LOCK_UN);
+go(function () use ($file, $shared, $release) {
+    $f = fopen($file, 'w+');
+    Assert::true(flock($f, LOCK_SH));
+    $shared->push(true);
+    Assert::true($release->pop(2));
+    Assert::true(flock($f, LOCK_UN));
+    fclose($f);
 });
 Swoole\Event::wait();
-unlink(FILE);
+unlink($file);
 ?>
 --EXPECTF--
