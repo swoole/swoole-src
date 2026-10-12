@@ -4,7 +4,6 @@ swoole_server: cpu_affinity_ignore rejects all available CPUs
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_no_process_affinity();
-skip('requires CPU 1', !in_array(1, Swoole\Process::getAffinity()));
 ?>
 --FILE--
 <?php
@@ -13,11 +12,12 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Process;
 use Swoole\Server;
 
-Assert::true(Process::setAffinity([1]));
+$cpu = Process::getAffinity()[0];
+Assert::true(Process::setAffinity([$cpu]));
 
 $server = new Server('127.0.0.1', 0);
 $server->set([
-    'cpu_affinity_ignore' => [1],
+    'cpu_affinity_ignore' => [$cpu],
 ]);
 ?>
 --EXPECTF--
