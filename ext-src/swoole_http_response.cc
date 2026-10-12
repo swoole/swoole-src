@@ -487,8 +487,8 @@ ssize_t HttpContext::build_trailer(String *http_buffer) const {
         }
         SW_HASHTABLE_FOREACH_END();
         (void) type;
-        http_buffer->append(ZEND_STRL("\r\n"));
     }
+    http_buffer->append(ZEND_STRL("\r\n"));
 
     return ret;
 }
