@@ -61,9 +61,6 @@ struct PHPContext {
     zend_class_entry *exception_class;
     zend_object *exception;
     zend_output_globals *output_ptr;
-#if PHP_VERSION_ID >= 80400
-    zval last_http_headers;
-#endif
     /*
      * for var serialize/unserialize,
      * coroutine switching may occur in the __sleep/__wakeup magic method of the object
