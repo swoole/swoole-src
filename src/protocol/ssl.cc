@@ -204,6 +204,13 @@ bool SSLContext::create() {
         ssl_error("SSL_CTX_new() failed");
         return false;
     }
+    bool created = false;
+    ON_SCOPE_EXIT {
+        if (!created) {
+            SSL_CTX_free(context);
+            context = nullptr;
+        }
+    };
 
 #ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
     SSL_CTX_set_options(context, SSL_OP_MICROSOFT_SESS_ID_BUG);
@@ -390,6 +397,7 @@ bool SSLContext::create() {
         return false;
     }
 
+    created = true;
     return true;
 }
 

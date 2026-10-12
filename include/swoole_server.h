@@ -358,7 +358,7 @@ struct ListenPort {
     static int readable_callback_redis(Reactor *reactor, ListenPort *lp, Event *event);
 
     bool ssl_context_init();
-    bool ssl_context_create(SSLContext *context) const;
+    bool ssl_context_create(SSLContext *context, bool allow_empty_cert) const;
     bool ssl_create(network::Socket *sock);
     bool ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx);
     static bool ssl_matches_wildcard_name(const char *subject_name, const char *cert_name);
