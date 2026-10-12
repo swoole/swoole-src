@@ -102,7 +102,13 @@ ssize_t IocpSocket::iocp_send(const void *_buf, size_t _n) {
 }
 
 ssize_t IocpSocket::iocp_recv(void *_buf, size_t _n) {
-    return Iocp::recv(socket->get_fd(), _buf, _n, 0, socket->read_timeout);
+    ssize_t retval = Iocp::recv(socket->get_fd(), _buf, _n, 0, socket->read_timeout);
+    // An outer recv_packet() timer resumes the coroutine and cancels pending I/O.
+    // Preserve that timeout instead of replacing it with the cancellation error.
+    if (retval < 0 && errno == ECANCELED && errCode == ETIMEDOUT) {
+        set_err(ETIMEDOUT);
+    }
+    return retval;
 }
 
 ssize_t IocpSocket::iocp_readv(const struct iovec *iovec, int count) {
