@@ -106,6 +106,16 @@ TEST(os_signal, dispatch) {
     swoole_signal_clear();
 }
 
+TEST(os_signal, nested) {
+    trigger_signal = 0;
+    swoole_signal_set(SIGUSR1, [](int signo) { raise(SIGUSR2); });
+    swoole_signal_set(SIGUSR2, [](int signo) { trigger_signal = signo; });
+    raise(SIGUSR1);
+    ASSERT_EQ(trigger_signal, SIGUSR2);
+
+    swoole_signal_clear();
+}
+
 TEST(os_signal, error) {
     swoole_signal_set(SIGIO, nullptr, 0, 0);
     swoole_signal_block_all();
