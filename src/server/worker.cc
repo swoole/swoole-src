@@ -239,7 +239,61 @@ void Server::worker_stop_callback(Worker *worker) {
     call_worker_stop_callback(worker);
 }
 
+#ifdef HAVE_CPU_AFFINITY
+static void Worker_set_cpu_affinity(const Server *serv, const Worker *worker) {
+    cpu_set_t available;
+    CPU_ZERO(&available);
+    if (swoole_get_cpu_affinity(&available) < 0) {
+        swoole_sys_warning("get CPU affinity for worker#%d failed", worker->id);
+        return;
+    }
+    if (serv->cpu_affinity_available) {
+        cpu_set_t filtered;
+        CPU_ZERO(&filtered);
+        for (int i = 0; i < serv->cpu_affinity_available_num; i++) {
+            int cpu = serv->cpu_affinity_available[i];
+            if (CPU_ISSET(cpu, &available)) {
+                CPU_SET(cpu, &filtered);
+            }
+        }
+        available = filtered;
+    }
+    int count = 0;
+    for (int cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+        count += CPU_ISSET(cpu, &available) ? 1 : 0;
+    }
+    if (count == 0) {
+        swoole_warning("no available CPU for worker#%d", worker->id);
+        return;
+    }
+    int index = worker->id % count;
+    cpu_set_t selected;
+    CPU_ZERO(&selected);
+    for (int cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+        if (CPU_ISSET(cpu, &available) && index-- == 0) {
+            CPU_SET(cpu, &selected);
+            break;
+        }
+    }
+    int error = 0;
+    if (serv->is_thread_mode()) {
+        error = pthread_setaffinity_np(pthread_self(), sizeof(selected), &selected);
+    } else if (swoole_set_cpu_affinity(&selected) < 0) {
+        error = errno;
+    }
+    if (error != 0) {
+        errno = error;
+        swoole_sys_warning("set CPU affinity for worker#%d failed", worker->id);
+    }
+}
+#endif
+
 void Server::call_worker_start_callback(Worker *worker) {
+#ifdef HAVE_CPU_AFFINITY
+    if (open_cpu_affinity) {
+        Worker_set_cpu_affinity(this, worker);
+    }
+#endif
     void *hook_args[2];
     hook_args[0] = this;
     hook_args[1] = (void *) (uintptr_t) worker->id;
