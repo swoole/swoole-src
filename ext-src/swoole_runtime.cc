@@ -1319,10 +1319,18 @@ static ZEND_FUNCTION(swoole_display_disabled_function) {
     zend_error(E_WARNING, "%s() has been disabled for security reasons", get_active_function_name());
 }
 
-static bool disable_func(const char *name, size_t l_name) {
+#if PHP_VERSION_ID >= 80400
+static ZEND_FUNCTION(swoole_display_unsupported_function) {
+    zend_error(E_WARNING, "%s() is not supported in Swoole coroutines", get_active_function_name());
+}
+#endif
+
+static bool disable_func(const char *name,
+                         size_t l_name,
+                         zif_handler handler = ZEND_FN(swoole_display_disabled_function)) {
     auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (rf) {
-        rf->function->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
+        rf->function->internal_function.handler = handler;
         return true;
     }
 
@@ -1338,7 +1346,7 @@ static bool disable_func(const char *name, size_t l_name) {
     rf->ori_arg_info = zf->internal_function.arg_info;
     rf->ori_fn_flags = zf->internal_function.fn_flags;
 
-    zf->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
+    zf->internal_function.handler = handler;
     zf->internal_function.fn_flags = ZEND_ACC_FAKE_CLOSURE;
 
     zend_hash_add_ptr(hook_function_table, zf->common.function_name, rf);
@@ -1371,12 +1379,19 @@ void PHPCoroutine::disable_unsafe_function() {
     for (auto &f : unsafe_functions) {
         disable_func(f.c_str(), f.length());
     }
+#if PHP_VERSION_ID >= 80400
+    // HTTP wrapper response headers are request-global; Swoole does not isolate them per coroutine.
+    disable_func(ZEND_STRL("http_get_last_response_headers"), ZEND_FN(swoole_display_unsupported_function));
+#endif
 }
 
 void PHPCoroutine::enable_unsafe_function() {
     for (auto &f : unsafe_functions) {
         enable_func(f.c_str(), f.length());
     }
+#if PHP_VERSION_ID >= 80400
+    enable_func(ZEND_STRL("http_get_last_response_headers"));
+#endif
 }
 
 static void hook_stream_throw_exception(const char *type) {
