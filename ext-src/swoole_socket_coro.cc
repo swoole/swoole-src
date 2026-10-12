@@ -24,6 +24,9 @@
 #include "swoole_util.h"
 #include "swoole_protocol.h"
 #include "swoole_mqtt.h"
+#ifdef _WIN32
+#include "swoole_iocp.h"
+#endif
 
 #include "thirdparty/php/sockets/php_sockets_cxx.h"
 
@@ -160,6 +163,11 @@ static void socket_coro_free_object(zend_object *object) {
     auto *sock = socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket) {
         if (!Z_ISUNDEF(sock->zstream)) {
+#ifdef _WIN32
+            if (SwooleTG.iocp && GC_REFCOUNT(Z_RES(sock->zstream)) == 1) {
+                SwooleTG.iocp->forget_socket(sock->socket->get_fd());
+            }
+#endif
             sock->socket->move_fd();
             zval_ptr_dtor(&sock->zstream);
         }
@@ -890,19 +898,6 @@ SW_API SocketImpl *php_swoole_get_socket(const zval *zobject) {
 SW_API bool php_swoole_socket_is_closed(const zval *zobject) {
     auto *_sock = socket_coro_fetch_object(Z_OBJ_P(zobject));
     return _sock->socket == nullptr || _sock->socket->is_closed();
-}
-
-SW_API bool php_swoole_socket_is_ssl(const zval *zobject) {
-    auto *sock = socket_coro_fetch_object(Z_OBJ_P(zobject));
-    if (sock->socket && sock->socket->ssl_is_enable()) {
-        return true;
-    }
-    if (!Z_ISUNDEF(sock->zstream)) {
-        php_stream *stream = nullptr;
-        php_stream_from_zval_no_verify(stream, &sock->zstream);
-        return stream && php_swoole_stream_is_ssl(stream);
-    }
-    return false;
 }
 
 SW_API void php_swoole_init_socket_object(zval *zobject, SocketImpl *socket) {
@@ -1893,6 +1888,11 @@ static PHP_METHOD(swoole_socket_coro, close) {
         php_stream *stream = nullptr;
         php_stream_from_zval_no_verify(stream, &sock->zstream);
         if (stream != nullptr) {
+#ifdef _WIN32
+            if (SwooleTG.iocp) {
+                SwooleTG.iocp->forget_socket(sock->socket->get_fd());
+            }
+#endif
             /* close & destroy stream, incl. removing it from the rsrc list;
              * resource stored in php_sock->zstream will become invalid */
             php_stream_free(stream,
@@ -2320,18 +2320,20 @@ static PHP_METHOD(swoole_socket_coro, export) {
     ZEND_PARSE_PARAMETERS_NONE();
 
     swoole_get_socket_coro(sock, ZEND_THIS);
-    if (php_swoole_socket_is_ssl(ZEND_THIS)) {
-        php_swoole_socket_set_error_properties(ZEND_THIS, EOPNOTSUPP);
-        php_swoole_error(E_WARNING, "cannot export an SSL socket by duplicating its file descriptor");
-        RETURN_FALSE;
-    }
-
     swSocketFd fd = sw_dup(sock->socket->get_fd());
     if (fd == SW_BAD_SOCKET) {
         php_swoole_socket_set_error_properties(ZEND_THIS, errno);
         php_swoole_sys_error(E_WARNING, "dup() failed");
         RETURN_FALSE;
     }
+#ifdef _WIN32
+    if (!swoole::Iocp::associate_duplicate(sock->socket->get_fd(), fd)) {
+        int error = errno;
+        sw_close_socket(fd);
+        php_swoole_socket_set_error_properties(ZEND_THIS, error);
+        RETURN_FALSE;
+    }
+#endif
     php_stream *stream = php_swoole_create_stream_from_socket(fd,
                                                               sock->socket->get_sock_domain(),
                                                               sock->socket->get_sock_type(),

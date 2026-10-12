@@ -50,7 +50,7 @@ Coroutine\run(function () {
         }
         curl_setopt_array($ch, [CURLOPT_PROXY => '', CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true, CURLOPT_TIMEOUT_MS => 250, CURLOPT_CONNECTTIMEOUT => 2,
-            CURLOPT_RESOLVE => ['localhost:' . $tlsPort . ':127.0.0.2,127.0.0.1'],
+            CURLOPT_RESOLVE => ['localhost:' . $tlsPort . ':127.0.0.1'],
             CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
         $start = hrtime(true);
         $body = curl_exec($ch);

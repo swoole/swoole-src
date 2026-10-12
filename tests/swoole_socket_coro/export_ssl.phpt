@@ -1,5 +1,5 @@
 --TEST--
-swoole_socket_coro: exporting SSL sockets and imported SSL streams is rejected
+swoole_socket_coro: exporting SSL descriptors allows option queries without sharing TLS state
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -10,37 +10,40 @@ skip_if_extension_not_exist('openssl');
 <?php
 use Swoole\Coroutine\Socket;
 
-Swoole\Runtime::enableCoroutine(0);
-Swoole\Coroutine\run(function () {
-    $socket = new Socket(AF_INET, SOCK_STREAM, 0);
-    $socket->setProtocol(['open_ssl' => true]);
-    $warnings = 0;
-    set_error_handler(function ($level, $message) use (&$warnings) {
-        if (!str_contains($message, 'cannot export an SSL socket')) {
-            throw new RuntimeException($message);
+function checkSslExport(Socket $socket): void
+{
+    $stream = $socket->export();
+    if (!is_resource($stream) || $socket->isClosed()) {
+        throw new RuntimeException('Cannot export SSL descriptor');
+    }
+    $copy = Socket::import($stream);
+    if (!$copy || $copy->getOption(SOL_SOCKET, SO_TYPE) !== SOCK_STREAM) {
+        throw new RuntimeException('Cannot query exported SSL descriptor');
+    }
+    $copy->close();
+    if ($socket->getOption(SOL_SOCKET, SO_TYPE) !== SOCK_STREAM) {
+        throw new RuntimeException('Closing the copy invalidated the original SSL descriptor');
+    }
+}
+
+foreach ([0, SWOOLE_HOOK_SSL] as $flags) {
+    Swoole\Runtime::enableCoroutine($flags);
+    Swoole\Coroutine\run(function () {
+        $socket = new Socket(AF_INET, SOCK_STREAM, 0);
+        if (!$socket->bind('127.0.0.1', 0)) {
+            throw new RuntimeException('Cannot bind SSL socket');
         }
-        $warnings++;
-        return true;
-    });
-    try {
-        if ($socket->export() !== false || $socket->errCode !== SOCKET_EOPNOTSUPP || $socket->isClosed()) {
-            throw new RuntimeException('An SSL socket was exported or invalidated');
-        }
+        $socket->setProtocol(['open_ssl' => true]);
+        checkSslExport($socket);
         $socket->close();
 
         $stream = stream_socket_server('tls://127.0.0.1:0', $errno, $error);
         $imported = Socket::import($stream);
-        if ($imported->export() !== false || $imported->errCode !== SOCKET_EOPNOTSUPP) {
-            throw new RuntimeException('An imported SSL stream was exported');
-        }
+        checkSslExport($imported);
         $imported->close();
-        if ($warnings !== 2) {
-            throw new RuntimeException('Missing SSL warnings');
-        }
-    } finally {
-        restore_error_handler();
-    }
-});
+    });
+}
+Swoole\Runtime::enableCoroutine(0);
 echo "DONE\n";
 ?>
 --EXPECT--

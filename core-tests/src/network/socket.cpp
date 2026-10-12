@@ -649,9 +649,15 @@ TEST(socket, dup_ssl) {
     ASSERT_NE(context, nullptr);
     sock->ssl = SSL_new(context);
     ASSERT_NE(sock->ssl, nullptr);
-    errno = 0;
-    ASSERT_EQ(sock->dup(), nullptr);
-    ASSERT_EQ(errno, EOPNOTSUPP);
+    auto *copy = sock->dup();
+    ASSERT_NE(copy, nullptr);
+    ASSERT_NE(copy->fd, sock->fd);
+    ASSERT_EQ(copy->ssl, nullptr);
+    int type = 0;
+    socklen_t length = sizeof(type);
+    ASSERT_EQ(copy->get_option(SOL_SOCKET, SO_TYPE, &type, &length), 0);
+    ASSERT_EQ(type, SOCK_STREAM);
+    copy->free();
     ASSERT_NE(sock->fd, SW_BAD_SOCKET);
     SSL_free(sock->ssl);
     sock->ssl = nullptr;

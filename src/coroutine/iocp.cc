@@ -323,6 +323,17 @@ bool Iocp::associate(swSocketFd fd) {
     return true;
 }
 
+bool Iocp::associate_duplicate(swSocketFd original, swSocketFd duplicate) {
+    auto *iocp = get_instance();
+    if (!iocp->associate(original)) {
+        return false;
+    }
+    // Duplicated Winsock handles share the completion port association. Associating
+    // either handle again fails with ERROR_INVALID_PARAMETER, even for the same port.
+    iocp->associated_sockets.insert(duplicate);
+    return true;
+}
+
 bool Iocp::associate(HANDLE handle, ULONG_PTR key) {
     HANDLE retval = CreateIoCompletionPort(handle, port, key, 0);
     if (retval != port) {

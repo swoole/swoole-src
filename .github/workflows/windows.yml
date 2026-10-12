@@ -172,6 +172,7 @@ jobs:
             'tests\swoole_runtime\out_of_coroutine.phpt',
             'tests\swoole_runtime\set_hook_flags.phpt',
             'tests\swoole_runtime\sleep_yield.phpt',
+            'tests\swoole_runtime\udp_stream_factory.phpt',
             'tests\swoole_runtime\sockets\basic\socket_create_pair.phpt'
           )
           & .github\workflows\windows-phpt.ps1 -Path $tests -TimeoutSeconds 20

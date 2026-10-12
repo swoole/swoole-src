@@ -652,10 +652,6 @@ swSocketFd php_swoole_thread_stream_cast(zval *zstream) {
     php_socket_t sockfd = SW_BAD_SOCKET;
     int cast_flags = PHP_STREAM_AS_SOCKETD | PHP_STREAM_CAST_INTERNAL;
     if ((php_stream_from_zval_no_verify(stream, zstream))) {
-        if (php_swoole_stream_is_ssl(stream)) {
-            errno = EOPNOTSUPP;
-            return SW_BAD_SOCKET;
-        }
         if (php_stream_cast(stream, cast_flags, (void **) &sockfd, 1) == SUCCESS && sockfd != SW_BAD_SOCKET) {
             return sw_dup(sockfd);
         }
@@ -666,10 +662,6 @@ swSocketFd php_swoole_thread_stream_cast(zval *zstream) {
 swSocketFd php_swoole_thread_co_socket_cast(zval *zvalue, swSocketType *type) {
     SocketImpl *socket = php_swoole_get_socket(zvalue);
     if (!socket) {
-        return SW_BAD_SOCKET;
-    }
-    if (php_swoole_socket_is_ssl(zvalue)) {
-        errno = EOPNOTSUPP;
         return SW_BAD_SOCKET;
     }
     swSocketFd sockfd = socket->get_fd();
@@ -806,14 +798,6 @@ void ArrayItem::store(zval *zvalue) {
             if (php_sock->bsd_socket == -1) {
                 zend_throw_exception(swoole_exception_ce, "invalid socket fd", EBADF);
                 break;
-            }
-            if (!Z_ISUNDEF(php_sock->zstream)) {
-                php_stream *stream = nullptr;
-                php_stream_from_zval_no_verify(stream, &php_sock->zstream);
-                if (stream && php_swoole_stream_is_ssl(stream)) {
-                    zend_throw_exception(swoole_exception_ce, "cannot duplicate an SSL socket", EOPNOTSUPP);
-                    break;
-                }
             }
             value.socket.fd = sw_dup(php_sock->bsd_socket);
             if (value.socket.fd == SW_BAD_SOCKET) {

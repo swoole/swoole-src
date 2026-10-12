@@ -1225,14 +1225,14 @@ static php_stream *socket_create_original(const char *proto,
         factory = ori_factory.ssl;
     } else if (SW_STREQ(proto, protolen, "tls")) {
         factory = ori_factory.tls;
+    } else if (SW_STREQ(proto, protolen, "udp")) {
+        factory = ori_factory.udp;
 #ifndef _WIN32
     } else if (SW_STREQ(proto, protolen, "unix")) {
         factory = ori_factory._unix;
-    } else if (SW_STREQ(proto, protolen, "udp")) {
-        factory = ori_factory.udp;
-#endif
     } else if (SW_STREQ(proto, protolen, "udg")) {
         factory = ori_factory.udg;
+#endif
     }
 
     if (factory) {
@@ -1272,14 +1272,14 @@ static php_stream *socket_create(const char *proto,
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
         sock = new SocketImpl(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->enable_ssl_encrypt();
+    } else if (SW_STREQ(proto, protolen, "udp")) {
+        sock = new SocketImpl(SW_SOCK_UDP);
 #ifndef _WIN32
     } else if (SW_STREQ(proto, protolen, "unix")) {
         sock = new SocketImpl(SW_SOCK_UNIX_STREAM);
-    } else if (SW_STREQ(proto, protolen, "udp")) {
-        sock = new SocketImpl(SW_SOCK_UDP);
-#endif
     } else if (SW_STREQ(proto, protolen, "udg")) {
         sock = new SocketImpl(SW_SOCK_UNIX_DGRAM);
+#endif
     } else {
         php_swoole_fatal_error(E_WARNING, "unknown protocol '%s'", proto);
         return nullptr;
@@ -2258,27 +2258,6 @@ static void unhook_func(const char *name, size_t l_name) {
     }
     rf->function->internal_function.handler = rf->ori_handler;
     rf->function->internal_function.arg_info = rf->ori_arg_info;
-}
-
-bool php_swoole_stream_is_ssl(php_stream *stream) {
-    if (stream->ops == &socket_ops) {
-        auto *abstract = static_cast<NetStream *>(stream->abstract);
-        return abstract && abstract->socket && abstract->socket->ssl_is_enable();
-    }
-    // OpenSSL also provides plain TCP streams, so the ops label alone is insufficient.
-    if (strcmp(stream->ops->label, "tcp_socket/ssl") != 0) {
-        return false;
-    }
-    if (stream->orig_path && (strncmp(stream->orig_path, "ssl", 3) == 0 || strncmp(stream->orig_path, "tls", 3) == 0)) {
-        return true;
-    }
-    // Detect TCP streams upgraded with stream_socket_enable_crypto().
-    zval metadata;
-    array_init(&metadata);
-    php_stream_set_option(stream, PHP_STREAM_OPTION_META_DATA_API, 0, &metadata);
-    bool ssl = zend_hash_str_exists(Z_ARRVAL(metadata), ZEND_STRL("crypto"));
-    zval_ptr_dtor(&metadata);
-    return ssl;
 }
 
 php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int type, int protocol STREAMS_DC) {

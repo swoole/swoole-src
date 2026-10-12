@@ -14,7 +14,7 @@ use Swoole\Curl\Handler;
 
 Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
 Coroutine\run(function () {
-    // Reserve a port without listening so that connections are refused deterministically.
+    // Allocate an unused port, then close it: BSD drops SYNs sent to a bound TCP socket.
     $reserved = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (!$reserved->bind('127.0.0.1', 0)) {
         throw new RuntimeException('Cannot reserve a port');
@@ -24,6 +24,7 @@ Coroutine\run(function () {
     $server->handle('/', fn ($request, $response) => $response->end('OK'));
     Coroutine::create(fn () => $server->start());
     $goodUrl = 'http://127.0.0.1:' . $server->port . '/';
+    $reserved->close();
     $ch = curl_init($refusedUrl);
     if (!$ch instanceof Handler) {
         throw new RuntimeException('Expected the PHP curl hook');
@@ -44,7 +45,6 @@ Coroutine\run(function () {
         }
         curl_close($ch);
     } finally {
-        $reserved->close();
         $server->shutdown();
     }
 });

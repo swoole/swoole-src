@@ -11,10 +11,11 @@ Swoole\Coroutine\run(function () {
     check($listener->bind('127.0.0.1', 0));
     check($listener->listen());
     $port = $listener->getsockname()['port'];
-    // Hold a bound, non-listening socket so the refused port cannot be taken by another test.
+    // Close the allocated TCP port: BSD may drop SYNs while it remains bound.
     $refused = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
     check($refused->bind('127.0.0.1', 0));
     $badPort = $refused->getsockname()['port'];
+    $refused->close();
     $hosts = [];
     Swoole\Coroutine::create(function () use ($listener, &$hosts) {
         for ($i = 0; $i < 3; $i++) {
@@ -65,7 +66,6 @@ Swoole\Coroutine\run(function () {
     } finally {
         swoole_name_resolver_remove($resolver);
         $listener->close();
-        $refused->close();
     }
 });
 echo "DONE\n";

@@ -112,6 +112,7 @@ class Iocp {
     ~Iocp();
 
     static bool init(Reactor *reactor = nullptr);
+    static bool associate_duplicate(swSocketFd original, swSocketFd duplicate);
     static void shutdown();
     static void set_socket_error(DWORD error);
     static void set_system_error(DWORD error);

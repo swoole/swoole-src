@@ -700,7 +700,7 @@ int php_add4_to_if_index(struct in_addr *addr, SocketImpl *php_sock, unsigned *i
         /* let's hope the pointer is aligned */
         cur_req = (struct ifreq *) p;
 
-#ifdef HAVE_SOCKADDR_SA_LEN
+#if defined(HAVE_SOCKADDR_SA_LEN) || defined(HAVE_STRUCT_SOCKADDR_SA_LEN)
         entry_len = cur_req->ifr_addr.sa_len + sizeof(cur_req->ifr_name);
 #else
         /* if there's no sa_len, assume the ifr_addr field is a sockaddr */

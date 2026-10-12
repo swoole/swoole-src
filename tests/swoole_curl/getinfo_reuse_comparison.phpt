@@ -25,6 +25,9 @@ run_curl_hook_comparison(function ($mode) {
     if (!$reserved->bind('127.0.0.1', 0)) {
         throw new RuntimeException('Cannot reserve a refused port');
     }
+    $refusedPort = $reserved->getsockname()['port'];
+    // BSD may drop SYN packets while a TCP port is bound but not listening.
+    $reserved->close();
     $url = 'http://127.0.0.1:' . $server->port . '/';
     $ch = curl_init($url);
     curl_setopt_array($ch, [CURLOPT_PROXY => '', CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 2,
@@ -39,12 +42,15 @@ run_curl_hook_comparison(function ($mode) {
             CURLINFO_LOCAL_IP => '127.0.0.1', CURLINFO_HTTP_CODE => 200, CURLINFO_CONTENT_TYPE => 'text/plain',
             CURLINFO_SIZE_DOWNLOAD => 4.0, CURLINFO_SIZE_UPLOAD => 7.0,
             CURLINFO_CONTENT_LENGTH_DOWNLOAD => 4.0, CURLINFO_CONTENT_LENGTH_UPLOAD => 7.0,
-            CURLINFO_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLINFO_SCHEME => 'HTTP', CURLINFO_PROTOCOL => CURLPROTO_HTTP,
+            CURLINFO_HTTP_VERSION => CURL_HTTP_VERSION_1_1, CURLINFO_PROTOCOL => CURLPROTO_HTTP,
             CURLINFO_PRIVATE => 'keep-me', CURLINFO_SSL_VERIFYRESULT => 0, CURLINFO_FILETIME => -1,
         ] as $option => $expected) {
             if (curl_getinfo($ch, $option) !== $expected) {
                 throw new RuntimeException('Incorrect getinfo option ' . $option . ': ' . var_export(curl_getinfo($ch, $option), true));
             }
+        }
+        if (strtolower(curl_getinfo($ch, CURLINFO_SCHEME)) !== 'http') {
+            throw new RuntimeException('Incorrect URL scheme');
         }
         if (curl_getinfo($ch, CURLINFO_LOCAL_PORT) <= 0 || $info['header_size'] <= 0
             || $info['request_size'] !== strlen($info['request_header']) + 7
@@ -80,7 +86,7 @@ run_curl_hook_comparison(function ($mode) {
                 throw new RuntimeException('Incorrect integer transfer size');
             }
         }
-        curl_setopt($ch, CURLOPT_URL, 'http://127.0.0.1:' . $reserved->getsockname()['port'] . '/');
+        curl_setopt($ch, CURLOPT_URL, 'http://127.0.0.1:' . $refusedPort . '/');
         if (curl_exec($ch) !== false || curl_errno($ch) !== CURLE_COULDNT_CONNECT) {
             throw new RuntimeException('Connection unexpectedly succeeded');
         }
@@ -101,7 +107,6 @@ run_curl_hook_comparison(function ($mode) {
         }
         curl_close($ch);
     } finally {
-        $reserved->close();
         $server->shutdown();
     }
 });
