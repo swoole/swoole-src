@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: 7c2de5a124a0ef17aa5f68aef0a3be860d96d2cd */
+/* $Id: 232a154f950010d059ab94febd71205bcab72431 */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -12289,7 +12289,7 @@ static const char* swoole_library_source_core_name_resolver_cluster =
     "            throw new Exception(\"Bad Port [{$port}]\");\n"
     "        }\n"
     "        if (!is_finite((float) $weight) || $weight < 0 || $weight > 65535) {\n"
-    "            throw new Exception(\"Bad Weight [{$weight}]\");\n"
+    "            throw new Exception('Weight must be finite and between zero and 65535');\n"
     "        }\n"
     "        $key = bin2hex(inet_pton($host)) . ':' . $port;\n"
     "        if ($weight === 0 || $weight === 0.0) {\n"
