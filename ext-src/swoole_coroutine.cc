@@ -306,6 +306,9 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->serialize_lock = 0;
     ctx->serialize = {};
     ctx->unserialize = {};
+#if PHP_VERSION_ID >= 80400
+    ZVAL_UNDEF(&ctx->last_http_headers);
+#endif
     ctx->in_silence = false;
 
     ctx->co = Coroutine::get_current();
@@ -583,6 +586,10 @@ inline void PHPCoroutine::restore_og(PHPContext *ctx) {
 }
 
 void PHPCoroutine::save_bg(PHPContext *ctx) {
+#if PHP_VERSION_ID >= 80400
+    ZVAL_COPY_VALUE(&ctx->last_http_headers, &BG(last_http_headers));
+    ZVAL_UNDEF(&BG(last_http_headers));
+#endif
     if (BG(serialize_lock)) {
         ctx->serialize_lock = BG(serialize_lock);
     }
@@ -595,6 +602,11 @@ void PHPCoroutine::save_bg(PHPContext *ctx) {
 }
 
 void PHPCoroutine::restore_bg(PHPContext *ctx) {
+#if PHP_VERSION_ID >= 80400
+    zval_ptr_dtor(&BG(last_http_headers));
+    ZVAL_COPY_VALUE(&BG(last_http_headers), &ctx->last_http_headers);
+    ZVAL_UNDEF(&ctx->last_http_headers);
+#endif
     if (ctx->serialize_lock) {
         BG(serialize_lock) = ctx->serialize_lock;
         ctx->serialize_lock = 0;
