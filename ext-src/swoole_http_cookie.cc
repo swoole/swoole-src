@@ -346,6 +346,11 @@ static PHP_METHOD(swoole_http_cookie, __construct) {
     Z_PARAM_BOOL(encode)
     ZEND_PARSE_PARAMETERS_END();
 
+    if (php_swoole_http_get_cookie(ZEND_THIS)) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
+
     php_swoole_http_response_set_cookie(ZEND_THIS, new HttpCookie(encode));
 }
 
