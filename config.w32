@@ -20,6 +20,7 @@ ARG_ENABLE("swoole-coro-time", "calculate coroutine execution time", "no");
 ARG_ENABLE("swoole-sqlite", "enable sqlite support", "no");
 ARG_ENABLE("swoole-odbc", "enable odbc support", "no");
 ARG_WITH("swoole-oracle", "enable oracle support", "no");
+ARG_WITH("nghttp2-dir", "dir of nghttp2", "no");
 
 if (PHP_SWOOLE != "no") {
 	// Calculate PHP version ID (e.g., PHP 8.4 -> 84, PHP 8.5 -> 85)
@@ -219,8 +220,13 @@ if (PHP_SWOOLE != "no") {
 	CHECK_LIB("libcrypto.lib;libeay32.lib", "swoole", null);
 	CHECK_LIB("zlib_a.lib;zlib.lib", "swoole", null);
 
-	CHECK_HEADER_ADD_INCLUDE("nghttp2/nghttp2.h", "CFLAGS_SWOOLE", null);
-	CHECK_LIB("nghttp2.lib", "swoole", null);
+    if (PHP_NGHTTP2_DIR != "no") {
+        CHECK_HEADER_ADD_INCLUDE("nghttp2/nghttp2.h", "CFLAGS_SWOOLE", PHP_NGHTTP2_DIR + "\\include")
+        CHECK_LIB("nghttp2.lib", "swoole", PHP_NGHTTP2_DIR + "\\lib")
+    } else {
+    	CHECK_HEADER_ADD_INCLUDE("nghttp2/nghttp2.h", "CFLAGS_SWOOLE", null);
+    	CHECK_LIB("nghttp2.lib", "swoole", null);
+    }
 
 	// Check for c-ares
 	if (PHP_CARES == "yes") {
