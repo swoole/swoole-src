@@ -17,12 +17,14 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     run(function () use ($pm) {
         $data = httpGetBody('http://127.0.0.1:' . $pm->getFreePort() . '/');
         Assert::contains($data, 'HTTP 400 Bad Request');
+        Assert::true($pm->wait());
 
         $client = new Client('127.0.0.1', $pm->getFreePort());
         Assert::assert($client->upgrade('/websocket'));
         Assert::eq($client->getStatusCode(), 101);
         $client->push('hello world');
         $client->close();
+        Assert::true($pm->wait());
     });
     $pm->kill();
 };
@@ -45,12 +47,14 @@ $pm->childFunc = function () use ($pm) {
     });
     $serv->on('disconnect', function ($s, $id) use ($pm) {
         puts("disconnect " . $id);
+        $pm->wakeup();
     });
     $serv->on('open', function ($s, $req) use ($pm) {
         puts("open " . $req->fd);
     });
     $serv->on('close', function ($s, $id) use ($pm) {
         puts("close " . $id);
+        $pm->wakeup();
     });
     $serv->start();
 };
