@@ -321,6 +321,7 @@ void HttpContext::free() {
 
     delete req->chunked_body;
     delete req->h2_data_buffer;
+    delete req->parser_state;
 
     if (res->reason) {
         efree(res->reason);

@@ -65,5 +65,25 @@ $req3 = Request::create();
 $req3->parse($data);
 Assert::eq("POST", $req3->getMethod());
 
+$body = 'first=one&second=two';
+$data .= "Content-Type: application/x-www-form-urlencoded\r\n";
+$data .= "Content-Length: " . strlen($body) . "\r\n\r\n";
+$data .= $body;
+
+$req4 = Request::create();
+$req4->parse($data);
+
+for ($offset = 1; $offset < strlen($data); ++$offset) {
+    $req = Request::create();
+    Assert::eq($req->parse(substr($data, 0, $offset)), $offset);
+    Assert::eq($req->parse(substr($data, $offset)), strlen($data) - $offset);
+    Assert::true($req->isCompleted());
+    Assert::eq($req->server['request_uri'], $req4->server['request_uri']);
+    Assert::eq($req->get, $req4->get);
+    Assert::eq($req->header, $req4->header);
+    Assert::eq($req->cookie, $req4->cookie);
+    Assert::eq($req->post, $req4->post);
+}
+
 ?>
 --EXPECT--
