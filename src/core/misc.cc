@@ -53,8 +53,12 @@ void sw_spinlock(sw_atomic_t *lock) {
 using Clock = std::chrono::steady_clock;
 
 int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
-    bool timed = timeout > 0;
-    auto deadline =
+    if (sw_atomic_cmp_set(atomic, 1, 0)) {
+        return 0;
+    }
+
+    const bool timed = timeout > 0;
+    const auto deadline =
         timed ? Clock::now() + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(timeout))
               : Clock::time_point{};
 
@@ -70,6 +74,7 @@ int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
         } else {
             auto remaining = deadline - Clock::now();
             if (remaining <= Clock::duration::zero()) {
+                errno = ETIMEDOUT;
                 return -1;
             }
 
@@ -81,6 +86,10 @@ int sw_atomic_futex_wait(sw_atomic_t *atomic, double timeout) {
         }
 
         if (sw_unlikely(ret == -1 && (errno == EAGAIN || errno == EINTR))) {
+            // Only 0/1 transitions are wakeup races. Other values must retain the immediate EAGAIN result.
+            if (errno == EAGAIN && sw_atomic_load(atomic) > 1) {
+                return -1;
+            }
             continue;
         }
 

@@ -32,6 +32,11 @@
 #include <pthread.h>
 #include <sys/resource.h>
 
+#ifdef HAVE_FUTEX
+#include <linux/futex.h>
+#include <sys/syscall.h>
+#endif
+
 using namespace swoole;
 using namespace std;
 
@@ -500,52 +505,183 @@ TEST(base, futex) {
 }
 
 #ifdef HAVE_FUTEX
-static volatile sig_atomic_t atomic_wait_signal_count;
+using AtomicTestClock = std::chrono::steady_clock;
+static std::atomic<unsigned int> atomic_wait_signal_count{0};
+static std::atomic<bool> atomic_wait_hold_signal{false};
+static_assert(ATOMIC_INT_LOCK_FREE == 2, "signal counters must be lock-free");
+static_assert(ATOMIC_BOOL_LOCK_FREE == 2, "signal gates must be lock-free");
 
 static void atomic_wait_signal_handler(int) {
-    atomic_wait_signal_count++;
+    atomic_wait_signal_count.fetch_add(1);
+    while (atomic_wait_hold_signal.load()) {
+        sw_atomic_cpu_pause();
+    }
+}
+
+template <typename Predicate>
+static bool atomic_wait_until(Predicate predicate) {
+    const auto deadline = AtomicTestClock::now() + std::chrono::seconds(5);
+    while (!predicate()) {
+        if (AtomicTestClock::now() >= deadline) {
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return true;
+}
+
+struct AtomicWaitSignalGuard {
+    struct sigaction old_action{};
+    bool installed = false;
+
+    bool install() {
+        atomic_wait_signal_count = 0;
+        atomic_wait_hold_signal = false;
+        struct sigaction action{};
+        action.sa_handler = atomic_wait_signal_handler;
+        sigemptyset(&action.sa_mask);
+        installed = sigaction(SIGUSR1, &action, &old_action) == 0;
+        return installed;
+    }
+
+    ~AtomicWaitSignalGuard() {
+        atomic_wait_hold_signal = false;
+        if (installed) {
+            EXPECT_EQ(sigaction(SIGUSR1, &old_action, nullptr), 0);
+        }
+    }
+};
+
+struct AtomicFutexWaiter {
+    sw_atomic_t value = 0;
+    std::atomic<pid_t> tid{0};
+    std::atomic<bool> completed{false};
+    int wait_result = SW_ERR;
+    int wait_errno = 0;
+    AtomicTestClock::time_point begin;
+    std::thread thread;
+
+    explicit AtomicFutexWaiter(double timeout)
+        : thread([this, timeout] {
+              begin = AtomicTestClock::now();
+              tid = syscall(SYS_gettid);
+              wait_result = sw_atomic_futex_wait(&value, timeout);
+              wait_errno = errno;
+              completed = true;
+          }) {}
+
+    ~AtomicFutexWaiter() {
+        atomic_wait_hold_signal = false;
+        if (thread.joinable()) {
+            sw_atomic_futex_wakeup(&value, 1);
+            thread.join();
+        }
+    }
+
+    bool is_blocked() const {
+        const auto waiter_tid = tid.load();
+        if (!waiter_tid) {
+            return false;
+        }
+        // Observe the actual syscall and atomic address instead of assuming a started thread is already waiting.
+        std::ifstream status("/proc/self/task/" + std::to_string(waiter_tid) + "/syscall");
+        long number = -1;
+        uintptr_t address = 0;
+        unsigned int operation = 0;
+        return (status >> number >> std::hex >> address >> operation) && number == SYS_futex &&
+               address == reinterpret_cast<uintptr_t>(&value) && (operation & FUTEX_CMD_MASK) == FUTEX_WAIT;
+    }
+
+    bool wait_until_blocked() const {
+        return atomic_wait_until([this] { return completed.load() || is_blocked(); }) && !completed.load();
+    }
+
+    bool interrupt() {
+        const auto expected = atomic_wait_signal_count.load() + 1;
+        atomic_wait_hold_signal = true;
+        if (pthread_kill(thread.native_handle(), SIGUSR1) != 0) {
+            return false;
+        }
+        return atomic_wait_until([expected] { return atomic_wait_signal_count.load() >= expected; });
+    }
+
+    bool completes_without_waiting_again() const {
+        return atomic_wait_until([this] { return completed.load() || is_blocked(); }) && completed.load();
+    }
+};
+
+static void test_atomic_wait_interrupted(double timeout) {
+    AtomicWaitSignalGuard signal;
+    ASSERT_TRUE(signal.install());
+    AtomicFutexWaiter waiter(timeout);
+    ASSERT_TRUE(waiter.wait_until_blocked());
+    ASSERT_TRUE(waiter.interrupt());
+    EXPECT_FALSE(waiter.completed.load());
+    atomic_wait_hold_signal = false;
+    ASSERT_TRUE(waiter.wait_until_blocked());
+
+    EXPECT_EQ(sw_atomic_futex_wakeup(&waiter.value, 1), 1);
+    waiter.thread.join();
+    EXPECT_EQ(waiter.wait_result, SW_OK);
+    EXPECT_EQ(atomic_wait_signal_count.load(), 1);
 }
 
 TEST(base, futex_interrupted) {
-    struct sigaction action = {};
-    struct sigaction old_action = {};
-    action.sa_handler = atomic_wait_signal_handler;
-    sigemptyset(&action.sa_mask);
-    ASSERT_EQ(sigaction(SIGUSR1, &action, &old_action), 0);
+    test_atomic_wait_interrupted(5);
+}
 
-    sw_atomic_t value = 0;
-    std::atomic<bool> started{false};
-    std::atomic<bool> completed{false};
-    int wait_result = SW_ERR;
-    atomic_wait_signal_count = 0;
+TEST(base, futex_interrupted_without_timeout) {
+    test_atomic_wait_interrupted(0);
+    test_atomic_wait_interrupted(-1);
+}
 
-    std::thread waiter([&] {
-        started = true;
-        wait_result = sw_atomic_futex_wait(&value, 5);
-        completed = true;
-    });
-
-    while (!started) {
-        std::this_thread::yield();
+TEST(base, futex_interrupted_timeout_budget) {
+    AtomicWaitSignalGuard signal;
+    ASSERT_TRUE(signal.install());
+    constexpr double timeout = 0.5;
+    AtomicFutexWaiter waiter(timeout);
+    for (int i = 0; i < 3; i++) {
+        ASSERT_TRUE(waiter.wait_until_blocked());
+        ASSERT_TRUE(waiter.interrupt());
+        if (i < 2) {
+            atomic_wait_hold_signal = false;
+        }
     }
-    usleep(20000);
-    const int kill_result = pthread_kill(waiter.native_handle(), SIGUSR1);
-    const auto signal_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
-    while (atomic_wait_signal_count == 0 && std::chrono::steady_clock::now() < signal_deadline) {
-        std::this_thread::yield();
+
+    // Keep the last handler active past the original deadline. Retrying must not start a fresh timeout.
+    std::this_thread::sleep_until(waiter.begin + std::chrono::duration<double>(timeout) +
+                                  std::chrono::milliseconds(10));
+    atomic_wait_hold_signal = false;
+    ASSERT_TRUE(waiter.completes_without_waiting_again());
+    waiter.thread.join();
+    EXPECT_EQ(atomic_wait_signal_count.load(), 3);
+    EXPECT_EQ(waiter.wait_result, SW_ERR);
+    EXPECT_EQ(waiter.wait_errno, ETIMEDOUT);
+}
+
+TEST(base, futex_wait_nonzero) {
+    for (double timeout : {3.0, 0.0, -1.0}) {
+        sw_atomic_t value = 2;
+        std::atomic<bool> completed{false};
+        int result = SW_OK;
+        int wait_errno = 0;
+        std::thread waiter([&] {
+            result = sw_atomic_futex_wait(&value, timeout);
+            wait_errno = errno;
+            completed = true;
+        });
+        const bool returned = atomic_wait_until([&] { return completed.load(); });
+        if (!returned) {
+            // Release a buggy infinite EAGAIN retry loop so the test can report failure and join the thread.
+            sw_atomic_cmp_set(&value, 2, 0);
+            sw_atomic_futex_wakeup(&value, 1);
+        }
+        waiter.join();
+        EXPECT_TRUE(returned);
+        EXPECT_EQ(result, SW_ERR);
+        EXPECT_EQ(wait_errno, EAGAIN);
+        EXPECT_EQ(value, 2);
     }
-    usleep(20000);
-    const bool completed_after_interrupt = completed;
-
-    sw_atomic_futex_wakeup(&value, 1);
-    waiter.join();
-    const int restore_result = sigaction(SIGUSR1, &old_action, nullptr);
-
-    EXPECT_EQ(kill_result, 0);
-    EXPECT_GT(atomic_wait_signal_count, 0);
-    EXPECT_FALSE(completed_after_interrupt);
-    EXPECT_EQ(wait_result, SW_OK);
-    EXPECT_EQ(restore_result, 0);
 }
 #endif
 
