@@ -160,13 +160,14 @@ void Manager::wait(Server *_server) {
     }
 
     while (_server->running) {
-        // A reload requested by a callback must start before blocking for another child exit.
-        ExitStatus exit_status = pool->reload_init ? wait_process(-1, WNOHANG) : wait_process();
+        ExitStatus exit_status =
+            wait_process([_server, pool] { return _server->running && !pool->reload_init && !pool->read_message; });
         const auto wait_error = errno;
 
         swoole_signal_dispatch();
 
         if (pool->read_message) {
+            pool->read_message = false;
             EventData msg;
             while (pool->pop_message(&msg, sizeof(msg)) > 0) {
                 if (!_server->running) {
@@ -192,9 +193,9 @@ void Manager::wait(Server *_server) {
                     pool->reload_task->remove(worker_stop_msg.pid);
                 }
             }
-            pool->read_message = false;
         }
 
+        SwooleG.signal_alarm = false;
         if (sw_timer()) {
             sw_timer()->select();
         }

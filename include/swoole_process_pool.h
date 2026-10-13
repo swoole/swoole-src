@@ -121,6 +121,8 @@ static inline ExitStatus wait_process(pid_t _pid, int options) {
     return {pid, status};
 }
 
+SW_API ExitStatus wait_process(const std::function<bool()> &should_wait);
+
 struct ProcessPool;
 struct Worker;
 

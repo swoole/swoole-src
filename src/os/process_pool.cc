@@ -31,6 +31,46 @@ namespace swoole {
 using network::Socket;
 using network::Stream;
 
+ExitStatus wait_process(const std::function<bool()> &should_wait) {
+#ifdef _WIN32
+    return should_wait() ? wait_process() : wait_process(-1, WNOHANG);
+#else
+    sigset_t blocked_signals, previous_mask;
+    sigfillset(&blocked_signals);
+    if (sigprocmask(SIG_BLOCK, &blocked_signals, &previous_mask) < 0) {
+        return {-1, 0};
+    }
+
+    auto exit_status = wait_process(-1, WNOHANG);
+    if (exit_status.get_pid() == 0 && !SwooleG.signal_alarm && !SwooleG.signal_dispatch && should_wait()) {
+        // Unlike waitpid(), sigsuspend() needs a handler to wake for SIGCHLD.
+        // Standalone process pools may still use its default disposition.
+        struct sigaction previous_action{}, wake_action{};
+        const bool install_handler =
+            sigaction(SIGCHLD, nullptr, &previous_action) == 0 && previous_action.sa_handler == SIG_DFL;
+        if (install_handler) {
+            wake_action = previous_action;
+            wake_action.sa_handler = [](int) {};
+            sigaction(SIGCHLD, &wake_action, nullptr);
+        }
+        // A reload, message, timer or child-exit signal arriving after the state check
+        // must remain pending until sigsuspend() atomically restores the old mask.
+        sigsuspend(&previous_mask);
+        exit_status = wait_process(-1, WNOHANG);
+        if (install_handler) {
+            const auto wait_error = errno;
+            sigaction(SIGCHLD, &previous_action, nullptr);
+            errno = wait_error;
+        }
+    }
+
+    const auto wait_error = errno;
+    sigprocmask(SIG_SETMASK, &previous_mask, nullptr);
+    errno = wait_error;
+    return exit_status;
+#endif
+}
+
 static inline swReturnCode catch_system_error(int error) {
     switch (error) {
     case SW_SUCCESS:
@@ -896,17 +936,18 @@ int ProcessPool::wait() {
     std::unordered_set<pid_t> detached_workers;
 
     while (running) {
-        // A reload requested by a callback must start before blocking for another child exit.
-        ExitStatus exit_status = reload_init ? wait_process(-1, WNOHANG) : wait_process();
+        ExitStatus exit_status = wait_process([this] { return running && !reload_init && !read_message; });
         const auto wait_error = errno;
 
         swoole_signal_dispatch();
 
+        SwooleG.signal_alarm = false;
         if (sw_timer()) {
             sw_timer()->select();
         }
 
         if (read_message) {
+            read_message = false;
             EventData msg;
             while (pop_message(&msg, sizeof(msg)) > 0) {
                 if (!running) {
@@ -929,7 +970,6 @@ int ProcessPool::wait() {
                     reload_task->remove(worker_stop_msg.pid);
                 }
             }
-            read_message = false;
         }
 
         if (!running) {
