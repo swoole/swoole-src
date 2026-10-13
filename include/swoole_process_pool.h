@@ -236,6 +236,8 @@ struct ReloadTask {
     std::unordered_map<pid_t, Worker *> workers;
     std::queue<pid_t> kill_queue;
     TimerNode *timer = nullptr;
+    pid_t current_pid = 0;
+    int timeout = 0;
 
     size_t count() const {
         return workers.size();

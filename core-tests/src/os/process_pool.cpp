@@ -370,6 +370,7 @@ TEST(process_pool, reload) {
 
     pool.onWorkerStart = [](ProcessPool *pool, Worker *worker) {
         test::counter_incr(0);
+        test::counter_incr(1 + worker->id);
         current_pool = pool;
 
         DEBUG() << "onWorkerStart " << worker->id << "\n";
@@ -405,6 +406,13 @@ TEST(process_pool, reload) {
     pool.onWorkerError = [](ProcessPool *pool, Worker *worker, const ExitStatus &exit_status) {
         DEBUG() << "onWorkerError " << exit_status.get_pid() << "\n";
         ASSERT_EQ(exit_status.get_signal(), SIGKILL);
+        EXPECT_EQ(worker->id, test::counter_get(3));
+        test::counter_incr(3);
+        for (uint32_t next = worker->id + 1; next < pool->worker_num; next++) {
+            EXPECT_EQ(test::counter_get(1 + next), 1);
+            int status = 0;
+            EXPECT_EQ(waitpid(pool->get_worker(next)->pid, &status, WNOHANG), 0);
+        }
     };
 
     pool.onWorkerMessage = [](ProcessPool *pool, EventData *msg) {
@@ -431,6 +439,7 @@ TEST(process_pool, reload) {
     pool.destroy();
 
     ASSERT_EQ(test::counter_get(0), 4);
+    EXPECT_EQ(test::counter_get(3), 2);
 
     sysv_signal(SIGTERM, SIG_DFL);
 }
@@ -897,4 +906,62 @@ TEST(process_pool, add_worker) {
     ASSERT_EQ(&worker, worker2);
 
     ASSERT_TRUE(pool.del_worker(worker2));
+}
+
+TEST(process_pool, reload_reaped_worker) {
+    ProcessPool pool{};
+    test::counter_init();
+    ASSERT_EQ(pool.create(2), SW_OK);
+    pool.max_wait_time = 1;
+    pool.main_loop = nullptr;
+    pool.onWorkerStart = [](ProcessPool *, Worker *worker) {
+        swoole_signal_set(SIGTERM, [](int) { sw_worker()->shutdown(); });
+        if (test::counter_incr(worker->id) == 1 && worker->id == 0) {
+            while (!test::counter_get(8)) {
+                usleep(1000);
+            }
+            _exit(0);
+        }
+        while (!worker->is_shutdown()) {
+            usleep(1000);
+        }
+    };
+    pool.onAfterReload = [](ProcessPool *) { test::counter_incr(25); };
+    current_pool = &pool;
+    swoole_signal_set(
+        SIGCHLD,
+        [](int) {
+            if (test::counter_incr(10) == 1 && !current_pool->reload()) {
+                test::counter_incr(26);
+            }
+        },
+        true);
+    swoole_timer_after(5000, [&pool](TIMER_PARAMS) {
+        test::counter_set(31, 1);
+        pool.running = false;
+    });
+    swoole_timer_tick(10, [&pool](TIMER_PARAMS) {
+        if (test::counter_get(25) == 1 && test::counter_get(0) == 2 && test::counter_get(1) == 2) {
+            swoole_timer_del(tnode);
+            pool.running = false;
+        }
+    });
+    ASSERT_EQ(pool.start(), SW_OK);
+    test::counter_set(8, 1);
+    siginfo_t info{};
+    int rc;
+    do {
+        rc = waitid(P_PID, pool.get_worker(0)->pid, &info, WEXITED | WNOWAIT);
+    } while (rc < 0 && errno == EINTR);
+    EXPECT_EQ(rc, 0);
+    EXPECT_EQ(pool.wait(), SW_OK);
+    pool.destroy();
+    swoole_timer_free();
+    swoole_signal_dispatch();
+    swoole_signal_clear();
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(0), 2);
+    EXPECT_EQ(test::counter_get(1), 2);
+    EXPECT_EQ(test::counter_get(25), 1);
 }

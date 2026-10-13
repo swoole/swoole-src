@@ -485,8 +485,6 @@ int Server::start_master_thread(Reactor *reactor) {
     if (is_process_mode()) {
         gs->manager_barrier.wait();
     }
-    gs->master_pid = getpid();
-
     if (isset_hook(HOOK_MASTER_START)) {
         call_hook(HOOK_MASTER_START, this);
     }
@@ -676,6 +674,7 @@ int Server::start() {
         }
     }
 
+    gs->master_pid = getpid();
     gs->start_time = ::time(nullptr);
 
     /**
