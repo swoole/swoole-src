@@ -1,5 +1,6 @@
 #include "test_core.h"
 #include "swoole_process_pool.h"
+#include "swoole_timer.h"
 
 #include <csignal>
 
@@ -357,6 +358,42 @@ TEST(process_pool, shutdown) {
     ASSERT_EQ(*shm_value, magic_number);
 
     sysv_signal(SIGTERM, SIG_DFL);
+}
+
+TEST(process_pool, shutdown_cancels_timeout) {
+    ProcessPool pool{};
+    test::counter_init();
+    ASSERT_EQ(pool.create(1), SW_OK);
+    pool.max_wait_time = 1;
+    pool.main_loop = nullptr;
+    pool.onWorkerStart = [](ProcessPool *, Worker *worker) {
+        swoole_signal_set(SIGTERM, [](int) { sw_worker()->shutdown(); });
+        test::counter_set(0, 1);
+        while (!worker->is_shutdown()) {
+            usleep(1000);
+        }
+    };
+    pool.onStart = [](ProcessPool *pool) {
+        swoole_timer_tick(10, [pool](TIMER_PARAMS) {
+            if (test::counter_get(0)) {
+                swoole_timer_del(tnode);
+                pool->shutdown();
+            }
+        });
+    };
+    auto watchdog = swoole_timer_after(5000, [&pool](TIMER_PARAMS) {
+        test::counter_set(31, 1);
+        pool.shutdown();
+    });
+    ASSERT_EQ(pool.start(), SW_OK);
+    EXPECT_EQ(pool.wait(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    swoole_timer_clear(watchdog);
+    // A stale timer would access this pool after destroy(), potentially during the next pool's reload.
+    EXPECT_EQ(sw_timer()->count(), 0);
+    pool.destroy();
+    swoole_timer_free();
+    swoole_signal_clear();
 }
 
 TEST(process_pool, reload) {

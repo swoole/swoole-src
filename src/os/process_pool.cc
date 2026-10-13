@@ -1011,8 +1011,18 @@ int ProcessPool::wait() {
             continue;
         }
     }
+    TimerNode *shutdown_timer = nullptr;
+    ON_SCOPE_EXIT {
+        if (shutdown_timer) {
+            swoole_timer_del(shutdown_timer);
+        }
+    };
     if (max_wait_time) {
-        swoole_timer_add((long) max_wait_time * 1000, false, [this](Timer *, TimerNode *) { kill_all_workers(); });
+        shutdown_timer =
+            swoole_timer_add((long) max_wait_time * 1000, false, [this, &shutdown_timer](Timer *, TimerNode *) {
+                shutdown_timer = nullptr;
+                kill_all_workers();
+            });
     }
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];

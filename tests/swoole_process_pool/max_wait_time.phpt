@@ -25,7 +25,7 @@ use Swoole\Timer;
         $atomic->wait(-1);
     });
 
-    $pool->on('start', function () use ($pool): void {
+    $pool->on('start', function (Pool $pool): void {
         Timer::after(500, function () use ($pool): void {
             $pool->shutdown();
         });
