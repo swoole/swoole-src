@@ -109,8 +109,11 @@ class ThreadPool {
     }
 
     bool shutdown() {
-        if (!running.exchange(false, std::memory_order_acq_rel)) {
-            return false;
+        {
+            std::lock_guard<std::mutex> lock(event_mutex);
+            if (!running.exchange(false, std::memory_order_acq_rel)) {
+                return false;
+            }
         }
 
         _cv.notify_all();
