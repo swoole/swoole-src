@@ -43,6 +43,7 @@ struct TimerNode {
     uint64_t exec_count;
     uint64_t round;
     bool removed;
+    uint32_t exec_nsec;
     HeapNode *heap_node;
     TimerCallback callback;
     void *data;
@@ -78,8 +79,8 @@ class Timer {
     explicit Timer(bool manually_trigger);
     ~Timer();
 
-    int64_t get_relative_msec() const {
-        return get_absolute_msec() - base_time;
+    int64_t get_relative_nsec() const {
+        return get_absolute_nsec() - base_time;
     }
 
     int64_t get_next_msec() const {
@@ -88,6 +89,11 @@ class Timer {
 
     static int64_t get_absolute_msec() {
         return time<std::chrono::milliseconds>(true);
+    }
+
+    static int64_t get_absolute_nsec() {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
+            .count();
     }
 
     Reactor *get_reactor() const {
@@ -100,8 +106,9 @@ class Timer {
         heap.change_priority(tnode->exec_msec, tnode->heap_node);
     }
     void delay(TimerNode *tnode, long delay_ms) const {
-        long now_ms = get_relative_msec();
-        tnode->exec_msec = (now_ms < 0 ? tnode->exec_msec : now_ms) + delay_ms;
+        const int64_t now_nsec = get_relative_nsec();
+        tnode->exec_msec = now_nsec / SW_NUM_MILLION + delay_ms;
+        tnode->exec_nsec = now_nsec % SW_NUM_MILLION;
         update(tnode);
     }
     void reinit(bool manually_trigger = false);
