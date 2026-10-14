@@ -336,6 +336,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(error_handling) = EH_NORMAL;
     EG(exception_class) = nullptr;
     EG(exception) = nullptr;
+    EG(opline_before_exception) = nullptr;
     EG(jit_trace_num) = 0;
 
     call->func = static_cast<zend_function *>(&swoole_coroutine_internal_function);
@@ -544,6 +545,7 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->error_handling = EG(error_handling);
     ctx->exception_class = EG(exception_class);
     ctx->exception = EG(exception);
+    ctx->opline_before_exception = EG(opline_before_exception);
 #ifdef ZEND_CHECK_STACK_LIMIT
     ctx->stack_base = EG(stack_base);
     ctx->stack_limit = EG(stack_limit);
@@ -564,6 +566,7 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
     EG(error_handling) = ctx->error_handling;
     EG(exception_class) = ctx->exception_class;
     EG(exception) = ctx->exception;
+    EG(opline_before_exception) = ctx->opline_before_exception;
 #ifdef ZEND_CHECK_STACK_LIMIT
     EG(stack_base) = ctx->stack_base;
     EG(stack_limit) = ctx->stack_limit;
@@ -1380,29 +1383,57 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
     if (throw_exception) {
         auto *task = PHPCoroutine::get_context_by_cid(cid);
         // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
-        if (!task) {
+        if (!task || !task->co) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             return false;
         }
 
-        if (task->exception && task->exception_class == ce) {
+        bool is_current = task->co == Coroutine::get_current();
+        if (!is_current && task->exception && task->exception_class == ce) {
             swoole_set_last_error(SW_ERROR_CO_CANCELED);
             return false;
         }
 
+        zend_object *exception = zend_objects_new(ce);
+        object_properties_init(exception, ce);
+
+        // The live Co::cancel frame is internal, so Zend redirects the user caller when this call
+        // returns; the saved context describes a stale frame and must not be written here.
+        if (is_current) {
+            zend_string *filename = zend_get_executed_filename_ex();
+            if (filename) {
+                zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_FILE), filename);
+                zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+            }
+            zval zexception;
+            ZVAL_OBJ(&zexception, exception);
+            zend_throw_exception_object(&zexception);
+            return true;
+        }
+
         zend_object *previous = task->exception;
         task->exception_class = ce;
-        task->exception = zend_objects_new(task->exception_class);
-        object_properties_init(task->exception, task->exception_class);
+        task->exception = exception;
         if (previous) {
-            zend_exception_set_previous(task->exception, previous);
+            zend_exception_set_previous(exception, previous);
         }
 
         zend_execute_data *ex_backup = EG(current_execute_data);
         EG(current_execute_data) = task->execute_data;
-        zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_FILE), zend_get_executed_filename_ex());
-        zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+        zend_string *filename = zend_get_executed_filename_ex();
+        if (filename) {
+            zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_FILE), filename);
+            zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+        }
         EG(current_execute_data) = ex_backup;
+
+        // Mirrors zend_throw_exception_internal(): internal frames have no opline and Zend redirects
+        // the caller when the call returns.
+        if (!previous && task->execute_data->func && ZEND_USER_CODE(task->execute_data->func->type) &&
+            task->execute_data->opline->opcode != ZEND_HANDLE_EXCEPTION) {
+            task->opline_before_exception = task->execute_data->opline;
+            task->execute_data->opline = EG(exception_op);
+        }
 
         // Ignore the result of Co::cancel(). Even if the coroutine is in an irrevocable state,
         // it will directly throw an exception and terminate the coroutine
