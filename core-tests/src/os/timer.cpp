@@ -22,6 +22,8 @@
 #include "swoole_util.h"
 #include "swoole_timer.h"
 
+using swoole::Callback;
+using swoole::Reactor;
 using swoole::Timer;
 using swoole::TimerNode;
 
@@ -202,6 +204,37 @@ TEST(timer, reinit) {
     ASSERT_LE(ms2 - ms1, 510);
     ASSERT_EQ(timer1_count, 1);
     ASSERT_EQ(timer2_count, 5);
+}
+
+TEST(timer, reactor_round) {
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+
+    Reactor *reactor = sw_reactor();
+    Callback count_iterations;
+    int iteration = 0;
+    int outer_iteration = 0;
+    int nested_iteration = 0;
+
+    count_iterations = [&](void *) {
+        if (++iteration < 3) {
+            reactor->defer(count_iterations);
+        }
+    };
+    reactor->defer(count_iterations);
+    reactor->defer([&](void *) {
+        TimerNode *outer = swoole_timer_add(1L, false, [&](Timer *timer, TimerNode *tnode) {
+            outer_iteration = iteration;
+            TimerNode *nested = swoole_timer_add(1L, false, [&](TIMER_PARAMS) { nested_iteration = iteration; });
+            nested->exec_msec = tnode->exec_msec;
+            timer->update(nested);
+        });
+        outer->exec_msec = 0;
+        sw_timer()->update(outer);
+    });
+
+    ASSERT_EQ(swoole_event_wait(), SW_OK);
+    ASSERT_EQ(outer_iteration, 1);
+    ASSERT_EQ(nested_iteration, 2);
 }
 
 TEST(timer, realtime_add) {
