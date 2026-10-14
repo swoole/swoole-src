@@ -6,38 +6,34 @@ swoole_http_client_coro/websocket: ssl recv [2]
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-//Co::set(['log_level' => SWOOLE_LOG_TRACE, 'trace_flags' => SWOOLE_TRACE_ALL]);
+Co\run(function () {
+    $port = get_one_free_port();
+    $server = new Co\Http\Server('127.0.0.1', $port, true);
+    $server->set([
+        'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
+        'ssl_key_file' => SSL_FILE_DIR . '/server.key',
+    ]);
+    $server->handle('/websocket', function ($request, $websocket) {
+        Assert::true($websocket->upgrade());
+        Assert::same($websocket->recv()->data, 'subscribe');
+        $websocket->push('subscribed');
+        $websocket->push('snapshot');
+    });
 
-Co\run(function ()  {
-    $cli = new Co\http\Client('www.bitmex.com', 443, true);
-    if (($http_proxy_conf = getenv('https_proxy'))) {
-        $uri = parse_url($http_proxy_conf);
-        $cli->set([
-            'socks5_host' => $uri['host'],
-            'socks5_port' => $uri['port'],
-        ]);
-    }
-    $ret = $cli->upgrade('/realtime');
-    if (!$ret) {
-        echo "ERROR\n";
-        return;
-    }
-    echo "CONNECT SUCCESS, StatusCode={$cli->getStatusCode()}\n";
-    $cli->push('{"op": "subscribe", "args": ["orderBookL2_25:XBTUSD"]}');
+    go(function () use ($server) {
+        $server->start();
+    });
 
-    $subscribed = $snapshot = false;
-    while (!$subscribed || !$snapshot) {
-        $frame = $cli->recv();
-        Assert::true(is_object($frame));
-        Assert::notEmpty($frame->data);
-        $message = json_decode($frame->data, true);
-        $subscribed = $subscribed || ($message['success'] ?? false);
-        $snapshot = $snapshot || (($message['table'] ?? null) === 'orderBookL2_25'
-            && ($message['action'] ?? null) === 'partial');
-    }
-    echo "FINISH\n";
+    $client = new Co\Http\Client('127.0.0.1', $port, true);
+    $client->set(['timeout' => 5]);
+    Assert::true($client->upgrade('/websocket'));
+    Assert::true($client->push('subscribe'));
+    Assert::same($client->recv()->data, 'subscribed');
+    Assert::same($client->recv()->data, 'snapshot');
+    $server->shutdown();
+
+    echo "DONE\n";
 });
 ?>
 --EXPECT--
-CONNECT SUCCESS, StatusCode=101
-FINISH
+DONE
