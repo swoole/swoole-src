@@ -340,6 +340,12 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(exception) = nullptr;
     EG(opline_before_exception) = nullptr;
     EG(jit_trace_num) = 0;
+    // Ignore the creator's @, which changes only EG(error_reporting); an unset directive means E_ALL.
+    zend_long error_reporting = zend_ini_long(ZEND_STRL("error_reporting"), false);
+    if (!error_reporting && !zend_ini_string_ex(ZEND_STRL("error_reporting"), false, nullptr)) {
+        error_reporting = E_ALL;
+    }
+    EG(error_reporting) = error_reporting;
 
     call->func = static_cast<zend_function *>(&swoole_coroutine_internal_function);
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
