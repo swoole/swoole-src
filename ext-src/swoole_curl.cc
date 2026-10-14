@@ -614,10 +614,11 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     }
     if (timeout_ms < 0) {
         multi->del_timer();
+    } else if (timeout_ms == 0) {
+        multi->del_timer();
+        /* curl_multi_socket_action() must not be called from this callback */
+        multi->callback(nullptr, 0);
     } else {
-        if (timeout_ms == 0) {
-            timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in a bit */
-        }
         multi->add_timer(timeout_ms);
     }
     return 0;

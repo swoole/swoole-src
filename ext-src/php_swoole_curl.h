@@ -153,7 +153,7 @@ class Multi {
     void selector_prepare();
 
     bool wait_event() const {
-        return timer || !sockets.empty();
+        return !selector.timer_callback && (timer || !sockets.empty());
     }
 
     void add_timer(long timeout_ms) {
