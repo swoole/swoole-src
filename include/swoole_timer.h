@@ -105,7 +105,7 @@ class Timer {
         update(tnode);
     }
     void reinit(bool manually_trigger = false);
-    void select();
+    void select(bool next_round = true);
 
     TimerNode *get(long id) {
         const auto it = map.find(id);

@@ -55,7 +55,9 @@ void Timer::init_with_reactor(Reactor *reactor) {
     };
     close = [](Timer *timer) { timer->set(timer, -1); };
 
-    reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(); });
+    reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(false); });
+    // Advance just before the next poll, so timers added after selection can run in the next one.
+    reactor->set_end_callback(Reactor::PRIORITY_TIMER_ROUND, [this](Reactor *) { round++; });
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
                                 [this](Reactor *reactor, size_t &event_num) -> bool { return count() == 0; });
@@ -150,7 +152,7 @@ bool Timer::remove(TimerNode *tnode) {
     return true;
 }
 
-void Timer::select() {
+void Timer::select(bool next_round) {
     const int64_t now_msec = get_relative_msec();
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
@@ -201,6 +203,8 @@ void Timer::select() {
         }
         set(this, next_msec_);
     }
-    round++;
+    if (next_round) {
+        round++;
+    }
 }
 };  // namespace swoole
