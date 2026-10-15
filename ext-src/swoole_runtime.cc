@@ -1147,7 +1147,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             add_assoc_string(&tmp, "cipher_version", SSL_CIPHER_get_version(cipher));
             add_assoc_zval((zval *) ptrparam, "crypto", &tmp);
         }
-        add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT || abstract->stream.timeout_event);
+        add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT || abstract->stream.timeout_event == 1);
         add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
         add_assoc_bool((zval *) ptrparam, "blocked", true);
         break;
