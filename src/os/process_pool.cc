@@ -960,7 +960,8 @@ int ProcessPool::wait() {
             }
         }
 
-        if (reload_task) {
+        // Preserve reload requests until the next iteration populates the worker snapshot.
+        if (reload_task && !reload_init) {
             if (reload_task->is_completed()) {
                 delete reload_task;
                 reload_task = nullptr;

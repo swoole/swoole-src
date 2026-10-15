@@ -798,3 +798,69 @@ TEST(process_pool, add_worker) {
 
     ASSERT_TRUE(pool.del_worker(worker2));
 }
+
+TEST(process_pool, reload_from_child_exit_callback) {
+    ProcessPool pool{};
+    test::counter_init();
+    ASSERT_EQ(pool.create(2), SW_OK);
+    pool.max_wait_time = 1;
+    pool.main_loop = nullptr;
+    pool.onWorkerStart = [](ProcessPool *, Worker *worker) {
+        swoole_signal_set(SIGTERM, [](int) { sw_worker()->shutdown(); });
+        test::counter_incr(worker->id);
+        while (!worker->is_shutdown()) {
+            usleep(1000);
+        }
+    };
+    pool.onWorkerNotFound = [](ProcessPool *pool, const ExitStatus &status) -> int {
+        if (status.get_pid() != test::counter_get(6) || test::counter_incr(27) != 1 || !pool->reload()) {
+            test::counter_incr(26);
+        }
+        return SW_OK;
+    };
+    pool.onBeforeReload = [](ProcessPool *) { test::counter_incr(24); };
+    pool.onAfterReload = [](ProcessPool *pool) {
+        if (pool->get_worker(1)->pid == test::counter_get(5)) {
+            test::counter_incr(26);
+        }
+        test::counter_incr(25);
+    };
+    auto watchdog = swoole_timer_after(5000, [&pool](TIMER_PARAMS) {
+        test::counter_set(31, 1);
+        pool.running = false;
+    });
+    auto completion = swoole_timer_tick(10, [&pool](TIMER_PARAMS) {
+        if (test::counter_get(25) == 1 && test::counter_get(0) == 2 && test::counter_get(1) == 2) {
+            swoole_timer_del(tnode);
+            pool.running = false;
+        }
+    });
+    ASSERT_EQ(pool.start(), SW_OK);
+    test::counter_set(5, pool.get_worker(1)->pid);
+    const auto deadline = microtime() + 3;
+    while ((test::counter_get(0) != 1 || test::counter_get(1) != 1) && microtime() < deadline) {
+        usleep(1000);
+    }
+    // Reaping an unrelated child invokes this callback after reload initialization in wait().
+    const auto child_pid = fork();
+    ASSERT_GE(child_pid, 0);
+    if (child_pid == 0) {
+        _exit(0);
+    }
+    test::counter_set(6, child_pid);
+    EXPECT_EQ(pool.wait(), SW_OK);
+    sw_timer()->remove(watchdog);
+    if (test::counter_get(31)) {
+        sw_timer()->remove(completion);
+    }
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(24), 1);
+    EXPECT_EQ(test::counter_get(25), 1);
+    EXPECT_EQ(test::counter_get(27), 1);
+    EXPECT_EQ(test::counter_get(0), 2);
+    EXPECT_EQ(test::counter_get(1), 2);
+    pool.destroy();
+    swoole_timer_free();
+    swoole_signal_clear();
+}
