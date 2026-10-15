@@ -9,7 +9,7 @@ skip_if_darwin_todo();
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Client;
-use Swoole\Coroutine\System;
+use Swoole\Coroutine\Channel;
 use Swoole\Server;
 
 use function Swoole\Coroutine\go;
@@ -20,19 +20,23 @@ $pm->initFreePorts(3);
 
 $pm->parentFunc = function ($pid) use ($pm) {
     run(function () use ($pm) {
-        $test_func = function ($port_index, $sleep_seconds) use ($pm) {
+        $closed = new Channel(1);
+        go(function () use ($pm, $closed) {
             $cli = new Client(SWOOLE_SOCK_TCP);
-            $cli->connect('127.0.0.1', $pm->getFreePort($port_index));
-            System::sleep($sleep_seconds);
-            return $cli->recv(0.01);
-        };
-        go(function () use ($test_func) {
-            Assert::same($test_func(0, 3), false);
+            Assert::true($cli->connect('127.0.0.1', $pm->getFreePort(0)));
+            Assert::true($closed->pop(6));
+            Assert::same($cli->send('ping'), 4);
+            Assert::same($cli->recv(2), 'ok');
+            $cli->close();
             echo "DONE 0\n";
         });
-        go(function () use ($test_func) {
-            Assert::same($test_func(1, 2.3), '');
+        go(function () use ($pm, $closed) {
+            $cli = new Client(SWOOLE_SOCK_TCP);
+            Assert::true($cli->connect('127.0.0.1', $pm->getFreePort(1)));
+            Assert::same($cli->recv(5), '');
+            $cli->close();
             echo "DONE 1\n";
+            $closed->push(true);
         });
     });
     $pm->kill();

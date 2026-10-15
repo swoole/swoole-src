@@ -15,12 +15,17 @@ set_error_handler(function (int $errno, string $errstr) use (&$errors) {
 });
 
 $pool = new Swoole\Process\Pool(1);
-$pool->set(['max_package_size' => -1]);
+try {
+    $pool->set(['max_package_size' => -1]);
+    Assert::true(false, 'invalid size must throw');
+} catch (Swoole\Exception $exception) {
+    Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::contains($exception->getMessage(), 'max_package_size');
+}
 
 restore_error_handler();
 
-Assert::eq(count($errors), 1);
-Assert::contains($errors[0], 'max_package_size');
+Assert::same($errors, []);
 
 echo "DONE\n";
 ?>

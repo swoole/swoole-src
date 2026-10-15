@@ -1,92 +1,117 @@
 --TEST--
-swoole_server: dispatch_mode = 10 [concurrent lb]
+swoole_server: concurrent load balancing avoids workers with active requests
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Constant;
+use Swoole\Coroutine;
+use Swoole\Coroutine\Channel;
 use Swoole\Coroutine\Http\Client;
-use Swoole\Coroutine\System;
 use Swoole\Http\Server;
 use Swoole\Table;
 
-use function Swoole\Coroutine\run;
-use function Swoole\Coroutine\go;
-
-$table = new Table(64);
-$table->column('count', Table::TYPE_INT);
+$table = new Table(16);
+$table->column('busy', Table::TYPE_INT);
+$table->column('release', Table::TYPE_INT);
 $table->create();
+$table->set('control', ['release' => 0]);
+for ($i = 0; $i < 4; $i++) {
+    $table->set((string) $i, ['busy' => 0]);
+}
 
-const N = IS_MAC_OS ? 256 : 1024;
-const EOF = "\r\n\r\n";
-
-$pm = new SwooleTest\ProcessManager;
-$pm->magic_code = rand(10000000, 90000000);
-$pm->parentFunc = function ($pid) use ($pm, $table) {
-    run(function () use ($pm, $table) {
-        $rand = rand(1, 4);
-        $data = array(
-            'name' => __FILE__,
-            'sid' => $pm->magic_code,
-            'content' => str_repeat('A', 1024 * $rand),
-        );
-        $_serialize_data = serialize($data) . EOF;
-        $n = N;
-        while ($n--) {
-            for ($i = 0; $i < 16; $i++) {
-                go(function () use ($pm, $_serialize_data) {
+$pm = new ProcessManager;
+$pm->parentFunc = function () use ($pm, $table) {
+    try {
+        Coroutine\run(function () use ($pm, $table) {
+            $finished = new Channel(3);
+            try {
+                for ($i = 0; $i < 3; $i++) {
+                    Coroutine::create(function () use ($pm, $finished) {
+                        $client = new Client('127.0.0.1', $pm->getFreePort());
+                        $client->set(['timeout' => 5]);
+                        try {
+                            Assert::true($client->get('/hold'));
+                            Assert::same($client->statusCode, 200);
+                            $finished->push((int) $client->body);
+                        } finally {
+                            $client->close();
+                        }
+                    });
+                    $deadline = microtime(true) + 2;
+                    do {
+                        $busy = [];
+                        for ($worker = 0; $worker < 4; $worker++) {
+                            if ($table->get((string) $worker, 'busy')) {
+                                $busy[] = $worker;
+                            }
+                        }
+                        if (count($busy) === $i + 1) {
+                            break;
+                        }
+                        Coroutine::sleep(0.001);
+                    } while (microtime(true) < $deadline);
+                    if (!Assert::same(count($busy), $i + 1)) {
+                        return;
+                    }
+                }
+                $idle = array_values(array_diff([0, 1, 2, 3], $busy))[0];
+                for ($i = 0; $i < 8; $i++) {
                     $client = new Client('127.0.0.1', $pm->getFreePort());
-                    Assert::true($client->post('/', $_serialize_data));
-                    Assert::eq($client->getStatusCode(), 200);
-                    Assert::eq($client->getBody(), "SUCCESS" . EOF);
-                });
+                    $client->set(['timeout' => 2]);
+                    try {
+                        Assert::true($client->get('/probe'));
+                        Assert::same($client->statusCode, 200);
+                        Assert::same((int) $client->body, $idle);
+                    } finally {
+                        $client->close();
+                    }
+                }
+            } finally {
+                $table->set('control', ['release' => 1]);
             }
-            System::sleep(0.002);
-        }
-    });
-
-    $pm->kill();
-
-    $array = array_column(iterator_to_array($table), 'count');
-    $standard_deviation = sqrt(swoole_get_variance(swoole_get_average($array), $array));
-    Assert::greaterThan($standard_deviation, 1);
-    Assert::lessThan($standard_deviation, 5);
-    echo 'DONE' . PHP_EOL;
+            $workers = [];
+            for ($i = 0; $i < 3; $i++) {
+                $worker = $finished->pop(2);
+                Assert::notSame($worker, false);
+                $workers[] = $worker;
+            }
+            sort($workers);
+            sort($busy);
+            Assert::same($workers, $busy);
+        });
+    } finally {
+        $table->set('control', ['release' => 1]);
+        $pm->kill();
+    }
+    echo "DONE\n";
 };
-
 $pm->childFunc = function () use ($pm, $table) {
-    $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
-
-    $serv->set(array(
+    $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $server->set([
         'dispatch_mode' => SWOOLE_DISPATCH_CONCURRENT_LB,
         'worker_num' => 4,
         'log_file' => '/dev/null',
-    ));
-
-    $serv->on(Constant::EVENT_WORKER_START, function (Server $serv, $worker_id) use ($pm) {
-        if ($worker_id == 0) {
+    ]);
+    $server->on('workerStart', function (Server $server, int $workerId) use ($pm) {
+        if ($workerId === 0) {
             $pm->wakeup();
         }
     });
-
-    $serv->on(Constant::EVENT_REQUEST, function ($req, $resp) use ($pm, $table, $serv) {
-        $table->incr($serv->getWorkerId(), 'count');
-        if (rand(1000, 9999) % 10 == 0) {
-            System::sleep(0.5);
+    $server->on('request', function ($request, $response) use ($server, $table) {
+        $worker = $server->getWorkerId();
+        if ($request->server['request_uri'] === '/hold') {
+            $table->set((string) $worker, ['busy' => 1]);
+            $deadline = microtime(true) + 5;
+            while (!$table->get('control', 'release') && microtime(true) < $deadline) {
+                Coroutine::sleep(0.001);
+            }
         }
-        $_data = unserialize(rtrim($req->getContent()));
-        if ($_data and is_array($_data) and $_data['sid'] == $pm->magic_code) {
-            $resp->end("SUCCESS" . EOF);
-        } else {
-            $resp->end("ERROR" . EOF);
-        }
+        $response->end((string) $worker);
     });
-
-    $serv->start();
+    $server->start();
 };
-
 $pm->childFirst();
 $pm->run();
 ?>

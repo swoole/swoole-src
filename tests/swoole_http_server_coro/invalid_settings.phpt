@@ -28,14 +28,17 @@ Coroutine\run(function () use (&$warnings) {
         $server->shutdown();
     });
 
-    // The warning is emitted on the unchanged branch too; the return value proves the setting was rejected.
-    Assert::false($server->start());
+    try {
+        $server->start();
+        Assert::true(false, 'invalid settings must throw before accepting connections');
+    } catch (Swoole\Exception $exception) {
+        Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+        Assert::contains($exception->getMessage(), 'package_length_type');
+    }
     Assert::true(Coroutine::join([$cid]));
     Assert::same($server->errCode, SOCKET_EINVAL);
     Assert::same($server->errMsg, swoole_strerror(SOCKET_EINVAL));
-    Assert::same($warnings, [
-        "Swoole\\Coroutine\\Http\\Server::start(): Unknown package_length_type name '?', see pack(). Link: https://php.net/pack",
-    ]);
+    Assert::same($warnings, []);
 
     $warnings = [];
     Assert::true($server->set(['package_length_type' => 'N']));

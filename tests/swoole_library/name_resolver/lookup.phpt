@@ -28,8 +28,8 @@ run(function () use ($ns) {
         $ns->join($test_name, $node['ip'], $node['port']);
     });
 
-    $ctx = new Swoole\NameResolver\Context(AF_INET, true);
-    swoole_loop_n(N * 2, function ($i) use (&$nodes, $test_name, $ns, $ctx) {
+    swoole_loop_n(N * 2, function ($i) use (&$nodes, $test_name, $ns) {
+        $ctx = new Swoole\NameResolver\Context(AF_INET, true);
         $rs = swoole_name_resolver_lookup($test_name, $ctx);
         Assert::notEmpty($rs);
         [$ip, $port] = explode(':', $rs);

@@ -22,7 +22,7 @@ run(function () {
     if (!$socket) {
         die('Unable to create AF_UNIX socket');
     }
-    if (!socket_set_nonblock($socket)) {
+    if (!@socket_set_nonblock($socket)) {
         die('Unable to set nonblocking mode for socket');
     }
     var_dump(socket_recvfrom($socket, $buf, 12, 0, $from, $port)); //false (EAGAIN, no warning)

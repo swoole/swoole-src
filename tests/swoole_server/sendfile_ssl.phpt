@@ -3,6 +3,7 @@ swoole_server: sendfile with SSL
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip_if_no_ssl();
 skip_if_extension_not_exist('sockets');
 ?>
 --FILE--
@@ -13,14 +14,15 @@ $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC); //同步阻塞
+    $client->set(['socket_buffer_size' => 65536]);
     if (!$client->connect('127.0.0.1', $pm->getFreePort()))
     {
         exit("connect failed\n");
     }
 
     $socket = $client->getSocket();
-    socket_set_option($socket, SOL_SOCKET, SO_SNDBUF, 65536);
-    socket_set_option($socket, SOL_SOCKET, SO_RCVBUF, 65536);
+    Assert::same(socket_get_option($socket, SOL_SOCKET, SO_TYPE), SOCK_STREAM);
+    socket_close($socket);
 
     $N = filesize(TEST_IMAGE);
     $bytes = 0;

@@ -18,7 +18,9 @@
 
 #include "swoole_coroutine.h"
 
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
+
+#include "swoole_afd.h"
 
 #include <vector>
 #include <unordered_set>
@@ -110,6 +112,7 @@ class Iocp {
     ~Iocp();
 
     static bool init(Reactor *reactor = nullptr);
+    static bool associate_duplicate(swSocketFd original, swSocketFd duplicate);
     static void shutdown();
     static void set_socket_error(DWORD error);
     static void set_system_error(DWORD error);
@@ -128,9 +131,15 @@ class Iocp {
 
     bool wakeup();
     int wait(int timeout_msec);
+    int submit_poll(IocpEvent *event, afd::PollInfo *poll_info);
+    static void cancel(IocpEvent *event);
 
     bool associate_socket(swSocketFd fd) {
         return associate(fd);
+    }
+
+    void forget_socket(swSocketFd fd) {
+        associated_sockets.erase(fd);
     }
 
     void submit(IocpEvent *event) {

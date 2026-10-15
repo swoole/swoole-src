@@ -48,6 +48,12 @@ static inline void sw_set_errno(int e) {
 // On Windows: SOCKET (UINT_PTR, 8 bytes on x64)
 // This avoids truncation when SOCKET values exceed int range on 64-bit Windows.
 typedef int swSocketFd;
+
+// Duplicate socket handles only; TLS state must be rejected by the caller.
+static inline swSocketFd sw_dup(swSocketFd fd) {
+    return dup(fd);
+}
+
 #define SW_BAD_SOCKET ((swSocketFd) -1)
 
 #define sw_usleep usleep

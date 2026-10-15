@@ -78,7 +78,7 @@ class Socket {
     }
 
     bool check_liveness();
-    ssize_t peek(void *_buf, size_t _n);
+    ssize_t peek(void *_buf, size_t _n, int flags = 0);
     virtual ssize_t recv(void *_buf, size_t _n);
     virtual ssize_t send(const void *_buf, size_t _n);
 
@@ -159,6 +159,8 @@ class Socket {
 
     virtual bool ssl_handshake();
     bool ssl_verify(bool allow_self_signed);
+    bool ssl_verify();
+    bool ssl_verify_host();
     std::string ssl_get_peer_cert();
 
     bool set_ssl_key_file(const std::string &file) const {
@@ -207,6 +209,10 @@ class Socket {
 
     void set_ssl_verify_peer(bool value) const {
         ssl_context->verify_peer = value;
+    }
+
+    void set_ssl_verify_host(bool value) const {
+        ssl_context->verify_host = value;
     }
 
     void set_ssl_allow_self_signed(bool value) const {

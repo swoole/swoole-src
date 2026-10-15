@@ -31,6 +31,46 @@ namespace swoole {
 using network::Socket;
 using network::Stream;
 
+ExitStatus wait_process(const std::function<bool()> &should_wait) {
+#ifdef _WIN32
+    return should_wait() ? wait_process() : wait_process(-1, WNOHANG);
+#else
+    sigset_t blocked_signals, previous_mask;
+    sigfillset(&blocked_signals);
+    if (sigprocmask(SIG_BLOCK, &blocked_signals, &previous_mask) < 0) {
+        return {-1, 0};
+    }
+
+    auto exit_status = wait_process(-1, WNOHANG);
+    if (exit_status.get_pid() == 0 && !SwooleG.signal_alarm && !SwooleG.signal_dispatch && should_wait()) {
+        // Unlike waitpid(), sigsuspend() needs a handler to wake for SIGCHLD.
+        // Standalone process pools may still use its default disposition.
+        struct sigaction previous_action{}, wake_action{};
+        const bool install_handler =
+            sigaction(SIGCHLD, nullptr, &previous_action) == 0 && previous_action.sa_handler == SIG_DFL;
+        if (install_handler) {
+            wake_action = previous_action;
+            wake_action.sa_handler = [](int) {};
+            sigaction(SIGCHLD, &wake_action, nullptr);
+        }
+        // A reload, message, timer or child-exit signal arriving after the state check
+        // must remain pending until sigsuspend() atomically restores the old mask.
+        sigsuspend(&previous_mask);
+        exit_status = wait_process(-1, WNOHANG);
+        if (install_handler) {
+            const auto wait_error = errno;
+            sigaction(SIGCHLD, &previous_action, nullptr);
+            errno = wait_error;
+        }
+    }
+
+    const auto wait_error = errno;
+    sigprocmask(SIG_SETMASK, &previous_mask, nullptr);
+    errno = wait_error;
+    return exit_status;
+#endif
+}
+
 static inline swReturnCode catch_system_error(int error) {
     switch (error) {
     case SW_SUCCESS:
@@ -425,9 +465,6 @@ bool ProcessPool::reload() {
         onBeforeReload(this);
     }
     reload_task = new ReloadTask();
-    if (max_wait_time) {
-        reload_task->add_timeout_killer(max_wait_time);
-    }
     reload_count++;
     reload_init = true;
     reload_last_time = ::time(nullptr);
@@ -899,16 +936,18 @@ int ProcessPool::wait() {
     std::unordered_set<pid_t> detached_workers;
 
     while (running) {
-        ExitStatus exit_status = wait_process();
+        ExitStatus exit_status = wait_process([this] { return running && !reload_init && !read_message; });
         const auto wait_error = errno;
 
         swoole_signal_dispatch();
 
+        SwooleG.signal_alarm = false;
         if (sw_timer()) {
             sw_timer()->select();
         }
 
         if (read_message) {
+            read_message = false;
             EventData msg;
             while (pop_message(&msg, sizeof(msg)) > 0) {
                 if (!running) {
@@ -927,14 +966,16 @@ int ProcessPool::wait() {
                 spawn(exit_worker);
                 detached_workers.insert(worker_stop_msg.pid);
                 map_->erase(worker_stop_msg.pid);
+                if (reload_task) {
+                    reload_task->remove(worker_stop_msg.pid);
+                }
             }
-            read_message = false;
         }
 
+        if (!running) {
+            break;
+        }
         if (exit_status.get_pid() < 0) {
-            if (!running) {
-                break;
-            }
             if (!reload_task) {
                 if (wait_error > 0 && wait_error != EINTR) {
                     swoole_sys_warning("wait() failed");
@@ -947,36 +988,39 @@ int ProcessPool::wait() {
             if (reload_init) {
                 reload_init = false;
                 reload_task->add_workers(workers, worker_num);
-                goto _kill_worker;
-            } else if (exit_status.get_pid() < 0) {
-                continue;
+                if (max_wait_time) {
+                    reload_task->add_timeout_killer(max_wait_time);
+                }
             }
 
-            Worker *exit_worker = get_worker_by_pid(exit_status.get_pid());
-            if (exit_worker == nullptr) {
-                if (onWorkerNotFound) {
-                    onWorkerNotFound(this, exit_status);
+            if (exit_status.get_pid() > 0) {
+                Worker *exit_worker = get_worker_by_pid(exit_status.get_pid());
+                if (exit_worker == nullptr) {
+                    if (onWorkerNotFound) {
+                        onWorkerNotFound(this, exit_status);
+                    } else {
+                        wait_detached_worker(detached_workers, exit_status.get_pid());
+                    }
                 } else {
-                    wait_detached_worker(detached_workers, exit_status.get_pid());
-                }
-                continue;
-            }
+                    if (!exit_status.is_normal_exit()) {
+                        exit_worker->report_error(exit_status);
+                        if (onWorkerError) {
+                            onWorkerError(this, exit_worker, exit_status);
+                        }
+                    }
 
-            if (!exit_status.is_normal_exit()) {
-                exit_worker->report_error(exit_status);
-                if (onWorkerError) {
-                    onWorkerError(this, exit_worker, exit_status);
+                    spawn(exit_worker);
+                    map_->erase(exit_status.get_pid());
                 }
-            }
-
-            spawn(exit_worker);
-            map_->erase(exit_status.get_pid());
-            if (reload_task) {
-                reload_task->remove(exit_status.get_pid());
+                if (reload_task) {
+                    reload_task->remove(exit_status.get_pid());
+                }
             }
         }
 
-        if (reload_task) {
+        // Reload may be requested by a signal or callback after the initialization phase.
+        // Do not finish an empty task before its worker snapshot has been populated.
+        if (reload_task && !reload_init) {
             if (reload_task->is_completed()) {
                 delete reload_task;
                 reload_task = nullptr;
@@ -984,7 +1028,6 @@ int ProcessPool::wait() {
                     onAfterReload(this);
                 }
             } else {
-            _kill_worker:
                 reload_task->kill_one();
             }
         }
@@ -996,6 +1039,7 @@ int ProcessPool::wait() {
     running = false;
 
     delete reload_task;
+    reload_task = nullptr;
 
     if (onShutdown) {
         onShutdown(this);
@@ -1009,8 +1053,18 @@ int ProcessPool::wait() {
             continue;
         }
     }
+    TimerNode *shutdown_timer = nullptr;
+    ON_SCOPE_EXIT {
+        if (shutdown_timer) {
+            swoole_timer_del(shutdown_timer);
+        }
+    };
     if (max_wait_time) {
-        swoole_timer_add((long) max_wait_time * 1000, false, [this](Timer *, TimerNode *) { kill_all_workers(); });
+        shutdown_timer =
+            swoole_timer_add((long) max_wait_time * 1000, false, [this, &shutdown_timer](Timer *, TimerNode *) {
+                shutdown_timer = nullptr;
+                kill_all_workers();
+            });
     }
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];
@@ -1163,15 +1217,34 @@ void ReloadTask::add_workers(Worker *list, size_t n) {
 }
 
 void ReloadTask::add_timeout_killer(int timeout) {
+    this->timeout = timeout;
+    if (current_pid == 0 || timer != nullptr) {
+        return;
+    }
     timer = swoole_timer_add(sec2msec(timeout), false, [this](Timer *, TimerNode *) {
-        kill_all();
         timer = nullptr;
+        auto iter = workers.find(current_pid);
+        if (iter == workers.end()) {
+            return;
+        }
+        if (swoole_kill(current_pid, SIGKILL) < 0) {
+            swoole_sys_warning("failed to kill(%d, SIGKILL) worker#[%d]", current_pid, iter->second->id);
+        } else {
+            swoole_warning("force kill worker process(pid=%d, id=%d)", current_pid, iter->second->id);
+        }
     });
 }
 
 bool ReloadTask::remove(pid_t pid) {
     auto iter = workers.find(pid);
     if (iter != workers.end()) {
+        if (pid == current_pid) {
+            current_pid = 0;
+            if (timer) {
+                swoole_timer_del(timer);
+                timer = nullptr;
+            }
+        }
         workers.erase(iter);
         return true;
     } else {
@@ -1204,6 +1277,10 @@ void ReloadTask::kill_all(int signal_number) {
 }
 
 void ReloadTask::kill_one(int signal_number) {
+    // Wait for the current PID to be reaped or detached; unrelated wakeups must not advance a reload.
+    if (current_pid != 0) {
+        return;
+    }
     while (!kill_queue.empty()) {
         auto pid = kill_queue.front();
         kill_queue.pop();
@@ -1217,6 +1294,10 @@ void ReloadTask::kill_one(int signal_number) {
                 continue;
             }
             swoole_sys_warning("kill(%d, %d) [%d] failed", pid, signal_number, iter->second->id);
+        }
+        current_pid = pid;
+        if (timeout > 0) {
+            add_timeout_killer(timeout);
         }
         break;
     }

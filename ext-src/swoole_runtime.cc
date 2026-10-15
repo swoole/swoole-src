@@ -1249,14 +1249,14 @@ static php_stream *socket_create_original(const char *proto,
         factory = ori_factory.ssl;
     } else if (SW_STREQ(proto, protolen, "tls")) {
         factory = ori_factory.tls;
+    } else if (SW_STREQ(proto, protolen, "udp")) {
+        factory = ori_factory.udp;
 #ifndef _WIN32
     } else if (SW_STREQ(proto, protolen, "unix")) {
         factory = ori_factory._unix;
-    } else if (SW_STREQ(proto, protolen, "udp")) {
-        factory = ori_factory.udp;
-#endif
     } else if (SW_STREQ(proto, protolen, "udg")) {
         factory = ori_factory.udg;
+#endif
     }
 
     if (factory) {
@@ -1296,14 +1296,14 @@ static php_stream *socket_create(const char *proto,
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
         sock = new SocketImpl(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
         sock->enable_ssl_encrypt();
+    } else if (SW_STREQ(proto, protolen, "udp")) {
+        sock = new SocketImpl(SW_SOCK_UDP);
 #ifndef _WIN32
     } else if (SW_STREQ(proto, protolen, "unix")) {
         sock = new SocketImpl(SW_SOCK_UNIX_STREAM);
-    } else if (SW_STREQ(proto, protolen, "udp")) {
-        sock = new SocketImpl(SW_SOCK_UDP);
-#endif
     } else if (SW_STREQ(proto, protolen, "udg")) {
         sock = new SocketImpl(SW_SOCK_UNIX_DGRAM);
+#endif
     } else {
         php_swoole_fatal_error(E_WARNING, "unknown protocol '%s'", proto);
         return nullptr;
@@ -1343,10 +1343,18 @@ static ZEND_FUNCTION(swoole_display_disabled_function) {
     zend_error(E_WARNING, "%s() has been disabled for security reasons", get_active_function_name());
 }
 
-static bool disable_func(const char *name, size_t l_name) {
+#if PHP_VERSION_ID >= 80400
+static ZEND_FUNCTION(swoole_display_unsupported_function) {
+    zend_error(E_WARNING, "%s() is not supported in Swoole coroutines", get_active_function_name());
+}
+#endif
+
+static bool disable_func(const char *name,
+                         size_t l_name,
+                         zif_handler handler = ZEND_FN(swoole_display_disabled_function)) {
     auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (rf) {
-        rf->function->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
+        rf->function->internal_function.handler = handler;
         return true;
     }
 
@@ -1362,7 +1370,7 @@ static bool disable_func(const char *name, size_t l_name) {
     rf->ori_arg_info = zf->internal_function.arg_info;
     rf->ori_fn_flags = zf->internal_function.fn_flags;
 
-    zf->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
+    zf->internal_function.handler = handler;
     zf->internal_function.fn_flags = ZEND_ACC_FAKE_CLOSURE;
 
     zend_hash_add_ptr(hook_function_table, zf->common.function_name, rf);
@@ -1395,12 +1403,19 @@ void PHPCoroutine::disable_unsafe_function() {
     for (auto &f : unsafe_functions) {
         disable_func(f.c_str(), f.length());
     }
+#if PHP_VERSION_ID >= 80400
+    // HTTP wrapper response headers are request-global; Swoole does not isolate them per coroutine.
+    disable_func(ZEND_STRL("http_get_last_response_headers"), ZEND_FN(swoole_display_unsupported_function));
+#endif
 }
 
 void PHPCoroutine::enable_unsafe_function() {
     for (auto &f : unsafe_functions) {
         enable_func(f.c_str(), f.length());
     }
+#if PHP_VERSION_ID >= 80400
+    enable_func(ZEND_STRL("http_get_last_response_headers"));
+#endif
 }
 
 static void hook_stream_throw_exception(const char *type) {
@@ -1655,6 +1670,7 @@ static void hook_all_func(uint32_t flags) {
             SW_HOOK_WITH_PHP_FUNC(socket_clear_error);
             SW_HOOK_WITH_PHP_FUNC(socket_last_error);
             SW_HOOK_WITH_PHP_FUNC(socket_import_stream);
+            SW_HOOK_WITH_PHP_FUNC(socket_export_stream);
 
             inherit_class(ZEND_STRL("Swoole\\Coroutine\\Socket"), ZEND_STRL("Socket"));
         }
@@ -1686,6 +1702,7 @@ static void hook_all_func(uint32_t flags) {
             SW_UNHOOK_FUNC(socket_clear_error);
             SW_UNHOOK_FUNC(socket_last_error);
             SW_UNHOOK_FUNC(socket_import_stream);
+            SW_UNHOOK_FUNC(socket_export_stream);
 
             detach_parent_class("Swoole\\Coroutine\\Socket");
         }
@@ -2289,7 +2306,7 @@ php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int
         abstract->socket->set_timeout((double) FG(default_socket_timeout));
     }
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
-    abstract->stream.socket = (int) abstract->socket->get_fd();
+    abstract->stream.socket = static_cast<php_socket_t>(abstract->socket->get_fd());
     abstract->blocking = true;
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");

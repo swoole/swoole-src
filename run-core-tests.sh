@@ -62,7 +62,9 @@ for task in $tasks; do
 
     wait "$pid"
     if [ $? -ne 0 ]; then
-        tail -n 50 "${SUITE_LOG}"
+        # The failing test may be followed by many successful tests. Keep its
+        # assertions and diagnostics instead of printing only the suite's tail.
+        cat "${SUITE_LOG}"
         exit 255
     fi
 done

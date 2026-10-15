@@ -127,6 +127,8 @@ struct SSLContext {
     uint8_t verify_depth;
     uchar disable_compress : 1;
     uchar verify_peer : 1;
+    // -1 preserves the existing peer verification policy; 0/1 explicitly control name verification.
+    int8_t verify_host = -1;
     uchar allow_self_signed : 1;
     uint32_t protocols;
     uint8_t create_flag;

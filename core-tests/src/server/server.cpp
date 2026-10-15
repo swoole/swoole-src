@@ -977,140 +977,501 @@ TEST(server, reload_thread_3) {
 #endif
 #endif
 
-TEST(server, reload_all_workers) {
-    Server serv(Server::MODE_PROCESS);
-    serv.worker_num = 2;
-    serv.task_worker_num = 2;
-    serv.max_wait_time = 1;
-    serv.task_enable_coroutine = true;
-    const int initial_worker_num = serv.worker_num + serv.task_worker_num;
-
-    test::counter_init();
-    mutex watchdog_lock;
-    condition_variable watchdog_cv;
-    bool watchdog_done = false;
-    thread watchdog([&]() {
-        unique_lock<mutex> lock(watchdog_lock);
-        if (!watchdog_cv.wait_for(lock, chrono::seconds(10), [&]() { return watchdog_done; })) {
-            serv.shutdown();
-        }
-    });
-
-    swoole_set_log_level(SW_LOG_WARNING);
-
-    serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
-    serv.onReceive = [](Server *serv, RecvData *data) -> int { return 0; };
-
-    ASSERT_EQ(serv.create(), SW_OK);
-
-    serv.onBeforeReload = [](Server *serv) {
-        test::counter_incr(10);
-        DEBUG() << "onBeforeReload: master_pid=" << beforeReloadPid << "\n";
-    };
-
-    serv.onAfterReload = [](Server *serv) {
-        DEBUG() << "onAfterReload: master_pid=" << beforeReloadPid << "\n";
-        if (test::counter_incr(11) == 2) {
-            swoole_timer_after(200, [serv](TIMER_PARAMS) { serv->shutdown(); });
-        }
-    };
-
-    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
-        test::counter_incr(0);
-        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
-    };
-
-    serv.onManagerStart = [initial_worker_num](Server *serv) {
-        swoole_timer_tick(100, [serv, initial_worker_num](TIMER_PARAMS) {
-            if (test::counter_get(0) < initial_worker_num) {
+// Counter slots 0..3 hold worker generations; 24..31 hold reload test state.
+static void reload_watchdog(Server *serv, const std::function<bool()> &completed) {
+    const auto deadline = microtime() + 5;
+    swoole_timer_tick(10, [serv, completed, deadline](TIMER_PARAMS) {
+        if (!completed()) {
+            if (microtime() < deadline) {
                 return;
             }
+            test::counter_set(31, 1);
+            fprintf(stderr, "reload timeout: before=%d after=%d\n", test::counter_get(24), test::counter_get(25));
+            for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++) {
+                fprintf(stderr, "worker#%u pid=%d starts=%d\n", i, serv->get_worker(i)->pid, test::counter_get(i));
+            }
+        }
+        swoole_timer_del(tnode);
+        serv->shutdown();
+    });
+}
 
+static void test_reload_all_workers(bool task_enable_coroutine) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.task_worker_num = 2;
+    serv.max_wait_time = 1;
+    serv.task_enable_coroutine = task_enable_coroutine;
+    test::counter_init();
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) {
+        test::counter_set(8 + worker->id, getpid());
+        test::counter_incr(worker->id);
+    };
+    serv.onBeforeReload = [](Server *) { test::counter_incr(24); };
+    serv.onAfterReload = [](Server *serv) {
+        if (test::counter_incr(25) != 1) {
+            return;
+        }
+        // Old workers have exited or detached; the new WorkerStart callbacks may still be pending.
+        swoole_timer_tick(10, [serv](TIMER_PARAMS) {
+            if (test::counter_get(2) != 2 || test::counter_get(3) != 2) {
+                return;
+            }
             swoole_timer_del(tnode);
-            kill(serv->get_manager_pid(), SIGUSR2);
-
-            swoole_timer_tick(100, [serv](TIMER_PARAMS) {
-                if (test::counter_get(11) < 1) {
-                    return;
-                }
-                swoole_timer_del(tnode);
-                kill(serv->get_manager_pid(), SIGUSR1);
-            });
+            for (int i = 0; i < 4; i++) {
+                test::counter_set(12 + i, serv->get_worker(i)->pid);
+            }
+            if (kill(serv->get_master_pid(), SIGUSR1) < 0) {
+                test::counter_incr(26);
+            }
         });
     };
-
-    ASSERT_EQ(serv.start(), 0);
-    {
-        lock_guard<mutex> lock(watchdog_lock);
-        watchdog_done = true;
+    serv.onManagerStart = [](Server *serv) {
+        swoole_timer_tick(10, [serv](TIMER_PARAMS) {
+            for (int i = 0; i < 4; i++) {
+                if (test::counter_get(i) != 1) {
+                    return;
+                }
+            }
+            swoole_timer_del(tnode);
+            for (int i = 0; i < 4; i++) {
+                test::counter_set(4 + i, serv->get_worker(i)->pid);
+            }
+            if (kill(serv->get_master_pid(), SIGUSR2) < 0) {
+                test::counter_incr(26);
+            }
+        });
+    };
+    serv.onStart = [](Server *serv) {
+        reload_watchdog(serv, [] {
+            return test::counter_get(25) == 2 && test::counter_get(0) == 2 && test::counter_get(1) == 2 &&
+                   test::counter_get(2) == 3 && test::counter_get(3) == 3;
+        });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    ASSERT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(24), 2);
+    EXPECT_EQ(test::counter_get(25), 2);
+    for (int i = 0; i < 4; i++) {
+        EXPECT_EQ(test::counter_get(i), i < 2 ? 2 : 3) << "worker#" << i;
+        EXPECT_GT(test::counter_get(4 + i), 0);
+        EXPECT_NE(test::counter_get(8 + i), test::counter_get(4 + i));
+        if (i < 2) {
+            EXPECT_EQ(test::counter_get(12 + i), test::counter_get(4 + i));
+        } else {
+            EXPECT_NE(test::counter_get(12 + i), test::counter_get(4 + i));
+            EXPECT_NE(test::counter_get(8 + i), test::counter_get(12 + i));
+        }
     }
-    watchdog_cv.notify_one();
-    watchdog.join();
-    ASSERT_EQ(test::counter_get(10), 2);  // onBeforeReload called
-    ASSERT_EQ(test::counter_get(11), 2);  // onAfterReload called
-    ASSERT_GE(test::counter_get(0), initial_worker_num * 2);
+}
+
+TEST(server, reload_all_workers) {
+    test_reload_all_workers(true);
 }
 
 TEST(server, reload_all_workers2) {
+    test_reload_all_workers(false);
+}
+
+static void test_reload_reaped_worker(bool task_only) {
     Server serv(Server::MODE_PROCESS);
-    serv.worker_num = 2;
-    serv.task_worker_num = 2;
+    serv.worker_num = serv.task_worker_num = 1;
+    serv.reload_async = false;
     serv.max_wait_time = 1;
-    const auto worker_pid_file = "/tmp/swoole-core-reload-all-workers2-" + std::to_string(getpid()) + ".pid";
-    unlink(worker_pid_file.c_str());
-    swoole_set_log_level(SW_LOG_WARNING);
-
     test::counter_init();
-    serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    serv.onTask = [](Server *serv, EventData *task) -> int { return 0; };
-    serv.onReceive = [](Server *serv, RecvData *data) -> int { return 0; };
-
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
     ASSERT_EQ(serv.create(), SW_OK);
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) {
+        if (test::counter_incr(worker->id) == 1 && worker->id == 0) {
+            while (!test::counter_get(8)) {
+                usleep(1000);
+            }
+            _exit(0);
+        }
+    };
+    serv.onManagerStart = [task_only](Server *serv) {
+        test::counter_set(9, task_only);
+        swoole_signal_set(
+            SIGCHLD,
+            [](int) {
+                if (test::counter_incr(10) == 1 && !sw_server()->reload(!test::counter_get(9))) {
+                    test::counter_incr(26);
+                }
+            },
+            true);
+        test::counter_set(8, 1);
+        // Leave the child waitable so wait() returns a PID and dispatch starts reload in the same iteration.
+        siginfo_t info{};
+        int rc;
+        do {
+            rc = waitid(P_PID, serv->get_worker(0)->pid, &info, WEXITED | WNOWAIT);
+        } while (rc < 0 && errno == EINTR);
+        if (rc < 0) {
+            test::counter_incr(26);
+        }
+    };
+    serv.onAfterReload = [](Server *) { test::counter_incr(25); };
+    serv.onStart = [](Server *serv) {
+        reload_watchdog(
+            serv, [] { return test::counter_get(25) == 1 && test::counter_get(0) == 2 && test::counter_get(1) == 2; });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(0), 2);
+    EXPECT_EQ(test::counter_get(1), 2);
+    EXPECT_EQ(test::counter_get(25), 1);
+}
 
-    serv.onWorkerStart = [&](Server *serv, Worker *worker) {
-        if (worker->id == 1) {
-            if (access(worker_pid_file.c_str(), R_OK) == -1) {
-                ofstream file(worker_pid_file);
-                file << getpid();
-                file.close();
-                kill(serv->gs->master_pid, SIGUSR2);
-                sleep(1);
-                kill(serv->gs->master_pid, SIGUSR1);
-            } else {
-                char buf[10] = {0};
-                ifstream file(worker_pid_file.c_str());
-                file >> buf;
-                file.close();
+TEST(server, reload_reaped_worker_task_only) {
+    test_reload_reaped_worker(true);
+}
 
-                int oldPid = 0;
-                stringstream stringPid(buf);
-                stringPid >> oldPid;
+TEST(server, reload_reaped_worker_sync) {
+    test_reload_reaped_worker(false);
+}
 
-                EXPECT_TRUE(oldPid != getpid());
+TEST(server, startup_master_pid) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.task_worker_num = 2;
+    serv.max_wait_time = 1;
+    test::counter_init();
+    const auto master_pid = getpid();
+    test::counter_set(10, master_pid);
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.get_task_worker_pool()->onStart = [](ProcessPool *pool) {
+        auto serv = static_cast<Server *>(pool->ptr);
+        // The master is still waiting at the manager barrier, before its event loop starts.
+        if (serv->get_master_pid() != test::counter_get(10)) {
+            test::counter_incr(26);
+        }
+        test::counter_incr(24);
+    };
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [master_pid](Server *serv, Worker *worker) {
+        if (serv->get_master_pid() != master_pid) {
+            test::counter_incr(26);
+        }
+        test::counter_incr(worker->id);
+    };
+    serv.onStart = [](Server *serv) {
+        reload_watchdog(serv, [] {
+            for (int i = 0; i < 4; i++) {
+                if (test::counter_get(i) != 1) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(24), 1);
+}
 
-                sleep(1);
-                remove(worker_pid_file.c_str());
-                kill(serv->gs->master_pid, SIGTERM);
+TEST(server, reload_task_during_worker_start) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.task_worker_num = 1;
+    serv.max_wait_time = 1;
+    test::counter_init();
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) {
+        if (test::counter_incr(worker->id) == 1 && worker->id == 1) {
+            test::counter_set(8, 1);
+            while (!worker->is_shutdown()) {
+                usleep(1000);
+            }
+            test::counter_set(9, 1);
+        }
+    };
+    serv.onManagerStart = [](Server *serv) {
+        swoole_timer_tick(10, [serv](TIMER_PARAMS) {
+            if (!test::counter_get(8)) {
+                return;
+            }
+            swoole_timer_del(tnode);
+            if (!serv->reload(false)) {
+                test::counter_incr(26);
+            }
+        });
+    };
+    serv.onWorkerError = [](Server *, Worker *, const ExitStatus &) { test::counter_incr(26); };
+    serv.onAfterReload = [](Server *) { test::counter_incr(25); };
+    serv.onStart = [](Server *serv) {
+        reload_watchdog(serv, [] { return test::counter_get(25) == 1 && test::counter_get(1) == 2; });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(9), 1);
+    EXPECT_EQ(test::counter_get(1), 2);
+    EXPECT_EQ(test::counter_get(25), 1);
+}
+
+TEST(server, reload_from_manager_callbacks) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.task_worker_num = 1;
+    serv.max_wait_time = 0;
+    test::counter_init();
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) { test::counter_incr(worker->id); };
+    serv.onManagerStart = [](Server *serv) {
+        while (serv->running && (test::counter_get(0) < 1 || test::counter_get(1) < 1)) {
+            usleep(1000);
+        }
+        if (!serv->reload(false)) {
+            test::counter_incr(26);
+        }
+    };
+    serv.onAfterReload = [](Server *serv) {
+        if (test::counter_incr(25) == 1) {
+            while (serv->running && test::counter_get(1) < 2) {
+                usleep(1000);
+            }
+            if (!serv->reload(true)) {
+                test::counter_incr(26);
             }
         }
-
-        DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
-
-    serv.onBeforeReload = [](Server *serv) {
-        test::counter_incr(10);
-        DEBUG() << "onBeforeReload: master_pid=" << beforeReloadPid << "\n";
+    serv.onStart = [](Server *serv) {
+        reload_watchdog(
+            serv, [] { return test::counter_get(25) == 2 && test::counter_get(0) == 2 && test::counter_get(1) == 3; });
     };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(25), 2);
+    EXPECT_EQ(test::counter_get(0), 2);
+    EXPECT_EQ(test::counter_get(1), 3);
+}
 
+// Reload requested by a manager callback arrives after this iteration's initialization phase.
+static void test_reload_from_worker_error(bool task_only) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.task_worker_num = 1;
+    serv.reload_async = false;
+    serv.max_wait_time = 1;
+    test::counter_init();
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) {
+        if (test::counter_incr(worker->id) == 1 && worker->id == 0) {
+            while (!test::counter_get(8)) {
+                usleep(1000);
+            }
+            _exit(42);
+        }
+    };
+    serv.onManagerStart = [](Server *) { test::counter_set(8, 1); };
+    serv.onWorkerError = [task_only](Server *serv, Worker *, const ExitStatus &status) {
+        if (status.get_code() != 42 || test::counter_incr(27) != 1 || !serv->reload(!task_only)) {
+            test::counter_incr(26);
+        }
+    };
+    serv.onBeforeReload = [](Server *) {
+        // The error callback requests reload before its crashed worker is respawned.
+        // Wait until the replacement and task worker have installed their signal handlers.
+        const auto deadline = microtime() + 3;
+        while ((test::counter_get(0) < 2 || test::counter_get(1) < 1) && microtime() < deadline) {
+            usleep(1000);
+        }
+        test::counter_incr(24);
+    };
+    serv.onAfterReload = [](Server *) {
+        if (test::counter_get(24) != 1) {
+            test::counter_incr(26);
+        }
+        test::counter_incr(25);
+    };
+    serv.onStart = [task_only](Server *serv) {
+        reload_watchdog(serv, [task_only] {
+            return test::counter_get(25) == 1 && test::counter_get(0) == (task_only ? 2 : 3) &&
+                   test::counter_get(1) == 2;
+        });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(24), 1);
+    EXPECT_EQ(test::counter_get(25), 1);
+    EXPECT_EQ(test::counter_get(27), 1);
+    EXPECT_EQ(test::counter_get(0), task_only ? 2 : 3);
+    EXPECT_EQ(test::counter_get(1), 2);
+}
+
+TEST(server, reload_all_from_worker_error) {
+    test_reload_from_worker_error(false);
+}
+
+TEST(server, reload_tasks_from_worker_error) {
+    test_reload_from_worker_error(true);
+}
+
+TEST(server, reload_workers_sequential) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 3;
+    serv.max_wait_time = 1;
+    serv.reload_async = false;
+    test::counter_init();
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) {
+        test::counter_incr(worker->id);
+        if (test::counter_get(worker->id) == 1) {
+            test::counter_set(4 + worker->id, getpid());
+        }
+    };
+    serv.onWorkerStop = [](Server *serv, Worker *worker) {
+        if (test::counter_get(4 + worker->id) != getpid()) {
+            return;
+        }
+        test::counter_set(8 + worker->id, 1);
+        while (serv->running && !test::counter_get(12 + worker->id)) {
+            usleep(1000);
+        }
+    };
+    serv.onWorkerError = [](Server *, Worker *, const ExitStatus &) { test::counter_incr(26); };
+    serv.onAfterReload = [](Server *) { test::counter_incr(25); };
+    serv.onManagerStart = [](Server *serv) {
+        swoole_timer_tick(10, [serv](TIMER_PARAMS) {
+            if (!test::counter_get(24)) {
+                for (int i = 0; i < 3; i++) {
+                    if (test::counter_get(i) < 1) {
+                        return;
+                    }
+                }
+                test::counter_set(24, 1);
+                if (!serv->reload(true)) {
+                    test::counter_incr(26);
+                }
+                return;
+            }
+            const auto current = test::counter_get(20);
+            if (current == 3) {
+                swoole_timer_del(tnode);
+                return;
+            }
+            if (!test::counter_get(8 + current)) {
+                return;
+            }
+            for (int next = current + 1; next < 3; next++) {
+                if (test::counter_get(8 + next) || test::counter_get(next) != 1) {
+                    test::counter_incr(26);
+                }
+            }
+            // Exercise multiple timer and ordinary signal wakeups while the old PID is still alive.
+            kill(getpid(), SIGIO);
+            if (test::counter_incr(21) == 5) {
+                test::counter_set(12 + current, 1);
+                test::counter_incr(20);
+                test::counter_set(21, 0);
+            }
+        });
+    };
+    serv.onStart = [](Server *serv) {
+        reload_watchdog(serv, [] {
+            return test::counter_get(25) == 1 && test::counter_get(0) == 2 && test::counter_get(1) == 2 &&
+                   test::counter_get(2) == 2;
+        });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(20), 3);
+    EXPECT_EQ(test::counter_get(25), 1);
+}
+
+TEST(server, reload_async_detached_workers) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 3;
+    serv.max_wait_time = 1;
+    serv.reload_async = true;
+    test::counter_init();
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) {
+        if (test::counter_incr(worker->id) == 1) {
+            test::counter_set(4 + worker->id, getpid());
+        }
+    };
+    serv.onWorkerStop = [](Server *, Worker *worker) {
+        if (getpid() != test::counter_get(4 + worker->id)) {
+            return;
+        }
+        test::counter_set(8 + worker->id, 1);
+        const auto deadline = microtime() + 5;
+        while (!test::counter_get(12) && microtime() < deadline) {
+            usleep(1000);
+        }
+    };
+    serv.onWorkerError = [](Server *, Worker *, const ExitStatus &) { test::counter_incr(26); };
+    serv.onManagerStart = [](Server *serv) {
+        swoole_timer_tick(10, [serv](TIMER_PARAMS) {
+            if (test::counter_get(0) != 1 || test::counter_get(1) != 1 || test::counter_get(2) != 1) {
+                return;
+            }
+            swoole_timer_del(tnode);
+            if (!serv->reload(true)) {
+                test::counter_incr(26);
+            }
+        });
+    };
     serv.onAfterReload = [](Server *serv) {
-        DEBUG() << "onAfterReload: master_pid=" << beforeReloadPid << "\n";
-        test::counter_incr(11);
+        test::counter_incr(25);
+        swoole_timer_tick(10, [serv](TIMER_PARAMS) {
+            if (serv->detached_processes.empty()) {
+                swoole_timer_del(tnode);
+                test::counter_set(29, 1);
+            }
+        });
     };
-
-    ASSERT_EQ(serv.start(), 0);
-    ASSERT_EQ(test::counter_get(10), 2);  // onBeforeReload called
-    ASSERT_EQ(test::counter_get(11), 2);  // onAfterReload called
+    serv.onStart = [](Server *serv) {
+        reload_watchdog(serv, [] {
+            if (!test::counter_get(28)) {
+                if (test::counter_get(25) != 1) {
+                    return false;
+                }
+                for (int i = 0; i < 3; i++) {
+                    if (test::counter_get(i) != 2 || !test::counter_get(8 + i)) {
+                        return false;
+                    }
+                }
+                for (int i = 0; i < 3; i++) {
+                    if (kill(test::counter_get(4 + i), 0) < 0) {
+                        test::counter_incr(26);
+                    }
+                }
+                test::counter_set(28, 1);
+                test::counter_set(12, 1);
+            }
+            return test::counter_get(29) == 1;
+        });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(25), 1);
+    EXPECT_EQ(test::counter_get(28), 1);
+    EXPECT_EQ(test::counter_get(29), 1);
 }
 
 TEST(server, kill_user_workers) {
@@ -1157,6 +1518,7 @@ TEST(server, kill_user_workers) {
 }
 
 TEST(server, force_kill_all_workers) {
+    test::counter_init();
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 2;
     serv.task_worker_num = 3;

@@ -1312,6 +1312,8 @@ EOF
     AC_MSG_CHECKING([for sources])
     if test -f "$abs_srcdir/ext-src/php_swoole.cc"; then
         swoole_source_dir=$abs_srcdir
+    elif test -f "$abs_srcdir/ext/swoole/ext-src/php_swoole.cc"; then
+        swoole_source_dir="$abs_srcdir/ext/swoole"
     elif test -f "ext-src/php_swoole.cc"; then
         swoole_source_dir=$(pwd)
     else
@@ -1321,6 +1323,9 @@ EOF
 
     ext_src_files=$(cd $swoole_source_dir && find ext-src/ -name *.cc)
     lib_src_files=$(cd $swoole_source_dir && find src/ -name *.cc)
+    if test -z "$ext_src_files" && test -z "$lib_src_files"; then
+        AC_MSG_ERROR([swoole: no sources found under $swoole_source_dir — out-of-tree builds must expose the injected extension tree at this path])
+    fi
 
     swoole_source_file="${ext_src_files} ${lib_src_files}"
 

@@ -461,7 +461,7 @@ struct Socket {
     int ssl_get_peer_certificate(char *buf, size_t n) const;
     bool ssl_get_peer_certificate(String *buf) const;
     bool ssl_verify(bool allow_self_signed) const;
-    bool ssl_check_host(const char *tls_host_name) const;
+    bool ssl_check_host(const char *tls_host_name, bool strict = false) const;
     void ssl_catch_error() const;
     bool ssl_shutdown();
     void ssl_close();

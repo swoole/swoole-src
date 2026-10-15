@@ -24,7 +24,7 @@
 #include "swoole_signal.h"
 #include "swoole_async.h"
 #include "swoole_iouring.h"
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
 #include "swoole_iocp.h"
 #endif
 
@@ -52,6 +52,8 @@ using std::unordered_map;
 using swoole::Coroutine;
 using swoole::PHPContext;
 using swoole::PHPCoroutine;
+using swoole::Timer;
+using swoole::TimerNode;
 using swoole::coroutine::System;
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
@@ -68,11 +70,10 @@ SW_THREAD_LOCAL PHPCoroutine::Config PHPCoroutine::config{
 
 SW_THREAD_LOCAL PHPContext PHPCoroutine::main_context{};
 SW_THREAD_LOCAL std::thread PHPCoroutine::interrupt_thread;
-SW_THREAD_LOCAL bool PHPCoroutine::interrupt_thread_running = false;
+SW_THREAD_LOCAL std::atomic_bool PHPCoroutine::interrupt_thread_running{false};
 
 extern void php_swoole_load_library();
 
-static SW_THREAD_LOCAL zend_atomic_bool *zend_vm_interrupt = nullptr;
 static SW_THREAD_LOCAL unordered_map<long, Coroutine *> user_yield_coros;
 static zend_function swoole_coroutine_internal_function;
 
@@ -310,6 +311,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->co->set_task((void *) ctx);
     ctx->defer_tasks = nullptr;
     ctx->pcid = ctx->co->get_origin_cid();
+    ctx->timer_limit = nullptr;
     ctx->context = nullptr;
     ctx->on_yield = nullptr;
     ctx->on_resume = nullptr;
@@ -336,6 +338,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(error_handling) = EH_NORMAL;
     EG(exception_class) = nullptr;
     EG(exception) = nullptr;
+    EG(opline_before_exception) = nullptr;
     EG(jit_trace_num) = 0;
 
     call->func = static_cast<zend_function *>(&swoole_coroutine_internal_function);
@@ -499,23 +502,24 @@ void PHPCoroutine::deadlock_check() {
 }
 
 void PHPCoroutine::interrupt_thread_stop() {
-    if (!interrupt_thread_running) {
+    if (!interrupt_thread_running.load(std::memory_order_acquire)) {
         return;
     }
-    interrupt_thread_running = false;
+    interrupt_thread_running.store(false, std::memory_order_release);
     interrupt_thread.join();
 }
 
 void PHPCoroutine::interrupt_thread_start() {
-    if (interrupt_thread_running) {
+    if (interrupt_thread_running.load(std::memory_order_acquire)) {
         return;
     }
-    zend_vm_interrupt = &EG(vm_interrupt);
-    interrupt_thread_running = true;
-    interrupt_thread = std::thread([]() {
+    auto *running = &interrupt_thread_running;
+    auto *vm_interrupt = &EG(vm_interrupt);
+    interrupt_thread_running.store(true, std::memory_order_release);
+    interrupt_thread = std::thread([running, vm_interrupt]() {
         swoole_signal_block_all();
-        while (interrupt_thread_running) {
-            zend_atomic_bool_store(zend_vm_interrupt, 1);
+        while (running->load(std::memory_order_acquire)) {
+            zend_atomic_bool_store(vm_interrupt, 1);
             std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));
         }
     });
@@ -544,6 +548,7 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *ctx) {
     ctx->error_handling = EG(error_handling);
     ctx->exception_class = EG(exception_class);
     ctx->exception = EG(exception);
+    ctx->opline_before_exception = EG(opline_before_exception);
 #ifdef ZEND_CHECK_STACK_LIMIT
     ctx->stack_base = EG(stack_base);
     ctx->stack_limit = EG(stack_limit);
@@ -564,6 +569,7 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *ctx) {
     EG(error_handling) = ctx->error_handling;
     EG(exception_class) = ctx->exception_class;
     EG(exception) = ctx->exception;
+    EG(opline_before_exception) = ctx->opline_before_exception;
 #ifdef ZEND_CHECK_STACK_LIMIT
     EG(stack_base) = ctx->stack_base;
     EG(stack_limit) = ctx->stack_limit;
@@ -733,6 +739,13 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
     Z_TRY_DELREF(ctx->return_value);
 
     fiber_context_try_destroy(ctx, get_origin_context(ctx));
+
+    // Clean up after the releases above: a context-owned __destruct() may rearm the time limit.
+    TimerNode *timer = ctx->timer_limit;
+    if (timer) {
+        ctx->timer_limit = nullptr;
+        swoole_timer_del(timer);
+    }
 
     swoole_trace_log(SW_TRACE_COROUTINE,
                      "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
@@ -1171,7 +1184,7 @@ static PHP_METHOD(swoole_coroutine, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("iouring_waiting_task_num"), iouring->get_waiting_task_num());
     }
 #endif
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
     add_assoc_long_ex(return_value, ZEND_STRL("iocp_task_num"), SwooleTG.iocp ? SwooleTG.iocp->get_task_num() : 0);
     add_assoc_long_ex(return_value,
                       ZEND_STRL("iocp_blocking_task_num"),
@@ -1380,29 +1393,57 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
     if (throw_exception) {
         auto *task = PHPCoroutine::get_context_by_cid(cid);
         // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
-        if (!task) {
+        if (!task || !task->co) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             return false;
         }
 
-        if (task->exception && task->exception_class == ce) {
+        bool is_current = task->co == Coroutine::get_current();
+        if (!is_current && task->exception && task->exception_class == ce) {
             swoole_set_last_error(SW_ERROR_CO_CANCELED);
             return false;
         }
 
+        zend_object *exception = zend_objects_new(ce);
+        object_properties_init(exception, ce);
+
+        // The live Co::cancel frame is internal, so Zend redirects the user caller when this call
+        // returns; the saved context describes a stale frame and must not be written here.
+        if (is_current) {
+            zend_string *filename = zend_get_executed_filename_ex();
+            if (filename) {
+                zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_FILE), filename);
+                zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+            }
+            zval zexception;
+            ZVAL_OBJ(&zexception, exception);
+            zend_throw_exception_object(&zexception);
+            return true;
+        }
+
         zend_object *previous = task->exception;
         task->exception_class = ce;
-        task->exception = zend_objects_new(task->exception_class);
-        object_properties_init(task->exception, task->exception_class);
+        task->exception = exception;
         if (previous) {
-            zend_exception_set_previous(task->exception, previous);
+            zend_exception_set_previous(exception, previous);
         }
 
         zend_execute_data *ex_backup = EG(current_execute_data);
         EG(current_execute_data) = task->execute_data;
-        zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_FILE), zend_get_executed_filename_ex());
-        zend::object_set(task->exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+        zend_string *filename = zend_get_executed_filename_ex();
+        if (filename) {
+            zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_FILE), filename);
+            zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+        }
         EG(current_execute_data) = ex_backup;
+
+        // Mirrors zend_throw_exception_internal(): internal frames have no opline and Zend redirects
+        // the caller when the call returns.
+        if (!previous && task->execute_data->func && ZEND_USER_CODE(task->execute_data->func->type) &&
+            task->execute_data->opline->opcode != ZEND_HANDLE_EXCEPTION) {
+            task->opline_before_exception = task->execute_data->opline;
+            task->execute_data->opline = EG(exception_op);
+        }
 
         // Ignore the result of Co::cancel(). Even if the coroutine is in an irrevocable state,
         // it will directly throw an exception and terminate the coroutine
@@ -1439,17 +1480,32 @@ static PHP_METHOD(swoole_coroutine, setTimeLimit) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Coroutine *co = Coroutine::get_current_safe();
-    if (timeout == 0 || co == nullptr) {
+    if (sw_unlikely(timeout < 0 || co == nullptr)) {
         RETURN_FALSE;
     }
 
-    long cid = co->get_cid();
-    swoole_timer_add((long) timeout * 1000, false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
-        swoole_timer_del(tnode);
-        if (PHPCoroutine::get_context_by_cid(cid) != nullptr) {
-            php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
+    PHPContext *ctx = static_cast<PHPContext *>(co->get_task());
+    TimerNode *timer = nullptr;
+    if (timeout != 0) {
+        long cid = co->get_cid();
+        timer = swoole_timer_add(timeout, false, [cid](Timer *, TimerNode *) {
+            PHPContext *ctx = PHPCoroutine::get_context_by_cid(cid);
+            if (ctx) {
+                ctx->timer_limit = nullptr;
+                php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
+            }
+        });
+
+        if (sw_unlikely(!timer)) {
+            RETURN_FALSE;
         }
-    });
+    }
+
+    TimerNode *old = ctx->timer_limit;
+    ctx->timer_limit = timer;
+    if (old) {
+        swoole_timer_del(old);
+    }
 
     RETURN_TRUE;
 }

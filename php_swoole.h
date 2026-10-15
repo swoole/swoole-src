@@ -39,11 +39,12 @@ extern "C" {
 #include "config.h"
 #endif
 
+extern zend_module_entry swoole_module_entry;
+
 #ifdef __cplusplus
 }
 #endif
 
-extern zend_module_entry swoole_module_entry;
 #define phpext_swoole_ptr &swoole_module_entry
 
 PHP_MINIT_FUNCTION(swoole);

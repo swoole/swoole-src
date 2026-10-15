@@ -371,6 +371,7 @@ void php_swoole_thread_rshutdown();
 void php_swoole_tracer_rshutdown();
 
 int php_swoole_reactor_init();
+bool php_swoole_throw_setting_exception(const char *format, ...) ZEND_ATTRIBUTE_FORMAT(printf, 1, 2);
 void php_swoole_set_global_option(zend_array *vht);
 void php_swoole_set_coroutine_option(zend_array *vht);
 void php_swoole_set_aio_option(const zend_array *vht);
@@ -406,7 +407,7 @@ int php_swoole_convert_to_fd(zval *zsocket);
 int php_swoole_convert_to_fd_ex(zval *zsocket, int *async);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
-php_socket *php_swoole_convert_to_socket(int sock);
+php_socket *php_swoole_convert_to_socket(swSocketFd sock);
 #endif
 
 #ifdef HAVE_CPU_AFFINITY

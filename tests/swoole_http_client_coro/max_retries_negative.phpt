@@ -15,12 +15,17 @@ set_error_handler(function (int $errno, string $errstr) use (&$errors) {
 });
 
 $cli = new Client('127.0.0.1', get_one_free_port());
-Assert::false($cli->set(['max_retries' => -1]));
+try {
+    $cli->set(['max_retries' => -1]);
+    Assert::true(false, 'invalid size must throw');
+} catch (Swoole\Exception $exception) {
+    Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::contains($exception->getMessage(), 'max_retries');
+}
 
 restore_error_handler();
 
-Assert::eq(count($errors), 1);
-Assert::contains($errors[0], 'max_retries');
+Assert::same($errors, []);
 
 echo "DONE\n";
 ?>

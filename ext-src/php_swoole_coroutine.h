@@ -28,6 +28,7 @@
 #include "zend_fibers.h"
 #include "zend_observer.h"
 
+#include <atomic>
 #include <stack>
 #include <thread>
 
@@ -60,6 +61,7 @@ struct PHPContext {
     zend_error_handling_t error_handling;
     zend_class_entry *exception_class;
     zend_object *exception;
+    const zend_op *opline_before_exception;
     zend_output_globals *output_ptr;
     /*
      * for var serialize/unserialize,
@@ -93,6 +95,7 @@ struct PHPContext {
     SwapCallback *on_close;
     long pcid;
     zend_object *context;
+    TimerNode *timer_limit;
     int64_t last_msec;
     size_t switch_count;
 };
@@ -262,6 +265,7 @@ class PHPCoroutine {
         main_context.fiber_context = EG(main_fiber_context);
         main_context.current_fiber_context = EG(current_fiber_context);
         main_context.active_fiber = EG(active_fiber);
+        EG(opline_before_exception) = nullptr;
         save_context(&main_context);
     }
 
@@ -274,7 +278,7 @@ class PHPCoroutine {
     static SW_THREAD_LOCAL PHPContext main_context;
     static SW_THREAD_LOCAL Config config;
 
-    static SW_THREAD_LOCAL bool interrupt_thread_running;
+    static SW_THREAD_LOCAL std::atomic_bool interrupt_thread_running;
     static SW_THREAD_LOCAL std::thread interrupt_thread;
 
     static void activate();

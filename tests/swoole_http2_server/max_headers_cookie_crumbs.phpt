@@ -84,6 +84,8 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
+        Assert::same($request->header['cookie'], 'a=1; b=2');
+        Assert::same($request->cookie, ['a' => '1', 'b' => '2']);
         $response->end('OK');
     });
     $http->start();

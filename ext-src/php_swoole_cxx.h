@@ -145,10 +145,7 @@ SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code, const char *msg);
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, const SocketImpl *socket);
 #define php_swoole_client_set php_swoole_socket_set
-SW_API php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd,
-                                                        int domain,
-                                                        int type,
-                                                        int protocol STREAMS_DC);
+SW_API php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int type, int protocol STREAMS_DC);
 SW_API php_stream *php_swoole_create_stream_from_pipe(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
 SW_API zif_handler php_swoole_get_original_handler(const char *name, size_t len);
@@ -179,6 +176,56 @@ bool php_swoole_name_resolver_add(zval *zresolver);
 
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
+
+struct zend_string_append_part {
+    const char *value;
+    size_t length;
+    uintptr_t offset;
+};
+
+static inline void zend_string_append_parts(zend_string_append_part *) {}
+
+template <typename... Args>
+static inline void zend_string_append_parts(zend_string_append_part *parts,
+                                            const char *value,
+                                            size_t length,
+                                            Args... args) {
+    *parts = {value, length, 0};
+    zend_string_append_parts(parts + 1, args...);
+}
+
+// Append pointer/length pairs with one allocation. Consumes one reference; use the returned pointer.
+template <typename... Args>
+static inline zend_string *zend_string_append(zend_string *str, const char *value, size_t length, Args... args) {
+    static_assert(sizeof...(args) % 2 == 0, "Expected pointer/length pairs");
+    zend_string_append_part parts[1 + sizeof...(args) / 2];
+    zend_string_append_parts(parts, value, length, args...);
+    const size_t original_length = ZSTR_LEN(str);
+    size_t total = original_length;
+    for (auto &part : parts) {
+        if (UNEXPECTED(part.length > ZSTR_MAX_LEN - total)) {
+            zend_error_noreturn(E_ERROR, "String size overflow");
+        }
+        total += part.length;
+        // Preserve sources inside str across a possible reallocation, including self-append.
+        part.offset = reinterpret_cast<uintptr_t>(part.value) - reinterpret_cast<uintptr_t>(ZSTR_VAL(str));
+    }
+    if (UNEXPECTED(total == original_length)) {
+        return str;
+    }
+    str = zend_string_extend(str, total, (GC_FLAGS(str) & IS_STR_PERSISTENT) != 0);
+    size_t offset = original_length;
+    for (const auto &part : parts) {
+        if (UNEXPECTED(part.length == 0)) {
+            continue;
+        }
+        const char *source = part.offset <= original_length ? ZSTR_VAL(str) + part.offset : part.value;
+        memmove(ZSTR_VAL(str) + offset, source, part.length);
+        offset += part.length;
+    }
+    ZSTR_VAL(str)[ZSTR_LEN(str)] = '\0';
+    return str;
+}
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #define SOL_TCP IPPROTO_TCP
@@ -560,6 +607,36 @@ class CharPtr {
     }
 };
 
+// Configuration parsers catch ParseError before returning to PHP. The original PHP
+// exception stays in EG(exception); unwinding only releases local C++ temporaries.
+namespace setting {
+struct ParseError {};
+
+template <typename T>
+static inline T checked(T value) {
+    if (UNEXPECTED(EG(exception))) {
+        throw ParseError{};
+    }
+    return value;
+}
+
+static inline zend_long get_long(zval *value) {
+    return checked(zval_get_long(value));
+}
+
+static inline double get_double(zval *value) {
+    return checked(zval_get_double(value));
+}
+
+static inline zend_long get_size(zval *value) {
+    return checked(php_swoole_parse_to_size(value));
+}
+
+static inline String get_string(zval *value) {
+    return checked(String(value));
+}
+}  // namespace setting
+
 class Callable {
   private:
     zval zfn;
@@ -579,6 +656,10 @@ class Callable {
 
     zend_fcall_info_cache *ptr() {
         return &fcc;
+    }
+
+    void add_to_gc_buffer(zend_get_gc_buffer *buffer) {
+        zend_get_gc_buffer_add_zval(buffer, &zfn);
     }
 
     bool ready() const {
@@ -835,6 +916,15 @@ static inline zend::Callable *sw_callable_create(zval *zfn) {
         delete fn;
         return nullptr;
     }
+}
+
+static inline zend::Callable *sw_callable_create_for_setting(zval *zfn) {
+    bool callable = zend_is_callable(zfn, 0, nullptr);
+    if (!callable || EG(exception)) {
+        php_swoole_throw_setting_exception("configuration callback must be callable");
+        return nullptr;
+    }
+    return sw_callable_create(zfn);
 }
 
 static inline zend::Callable *sw_callable_create_ex(zval *zfn, const char *fname, bool allow_null = true) {

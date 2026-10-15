@@ -158,6 +158,8 @@ jobs:
             'tests\swoole_http_client_coro\max_retries_negative.phpt',
             'tests\swoole_http_client_coro\write_func_invalid.phpt',
             'tests\swoole_http2_client_coro\error.phpt',
+            'tests\swoole_http2_client_coro\recv_timeout_fragmented_frame.phpt',
+            'tests\swoole_socket_coro\protocol\recv_packet_timeout.phpt',
             'tests\swoole_runtime\base.phpt',
             'tests\swoole_runtime\file_hook\fgets.phpt',
             'tests\swoole_runtime\file_hook\fread.phpt',
@@ -172,6 +174,7 @@ jobs:
             'tests\swoole_runtime\out_of_coroutine.phpt',
             'tests\swoole_runtime\set_hook_flags.phpt',
             'tests\swoole_runtime\sleep_yield.phpt',
+            'tests\swoole_runtime\udp_stream_factory.phpt',
             'tests\swoole_runtime\sockets\basic\socket_create_pair.phpt'
           )
           & .github\workflows\windows-phpt.ps1 -Path $tests -TimeoutSeconds 20

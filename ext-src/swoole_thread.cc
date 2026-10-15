@@ -48,6 +48,7 @@ using swoole::Thread;
 
 struct PhpThread {
     std::shared_ptr<Thread> thread;
+    bool constructed = false;
 
     PhpThread() : thread(std::make_shared<Thread>()) {}
 
@@ -227,12 +228,17 @@ static PHP_METHOD(swoole_thread, __construct) {
     Z_PARAM_VARIADIC('+', args, argc)
     ZEND_PARSE_PARAMETERS_END();
 
+    auto pt = thread_get_php_thread(ZEND_THIS);
+    if (pt->constructed) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        return;
+    }
+
     if (l_script_file < 1) {
         zend_throw_exception(swoole_exception_ce, "exec file name is empty", SW_ERROR_INVALID_PARAMS);
         return;
     }
 
-    auto pt = thread_get_php_thread(ZEND_THIS);
     zend_string *file = zend_string_init(script_file, l_script_file, true);
 
     if (argc > 0) {
@@ -249,6 +255,7 @@ static PHP_METHOD(swoole_thread, __construct) {
         return;
     }
 
+    pt->constructed = true;
     zend::object_set(ZEND_THIS, ZEND_STRL("id"), (zend_long) pt->thread->get_id());
 }
 
@@ -647,31 +654,13 @@ void php_swoole_thread_bailout() {
     zend_bailout();
 }
 
-static swSocketFd php_swoole_thread_socket_dup(swSocketFd sockfd) {
-#ifdef _WIN32
-    WSAPROTOCOL_INFOW protocol_info;
-    if (WSADuplicateSocketW(sockfd, GetCurrentProcessId(), &protocol_info) != 0) {
-        errno = sw_socket_errno();
-        return SW_BAD_SOCKET;
-    }
-    swSocketFd newfd =
-        WSASocketW(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, &protocol_info, 0, WSA_FLAG_OVERLAPPED);
-    if (newfd == SW_BAD_SOCKET) {
-        errno = sw_socket_errno();
-    }
-    return newfd;
-#else
-    return dup(sockfd);
-#endif
-}
-
 swSocketFd php_swoole_thread_stream_cast(zval *zstream) {
     php_stream *stream;
     php_socket_t sockfd = SW_BAD_SOCKET;
     int cast_flags = PHP_STREAM_AS_SOCKETD | PHP_STREAM_CAST_INTERNAL;
     if ((php_stream_from_zval_no_verify(stream, zstream))) {
         if (php_stream_cast(stream, cast_flags, (void **) &sockfd, 1) == SUCCESS && sockfd != SW_BAD_SOCKET) {
-            return php_swoole_thread_socket_dup(sockfd);
+            return sw_dup(sockfd);
         }
     }
     return SW_BAD_SOCKET;
@@ -686,7 +675,7 @@ swSocketFd php_swoole_thread_co_socket_cast(zval *zvalue, swSocketType *type) {
     if (sockfd == SW_BAD_SOCKET) {
         return SW_BAD_SOCKET;
     }
-    swSocketFd newfd = php_swoole_thread_socket_dup(sockfd);
+    swSocketFd newfd = sw_dup(sockfd);
     if (newfd == SW_BAD_SOCKET) {
         return SW_BAD_SOCKET;
     }
@@ -695,8 +684,7 @@ swSocketFd php_swoole_thread_co_socket_cast(zval *zvalue, swSocketType *type) {
 }
 
 void php_swoole_thread_stream_create(zval *return_value, swSocketFd sockfd) {
-#ifdef _WIN32
-    swSocketFd newfd = php_swoole_thread_socket_dup(sockfd);
+    swSocketFd newfd = sw_dup(sockfd);
     php_stream *stream =
         newfd == SW_BAD_SOCKET ? nullptr : php_stream_sock_open_from_socket((php_socket_t) newfd, nullptr);
     if (!stream && newfd != SW_BAD_SOCKET) {
@@ -707,11 +695,6 @@ void php_swoole_thread_stream_create(zval *return_value, swSocketFd sockfd) {
         // which cannot perform transport operations such as accept().
         stream->ops = &php_stream_socket_ops;
     }
-#else
-    std::string path = "php://fd/" + std::to_string(sockfd);
-    // The file descriptor will be duplicated once here
-    php_stream *stream = php_stream_open_wrapper_ex(path.c_str(), "", 0, NULL, NULL);
-#endif
     if (stream) {
         php_stream_to_zval(stream, return_value);
     } else {
@@ -721,7 +704,7 @@ void php_swoole_thread_stream_create(zval *return_value, swSocketFd sockfd) {
 }
 
 void php_swoole_thread_co_socket_create(zval *return_value, swSocketFd sockfd, swSocketType type) {
-    swSocketFd newfd = php_swoole_thread_socket_dup(sockfd);
+    swSocketFd newfd = sw_dup(sockfd);
     if (newfd == SW_BAD_SOCKET) {
     _error:
         object_init_ex(return_value, swoole_thread_error_ce);
@@ -738,7 +721,7 @@ void php_swoole_thread_co_socket_create(zval *return_value, swSocketFd sockfd, s
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 void php_swoole_thread_php_socket_create(zval *return_value, swSocketFd sockfd) {
-    swSocketFd newfd = php_swoole_thread_socket_dup(sockfd);
+    swSocketFd newfd = sw_dup(sockfd);
     if (newfd == SW_BAD_SOCKET) {
     _error:
         object_init_ex(return_value, swoole_thread_error_ce);
@@ -823,7 +806,7 @@ void ArrayItem::store(zval *zvalue) {
                 zend_throw_exception(swoole_exception_ce, "invalid socket fd", EBADF);
                 break;
             }
-            value.socket.fd = php_swoole_thread_socket_dup(php_sock->bsd_socket);
+            value.socket.fd = sw_dup(php_sock->bsd_socket);
             if (value.socket.fd == SW_BAD_SOCKET) {
                 zend_throw_exception(swoole_exception_ce, "failed to dup socket fd", errno);
             }

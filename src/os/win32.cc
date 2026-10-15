@@ -1040,6 +1040,20 @@ char *sw_strptime(const char *buf, const char *fmt, struct tm *tm) {
 // socket and error compatibility wrappers
 // ============================================================================
 
+swSocketFd sw_dup(swSocketFd fd) {
+    WSAPROTOCOL_INFOW protocol_info;
+    if (WSADuplicateSocketW(fd, GetCurrentProcessId(), &protocol_info) != 0) {
+        errno = sw_socket_errno();
+        return SW_BAD_SOCKET;
+    }
+    swSocketFd new_fd =
+        WSASocketW(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, &protocol_info, 0, WSA_FLAG_OVERLAPPED);
+    if (new_fd == SW_BAD_SOCKET) {
+        errno = sw_socket_errno();
+    }
+    return new_fd;
+}
+
 int sw_close_socket(swSocketFd fd) {
     return closesocket(fd);
 }

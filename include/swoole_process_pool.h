@@ -121,6 +121,8 @@ static inline ExitStatus wait_process(pid_t _pid, int options) {
     return {pid, status};
 }
 
+SW_API ExitStatus wait_process(const std::function<bool()> &should_wait);
+
 struct ProcessPool;
 struct Worker;
 
@@ -236,6 +238,8 @@ struct ReloadTask {
     std::unordered_map<pid_t, Worker *> workers;
     std::queue<pid_t> kill_queue;
     TimerNode *timer = nullptr;
+    pid_t current_pid = 0;
+    int timeout = 0;
 
     size_t count() const {
         return workers.size();

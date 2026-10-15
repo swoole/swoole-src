@@ -18,7 +18,7 @@ Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
 
 run(function () {
     $socket = socket_create_listen(31339);
-    var_dump(socket_set_nonblock($socket));
+    var_dump(@socket_set_nonblock($socket));
     socket_close($socket);
 
     $socket2 = socket_create_listen(31340);

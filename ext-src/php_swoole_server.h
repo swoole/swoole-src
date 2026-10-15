@@ -73,6 +73,7 @@ void php_swoole_server_set_port_property(swoole::ListenPort *port, swoole::Serve
 namespace swoole {
 
 struct ServerPortProperty {
+    zend::Callable *package_length_func;
     zend::Callable *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
     Server *serv;
     ListenPort *port;
@@ -129,7 +130,7 @@ struct ServerObject {
     }
 
     void register_callback() const;
-    void on_before_start();
+    bool on_before_start();
     void copy_setting(zval *zsetting) const;
 };
 
@@ -161,6 +162,8 @@ void php_swoole_server_onBufferEmpty(swServer *, swoole::DataHead *);
 
 swServer *php_swoole_server_get_and_check_server(zval *zobject);
 void php_swoole_server_port_deref(zend_object *object);
+bool php_swoole_server_port_set_length_func(swoole::ServerPortProperty *property, zval *callback);
+bool php_swoole_server_port_check_length_func(swoole::ListenPort *port);
 void php_swoole_server_set_websocket_option(swoole::ListenPort *port, zend_array *vht);
 swoole::ServerObject *php_swoole_server_get_zend_object(swoole::Server *serv);
 

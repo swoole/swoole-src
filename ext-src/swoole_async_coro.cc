@@ -41,46 +41,47 @@ void php_swoole_async_coro_rshutdown() {
     request_cache_map.clear();
 }
 
-void php_swoole_set_aio_option(const HashTable *vht) {
+void php_swoole_set_aio_option(const HashTable *vht) try {
     zval *ztmp;
     /* AIO */
     if (php_swoole_array_get_value(vht, "aio_core_worker_num", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
         SwooleG.aio_core_worker_num = v;
     }
     if (php_swoole_array_get_value(vht, "aio_worker_num", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
         SwooleG.aio_worker_num = v;
     }
     if (php_swoole_array_get_value(vht, "aio_max_wait_time", ztmp)) {
-        SwooleG.aio_max_wait_time = zval_get_double(ztmp);
+        SwooleG.aio_max_wait_time = zend::setting::get_double(ztmp);
     }
     if (php_swoole_array_get_value(vht, "aio_max_idle_time", ztmp)) {
-        SwooleG.aio_max_idle_time = zval_get_double(ztmp);
+        SwooleG.aio_max_idle_time = zend::setting::get_double(ztmp);
     }
 #ifdef SW_USE_IOURING
     if (php_swoole_array_get_value(vht, "iouring_entries", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         SwooleG.iouring_entries = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     if (php_swoole_array_get_value(vht, "iouring_workers", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         SwooleG.iouring_workers = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     if (php_swoole_array_get_value(vht, "iouring_flag", ztmp)) {
-        SwooleG.iouring_flag = zval_get_long(ztmp);
+        SwooleG.iouring_flag = zend::setting::get_long(ztmp);
     }
 #endif
+} catch (const zend::setting::ParseError &) {
+    return;
 }
 
-PHP_FUNCTION(swoole_async_set) {
+PHP_FUNCTION(swoole_async_set) try {
     SW_MUST_BE_MAIN_THREAD();
     if (sw_reactor()) {
-        php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
-        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
-        RETURN_FALSE;
+        php_swoole_throw_setting_exception("eventLoop has already been created. unable to change settings");
+        RETURN_THROWS();
     }
 
     zval *zset = nullptr;
@@ -93,22 +94,28 @@ PHP_FUNCTION(swoole_async_set) {
     HashTable *vht = Z_ARRVAL_P(zset);
 
     php_swoole_set_global_option(vht);
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
     php_swoole_set_aio_option(vht);
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
 
     if (php_swoole_array_get_value(vht, "wait_signal", ztmp)) {
         SwooleG.wait_signal = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", ztmp)) {
-        SwooleG.dns_cache_refresh_time = zval_get_double(ztmp);
+        SwooleG.dns_cache_refresh_time = zend::setting::get_double(ztmp);
     }
     if (php_swoole_array_get_value(vht, "thread_num", ztmp) ||
         php_swoole_array_get_value(vht, "min_thread_num", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
         SwooleG.aio_core_worker_num = v;
     }
     if (php_swoole_array_get_value(vht, "max_thread_num", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
         SwooleG.aio_worker_num = v;
     }
@@ -122,6 +129,8 @@ PHP_FUNCTION(swoole_async_set) {
         SwooleG.enable_coroutine = zval_is_true(ztmp);
     }
     RETURN_TRUE;
+} catch (const zend::setting::ParseError &) {
+    RETURN_THROWS();
 }
 
 PHP_FUNCTION(swoole_async_dns_lookup_coro) {

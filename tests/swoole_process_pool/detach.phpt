@@ -22,8 +22,13 @@ $pm->parentFunc = function ($pid) use ($pm, $atomic) {
         $fp = stream_socket_client("tcp://127.0.0.1:" . $pm->getFreePort(), $errno, $errstr) or die("error: $errstr\n");
         $msg = "HELLO-{$i}";
         fwrite($fp, pack('N', strlen($msg)) . $msg);
+        if ($i === 2) {
+            stream_set_timeout($fp, 2);
+            Assert::same(stream_get_contents($fp), pack('N', 2) . 'OK');
+        }
+        fclose($fp);
     }
-    $pm->wait();
+    Assert::true($pm->wait());
     Assert::eq($atomic->get(), N + 1);
     echo "DONE\n";
     $pm->kill();
@@ -51,6 +56,7 @@ $pm->childFunc = function () use ($pm, $atomic) {
             $pm->wakeup();
         } else {
             echo $msg . PHP_EOL;
+            $pool->write('OK');
         }
     });
 

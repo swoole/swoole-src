@@ -142,10 +142,11 @@ class Client {
         return true;
     }
 
-    void apply_setting(const zval *zset) const {
+    bool apply_setting(const zval *zset) const {
         if (socket_ && ZVAL_IS_ARRAY(zset)) {
-            php_swoole_socket_set(socket_, zset);
+            return php_swoole_socket_set(socket_, zset);
         }
+        return true;
     }
 
     bool recv_packet(double _timeout) const {
@@ -443,8 +444,11 @@ bool Client::connect() {
     socket_->protocol.package_body_offset = 0;
     socket_->protocol.get_package_length = Http2::get_frame_length;
 
-    apply_setting(
-        sw_zend_read_property_ex(swoole_http2_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0));
+    if (!apply_setting(
+            sw_zend_read_property_ex(swoole_http2_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0))) {
+        close();
+        return false;
+    }
 
     if (!socket_->connect(host, port)) {
         io_error();
@@ -811,6 +815,11 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
     Z_PARAM_BOOL(ssl)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (http2_client_coro_get_client(ZEND_THIS)) {
+        zend_throw_error(nullptr, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
+    }
+
     if (host_len == 0) {
         zend_throw_exception(swoole_http2_client_coro_exception_ce, "The host is empty", SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
@@ -839,11 +848,15 @@ static PHP_METHOD(swoole_http2_client_coro, set) {
     Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (!h2c->apply_setting(zset) || EG(exception)) {
+        php_swoole_throw_setting_exception("failed to apply HTTP/2 client settings");
+        RETURN_THROWS();
+    }
+
     zval *zsetting =
         sw_zend_read_and_convert_property_array(swoole_http2_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
+    SEPARATE_ARRAY(zsetting);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
-
-    h2c->apply_setting(zset);
 
     RETURN_TRUE;
 }

@@ -160,12 +160,14 @@ void Manager::wait(Server *_server) {
     }
 
     while (_server->running) {
-        ExitStatus exit_status = wait_process();
+        ExitStatus exit_status =
+            wait_process([_server, pool] { return _server->running && !pool->reload_init && !pool->read_message; });
         const auto wait_error = errno;
 
         swoole_signal_dispatch();
 
         if (pool->read_message) {
+            pool->read_message = false;
             EventData msg;
             while (pool->pop_message(&msg, sizeof(msg)) > 0) {
                 if (!_server->running) {
@@ -177,19 +179,29 @@ void Manager::wait(Server *_server) {
                 }
                 WorkerStopMessage worker_stop_msg;
                 memcpy(&worker_stop_msg, msg.data, sizeof(worker_stop_msg));
+                Worker *worker = _server->get_worker_by_pid(worker_stop_msg.pid);
+                if (worker == nullptr || worker->id != worker_stop_msg.worker_id) {
+                    continue;
+                }
                 if (worker_stop_msg.worker_id >= _server->worker_num) {
-                    _server->factory_->spawn_task_worker(_server->get_worker(worker_stop_msg.worker_id));
+                    _server->factory_->spawn_task_worker(worker);
                 } else {
-                    Worker *worker = _server->get_worker(worker_stop_msg.worker_id);
                     _server->factory_->spawn_event_worker(worker);
                 }
                 _server->detached_processes.insert(worker_stop_msg.pid);
+                if (pool->reload_task) {
+                    pool->reload_task->remove(worker_stop_msg.pid);
+                }
             }
-            pool->read_message = false;
         }
 
+        SwooleG.signal_alarm = false;
         if (sw_timer()) {
             sw_timer()->select();
+        }
+
+        if (!_server->running) {
+            break;
         }
 
         if (exit_status.get_pid() < 0) {
@@ -202,67 +214,67 @@ void Manager::wait(Server *_server) {
         }
 
         if (_server->running) {
+            bool initializing_reload = false;
             if (reload_all_worker) {  // reload task & event workers
                 pool->reload_init = reload_all_worker = false;
+                initializing_reload = true;
                 swoole_info("Server is reloading all workers now");
                 if (_server->onBeforeReload != nullptr) {
                     _server->onBeforeReload(_server);
+                }
+                if (!_server->running) {
+                    break;
                 }
                 auto reload_task = pool->reload_task;
                 reload_task->add_workers(_server->workers, _server->worker_num);
                 if (_server->task_worker_num > 0) {
                     reload_task->add_workers(_server->get_task_worker_pool()->workers, _server->task_worker_num);
                 }
-                /**
-                 * When the `reload_async` option is enabled, the SIGTERM signal will be sent to all work processes
-                 * immediately. When the work process receives the signal, it will remove the event listening of the
-                 * work process pipeline, no longer receive data, and then send a process exit message to the management
-                 * process. When the management process receives the message, it will immediately create a new worker
-                 * process. At this time, there will be two processes at the same time. The old process will exit by
-                 * itself after completing the legacy tasks, and the new client request data and tasks will be processed
-                 * by the new worker process.
-                 */
-                if (_server->reload_async) {
-                    reload_task->kill_all(SIGTERM);
-                } else {
-                    goto _kill_worker;
-                }
+                // Advance after wait() reaps the current PID, or an asynchronous worker acknowledges
+                // that it stopped listening and its replacement has been spawned.
             } else if (reload_task_worker) {  // only reload task workers
                 pool->reload_init = reload_task_worker = false;
+                initializing_reload = true;
                 if (_server->task_worker_num == 0) {
                     delete pool->reload_task;
                     pool->reload_task = nullptr;
                     swoole_warning("cannot reload task workers, task workers is not started");
-                    continue;
+                } else {
+                    swoole_info("Server is reloading task workers now");
+                    if (_server->onBeforeReload != nullptr) {
+                        _server->onBeforeReload(_server);
+                    }
+                    if (!_server->running) {
+                        break;
+                    }
+                    auto reload_task = pool->reload_task;
+                    reload_task->add_workers(_server->get_task_worker_pool()->workers, _server->task_worker_num);
                 }
-                swoole_info("Server is reloading task workers now");
-                if (_server->onBeforeReload != nullptr) {
-                    _server->onBeforeReload(_server);
+            }
+            if (initializing_reload && pool->reload_task && pool->max_wait_time) {
+                pool->reload_task->add_timeout_killer(pool->max_wait_time);
+            }
+            if (exit_status.get_pid() > 0) {
+                /**
+                 * Restart a worker process after it exits. This mechanism does not rely on signals; instead, the
+                 * process ID is returned by the `wait()` system call. Internally, the process table is consulted to
+                 * locate the corresponding worker process object, which is then recreated in place. For example, if
+                 * worker process No. 1 exits, a new one will be started in its stead.
+                 */
+                _server->restart_worker_process(exit_status);
+                /**
+                 * Remove this process from the reload task. This PID list is a snapshot taken when signal USR1 or USR2
+                 * is received. Once all listed PIDs have exited or detached, the reload task will be destroyed.
+                 */
+                if (pool->reload_task) {
+                    pool->reload_task->remove(exit_status.get_pid());
                 }
-                auto reload_task = pool->reload_task;
-                reload_task->add_workers(_server->get_task_worker_pool()->workers, _server->task_worker_num);
-                goto _kill_worker;
-            }
-            if (exit_status.get_pid() < 0) {
-                continue;
-            }
-            /**
-             * Restart a worker process after it exits. This mechanism does not rely on signals; instead, the process ID
-             * is returned by the `wait()` system call. Internally, the process table is consulted to locate the
-             * corresponding worker process object, which is then recreated in place. For example, if worker process No.
-             * 1 exits, a new one will be started in its stead.
-             */
-            _server->restart_worker_process(exit_status);
-            /**
-             * Remove this process from the reload task. This PID list is a snapshot taken when signal USR1 or USR2 is
-             * received. Once all PIDs in the reload task list have exited, the reload task will be destroyed.
-             */
-            if (pool->reload_task) {
-                pool->reload_task->remove(exit_status.get_pid());
             }
         }
 
-        if (pool->reload_task) {
+        // A signal or worker callback can request reload after initialization above.
+        // Its empty task must survive until the next iteration populates the PID snapshot.
+        if (pool->reload_task && !pool->reload_init) {
             // reload finish
             if (pool->reload_task->is_completed()) {
                 delete pool->reload_task;
@@ -271,13 +283,13 @@ void Manager::wait(Server *_server) {
                     _server->onAfterReload(_server);
                 }
             } else {
-            _kill_worker:
                 pool->reload_task->kill_one(SIGTERM);
             }
         }
     }
 
     delete pool->reload_task;
+    pool->reload_task = nullptr;
 
     if (swoole_timer_is_available()) {
         swoole_timer_free();

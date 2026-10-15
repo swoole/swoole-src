@@ -19,7 +19,7 @@
 #include "swoole_util.h"
 #include "swoole_string.h"
 #include "swoole_timer.h"
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
 #include "swoole_iocp.h"
 #endif
 
@@ -456,16 +456,12 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
 
 static void socket_free_defer(void *ptr) {
     auto *sock = static_cast<Socket *>(ptr);
-    if (sock->is_local() && sock->bound) {
+    if (sock->is_local() && sock->bound && sock->get_name() == SW_OK && *sock->get_addr()) {
         ::unlink(sock->get_addr());
     }
     if (sock->fd != SW_BAD_SOCKET &&
 #ifdef _WIN32
-#ifdef SW_USE_IOCP
         Iocp::close(sock->fd) != 0
-#else
-        closesocket(sock->fd) != 0
-#endif
 #else
         close(sock->fd) != 0
 #endif
@@ -615,9 +611,15 @@ bool Socket::uncork() {
 }
 
 Socket *Socket::dup() const {
+    swSocketFd new_fd = sw_dup(fd);
+    if (new_fd == SW_BAD_SOCKET) {
+        return nullptr;
+    }
     auto *_socket = new Socket();
     *_socket = *this;
-    _socket->fd = (swSocketFd)::dup(fd);
+    _socket->fd = new_fd;
+    _socket->ssl = nullptr;
+    _socket->ssl_state = 0;
     return _socket;
 }
 
@@ -1212,14 +1214,16 @@ static int ssl_check_name(const char *name, ASN1_STRING *pattern) {
 }
 #endif
 
-bool Socket::ssl_check_host(const char *tls_host_name) const {
+bool Socket::ssl_check_host(const char *tls_host_name, bool strict) const {
     X509 *cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
         return false;
     }
 #ifdef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
     /* X509_check_host() is only available in OpenSSL 1.0.2+ */
-    if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr) != 1) {
+    const bool is_ip = Address::verify_ip(AF_INET, tls_host_name) || Address::verify_ip(AF_INET6, tls_host_name);
+    if ((strict && is_ip ? X509_check_ip_asc(cert, tls_host_name, 0)
+                         : X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr)) != 1) {
         swoole_warning("X509_check_host(): no match");
         goto _failed;
     }
@@ -1847,7 +1851,7 @@ int socket(int sock_domain, int sock_type, int socket_protocol, int flags) {
     bool nonblock = flags & SW_SOCK_NONBLOCK;
     bool cloexec = flags & SW_SOCK_CLOEXEC;
 
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
     swSocketFd sockfd = WSASocketW(sock_domain, sock_type, socket_protocol, nullptr, 0, WSA_FLAG_OVERLAPPED);
     if (sockfd == SW_BAD_SOCKET) {
         return -1;

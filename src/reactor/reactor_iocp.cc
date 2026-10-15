@@ -14,7 +14,7 @@
 #include "swoole_reactor.h"
 #include "swoole_socket.h"
 
-#if defined(_WIN32) && defined(SW_USE_IOCP)
+#ifdef _WIN32
 
 #include <algorithm>
 #include <io.h>
@@ -104,11 +104,9 @@ class ReactorIocp final : public ReactorImpl {
     }
 
     void cancel(PollOperation *operation) {
-        if (!operation || operation->event.completed) {
-            return;
+        if (operation) {
+            Iocp::cancel(&operation->event);
         }
-        operation->event.orphaned = true;
-        CancelIoEx(reinterpret_cast<HANDLE>(operation->event.fd), &operation->event.overlapped);
     }
 
     int submit(PollState *state) {
@@ -118,23 +116,9 @@ class ReactorIocp final : public ReactorImpl {
 
         auto *operation = new PollOperation(this, state->socket, events_to_afd(state->events));
         state->operation = operation;
-        SwooleTG.iocp->submit(&operation->event);
-
-        DWORD bytes = 0;
-        BOOL ok = DeviceIoControl(reinterpret_cast<HANDLE>(state->socket->fd),
-                                  afd::IOCTL_POLL,
-                                  &operation->poll_info,
-                                  sizeof(operation->poll_info),
-                                  &operation->poll_info,
-                                  sizeof(operation->poll_info),
-                                  &bytes,
-                                  &operation->event.overlapped);
-        const DWORD error = ok ? ERROR_SUCCESS : GetLastError();
-        if (!ok && error != ERROR_IO_PENDING) {
-            SwooleTG.iocp->discard_submission(&operation->event);
+        if (SwooleTG.iocp->submit_poll(&operation->event, &operation->poll_info) != SW_OK) {
             state->operation = nullptr;
             delete operation;
-            Iocp::set_system_error(error);
             return SW_ERR;
         }
 

@@ -24,6 +24,9 @@
 
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#ifdef _WIN32
+#include "swoole_iocp.h"
+#endif
 
 namespace swoole {
 namespace coroutine {
@@ -329,6 +332,11 @@ bool Socket::init_reactor_socket(swSocketFd _fd) {
     socket->nonblock = 1;
     socket->cloexec = 1;
     socket->info.type = type;
+
+    // An existing fd may already be connected, as with socketpair() or imported streams.
+    sockaddr_storage peer;
+    socklen_t peer_len = sizeof(peer);
+    connected = ::getpeername(_fd, reinterpret_cast<sockaddr *>(&peer), &peer_len) == 0;
     return true;
 }
 
@@ -536,6 +544,9 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
+    if (ssl_context && ssl_context->verify_host == 1) {
+        ssl_host_name = _host;
+    }
 
     if (ssl_context && (socks5_proxy || http_proxy)) {
         /* If the proxy is enabled, the host will be replaced with the proxy ip,
@@ -669,8 +680,19 @@ bool Socket::check_liveness() {
     return true;
 }
 
-ssize_t Socket::peek(void *_buf, size_t _n) {
-    ssize_t retval = socket->peek(_buf, _n, 0);
+ssize_t Socket::peek(void *_buf, size_t _n, int flags) {
+    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+        return -1;
+    }
+    ssize_t retval;
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
+    do {
+        retval = socket->peek(_buf, _n, flags);
+    } while (retval < 0 && !(flags & MSG_DONTWAIT) && socket->catch_read_error(errno) == SW_WAIT && timer.start() &&
+             wait_event(SW_EVENT_READ));
+    if (retval < 0 && (flags & MSG_DONTWAIT)) {
+        set_err(sw_errno());
+    }
     check_return_value(retval);
     return retval;
 }
@@ -1150,10 +1172,10 @@ bool Socket::ssl_create(SSLContext *ssl_context) {
     SSL_set_mode(socket->ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 #endif
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_context->tls_host_name.empty()) {
-        SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
-    } else if (!ssl_context->disable_tls_host_name && !ssl_host_name.empty()) {
-        SSL_set_tlsext_host_name(socket->ssl, ssl_host_name.c_str());
+    const auto &name = ssl_context->tls_host_name.empty() ? ssl_host_name : ssl_context->tls_host_name;
+    if (!ssl_context->disable_tls_host_name && !name.empty() && !network::Address::verify_ip(AF_INET, name) &&
+        !network::Address::verify_ip(AF_INET6, name)) {
+        SSL_set_tlsext_host_name(socket->ssl, name.c_str());
     }
 #endif
     return true;
@@ -1209,10 +1231,8 @@ bool Socket::ssl_handshake() {
             return false;
         }
     }
-    if (ssl_context->verify_peer) {
-        if (!ssl_verify(ssl_context->allow_self_signed)) {
-            return false;
-        }
+    if (!ssl_verify()) {
+        return false;
     }
     ssl_handshaked = true;
 
@@ -1224,8 +1244,23 @@ bool Socket::ssl_verify(bool allow_self_signed) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
+    return ssl_context->verify_host == 0 || ssl_verify_host();
+}
+
+bool Socket::ssl_verify() {
+    if (ssl_context->verify_peer) {
+        return ssl_verify(ssl_context->allow_self_signed);
+    }
+    return ssl_context->verify_host != 1 || ssl_verify_host();
+}
+
+bool Socket::ssl_verify_host() {
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_context->tls_host_name.empty() && !socket->ssl_check_host(ssl_context->tls_host_name.c_str())) {
+    const auto *name = &ssl_context->tls_host_name;
+    if (name->empty() && ssl_context->verify_host == 1) {
+        name = &ssl_host_name;
+    }
+    if (!name->empty() && !socket->ssl_check_host(name->c_str(), ssl_context->verify_host == 1)) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
@@ -1330,7 +1365,11 @@ ssize_t Socket::recvfrom(void *_buf, size_t _n) {
         return -1;
     }
     socket->info.len = sizeof(socket->info.addr);
-    return recvfrom(_buf, _n, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len);
+    ssize_t retval = recvfrom(_buf, _n, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len);
+    if (retval >= 0 && socket->is_local() && socket->info.len <= offsetof(sockaddr_un, sun_path)) {
+        socket->info.addr.un.sun_path[0] = '\0';
+    }
+    return retval;
 }
 
 ssize_t Socket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen) {
@@ -1398,9 +1437,8 @@ _get_length:
         return -1;
     }
 
-    read_buffer->offset = packet_len;
-
     if ((size_t) packet_len <= read_buffer->length) {
+        read_buffer->offset = packet_len;
         return packet_len;
     }
 
@@ -1412,8 +1450,9 @@ _get_length:
     if (retval > 0) {
         read_buffer->length += retval;
         if (read_buffer->length != (size_t) packet_len) {
-            retval = 0;
+            retval = errCode == ETIMEDOUT ? -1 : 0;
         } else {
+            read_buffer->offset = packet_len;
             return packet_len;
         }
     }
@@ -1513,7 +1552,8 @@ ssize_t Socket::recv_packet(double timeout) {
             read_buffer->length = read_buffer->offset = recv_bytes;
         }
     }
-    if (recv_bytes <= 0) {
+    // Keep incomplete length-prefixed packets for a subsequent read after a timeout.
+    if (recv_bytes <= 0 && !(open_length_check && recv_bytes < 0 && errCode == ETIMEDOUT)) {
         read_buffer->clear();
     }
     return recv_bytes;
@@ -1591,9 +1631,6 @@ bool Socket::close() {
         set_err(EBADF);
         return false;
     }
-    if (connected) {
-        shutdown();
-    }
     if (sw_unlikely(has_bound())) {
         socket->close_wait = 1;
         cancel(SW_EVENT_WRITE);
@@ -1601,7 +1638,22 @@ bool Socket::close() {
         set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
         return false;
     } else {
-        sock_fd = SW_BAD_SOCKET;
+        if (socket->ssl) {
+            ssl_close();
+        }
+        if (!socket->removed) {
+            swoole_event_del(socket);
+        }
+        // Close only this descriptor. shutdown() would affect all duplicated owners.
+        swSocketFd fd = move_fd();
+#ifdef _WIN32
+        int result = Iocp::close(fd);
+#else
+        int result = sw_close_socket(fd);
+#endif
+        if (result != 0) {
+            swoole_sys_warning("close(%d) failed", (int) fd);
+        }
         if (dtor_ != nullptr) {
             auto dtor = dtor_;
             dtor_ = nullptr;
