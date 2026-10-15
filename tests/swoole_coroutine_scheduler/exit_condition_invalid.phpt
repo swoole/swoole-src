@@ -14,13 +14,18 @@ Swoole\Coroutine::set([
     },
 ]);
 
-Swoole\Coroutine::set(['exit_condition' => 'not_found_function']);
+try {
+    Swoole\Coroutine::set(['exit_condition' => 'not_found_function']);
+    Assert::true(false, 'invalid exit_condition must throw');
+} catch (Swoole\Exception $exception) {
+    Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::contains($exception->getMessage(), 'callback must be callable');
+}
 Swoole\Timer::after(1, function () {});
 Swoole\Event::wait();
 
 Assert::eq($count, 1);
 echo "DONE\n";
 ?>
---EXPECTF--
-Warning: Swoole\Coroutine::set(): function 'not_found_function' is not callable in %s on line %d
+--EXPECT--
 DONE

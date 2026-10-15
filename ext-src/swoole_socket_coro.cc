@@ -917,7 +917,7 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) t
      */
     if (php_swoole_array_get_value(vht, "open_ssl", ztmp)) {
         if (zval_is_true(ztmp)) {
-            if (!sock->enable_ssl_encrypt()) {
+            if (!sock->ssl_is_enable() && !sock->enable_ssl_encrypt()) {
                 return php_swoole_throw_setting_exception("failed to enable SSL: %s", sock->errMsg);
             }
         }
@@ -2227,12 +2227,7 @@ static PHP_METHOD(swoole_socket_coro, setProtocol) {
     Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (php_swoole_array_length(zset) == 0) {
-        php_swoole_throw_setting_exception("protocol settings must not be empty");
-        RETURN_THROWS();
-    } else {
-        RETURN_BOOL(php_swoole_socket_set_protocol(sock->socket, zset));
-    }
+    RETURN_BOOL(php_swoole_socket_set_protocol(sock->socket, zset));
 }
 
 static PHP_METHOD(swoole_socket_coro, sslHandshake) {

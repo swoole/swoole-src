@@ -17,14 +17,18 @@ $server->set([
 $server->set([
     'buffer_output_size' => 2 * 1024 * 1024,
 ]);
-$server->set([
-    'buffer_output_size' => 'xxx--2M',
-]);
+try {
+    $server->set([
+        'buffer_output_size' => 'xxx--2M',
+    ]);
+    Assert::true(false, 'invalid size must throw');
+} catch (Swoole\Exception $exception) {
+    Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+    Assert::contains($exception->getMessage(), "failed to parse 'xxx--2M' to size");
+    Assert::contains($exception->getMessage(), 'Invalid quantity');
+}
+Assert::same($server->setting['buffer_output_size'], 2 * 1024 * 1024);
+echo "DONE\n";
 ?>
---EXPECTF--
-Fatal error: Swoole\Server::set(): failed to parse 'xxx--2M' to size, Error: Invalid quantity "xxx--2M": no valid leading digits, interpreting as "0" for backwards compatibility in %s on line %d
---EXPECTF_85--
-Fatal error: Swoole\Server::set(): failed to parse 'xxx--2M' to size, Error: Invalid quantity "xxx--2M": no valid leading digits, interpreting as "0" for backwards compatibility in %s on line %d
-Stack trace:
-#0 %s(%d): Swoole\Server->set(Array)
-#1 {main}
+--EXPECT--
+DONE

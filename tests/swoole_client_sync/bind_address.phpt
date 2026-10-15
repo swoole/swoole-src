@@ -17,8 +17,14 @@ $pm->parentFunc = function () use ($pm) {
         'bind_port' => $pm->getFreePort(),
     ]);
 
-    Assert::false($client->connect('127.0.0.1', 9501));
-    Assert::eq($client->errCode, SOCKET_EADDRINUSE);
+    try {
+        $client->connect('127.0.0.1', $pm->getFreePort());
+        Assert::true(false, 'binding an occupied port must throw');
+    } catch (Swoole\Exception $exception) {
+        Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+        Assert::contains($exception->getMessage(), 'failed to bind client');
+    }
+    Assert::false($client->isConnected());
     $pm->kill();
     echo "DONE\n";
 };

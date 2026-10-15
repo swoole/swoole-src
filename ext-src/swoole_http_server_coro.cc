@@ -425,16 +425,11 @@ static PHP_METHOD(swoole_http_server_coro, set) {
     Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (php_swoole_array_length(zset) == 0) {
-        php_swoole_throw_setting_exception("settings must not be empty");
-        RETURN_THROWS();
-    } else {
-        zval *zsettings =
-            sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
-        SEPARATE_ARRAY(zsettings);
-        php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
-        RETURN_TRUE;
-    }
+    zval *zsettings =
+        sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
+    SEPARATE_ARRAY(zsettings);
+    php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_http_server_coro, start) try {

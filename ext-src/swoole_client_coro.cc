@@ -246,11 +246,6 @@ static PHP_METHOD(swoole_client_coro, set) {
     Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (php_swoole_array_length(zset) == 0) {
-        php_swoole_throw_setting_exception("settings must not be empty");
-        RETURN_THROWS();
-    }
-
     SocketImpl *cli = client_coro_get_socket(ZEND_THIS);
     if (cli && (!php_swoole_socket_set(cli, zset) || EG(exception))) {
         php_swoole_throw_setting_exception("failed to apply coroutine client settings");
