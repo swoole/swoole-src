@@ -23,8 +23,11 @@ $flood = <<<'PHPT'
     file_put_contents(%s, getmypid());
     $chunk = str_repeat('x', 65536);
     for ($i = 0; $i < 1100; $i++) {
-        if (@fwrite(STDOUT, $chunk) !== strlen($chunk)) {
-            break;
+        for ($offset = 0; $offset < strlen($chunk); $offset += $written) {
+            $written = fwrite(STDOUT, substr($chunk, $offset));
+            if ($written === false || $written === 0) {
+                throw new RuntimeException('Unable to write the output-limit fixture');
+            }
         }
     }
     sleep(3);
@@ -66,13 +69,22 @@ try {
     $output = preg_replace('/\x1b\[[0-9;]*m/', '', implode("\n", $lines));
 
     Assert::notSame($exitCode, 0);
-    Assert::contains($output, 'ERROR: process output exceeded the maximum size');
+    Assert::contains($output, 'ERROR: process output exceeded the maximum size', $output);
     // The broad EXPECTF must not turn a terminated test into a pass.
     Assert::contains($output, '[FAIL] runner output limit');
     Assert::contains($output, '[PASS] runner healthy test');
     Assert::contains($output, 'FAILED TEST SUMMARY');
     Assert::notContains($output, 'died unexpectedly');
     Assert::false(posix_kill((int) file_get_contents($pidFile), 0));
+
+    // Also enforce the limit when the producer exits without keeping its output pipe open.
+    $exitedFlood = str_replace('sleep(3);', '', sprintf($flood, var_export($pidFile, true)));
+    file_put_contents($directory . '/exited.phpt', $exitedFlood);
+    exec($runner . ' --show-out --set-timeout 5 ' . escapeshellarg($directory . '/exited.phpt') . ' 2>&1', $exitedLines, $exitCode);
+    $output = preg_replace('/\x1b\[[0-9;]*m/', '', implode("\n", $exitedLines));
+    Assert::notSame($exitCode, 0);
+    Assert::contains($output, 'ERROR: process output exceeded the maximum size', $output);
+    Assert::contains($output, '[FAIL] runner output limit');
 
     exec($runner . ' --show-out --set-timeout 1 ' . escapeshellarg($directory . '/timeout.phpt') . ' 2>&1', $timeoutLines, $exitCode);
     $output = preg_replace('/\x1b\[[0-9;]*m/', '', implode("\n", $timeoutLines));
