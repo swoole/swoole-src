@@ -1265,6 +1265,17 @@ function terminate_test_process($proc, array $pipes): void
     proc_close($proc);
 }
 
+function append_test_output(string &$data, string $chunk, ?string &$executionError): bool
+{
+    if (strlen($data) + strlen($chunk) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
+        $executionError = 'process output exceeded the maximum size';
+        $data = substr($data, 0, 65536) . "\n ** ERROR: {$executionError} **\n";
+        return false;
+    }
+    $data .= $chunk;
+    return true;
+}
+
 function system_with_timeout($commandline, $env = null, $stdin = null, $captureStdIn = true, $captureStdOut = true, $captureStdErr = true, &$executionError = null)
 {
     global $valgrind;
@@ -1302,60 +1313,83 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
     }
 
     $timeout = $valgrind ? 300 : ($env['TEST_TIMEOUT'] ?? 60);
+    $deadline = microtime(true) + $timeout;
+    $stat = null;
 
     while (true) {
+        $remaining = $deadline - microtime(true);
+        if ($remaining <= 0) {
+            $executionError = "process timed out after {$timeout} seconds";
+            $data .= "\n ** ERROR: {$executionError} **\n";
+            terminate_test_process($proc, $pipes);
+            return $data;
+        }
+
+        $currentStat = proc_get_status($proc);
+        if (!$currentStat['running']) {
+            $stat = $currentStat;
+            foreach ($pipes as $pipeIndex => $pipe) {
+                stream_set_blocking($pipe, false);
+                while (($line = fread($pipe, 8192)) !== '') {
+                    if (!append_test_output($data, $line, $executionError)) {
+                        terminate_test_process($proc, $pipes);
+                        return $data;
+                    }
+                }
+                fclose($pipe);
+                unset($pipes[$pipeIndex]);
+            }
+            $pipes = [];
+            break;
+        }
+
+        if (!$pipes) {
+            usleep((int) min(10000, $remaining * 1000000));
+            continue;
+        }
+
         /* hide errors from interrupted syscalls */
         $r = $pipes;
         $w = null;
         $e = null;
 
-        $n = @stream_select($r, $w, $e, $timeout);
+        // Poll the process itself as descendants may inherit its pipes and keep
+        // them open after the test process has already exited.
+        $selectTimeout = min($remaining, 1.0);
+        $seconds = (int) $selectTimeout;
+        $microseconds = (int) (($selectTimeout - $seconds) * 1000000);
+        $n = @stream_select($r, $w, $e, $seconds, $microseconds);
 
         if ($n === false) {
-            break;
+            continue;
         } else if ($n === 0) {
-            /* timed out */
-            $executionError = "process timed out after {$timeout} seconds";
-            $data .= "\n ** ERROR: {$executionError} **\n";
-            terminate_test_process($proc, $pipes);
-            return $data;
+            continue;
         } else if ($n > 0) {
-            // swoole patch: fix blocking read
-            if (SWOOLE_IS_MUSL_LIBC) {
-                if ($captureStdOut) {
-                    $line = fread($pipes[1], 8192);
-                } elseif ($captureStdErr) {
-                    $line = fread($pipes[2], 8192);
-                } else {
-                    $line = '';
+            foreach ($r as $readyPipe) {
+                $pipeIndex = array_search($readyPipe, $pipes, true);
+                if ($pipeIndex === false) {
+                    continue;
                 }
-            } else {
-                $line = '';
-                if ($captureStdOut && in_array($pipes[1], $r)) {
-                    $line .= fread($pipes[1], 8192);
+
+                $line = fread($readyPipe, 8192);
+                if ($line === '' && feof($readyPipe)) {
+                    fclose($readyPipe);
+                    unset($pipes[$pipeIndex]);
+                    continue;
                 }
-                if ($captureStdErr && in_array($pipes[2], $r)) {
-                    $line .= fread($pipes[2], 8192);
+
+                if (!append_test_output($data, $line, $executionError)) {
+                    terminate_test_process($proc, $pipes);
+                    return $data;
                 }
-            }
-            if (strlen($line) == 0) {
-                /* EOF */
-                break;
-            }
-            $data .= $line;
-            if (strlen($data) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
-                $executionError = 'process output exceeded the maximum size';
-                $data = substr($data, 0, 65536) . "\n ** ERROR: {$executionError} **\n";
-                terminate_test_process($proc, $pipes);
-                return $data;
             }
         }
     }
 
-    $stat = proc_get_status($proc);
+    $stat ??= proc_get_status($proc);
 
     if ($stat['signaled']) {
-        $data .= "\nTermsig=" . $stat['stopsig'] . "\n";
+        $data .= "\nTermsig=" . $stat['termsig'] . "\n";
     }
     if ($stat["exitcode"] > 128 && $stat["exitcode"] < 160) {
         $data .= "\nTermsig=" . ($stat["exitcode"] - 128) . "\n";
