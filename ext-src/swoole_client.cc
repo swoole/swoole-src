@@ -186,37 +186,37 @@ void php_swoole_client_minit(int module_number) {
     zend::add_constant("SWOOLE_KEEP", SW_FLAG_KEEP);
 }
 
-void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) {
+void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) try {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
 
     if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
-        cli->set_ssl_protocols(zval_get_long(ztmp));
+        cli->set_ssl_protocols(zend::setting::get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
         cli->set_ssl_disable_compress(!zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         if (!cli->set_ssl_cert_file(str_v.to_std_string())) {
-            php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
+            php_swoole_throw_setting_exception("ssl cert file[%s] not found", str_v.val());
             return;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         if (!cli->set_ssl_key_file(str_v.to_std_string())) {
-            php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
+            php_swoole_throw_setting_exception("ssl key file[%s] not found", str_v.val());
             return;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         cli->set_ssl_passphrase(str_v.to_std_string());
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         cli->set_tls_host_name(str_v.to_std_string());
     }
 #endif
@@ -227,32 +227,34 @@ void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) {
         cli->set_ssl_allow_self_signed(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         cli->set_ssl_cafile(str_v.to_std_string());
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         cli->set_ssl_capath(str_v.to_std_string());
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         cli->set_ssl_verify_depth(SW_MAX(0, SW_MIN(v, UINT8_MAX)));
     }
     if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         cli->set_ssl_ciphers(str_v.to_std_string());
     }
     if (!cli->get_ssl_cert_file().empty() && cli->get_ssl_key_file().empty()) {
-        php_swoole_fatal_error(E_ERROR, "ssl require key file");
+        php_swoole_throw_setting_exception("ssl require key file");
         return;
     }
     if (!cli->get_ssl_key_file().empty() && cli->get_ssl_cert_file().empty()) {
-        php_swoole_fatal_error(E_ERROR, "ssl require cert file");
+        php_swoole_throw_setting_exception("ssl require cert file");
         return;
     }
+} catch (const zend::setting::ParseError &) {
+    return;
 }
 
-bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
+bool php_swoole_client_check_setting(Client *cli, const zval *zset) try {
     zval *ztmp;
     int value = 1;
     HashTable *vht = Z_ARRVAL_P(zset);
@@ -270,14 +272,12 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
     }
     // package eof
     if (php_swoole_array_get_value(vht, "package_eof", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         cli->protocol.package_eof_len = str_v.len();
         if (cli->protocol.package_eof_len == 0) {
-            php_swoole_fatal_error(E_ERROR, "package_eof cannot be an empty string");
-            return false;
+            return php_swoole_throw_setting_exception("package_eof cannot be an empty string");
         } else if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
-            php_swoole_fatal_error(E_ERROR, "package_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            return false;
+            return php_swoole_throw_setting_exception("package_eof max length is %d", SW_DATA_EOF_MAXLEN);
         }
         memcpy(cli->protocol.package_eof, str_v.val(), str_v.len());
     }
@@ -295,30 +295,29 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
     }
     // package length size
     if (php_swoole_array_get_value(vht, "package_length_type", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         cli->protocol.package_length_type = str_v.val()[0];
         cli->protocol.package_length_size = swoole_type_size(cli->protocol.package_length_type);
 
         if (cli->protocol.package_length_size == 0) {
-            php_swoole_fatal_error(E_ERROR,
-                                   "Unknown package_length_type name '%c', see pack(). Link: https://php.net/pack",
-                                   cli->protocol.package_length_type);
-            return false;
+            return php_swoole_throw_setting_exception(
+                "Unknown package_length_type name '%c', see pack(). Link: https://php.net/pack",
+                cli->protocol.package_length_type);
         }
     }
     // package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         cli->protocol.package_length_offset = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // package body start
     if (php_swoole_array_get_value(vht, "package_body_offset", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         cli->protocol.package_body_offset = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        auto fci_cache = sw_callable_create(ztmp);
+        auto fci_cache = sw_callable_create_for_setting(ztmp);
         if (!fci_cache) {
             return false;
         }
@@ -335,7 +334,7 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
      * package max length
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp)) {
-        zend_long v = php_swoole_parse_to_size(ztmp);
+        zend_long v = zend::setting::get_size(ztmp);
         cli->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     } else {
         cli->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
@@ -344,18 +343,18 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
      * socket send/recv buffer size
      */
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        zend_long v = php_swoole_parse_to_size(ztmp);
+        zend_long v = zend::setting::get_size(ztmp);
         value = SW_MAX(1, SW_MIN(v, INT_MAX));
         cli->socket->set_buffer_size(value);
         cli->socket->buffer_size = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
-        zend_long v = php_swoole_parse_to_size(ztmp);
+        zend_long v = zend::setting::get_size(ztmp);
         value = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         cli->buffer_high_watermark = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_low_watermark", ztmp)) {
-        zend_long v = php_swoole_parse_to_size(ztmp);
+        zend_long v = zend::setting::get_size(ztmp);
         value = SW_MAX(0, SW_MIN(v, UINT32_MAX));
         cli->buffer_low_watermark = value;
     }
@@ -365,17 +364,17 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
     std::string bind_address;
     int bind_port = 0;
     if (php_swoole_array_get_value(vht, "bind_port", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     /**
      * bind address
      */
     if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
-        bind_address = zend::String(ztmp).to_std_string();
+        bind_address = zend::setting::get_string(ztmp).to_std_string();
     }
     if (!bind_address.empty() && cli->bind(bind_address, bind_port) < 0) {
-        return false;
+        return php_swoole_throw_setting_exception("failed to bind client to %s:%d", bind_address.c_str(), bind_port);
     }
     /**
      * client: tcp_nodelay
@@ -389,52 +388,50 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
         // The failure to set tcp_nodelay does not affect the normal operation of the client;
         // therefore, only an error log is printed without returning false.
         if (cli->socket->is_tcp() && !cli->socket->set_tcp_nodelay()) {
-            php_swoole_sys_error(E_WARNING, "setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
+            return php_swoole_throw_setting_exception("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
         }
     }
     /**
      * socks5 proxy
      */
     if (php_swoole_array_get_value(vht, "socks5_host", ztmp)) {
-        zend::String host(ztmp);
+        auto host = zend::setting::get_string(ztmp);
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp)) {
-            auto socks5_port = zval_get_long(ztmp);
+            auto socks5_port = zend::setting::get_long(ztmp);
             std::string username, password;
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp)) {
-                zend::String _value(ztmp);
+                auto _value = zend::setting::get_string(ztmp);
                 username = _value.to_std_string();
             }
             if (php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
-                zend::String _value(ztmp);
+                auto _value = zend::setting::get_string(ztmp);
                 password = _value.to_std_string();
             }
             cli->set_socks5_proxy(host.to_std_string(), socks5_port, username, password);
         } else {
-            php_swoole_fatal_error(E_WARNING, "socks5_port should not be null");
-            return false;
+            return php_swoole_throw_setting_exception("socks5_port should not be null");
         }
     }
     /**
      * http proxy
      */
     else if (php_swoole_array_get_value(vht, "http_proxy_host", ztmp)) {
-        zend::String host(ztmp);
+        auto host = zend::setting::get_string(ztmp);
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp)) {
             std::string username, password;
-            auto http_proxy_port = zval_get_long(ztmp);
+            auto http_proxy_port = zend::setting::get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) ||
                 php_swoole_array_get_value(vht, "http_proxy_user", ztmp)) {
-                zend::String _value(ztmp);
+                auto _value = zend::setting::get_string(ztmp);
                 username = _value.to_std_string();
             }
             if (php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
-                zend::String _value(ztmp);
+                auto _value = zend::setting::get_string(ztmp);
                 password = _value.to_std_string();
             }
             cli->set_http_proxy(host.to_std_string(), http_proxy_port, username, password);
         } else {
-            php_swoole_fatal_error(E_WARNING, "http_proxy_port should not be null");
-            return false;
+            return php_swoole_throw_setting_exception("http_proxy_port should not be null");
         }
     }
     /**
@@ -443,7 +440,9 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) {
     if (cli->open_ssl) {
         php_swoole_client_check_ssl_setting(cli, zset);
     }
-    return true;
+    return !EG(exception);
+} catch (const zend::setting::ParseError &) {
+    return false;
 }
 
 void php_swoole_client_free(const zval *zobject, Client *cli) {
@@ -617,14 +616,12 @@ static PHP_METHOD(swoole_client, __destruct) {
 
 static PHP_METHOD(swoole_client, set) {
     zval *zset;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &zset) == FAILURE) {
-        RETURN_FALSE;
-    }
-    if (!ZVAL_IS_ARRAY(zset)) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_ARRAY(zset)
+    ZEND_PARSE_PARAMETERS_END();
 
     zval *zsetting = sw_zend_read_and_convert_property_array(swoole_client_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
+    SEPARATE_ARRAY(zsetting);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
 
     RETURN_TRUE;
@@ -1132,6 +1129,9 @@ bool php_swoole_client_enable_ssl_encryption(Client *cli, zval *zobject) {
     zval *zset = sw_zend_read_property_ex(swoole_client_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (ZVAL_IS_ARRAY(zset)) {
         php_swoole_client_check_ssl_setting(cli, zset);
+        if (UNEXPECTED(EG(exception))) {
+            return false;
+        }
     }
     return cli->enable_ssl_encrypt() == SW_OK;
 }

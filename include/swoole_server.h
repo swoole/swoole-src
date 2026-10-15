@@ -306,6 +306,8 @@ struct ListenPort {
     std::shared_ptr<SSLContext> dup_ssl_context() const {
         auto new_ctx = std::make_shared<SSLContext>();
         *new_ctx = *ssl_context;
+        // The SNI context creates and owns its own SSL_CTX.
+        new_ctx->context = nullptr;
         return new_ctx;
     }
 

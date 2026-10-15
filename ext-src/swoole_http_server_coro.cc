@@ -252,6 +252,20 @@ static HttpServer *http_server_coro_get_object(zend_object *obj) {
     return http_server_coro_fetch_object(obj)->server;
 }
 
+static HashTable *http_server_coro_get_gc(zend_object *object, zval **table, int *n) {
+    auto *server = http_server_coro_get_object(object);
+    auto *buffer = zend_get_gc_buffer_create();
+    if (server) {
+        zend_get_gc_buffer_add_zval(buffer, &server->zclients);
+        zend_get_gc_buffer_add_zval(buffer, &server->registration);
+        for (const auto &handler : server->handlers) {
+            handler.second->add_to_gc_buffer(buffer);
+        }
+    }
+    zend_get_gc_buffer_use(buffer, table, n);
+    return zend_std_get_properties(object);
+}
+
 static void http_server_coro_set_error(const zval *zobject, const SocketImpl *sock) {
     zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
     zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
@@ -273,6 +287,7 @@ static void http_server_coro_free_object(zend_object *object) {
     HttpServerObject *hsc = http_server_coro_fetch_object(object);
     if (hsc->server) {
         HttpServer *hs = hsc->server;
+        hsc->server = nullptr;
         delete hs;
     }
     zend_object_std_dtor(&hsc->std);
@@ -314,6 +329,8 @@ void php_swoole_http_server_coro_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_http_server_coro, http_server_coro_create_object, http_server_coro_free_object, HttpServerObject, std);
     swoole_http_server_coro_ce->ce_flags |= ZEND_ACC_FINAL;
+
+    swoole_http_server_coro_handlers.get_gc = http_server_coro_get_gc;
 
     zend_declare_property_long(swoole_http_server_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_server_coro_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
@@ -409,16 +426,18 @@ static PHP_METHOD(swoole_http_server_coro, set) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (php_swoole_array_length(zset) == 0) {
-        RETURN_FALSE;
+        php_swoole_throw_setting_exception("settings must not be empty");
+        RETURN_THROWS();
     } else {
         zval *zsettings =
             sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
+        SEPARATE_ARRAY(zsettings);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
         RETURN_TRUE;
     }
 }
 
-static PHP_METHOD(swoole_http_server_coro, start) {
+static PHP_METHOD(swoole_http_server_coro, start) try {
     HttpServer *hs = http_server_coro_get_object(Z_OBJ_P(ZEND_THIS));
     SocketImpl *sock = hs->socket;
 
@@ -444,7 +463,8 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         zend_update_property_string(
             swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), swoole_strerror(EINVAL));
         hs->running = false;
-        RETURN_FALSE;
+        php_swoole_throw_setting_exception("failed to apply HTTP server protocol settings");
+        RETURN_THROWS();
     }
     HashTable *vht = Z_ARRVAL_P(zsettings);
     zval *ztmp;
@@ -468,7 +488,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     if (php_swoole_array_get_value(vht, "http_compression_level", ztmp) ||
         php_swoole_array_get_value(vht, "compression_level", ztmp) ||
         php_swoole_array_get_value(vht, "http_gzip_level", ztmp)) {
-        zend_long level = zval_get_long(ztmp);
+        zend_long level = zend::setting::get_long(ztmp);
         if (level > UINT8_MAX) {
             level = UINT8_MAX;
         } else if (level < 0) {
@@ -478,10 +498,11 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     }
     if (php_swoole_array_get_value(vht, "http_compression_min_length", ztmp) ||
         php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         if (v < 0) {
-            php_swoole_fatal_error(
-                E_WARNING, "compression_min_length must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+            php_swoole_throw_setting_exception(
+                "compression_min_length must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+            RETURN_THROWS();
         } else {
             hs->compression_min_length = SW_MIN(v, UINT32_MAX);
         }
@@ -492,24 +513,27 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         if (ZVAL_IS_ARRAY(ztmp)) {
             zval *ztype;
             SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), ztype)
-            zend::String type(ztype);
+            auto type = zend::setting::get_string(ztype);
             if (type.len() > 0) {
                 hs->compression_types->emplace(type.to_std_string());
             }
             SW_HASHTABLE_FOREACH_END();
         } else {
-            php_swoole_fatal_error(E_ERROR, "http_compression_types must be array");
-            RETURN_FALSE;
+            php_swoole_throw_setting_exception("http_compression_types must be array");
+            RETURN_THROWS();
         }
     }
 #endif
     WebSocket::apply_setting(hs->websocket_settings, vht, true);
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
     // temporary directory for HTTP uploaded file.
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0) {
-            php_swoole_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s]", str_v.val());
-            return;
+            php_swoole_throw_setting_exception("Unable to create upload_tmp_dir[%s]", str_v.val());
+            RETURN_THROWS();
         }
         if (hs->upload_tmp_dir) {
             sw_free(hs->upload_tmp_dir);
@@ -581,6 +605,8 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     }
 
     RETURN_TRUE;
+} catch (const zend::setting::ParseError &) {
+    RETURN_THROWS();
 }
 
 static PHP_METHOD(swoole_http_server_coro, onAccept) {

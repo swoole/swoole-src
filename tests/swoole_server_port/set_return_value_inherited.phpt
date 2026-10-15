@@ -24,11 +24,14 @@ $server->on('Receive', function () {});
 $server->on('WorkerStart', function (Server $server) {
     $server->shutdown();
 });
-$server->start();
-
-echo "UNEXPECTED\n";
+try {
+    $server->start();
+    Assert::true(false, 'invalid inherited settings must stop startup');
+} catch (Swoole\Exception $exception) {
+    Assert::contains($exception->getMessage(), 'ssl_sni_certs');
+    Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+}
+echo "DONE\n";
 ?>
---EXPECTF--
-Warning: Swoole\Server\Port::set(): ssl_sni_certs requires an array mapping host names to cert paths in %s on line %d
-
-Fatal error: Swoole\Server::start(): failed to set the options of port[127.0.0.1:%d] in %s on line %d%A
+--EXPECT--
+DONE

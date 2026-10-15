@@ -433,7 +433,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
     pp->pool = pool;
 }
 
-static PHP_METHOD(swoole_process_pool, set) {
+static PHP_METHOD(swoole_process_pool, set) try {
     zval *zset = nullptr;
     HashTable *vht = nullptr;
     zval *ztmp;
@@ -448,8 +448,17 @@ static PHP_METHOD(swoole_process_pool, set) {
     ProcessPool *pool = process_pool_get_and_check_pool(ZEND_THIS);
 
     php_swoole_set_global_option(vht);
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
     php_swoole_set_coroutine_option(vht);
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
     php_swoole_set_aio_option(vht);
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
 
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
         pool->async = pp->enable_coroutine = zval_is_true(ztmp);
@@ -458,18 +467,21 @@ static PHP_METHOD(swoole_process_pool, set) {
         pp->enable_message_bus = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "max_package_size", ztmp)) {
-        zend_long v = php_swoole_parse_to_size(ztmp);
+        zend_long v = zend::setting::get_size(ztmp);
         if (v < 0) {
-            php_swoole_fatal_error(
-                E_WARNING, "max_package_size must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+            php_swoole_throw_setting_exception(
+                "max_package_size must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
+            RETURN_THROWS();
         } else {
             pool->set_max_packet_size(SW_MIN(v, UINT32_MAX));
         }
     }
     if (php_swoole_array_get_value(vht, "max_wait_time", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         pool->max_wait_time = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
+} catch (const zend::setting::ParseError &) {
+    RETURN_THROWS();
 }
 
 static PHP_METHOD(swoole_process_pool, on) {

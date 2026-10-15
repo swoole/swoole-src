@@ -323,7 +323,9 @@ static PHP_METHOD(swoole_client_async, connect) {
 
     zval *zset = sw_zend_read_property(swoole_client_async_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
     if (zset && ZVAL_IS_ARRAY(zset)) {
-        php_swoole_client_check_setting(cli, zset);
+        if (!php_swoole_client_check_setting(cli, zset)) {
+            RETURN_THROWS();
+        }
     }
     if (!client_obj->async->onReceive) {
         php_swoole_fatal_error(E_ERROR, "no 'onReceive' callback function");

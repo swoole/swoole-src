@@ -806,7 +806,7 @@ bool Client::decompress_response(const char *in, size_t in_len) {
 }
 #endif
 
-bool Client::apply_setting(zval *zset, const bool check_all) {
+bool Client::apply_setting(zval *zset, const bool check_all) try {
     if (!ZVAL_IS_ARRAY(zset) || php_swoole_array_length(zset) == 0) {
         return true;
     }
@@ -815,17 +815,16 @@ bool Client::apply_setting(zval *zset, const bool check_all) {
         HashTable *vht = Z_ARRVAL_P(zset);
 
         if (php_swoole_array_get_value(vht, "connect_timeout", ztmp)) {
-            connect_timeout = zval_get_double(ztmp);
+            connect_timeout = zend::setting::get_double(ztmp);
         }
         if (php_swoole_array_get_value(vht, "timeout", ztmp)) {
-            response_timeout = zval_get_double(ztmp);
+            response_timeout = zend::setting::get_double(ztmp);
         }
         if (php_swoole_array_get_value(vht, "max_retries", ztmp)) {
-            zend_long v = zval_get_long(ztmp);
+            zend_long v = zend::setting::get_long(ztmp);
             if (v < 0) {
-                php_swoole_fatal_error(
-                    E_WARNING, "max_retries must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
-                return false;
+                return php_swoole_throw_setting_exception(
+                    "max_retries must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
             }
             max_retries = (uint8_t) SW_MIN(v, UINT8_MAX);
         }
@@ -846,7 +845,7 @@ bool Client::apply_setting(zval *zset, const bool check_all) {
             body_decompression = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "write_func", ztmp)) {
-            auto cb = sw_callable_create(ztmp);
+            auto cb = sw_callable_create_for_setting(ztmp);
             if (!cb) {
                 return false;
             }
@@ -857,14 +856,21 @@ bool Client::apply_setting(zval *zset, const bool check_all) {
             collect_stats = zval_is_true(ztmp);
         }
         WebSocket::apply_setting(websocket_settings, vht, false);
+        if (UNEXPECTED(EG(exception))) {
+            return false;
+        }
     }
     if (socket) {
-        php_swoole_socket_set(socket, zset);
+        if (!php_swoole_socket_set(socket, zset)) {
+            return false;
+        }
         if (socket->http_proxy && !socket->ssl_is_enable()) {
             socket->http_proxy->dont_handshake = 1;
         }
     }
     return true;
+} catch (const zend::setting::ParseError &) {
+    return false;
 }
 
 void Client::set_basic_auth(const std::string &username, const std::string &password) {
@@ -909,6 +915,7 @@ bool Client::connect() {
     }
     ZVAL_OBJ(&zsocket, object);
     socket = php_swoole_get_socket(&zsocket);
+    socket->set_dtor([this](Socket *_socket) { socket_dtor(); });
 
     if (ssl && !socket->enable_ssl_encrypt()) {
         set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_CONNECT_FAILED);
@@ -917,7 +924,11 @@ bool Client::connect() {
     }
 
     // apply settings
-    apply_setting(sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0), false);
+    if (!apply_setting(sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0),
+                       false)) {
+        close();
+        return false;
+    }
 
     // reset the properties that depend on the connection
     websocket = false;
@@ -928,7 +939,6 @@ bool Client::connect() {
     double _timeout = connect_timeout == 0 ? network::Socket::default_connect_timeout : connect_timeout;
     socket->set_timeout(_timeout, SW_TIMEOUT_CONNECT);
     socket->set_resolve_context(&resolve_context_);
-    socket->set_dtor([this](Socket *_socket) { socket_dtor(); });
     socket->set_buffer_allocator(sw_zend_string_allocator());
 
     if (!socket->connect(host, port)) {
@@ -1981,12 +1991,18 @@ static PHP_METHOD(swoole_http_client_coro, set) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (php_swoole_array_length(zset) == 0) {
-        RETURN_FALSE;
+        php_swoole_throw_setting_exception("settings must not be empty");
+        RETURN_THROWS();
     } else {
+        if (!phc->apply_setting(zset) || EG(exception)) {
+            php_swoole_throw_setting_exception("failed to apply HTTP client settings");
+            RETURN_THROWS();
+        }
         zval *zsettings =
             sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
+        SEPARATE_ARRAY(zsettings);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
-        RETURN_BOOL(phc->apply_setting(zset));
+        RETURN_TRUE;
     }
 }
 

@@ -607,6 +607,36 @@ class CharPtr {
     }
 };
 
+// Configuration parsers catch ParseError before returning to PHP. The original PHP
+// exception stays in EG(exception); unwinding only releases local C++ temporaries.
+namespace setting {
+struct ParseError {};
+
+template <typename T>
+static inline T checked(T value) {
+    if (UNEXPECTED(EG(exception))) {
+        throw ParseError{};
+    }
+    return value;
+}
+
+static inline zend_long get_long(zval *value) {
+    return checked(zval_get_long(value));
+}
+
+static inline double get_double(zval *value) {
+    return checked(zval_get_double(value));
+}
+
+static inline zend_long get_size(zval *value) {
+    return checked(php_swoole_parse_to_size(value));
+}
+
+static inline String get_string(zval *value) {
+    return checked(String(value));
+}
+}  // namespace setting
+
 class Callable {
   private:
     zval zfn;
@@ -626,6 +656,10 @@ class Callable {
 
     zend_fcall_info_cache *ptr() {
         return &fcc;
+    }
+
+    void add_to_gc_buffer(zend_get_gc_buffer *buffer) {
+        zend_get_gc_buffer_add_zval(buffer, &zfn);
     }
 
     bool ready() const {
@@ -882,6 +916,15 @@ static inline zend::Callable *sw_callable_create(zval *zfn) {
         delete fn;
         return nullptr;
     }
+}
+
+static inline zend::Callable *sw_callable_create_for_setting(zval *zfn) {
+    bool callable = zend_is_callable(zfn, 0, nullptr);
+    if (!callable || EG(exception)) {
+        php_swoole_throw_setting_exception("configuration callback must be callable");
+        return nullptr;
+    }
+    return sw_callable_create(zfn);
 }
 
 static inline zend::Callable *sw_callable_create_ex(zval *zfn, const char *fname, bool allow_null = true) {

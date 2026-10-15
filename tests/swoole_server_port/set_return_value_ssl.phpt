@@ -1,5 +1,5 @@
 --TEST--
-swoole_server_port: set returns false when SSL settings are rejected
+swoole_server_port: invalid SSL settings throw without merging settings
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -18,13 +18,18 @@ $settings = [
     'ssl_sni_certs' => true,
 ];
 
-Assert::false($server->ports[0]->set($settings));
-Assert::false($server->set($settings));
-
+foreach ([$server->ports[0], $server] as $target) {
+    try {
+        $target->set($settings);
+        Assert::true(false, 'invalid SNI settings must throw');
+    } catch (Swoole\Exception $exception) {
+        Assert::contains($exception->getMessage(), 'ssl_sni_certs');
+        Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+    }
+    Assert::null($target->setting);
+}
+Assert::true($server->set(array_diff_key($settings, ['ssl_sni_certs' => true])));
 echo "DONE\n";
 ?>
---EXPECTF--
-Warning: Swoole\Server\Port::set(): ssl_sni_certs requires an array mapping host names to cert paths in %s on line %d
-
-Warning: Swoole\Server\Port::set(): ssl_sni_certs requires an array mapping host names to cert paths in %s on line %d
+--EXPECT--
 DONE

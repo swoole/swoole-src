@@ -16,9 +16,16 @@ $cpu = Process::getAffinity()[0];
 Assert::true(Process::setAffinity([$cpu]));
 
 $server = new Server('127.0.0.1', 0);
+try {
 $server->set([
     'cpu_affinity_ignore' => [$cpu],
 ]);
+    Assert::true(false, 'invalid affinity settings must throw');
+} catch (Swoole\Exception $exception) {
+    Assert::same($exception->getMessage(), 'cpu_affinity_ignore excludes all available CPUs');
+    Assert::same($exception->getCode(), SWOOLE_ERROR_INVALID_PARAMS);
+}
+echo "DONE\n";
 ?>
---EXPECTF--
-Fatal error: Swoole\Server::set(): cpu_affinity_ignore excludes all available CPUs in %s on line %d
+--EXPECT--
+DONE

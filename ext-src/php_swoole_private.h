@@ -371,6 +371,7 @@ void php_swoole_thread_rshutdown();
 void php_swoole_tracer_rshutdown();
 
 int php_swoole_reactor_init();
+bool php_swoole_throw_setting_exception(const char *format, ...) ZEND_ATTRIBUTE_FORMAT(printf, 1, 2);
 void php_swoole_set_global_option(zend_array *vht);
 void php_swoole_set_coroutine_option(zend_array *vht);
 void php_swoole_set_aio_option(const zend_array *vht);

@@ -908,17 +908,18 @@ SW_API void php_swoole_init_socket_object(zval *zobject, SocketImpl *socket) {
     socket_coro_init(zobject, sock);
 }
 
-SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
+SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) try {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
-    bool ret = true;
 
     /**
      * ssl
      */
     if (php_swoole_array_get_value(vht, "open_ssl", ztmp)) {
         if (zval_is_true(ztmp)) {
-            sock->enable_ssl_encrypt();
+            if (!sock->enable_ssl_encrypt()) {
+                return php_swoole_throw_setting_exception("failed to enable SSL: %s", sock->errMsg);
+            }
         }
     }
     if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {
@@ -926,7 +927,7 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
     }
     if (sock->ssl_is_enable()) {
         if (!php_swoole_socket_set_ssl(sock, zset)) {
-            ret = false;
+            return false;
         }
     }
     /**
@@ -945,13 +946,11 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
     }
     // package eof
     if (php_swoole_array_get_value(vht, "package_eof", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         if (str_v.len() == 0) {
-            php_swoole_fatal_error(E_ERROR, "package_eof cannot be an empty string");
-            ret = false;
+            return php_swoole_throw_setting_exception("package_eof cannot be an empty string");
         } else if (str_v.len() > SW_DATA_EOF_MAXLEN) {
-            php_swoole_fatal_error(E_ERROR, "package_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            ret = false;
+            return php_swoole_throw_setting_exception("package_eof max length is %d", SW_DATA_EOF_MAXLEN);
         } else {
             sock->protocol.package_eof_len = str_v.len();
             memcpy(sock->protocol.package_eof, str_v.val(), str_v.len());
@@ -988,94 +987,97 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) {
     }
     // package length size
     if (php_swoole_array_get_value(vht, "package_length_type", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         sock->protocol.package_length_type = str_v.val()[0];
         sock->protocol.package_length_size = swoole_type_size(sock->protocol.package_length_type);
         if (sock->protocol.package_length_size == 0) {
-            php_swoole_fatal_error(E_WARNING,
-                                   "Unknown package_length_type name '%c', see pack(). Link: https://php.net/pack",
-                                   sock->protocol.package_length_type);
-            ret = false;
+            return php_swoole_throw_setting_exception(
+                "Unknown package_length_type name '%c', see pack(). Link: https://php.net/pack",
+                sock->protocol.package_length_type);
         }
     }
     // package length offset
     if (php_swoole_array_get_value(vht, "package_length_offset", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         sock->protocol.package_length_offset = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // package body start
     if (php_swoole_array_get_value(vht, "package_body_offset", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         sock->protocol.package_body_offset = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        auto cb = sw_callable_create(ztmp);
-        if (cb) {
-            sock->protocol.get_package_length = php_swoole_length_func;
-            if (sock->protocol.private_data_1) {
-                sw_callable_free(sock->protocol.private_data_1);
-            }
-            sock->protocol.private_data_1 = cb;
-            sock->protocol.package_length_size = 0;
-            sock->protocol.package_length_type = '\0';
-            sock->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
+        auto cb = sw_callable_create_for_setting(ztmp);
+        if (!cb) {
+            return false;
         }
+        sock->protocol.get_package_length = php_swoole_length_func;
+        if (sock->protocol.private_data_1) {
+            sw_callable_free(sock->protocol.private_data_1);
+        }
+        sock->protocol.private_data_1 = cb;
+        sock->protocol.package_length_size = 0;
+        sock->protocol.package_length_type = '\0';
+        sock->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
     }
     /**
      * package max length
      */
     if (php_swoole_array_get_value(vht, "package_max_length", ztmp)) {
-        zend_long v = php_swoole_parse_to_size(ztmp);
+        zend_long v = zend::setting::get_size(ztmp);
         sock->protocol.package_max_length = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
 
-    return ret;
+    return !EG(exception);
+} catch (const zend::setting::ParseError &) {
+    return false;
 }
 
-SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) {
+SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) try {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
-    bool ret = true;
 
     /**
      * timeout
      */
     if (php_swoole_array_get_value(vht, "timeout", ztmp)) {
-        cli->set_timeout(zval_get_double(ztmp));
+        cli->set_timeout(zend::setting::get_double(ztmp));
     }
     if (php_swoole_array_get_value(vht, "connect_timeout", ztmp)) {
-        cli->set_timeout(zval_get_double(ztmp), SW_TIMEOUT_CONNECT);
+        cli->set_timeout(zend::setting::get_double(ztmp), SW_TIMEOUT_CONNECT);
     }
     if (php_swoole_array_get_value(vht, "read_timeout", ztmp)) {
-        cli->set_timeout(zval_get_double(ztmp), SW_TIMEOUT_READ);
+        cli->set_timeout(zend::setting::get_double(ztmp), SW_TIMEOUT_READ);
     }
     if (php_swoole_array_get_value(vht, "write_timeout", ztmp)) {
-        cli->set_timeout(zval_get_double(ztmp), SW_TIMEOUT_WRITE);
+        cli->set_timeout(zend::setting::get_double(ztmp), SW_TIMEOUT_WRITE);
     }
     std::string _bind_address;
     int _bind_port = 0;
     if (php_swoole_array_get_value(vht, "bind_port", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         _bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
-        zend::String tmp = ztmp;
+        auto tmp = zend::setting::get_string(ztmp);
         _bind_address = tmp.to_std_string();
     }
     if (!_bind_address.empty() && !cli->bind(_bind_address, _bind_port)) {
-        ret = false;
+        return php_swoole_throw_setting_exception("failed to bind socket: %s", cli->errMsg);
     }
     /**
      * socket send/recv buffer size
      */
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        zend_long size = php_swoole_parse_to_size(ztmp);
+        zend_long size = zend::setting::get_size(ztmp);
         if (size <= 0) {
-            php_swoole_fatal_error(E_WARNING, "socket buffer size must be greater than 0, got " ZEND_LONG_FMT, size);
-            ret = false;
+            return php_swoole_throw_setting_exception("socket buffer size must be greater than 0, got " ZEND_LONG_FMT,
+                                                      size);
         } else {
-            cli->set_option(SOL_SOCKET, SO_RCVBUF, size) && cli->set_option(SOL_SOCKET, SO_SNDBUF, size);
+            if (!cli->set_option(SOL_SOCKET, SO_RCVBUF, size) || !cli->set_option(SOL_SOCKET, SO_SNDBUF, size)) {
+                return php_swoole_throw_setting_exception("failed to set socket buffer size: %s", cli->errMsg);
+            }
         }
     }
     /**
@@ -1083,42 +1085,40 @@ SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) {
      */
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp)) {
         if (cli->get_type() == SW_SOCK_TCP || cli->get_type() == SW_SOCK_TCP6) {
-            cli->get_socket()->set_tcp_nodelay(zval_is_true(ztmp));
+            if (!cli->get_socket()->set_tcp_nodelay(zval_is_true(ztmp))) {
+                return php_swoole_throw_setting_exception("failed to set TCP_NODELAY: %s", strerror(errno));
+            }
         }
     }
     /**
      * openssl and protocol options
      */
     if (!php_swoole_socket_set_protocol(cli, zset)) {
-        ret = false;
+        return false;
     }
     /**
      * socks5 proxy
      */
     if (php_swoole_array_get_value(vht, "socks5_host", ztmp)) {
         if (!cli->get_socket()->is_inet()) {
-            zend_throw_exception_ex(
-                swoole_exception_ce, SW_ERROR_OPERATION_NOT_SUPPORT, "Only tcp socket supports socks5 proxy settings");
-            return false;
+            return php_swoole_throw_setting_exception("Only tcp socket supports socks5 proxy settings");
         }
 
-        zend::String host(ztmp);
+        auto host = zend::setting::get_string(ztmp);
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp)) {
             std::string user, pwd;
-            auto socks5_port = zval_get_long(ztmp);
+            auto socks5_port = zend::setting::get_long(ztmp);
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp)) {
-                user = zend::String(ztmp).to_std_string();
+                user = zend::setting::get_string(ztmp).to_std_string();
                 if (!user.empty() && php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
-                    pwd = zend::String(ztmp).to_std_string();
+                    pwd = zend::setting::get_string(ztmp).to_std_string();
                 } else {
-                    php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
-                    ret = false;
+                    return php_swoole_throw_setting_exception("proxy password should not be null");
                 }
             }
             cli->set_socks5_proxy(host.to_std_string(), socks5_port, user, pwd);
         } else {
-            php_swoole_fatal_error(E_WARNING, "socks5_port should not be null");
-            ret = false;
+            return php_swoole_throw_setting_exception("socks5_port should not be null");
         }
     }
     /**
@@ -1126,40 +1126,38 @@ SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset) {
      */
     else if (php_swoole_array_get_value(vht, "http_proxy_host", ztmp)) {
         if (!cli->get_socket()->is_inet()) {
-            zend_throw_exception_ex(
-                swoole_exception_ce, SW_ERROR_OPERATION_NOT_SUPPORT, "Only tcp socket supports http proxy settings");
-            return false;
+            return php_swoole_throw_setting_exception("Only tcp socket supports http proxy settings");
         }
-        zend::String host(ztmp);
+        auto host = zend::setting::get_string(ztmp);
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp)) {
             std::string user, pwd;
-            auto http_proxy_port = zval_get_long(ztmp);
+            auto http_proxy_port = zend::setting::get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) ||
                 php_swoole_array_get_value(vht, "http_proxy_user", ztmp)) {
-                user = zend::String(ztmp).to_std_string();
+                user = zend::setting::get_string(ztmp).to_std_string();
                 if (!user.empty() && php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
-                    pwd = zend::String(ztmp).to_std_string();
+                    pwd = zend::setting::get_string(ztmp).to_std_string();
                 } else {
-                    php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
-                    ret = false;
+                    return php_swoole_throw_setting_exception("proxy password should not be null");
                 }
             }
             cli->set_http_proxy(host.to_std_string(), http_proxy_port, user, pwd);
         } else {
-            php_swoole_fatal_error(E_WARNING, "http_proxy_port should not be null");
-            ret = false;
+            return php_swoole_throw_setting_exception("http_proxy_port should not be null");
         }
     }
 
-    return ret;
+    return !EG(exception);
+} catch (const zend::setting::ParseError &) {
+    return false;
 }
 
-SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
+SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) try {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
 
     if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         sock->set_ssl_protocols(v);
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
@@ -1168,31 +1166,29 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
         sock->set_ssl_disable_compress(!zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         if (!sock->set_ssl_cert_file(str_v.to_std_string())) {
-            php_swoole_fatal_error(E_WARNING, "ssl cert file[%s] not found", str_v.val());
-            return false;
+            return php_swoole_throw_setting_exception("ssl cert file[%s] not found", str_v.val());
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
-        zend::String str_v(ztmp);
+        auto str_v = zend::setting::get_string(ztmp);
         if (!sock->set_ssl_key_file(str_v.to_std_string())) {
-            php_swoole_fatal_error(E_WARNING, "ssl key file[%s] not found", str_v.val());
-            return false;
+            return php_swoole_throw_setting_exception("ssl key file[%s] not found", str_v.val());
         }
     }
     if (!sock->get_ssl_cert_file().empty() && sock->get_ssl_key_file().empty()) {
-        php_swoole_fatal_error(E_WARNING, "ssl require key file");
+        return php_swoole_throw_setting_exception("ssl require key file");
     }
     if (!sock->get_ssl_key_file().empty() && sock->get_ssl_cert_file().empty()) {
-        php_swoole_fatal_error(E_WARNING, "ssl require cert file");
+        return php_swoole_throw_setting_exception("ssl require cert file");
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", ztmp)) {
-        sock->set_ssl_passphrase(zend::String(ztmp).to_std_string());
+        sock->set_ssl_passphrase(zend::setting::get_string(ztmp).to_std_string());
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp)) {
-        sock->set_tls_host_name(zend::String(ztmp).to_std_string());
+        sock->set_tls_host_name(zend::setting::get_string(ztmp).to_std_string());
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
@@ -1205,28 +1201,30 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) {
         sock->set_ssl_allow_self_signed(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
-        sock->set_ssl_cafile(zend::String(ztmp).to_std_string());
+        sock->set_ssl_cafile(zend::setting::get_string(ztmp).to_std_string());
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
-        sock->set_ssl_capath(zend::String(ztmp).to_std_string());
+        sock->set_ssl_capath(zend::setting::get_string(ztmp).to_std_string());
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         sock->set_ssl_verify_depth(SW_MAX(0, SW_MIN(v, UINT8_MAX)));
     }
     if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
-        sock->set_ssl_ciphers(zend::String(ztmp).to_std_string());
+        sock->set_ssl_ciphers(zend::setting::get_string(ztmp).to_std_string());
     }
     if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", ztmp)) {
-        sock->set_ssl_ecdh_curve(zend::String(ztmp).to_std_string());
+        sock->set_ssl_ecdh_curve(zend::setting::get_string(ztmp).to_std_string());
     }
 #ifdef OPENSSL_IS_BORINGSSL
     if (php_swoole_array_get_value(vht, "ssl_grease", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
+        zend_long v = zend::setting::get_long(ztmp);
         sock->set_ssl_grease(SW_MAX(0, SW_MIN(v, UINT8_MAX)));
     }
 #endif
     return true;
+} catch (const zend::setting::ParseError &) {
+    return false;
 }
 
 PHP_FUNCTION(swoole_coroutine_socketpair) {
@@ -2230,7 +2228,8 @@ static PHP_METHOD(swoole_socket_coro, setProtocol) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (php_swoole_array_length(zset) == 0) {
-        RETURN_FALSE;
+        php_swoole_throw_setting_exception("protocol settings must not be empty");
+        RETURN_THROWS();
     } else {
         RETURN_BOOL(php_swoole_socket_set_protocol(sock->socket, zset));
     }

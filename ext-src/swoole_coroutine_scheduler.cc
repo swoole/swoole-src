@@ -138,33 +138,47 @@ void php_swoole_coroutine_scheduler_rshutdown() {
     }
 }
 
-void php_swoole_set_coroutine_option(zend_array *vht) {
+void php_swoole_set_coroutine_option(zend_array *vht) try {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "max_coro_num", ztmp) ||
         php_swoole_array_get_value(vht, "max_coroutine", ztmp)) {
-        zend_long max_num = zval_get_long(ztmp);
+        zend_long max_num = zend::setting::get_long(ztmp);
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
     if (php_swoole_array_get_value(vht, "enable_deadlock_check", ztmp)) {
         PHPCoroutine::set_deadlock_check(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
-        PHPCoroutine::set_hook_flags(zval_get_long(ztmp));
+        PHPCoroutine::set_hook_flags(zend::setting::get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", ztmp)) {
         PHPCoroutine::enable_preemptive_scheduler(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
-        Coroutine::set_stack_size(php_swoole_parse_to_size(ztmp));
+        Coroutine::set_stack_size(zend::setting::get_size(ztmp));
     }
     if (php_swoole_array_get_value(vht, "name_resolver", ztmp)) {
         if (!ZVAL_IS_ARRAY(ztmp)) {
-            php_swoole_fatal_error(E_WARNING, "name_resolver must be an array");
+            php_swoole_throw_setting_exception("name_resolver must be an array");
+            return;
         } else {
-            zend_hash_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
-                php_swoole_name_resolver_add(zresolver);
-                return ZEND_HASH_APPLY_KEEP;
-            });
+            zval *resolver;
+            ZEND_HASH_FOREACH_VAL(Z_ARR_P(ztmp), resolver) {
+                ZVAL_DEREF(resolver);
+                auto *ce = zend_lookup_class(SW_ZSTR_KNOWN(SW_ZEND_STR_CLASS_NAME_RESOLVER));
+                if (!ce || Z_TYPE_P(resolver) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(resolver), ce)) {
+                    php_swoole_throw_setting_exception("name_resolver entries must be NameResolver objects");
+                    return;
+                }
+                if (!php_swoole_name_resolver_add(resolver)) {
+                    php_swoole_throw_setting_exception("failed to register name_resolver");
+                    return;
+                }
+                if (UNEXPECTED(EG(exception))) {
+                    return;
+                }
+            }
+            ZEND_HASH_FOREACH_END();
         }
     }
     if (PHPCoroutine::options) {
@@ -172,9 +186,11 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
     } else {
         PHPCoroutine::options = zend_array_dup(vht);
     }
+} catch (const zend::setting::ParseError &) {
+    return;
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, set) {
+PHP_METHOD(swoole_coroutine_scheduler, set) try {
     zval *zset = nullptr;
     HashTable *vht = nullptr;
     zval *ztmp;
@@ -185,18 +201,24 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
 
     vht = Z_ARRVAL_P(zset);
     php_swoole_set_global_option(vht);
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
     php_swoole_set_coroutine_option(vht);
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
 
     if (php_swoole_array_get_value(vht, "dns_cache_expire", ztmp)) {
-        System::set_dns_cache_expire((time_t) zval_get_long(ztmp));
+        System::set_dns_cache_expire((time_t) zend::setting::get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "dns_cache_capacity", ztmp)) {
-        zend_long capacity = zval_get_long(ztmp);
+        zend_long capacity = zend::setting::get_long(ztmp);
         System::set_dns_cache_capacity(capacity <= 0 ? 0 : (size_t) capacity);
     }
     /* Reactor can exit */
     if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition")))) {
-        auto exit_condition = sw_callable_create(ztmp);
+        auto exit_condition = sw_callable_create_for_setting(ztmp);
         if (!exit_condition) {
             return;
         }
@@ -210,6 +232,8 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
             sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_USER_AFTER_DEFAULT, SwooleG.user_exit_condition);
         }
     }
+} catch (const zend::setting::ParseError &) {
+    RETURN_THROWS();
 }
 
 PHP_METHOD(swoole_coroutine_scheduler, getOptions) {

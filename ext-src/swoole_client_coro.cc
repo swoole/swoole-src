@@ -206,7 +206,10 @@ static sw_inline SocketImpl *client_coro_get_socket_for_connect(zval *zobject, i
     client->socket = sock;
     zval *zset = sw_zend_read_property_ex(swoole_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (zset && ZVAL_IS_ARRAY(zset)) {
-        php_swoole_socket_set(sock, zset);
+        if (!php_swoole_socket_set(sock, zset)) {
+            sock->close();
+            return nullptr;
+        }
     }
     return sock;
 }
@@ -244,15 +247,18 @@ static PHP_METHOD(swoole_client_coro, set) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (php_swoole_array_length(zset) == 0) {
-        RETURN_FALSE;
+        php_swoole_throw_setting_exception("settings must not be empty");
+        RETURN_THROWS();
     }
 
-    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
-    php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     SocketImpl *cli = client_coro_get_socket(ZEND_THIS);
-    if (cli) {
-        RETURN_BOOL(php_swoole_socket_set(cli, zset));
+    if (cli && (!php_swoole_socket_set(cli, zset) || EG(exception))) {
+        php_swoole_throw_setting_exception("failed to apply coroutine client settings");
+        RETURN_THROWS();
     }
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
+    SEPARATE_ARRAY(zsetting);
+    php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
     RETURN_TRUE;
 }
 
@@ -599,7 +605,9 @@ static PHP_METHOD(swoole_client_coro, enableSSL) {
     }
     zval *zset = sw_zend_read_property_ex(swoole_client_coro_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (php_swoole_array_length_safe(zset) > 0) {
-        php_swoole_socket_set_ssl(cli, zset);
+        if (!php_swoole_socket_set_ssl(cli, zset)) {
+            RETURN_THROWS();
+        }
     }
     if (!cli->ssl_handshake()) {
         php_swoole_socket_set_error_properties(ZEND_THIS, cli);
