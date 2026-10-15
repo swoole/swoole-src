@@ -260,7 +260,8 @@ void Manager::wait(Server *_server) {
             }
         }
 
-        if (pool->reload_task) {
+        // A callback may request reload after this iteration initialized its snapshot.
+        if (pool->reload_task && !pool->reload_init) {
             // reload finish
             if (pool->reload_task->is_completed()) {
                 delete pool->reload_task;

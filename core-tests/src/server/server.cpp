@@ -4301,3 +4301,86 @@ TEST(server, restart_worker_process) {
 
     ASSERT_EQ(test::counter_get(1), 1);
 }
+
+// Counter slots 0..3 hold worker generations; 24..31 hold reload test state.
+static void reload_watchdog(Server *serv, const std::function<bool()> &completed) {
+    const auto deadline = microtime() + 5;
+    swoole_timer_tick(10, [serv, completed, deadline](TIMER_PARAMS) {
+        if (!completed()) {
+            if (microtime() < deadline) {
+                return;
+            }
+            test::counter_set(31, 1);
+            fprintf(stderr, "reload timeout: before=%d after=%d\n", test::counter_get(24), test::counter_get(25));
+            for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++) {
+                fprintf(stderr, "worker#%u pid=%d starts=%d\n", i, serv->get_worker(i)->pid, test::counter_get(i));
+            }
+        }
+        swoole_timer_del(tnode);
+        serv->shutdown();
+    });
+}
+
+// Reload requested by a manager callback arrives after this iteration's initialization phase.
+static void test_reload_from_worker_error(bool task_only) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.task_worker_num = 1;
+    serv.reload_async = false;
+    serv.max_wait_time = 1;
+    test::counter_init();
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) {
+        if (test::counter_incr(worker->id) == 1 && worker->id == 0) {
+            while (!test::counter_get(8)) {
+                usleep(1000);
+            }
+            _exit(42);
+        }
+    };
+    serv.onManagerStart = [](Server *) { test::counter_set(8, 1); };
+    serv.onWorkerError = [task_only](Server *serv, Worker *, const ExitStatus &status) {
+        if (status.get_code() != 42 || test::counter_incr(27) != 1 || !serv->reload(!task_only)) {
+            test::counter_incr(26);
+        }
+    };
+    serv.onBeforeReload = [](Server *) {
+        // The error callback requests reload before its crashed worker is respawned.
+        // Wait until the replacement and task worker have installed their signal handlers.
+        const auto deadline = microtime() + 3;
+        while ((test::counter_get(0) < 2 || test::counter_get(1) < 1) && microtime() < deadline) {
+            usleep(1000);
+        }
+        test::counter_incr(24);
+    };
+    serv.onAfterReload = [](Server *) {
+        if (test::counter_get(24) != 1) {
+            test::counter_incr(26);
+        }
+        test::counter_incr(25);
+    };
+    serv.onStart = [task_only](Server *serv) {
+        reload_watchdog(serv, [task_only] {
+            return test::counter_get(25) == 1 && test::counter_get(0) == (task_only ? 2 : 3) &&
+                   test::counter_get(1) == 2;
+        });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(31), 0);
+    EXPECT_EQ(test::counter_get(26), 0);
+    EXPECT_EQ(test::counter_get(24), 1);
+    EXPECT_EQ(test::counter_get(25), 1);
+    EXPECT_EQ(test::counter_get(27), 1);
+    EXPECT_EQ(test::counter_get(0), task_only ? 2 : 3);
+    EXPECT_EQ(test::counter_get(1), 2);
+}
+
+TEST(server, reload_all_from_worker_error) {
+    test_reload_from_worker_error(false);
+}
+
+TEST(server, reload_tasks_from_worker_error) {
+    test_reload_from_worker_error(true);
+}
