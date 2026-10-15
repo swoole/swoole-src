@@ -1527,9 +1527,12 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
     $sockUri = "tcp://$sockHost:$sockPort";
     $totalFileCount = count($test_files);
 
+    // Workers must not silently revert to a smaller php.ini limit while capturing test output.
+    $workerCommand = escapeshellarg($thisPHP) . ' -d memory_limit=' . escapeshellarg(ini_get('memory_limit'))
+        . ' ' . escapeshellarg($thisScript);
     for ($i = 1; $i <= $workers; $i++) {
         $proc = proc_open(
-            $thisPHP . ' ' . escapeshellarg($thisScript),
+            $workerCommand,
             [], // Inherit our stdin, stdout and stderr
             $pipes,
             NULL,
