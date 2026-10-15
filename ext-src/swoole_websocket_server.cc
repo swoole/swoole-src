@@ -470,8 +470,12 @@ bool WebSocket::message_compress(String *buffer, const char *data, size_t length
             size_t write_position;
 
             zstream.avail_out = max_length;
-            write_position = buffer->length;
-            buffer->length = max_length;
+            write_position = bytes_written;
+            // Z_SYNC_FLUSH can produce more output than deflateBound().
+            if (write_position + max_length > buffer->size) {
+                buffer->extend(write_position + max_length);
+            }
+            buffer->length = write_position + max_length;
             zstream.next_out = (Bytef *) buffer->str + write_position;
 
             /* Use a fixed value for buffer increments */
