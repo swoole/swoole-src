@@ -1480,22 +1480,25 @@ static PHP_METHOD(swoole_coroutine, setTimeLimit) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Coroutine *co = Coroutine::get_current_safe();
-    if (sw_unlikely(timeout <= 0 || co == nullptr)) {
+    if (sw_unlikely(timeout < 0 || co == nullptr)) {
         RETURN_FALSE;
     }
 
-    long cid = co->get_cid();
     PHPContext *ctx = static_cast<PHPContext *>(co->get_task());
-    TimerNode *timer = swoole_timer_add(timeout, false, [cid](Timer *, TimerNode *) {
-        PHPContext *ctx = PHPCoroutine::get_context_by_cid(cid);
-        if (ctx) {
-            ctx->timer_limit = nullptr;
-            php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
-        }
-    });
+    TimerNode *timer = nullptr;
+    if (timeout != 0) {
+        long cid = co->get_cid();
+        timer = swoole_timer_add(timeout, false, [cid](Timer *, TimerNode *) {
+            PHPContext *ctx = PHPCoroutine::get_context_by_cid(cid);
+            if (ctx) {
+                ctx->timer_limit = nullptr;
+                php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
+            }
+        });
 
-    if (sw_unlikely(!timer)) {
-        RETURN_FALSE;
+        if (sw_unlikely(!timer)) {
+            RETURN_FALSE;
+        }
     }
 
     TimerNode *old = ctx->timer_limit;

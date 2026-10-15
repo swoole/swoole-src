@@ -29,6 +29,8 @@ class RearmInDestructor
 }
 
 go(function () {
+    // Teardown must preserve the pending timer until the destructor replaces it.
+    Assert::true(Coroutine::setTimeLimit(10));
     Coroutine::getContext()->value = new RearmInDestructor;
 });
 
