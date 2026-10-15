@@ -97,6 +97,7 @@ struct PHPContext {
     SwapCallback *on_close;
     long pcid;
     zend_object *context;
+    TimerNode *timer_limit;
     int64_t last_msec;
     size_t switch_count;
 };
