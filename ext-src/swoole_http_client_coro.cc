@@ -563,14 +563,16 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
         add_assoc_long(zstats, "size_download", (zsize ? zval_get_long(zsize) : 0) + length);
     }
     if (http->write_func) {
+        const char *data = at;
+        size_t data_len = length;
 #ifdef SW_HAVE_COMPRESSION
         if (http->body_decompression && !http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
             if (http->decompress_response(at, length)) {
                 if (http->body->length == 0) {
                     return 0;
                 }
-                at = http->body->str;
-                length = http->body->length;
+                data = http->body->str;
+                data_len = http->body->length;
             } else {
                 http->compression_error = true;
             }
@@ -578,7 +580,7 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
 #endif
         zval zargv[2];
         zargv[0] = *http->zobject;
-        ZVAL_STRINGL(&zargv[1], at, length);
+        ZVAL_STRINGL(&zargv[1], data, data_len);
         http->body->clear();
         zval retval;
         ZVAL_UNDEF(&retval);

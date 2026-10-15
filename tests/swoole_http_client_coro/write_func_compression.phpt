@@ -16,6 +16,21 @@ Coroutine\run(function () {
     $server->handle('/', function ($request, $response) use ($data) {
         $response->end($data);
     });
+    $received = new Coroutine\Channel(1);
+    $server->handle('/sse', function ($request, $response) use ($received) {
+        $encoding = $request->header['accept-encoding'];
+        $context = deflate_init($encoding === 'gzip' ? ZLIB_ENCODING_GZIP : ZLIB_ENCODING_DEFLATE);
+        $response->header('Content-Type', 'text/event-stream');
+        $response->header('Content-Encoding', $encoding);
+        for ($i = 0; $i < 8; $i++) {
+            $response->write(deflate_add($context, "data: {$i}\n\n", ZLIB_SYNC_FLUSH));
+            if ($received->pop(5) !== $i) {
+                break;
+            }
+        }
+        $response->write(deflate_add($context, '', ZLIB_FINISH));
+        $response->end();
+    });
     Coroutine::create(fn () => $server->start());
     try {
         foreach (['gzip', 'deflate', 'br'] as $encoding) {
@@ -29,6 +44,25 @@ Coroutine\run(function () {
             Assert::same($client->headers['content-encoding'], $encoding);
             Assert::same($body, $data);
             Assert::same($client->body, '');
+            $client->close();
+        }
+        foreach (['gzip', 'deflate'] as $encoding) {
+            $buffer = '';
+            $events = [];
+            $client = new Client('127.0.0.1', $server->port);
+            $client->setHeaders(['Accept-Encoding' => $encoding]);
+            $client->set(['timeout' => 10, 'write_func' => function ($client, $chunk) use (&$buffer, &$events, $received) {
+                $buffer .= $chunk;
+                while (($pos = strpos($buffer, "\n\n")) !== false) {
+                    $events[] = substr($buffer, 0, $pos);
+                    $buffer = substr($buffer, $pos + 2);
+                    $received->push(count($events) - 1);
+                }
+            }]);
+            Assert::true($client->get('/sse'));
+            Assert::same($client->headers['content-encoding'], $encoding);
+            Assert::same($events, array_map(fn ($i) => "data: {$i}", range(0, 7)));
+            Assert::same($buffer, '');
             $client->close();
         }
     } finally {
