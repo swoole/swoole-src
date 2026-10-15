@@ -1278,6 +1278,17 @@ function terminate_test_process($proc, array $pipes): void
     proc_close($proc);
 }
 
+function append_test_output(string &$data, string $chunk, ?string &$executionError): bool
+{
+    if (strlen($data) + strlen($chunk) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
+        $executionError = 'process output exceeded the maximum size';
+        $data = substr($data, 0, 65536) . "\n ** ERROR: {$executionError} **\n";
+        return false;
+    }
+    $data .= $chunk;
+    return true;
+}
+
 function system_with_timeout($commandline, $env = null, $stdin = null, $captureStdIn = true, $captureStdOut = true, $captureStdErr = true, &$executionError = null)
 {
     global $valgrind;
@@ -1330,12 +1341,16 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
         $currentStat = proc_get_status($proc);
         if (!$currentStat['running']) {
             $stat = $currentStat;
-            foreach ($pipes as $pipe) {
+            foreach ($pipes as $pipeIndex => $pipe) {
                 stream_set_blocking($pipe, false);
                 while (($line = fread($pipe, 8192)) !== '') {
-                    $data .= $line;
+                    if (!append_test_output($data, $line, $executionError)) {
+                        terminate_test_process($proc, $pipes);
+                        return $data;
+                    }
                 }
                 fclose($pipe);
+                unset($pipes[$pipeIndex]);
             }
             $pipes = [];
             break;
@@ -1376,10 +1391,7 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
                     continue;
                 }
 
-                $data .= $line;
-                if (strlen($data) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
-                    $executionError = 'process output exceeded the maximum size';
-                    $data = substr($data, 0, 65536) . "\n ** ERROR: {$executionError} **\n";
+                if (!append_test_output($data, $line, $executionError)) {
                     terminate_test_process($proc, $pipes);
                     return $data;
                 }
