@@ -1239,11 +1239,55 @@ function error_report($testname, $logname, $tested)
     }
 }
 
-function system_with_timeout($commandline, $env = null, $stdin = null, $captureStdIn = true, $captureStdOut = true, $captureStdErr = true)
+function terminate_process_tree($proc)
+{
+    $status = proc_get_status($proc);
+    if (!$status['running']) {
+        return;
+    }
+    $pid = $status['pid'];
+
+    if (IS_WINDOWS) {
+        exec("taskkill /F /T /PID $pid >NUL 2>&1");
+        return;
+    }
+
+    $processes = shell_exec('ps -A -o pid= -o ppid=');
+    if (!$processes) {
+        return;
+    }
+
+    preg_match_all('/^\s*(\d+)\s+(\d+)\s*$/m', $processes, $matches, PREG_SET_ORDER);
+    $children = [];
+    foreach ($matches as $match) {
+        $children[$match[2]][] = $match[1];
+    }
+
+    $pids = [$pid];
+    for ($i = 0; $i < count($pids); $i++) {
+        array_push($pids, ...($children[$pids[$i]] ?? []));
+    }
+
+    exec('kill -9 ' . implode(' ', $pids) . ' 2>/dev/null');
+}
+
+function terminate_test_process($proc, array $pipes): void
+{
+    // SIGKILL skips the test's shutdown cleanup, so stop its children too.
+    terminate_process_tree($proc);
+    proc_terminate($proc, 9);
+    foreach ($pipes as $pipe) {
+        fclose($pipe);
+    }
+    proc_close($proc);
+}
+
+function system_with_timeout($commandline, $env = null, $stdin = null, $captureStdIn = true, $captureStdOut = true, $captureStdErr = true, &$executionError = null)
 {
     global $valgrind;
 
     $data = '';
+    $executionError = null;
 
     $bin_env = array();
     foreach ((array)$env as $key => $value) {
@@ -1288,8 +1332,9 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             break;
         } else if ($n === 0) {
             /* timed out */
-            $data .= "\n ** ERROR: process timed out **\n";
-            proc_terminate($proc, 9);
+            $executionError = "process timed out after {$timeout} seconds";
+            $data .= "\n ** ERROR: {$executionError} **\n";
+            terminate_test_process($proc, $pipes);
             return $data;
         } else if ($n > 0) {
             // swoole patch: fix blocking read
@@ -1316,10 +1361,10 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             }
             $data .= $line;
             if (strlen($data) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
-                echo "FATAL ERROR: The output content exceeds the maximum size\n";
-                echo "========================================================\n";
-                echo substr($data, 0, 65536);
-                exit(253);
+                $executionError = 'process output exceeded the maximum size';
+                $data = substr($data, 0, 65536) . "\n ** ERROR: {$executionError} **\n";
+                terminate_test_process($proc, $pipes);
+                return $data;
             }
         }
     }
@@ -2540,7 +2585,11 @@ COMMAND $cmd
     $hrtime = hrtime();
     $startTime = $hrtime[0] * 1000000000 + $hrtime[1];
 
-    $out = system_with_timeout($cmd, $env, $section_text['STDIN'] ?? null, $captureStdIn, $captureStdOut, $captureStdErr);
+    $executionError = null;
+    $out = system_with_timeout($cmd, $env, $section_text['STDIN'] ?? null, $captureStdIn, $captureStdOut, $captureStdErr, $executionError);
+    if ($executionError !== null) {
+        $info .= " ($executionError)";
+    }
 
     junit_finish_timer($shortname);
     $hrtime = hrtime();
@@ -2709,7 +2758,7 @@ COMMAND $cmd
                 print(str_repeat('=', 80) . "\n");
                 var_dump($output);
                  */
-        if (preg_match("/^$wanted_re\$/s", $output)) {
+        if ($executionError === null && preg_match("/^$wanted_re\$/s", $output)) {
             $passed = true;
             if (!$cfg['keep']['php']) {
                 @unlink($test_file);
@@ -2738,7 +2787,7 @@ COMMAND $cmd
         show_file_block('exp', $wanted);
 
         // compare and leave on success
-        if (!strcmp($output, $wanted)) {
+        if ($executionError === null && !strcmp($output, $wanted)) {
             $passed = true;
 
             if (!$cfg['keep']['php']) {
