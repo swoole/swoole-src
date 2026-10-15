@@ -865,6 +865,7 @@ void ServerObject::on_before_start() {
     zend_update_property_long(get_ce(), SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
 
     zval *zsetting = sw_zend_read_and_convert_property_array(get_ce(), zobject, ZEND_STRL("setting"), 0);
+    SEPARATE_ARRAY(zsetting);
 
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num"))) {
         add_assoc_long(zsetting, "worker_num", serv->worker_num);
@@ -943,7 +944,6 @@ void ServerObject::on_before_start() {
             sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         // use swoole_server->setting
         if (zport_setting == nullptr || ZVAL_IS_NULL(zport_setting)) {
-            Z_TRY_ADDREF_P(zport);
             sw_zend_call_method_with_1_params(zport, swoole_server_port_ce, nullptr, "set", nullptr, zsetting);
         }
     }
@@ -2445,6 +2445,7 @@ static PHP_METHOD(swoole_server, set) {
         server_object->property->ports.at(0), swoole_server_port_ce, nullptr, "set", nullptr, zset);
 
     zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
+    SEPARATE_ARRAY(zsetting);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
 
     RETURN_TRUE;

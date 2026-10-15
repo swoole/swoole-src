@@ -411,6 +411,7 @@ static PHP_METHOD(swoole_http_server_coro, set) {
     } else {
         zval *zsettings =
             sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
+        SEPARATE_ARRAY(zsettings);
         php_array_merge(Z_ARRVAL_P(zsettings), Z_ARRVAL_P(zset));
         RETURN_TRUE;
     }

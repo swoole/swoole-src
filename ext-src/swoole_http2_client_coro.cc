@@ -845,6 +845,7 @@ static PHP_METHOD(swoole_http2_client_coro, set) {
 
     zval *zsetting =
         sw_zend_read_and_convert_property_array(swoole_http2_client_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
+    SEPARATE_ARRAY(zsetting);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
 
     h2c->apply_setting(zset);
