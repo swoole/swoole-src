@@ -1319,7 +1319,11 @@ ssize_t Socket::recvfrom(void *_buf, size_t _n) {
         return -1;
     }
     socket->info.len = sizeof(socket->info.addr);
-    return recvfrom(_buf, _n, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len);
+    ssize_t retval = recvfrom(_buf, _n, reinterpret_cast<sockaddr *>(&socket->info.addr), &socket->info.len);
+    if (retval >= 0 && socket->is_local() && socket->info.len <= offsetof(sockaddr_un, sun_path)) {
+        socket->info.addr.un.sun_path[0] = '\0';
+    }
+    return retval;
 }
 
 ssize_t Socket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen) {
