@@ -1,7 +1,11 @@
 --TEST--
 swoole_http_client_coro: write_func receives decompressed body
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_extension_not_exist('zlib');
+skip_if_not_defined('SWOOLE_HAVE_ZLIB');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -33,7 +37,11 @@ Coroutine\run(function () {
     });
     Coroutine::create(fn () => $server->start());
     try {
-        foreach (['gzip', 'deflate', 'br'] as $encoding) {
+        $encodings = ['gzip', 'deflate'];
+        if (defined('SWOOLE_HAVE_BROTLI')) {
+            $encodings[] = 'br';
+        }
+        foreach ($encodings as $encoding) {
             $body = '';
             $client = new Client('127.0.0.1', $server->port);
             $client->setHeaders(['Accept-Encoding' => $encoding]);
