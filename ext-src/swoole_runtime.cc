@@ -1323,7 +1323,7 @@ static php_stream *socket_create(const char *proto,
 
     auto abstract = new NetStream();
     abstract->socket.reset(sock);
-    abstract->stream.socket = (int) sock->get_fd();
+    abstract->stream.socket = (int)sock->get_fd();
     abstract->blocking = true;
 
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
@@ -1640,7 +1640,7 @@ static void hook_all_func(uint32_t flags) {
             SW_UNHOOK_FUNC(proc_terminate);
         }
     }
-#endif  // _WIN32
+#endif // _WIN32
     // ext-sockets
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
@@ -1994,7 +1994,7 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
 
 #ifdef _WIN32
         // Windows: use Sleep for millisecond resolution
-        Sleep((DWORD) (tv_sec * 1000 + tv_nsec / 1000000));
+        Sleep((DWORD)(tv_sec * 1000 + tv_nsec / 1000000));
         RETURN_TRUE;
 #else
         if (nanosleep(&php_req, &php_rem) == 0) {
@@ -2059,12 +2059,12 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<swSock
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), index, key, elem) {
         ZVAL_DEREF(elem);
         php_socket_t sock = php_swoole_convert_to_fd(elem);
-        if (sock < (php_socket_t) 0) {
+        if (sock < (php_socket_t)0) {
             continue;
         }
-        auto i = fds.find((swSocketFd) sock);
+        auto i = fds.find((swSocketFd)sock);
         if (i == fds.end()) {
-            fds.emplace((swSocketFd) sock, PollSocket(event, new zend::KeyValue(index, key, elem)));
+            fds.emplace((swSocketFd)sock, PollSocket(event, new zend::KeyValue(index, key, elem)));
         } else {
             i->second.events |= event;
         }
