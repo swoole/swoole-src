@@ -52,6 +52,8 @@ using std::unordered_map;
 using swoole::Coroutine;
 using swoole::PHPContext;
 using swoole::PHPCoroutine;
+using swoole::Timer;
+using swoole::TimerNode;
 using swoole::coroutine::System;
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
@@ -310,6 +312,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->co->set_task((void *) ctx);
     ctx->defer_tasks = nullptr;
     ctx->pcid = ctx->co->get_origin_cid();
+    ctx->timer_limit = nullptr;
     ctx->context = nullptr;
     ctx->on_yield = nullptr;
     ctx->on_resume = nullptr;
@@ -736,6 +739,13 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
     Z_TRY_DELREF(ctx->return_value);
 
     fiber_context_try_destroy(ctx, get_origin_context(ctx));
+
+    // Clean up after the releases above: a context-owned __destruct() may rearm the time limit.
+    TimerNode *timer = ctx->timer_limit;
+    if (timer) {
+        ctx->timer_limit = nullptr;
+        swoole_timer_del(timer);
+    }
 
     swoole_trace_log(SW_TRACE_COROUTINE,
                      "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
@@ -1470,17 +1480,29 @@ static PHP_METHOD(swoole_coroutine, setTimeLimit) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Coroutine *co = Coroutine::get_current_safe();
-    if (timeout == 0 || co == nullptr) {
+    if (sw_unlikely(timeout <= 0 || co == nullptr)) {
         RETURN_FALSE;
     }
 
     long cid = co->get_cid();
-    swoole_timer_add((long) timeout * 1000, false, [cid](swoole::Timer *, swoole::TimerNode *tnode) {
-        swoole_timer_del(tnode);
-        if (PHPCoroutine::get_context_by_cid(cid) != nullptr) {
+    PHPContext *ctx = static_cast<PHPContext *>(co->get_task());
+    TimerNode *timer = swoole_timer_add(timeout, false, [cid](Timer *, TimerNode *) {
+        PHPContext *ctx = PHPCoroutine::get_context_by_cid(cid);
+        if (ctx) {
+            ctx->timer_limit = nullptr;
             php_swoole_coroutine_throw_exception(cid, true, swoole_coroutine_timeout_exception_ce);
         }
     });
+
+    if (sw_unlikely(!timer)) {
+        RETURN_FALSE;
+    }
+
+    TimerNode *old = ctx->timer_limit;
+    ctx->timer_limit = timer;
+    if (old) {
+        swoole_timer_del(old);
+    }
 
     RETURN_TRUE;
 }
