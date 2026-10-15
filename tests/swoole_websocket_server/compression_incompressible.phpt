@@ -3,7 +3,6 @@ swoole_websocket_server: incompressible messages preserve control frames across 
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_win();
 skip_if_not_defined('SWOOLE_HAVE_ZLIB');
 ?>
 --FILE--

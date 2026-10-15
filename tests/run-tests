@@ -1313,83 +1313,57 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
     }
 
     $timeout = $valgrind ? 300 : ($env['TEST_TIMEOUT'] ?? 60);
-    $deadline = microtime(true) + $timeout;
-    $stat = null;
 
     while (true) {
-        $remaining = $deadline - microtime(true);
-        if ($remaining <= 0) {
-            $executionError = "process timed out after {$timeout} seconds";
-            $data .= "\n ** ERROR: {$executionError} **\n";
-            terminate_test_process($proc, $pipes);
-            return $data;
-        }
-
-        $currentStat = proc_get_status($proc);
-        if (!$currentStat['running']) {
-            $stat = $currentStat;
-            foreach ($pipes as $pipeIndex => $pipe) {
-                stream_set_blocking($pipe, false);
-                while (($line = fread($pipe, 8192)) !== '') {
-                    if (!append_test_output($data, $line, $executionError)) {
-                        terminate_test_process($proc, $pipes);
-                        return $data;
-                    }
-                }
-                fclose($pipe);
-                unset($pipes[$pipeIndex]);
-            }
-            $pipes = [];
-            break;
-        }
-
-        if (!$pipes) {
-            usleep((int) min(10000, $remaining * 1000000));
-            continue;
-        }
-
         /* hide errors from interrupted syscalls */
         $r = $pipes;
         $w = null;
         $e = null;
 
-        // Poll the process itself as descendants may inherit its pipes and keep
-        // them open after the test process has already exited.
-        $selectTimeout = min($remaining, 1.0);
-        $seconds = (int) $selectTimeout;
-        $microseconds = (int) (($selectTimeout - $seconds) * 1000000);
-        $n = @stream_select($r, $w, $e, $seconds, $microseconds);
+        $n = @stream_select($r, $w, $e, $timeout);
 
         if ($n === false) {
-            continue;
+            break;
         } else if ($n === 0) {
-            continue;
+            /* timed out */
+            $executionError = "process timed out after {$timeout} seconds";
+            $data .= "\n ** ERROR: {$executionError} **\n";
+            terminate_test_process($proc, $pipes);
+            return $data;
         } else if ($n > 0) {
-            foreach ($r as $readyPipe) {
-                $pipeIndex = array_search($readyPipe, $pipes, true);
-                if ($pipeIndex === false) {
-                    continue;
+            // swoole patch: fix blocking read
+            if (SWOOLE_IS_MUSL_LIBC) {
+                if ($captureStdOut) {
+                    $line = fread($pipes[1], 8192);
+                } elseif ($captureStdErr) {
+                    $line = fread($pipes[2], 8192);
+                } else {
+                    $line = '';
                 }
-
-                $line = fread($readyPipe, 8192);
-                if ($line === '' && feof($readyPipe)) {
-                    fclose($readyPipe);
-                    unset($pipes[$pipeIndex]);
-                    continue;
+            } else {
+                $line = '';
+                if ($captureStdOut && in_array($pipes[1], $r)) {
+                    $line .= fread($pipes[1], 8192);
                 }
-
-                if (!append_test_output($data, $line, $executionError)) {
-                    terminate_test_process($proc, $pipes);
-                    return $data;
+                if ($captureStdErr && in_array($pipes[2], $r)) {
+                    $line .= fread($pipes[2], 8192);
                 }
+            }
+            if (strlen($line) == 0) {
+                /* EOF */
+                break;
+            }
+            if (!append_test_output($data, $line, $executionError)) {
+                terminate_test_process($proc, $pipes);
+                return $data;
             }
         }
     }
 
-    $stat ??= proc_get_status($proc);
+    $stat = proc_get_status($proc);
 
     if ($stat['signaled']) {
-        $data .= "\nTermsig=" . $stat['termsig'] . "\n";
+        $data .= "\nTermsig=" . $stat['stopsig'] . "\n";
     }
     if ($stat["exitcode"] > 128 && $stat["exitcode"] < 160) {
         $data .= "\nTermsig=" . ($stat["exitcode"] - 128) . "\n";

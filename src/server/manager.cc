@@ -160,7 +160,8 @@ void Manager::wait(Server *_server) {
     }
 
     while (_server->running) {
-        ExitStatus exit_status = wait_process();
+        // A callback may have queued reload after the previous initialization phase.
+        ExitStatus exit_status = pool->reload_init ? wait_process(-1, WNOHANG) : wait_process();
         const auto wait_error = errno;
 
         swoole_signal_dispatch();
@@ -241,7 +242,7 @@ void Manager::wait(Server *_server) {
                 reload_task->add_workers(_server->get_task_worker_pool()->workers, _server->task_worker_num);
                 goto _kill_worker;
             }
-            if (exit_status.get_pid() < 0) {
+            if (exit_status.get_pid() <= 0) {
                 continue;
             }
             /**

@@ -883,7 +883,8 @@ int ProcessPool::wait() {
     std::unordered_set<pid_t> detached_workers;
 
     while (running) {
-        ExitStatus exit_status = wait_process();
+        // A callback may have queued reload after the previous initialization phase.
+        ExitStatus exit_status = reload_init ? wait_process(-1, WNOHANG) : wait_process();
         const auto wait_error = errno;
 
         swoole_signal_dispatch();

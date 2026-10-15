@@ -1,5 +1,6 @@
 #include "test_core.h"
 #include "swoole_process_pool.h"
+#include "swoole_timer.h"
 
 #include <csignal>
 
@@ -849,6 +850,7 @@ TEST(process_pool, reload_from_child_exit_callback) {
     }
     test::counter_set(6, child_pid);
     EXPECT_EQ(pool.wait(), SW_OK);
+    test::wait_all_child_processes();
     sw_timer()->remove(watchdog);
     if (test::counter_get(31)) {
         sw_timer()->remove(completion);
