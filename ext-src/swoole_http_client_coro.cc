@@ -1707,7 +1707,17 @@ bool Client::upgrade(const std::string &_path) {
         add_assoc_string(zheaders, "Sec-Websocket-Extensions", SW_WEBSOCKET_EXTENSION_DEFLATE);
     }
 #endif
-    return exec(_path);
+    if (!exec(_path)) {
+        return false;
+    }
+    if (parser.status_code != SW_HTTP_SWITCHING_PROTOCOLS || !websocket) {
+        set_error(SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED,
+                  "websocket handshake failed: expected HTTP 101 with valid WebSocket upgrade headers",
+                  parser.status_code);
+        close();
+        return false;
+    }
+    return true;
 }
 
 bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) {
