@@ -90,6 +90,11 @@ Coroutine\run(function () {
         }
     } finally {
         $client->close();
+        // Drain accepted connections before releasing the listener's callback on stable branches.
+        $handlers = array_values(array_diff(iterator_to_array(Coroutine::list()), [Coroutine::getCid(), $cid]));
+        if ($handlers) {
+            Assert::true(Coroutine::join($handlers, 3));
+        }
         $server->shutdown();
         Coroutine::join([$cid]);
     }

@@ -35,7 +35,7 @@ Coroutine\run(function () {
         $response->write(deflate_add($context, '', ZLIB_FINISH));
         $response->end();
     });
-    Coroutine::create(fn () => $server->start());
+    $cid = Coroutine::create(fn () => $server->start());
     try {
         $encodings = ['gzip', 'deflate'];
         if (defined('SWOOLE_HAVE_BROTLI')) {
@@ -74,7 +74,13 @@ Coroutine\run(function () {
             $client->close();
         }
     } finally {
+        // Drain accepted connections before releasing the listener's callback on stable branches.
+        $handlers = array_values(array_diff(iterator_to_array(Coroutine::list()), [Coroutine::getCid(), $cid]));
+        if ($handlers) {
+            Assert::true(Coroutine::join($handlers, 3));
+        }
         $server->shutdown();
+        Coroutine::join([$cid]);
     }
 });
 echo "DONE\n";
