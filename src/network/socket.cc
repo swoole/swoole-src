@@ -456,7 +456,7 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
 
 static void socket_free_defer(void *ptr) {
     auto *sock = static_cast<Socket *>(ptr);
-    if (sock->is_local() && sock->bound) {
+    if (sock->is_local() && sock->bound && sock->get_name() == SW_OK && *sock->get_addr()) {
         ::unlink(sock->get_addr());
     }
     if (sock->fd != SW_BAD_SOCKET &&
