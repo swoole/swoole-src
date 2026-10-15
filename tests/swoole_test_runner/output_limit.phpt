@@ -54,8 +54,12 @@ try {
     file_put_contents($directory . '/flood.phpt', sprintf($flood, var_export($pidFile, true)));
     file_put_contents($directory . '/healthy.phpt', $healthy);
     file_put_contents($directory . '/timeout.phpt', $timeout);
-    $runner = 'REPORT_EXIT_STATUS=1 NO_INTERACTION=1 ' . escapeshellarg(PHP_BINARY)
-        . ' -n ' . escapeshellarg(TESTS_ROOT_PATH . '/run-tests')
+    // Workers load this smaller php.ini but must keep the runner's 128M runtime memory limit.
+    $iniFile = $directory . '/php.ini';
+    file_put_contents($iniFile, "memory_limit=32M\n");
+    $runner = 'PHPRC=' . escapeshellarg($iniFile) . ' REPORT_EXIT_STATUS=1 NO_INTERACTION=1 '
+        . escapeshellarg(PHP_BINARY) . ' -n -d memory_limit=128M '
+        . escapeshellarg(TESTS_ROOT_PATH . '/run-tests')
         . ' -n';
     $command = $runner . ' -j2 --set-timeout 5 ' . escapeshellarg($directory . '/flood.phpt')
         . ' ' . escapeshellarg($directory . '/healthy.phpt') . ' 2>&1';
