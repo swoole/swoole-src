@@ -285,6 +285,46 @@ static zend_object_handlers swoole_http_client_coro_handlers;
 static zend_class_entry *swoole_http_client_coro_exception_ce;
 static zend_object_handlers swoole_http_client_coro_exception_handlers;
 
+static bool websocket_verify_server_handshake(zval *zobject) {
+    zend_class_entry *ce = Z_OBJCE_P(zobject);
+    zval *zrequest_headers = sw_zend_read_property_ex(ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_HEADERS), 0);
+    zval *zresponse_headers = sw_zend_read_property_ex(ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
+    if (!ZVAL_IS_ARRAY(zrequest_headers) || !ZVAL_IS_ARRAY(zresponse_headers)) {
+        return false;
+    }
+
+    zval *zkey = zend_hash_str_find(Z_ARRVAL_P(zrequest_headers), ZEND_STRL("Sec-WebSocket-Key"));
+    if (zkey == nullptr || Z_TYPE_P(zkey) != IS_STRING || Z_STRLEN_P(zkey) == 0) {
+        return false;
+    }
+
+    zval *zupgrade = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("upgrade"));
+    if (zupgrade == nullptr || Z_TYPE_P(zupgrade) != IS_STRING ||
+        !swoole_http_token_list_contains_value(Z_STRVAL_P(zupgrade), Z_STRLEN_P(zupgrade), "websocket")) {
+        return false;
+    }
+
+    zval *zconnection = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("connection"));
+    if (zconnection == nullptr || Z_TYPE_P(zconnection) != IS_STRING ||
+        !swoole_http_token_list_contains_value(Z_STRVAL_P(zconnection), Z_STRLEN_P(zconnection), "Upgrade")) {
+        return false;
+    }
+
+    zval *zaccept = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("sec-websocket-accept"));
+    if (zaccept == nullptr || Z_TYPE_P(zaccept) != IS_STRING || Z_STRLEN_P(zaccept) == 0) {
+        return false;
+    }
+
+    char sec_buf[128];
+    size_t sec_len = sw_snprintf(sec_buf, sizeof(sec_buf), "%s%s", Z_STRVAL_P(zkey), SW_WEBSOCKET_GUID);
+    unsigned char sha1_str[20];
+    php_swoole_sha1(sec_buf, sec_len, sha1_str);
+
+    char accept_buf[64];
+    int accept_len = swoole::base64_encode(sha1_str, sizeof(sha1_str), accept_buf);
+    return accept_len == (int) Z_STRLEN_P(zaccept) && memcmp(accept_buf, Z_STRVAL_P(zaccept), accept_len) == 0;
+}
+
 using swoole::coroutine::http::Client;
 
 struct HttpClientObject {
@@ -1466,10 +1506,14 @@ bool Client::recv_response(double timeout) {
         close();
         return false;
     }
-    /**
-     * TODO: Sec-WebSocket-Accept check
-     */
     if (websocket) {
+        if (sw_unlikely(!websocket_verify_server_handshake(zobject))) {
+            set_error(SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED,
+                      "websocket handshake failed: invalid Upgrade/Connection/Sec-WebSocket-Accept headers",
+                      HTTP_ESTATUS_SERVER_RESET);
+            close();
+            return false;
+        }
         socket->open_length_check = true;
         socket->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         socket->protocol.package_length_offset = 0;
