@@ -1018,7 +1018,9 @@ int ProcessPool::wait() {
             }
         }
 
-        if (reload_task) {
+        // Reload may be requested by a signal or callback after the initialization phase.
+        // Do not finish an empty task before its worker snapshot has been populated.
+        if (reload_task && !reload_init) {
             if (reload_task->is_completed()) {
                 delete reload_task;
                 reload_task = nullptr;

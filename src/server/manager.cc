@@ -214,9 +214,10 @@ void Manager::wait(Server *_server) {
         }
 
         if (_server->running) {
-            const bool initializing_reload = pool->reload_init;
+            bool initializing_reload = false;
             if (reload_all_worker) {  // reload task & event workers
                 pool->reload_init = reload_all_worker = false;
+                initializing_reload = true;
                 swoole_info("Server is reloading all workers now");
                 if (_server->onBeforeReload != nullptr) {
                     _server->onBeforeReload(_server);
@@ -233,6 +234,7 @@ void Manager::wait(Server *_server) {
                 // that it stopped listening and its replacement has been spawned.
             } else if (reload_task_worker) {  // only reload task workers
                 pool->reload_init = reload_task_worker = false;
+                initializing_reload = true;
                 if (_server->task_worker_num == 0) {
                     delete pool->reload_task;
                     pool->reload_task = nullptr;
@@ -270,7 +272,9 @@ void Manager::wait(Server *_server) {
             }
         }
 
-        if (pool->reload_task) {
+        // A signal or worker callback can request reload after initialization above.
+        // Its empty task must survive until the next iteration populates the PID snapshot.
+        if (pool->reload_task && !pool->reload_init) {
             // reload finish
             if (pool->reload_task->is_completed()) {
                 delete pool->reload_task;
