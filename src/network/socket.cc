@@ -106,18 +106,13 @@ static bool check_sendfile_parameters(const File *file, off_t begin, size_t leng
         return false;
     }
 
-    if (length == 0) {
-        *end = file_stat.st_size;
-    } else {
-        *end = begin + static_cast<off_t>(length);
-    }
-
-    if (begin < 0 || *end > file_stat.st_size) {
+    if (begin < 0 || begin > file_stat.st_size || length > static_cast<size_t>(file_stat.st_size - begin)) {
         swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%ld] or offset[%ld] is invalid", length, (long) begin);
+            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%zu] or offset[%ld] is invalid", length, (long) begin);
         return false;
     }
 
+    *end = length == 0 ? file_stat.st_size : begin + static_cast<off_t>(length);
     return true;
 }
 
@@ -874,6 +869,14 @@ int Socket::handle_send() {
     return SW_OK;
 }
 
+SendfileRequest::~SendfileRequest() {
+    if (delete_file) {
+        // Close before unlink so the handle is released first, which Windows requires.
+        file.close();
+        ::unlink(file.get_path().c_str());
+    }
+}
+
 static void Socket_sendfile_destructor(BufferChunk *chunk) {
     auto *task = static_cast<SendfileRequest *>(chunk->value.ptr);
     delete task;
@@ -887,8 +890,8 @@ ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
     }
 }
 
-int Socket::sendfile_async(const char *filename, off_t offset, size_t length) {
-    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset));
+int Socket::sendfile_async(const char *filename, off_t offset, size_t length, bool delete_file) {
+    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset, delete_file));
 
     if (!check_sendfile_parameters(&task->file, offset, length, &task->end)) {
         return SW_ERR;

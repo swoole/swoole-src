@@ -16,7 +16,9 @@
 
 #include "php_swoole_http_server.h"
 #include "php_swoole_websocket.h"
+#include "php_swoole_sendfile.h"
 #include "swoole_util.h"
+#include "swoole_coroutine_api.h"
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_http_response_arginfo.h"
@@ -700,7 +702,12 @@ void HttpContext::send_trailer(zval *return_value) {
     }
 }
 
-bool HttpContext::send_file(zend_string *file, off_t offset, size_t length) {
+bool HttpContext::send_file(zend_string *file, off_t offset, size_t length, bool delete_file) {
+    ON_SCOPE_EXIT {
+        if (delete_file) {
+            swoole_coroutine_unlink(file->val);
+        }
+    };
     if (http2) {
         return swoole_http2_server_send_file(this, file, offset, length);
     }
@@ -727,9 +734,13 @@ bool HttpContext::send_file(zend_string *file, off_t offset, size_t length) {
         }
     }
 
-    if (length > 0 && !sendfile(this, file, offset, length)) {
-        close(this);
-        return false;
+    if (length > 0) {
+        // Only an asynchronous transport consumes the cleanup token. For synchronous sends,
+        // empty files, and dispatch failures the scope guard remains responsible for cleanup.
+        if (!sendfile(this, file, offset, length, delete_file)) {
+            close(this);
+            return false;
+        }
     }
 
     end_ = 1;
@@ -950,17 +961,29 @@ static PHP_METHOD(swoole_http_response, sendfile) {
         RETURN_FALSE;
     }
 
-    zend_string *file;
+    zend_string *file = nullptr;
+    zend_object *descriptor = nullptr;
     zend_long offset = 0;
     zend_long length = 0;
+    bool delete_file = false;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
-    Z_PARAM_STR(file)
+    Z_PARAM_OBJ_OF_CLASS_OR_STR(descriptor, swoole_sendfile_ce, file)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(offset)
     Z_PARAM_LONG(length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (descriptor) {
+        if (ZEND_NUM_ARGS() > 1) {
+            zend_argument_value_error(2, "must not be provided when $filename is a Swoole\\SendFile");
+            RETURN_THROWS();
+        }
+        if (!php_swoole_sendfile_get_options(descriptor, &file, &offset, &length, &delete_file)) {
+            RETURN_THROWS();
+        }
+    }
+    zend::String filename(file, true);
     if (ZSTR_LEN(file) == 0) {
         php_swoole_error(E_WARNING, "file name is empty");
         RETURN_FALSE;
@@ -1002,7 +1025,13 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
-    RETURN_BOOL(ctx->send_file(file, offset, length));
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
+    if (delete_file && !php_swoole_sendfile_acquire(descriptor)) {
+        RETURN_THROWS();
+    }
+    RETURN_BOOL(ctx->send_file(filename.get(), offset, length, delete_file));
 }
 
 static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {

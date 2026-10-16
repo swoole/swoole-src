@@ -1090,6 +1090,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_http_request_minit(module_number);
     php_swoole_http_response_minit(module_number);
     php_swoole_http_cookie_minit(module_number);
+    php_swoole_sendfile_minit(module_number);
 #ifndef _WIN32
     php_swoole_http_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);

@@ -117,8 +117,12 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     }
     case SW_SERVER_EVENT_SEND_FILE: {
         _send.info = pipe_buffer->info;
-        _send.data = pipe_buffer->data;
-        factory->finish(&_send);
+        auto packet = serv->message_bus.get_packet();
+        _send.data = packet.data;
+        _send.info.len = packet.length;
+        if (!factory->finish(&_send)) {
+            Server::discard_sendfile(&_send.info, _send.data);
+        }
         break;
     }
     case SW_SERVER_EVENT_SEND_DATA: {
