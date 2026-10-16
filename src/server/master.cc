@@ -24,6 +24,8 @@
 #include "swoole_api.h"
 
 #include <cassert>
+#include <grp.h>
+#include <pwd.h>
 #include <net/if.h>
 #include <ifaddrs.h>
 
@@ -535,8 +537,32 @@ bool Server::create_task_workers() {
         destroy_task_workers();
         *pool = {};
     };
-    if (pool->create(task_worker_num, key, ipc_mode) < 0) {
+
+    uid_t worker_uid = geteuid();
+    gid_t worker_gid = getegid();
+    if (swoole_is_root_user()) {
+        if (!user_.empty()) {
+            auto *passwd = getpwnam(user_.c_str());
+            if (passwd) {
+                worker_uid = passwd->pw_uid;
+            }
+        }
+        if (!group_.empty()) {
+            auto *group = getgrnam(group_.c_str());
+            if (group) {
+                worker_gid = group->gr_gid;
+            }
+        }
+    }
+
+    int msgqueue_perms = ipc_mode == SW_IPC_MSGQUEUE ? 0600 : 0;
+    if (pool->create(task_worker_num, key, ipc_mode, msgqueue_perms) < 0) {
         swoole_warning("[Master] create task_workers failed");
+        cleanup();
+        return false;
+    }
+    if (ipc_mode == SW_IPC_MSGQUEUE && !pool->queue->set_access(worker_uid, worker_gid, 0600)) {
+        swoole_warning("[Master] configure task message queue[key=%ld, uid=%d] failed", (long) key, (int) geteuid());
         cleanup();
         return false;
     }
