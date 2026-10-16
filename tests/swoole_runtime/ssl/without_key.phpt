@@ -15,11 +15,8 @@ $ready = new Chan;
 
 go(function () use ($ready) {
     $context = stream_context_create();
-    stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
-    stream_context_set_option($context, 'ssl', 'verify_peer', true);
     stream_context_set_option($context, 'ssl', 'local_cert', SSL_FILE_DIR.'/server.crt');
     stream_context_set_option($context, 'ssl', 'local_pk', SSL_FILE_DIR.'/server.key');
-    stream_context_set_option($context, 'ssl', 'cafile', SSL_FILE_DIR.'/ca.crt');
 
     $socket = stream_socket_server("ssl://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
     if (!$socket) {
