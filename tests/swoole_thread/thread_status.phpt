@@ -10,23 +10,38 @@ skip_if_nts();
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Thread;
+use Swoole\Thread\Queue;
 
-$t1 = new Thread(TESTS_API_PATH . '/swoole_thread/sleep.php');
-usleep(10);
-Assert::true($t1->joinable());
-Assert::true($t1->isAlive());
-Assert::true($t1->join());
-Assert::false($t1->joinable());
-Assert::false($t1->isAlive());
-
-$t2 = new Thread(TESTS_API_PATH . '/swoole_thread/sleep.php');
-$t2->detach();
-usleep(10);
-Assert::false($t2->joinable());
-Assert::true($t2->isAlive());
-while (Thread::activeCount() > 1) {
-    usleep(10);
+$args = Thread::getArguments();
+if ($args) {
+    [$ready, $release] = $args;
+    $ready->push(true, Queue::NOTIFY_ONE);
+    Assert::true($release->pop(5));
+    return;
 }
-Assert::false($t2->isAlive());
+
+foreach ([false, true] as $detach) {
+    $ready   = new Queue();
+    $release = new Queue();
+    $thread  = new Thread(__FILE__, $ready, $release);
+    if ($detach) {
+        Assert::true($thread->detach());
+    }
+    // Observe a running worker and keep it alive until the status checks finish.
+    Assert::true($ready->pop(5));
+    Assert::same($thread->joinable(), !$detach);
+    Assert::true($thread->isAlive());
+    $release->push(true, Queue::NOTIFY_ONE);
+    if (!$detach) {
+        Assert::true($thread->join());
+    } else {
+        $deadline = microtime(true) + 5;
+        while ($thread->isAlive() && microtime(true) < $deadline) {
+            usleep(1000);
+        }
+    }
+    Assert::false($thread->joinable());
+    Assert::false($thread->isAlive());
+}
 ?>
 --EXPECT--
