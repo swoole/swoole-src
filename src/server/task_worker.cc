@@ -451,7 +451,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
 
     uint16_t source_worker_id = current_task->info.reactor_id;
     if (source_worker_id >= worker_num) {
-        swoole_warning("invalid worker_id[%d]", source_worker_id);
+        swoole_warning("invalid event worker id[%d]", source_worker_id);
         return false;
     }
     Worker *worker = get_worker(source_worker_id);
