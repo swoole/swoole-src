@@ -575,7 +575,18 @@ bool Server::create_task_workers() {
         char sockfile[sizeof(struct sockaddr_un)];
         // Task endpoints are created before daemonization and before master_pid is initialized.
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", getpid());
-        if (get_task_worker_pool()->listen(sockfile, 2048) < 0) {
+        do {
+            mode_t old_umask = umask(0177);
+            ON_SCOPE_EXIT {
+                umask(old_umask);
+            };
+            if (pool->listen(sockfile, 2048) < 0) {
+                cleanup();
+                return false;
+            }
+        } while (0);
+        if ((worker_uid != geteuid() || worker_gid != getegid()) && chown(sockfile, worker_uid, worker_gid) < 0) {
+            swoole_sys_warning("chown(%s, %d, %d) failed", sockfile, (int) worker_uid, (int) worker_gid);
             cleanup();
             return false;
         }
