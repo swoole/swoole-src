@@ -128,6 +128,7 @@ struct FormData {
     std::string upload_tmpfile_fmt_;
     std::string current_header_name;
     std::string current_header_value;
+    std::vector<std::string> upload_tmpfile_paths_;
     size_t upload_filesize;
     size_t upload_max_filesize;
 };
@@ -159,7 +160,6 @@ struct Request {
 
     FormData *form_data_;
     String *buffer_;
-    std::vector<std::string> upload_tmpfile_paths_;
 
     Request() {
         clean();
@@ -169,7 +169,6 @@ struct Request {
     ~Request();
     void clean() {
         memset(&method, 0, offsetof(Request, form_data_));
-        upload_tmpfile_paths_.clear();
     }
     int get_protocol();
     int get_header_length();

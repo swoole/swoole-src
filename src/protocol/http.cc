@@ -237,7 +237,7 @@ static int multipart_on_header_value_complete(multipart_parser *p) {
                     return false;
                 }
                 p->fp = fp;
-                request->upload_tmpfile_paths_.emplace_back(form_data->upload_tmpfile->str);
+                form_data->upload_tmpfile_paths_.emplace_back(form_data->upload_tmpfile->str);
 
                 return false;
             }
@@ -887,8 +887,7 @@ void Request::destroy_multipart_parser() {
     }
     delete form_data_->upload_tmpfile;
     form_data_->upload_tmpfile = nullptr;
-    delete form_data_;
-    form_data_ = nullptr;
+    // Keep temporary-file ownership until dispatch succeeds or the request is destroyed.
 }
 
 bool Request::parse_multipart_data(String *buffer) {
@@ -920,9 +919,10 @@ bool Request::parse_multipart_data(String *buffer) {
 Request::~Request() {
     if (form_data_) {
         destroy_multipart_parser();
-    }
-    for (const auto &tmpfile : upload_tmpfile_paths_) {
-        unlink(tmpfile.c_str());
+        for (const auto &tmpfile : form_data_->upload_tmpfile_paths_) {
+            unlink(tmpfile.c_str());
+        }
+        delete form_data_;
     }
 }
 

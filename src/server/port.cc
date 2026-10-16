@@ -726,7 +726,10 @@ _parse:
     dispatch_data.info.ext_flags = request->upload_preprocessed ? http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED : 0;
 
     // dispatch_request() may run the worker inline in BASE mode and destroy request.
-    auto upload_tmpfile_paths = std::move(request->upload_tmpfile_paths_);
+    std::vector<std::string> upload_tmpfile_paths;
+    if (request->form_data_) {
+        upload_tmpfile_paths = std::move(request->form_data_->upload_tmpfile_paths_);
+    }
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
         for (const auto &tmpfile : upload_tmpfile_paths) {
             unlink(tmpfile.c_str());
