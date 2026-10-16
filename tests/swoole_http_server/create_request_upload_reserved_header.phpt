@@ -32,15 +32,22 @@ $data = implode("\r\n", [
     $body,
 ]);
 
-$req = Request::create();
-Assert::same($req->parse($data), strlen($data));
-Assert::true($req->isCompleted());
-Assert::true(isset($req->files['file']));
-Assert::same(md5_file($req->files['file']['tmp_name']), md5($content));
-Assert::false($req->files['file']['tmp_name'] === $probe);
-Assert::false(is_uploaded_file($probe));
-unset($req);
-Assert::true(file_exists($probe));
+$marker = strpos($data, 'Swoole-Upload-File:');
+$markerEnd = strpos($data, "\r\n", $marker);
+// Every split within the untrusted marker must preserve normal upload behavior.
+for ($split = $marker + 1; $split <= $markerEnd + 1; $split++) {
+    $req = Request::create();
+    Assert::same($req->parse(substr($data, 0, $split)), $split);
+    Assert::false($req->isCompleted());
+    Assert::same($req->parse(substr($data, $split)), strlen($data) - $split);
+    Assert::true($req->isCompleted());
+    Assert::true(isset($req->files['file']));
+    Assert::same(md5_file($req->files['file']['tmp_name']), md5($content));
+    Assert::false($req->files['file']['tmp_name'] === $probe);
+    Assert::false(is_uploaded_file($probe));
+    unset($req);
+    Assert::true(file_exists($probe));
+}
 unlink($probe);
 ?>
 --EXPECT--

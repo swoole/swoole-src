@@ -47,6 +47,27 @@ function send_split_request(ProcessManager $pm, string $boundary, string $body):
     return $response;
 }
 
+// Split the marker itself after a preceding file has already been preprocessed.
+function send_fragmented_marker(ProcessManager $pm, string $request, int $split): string
+{
+    $socket = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}", $errno, $errstr, 2);
+    Assert::notSame($socket, false);
+    stream_set_timeout($socket, 2);
+    foreach ([substr($request, 0, $split), substr($request, $split)] as $data) {
+        for ($offset = 0; $offset < strlen($data);) {
+            $written = @fwrite($socket, substr($data, $offset));
+            Assert::greaterThan($written, 0);
+            $offset += $written;
+        }
+        usleep(10000);
+    }
+    $response = stream_get_contents($socket);
+    Assert::false(stream_get_meta_data($socket)['timed_out']);
+    fclose($socket);
+
+    return $response;
+}
+
 $probes = [
     tempnam(sys_get_temp_dir(), 'swoole-upload-probe-'),
     tempnam(sys_get_temp_dir(), 'swoole-upload-probe-'),
@@ -164,16 +185,20 @@ $pm->parentFunc = function () use (
     Assert::contains($response, '400 Bad Request');
     Assert::same(glob($uploadDir . '/swoole.upfile.*'), []);
 
+    $request = build_request($boundary, $lateBody);
+    $marker = strpos($request, 'Swoole-Upload-File:');
+    foreach ([$marker + strlen('Swoole-Upload-'), $marker + strlen('Swoole-Upload-File: ') + 3] as $split) {
+        $response = send_fragmented_marker($pm, $request, $split);
+        Assert::contains($response, '400 Bad Request');
+        Assert::same(glob($uploadDir . '/swoole.upfile.*'), []);
+        Assert::true(file_exists($probes[1]));
+    }
+
     $response = send_split_request($pm, $boundary, $tooLargeBody);
     Assert::contains($response, '413 Request Entity Too Large');
     Assert::same(glob($uploadDir . '/swoole.upfile.*'), []);
     $log = file_get_contents($logFile);
-    Assert::same(preg_match(
-        '/Request Entity Too Large: header-length \(\d+\) \+ content-length \((\d+)\)/',
-        $log,
-        $match
-    ), 1);
-    Assert::greaterThan((int) $match[1], strlen($tooLargeBody));
+    Assert::contains($log, 'reconstructed multipart request is too large');
 
     $response = send_request($pm, build_request($boundary, $fileBody));
     Assert::contains($response, md5(str_repeat('D', 80 * 1024)));

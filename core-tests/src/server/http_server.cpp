@@ -1926,7 +1926,7 @@ TEST(http_server, has_expect_header) {
 }
 
 TEST(http_server, duplicate_content_type) {
-    {
+    do {
         swoole::http_server::Request request;
         request.buffer_ = new String("POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data; "
                                      "boundary=test\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n");
@@ -1937,8 +1937,8 @@ TEST(http_server, duplicate_content_type) {
         ASSERT_EQ(request.form_data_, nullptr);
         delete request.buffer_;
         request.buffer_ = nullptr;
-    }
-    {
+    } while (0);
+    do {
         swoole::http_server::Request request;
         request.buffer_ = new String("POST / HTTP/1.1\r\nHost: localhost\r\nContent-Type: text/plain\r\n"
                                      "Content-Type: multipart/form-data; boundary=test\r\nContent-Length: 0\r\n\r\n");
@@ -1949,7 +1949,7 @@ TEST(http_server, duplicate_content_type) {
         ASSERT_NE(request.form_data_, nullptr);
         delete request.buffer_;
         request.buffer_ = nullptr;
-    }
+    } while (0);
 }
 
 TEST(http_server, invalid_multipart_boundary) {
