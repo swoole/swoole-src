@@ -505,19 +505,21 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
 
     // Preserve positive partial counts so PHP can retry the unwritten remainder.
     if (didwrite < 0) {
-        abstract->stream.timeout_event = sock->errCode == ETIMEDOUT;
-
         if (sock->errCode != ETIMEDOUT) {
             // SW_WAIT is not an error for a non-blocking stream.
             bool report_errors = false;
+
+            // Only non-blocking mode, or blocking mode with a zero timeout, can possibly take this branch.
             if (sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
                 didwrite = 0;
-                if (abstract->blocking) {
+                if (abstract->blocking && abstract->zero_timer) {
+                    /**
+                     * Sending after `send` returns `EAGAIN` and immediately using a zero-timeout `poll`
+                     * to check writability is unreasonable, because the buffer state will not change in an instant.
+                     */
                     report_errors = true;
-                    if (abstract->zero_timer) {
-                        abstract->stream.timeout_event = 1;
-                        didwrite = -1;
-                    }
+                    sock->set_err(ETIMEDOUT);
+                    didwrite = -1;
                 }
             } else {
                 report_errors = true;
@@ -1145,7 +1147,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             add_assoc_string(&tmp, "cipher_version", SSL_CIPHER_get_version(cipher));
             add_assoc_zval((zval *) ptrparam, "crypto", &tmp);
         }
-        add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT || abstract->stream.timeout_event == 1);
+        add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
         add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
         add_assoc_bool((zval *) ptrparam, "blocked", true);
         break;
