@@ -21,6 +21,7 @@
 
 #include "httplib_client.h"
 #include "llhttp.h"
+#include "multipart_parser.h"
 #include "swoole_server.h"
 #include "swoole_file.h"
 #include "swoole_http.h"
@@ -961,6 +962,65 @@ static void check_single_upload(Context &ctx, const std::string &probe_file, con
     }
     EXPECT_TRUE(file_exists(probe_file));
     ctx.end(TEST_STR);
+}
+
+TEST(http_server, collect_upload_paths_without_metadata) {
+    multipart_parser_settings settings = {};
+    auto *parser = multipart_parser_init("review", 6, &settings);
+    ASSERT_NE(parser, nullptr);
+    std::string body = "--review\r\nContent-Disposition: form-data; filename=\"missing-name.txt\"\r\n"
+                       "Swoole-Upload-File: /tmp/generated-first\r\n\r\nignored\r\n"
+                       "--review\r\nContent-Disposition: form-data; name=\"text\"\r\n\r\n"
+                       "Swoole-Upload-File: /tmp/client-value\r\n"
+                       "--review\r\nContent-Disposition: form-data; name=\"last\"; filename=\"last.txt\"\r\n"
+                       "Swoole-Upload-File: /tmp/generated-last\r\n\r\nignored\r\n--review--\r\n";
+    std::vector<std::string> paths;
+    EXPECT_TRUE(http_server::collect_upload_tmpfiles(parser, body.c_str(), body.length(), &paths));
+    EXPECT_EQ(paths, (std::vector<std::string>{"/tmp/generated-first", "/tmp/generated-last"}));
+    multipart_parser_free(parser);
+}
+
+TEST(http_server, upload_flush_failure) {
+    if (!file_exists("/dev/full")) {
+        GTEST_SKIP() << "requires /dev/full";
+    }
+    FILE *fp = fopen("/dev/full", "wb");
+    ASSERT_NE(fp, nullptr);
+    char buffer[1024];
+    ASSERT_EQ(setvbuf(fp, buffer, _IOFBF, sizeof(buffer)), 0);
+    EXPECT_EQ(fwrite("x", 1, 1, fp), 1);
+    EXPECT_FALSE(http_server::close_upload_file(fp));
+    EXPECT_EQ(fp, nullptr);
+}
+
+TEST(http_server, wrapper_multipart_header_limit) {
+    std::thread t;
+    auto server = http_server::listen(":0", [](Context &ctx) { ctx.end("ACCEPTED"); });
+    server->worker_num = 1;
+    server->onWorkerStart = [&t](Server *server, Worker *worker) {
+        t = std::thread([server]() {
+            swoole_signal_block_all();
+            for (size_t excess = 0; excess < 2; excess++) {
+                std::string body = "--review\r\nX-Test: " + std::string(SW_HTTP_HEADER_MAX_SIZE - 6 + excess, 'A') +
+                                   "\r\nContent-Disposition: form-data; name=\"text\"\r\n\r\nvalue\r\n--review--\r\n";
+                std::string request = make_multipart_upload_request("review", body);
+                SyncClient c(SW_SOCK_TCP);
+                EXPECT_TRUE(c.connect(TEST_HOST, server->get_primary_port()->port));
+                c.send(request.c_str(), request.length());
+                char buffer[1024];
+                std::string response;
+                ssize_t n;
+                while ((n = c.recv(buffer, sizeof(buffer))) > 0) {
+                    response.append(buffer, n);
+                }
+                EXPECT_NE(response.find(excess == 0 ? "200 OK" : "400 Bad Request"), std::string::npos);
+                c.close();
+            }
+            kill(server->get_master_pid(), SIGTERM);
+        });
+    };
+    server->start();
+    t.join();
 }
 
 TEST(http_server, upload_reserved_header) {

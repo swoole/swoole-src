@@ -1331,8 +1331,14 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                     auto post_str = estrndup(buffer->str, buffer->length);
                     sapi_module.treat_data(PARSE_STRING, post_str, post_prop);
                 } else if (ctx->mt_parser != nullptr) {
-                    if (!ctx->parse_multipart_data(buffer->str, buffer->length)) {
-                        return SW_ERR;
+                    if (!ctx->parse_multipart_data(buffer->str, buffer->length) ||
+                        !multipart_parser_is_complete(ctx->mt_parser)) {
+                        http2_server_send_status_code(ctx, SW_HTTP_BAD_REQUEST);
+                        ctx->end_ = true;
+                        zval_ptr_dtor(ctx->request.zobject);
+                        zval_ptr_dtor(ctx->response.zobject);
+                        client->remove_stream(stream_id);
+                        break;
                     }
                 }
             }

@@ -148,6 +148,14 @@ struct Response {
     zval _ztrailer;
 };
 
+struct MultipartState {
+    http_server::MultipartHeader header;
+    std::string content_type;
+    String buffer{SW_BUFFER_SIZE_STD};
+    bool disposition_seen = false;
+    bool upload_files_collected = false;
+};
+
 struct Context {
     SessionId fd;
     uchar completed : 1;
@@ -198,13 +206,10 @@ struct Context {
     const char *current_header_name;
     size_t current_header_name_len;
     size_t current_header_value_len;
-    std::string current_part_header_name;
-    std::string current_part_header_value;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
-    std::string tmp_content_type;
-    String *form_data_buffer;
+    MultipartState *multipart;
 
     std::string upload_tmp_dir;
 
@@ -230,7 +235,7 @@ struct Context {
     bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
-    bool parse_multipart_data(const char *at, size_t length) const;
+    bool parse_multipart_data(const char *at, size_t length);
 
     HTTP_API bool set_header(const char *, size_t, zval *, bool);
     HTTP_API bool set_header(const char *, size_t, const char *, size_t, bool);

@@ -119,6 +119,23 @@ enum {
     SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED = 1u << 0,
 };
 
+struct MultipartHeader {
+    std::string name;
+    std::string value;
+
+    bool append(std::string &buffer, const char *at, size_t length);
+    void clear() {
+        name.clear();
+        value.clear();
+    }
+};
+
+bool collect_upload_tmpfiles(const multipart_parser *parser,
+                             const char *at,
+                             size_t length,
+                             std::vector<std::string> *paths);
+bool close_upload_file(FILE *&fp, ssize_t *size = nullptr);
+
 struct FormData {
     const char *multipart_boundary_buf;
     uint32_t multipart_boundary_len;
@@ -126,11 +143,12 @@ struct FormData {
     String *multipart_buffer_;
     String *upload_tmpfile;
     std::string upload_tmpfile_fmt_;
-    std::string current_header_name;
-    std::string current_header_value;
+    MultipartHeader header;
     std::vector<std::string> upload_tmpfile_paths_;
+    uint64_t multipart_body_length_;
     size_t upload_filesize;
     size_t upload_max_filesize;
+    bool disposition_seen;
 };
 
 struct Request {
@@ -156,7 +174,6 @@ struct Request {
     uint32_t request_line_length_; /* without \r\n  */
     uint32_t header_length_;       /* include request_line_length + \r\n */
     uint64_t content_length_;
-    uint64_t multipart_body_length_;
 
     FormData *form_data_;
     String *buffer_;

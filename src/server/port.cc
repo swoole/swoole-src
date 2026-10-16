@@ -598,7 +598,7 @@ _parse:
             goto _unavailable;
         }
         if (!request->tried_to_dispatch) {
-            if (request->multipart_body_length_ >= request->content_length_) {
+            if (request->form_data_->multipart_body_length_ >= request->content_length_) {
                 goto _bad_request;
             }
             return SW_OK;

@@ -84,8 +84,10 @@ struct ContextImpl {
     multipart_parser *mt_parser = nullptr;
 
     std::string current_header_name;
-    std::string current_part_header_name;
-    std::string current_part_header_value;
+    MultipartHeader part_header;
+    std::vector<std::string> upload_tmpfile_paths;
+    bool upload_files_collected = false;
+    bool disposition_seen = false;
     std::string current_form_data_name;
     bool current_part_is_file = false;
     bool upload_preprocessed = false;
@@ -108,6 +110,9 @@ struct ContextImpl {
 
     ~ContextImpl() {
         destroy_multipart_parser();
+        for (const auto &path : upload_tmpfile_paths) {
+            unlink(path.c_str());
+        }
     }
 
     bool parse(Context &ctx, const char *at, size_t length) {
@@ -200,6 +205,13 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
             } while (length != 0);
             impl->is_beginning = false;
         }
+        if (impl->upload_preprocessed && !impl->upload_files_collected) {
+            bool valid = collect_upload_tmpfiles(multipart_parser, at, length, &impl->upload_tmpfile_paths);
+            impl->upload_files_collected = true;
+            if (!valid) {
+                return SW_ERR;
+            }
+        }
         ssize_t n = multipart_parser_execute(multipart_parser, at, length);
         if (sw_unlikely(n < 0)) {
             int l_error = multipart_parser_error_msg(multipart_parser, sw_tg_buffer()->str, sw_tg_buffer()->size);
@@ -226,29 +238,32 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
-    ctx->impl->current_part_header_name.append(at, length);
-    return SW_OK;
+    auto &header = ctx->impl->part_header;
+    return header.append(header.name, at, length) ? SW_OK : SW_ERR;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
-    ctx->impl->current_part_header_value.append(at, length);
-    return SW_OK;
+    auto &header = ctx->impl->part_header;
+    return header.append(header.value, at, length) ? SW_OK : SW_ERR;
 }
 
-static int multipart_body_on_header_value_complete(multipart_parser *p) {
+static int multipart_body_process_header(multipart_parser *p) {
     auto *ctx = static_cast<Context *>(p->data);
     ContextImpl *impl = ctx->impl;
-    std::string header_name;
-    std::string header_value;
-    header_name.swap(impl->current_part_header_name);
-    header_value.swap(impl->current_part_header_value);
+    const auto &header_name = impl->part_header.name;
+    const auto &header_value = impl->part_header.value;
     const char *header_name_ptr = header_name.c_str();
     size_t header_len = header_name.length();
     const char *at = header_value.c_str();
     size_t length = header_value.length();
 
     if (SW_STRCASEEQ(header_name_ptr, header_len, "content-disposition")) {
+        if (impl->disposition_seen) {
+            swoole_warning("duplicate multipart Content-Disposition");
+            return SW_ERR;
+        }
+        impl->disposition_seen = true;
         std::unordered_map<std::string, std::string> info;
         ParseCookieCallback cb = [&info](char *key, size_t key_len, char *value, size_t value_len) {
             info[std::string(key, key_len)] = std::string(value, value_len);
@@ -276,14 +291,12 @@ static int multipart_body_on_header_value_complete(multipart_parser *p) {
          * remains, so mark the request completed after consuming the generated marker.
          */
         std::string tmp_file(at, length);
-        // Client markers are rejected before dispatch, so a rejected marker is a generated path that can be removed.
+        // ContextImpl owns every generated path, including rejected and duplicate markers.
         if (!impl->current_part_is_file || impl->current_form_data_name.empty()) {
             swoole_warning("upload file marker has no matching multipart file metadata");
-            unlink(tmp_file.c_str());
             return 0;
         }
         if (ctx->files.find(impl->current_form_data_name) != ctx->files.end()) {
-            unlink(tmp_file.c_str());
             return 0;
         }
         impl->completed = true;
@@ -291,6 +304,12 @@ static int multipart_body_on_header_value_complete(multipart_parser *p) {
     }
 
     return 0;
+}
+
+static int multipart_body_on_header_value_complete(multipart_parser *p) {
+    int result = multipart_body_process_header(p);
+    static_cast<Context *>(p->data)->impl->part_header.clear();
+    return result;
 }
 
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length) {
@@ -303,10 +322,10 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
         }
         ssize_t n = fwrite(at, sizeof(char), length, p->fp);
         if (n != (off_t) length) {
-            ctx->files[impl->current_form_data_name] = "ERROR(1)";
             fclose(p->fp);
             p->fp = nullptr;
             swoole_sys_warning("write upload file failed");
+            return SW_ERR;
         }
         return 0;
     }
@@ -331,14 +350,15 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE] = "/tmp/swoole.upfile.XXXXXX";
     int tmpfile = swoole_tmpfile(file_path);
     if (tmpfile < 0) {
-        return 0;
+        return SW_ERR;
     }
 
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         swoole_sys_warning("fopen(%s) failed", file_path);
         ::close(tmpfile);
-        return 0;
+        unlink(file_path);
+        return SW_ERR;
     }
     p->fp = fp;
     ctx->files[impl->current_form_data_name] = file_path;
@@ -355,13 +375,12 @@ static int multipart_body_on_data_end(multipart_parser *p) {
         impl->form_data_buffer->clear();
     }
 
-    if (p->fp != nullptr) {
-        fclose(p->fp);
-        p->fp = nullptr;
+    if (p->fp != nullptr && !close_upload_file(p->fp)) {
+        return SW_ERR;
     }
 
-    impl->current_part_header_name.clear();
-    impl->current_part_header_value.clear();
+    impl->part_header.clear();
+    impl->disposition_seen = false;
     impl->current_part_is_file = false;
     impl->current_form_data_name.clear();
 
@@ -409,6 +428,10 @@ bool Context::end(const char *data, size_t length) {
 }
 
 Context::~Context() {
+    // Preprocessed paths are owned by ContextImpl, including paths rejected by metadata validation.
+    if (impl && impl->upload_preprocessed) {
+        return;
+    }
     for (auto &kv : files) {
         if (file_exists(kv.second)) {
             unlink(kv.second.c_str());
