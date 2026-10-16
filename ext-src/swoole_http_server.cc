@@ -96,6 +96,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
     ctx->onBeforeRequest = swoole_http_server_onBeforeRequest;
+    ctx->upload_preprocessed = (req->info.ext_flags & swoole::http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED) != 0;
 
     zval *zdata = &ctx->request.zdata;
     php_swoole_get_recv_data(serv, zdata, req);
@@ -326,10 +327,7 @@ void HttpContext::free() {
     if (res->reason) {
         efree(res->reason);
     }
-    if (mt_parser) {
-        multipart_parser_free(mt_parser);
-        mt_parser = nullptr;
-    }
+    destroy_multipart_parser();
     if (current_form_data_name) {
         efree(current_form_data_name);
         current_form_data_name = nullptr;
@@ -339,11 +337,6 @@ void HttpContext::free() {
         sw_zval_free(current_multipart_header);
         current_multipart_header = nullptr;
     }
-    if (form_data_buffer) {
-        delete form_data_buffer;
-        form_data_buffer = nullptr;
-    }
-
     if (is_co_socket()) {
         zval_ptr_dtor(&zsocket);
     }

@@ -574,7 +574,10 @@ _parse:
         if (request->form_data_) {
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
-                request->init_multipart_parser(serv);
+                if (!request->init_multipart_parser(serv)) {
+                    goto _bad_request;
+                }
+                request->upload_preprocessed = 1;
 
                 buffer = request->buffer_;
             } else {
@@ -585,9 +588,6 @@ _parse:
     }
 
     if (request->form_data_) {
-        if (!request->multipart_header_parsed && memmem(buffer->str, buffer->length, SW_STRL("\r\n\r\n")) == nullptr) {
-            return SW_OK;
-        }
         if (!request->parse_multipart_data(buffer)) {
             goto _bad_request;
         }
@@ -598,6 +598,9 @@ _parse:
             goto _unavailable;
         }
         if (!request->tried_to_dispatch) {
+            if (request->form_data_->multipart_body_length_ >= request->content_length_) {
+                goto _bad_request;
+            }
             return SW_OK;
         }
         request->destroy_multipart_parser();
@@ -720,8 +723,17 @@ _parse:
     buffer->offset = request_length;
     dispatch_data.data = buffer->str;
     dispatch_data.info.len = buffer->length;
+    dispatch_data.info.ext_flags = request->upload_preprocessed ? http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED : 0;
 
+    // dispatch_request() may run the worker inline in BASE mode and destroy request.
+    std::vector<std::string> upload_tmpfile_paths;
+    if (request->form_data_) {
+        upload_tmpfile_paths = std::move(request->form_data_->upload_tmpfile_paths_);
+    }
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
+        for (const auto &tmpfile : upload_tmpfile_paths) {
+            unlink(tmpfile.c_str());
+        }
         goto _close_fd;
     }
 

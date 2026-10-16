@@ -1103,6 +1103,9 @@ static int http2_server_parse_header(
                 }
             } else {
                 if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-type")) {
+                    // A repeated Content-Type replaces the parser state derived from the previous value.
+                    ctx->request.post_form_urlencoded = 0;
+                    ctx->destroy_multipart_parser();
                     if (SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded")) {
                         ctx->request.post_form_urlencoded = 1;
                     } else if (SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "multipart/form-data")) {
@@ -1113,7 +1116,9 @@ static int http2_server_parse_header(
                                 (char *) nv.value, nv.valuelen, offset, &boundary_str, &boundary_len)) {
                             return SW_ERR;
                         }
-                        ctx->init_multipart_parser(boundary_str, boundary_len);
+                        if (!ctx->init_multipart_parser(boundary_str, boundary_len)) {
+                            return SW_ERR;
+                        }
                         ctx->parser.data = ctx;
                     }
                 } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "cookie")) {
@@ -1326,8 +1331,14 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                     auto post_str = estrndup(buffer->str, buffer->length);
                     sapi_module.treat_data(PARSE_STRING, post_str, post_prop);
                 } else if (ctx->mt_parser != nullptr) {
-                    if (!ctx->parse_multipart_data(buffer->str, buffer->length)) {
-                        return SW_ERR;
+                    if (!ctx->parse_multipart_data(buffer->str, buffer->length) ||
+                        !multipart_parser_is_complete(ctx->mt_parser)) {
+                        http2_server_send_status_code(ctx, SW_HTTP_BAD_REQUEST);
+                        ctx->end_ = true;
+                        zval_ptr_dtor(ctx->request.zobject);
+                        zval_ptr_dtor(ctx->response.zobject);
+                        client->remove_stream(stream_id);
+                        break;
                     }
                 }
             }
