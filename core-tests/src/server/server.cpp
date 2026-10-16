@@ -428,6 +428,24 @@ TEST(server, task_finish_rejects_task_worker_source) {
     EXPECT_FALSE(serv.finish("result", sizeof("result") - 1, 0, &task));
 }
 
+TEST(server, task_stream_socket_uses_creator_pid) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.task_worker_num = 1;
+    serv.task_ipc_mode = Server::TASK_IPC_STREAM;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    ON_SCOPE_EXIT {
+        serv.destroy();
+    };
+
+    auto *pool = serv.get_task_worker_pool();
+    const std::string path = "/tmp/swoole.task." + std::to_string(getpid()) + ".sock";
+    ASSERT_NE(pool->stream_info_, nullptr);
+    ASSERT_NE(pool->stream_info_->socket, nullptr);
+    EXPECT_STREQ(pool->stream_info_->socket_address, path.c_str());
+    EXPECT_EQ(access(path.c_str(), F_OK), 0);
+}
+
 static void test_process(bool single_thread = false) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;

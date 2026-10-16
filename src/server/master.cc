@@ -573,7 +573,8 @@ bool Server::create_task_workers() {
 
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
-        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
+        // Task endpoints are created before daemonization and before master_pid is initialized.
+        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", getpid());
         if (get_task_worker_pool()->listen(sockfile, 2048) < 0) {
             cleanup();
             return false;
