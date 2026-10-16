@@ -18,6 +18,7 @@
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/url.h"
+#include "main/php_open_temporary_file.h"
 #include "stubs/php_swoole_http_request_arginfo.h"
 #include "thirdparty/php/main/SAPI.h"
 SW_EXTERN_C_END
@@ -1157,7 +1158,7 @@ static PHP_METHOD(swoole_http_request, create) {
     ctx->enable_compression = 1;
     ctx->compression_level = SW_Z_BEST_SPEED;
 #endif
-    ctx->upload_tmp_dir = "/tmp";
+    ctx->upload_tmp_dir = php_get_temporary_directory();
 
     if (zoptions && ZVAL_IS_ARRAY(zoptions)) {
         char *key;
