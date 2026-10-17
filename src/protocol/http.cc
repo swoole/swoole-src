@@ -904,7 +904,8 @@ void Request::parse_header_info() {
                 if (SW_STR_ISTARTS_WITH(p, pe - p, "multipart/form-data")) {
                     form_data_ = new FormData();
                     form_data_->multipart_boundary_buf = p + (sizeof("multipart/form-data") - 1);
-                    form_data_->multipart_boundary_len = strchr(p, '\r') - form_data_->multipart_boundary_buf;
+                    form_data_->multipart_boundary_len = swoole::rtrim(
+                        form_data_->multipart_boundary_buf, strchr(p, '\r') - form_data_->multipart_boundary_buf);
                 }
             }
         }

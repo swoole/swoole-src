@@ -507,6 +507,7 @@ int swoole_http_token_list_contains_value(const char *at, size_t length, const c
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(parser->data);
+    length = swoole::rtrim(at, length);
     zval *zheader = ctx->request.zheader;
     const char *header_name = ctx->current_header_name;
     size_t header_len = ctx->current_header_name_len;
