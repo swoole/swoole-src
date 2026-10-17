@@ -135,6 +135,7 @@ class Multi {
     Coroutine *co = nullptr;
     int running_handles_ = 0;
     bool defer_callback = false;
+    bool released = false;
     Selector selector;
     std::unordered_map<curl_socket_t, Socket *> sockets;
 
@@ -153,7 +154,7 @@ class Multi {
     void selector_prepare();
 
     bool wait_event() const {
-        return timer || !sockets.empty();
+        return !selector.timer_callback && (timer || !sockets.empty());
     }
 
     void add_timer(long timeout_ms) {
@@ -184,6 +185,14 @@ class Multi {
   public:
     Multi();
     ~Multi();
+
+    void release() {
+        if (defer_callback) {
+            released = true;
+        } else {
+            delete this;
+        }
+    }
 
     CURLM *get_multi_handle() const {
         return multi_handle_;
