@@ -59,6 +59,7 @@ $data .= "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML,
 $data .= "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n";
 $data .= "Accept-Encoding: gzip, deflate, br\r\n";
 $data .= "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7,ja;q=0.6\r\n";
+$data .= "X-Whitespace: \talpha \t beta \t \r\n";
 $data .= "Cookie: env=pretest; phpsessid=fcccs2af8673a2f343a61a96551c8523d79ea; username=hantianfeng\r\n";
 
 $req3 = Request::create();
@@ -72,6 +73,7 @@ $data .= $body;
 
 $req4 = Request::create();
 $req4->parse($data);
+Assert::same($req4->header['x-whitespace'], "alpha \t beta");
 
 for ($offset = 1; $offset < strlen($data); ++$offset) {
     $req = Request::create();
