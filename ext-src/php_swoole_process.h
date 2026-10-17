@@ -44,6 +44,7 @@ static sw_inline bool php_swoole_msgqueue_key_is_valid(zend_long key) {
 }
 
 void php_swoole_process_clean();
+void php_swoole_process_signal_clean();
 int php_swoole_process_start(swoole::Worker *process, zval *zobject);
 swoole::Worker *php_swoole_process_get_worker(const zval *zobject);
 void php_swoole_process_set_worker(const zval *zobject, swoole::Worker *worker, bool enable_coroutine, int pipe_type);
