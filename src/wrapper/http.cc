@@ -147,6 +147,7 @@ static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(parser->data);
+    length = swoole::rtrim(at, length);
     ContextImpl *impl = ctx->impl;
     ctx->headers[impl->current_header_name] = std::string(at, length);
 
