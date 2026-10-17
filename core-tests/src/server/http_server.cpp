@@ -1988,6 +1988,13 @@ TEST(http_server, has_expect_header) {
                         "Content-Length: 1000000\r\n"
                         "Expect: 100-continue\r\n\r\n");
     ASSERT_TRUE(req.has_expect_header());
+
+    req.buffer_->clear();
+    req.buffer_->append("POST /submit HTTP/1.1\r\n"
+                        "Host: www.example.com\r\n"
+                        "Content-Length: 1000000\r\n"
+                        "Expect:\t100-continue\r\n\r\n");
+    ASSERT_TRUE(req.has_expect_header());
 }
 
 TEST(http_server, duplicate_content_type) {
@@ -2015,6 +2022,25 @@ TEST(http_server, duplicate_content_type) {
         delete request.buffer_;
         request.buffer_ = nullptr;
     } while (0);
+}
+
+TEST(http_server, header_value_whitespace) {
+    swoole::http_server::Request request;
+    request.buffer_ = new String("POST / HTTP/1.1\r\n"
+                                 "Host: localhost\r\n"
+                                 "Connection:\tkeep-alive\r\n"
+                                 "Transfer-Encoding:\tchunked\r\n"
+                                 "Content-Type:\tmultipart/form-data; boundary=test\r\n"
+                                 "\r\n");
+
+    ASSERT_EQ(request.get_protocol(), SW_OK);
+    ASSERT_EQ(request.get_header_length(), SW_OK);
+    request.parse_header_info();
+    EXPECT_TRUE(request.keep_alive);
+    EXPECT_TRUE(request.chunked);
+    EXPECT_NE(request.form_data_, nullptr);
+    delete request.buffer_;
+    request.buffer_ = nullptr;
 }
 
 TEST(http_server, invalid_multipart_boundary) {
