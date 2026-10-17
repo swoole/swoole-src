@@ -186,6 +186,15 @@ static constexpr zend_function_entry swoole_exit_exception_methods[] = {
 };
 // clang-format on
 
+static PHP_METHOD(swoole_coroutine_canceled_exception, getReason);
+
+// clang-format off
+static constexpr zend_function_entry swoole_coroutine_canceled_exception_methods[] = {
+    PHP_ME(swoole_coroutine_canceled_exception, getReason, arginfo_class_Swoole_Coroutine_CanceledException_getReason, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+// clang-format on
+
 #if PHP_VERSION_ID < 80400
 static int coro_exit_handler(zend_execute_data *execute_data) {
     zval ex;
@@ -1042,9 +1051,10 @@ void php_swoole_coroutine_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_EX2(swoole_coroutine_canceled_exception,
                             "Swoole\\Coroutine\\CanceledException",
                             nullptr,
-                            nullptr,
+                            swoole_coroutine_canceled_exception_methods,
                             zend_ce_exception,
                             zend_get_std_object_handlers());
+    zend_declare_property_null(swoole_coroutine_canceled_exception_ce, ZEND_STRL("reason"), ZEND_ACC_PRIVATE);
     swoole_coroutine_canceled_exception_ce->ce_flags |= ZEND_ACC_FINAL;
 
     SW_INIT_CLASS_ENTRY_EX2(swoole_coroutine_timeout_exception,
@@ -1094,6 +1104,10 @@ static PHP_METHOD(swoole_exit_exception, getFlags) {
 
 static PHP_METHOD(swoole_exit_exception, getStatus) {
     SW_RETURN_PROPERTY("status");
+}
+
+static PHP_METHOD(swoole_coroutine_canceled_exception, getReason) {
+    SW_RETURN_PROPERTY("reason");
 }
 
 PHP_FUNCTION(swoole_coroutine_create) {
@@ -1389,7 +1403,10 @@ static PHP_METHOD(swoole_coroutine, join) {
     RETURN_TRUE;
 }
 
-static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception, zend_class_entry *ce) {
+static bool php_swoole_coroutine_throw_exception(long cid,
+                                                 bool throw_exception,
+                                                 zend_class_entry *ce,
+                                                 zval *reason = nullptr) {
     if (throw_exception) {
         auto *task = PHPCoroutine::get_context_by_cid(cid);
         // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
@@ -1406,6 +1423,9 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
 
         zend_object *exception = zend_objects_new(ce);
         object_properties_init(exception, ce);
+        if (reason) {
+            zend_update_property(swoole_coroutine_canceled_exception_ce, exception, ZEND_STRL("reason"), reason);
+        }
 
         // The live Co::cancel frame is internal, so Zend redirects the user caller when this call
         // returns; the saved context describes a stale frame and must not be written here.
@@ -1462,14 +1482,22 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
 static PHP_METHOD(swoole_coroutine, cancel) {
     zend_long cid;
     bool throw_exception = false;
+    zval *zreason = nullptr;
 
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_LONG(cid)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(throw_exception)
+    Z_PARAM_ZVAL_OR_NULL(zreason)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(php_swoole_coroutine_throw_exception(cid, throw_exception, swoole_coroutine_canceled_exception_ce));
+    if (!throw_exception && zreason) {
+        zend_argument_value_error(3, "must be null when argument #2 ($throw_exception) is false");
+        RETURN_THROWS();
+    }
+
+    RETURN_BOOL(
+        php_swoole_coroutine_throw_exception(cid, throw_exception, swoole_coroutine_canceled_exception_ce, zreason));
 }
 
 static PHP_METHOD(swoole_coroutine, setTimeLimit) {

@@ -7,7 +7,7 @@ namespace Swoole {
         public static function getOptions(): ?array {}
         public static function exists(int $cid): bool {}
         public static function yield(): bool {}
-        public static function cancel(int $cid, bool $throw_exception = false): bool {}
+        public static function cancel(int $cid, bool $throw_exception = false, mixed $reason = null): bool {}
         public static function join(array $cid_array, float $timeout = -1): bool {}
         public static function isCanceled(): bool {}
         public static function suspend(): bool {}
@@ -32,5 +32,11 @@ namespace Swoole {
     class ExitException {
         public function getFlags(): int {}
         public function getStatus(): mixed {}
+    }
+}
+
+namespace Swoole\Coroutine {
+    final class CanceledException extends \Exception {
+        public function getReason(): mixed {}
     }
 }
