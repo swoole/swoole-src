@@ -482,7 +482,7 @@ static PHP_METHOD(swoole_process, signal) {
     }
 
     swSignalHandler handler = swoole_signal_get_handler(signo);
-    if (handler && handler != php_swoole_onSignal) {
+    if (handler && handler != php_swoole_onSignal && handler != SIG_IGN) {
         php_swoole_fatal_error(
             E_WARNING, "signal [" ZEND_LONG_FMT "] processor has been registered by the system", signo);
         RETURN_FALSE;
@@ -505,7 +505,7 @@ static PHP_METHOD(swoole_process, signal) {
             RETURN_FALSE;
         }
     } else if (Z_TYPE_P(zcallback) == IS_LONG && Z_LVAL_P(zcallback) == (zend_long) SIG_IGN) {
-        handler = nullptr;
+        handler = SIG_IGN;
     } else {
         fci_cache = sw_callable_create(zcallback);
         if (!fci_cache) {
