@@ -355,8 +355,8 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
                     return;
                 }
                 zend::String str_value(value);
-                str_value.rtrim();
-                if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
+                size_t l_value = swoole::rtrim(static_cast<const char *>(str_value.val()), str_value.len());
+                if (swoole_http_has_crlf(str_value.val(), l_value)) {
                     return;
                 }
                 if (SW_STRCASEEQ(key, l_key, "server")) {
@@ -366,8 +366,8 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
                     // Defer the field until compression has actually succeeded. Accept-Encoding alone
                     // is insufficient because compression may still be disabled by the representation
                     // headers or skipped for a body below compression_min_length.
-                    if (str_value.len() > 0) {
-                        content_lengths.emplace_back(str_value.val(), str_value.len());
+                    if (l_value > 0) {
+                        content_lengths.emplace_back(str_value.val(), l_value);
                     }
                     return;
                 } else if (SW_STRCASEEQ(key, l_key, "content-encoding")) {
@@ -376,7 +376,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
                     ctx->accept_compression = 0;
 #endif
                     // An empty value keeps the field explicit without emitting it, like other known headers.
-                    if (str_value.len() == 0) {
+                    if (l_value == 0) {
                         return;
                     }
                 } else if (SW_STRCASEEQ(key, l_key, "date")) {
@@ -389,7 +389,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
                     }
 #endif
                 }
-                headers.add(key, l_key, str_value.val(), str_value.len());
+                headers.add(key, l_key, str_value.val(), l_value);
             };
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheader), key, keylen, type, zvalue) {
@@ -411,8 +411,11 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, const 
 
 #ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression && ctx->compression_types) {
-            std::string str_content_type = content_type ? std::string(ZSTR_VAL(content_type), ZSTR_LEN(content_type))
-                                                        : std::string(ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
+            std::string str_content_type =
+                content_type ? std::string(ZSTR_VAL(content_type),
+                                           swoole::rtrim(static_cast<const char *>(ZSTR_VAL(content_type)),
+                                                         ZSTR_LEN(content_type)))
+                             : std::string(ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
             ctx->accept_compression = ctx->compression_types->find(str_content_type) != ctx->compression_types->end();
         }
         // Released unconditionally: an application content-encoding can clear accept_compression
