@@ -340,6 +340,15 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(exception) = nullptr;
     EG(opline_before_exception) = nullptr;
     EG(jit_trace_num) = 0;
+    if (UNEXPECTED(E_HAS_ONLY_FATAL_ERRORS(EG(error_reporting)))) {
+        // @ leaves only fatal bits here without changing the directive; an unset directive means E_ALL.
+        zend_ini_entry *entry = EG(error_reporting_ini_entry);
+        if (!entry) {
+            entry = EG(error_reporting_ini_entry) = static_cast<zend_ini_entry *>(
+                zend_hash_find_ptr(EG(ini_directives), ZSTR_KNOWN(ZEND_STR_ERROR_REPORTING)));
+        }
+        EG(error_reporting) = entry && entry->value ? atoi(ZSTR_VAL(entry->value)) : E_ALL;
+    }
 
     call->func = static_cast<zend_function *>(&swoole_coroutine_internal_function);
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
