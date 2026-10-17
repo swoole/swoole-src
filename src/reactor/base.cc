@@ -439,6 +439,11 @@ void Reactor::execute_end_callbacks(bool _timed_out) {
     for (auto &kv : end_callbacks) {
         kv.second(this);
     }
+    // Advance after every end callback, so timers they add can run after the next wait.
+    Timer *timer = sw_timer();
+    if (timer && timer->get_reactor() == this) {
+        timer->advance_round();
+    }
 }
 
 void Reactor::execute_begin_callback() const {

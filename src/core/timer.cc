@@ -57,14 +57,11 @@ void Timer::init_with_reactor(Reactor *reactor) {
         Reactor *reactor = timer->reactor_;
         timer->set(timer, -1);
         reactor->erase_end_callback(Reactor::PRIORITY_TIMER);
-        reactor->erase_end_callback(Reactor::PRIORITY_TIMER_ROUND);
         reactor->remove_exit_condition(Reactor::EXIT_CONDITION_TIMER);
         timer->reactor_ = nullptr;
     };
 
     reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(false); });
-    // Advance just before the next poll, so timers added after selection can run in the next one.
-    reactor->set_end_callback(Reactor::PRIORITY_TIMER_ROUND, [this](Reactor *) { round++; });
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
                                 [this](Reactor *reactor, size_t &event_num) -> bool { return count() == 0; });
