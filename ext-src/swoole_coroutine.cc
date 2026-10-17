@@ -300,6 +300,32 @@ static void coro_interrupt_function(zend_execute_data *execute_data) {
     }
 }
 
+// ZEND_BEGIN_SILENCE keeps the pre-@ level in a live temporary consumed by ZEND_END_SILENCE.
+static int get_unsilenced_error_reporting() {
+    for (zend_execute_data *execute_data = EG(current_execute_data); execute_data;
+         execute_data = execute_data->prev_execute_data) {
+        if (!execute_data->func || !ZEND_USER_CODE(execute_data->func->type) ||
+            execute_data->opline->opcode == ZEND_HANDLE_EXCEPTION) {
+            continue;
+        }
+        const zend_op_array *op_array = &execute_data->func->op_array;
+        uint32_t op_num = execute_data->opline - op_array->opcodes;
+        for (int i = 0; i < op_array->last_live_range; i++) {
+            const zend_live_range *range = &op_array->live_range[i];
+            if (range->start > op_num) {
+                break;
+            }
+            if (op_num < range->end && (range->var & ZEND_LIVE_MASK) == ZEND_LIVE_SILENCE) {
+                int error_reporting = Z_LVAL_P(ZEND_CALL_VAR(execute_data, range->var & ~ZEND_LIVE_MASK));
+                if (!E_HAS_ONLY_FATAL_ERRORS(error_reporting)) {
+                    return error_reporting;
+                }
+            }
+        }
+    }
+    return EG(error_reporting);
+}
+
 PHPContext *PHPCoroutine::create_context(const Args *args) {
     auto *ctx = static_cast<PHPContext *>(emalloc(sizeof(PHPContext)));
     ctx->output_ptr = nullptr;
@@ -326,6 +352,10 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->current_fiber_context = ctx->fiber_context ? ctx->fiber_context : EG(current_fiber_context);
     ctx->active_fiber = EG(active_fiber);
 
+    if (UNEXPECTED(E_HAS_ONLY_FATAL_ERRORS(EG(error_reporting)))) {
+        EG(error_reporting) = get_unsilenced_error_reporting();
+    }
+
     EG(vm_stack) = zend_vm_stack_new_page(SW_DEFAULT_PHP_STACK_PAGE_SIZE, nullptr);
     EG(vm_stack_top) = EG(vm_stack)->top + ZEND_CALL_FRAME_SLOT;
     EG(vm_stack_end) = EG(vm_stack)->end;
@@ -340,12 +370,6 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(exception) = nullptr;
     EG(opline_before_exception) = nullptr;
     EG(jit_trace_num) = 0;
-    // Ignore the creator's @, which changes only EG(error_reporting); an unset directive means E_ALL.
-    zend_long error_reporting = zend_ini_long(ZEND_STRL("error_reporting"), false);
-    if (!error_reporting && !zend_ini_string_ex(ZEND_STRL("error_reporting"), false, nullptr)) {
-        error_reporting = E_ALL;
-    }
-    EG(error_reporting) = error_reporting;
 
     call->func = static_cast<zend_function *>(&swoole_coroutine_internal_function);
     EG(vm_stack_top) += ZEND_CALL_FRAME_SLOT;
