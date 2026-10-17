@@ -53,9 +53,15 @@ void Timer::init_with_reactor(Reactor *reactor) {
         timer->reactor_->timeout_msec = exec_msec;
         return SW_OK;
     };
-    close = [](Timer *timer) { timer->set(timer, -1); };
+    close = [](Timer *timer) {
+        Reactor *reactor = timer->reactor_;
+        timer->set(timer, -1);
+        reactor->erase_end_callback(Reactor::PRIORITY_TIMER);
+        reactor->remove_exit_condition(Reactor::EXIT_CONDITION_TIMER);
+        timer->reactor_ = nullptr;
+    };
 
-    reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(); });
+    reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(false); });
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
                                 [this](Reactor *reactor, size_t &event_num) -> bool { return count() == 0; });
@@ -150,7 +156,7 @@ bool Timer::remove(TimerNode *tnode) {
     return true;
 }
 
-void Timer::select() {
+void Timer::select(bool next_round) {
     const int64_t now_msec = get_relative_msec();
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
@@ -201,6 +207,8 @@ void Timer::select() {
         }
         set(this, next_msec_);
     }
-    round++;
+    if (next_round) {
+        round++;
+    }
 }
 };  // namespace swoole
