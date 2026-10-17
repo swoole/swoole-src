@@ -848,6 +848,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 
 void ReactorThread::clean() {
     message_bus.free_buffer();
+    message_bus.release_pipe_sockets();
 }
 
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {

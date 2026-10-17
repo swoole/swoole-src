@@ -1121,6 +1121,7 @@ void ProcessPool::destroy() {
     }
 
     if (message_bus) {
+        message_bus->free_buffer();
         delete message_bus;
         message_bus = nullptr;
     }

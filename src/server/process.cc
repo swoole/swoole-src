@@ -43,6 +43,9 @@ Factory *Server::create_process_factory() {
 
 void Server::destroy_process_factory() {
     sw_shm_free(connection_list);
+    if (single_thread) {
+        get_thread(0)->clean();
+    }
     delete[] reactor_threads;
 
     reactor_thread_barrier.destroy();
