@@ -128,6 +128,10 @@ class Timer {
         return round;
     }
 
+    void advance_round() {
+        round++;
+    }
+
     bool remove(long id) {
         return remove(get(id));
     }

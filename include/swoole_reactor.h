@@ -93,7 +93,6 @@ class Reactor {
         PRIORITY_MALLOC_TRIM,
         PRIORITY_WORKER_CALLBACK,
         PRIORITY_IOCP_WAKEUP,
-        PRIORITY_TIMER_ROUND,
         /**
          * PRIORITY_IOURING_SUBMIT must be the last one, as other callback functions might allocate new SQEs.
          * It is essential to ensure that the SQE is submitted before the next event loop iteration and before the
