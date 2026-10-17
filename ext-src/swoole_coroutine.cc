@@ -1389,7 +1389,10 @@ static PHP_METHOD(swoole_coroutine, join) {
     RETURN_TRUE;
 }
 
-static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception, zend_class_entry *ce) {
+static bool php_swoole_coroutine_throw_exception(long cid,
+                                                 bool throw_exception,
+                                                 zend_class_entry *ce,
+                                                 zend_object *caller_previous = nullptr) {
     if (throw_exception) {
         auto *task = PHPCoroutine::get_context_by_cid(cid);
         // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
@@ -1410,6 +1413,10 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
         // The live Co::cancel frame is internal, so Zend redirects the user caller when this call
         // returns; the saved context describes a stale frame and must not be written here.
         if (is_current) {
+            if (caller_previous) {
+                GC_ADDREF(caller_previous);
+                zend_exception_set_previous(exception, caller_previous);
+            }
             zend_string *filename = zend_get_executed_filename_ex();
             if (filename) {
                 zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_FILE), filename);
@@ -1426,6 +1433,10 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
         task->exception = exception;
         if (previous) {
             zend_exception_set_previous(exception, previous);
+        }
+        if (caller_previous) {
+            GC_ADDREF(caller_previous);
+            zend_exception_set_previous(exception, caller_previous);
         }
 
         zend_execute_data *ex_backup = EG(current_execute_data);
@@ -1462,14 +1473,22 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
 static PHP_METHOD(swoole_coroutine, cancel) {
     zend_long cid;
     bool throw_exception = false;
+    zval *zprevious = nullptr;
 
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_LONG(cid)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(throw_exception)
+    Z_PARAM_OBJECT_OF_CLASS_OR_NULL(zprevious, zend_ce_throwable)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(php_swoole_coroutine_throw_exception(cid, throw_exception, swoole_coroutine_canceled_exception_ce));
+    if (!throw_exception && zprevious) {
+        zend_argument_value_error(3, "must be null when argument #2 ($throw_exception) is false");
+        RETURN_THROWS();
+    }
+
+    RETURN_BOOL(php_swoole_coroutine_throw_exception(
+        cid, throw_exception, swoole_coroutine_canceled_exception_ce, zprevious ? Z_OBJ_P(zprevious) : nullptr));
 }
 
 static PHP_METHOD(swoole_coroutine, setTimeLimit) {
