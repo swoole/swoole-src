@@ -53,15 +53,9 @@ void Timer::init_with_reactor(Reactor *reactor) {
         timer->reactor_->timeout_msec = exec_msec;
         return SW_OK;
     };
-    close = [](Timer *timer) {
-        Reactor *reactor = timer->reactor_;
-        timer->set(timer, -1);
-        reactor->erase_end_callback(Reactor::PRIORITY_TIMER);
-        reactor->remove_exit_condition(Reactor::EXIT_CONDITION_TIMER);
-        timer->reactor_ = nullptr;
-    };
+    close = [](Timer *timer) { timer->set(timer, -1); };
 
-    reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(false); });
+    reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(); });
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
                                 [this](Reactor *reactor, size_t &event_num) -> bool { return count() == 0; });
@@ -102,7 +96,8 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
     tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;
     tnode->callback = callback;
-    tnode->round = round;
+    // This round has already been selected, so make the timer eligible for the next selection.
+    tnode->round = reactor_ && reactor_->end_callback_phase && round > 0 ? round - 1 : round;
     tnode->destructor = nullptr;
 
     if (next_msec_ < 0 || next_msec_ > _msec) {
@@ -156,7 +151,7 @@ bool Timer::remove(TimerNode *tnode) {
     return true;
 }
 
-void Timer::select(bool next_round) {
+void Timer::select() {
     const int64_t now_msec = get_relative_msec();
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
@@ -207,8 +202,6 @@ void Timer::select(bool next_round) {
         }
         set(this, next_msec_);
     }
-    if (next_round) {
-        round++;
-    }
+    round++;
 }
 };  // namespace swoole

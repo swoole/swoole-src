@@ -132,6 +132,7 @@ class Reactor {
     // running only controls the current wait(); wait_exit enables normal exit-condition checks.
     bool terminated = false;
     bool timed_out = false;
+    bool end_callback_phase = false;
 
     /**
      * reactor->wait timeout (millisecond) or -1

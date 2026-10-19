@@ -105,7 +105,7 @@ class Timer {
         update(tnode);
     }
     void reinit(bool manually_trigger = false);
-    void select(bool next_round = true);
+    void select();
 
     TimerNode *get(long id) {
         const auto it = map.find(id);
@@ -126,10 +126,6 @@ class Timer {
 
     uint64_t get_round() const {
         return round;
-    }
-
-    void advance_round() {
-        round++;
     }
 
     bool remove(long id) {

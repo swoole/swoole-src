@@ -209,58 +209,6 @@ TEST(timer, reinit) {
     ASSERT_EQ(timer2_count, 5);
 }
 
-TEST(timer, reactor_free) {
-    ASSERT_EQ(swoole_event_init(0), SW_OK);
-
-    Reactor *reactor = sw_reactor();
-    ASSERT_TRUE(swoole_timer_add(1000L, false, [](TIMER_PARAMS) {}));
-
-    reactor->defer([reactor](void *) {
-        reactor->running = false;
-        swoole_timer_free();
-        EXPECT_FALSE(reactor->isset_exit_condition(Reactor::EXIT_CONDITION_TIMER));
-    });
-
-    ASSERT_EQ(swoole_event_wait(), SW_OK);
-}
-
-TEST(timer, reactor_reinit_manual) {
-    ASSERT_EQ(swoole_event_init(0), SW_OK);
-
-    Reactor *reactor = sw_reactor();
-    int reactor_timer_count = 0;
-    int manual_timer_count = 0;
-
-    TimerNode *reactor_tnode = swoole_timer_add(1000L, false, [&](TIMER_PARAMS) { reactor_timer_count++; });
-    ASSERT_TRUE(reactor_tnode);
-    sw_timer()->select();
-    reactor_tnode->exec_msec = 0;
-    sw_timer()->update(reactor_tnode);
-
-    TimerNode *manual_tnode = swoole_timer_add(1000L, false, [&](TIMER_PARAMS) { manual_timer_count++; });
-    ASSERT_TRUE(manual_tnode);
-    manual_tnode->exec_msec = 0;
-    sw_timer()->update(manual_tnode);
-
-    sw_timer()->reinit(true);
-    EXPECT_EQ(sw_timer()->get_reactor(), nullptr);
-    EXPECT_FALSE(reactor->isset_exit_condition(Reactor::EXIT_CONDITION_TIMER));
-
-    reactor->execute_end_callbacks();
-    reactor->execute_end_callbacks();
-    EXPECT_EQ(reactor_timer_count, 0);
-    EXPECT_EQ(manual_timer_count, 0);
-
-    sw_timer()->select();
-    EXPECT_EQ(reactor_timer_count, 1);
-    EXPECT_EQ(manual_timer_count, 0);
-    sw_timer()->select();
-    EXPECT_EQ(manual_timer_count, 1);
-
-    swoole_timer_free();
-    ASSERT_EQ(swoole_event_free(), SW_OK);
-}
-
 TEST(timer, reactor_round) {
     ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
 
