@@ -423,7 +423,8 @@ class ProcessManager
                 $this->freePorts = $threadArgs[3];
                 $this->randomData = $threadArgs[4];
                 $this->randomDataArray = $threadArgs[5];
-                return $this->runChildFunc();
+                $this->runChildFunc();
+                exit;
             }
         }
         if ($argc > 1) {
