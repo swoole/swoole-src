@@ -549,8 +549,6 @@ class ProcessManager
                 $this->kill();
             });
             if (!$this->parentFirst) {
-                // Match the POSIX fixture: readiness notification is optional.
-                // Some existing PHPT servers become ready without wakeup().
                 $this->wait();
             }
             $this->runParentSetup();
