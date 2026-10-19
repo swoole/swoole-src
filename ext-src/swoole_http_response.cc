@@ -282,14 +282,14 @@ static void http_response_add_custom_header(String *http_buffer, const char *key
     }
 
     zend::String str_value(value);
-    size_t l_value = swoole::rtrim(static_cast<const char *>(str_value.val()), str_value.len());
-    if (swoole_http_has_crlf(str_value.val(), l_value)) {
+    str_value.rtrim();
+    if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
         return;
     }
 
     http_buffer->append(key, l_key);
     http_buffer->append(SW_STRL(": "));
-    http_buffer->append(str_value.val(), l_value);
+    http_buffer->append(str_value.val(), str_value.len());
     http_buffer->append(SW_STRL("\r\n"));
 }
 
@@ -375,11 +375,8 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 
 #ifdef SW_HAVE_COMPRESSION
         if (accept_compression && compression_types) {
-            std::string str_content_type =
-                content_type ? std::string(ZSTR_VAL(content_type),
-                                           swoole::rtrim(static_cast<const char *>(ZSTR_VAL(content_type)),
-                                                         ZSTR_LEN(content_type)))
-                             : std::string(ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
+            std::string str_content_type = content_type ? std::string(ZSTR_VAL(content_type), ZSTR_LEN(content_type))
+                                                        : std::string(ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
             accept_compression = compression_types->find(str_content_type) != compression_types->end();
             if (content_type) {
                 zend_string_release(content_type);

@@ -21,7 +21,9 @@ $pm->parentFunc = function () use ($pm) {
         $http1 = new HttpClient('127.0.0.1', $pm->getFreePort());
         $http1->setHeaders(['Accept-Encoding' => 'gzip']);
         Assert::true($http1->get('/http1'));
-        Assert::same($http1->getHeaders()['content-encoding'], 'gzip');
+        $headers = $http1->getHeaders();
+        Assert::same($headers['content-type'], 'text/html');
+        Assert::false(isset($headers['content-encoding']));
         $http1->close();
 
         $state = new HttpClient('127.0.0.1', $pm->getFreePort());
@@ -36,7 +38,8 @@ $pm->parentFunc = function () use ($pm) {
         $request->headers = ['Accept-Encoding' => 'gzip'];
         $http2->send($request);
         $response = $http2->recv();
-        Assert::same($response->headers['content-encoding'], 'gzip');
+        Assert::same($response->headers['content-type'], 'text/html');
+        Assert::false(isset($response->headers['content-encoding']));
         $http2->close();
 
         $state = new HttpClient('127.0.0.1', $pm->getFreePort());
