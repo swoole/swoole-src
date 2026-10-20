@@ -284,6 +284,12 @@ bool ProcessFactory::dispatch(SendData *task) {
 
     if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
         sw_atomic_fetch_add(&worker->dispatch_count, 1);
+        if (task->info.reserved) {
+            Connection *conn = server_->get_connection(fd);
+            if (conn) {
+                server_->http_order_dispatched(conn, task->info.reserved & SW_HTTP_ORDER_SEQ, target_worker_id, worker->pid);
+            }
+        }
     }
 
     SendData _task;
@@ -362,13 +368,14 @@ bool ProcessFactory::finish(SendData *resp) {
     return server_->message_bus.write(server_->get_reactor_pipe_socket(session_id, task.info.reactor_id), &task);
 }
 
-bool ProcessFactory::end(SessionId session_id, int flags) {
+bool ProcessFactory::end(SessionId session_id, int flags, uint32_t order_tag) {
     SendData _send{};
     DataHead info{};
 
     _send.info.fd = session_id;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
+    _send.info.reserved = order_tag;
 
     Connection *conn = server_->get_connection_verify_no_ssl(session_id);
     if (!conn) {

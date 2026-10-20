@@ -964,7 +964,7 @@ void ServerObject::on_before_start() {
             return;
         }
 
-        if (port->open_http2_protocol && !serv->is_hash_dispatch_mode()) {
+        if (port->open_http2_protocol && !serv->is_hash_dispatch_mode() && !serv->is_process_mode()) {
             php_swoole_fatal_error(
                 E_ERROR,
                 "server dispatch mode should be FDMOD(%d) or IPMOD(%d) if open_http2_protocol is true",

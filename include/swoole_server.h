@@ -66,6 +66,9 @@ struct Session {
     uint32_t reserve_ : 24;
 };
 
+#define SW_HTTP_ORDER_END 0x80000000u
+#define SW_HTTP_ORDER_SEQ 0x7fffffffu
+
 struct Connection {
     /**
      * It must be in the header. When set to 0, it means that connection does not exist.
@@ -111,6 +114,13 @@ struct Connection {
      * link anything, for kernel, do not use with application.
      */
     void *object;
+    uint32_t http_order_next;
+    uint32_t http_order_due;
+    int http_order_worker;
+    pid_t http_order_pid;
+    uint8_t http_order_blocked;
+    void *http_order;
+    void *http2_gateway;
     /**
      * socket, only operated in the main process
      */
@@ -150,6 +160,7 @@ struct ReactorThread {
     uint64_t dispatch_count = 0;
     network::Socket *pipe_command = nullptr;
     TimerNode *heartbeat_timer = nullptr;
+    TimerNode *http_order_timer = nullptr;
     MessageBus message_bus;
 
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
@@ -540,7 +551,7 @@ class Factory {
     virtual bool dispatch(SendData *) = 0;
     virtual bool finish(SendData *) = 0;
     virtual bool notify(DataHead *) = 0;
-    virtual bool end(SessionId session_id, int flags) = 0;
+    virtual bool end(SessionId session_id, int flags, uint32_t order_tag = 0) = 0;
 };
 
 class BaseFactory : public Factory {
@@ -552,7 +563,7 @@ class BaseFactory : public Factory {
     bool dispatch(SendData *) override;
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
-    bool end(SessionId session_id, int flags) override;
+    bool end(SessionId session_id, int flags, uint32_t order_tag = 0) override;
     bool forward_message(const Session *session, SendData *data) const;
 };
 
@@ -565,7 +576,7 @@ class ProcessFactory : public Factory {
     bool dispatch(SendData *) override;
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
-    bool end(SessionId session_id, int flags) override;
+    bool end(SessionId session_id, int flags, uint32_t order_tag = 0) override;
 };
 
 struct ThreadReloadTask {
@@ -1517,6 +1528,26 @@ class Server {
     static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
 
     int send_to_connection(const SendData *) const;
+    int send_to_connection_now(const SendData *) const;
+    uint32_t http_order_begin(Connection *conn) const;
+    bool http_order_pending(const Connection *conn) const;
+    bool http_order_full(const Connection *conn) const;
+    void http_order_block(Connection *conn) const;
+    void http_order_refuse(Connection *conn, const char *packet, size_t length) const;
+    void http_order_advance(Connection *conn) const;
+    void http_order_flush(Connection *conn) const;
+    void http_order_release(Connection *conn) const;
+    void http_order_dispatched(Connection *conn, uint32_t seq, int worker_id, pid_t pid) const;
+    static void http_order_check(Timer *timer, TimerNode *tnode);
+    static thread_local uint32_t http_order_current;
+    bool http2_gateway_start(Connection *conn, const char *data, size_t length) const;
+    bool http2_gateway_receive(Connection *conn, const char *data, size_t length) const;
+    int http2_gateway_readable(Reactor *reactor, Event *event) const;
+    void http2_gateway_flush(Connection *conn) const;
+    int http2_gateway_send(Connection *conn, const SendData *_send, uint32_t tag) const;
+    void http2_gateway_dispatched(Connection *conn, uint32_t stream_id, int worker_id, pid_t pid) const;
+    void http2_gateway_check(Connection *conn) const;
+    void http2_gateway_release(Connection *conn) const;
     ssize_t send_to_worker_from_worker(const Worker *dst_worker, const void *buf, size_t len, int flags);
     bool has_kernel_nobufs_error(SessionId session_id) const;
 
@@ -1531,15 +1562,15 @@ class Server {
      * This function is used for sending data to the client in the server.
      * @return true on success, false on failure.
      */
-    bool send(SessionId session_id, const void *data, uint32_t length) const;
+    bool send(SessionId session_id, const void *data, uint32_t length, uint32_t order_tag = 0) const;
     /**
      * Send file to session.
      * This function is used for sending files in the HTTP server.
      * It will read the file from disk and send it to the client.
      */
-    bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) const;
+    bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length, uint32_t order_tag = 0) const;
     bool sendwait(SessionId session_id, const void *data, uint32_t length) const;
-    bool close(SessionId session_id, bool reset = false) const;
+    bool close(SessionId session_id, bool reset = false, uint32_t order_tag = 0) const;
 
     bool notify(Connection *conn, ServerEventType event) const;
     bool feedback(Connection *conn, ServerEventType event);
