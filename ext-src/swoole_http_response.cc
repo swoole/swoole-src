@@ -683,6 +683,7 @@ static PHP_METHOD(swoole_http_response, end) {
     }
 
     ctx->end(sdata, return_value);
+    ctx->end_order();
 }
 
 void HttpContext::send_trailer(zval *return_value) {
@@ -727,10 +728,13 @@ bool HttpContext::send_file(zend_string *file, off_t offset, size_t length) {
         }
     }
 
+    order_final = keepalive;
     if (length > 0 && !sendfile(this, file, offset, length)) {
+        order_final = false;
         close(this);
         return false;
     }
+    order_final = false;
 
     end_ = 1;
 
@@ -795,13 +799,17 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
             if (!send(this, ZEND_STRL("0\r\n"))) {
                 RETURN_FALSE;
             }
+            order_final = keepalive;
             send_trailer(return_value);
+            order_final = false;
             send_trailer_ = 0;
             if (end_) {
                 RETURN_FALSE;
             }
         } else {
+            order_final = keepalive;
             if (!send(this, ZEND_STRL("0\r\n\r\n"))) {
+                order_final = false;
                 RETURN_FALSE;
             }
         }
@@ -856,7 +864,9 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
                     send_header_ = 0;
                     RETURN_FALSE;
                 }
+                order_final = keepalive && !upgrade;
                 if (!send(this, data, length)) {
+                    order_final = false;
                     end_ = 1;
                     close(this);
                     RETURN_FALSE;
@@ -867,7 +877,9 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
             }
         }
 
+        order_final = keepalive && !upgrade;
         if (!send(this, http_buffer->str, http_buffer->length)) {
+            order_final = false;
             end_ = 1;
             close(this);
             RETURN_FALSE;
@@ -986,7 +998,9 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
-    RETURN_BOOL(ctx->send_file(file, offset, length));
+    const bool sent = ctx->send_file(file, offset, length);
+    ctx->end_order();
+    RETURN_BOOL(sent);
 }
 
 static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {
@@ -1477,6 +1491,7 @@ static PHP_METHOD(swoole_http_response, detach) {
     if (!ctx) {
         RETURN_FALSE;
     }
+    ctx->end_order();
     ctx->detached = 1;
     RETURN_TRUE;
 }

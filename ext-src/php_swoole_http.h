@@ -173,6 +173,10 @@ struct Context {
 
     zval zsocket;
     uint32_t stream_id;
+    uint32_t order_tag = 0;
+    bool order_final = false;
+    uint32_t take_order_tag();
+    void restore_order_tag(uint32_t tag);
     String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION
@@ -278,6 +282,7 @@ struct Context {
 
     bool is_available() const;
     void free();
+    void end_order();
 
   private:
     void build_header(String *http_buffer, const char *body, size_t length);

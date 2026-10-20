@@ -84,6 +84,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
+    ctx->order_tag = req->info.reserved & SW_HTTP_ORDER_SEQ;
     ctx->onBeforeRequest = swoole_http_server_onBeforeRequest;
 
     zval *zdata = &ctx->request.zdata;
@@ -294,6 +295,7 @@ void HttpContext::free() {
     if (request.zobject || response.zobject || stream_id > 0) {
         return;
     }
+    end_order();
 
     HttpRequest *req = &request;
     HttpResponse *res = &response;
@@ -328,9 +330,41 @@ void HttpContext::free() {
     delete this;
 }
 
+void HttpContext::end_order() {
+    if (order_tag == 0 || is_co_socket()) {
+        return;
+    }
+    const uint32_t tag = order_tag;
+    order_tag = 0;
+    auto *serv = get_async_server();
+    if (serv) {
+        serv->send(fd, nullptr, 0, tag | SW_HTTP_ORDER_END);
+    }
+}
+
+uint32_t HttpContext::take_order_tag() {
+    if (!order_final || order_tag == 0) {
+        return order_tag;
+    }
+    const uint32_t tag = order_tag | SW_HTTP_ORDER_END;
+    order_tag = 0;
+    order_final = false;
+    return tag;
+}
+
+void HttpContext::restore_order_tag(uint32_t tag) {
+    if (tag & SW_HTTP_ORDER_END) {
+        order_tag = tag & SW_HTTP_ORDER_SEQ;
+    }
+}
+
 bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     auto *serv = ctx->get_async_server();
-    bool retval = serv->send(ctx->fd, data, length);
+    const uint32_t tag = ctx->take_order_tag();
+    bool retval = serv->send(ctx->fd, data, length, tag);
+    if (!retval) {
+        ctx->restore_order_tag(tag);
+    }
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         auto sdata = zend_string_init(data, length, false);
         auto rv = php_swoole_server_send_yield(serv, ctx->fd, sdata);
@@ -342,12 +376,20 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
 
 static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
     auto *serv = ctx->get_async_server();
-    return serv->sendfile(ctx->fd, file->val, file->len, offset, length);
+    const uint32_t tag = ctx->take_order_tag();
+    const bool retval = serv->sendfile(ctx->fd, file->val, file->len, offset, length, tag);
+    if (!retval) {
+        ctx->restore_order_tag(tag);
+    }
+    return retval;
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {
     auto *serv = ctx->get_async_server();
-    return serv->close(ctx->fd, false);
+    const uint32_t tag = ctx->order_tag ? (ctx->order_tag | SW_HTTP_ORDER_END) : 0;
+    ctx->order_tag = 0;
+    ctx->order_final = false;
+    return serv->close(ctx->fd, false, tag);
 }
 
 bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {

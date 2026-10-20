@@ -442,6 +442,10 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
         return readable_callback_length(reactor, port, event);
     }
 
+    if (conn->http2_gateway) {
+        return serv->http2_gateway_readable(reactor, event);
+    }
+
     if (conn->http2_stream) {
         return readable_callback_length(reactor, port, event);
     }
@@ -463,7 +467,11 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
     String *buffer = request->buffer_;
 
 _recv_data:
-    ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
+    ssize_t n = conn->http_order_blocked == 2 ? -2 : _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
+    if (n == -2) {
+        conn->http_order_blocked = 0;
+        goto _parse;
+    }
     if (n < 0) {
         switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
@@ -480,14 +488,29 @@ _recv_data:
     if (n == 0) {
         if (false) {
         _bad_request:
+            if (serv->http_order_pending(conn)) {
+                serv->http_order_refuse(conn, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
+                port->destroy_http_request(conn);
+                return SW_OK;
+            }
             _socket->send(SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
         }
         if (false) {
         _too_large:
+            if (serv->http_order_pending(conn)) {
+                serv->http_order_refuse(conn, SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET));
+                port->destroy_http_request(conn);
+                return SW_OK;
+            }
             _socket->send(SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET), 0);
         }
         if (false) {
         _unavailable:
+            if (serv->http_order_pending(conn)) {
+                serv->http_order_refuse(conn, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+                port->destroy_http_request(conn);
+                return SW_OK;
+            }
             _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
         }
     _close_fd:
@@ -499,6 +522,13 @@ _recv_data:
     buffer->length += n;
 
 _parse:
+    if (conn->http_order_blocked == 3) {
+        return SW_OK;
+    }
+    if (serv->http_order_full(conn)) {
+        serv->http_order_block(conn);
+        return SW_OK;
+    }
     if (request->method == 0 && request->get_protocol() < 0) {
         if (!request->excepted && buffer->length < SW_HTTP_HEADER_MAX_SIZE) {
             return SW_OK;
@@ -507,6 +537,9 @@ _parse:
                          SW_ERROR_HTTP_INVALID_PROTOCOL,
                          "Bad Request: unknown protocol" CLIENT_INFO_FMT,
                          CLIENT_INFO_ARGS);
+        if (port->open_http2_protocol && serv->is_process_mode() && conn->http_order_next == 0) {
+            goto _close_fd;
+        }
         goto _bad_request;
     }
 
@@ -523,6 +556,15 @@ _parse:
                              "Bad Request: can not handle HTTP2 request" CLIENT_INFO_FMT,
                              CLIENT_INFO_ARGS);
             goto _bad_request;
+        }
+        if (serv->is_process_mode()) {
+            const std::string received(buffer->str, buffer->length);
+            port->destroy_http_request(conn);
+            buffer->clear();
+            if (!serv->http2_gateway_start(conn, received.data(), received.size())) {
+                goto _close_fd;
+            }
+            return SW_OK;
         }
         conn->http2_stream = 1;
         http2::send_setting_frame(protocol, _socket);
@@ -606,10 +648,20 @@ _parse:
         // (know content-length is equal to 0) or (no content-length field and no chunked)
         if (request->content_length_ == 0 && (request->known_length || !request->chunked)) {
             buffer->offset = request->header_length_;
-            // send static file content directly in the reactor thread
-            if (!serv->enable_static_handler || !serv->select_static_handler(request, conn)) {
+            const uint32_t order_tag = serv->http_order_begin(conn);
+            Server::http_order_current = order_tag;
+            const bool served_static = serv->enable_static_handler && serv->select_static_handler(request, conn);
+            Server::http_order_current = 0;
+            if (served_static) {
+                SendData order_end{};
+                order_end.info.fd = conn->session_id;
+                order_end.info.type = SW_SERVER_EVENT_SEND_DATA;
+                order_end.info.reserved = order_tag | SW_HTTP_ORDER_END;
+                serv->send_to_connection(&order_end);
+            } else {
                 // dynamic request, dispatch to worker
                 dispatch_data.info.len = request->header_length_;
+                dispatch_data.info.reserved = order_tag;
                 dispatch_data.data = buffer->str;
                 if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
                     goto _close_fd;
@@ -682,7 +734,7 @@ _parse:
 
         if (buffer->length < request_length) {
             // Expect: 100-continue
-            if (request->has_expect_header()) {
+            if (request->has_expect_header() && !serv->http_order_pending(conn)) {
                 _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
             } else {
                 swoole_trace_log(
@@ -696,22 +748,20 @@ _parse:
         }
     }
 
-    // discard the redundant data
-    if (buffer->length > request_length) {
-        swoole_error_log(SW_LOG_TRACE,
-                         SW_ERROR_HTTP_INVALID_PROTOCOL,
-                         "Invalid Request: %zu bytes has been discard" CLIENT_INFO_FMT,
-                         buffer->length - request_length,
-                         CLIENT_INFO_ARGS);
-        buffer->length = request_length;
-    }
-
     buffer->offset = request_length;
     dispatch_data.data = buffer->str;
-    dispatch_data.info.len = buffer->length;
+    dispatch_data.info.len = request_length;
+    dispatch_data.info.reserved = serv->http_order_begin(conn);
 
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
         goto _close_fd;
+    }
+
+    if (conn->active && !_socket->removed && buffer->length > request_length) {
+        // http pipeline, multi requests, parse the next one
+        buffer->reduce(request_length);
+        request->clean();
+        goto _parse;
     }
 
     if (conn->active && !_socket->removed) {

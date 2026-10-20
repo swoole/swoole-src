@@ -121,7 +121,7 @@ bool BaseFactory::notify(DataHead *info) {
     return true;
 }
 
-bool BaseFactory::end(SessionId session_id, int flags) {
+bool BaseFactory::end(SessionId session_id, int flags, uint32_t order_tag) {
     SendData _send{};
     _send.info.fd = session_id;
     _send.info.len = 0;

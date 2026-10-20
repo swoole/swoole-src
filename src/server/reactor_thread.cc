@@ -220,6 +220,8 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     if (port->open_http_protocol && conn->object) {
         port->destroy_http_request(conn);
     }
+    serv->http_order_release(conn);
+    serv->http2_gateway_release(conn);
 
     if (port->open_redis_protocol && conn->object) {
         sw_free(conn->object);
@@ -323,6 +325,11 @@ void ReactorThread::shutdown(Reactor *reactor) {
     if (heartbeat_timer) {
         swoole_timer_del(heartbeat_timer);
         heartbeat_timer = nullptr;
+    }
+
+    if (http_order_timer) {
+        swoole_timer_del(http_order_timer);
+        http_order_timer = nullptr;
     }
 
     reactor->add_destroy_callback([serv, reactor](void *) {
@@ -661,6 +668,22 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         conn->overflow = 0;
     }
 
+    if (conn->http2_gateway) {
+        const SessionId gateway_session = conn->session_id;
+        serv->http2_gateway_flush(conn);
+        if (serv->get_connection_verify_no_ssl(gateway_session) == nullptr) {
+            return SW_OK;
+        }
+    }
+
+    if (conn->http_order) {
+        const SessionId order_session = conn->session_id;
+        serv->http_order_flush(conn);
+        if (serv->get_connection_verify_no_ssl(order_session) == nullptr) {
+            return SW_OK;
+        }
+    }
+
     if (serv->onBufferEmpty && conn->high_watermark) {
         if (socket->get_out_buffer_length() <= port->buffer_low_watermark) {
             conn->high_watermark = 0;
@@ -682,6 +705,40 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         reactor->set(socket, SW_EVENT_READ);
     }
     return SW_OK;
+}
+
+void Server::http_order_check(Timer *timer, TimerNode *tnode) {
+    auto reactor = static_cast<Reactor *>(tnode->data);
+    auto serv = static_cast<Server *>(reactor->ptr);
+    ReactorThread *thread = serv->get_thread(reactor->id);
+
+    serv->foreach_connection([=](Connection *conn) {
+        SessionId session_id = conn->session_id;
+        if (session_id <= 0 || conn->reactor_id != reactor->id) {
+            return;
+        }
+        if (conn->http2_gateway) {
+            serv->http2_gateway_check(conn);
+            return;
+        }
+        if (conn->http_order_worker < 0) {
+            return;
+        }
+        if (!serv->http_order_pending(conn)) {
+            return;
+        }
+        Worker *worker = serv->get_worker(conn->http_order_worker);
+        if (worker->pid == conn->http_order_pid) {
+            return;
+        }
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SESSION_CLOSED,
+                         "session#%ld closed: worker#%d exited before answering its request",
+                         session_id,
+                         conn->http_order_worker);
+        conn->close_reset = 1;
+        thread->close_connection(reactor, session_id);
+    });
 }
 
 void Server::heartbeat_check(Timer *timer, TimerNode *tnode) {
@@ -814,6 +871,10 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         }
     }
 
+    if (serv->is_process_mode()) {
+        http_order_timer = swoole_timer_add(1000L, true, Server::http_order_check, reactor);
+    }
+
     if (serv->pipe_command) {
         auto pipe_socket = serv->pipe_command->get_socket(false);
         message_bus.init_pipe_socket(pipe_socket);
@@ -917,6 +978,7 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     task.info.server_fd = conn->server_fd;
     task.info.reactor_id = conn->reactor_id;
     task.info.ext_flags = rdata->info.ext_flags;
+    task.info.reserved = rdata->info.reserved;
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
     task.info.time = conn->last_recv_time;
 

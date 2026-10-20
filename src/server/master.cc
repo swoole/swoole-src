@@ -14,6 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
+#include <map>
+#include <vector>
 #include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_lock.h"
@@ -1324,12 +1326,16 @@ void Server::store_pipe_fd(UnixSocket *p) {
 /**
  * @process Worker
  */
-bool Server::send(SessionId session_id, const void *data, uint32_t length) const {
+bool Server::send(SessionId session_id, const void *data, uint32_t length, uint32_t order_tag) const {
     SendData _send{};
     _send.info.fd = session_id;
     _send.info.type = SW_SERVER_EVENT_SEND_DATA;
+    _send.info.reserved = order_tag;
     _send.data = (char *) data;
     _send.info.len = length;
+    if (length == 0 && (order_tag & SW_HTTP_ORDER_END)) {
+        return factory_->finish(&_send);
+    }
     if (factory_->finish(&_send)) {
         sw_atomic_fetch_add(&gs->response_count, 1);
         sw_atomic_fetch_add(&gs->total_send_bytes, length);
@@ -1424,7 +1430,225 @@ int Server::schedule_worker(int fd, SendData *data) {
  * [Master] send to client or append to out_buffer
  * @return SW_OK or SW_ERR
  */
+namespace {
+struct HttpOrderItem {
+    DataHead info;
+    std::string data;
+};
+
+struct HttpOrderEntry {
+    std::vector<HttpOrderItem> items;
+    bool ended = false;
+    int worker = -1;
+    pid_t pid = 0;
+};
+
+struct HttpOrder {
+    std::map<uint32_t, HttpOrderEntry> held;
+    size_t held_bytes = 0;
+};
+
+uint32_t http_order_after(uint32_t seq) {
+    return seq == SW_HTTP_ORDER_SEQ ? 1 : seq + 1;
+}
+}  // namespace
+
+thread_local uint32_t Server::http_order_current = 0;
+
+uint32_t Server::http_order_begin(Connection *conn) const {
+    if (conn->http_order_next == 0) {
+        conn->http_order_next = 1;
+        conn->http_order_due = 1;
+    }
+    uint32_t seq = conn->http_order_next;
+    conn->http_order_next = http_order_after(seq);
+    return seq;
+}
+
+bool Server::http_order_pending(const Connection *conn) const {
+    return conn->http_order_next != conn->http_order_due;
+}
+
+bool Server::http_order_full(const Connection *conn) const {
+    if (!http_order_pending(conn)) {
+        return false;
+    }
+    const uint32_t outstanding = (conn->http_order_next - conn->http_order_due) & SW_HTTP_ORDER_SEQ;
+    if (outstanding >= worker_num) {
+        return true;
+    }
+    const auto *order = static_cast<const HttpOrder *>(conn->http_order);
+    return order && order->held_bytes > conn->socket->buffer_size;
+}
+
+void Server::http_order_block(Connection *conn) const {
+    conn->http_order_blocked = 1;
+    SendData pause{};
+    pause.info.fd = conn->session_id;
+    pause.info.type = SW_SERVER_EVENT_PAUSE_RECV;
+    send_to_connection_now(&pause);
+}
+
+void Server::http_order_refuse(Connection *conn, const char *packet, size_t length) const {
+    const uint32_t tag = http_order_begin(conn);
+    conn->http_order_blocked = 3;
+    SendData pause{};
+    pause.info.fd = conn->session_id;
+    pause.info.type = SW_SERVER_EVENT_PAUSE_RECV;
+    send_to_connection_now(&pause);
+    SendData refusal{};
+    refusal.info.fd = conn->session_id;
+    refusal.info.type = SW_SERVER_EVENT_SEND_DATA;
+    refusal.info.reserved = tag;
+    refusal.info.len = length;
+    refusal.data = packet;
+    send_to_connection(&refusal);
+    SendData close{};
+    close.info.fd = conn->session_id;
+    close.info.type = SW_SERVER_EVENT_CLOSE;
+    close.info.reserved = tag | SW_HTTP_ORDER_END;
+    send_to_connection(&close);
+}
+
+void Server::http_order_release(Connection *conn) const {
+    delete static_cast<HttpOrder *>(conn->http_order);
+    conn->http_order = nullptr;
+}
+
+void Server::http_order_dispatched(Connection *conn, uint32_t seq, int worker_id, pid_t pid) const {
+    if (conn->http2_gateway) {
+        http2_gateway_dispatched(conn, seq, worker_id, pid);
+        return;
+    }
+    if (seq == conn->http_order_due) {
+        conn->http_order_worker = worker_id;
+        conn->http_order_pid = pid;
+        return;
+    }
+    auto *order = static_cast<HttpOrder *>(conn->http_order);
+    if (order == nullptr) {
+        order = new HttpOrder();
+        conn->http_order = order;
+    }
+    auto &entry = order->held[seq];
+    entry.worker = worker_id;
+    entry.pid = pid;
+}
+
+void Server::http_order_advance(Connection *conn) const {
+    auto *order = static_cast<HttpOrder *>(conn->http_order);
+    if (order) {
+        order->held.erase(conn->http_order_due);
+    }
+    conn->http_order_due = http_order_after(conn->http_order_due);
+    conn->http_order_worker = -1;
+    conn->http_order_pid = 0;
+    http_order_flush(conn);
+}
+
+void Server::http_order_flush(Connection *conn) const {
+    const SessionId session_id = conn->session_id;
+    while (true) {
+        auto *order = static_cast<HttpOrder *>(conn->http_order);
+        if (order == nullptr) {
+            break;
+        }
+        auto found = order->held.find(conn->http_order_due);
+        if (found == order->held.end()) {
+            break;
+        }
+        conn->http_order_worker = found->second.worker;
+        conn->http_order_pid = found->second.pid;
+        auto &items = found->second.items;
+        size_t sent = 0;
+        while (sent < items.size()) {
+            const size_t queued = conn->socket->get_out_buffer_length();
+            if (queued > 0 && queued + items[sent].data.size() > conn->socket->buffer_size) {
+                break;
+            }
+            order->held_bytes -= items[sent].data.size();
+            SendData replay{};
+            replay.info = items[sent].info;
+            replay.info.len = items[sent].data.size();
+            replay.data = items[sent].data.data();
+            sent++;
+            send_to_connection_now(&replay);
+            if (get_connection_verify_no_ssl(session_id) == nullptr) {
+                return;
+            }
+        }
+        items.erase(items.begin(), items.begin() + sent);
+        if (!items.empty() || !found->second.ended) {
+            break;
+        }
+        order->held.erase(found);
+        conn->http_order_due = http_order_after(conn->http_order_due);
+        conn->http_order_worker = -1;
+        conn->http_order_pid = 0;
+    }
+    if (conn->http_order_blocked == 1 && !http_order_full(conn)) {
+        conn->http_order_blocked = 2;
+        SendData resume{};
+        resume.info.fd = session_id;
+        resume.info.type = SW_SERVER_EVENT_RESUME_RECV;
+        send_to_connection_now(&resume);
+        swoole_event_defer(
+            [this, session_id](void *) {
+                Connection *blocked = get_connection_verify(session_id);
+                if (blocked == nullptr || blocked->http_order_blocked != 2) {
+                    return;
+                }
+                Event event{};
+                event.fd = blocked->fd;
+                event.socket = blocked->socket;
+                ListenPort::readable_callback_http(SwooleTG.reactor, get_port_by_fd(blocked->fd), &event);
+            },
+            nullptr);
+    }
+}
+
 int Server::send_to_connection(const SendData *_send) const {
+    const uint32_t tag = _send->info.reserved ? _send->info.reserved : http_order_current;
+    Connection *conn = get_connection_verify_no_ssl(_send->info.fd);
+    if (conn && conn->http2_gateway) {
+        return http2_gateway_send(conn, _send, tag);
+    }
+    if (tag == 0 || conn == nullptr || conn->http_order_due == 0) {
+        return send_to_connection_now(_send);
+    }
+    const uint32_t seq = tag & SW_HTTP_ORDER_SEQ;
+    const bool ended = tag & SW_HTTP_ORDER_END;
+    const bool marker = ended && _send->info.len == 0 && _send->info.type == SW_SERVER_EVENT_SEND_DATA;
+    auto *order = static_cast<HttpOrder *>(conn->http_order);
+    if (seq == conn->http_order_due) {
+        const auto backlog = order ? order->held.find(seq) : decltype(order->held.end()){};
+        const size_t queued = conn->socket ? conn->socket->get_out_buffer_length() : 0;
+        const bool fits = _send->info.type != SW_SERVER_EVENT_SEND_DATA || queued == 0 ||
+                          queued + _send->info.len <= conn->socket->buffer_size;
+        if (fits && (order == nullptr || backlog == order->held.end() || backlog->second.items.empty())) {
+            const int retval = marker ? SW_OK : send_to_connection_now(_send);
+            if (ended && get_connection_verify_no_ssl(_send->info.fd) != nullptr) {
+                http_order_advance(conn);
+            }
+            return retval;
+        }
+    }
+    if (order == nullptr) {
+        order = new HttpOrder();
+        conn->http_order = order;
+    }
+    auto &entry = order->held[seq];
+    if (!marker) {
+        entry.items.push_back(HttpOrderItem{_send->info, std::string(_send->data ? _send->data : "", _send->info.len)});
+        order->held_bytes += _send->info.len;
+    }
+    if (ended) {
+        entry.ended = true;
+    }
+    return SW_OK;
+}
+
+int Server::send_to_connection_now(const SendData *_send) const {
     const SessionId session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
@@ -1615,7 +1839,7 @@ bool Server::notify(Connection *conn, ServerEventType event) const {
 /**
  * @process Worker
  */
-bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) const {
+bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length, uint32_t order_tag) const {
     if (sw_unlikely(session_id <= 0)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld]", session_id);
         return false;
@@ -1667,6 +1891,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
     SendData send_data{};
     send_data.info.fd = session_id;
     send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
+    send_data.info.reserved = order_tag;
     send_data.info.len = sizeof(SendfileTask) + l_file + 1;
     send_data.data = _buffer;
 
@@ -1697,8 +1922,8 @@ void Server::call_hook(HookType type, void *arg) {
 /**
  * [Worker]
  */
-bool Server::close(SessionId session_id, bool reset) const {
-    return factory_->end(session_id, reset ? (CLOSE_ACTIVELY | CLOSE_RESET) : CLOSE_ACTIVELY);
+bool Server::close(SessionId session_id, bool reset, uint32_t order_tag) const {
+    return factory_->end(session_id, reset ? (CLOSE_ACTIVELY | CLOSE_RESET) : CLOSE_ACTIVELY, order_tag);
 }
 
 bool Server::send_pipe_message(WorkerId worker_id, EventData *msg) {
