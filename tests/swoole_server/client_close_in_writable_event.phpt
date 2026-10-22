@@ -42,13 +42,15 @@ $pm->childFunc = function () use ($pm) {
     $serv->on(Constant::EVENT_CONNECT, function (Server $serv, $fd, $reactor_id) {
         echo "CONNECT $fd\n";
     });
-    $serv->on('receive', function (Server $serv, $fd, $reactor_id, $data) use ($pm) {
+    $serv->on(Constant::EVENT_BUFFER_FULL, function (Server $serv, $fd) use ($pm) {
+        $pm->wakeup();
+    });
+    $serv->on('receive', function (Server $serv, $fd, $reactor_id, $data) {
         $n = 8;
         $serv->pause($fd);
         while ($n--) {
             $serv->send($fd, str_repeat('A', 2 * 1024 * 1024) . "\r\n");
         }
-        $pm->wakeup();
     });
     $serv->on(Constant::EVENT_CLOSE, function (Server $serv, $fd, $reactor_id)  use ($pm) {
         echo "CLOSE $fd\n";

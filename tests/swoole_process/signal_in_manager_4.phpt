@@ -24,7 +24,6 @@ $pm->parentFunc = function ($pid) use ($pm) {
     usleep(100000);
     Assert::true(Process::kill($manager_pid, 0));
     Process::kill($manager_pid, SIGTERM);
-    $pm->wait();
     $pm->kill();
 };
 
