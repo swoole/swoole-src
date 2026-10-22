@@ -189,14 +189,38 @@ class ProcessManager
         return $this->writeSyncCount($this->waitCount);
     }
 
+    private function waitForChild(bool $blocking): array|false
+    {
+        if (function_exists('pcntl_waitpid')) {
+            do {
+                $pid = pcntl_waitpid($this->childPid, $status, $blocking ? 0 : WNOHANG);
+            } while ($pid === -1 && pcntl_get_last_error() === PCNTL_EINTR);
+            if ($pid <= 0) {
+                return false;
+            }
+            $waitInfo = [
+                'pid' => $pid,
+                'code' => pcntl_wifexited($status) ? pcntl_wexitstatus($status) : 0,
+                'signal' => pcntl_wifsignaled($status) ? pcntl_wtermsig($status) : 0,
+            ];
+        } else {
+            // Process::wait() cannot select a PID; retain compatibility when pcntl is unavailable.
+            $waitInfo = Process::wait($blocking);
+        }
+        if ($waitInfo && $waitInfo['pid'] === $this->childPid) {
+            $this->childExitStatus = $waitInfo['code'];
+            $this->killed = true;
+        }
+        return $waitInfo;
+    }
+
     private function terminateChildAfterReadinessFailure(): void
     {
         $this->kill();
         // Servers may use their full three-second max_wait_time to stop workers gracefully.
         $deadline = microtime(true) + 5;
         do {
-            // Process::wait() is process-global and may discard another direct child's status while reaping ours.
-            $waitInfo = Process::wait(false);
+            $waitInfo = $this->waitForChild(false);
             if ($waitInfo && $waitInfo['pid'] === $this->childPid) {
                 return;
             }
@@ -205,7 +229,7 @@ class ProcessManager
 
         @Process::kill($this->childPid, SIGKILL);
         do {
-            $waitInfo = Process::wait(true);
+            $waitInfo = $this->waitForChild(true);
         } while ($waitInfo && $waitInfo['pid'] !== $this->childPid);
     }
 
@@ -579,9 +603,8 @@ class ProcessManager
             try {
                 $this->wait();
             } catch (RuntimeException $e) {
-                $waitInfo = Process::wait(false);
+                $waitInfo = $this->waitForChild(false);
                 if ($waitInfo && $waitInfo['pid'] === $this->childPid) {
-                    $this->killed = true;
                     throw new RuntimeException(
                         "ProcessManager child exited with code {$waitInfo['code']} and signal {$waitInfo['signal']} " .
                         'before sending a wakeup'
@@ -594,7 +617,7 @@ class ProcessManager
         $this->runParentSetup();
         $this->runParentFunc($this->childPid);
         Event::wait();
-        $waitInfo = Process::wait(true);
+        $waitInfo = $this->waitForChild(true);
         $this->childExitStatus = $waitInfo['code'];
         if (!in_array($waitInfo['signal'], $this->expectExitSignal)) {
             throw new RuntimeException("Unexpected exit code {$waitInfo['signal']}");
