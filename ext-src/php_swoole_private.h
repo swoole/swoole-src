@@ -19,6 +19,15 @@
 
 #include "php_swoole.h"
 #include "php_swoole_api.h"
+
+// PHP's printf macros also rewrite std:: names in C++ and third-party headers.
+#ifdef snprintf
+#undef snprintf
+#endif
+#ifdef vsnprintf
+#undef vsnprintf
+#endif
+
 #include "swoole.h"
 #include "swoole_api.h"
 #include "swoole_coroutine_api.h"
