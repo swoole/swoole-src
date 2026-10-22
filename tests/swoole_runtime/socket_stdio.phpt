@@ -50,20 +50,28 @@ function read_until_eof($stream): string
     return $result;
 }
 
-[$stdin, $childStdin] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
-[$stdout, $childStdout] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
-[$stderr, $childStderr] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+function start_child(string $scenario): array
+{
+    [$stdin, $childStdin] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+    [$stdout, $childStdout] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
+    [$stderr, $childStderr] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
 
-$command = sprintf(
-    'exec %s %s %s',
-    escapeshellarg(PHP_BINARY),
-    getenv('TEST_PHP_EXTRA_ARGS'),
-    escapeshellarg(__DIR__ . '/socket_stdio_child.inc')
-);
-$process = proc_open($command, [$childStdin, $childStdout, $childStderr], $pipes);
-fclose($childStdin);
-fclose($childStdout);
-fclose($childStderr);
+    $command = sprintf(
+        'exec %s %s %s %s',
+        escapeshellarg(PHP_BINARY),
+        getenv('TEST_PHP_EXTRA_ARGS'),
+        escapeshellarg(__DIR__ . '/socket_stdio_child.inc'),
+        escapeshellarg($scenario)
+    );
+    $process = proc_open($command, [$childStdin, $childStdout, $childStderr], $pipes);
+    fclose($childStdin);
+    fclose($childStdout);
+    fclose($childStderr);
+
+    return [$process, $stdin, $stdout, $stderr];
+}
+
+[$process, $stdin, $stdout, $stderr] = start_child('default');
 
 printf("stdin: %s\n", test_partial_line($stdin, $stdout, 'first') ? 'yes' : 'no');
 $reopened = wait_for_line($stderr) === "reopen\n" && test_partial_line($stdin, $stdout, 'second');
@@ -94,6 +102,59 @@ printf(
         : 'no'
 );
 printf("exit: %d\n", $exitCode);
+
+[$process, $stdin, $stdout, $stderr] = start_child('close-read');
+$closeRejected = wait_for_line($stderr) === "read-close:no\n";
+if ($closeRejected) {
+    fwrite($stdin, 'R');
+}
+fclose($stdin);
+$status = read_until_eof($stderr);
+read_until_eof($stdout);
+$exitCode = proc_close($process);
+printf(
+    "close during read: %s\n",
+    $closeRejected && str_contains($status, "read:R\n") && str_contains($status, "read-final-close:yes\n") &&
+        $exitCode === 0
+        ? 'yes'
+        : 'no'
+);
+
+[$process, $stdin, $stdout, $stderr] = start_child('close-write');
+$closeRejected = wait_for_line($stderr) === "write-close:no\n";
+$output = read_until_eof($stdout);
+$status = read_until_eof($stderr);
+fclose($stdin);
+$exitCode = proc_close($process);
+printf(
+    "close during write: %s\n",
+    $closeRejected && strlen($output) === 1024 * 1024 && str_contains($status, "write-final-close:yes\n") &&
+        $exitCode === 0
+        ? 'yes'
+        : 'no'
+);
+
+[$process, $stdin, $stdout, $stderr] = start_child('concurrent-read');
+$started = wait_for_line($stderr) === "read-overlap\n";
+fclose($stdin);
+$status = read_until_eof($stderr);
+$output = read_until_eof($stdout);
+proc_close($process);
+printf(
+    "concurrent read rejected: %s\n",
+    $started && str_contains($status . $output, 'reading of the same socket') ? 'yes' : 'no'
+);
+
+[$process, $stdin, $stdout, $stderr] = start_child('concurrent-write');
+$started = wait_for_line($stderr) === "write-overlap\n";
+$output = read_until_eof($stdout);
+$status = read_until_eof($stderr);
+fclose($stdin);
+proc_close($process);
+printf(
+    "concurrent write rejected: %s\n",
+    $started && str_contains($status . $output, 'writing of the same socket') ? 'yes' : 'no'
+);
 ?>
 --EXPECT--
 stdin: yes
@@ -103,3 +164,7 @@ timeout: yes
 stdout progress: yes
 stdout data: yes
 exit: 0
+close during read: yes
+close during write: yes
+concurrent read rejected: yes
+concurrent write rejected: yes

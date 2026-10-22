@@ -7,6 +7,77 @@ function write_all($stream, string $data): void
     }
 }
 
+$scenario = $argv[1] ?? 'default';
+
+if ($scenario === 'close-read') {
+    $input = fopen('php://stdin', 'r');
+    stream_set_timeout($input, 5);
+    Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_STDIO);
+
+    Co\run(static function () use ($input): void {
+        go(static function () use ($input): void {
+            write_all(STDERR, 'read:' . fread($input, 1) . "\n");
+        });
+        go(static function () use ($input): void {
+            write_all(STDERR, @fclose($input) ? "read-close:yes\n" : "read-close:no\n");
+        });
+    });
+
+    write_all(STDERR, fclose($input) ? "read-final-close:yes\n" : "read-final-close:no\n");
+    exit;
+}
+
+if ($scenario === 'close-write') {
+    $output = fopen('php://stdout', 'w');
+    stream_set_timeout($output, 5);
+    Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_STDIO);
+
+    Co\run(static function () use ($output): void {
+        go(static function () use ($output): void {
+            write_all($output, str_repeat('A', 1024 * 1024));
+        });
+        go(static function () use ($output): void {
+            write_all(STDERR, @fclose($output) ? "write-close:yes\n" : "write-close:no\n");
+        });
+    });
+
+    write_all(STDERR, fclose($output) ? "write-final-close:yes\n" : "write-final-close:no\n");
+    exit;
+}
+
+if ($scenario === 'concurrent-read') {
+    stream_set_timeout(STDIN, 5);
+    Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_STDIO);
+
+    Co\run(static function (): void {
+        go(static function (): void {
+            fread(STDIN, 1);
+        });
+        go(static function (): void {
+            write_all(STDERR, "read-overlap\n");
+            fread(STDIN, 1);
+        });
+    });
+    exit;
+}
+
+if ($scenario === 'concurrent-write') {
+    $output = fopen('php://stdout', 'w');
+    stream_set_timeout($output, 5);
+    Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_STDIO);
+
+    Co\run(static function () use ($output): void {
+        go(static function () use ($output): void {
+            write_all($output, str_repeat('A', 1024 * 1024));
+        });
+        go(static function () use ($output): void {
+            write_all(STDERR, "write-overlap\n");
+            fwrite($output, 'B');
+        });
+    });
+    exit;
+}
+
 $output = fopen('php://stdout', 'w');
 Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_STDIO);
 
