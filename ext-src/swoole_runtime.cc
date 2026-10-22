@@ -179,6 +179,13 @@ static php_stream_ops sw_php_stream_socket_stdio_ops;
 static const php_stream_wrapper *ori_php_stdio_wrapper;
 static php_stream_wrapper_ops sw_php_stdio_wrapper_ops;
 static php_stream_wrapper sw_php_stdio_wrapper;
+
+struct SocketStdioStream {
+    php_netstream_data_t stream;
+    long read_cid;
+    long write_cid;
+    uint32_t orig_no_fclose;
+};
 #endif
 
 struct PhpFunc;
@@ -286,10 +293,35 @@ SW_EXTERN_C_BEGIN
 SW_EXTERN_C_END
 
 #ifndef _WIN32
+static void socket_stdio_check_bound(const php_netstream_data_t *sock, long cid, const char *operation) {
+    if (sw_unlikely(cid != 0)) {
+        Coroutine::print_socket_bound_error(sock->socket, operation, cid);
+    }
+}
+
+static void socket_stdio_bind(php_stream *stream, SocketStdioStream *stdio_stream, long *cid) {
+    if (stdio_stream->read_cid == 0 && stdio_stream->write_cid == 0) {
+        // Keep fclose() from releasing the stream and its buffers while the AIO thread is using them.
+        stdio_stream->orig_no_fclose = stream->flags & PHP_STREAM_FLAG_NO_FCLOSE;
+        stream->flags |= PHP_STREAM_FLAG_NO_FCLOSE;
+    }
+    *cid = Coroutine::get_current_cid();
+}
+
+static void socket_stdio_unbind(php_stream *stream, SocketStdioStream *stdio_stream, long *cid) {
+    *cid = 0;
+    if (stdio_stream->read_cid == 0 && stdio_stream->write_cid == 0) {
+        stream->flags &= ~PHP_STREAM_FLAG_NO_FCLOSE;
+        stream->flags |= stdio_stream->orig_no_fclose;
+    }
+}
+
 // Socket-backed standard streams may share their descriptors with a parent process. Waiting in AIO preserves PHP's
 // timeout behavior without changing the shared O_NONBLOCK flag.
 static php_stream_size_t socket_stdio_read(php_stream *stream, char *buf, size_t count) {
-    auto *sock = static_cast<php_netstream_data_t *>(stream->abstract);
+    auto *stdio_stream = static_cast<SocketStdioStream *>(stream->abstract);
+    auto *sock = &stdio_stream->stream;
+    socket_stdio_check_bound(sock, stdio_stream->read_cid, "reading");
 #if PHP_VERSION_ID >= 80300
     const bool has_buffered_data = stream->has_buffered_data;
 #else
@@ -306,22 +338,25 @@ static php_stream_size_t socket_stdio_read(php_stream *stream, char *buf, size_t
     sock->timeout_event = 0;
     if (bytes_read < 0 && PHP_IS_TRANSIENT_ERROR(error)) {
         struct timeval timeout = sock->timeout;
-        if (!swoole::coroutine::async([&]() {
-                struct timeval *ptimeout = timeout.tv_sec == -1 ? nullptr : &timeout;
-                int retval;
-                do {
-                    retval = php_pollfd_for(sock->socket, PHP_POLLREADABLE, ptimeout);
-                    error = php_socket_errno();
-                } while (retval < 0 && error == EINTR);
-
-                if (retval == 0) {
-                    timed_out = true;
-                    return;
-                }
-
-                bytes_read = recv(sock->socket, buf, count, MSG_DONTWAIT);
+        socket_stdio_bind(stream, stdio_stream, &stdio_stream->read_cid);
+        bool success = swoole::coroutine::async([&]() {
+            struct timeval *ptimeout = timeout.tv_sec == -1 ? nullptr : &timeout;
+            int retval;
+            do {
+                retval = php_pollfd_for(sock->socket, PHP_POLLREADABLE, ptimeout);
                 error = php_socket_errno();
-            })) {
+            } while (retval < 0 && error == EINTR);
+
+            if (retval == 0) {
+                timed_out = true;
+                return;
+            }
+
+            bytes_read = recv(sock->socket, buf, count, MSG_DONTWAIT);
+            error = php_socket_errno();
+        });
+        socket_stdio_unbind(stream, stdio_stream, &stdio_stream->read_cid);
+        if (!success) {
             return -1;
         }
     }
@@ -350,7 +385,9 @@ static php_stream_size_t socket_stdio_read(php_stream *stream, char *buf, size_t
 }
 
 static php_stream_size_t socket_stdio_write(php_stream *stream, const char *buf, size_t count) {
-    auto *sock = static_cast<php_netstream_data_t *>(stream->abstract);
+    auto *stdio_stream = static_cast<SocketStdioStream *>(stream->abstract);
+    auto *sock = &stdio_stream->stream;
+    socket_stdio_check_bound(sock, stdio_stream->write_cid, "writing");
     if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO) || !Coroutine::get_current() || !sock->is_blocked) {
         return php_stream_socket_ops.write(stream, buf, count);
     }
@@ -367,32 +404,35 @@ static php_stream_size_t socket_stdio_write(php_stream *stream, const char *buf,
     if (bytes_written <= 0 && PHP_IS_TRANSIENT_ERROR(error)) {
         sock->timeout_event = 0;
         struct timeval timeout = sock->timeout;
-        if (!swoole::coroutine::async([&]() {
-                struct timeval *ptimeout = timeout.tv_sec == -1 ? nullptr : &timeout;
-                while (true) {
-                    int retval;
-                    do {
-                        retval = php_pollfd_for(sock->socket, POLLOUT, ptimeout);
-                        if (retval < 0) {
-                            error = php_socket_errno();
-                        }
-                    } while (retval < 0 && error == EINTR);
-
-                    if (retval == 0) {
-                        timed_out = true;
-                        return;
-                    }
+        socket_stdio_bind(stream, stdio_stream, &stdio_stream->write_cid);
+        bool success = swoole::coroutine::async([&]() {
+            struct timeval *ptimeout = timeout.tv_sec == -1 ? nullptr : &timeout;
+            while (true) {
+                int retval;
+                do {
+                    retval = php_pollfd_for(sock->socket, POLLOUT, ptimeout);
                     if (retval < 0) {
-                        return;
+                        error = php_socket_errno();
                     }
+                } while (retval < 0 && error == EINTR);
 
-                    bytes_written = send(sock->socket, buf, count, MSG_DONTWAIT);
-                    error = php_socket_errno();
-                    if (bytes_written > 0 || !PHP_IS_TRANSIENT_ERROR(error)) {
-                        return;
-                    }
+                if (retval == 0) {
+                    timed_out = true;
+                    return;
                 }
-            })) {
+                if (retval < 0) {
+                    return;
+                }
+
+                bytes_written = send(sock->socket, buf, count, MSG_DONTWAIT);
+                error = php_socket_errno();
+                if (bytes_written > 0 || !PHP_IS_TRANSIENT_ERROR(error)) {
+                    return;
+                }
+            }
+        });
+        socket_stdio_unbind(stream, stdio_stream, &stdio_stream->write_cid);
+        if (!success) {
             return -1;
         }
         sock->timeout_event = timed_out;
@@ -419,6 +459,12 @@ static php_stream_size_t socket_stdio_write(php_stream *stream, const char *buf,
 
 static void hook_socket_stdio_stream(php_stream *stream) {
     if (stream->ops == &php_stream_socket_ops) {
+        auto *stdio_stream = static_cast<SocketStdioStream *>(
+            perealloc(stream->abstract, sizeof(SocketStdioStream), stream->is_persistent));
+        stdio_stream->read_cid = 0;
+        stdio_stream->write_cid = 0;
+        stdio_stream->orig_no_fclose = 0;
+        stream->abstract = stdio_stream;
         stream->ops = &sw_php_stream_socket_stdio_ops;
     }
 }
