@@ -88,6 +88,7 @@ jobs:
         run: |
           $tests = @(
             'tests\swoole_http_server\create_request_multipart_limits.phpt',
+            'tests\swoole_http_server_coro\sendfile_object.phpt',
             'tests\swoole_http_server_coro\websocket_compression.phpt',
             'tests\swoole_process\process_manager_readiness.phpt',
             'tests\swoole_process\process_manager_timeout.phpt',

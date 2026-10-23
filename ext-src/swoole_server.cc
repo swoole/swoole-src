@@ -21,6 +21,7 @@
 #endif
 #include "php_swoole_thread.h"
 #include "php_swoole_call_stack.h"
+#include "php_swoole_sendfile.h"
 #include "swoole_msg_queue.h"
 #include "swoole_coroutine_system.h"
 
@@ -3152,21 +3153,37 @@ static PHP_METHOD(swoole_server, sendfile) {
     }
 
     zend_long fd;
-    char *filename;
-    size_t len;
+    zend_string *file = nullptr;
+    zend_object *descriptor = nullptr;
     zend_long offset = 0;
     zend_long length = 0;
+    bool delete_file = false;
 
-    ZEND_PARSE_PARAMETERS_START(2, 4)
+    ZEND_PARSE_PARAMETERS_START(2, 5)
     Z_PARAM_LONG(fd)
-    Z_PARAM_STRING(filename, len)
+    Z_PARAM_OBJ_OF_CLASS_OR_STR(descriptor, swoole_sendfile_ce, file)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(offset)
     Z_PARAM_LONG(length)
+    Z_PARAM_BOOL(delete_file)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (descriptor) {
+        if (ZEND_NUM_ARGS() > 2) {
+            zend_argument_value_error(3, "must not be provided when $filename is a Swoole\\SendFile");
+            RETURN_THROWS();
+        }
+        if (!php_swoole_sendfile_get_options(descriptor, &file, &offset, &length, &delete_file)) {
+            RETURN_THROWS();
+        }
+    }
+    zend::String filename(file, true);
+    if (UNEXPECTED(CHECK_NULL_PATH(filename.val(), filename.len()))) {
+        zend_argument_value_error(2, "must not contain any null bytes");
+        RETURN_THROWS();
+    }
     if (serv->is_master()) {
-        php_swoole_fatal_error(E_WARNING, "can't sendfile[%s] to the connections in master process", filename);
+        php_swoole_fatal_error(E_WARNING, "can't sendfile[%s] to the connections in master process", filename.val());
         RETURN_FALSE;
     }
     if (offset < 0) {
@@ -3178,7 +3195,15 @@ static PHP_METHOD(swoole_server, sendfile) {
         RETURN_FALSE;
     }
 
-    RETURN_BOOL(serv->sendfile(fd, filename, len, offset, length));
+    if (delete_file && !php_swoole_sendfile_acquire(descriptor)) {
+        RETURN_THROWS();
+    }
+    bool result = serv->sendfile(fd, filename.val(), filename.len(), offset, length, delete_file);
+    if (delete_file) {
+        // Native validation failed before the cleanup token moved to a send task.
+        php_swoole_sendfile_release(descriptor);
+    }
+    RETURN_BOOL(result);
 }
 
 static PHP_METHOD(swoole_server, close) {

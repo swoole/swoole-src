@@ -49,6 +49,7 @@ if (PHP_SWOOLE != "no") {
 	swoole_source_files += "ext-src\\swoole_http2_client_coro.cc ";
 	swoole_source_files += "ext-src\\swoole_http_client_coro.cc ";
 	swoole_source_files += "ext-src\\swoole_http_cookie.cc ";
+	swoole_source_files += "ext-src\\swoole_sendfile.cc ";
 	swoole_source_files += "ext-src\\swoole_http_request.cc ";
 	swoole_source_files += "ext-src\\swoole_http_response.cc ";
 	swoole_source_files += "ext-src\\swoole_http_server_coro.cc ";
