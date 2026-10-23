@@ -551,7 +551,7 @@ pid_t ProcessPool::spawn(Worker *worker) {
         }
         // Give language bindings a chance to return to their VM after the native loop has stopped.
         // The exit below remains the final fallback, including when the binding has already shut down.
-        swoole_call_hook(SW_GLOBAL_HOOK_AFTER_PROCESS_LOOP, nullptr);
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT, nullptr);
         exit(ret_code);
     } else {
         worker->pid = pid;

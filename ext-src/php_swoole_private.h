@@ -950,7 +950,8 @@ static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable,
 
 // Native forked loops cannot simply return: their callers are also used by the parent to spawn
 // workers. Unwind only these C++ frames, catch at Server::start()/Process\Pool::start(), and leave
-// EG(exception) untouched. This is control flow, not a second PHP exception or additional exit state.
+// EG(exception) untouched. PhpUnwindExit only transfers control to ZendVM; it is neither the Zend
+// UnwindExit object nor an additional exit state.
 struct PhpUnwindExit {};
 
 zend_result sw_zend_exception_error(zend_object *exception, int severity);

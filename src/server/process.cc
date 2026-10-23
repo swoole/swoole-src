@@ -145,7 +145,7 @@ pid_t Factory::spawn_event_worker(Worker *worker) const {
     }
 
     // The worker loop and its native cleanup have finished; bindings may now return to their VM.
-    swoole_call_hook(SW_GLOBAL_HOOK_AFTER_PROCESS_LOOP, nullptr);
+    swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT, nullptr);
     exit(0);
     return 0;
 }

@@ -376,13 +376,13 @@ void PHPCoroutine::bailout() {
     Coroutine::bailout([]() {
         if (sw_reactor()) {
             sw_reactor()->running = false;
-            sw_reactor()->bailout = true;
+            sw_reactor()->terminated = true;
         }
         zend_bailout();
     });
 }
 
-bool PHPCoroutine::catch_exception() {
+bool PHPCoroutine::handle_exception() {
     if (UNEXPECTED(EG(exception))) {
 #if SW_RECOVER_CANCELED_EXCEPTION
         if (EG(exception)->ce == swoole_coroutine_canceled_exception_ce) {
@@ -393,9 +393,9 @@ bool PHPCoroutine::catch_exception() {
 #endif
         // Report real exceptions on their own coroutine stack. UnwindExit instead survives context
         // destruction below; returning true here would invoke the legacy, immediate coroutine bailout.
-        bool unwind_exit = zend_is_unwind_exit(EG(exception));
+        bool is_unwind_exit = zend_is_unwind_exit(EG(exception));
         sw_zend_exception_error(EG(exception), E_ERROR);
-        return !UNEXPECTED(unwind_exit);
+        return !UNEXPECTED(is_unwind_exit);
     }
     return false;
 }
@@ -487,7 +487,7 @@ void PHPCoroutine::deadlock_check() {
     if (Coroutine::count() == 0) {
         return;
     }
-    if (php_swoole_is_fatal_error() || (sw_reactor() && sw_reactor()->bailout)) {
+    if (php_swoole_is_fatal_error() || (sw_reactor() && sw_reactor()->terminated)) {
         return;
     }
     if (SWOOLE_G(enable_library)) {
@@ -775,7 +775,7 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
 }
 
 void PHPCoroutine::main_func(void *_args) {
-    bool exception_caught = false;
+    bool bailout_required = false;
     const auto args = static_cast<Args *>(_args);
     PHPContext *ctx = create_context(args);
 
@@ -813,8 +813,8 @@ void PHPCoroutine::main_func(void *_args) {
 
         zend_call_function(&ctx->fci, &ctx->fci_cache);
 
-        // Catch exception in main function of the coroutine
-        exception_caught = catch_exception();
+        // Handle the callback exception and decide whether legacy coroutine bailout is required.
+        bailout_required = handle_exception();
 
         // Ordinary exceptions still run defers. UnwindExit must not execute more PHP callbacks;
         // destroy_context() releases any remaining defer closures without invoking them.
@@ -847,12 +847,12 @@ void PHPCoroutine::main_func(void *_args) {
     }
     zend_catch {
         // zend_bailout is executed in the c function
-        catch_exception();
-        exception_caught = true;
+        handle_exception();
+        bailout_required = true;
     }
     zend_end_try();
     destroy_context(ctx);
-    if (exception_caught) {
+    if (bailout_required) {
         bailout();
     }
 }

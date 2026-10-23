@@ -183,7 +183,7 @@ int ReactorEpoll::wait() {
 
     while (reactor_->running) {
         reactor_->execute_begin_callback();
-        if (sw_unlikely(reactor_->bailout)) {
+        if (sw_unlikely(reactor_->terminated)) {
             break;
         }
 

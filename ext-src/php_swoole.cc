@@ -1128,7 +1128,7 @@ PHP_MINIT_FUNCTION(swoole) {
 
 #ifndef _WIN32
     swoole_add_hook(
-        SW_GLOBAL_HOOK_AFTER_PROCESS_LOOP,
+        SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT,
         [](void *) {
             // A forked worker/manager normally ends in the core's fallback exit(). UnwindExit must
             // instead reach the PHP method which entered that loop, so ZendVM can terminate the

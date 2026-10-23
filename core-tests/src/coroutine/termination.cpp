@@ -3,7 +3,7 @@
 
 using namespace swoole;
 
-TEST(coroutine_bailout, reject_resume_and_cancel) {
+TEST(coroutine_termination, reject_resume_and_cancel) {
     ASSERT_EQ(swoole_event_init(0), SW_OK);
     Coroutine::activate();
 
@@ -21,16 +21,16 @@ TEST(coroutine_bailout, reject_resume_and_cancel) {
     auto *co = Coroutine::get_by_cid(cid);
     ASSERT_NE(co, nullptr);
 
-    sw_reactor()->bailout = true;
+    sw_reactor()->terminated = true;
     co->resume();
     EXPECT_FALSE(resumed);
     EXPECT_FALSE(co->cancel());
     EXPECT_FALSE(canceled);
     EXPECT_FALSE(co->is_canceled());
 
-    // Only the test resets bailout: release the suspended coroutine and verify its cancel callback
+    // Only the test resets termination: release the suspended coroutine and verify its cancel callback
     // was preserved. Native callers must not be told that a suppressed cancellation succeeded.
-    sw_reactor()->bailout = false;
+    sw_reactor()->terminated = false;
     EXPECT_TRUE(co->cancel());
     EXPECT_TRUE(canceled);
     EXPECT_TRUE(resumed);

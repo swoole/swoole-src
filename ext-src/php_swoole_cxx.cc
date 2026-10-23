@@ -16,8 +16,8 @@ zend_result sw_zend_exception_error(zend_object *exception, int severity) {
     // Do not bailout or exit here; callbacks may still hold locks or native resources to release.
     if (auto *reactor = sw_reactor()) {
         reactor->running = false;
-        // running alone is reset on the next wait(); bailout also prevents later coroutine resumes.
-        reactor->bailout = true;
+        // A normal stop can restart on the next wait(); termination also blocks coroutine resumes.
+        reactor->terminated = true;
     }
 #ifndef _WIN32
     // Manager and standalone pool masters wait for children without a reactor. Synchronous task

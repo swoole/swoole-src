@@ -159,7 +159,7 @@ void Coroutine::resume() {
     SW_ASSERT(current != this);
     // Stopping the reactor does not abort the current timer/I/O completion batch. Do not let a
     // later completion restore another PHP context and overwrite a pending termination exception.
-    if (sw_unlikely(on_bailout || (sw_reactor() && sw_reactor()->bailout))) {
+    if (sw_unlikely(on_bailout || (sw_reactor() && sw_reactor()->terminated))) {
         return;
     }
     state = STATE_RUNNING;
@@ -176,8 +176,8 @@ void Coroutine::resume() {
 
 bool Coroutine::cancel() {
     // Cancellation callbacks assume resume() actually runs the coroutine. Reporting success when
-    // bailout prevents that resume can trap native cleanup loops waiting for the coroutine to leave.
-    if (!cancel_fn_ || sw_unlikely(on_bailout || (sw_reactor() && sw_reactor()->bailout))) {
+    // termination prevents that resume can trap native cleanup loops waiting for the coroutine to leave.
+    if (!cancel_fn_ || sw_unlikely(on_bailout || (sw_reactor() && sw_reactor()->terminated))) {
         swoole_set_last_error(SW_ERROR_CO_CANNOT_CANCEL);
         return false;
     }
