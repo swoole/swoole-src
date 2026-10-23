@@ -359,7 +359,12 @@ class ProcessManager
     public function runChildFunc()
     {
         try {
-            return call_user_func($this->childFunc);
+            $result = call_user_func($this->childFunc);
+            // The callback may only register timers, signals or suspended coroutines. Finish their
+            // event loop before the child wrapper calls exit(), which now propagates UnwindExit
+            // and must not be used to enter the shutdown-time event loop.
+            Event::wait();
+            return $result;
         } finally {
             if ($this->childStopTimer) {
                 \Swoole\Timer::clear($this->childStopTimer);
