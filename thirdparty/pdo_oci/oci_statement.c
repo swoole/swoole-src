@@ -165,6 +165,11 @@ static int oci_stmt_execute(pdo_stmt_t *stmt) /* {{{ */
         STMT_CALL_MSG(
             OCIAttrGet, "ATTR_PARAM_COUNT", (S->stmt, OCI_HTYPE_STMT, &colcount, 0, OCI_ATTR_PARAM_COUNT, S->err));
 
+        /* closeCursor(), and re-execution on PHP 8.4.27, clear stmt->executed.
+         * Replacing S->cols also invalidates OCI's defines. Drop PDO's cached
+         * descriptions so it defines the columns into the new buffers again.
+         * See php/pecl-database-pdo_oci#46. */
+        php_pdo_stmt_set_column_count(stmt, 0);
         stmt->column_count = (int) colcount;
 
         if (S->cols) {
@@ -1100,6 +1105,19 @@ static int oci_stmt_col_meta(pdo_stmt_t *stmt, zend_long colno, zval *return_val
     return SUCCESS;
 } /* }}} */
 
+static int oci_stmt_cursor_closer(pdo_stmt_t *stmt) {
+    pdo_oci_stmt *S = (pdo_oci_stmt *) stmt->driver_data;
+
+    /* PDO otherwise drains the cursor with fetcher(), including before a
+     * re-execute on PHP 8.4.27. DML and RETURNING statements have no SELECT
+     * cursor to fetch: asking OCI to fetch them can break the next execute
+     * with ORA-03137. Cancel SELECT cursors without fetching their rows. */
+    if (S->stmt_type == OCI_STMT_SELECT) {
+        STMT_CALL(OCIStmtFetch, (S->stmt, S->err, 0, OCI_FETCH_NEXT, OCI_DEFAULT));
+    }
+    return 1;
+}
+
 const struct pdo_stmt_methods swoole_oci_stmt_methods = {oci_stmt_dtor,
                                                          oci_stmt_execute,
                                                          oci_stmt_fetch,
@@ -1110,5 +1128,4 @@ const struct pdo_stmt_methods swoole_oci_stmt_methods = {oci_stmt_dtor,
                                                          NULL, /* get_attr */
                                                          oci_stmt_col_meta,
                                                          NULL,
-                                                         NULL};
-
+                                                         oci_stmt_cursor_closer};
