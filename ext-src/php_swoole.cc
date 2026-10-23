@@ -1126,6 +1126,22 @@ PHP_MINIT_FUNCTION(swoole) {
     SwooleG.fatal_error = fatal_error;
     SwooleG.print_backtrace = print_backtrace;
 
+#ifndef _WIN32
+    swoole_add_hook(
+        SW_GLOBAL_HOOK_AFTER_PROCESS_LOOP,
+        [](void *) {
+            // A forked worker/manager normally ends in the core's fallback exit(). UnwindExit must
+            // instead reach the PHP method which entered that loop, so ZendVM can terminate the
+            // request and run PHP shutdown functions. Never inspect exceptions after request shutdown.
+            // Swoole\Process already leaves through zend_bailout() and does not need this bridge.
+            if (SWOOLE_G(req_status) < PHP_SWOOLE_RSHUTDOWN_BEGIN &&
+                UNEXPECTED(EG(exception) && zend_is_unwind_exit(EG(exception)))) {
+                throw PhpUnwindExit{};
+            }
+        },
+        0);
+#endif
+
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
 

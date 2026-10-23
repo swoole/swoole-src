@@ -155,6 +155,9 @@ int ReactorPoll::wait() {
 
     while (reactor_->running) {
         reactor_->execute_begin_callback();
+        if (sw_unlikely(reactor_->bailout)) {
+            break;
+        }
         const int event_num = set_events();
         int ret;
         ret = poll(events_, event_num, reactor_->get_timeout_msec());

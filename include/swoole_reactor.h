@@ -332,7 +332,9 @@ class Reactor {
     }
 
     void before_wait() {
-        start = running = true;
+        start = true;
+        // Startup callbacks may already have requested VM termination. Do not restart that loop.
+        running = !bailout;
         if (timeout_msec == 0) {
             timeout_msec = -1;
         }

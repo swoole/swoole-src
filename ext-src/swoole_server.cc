@@ -1403,7 +1403,7 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
         zval_ptr_dtor(&retval);
         // the result is serialized after zend::function::call() has already checked for callback exceptions
         if (UNEXPECTED(EG(exception))) {
-            zend_exception_error(EG(exception), E_ERROR);
+            sw_zend_exception_error(EG(exception), E_ERROR);
         }
     }
 
@@ -1944,7 +1944,7 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
 
     /* the exception should only be thrown after unlocked */
     if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
+        sw_zend_exception_error(EG(exception), E_ERROR);
     }
 
     return worker_id;
@@ -2999,8 +2999,14 @@ static PHP_METHOD(swoole_server, start) {
         RETURN_FALSE;
     }
 
-    if (serv->start() < 0) {
-        php_swoole_throw_setting_exception("failed to start server. Error: %s", serv->get_startup_error_message());
+    try {
+        if (serv->start() < 0) {
+            php_swoole_throw_setting_exception("failed to start server. Error: %s", serv->get_startup_error_message());
+            RETURN_THROWS();
+        }
+    } catch (const PhpUnwindExit &) {
+        // The child's native loop has already cleaned up. UnwindExit remains owned by ZendVM;
+        // returning here must terminate the PHP call, not resume the parent's server startup code.
         RETURN_THROWS();
     }
 

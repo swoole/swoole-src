@@ -430,6 +430,9 @@ class ReactorIocp final : public ReactorImpl {
 
         while (reactor_->running) {
             reactor_->execute_begin_callback();
+            if (sw_unlikely(reactor_->bailout)) {
+                break;
+            }
 
             int ret;
             ret = dispatch_ready_handles();

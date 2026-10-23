@@ -410,6 +410,10 @@ pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
     }
 
     factory_->check_worker_exit_status(exited_worker, exit_status);
+    // The PHP WorkerError callback can terminate the manager while checking this exit status.
+    if (!running) {
+        return SW_ERR;
+    }
 
     if (exited_worker->type == SW_EVENT_WORKER) {
         return factory_->spawn_event_worker(exited_worker);

@@ -183,6 +183,9 @@ int ReactorEpoll::wait() {
 
     while (reactor_->running) {
         reactor_->execute_begin_callback();
+        if (sw_unlikely(reactor_->bailout)) {
+            break;
+        }
 
         n = epoll_wait(epfd_, events_, reactor_->max_event_num, reactor_->get_timeout_msec());
         if (n < 0) {

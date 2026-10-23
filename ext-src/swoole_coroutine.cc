@@ -388,14 +388,14 @@ bool PHPCoroutine::catch_exception() {
         if (EG(exception)->ce == swoole_coroutine_canceled_exception_ce) {
             OBJ_RELEASE(EG(exception));
             EG(exception) = nullptr;
-        } else {
-#endif
-            // the exception error messages MUST be output on the current coroutine stack
-            zend_exception_error(EG(exception), E_ERROR);
-            return true;
-#if SW_RECOVER_CANCELED_EXCEPTION
+            return false;
         }
 #endif
+        // Report real exceptions on their own coroutine stack. UnwindExit instead survives context
+        // destruction below; returning true here would invoke the legacy, immediate coroutine bailout.
+        bool unwind_exit = zend_is_unwind_exit(EG(exception));
+        sw_zend_exception_error(EG(exception), E_ERROR);
+        return !UNEXPECTED(unwind_exit);
     }
     return false;
 }
@@ -755,8 +755,23 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
                      (uintmax_t) zend_memory_usage(0),
                      (uintmax_t) zend_memory_usage(1));
 
+    // restore_context() overwrites EG(exception) with the caller's saved exception state. Preserve
+    // UnwindExit across that restore, then throw it on the caller's frame so Zend also installs its
+    // exception opcode there. Simply assigning EG(exception) would miss that VM bookkeeping.
+    // Transfer the existing reference; neither addref nor release it, and add no PHPContext field.
+    zend_object *unwind_exit = EG(exception) && zend_is_unwind_exit(EG(exception)) ? EG(exception) : nullptr;
+    if (UNEXPECTED(unwind_exit)) {
+        // Context/closure/output-handler destruction can raise UnwindExit after main_func() checked
+        // the callback's exception. Mark termination before restoring another context or invoking
+        // Zend's exception hooks, or an asynchronous cleanup failure could leave the reactor waiting
+        // forever for other suspended coroutines.
+        sw_zend_exception_error(unwind_exit, E_ERROR);
+    }
     zend_vm_stack_destroy();
     restore_context(get_origin_context(ctx));
+    if (UNEXPECTED(unwind_exit)) {
+        zend_throw_exception_internal(unwind_exit);
+    }
 }
 
 void PHPCoroutine::main_func(void *_args) {
@@ -801,8 +816,9 @@ void PHPCoroutine::main_func(void *_args) {
         // Catch exception in main function of the coroutine
         exception_caught = catch_exception();
 
-        // The defer tasks still need to be executed after an exception occurs
-        if (ctx->defer_tasks) {
+        // Ordinary exceptions still run defers. UnwindExit must not execute more PHP callbacks;
+        // destroy_context() releases any remaining defer closures without invoking them.
+        if (ctx->defer_tasks && !UNEXPECTED(EG(exception) && zend_is_unwind_exit(EG(exception)))) {
             std::stack<zend::Function *> *tasks = ctx->defer_tasks;
             while (!tasks->empty()) {
                 zend::Function *defer_fci = tasks->top();
@@ -815,13 +831,18 @@ void PHPCoroutine::main_func(void *_args) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
                 }
                 if (EG(exception)) {
+                    if (UNEXPECTED(zend_is_unwind_exit(EG(exception)))) {
+                        sw_zend_exception_error(EG(exception), E_ERROR);
+                        // This task has already been popped; destroy_context() only owns the rest.
+                        sw_zend_fci_cache_discard(&defer_fci->fci_cache);
+                        efree(defer_fci);
+                        break;
+                    }
                     zend_bailout();
                 }
                 sw_zend_fci_cache_discard(&defer_fci->fci_cache);
                 efree(defer_fci);
             }
-            delete ctx->defer_tasks;
-            ctx->defer_tasks = nullptr;
         }
     }
     zend_catch {
@@ -837,6 +858,12 @@ void PHPCoroutine::main_func(void *_args) {
 }
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable) {
+    // Unlike zend_call_function(), creating a coroutine installs a fresh exception-free VM stack.
+    // Reject it before saving/resetting the caller's state, or it could hide a pending UnwindExit.
+    if (UNEXPECTED(EG(exception) && zend_is_unwind_exit(EG(exception)))) {
+        sw_zend_exception_error(EG(exception), E_ERROR);
+        return Coroutine::ERR_INVALID;
+    }
     if (sw_unlikely(Coroutine::count() >= config.max_num)) {
         php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return Coroutine::ERR_LIMIT;
