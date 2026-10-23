@@ -378,9 +378,11 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             std::string str_content_type = content_type ? std::string(ZSTR_VAL(content_type), ZSTR_LEN(content_type))
                                                         : std::string(ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
             accept_compression = compression_types->find(str_content_type) != compression_types->end();
-            if (content_type) {
-                zend_string_release(content_type);
-            }
+        }
+        // Released unconditionally: an application content-encoding can clear accept_compression
+        // after content-type was captured, which would skip the refinement above.
+        if (content_type) {
+            zend_string_release(content_type);
         }
 #endif
     }
