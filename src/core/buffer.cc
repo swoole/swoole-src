@@ -118,6 +118,10 @@ void Buffer::append(const iovec *iov, size_t iovcnt, off_t offset) {
                     offset -= iov[i].iov_len;
                     _length -= iov[i].iov_len;
                     i++;
+                    // An exact boundary leaves offset == 0, so the next iteration will not
+                    // enter the partial-offset branch. Advance both cursor and remaining size.
+                    pos = static_cast<char *>(iov[i].iov_base);
+                    iov_remain_len = iov[i].iov_len;
                     continue;
                 } else {
                     pos = static_cast<char *>(iov[i].iov_base) + offset;

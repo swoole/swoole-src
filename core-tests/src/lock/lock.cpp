@@ -22,13 +22,14 @@
 #include "swoole_util.h"
 
 #include <thread>
+#include <future>
 
-using swoole::Lock;
-using swoole::RWLock;
-using swoole::SpinLock;
 using swoole::Coroutine;
 using swoole::CoroutineLock;
+using swoole::Lock;
 using swoole::Mutex;
+using swoole::RWLock;
+using swoole::SpinLock;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
 
@@ -54,19 +55,39 @@ static void test_func(Lock &lock) {
 }
 
 static void test_lock_rd_func(Lock &lock) {
-    std::thread t1([&lock]() {
-        ASSERT_EQ(lock.lock(LOCK_SH), 0);
-        usleep(2000);  // wait
-        lock.unlock();
+    ASSERT_EQ(lock.lock(LOCK_SH), 0);
+    int result = -1;
+    std::thread contender([&]() {
+        result = lock.lock(LOCK_SH | LOCK_NB);
+        if (result == 0) {
+            EXPECT_EQ(lock.unlock(), 0);
+        }
     });
+    contender.join();
+    EXPECT_EQ(lock.unlock(), 0);
+    EXPECT_EQ(result, lock.get_type() == Lock::RW_LOCK ? 0 : EBUSY);
+}
 
-    std::thread t2([&lock]() {
-        usleep(1000);
-        ASSERT_GE(lock.lock(LOCK_SH | LOCK_NB), 0);
+static void test_timed_lock_timeout(Lock &lock, int held_operation, int requested_operation) {
+    ASSERT_EQ(lock.lock(held_operation), 0);
+    std::promise<int> result;
+    auto future = result.get_future();
+    std::thread contender([&]() {
+        const int error = lock.lock(requested_operation, 20);
+        if (error == 0) {
+            EXPECT_EQ(lock.unlock(), 0);
+        }
+        result.set_value(error);
     });
-
-    t1.join();
-    t2.join();
+    // Keep the owner locked until the contender finishes. The generous watchdog
+    // also releases it if a broken timed lock accidentally falls back to blocking.
+    const auto status = future.wait_for(std::chrono::seconds(2));
+    EXPECT_EQ(lock.unlock(), 0);
+    contender.join();
+    EXPECT_EQ(status, std::future_status::ready);
+    EXPECT_EQ(future.get(), ETIMEDOUT);
+    ASSERT_EQ(lock.lock(LOCK_EX | LOCK_NB), 0);
+    EXPECT_EQ(lock.unlock(), 0);
 }
 
 static void test_share_lock_fun(Lock &lock) {
@@ -102,28 +123,9 @@ TEST(lock, mutex) {
 
 TEST(lock, lockwait) {
     Mutex lock(0);
-
-    lock.lock();
-
-    std::thread t1([&lock]() {
-        long ms1 = swoole::time<std::chrono::milliseconds>();
-        const int TIMEOUT_1 = 2;
-        ASSERT_EQ(lock.lock(LOCK_EX, TIMEOUT_1), ETIMEDOUT);
-        long ms2 = swoole::time<std::chrono::milliseconds>();
-
-        ASSERT_GE(ms2 - ms1, TIMEOUT_1);
-
-        const int TIMEOUT_2 = 10;
-        ASSERT_EQ(lock.lock(LOCK_EX, TIMEOUT_2), 0);
-        long ms3 = swoole::time<std::chrono::milliseconds>();
-
-        ASSERT_LE(ms3 - ms2, TIMEOUT_2);
-    });
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    lock.unlock();
-
-    t1.join();
+    test_timed_lock_timeout(lock, LOCK_EX, LOCK_EX);
+    ASSERT_EQ(lock.lock(LOCK_EX, 20), 0);
+    EXPECT_EQ(lock.unlock(), 0);
 }
 
 TEST(lock, shared) {
@@ -222,18 +224,47 @@ TEST(lock, rwlock_try_rd) {
 
 TEST(lock, rw_try_wr) {
     RWLock lock(false);
-    std::thread t1([&lock]() {
-        ASSERT_EQ(lock.lock(), 0);
-        usleep(2000);
-        lock.unlock();
+    ASSERT_EQ(lock.lock(), 0);
+    std::thread contender([&lock]() {
+        const int result = lock.lock(LOCK_NB);
+        EXPECT_EQ(result, EBUSY);
+        if (result == 0) {
+            EXPECT_EQ(lock.unlock(), 0);
+        }
     });
+    contender.join();
+    EXPECT_EQ(lock.unlock(), 0);
+}
 
-    std::thread t2([&lock]() {
-        usleep(1000);
-        ASSERT_GT(lock.lock(LOCK_NB), 0);
+TEST(lock, rw_timed_reader_waits_for_writer) {
+    RWLock lock(false);
+    test_timed_lock_timeout(lock, LOCK_EX, LOCK_SH);
+}
+
+TEST(lock, rw_timed_writer_waits_for_reader) {
+    RWLock lock(false);
+    test_timed_lock_timeout(lock, LOCK_SH, LOCK_EX);
+}
+
+TEST(lock, rw_timed_writer_waits_for_writer) {
+    RWLock lock(false);
+    test_timed_lock_timeout(lock, LOCK_EX, LOCK_EX);
+}
+
+TEST(lock, rw_timed_readers_can_share) {
+    RWLock lock(false);
+    ASSERT_EQ(lock.lock(LOCK_SH), 0);
+    std::thread reader([&lock]() {
+        const int result = lock.lock(LOCK_SH, 20);
+        EXPECT_EQ(result, 0);
+        if (result == 0) {
+            EXPECT_EQ(lock.unlock(), 0);
+        }
     });
-    t1.join();
-    t2.join();
+    reader.join();
+    EXPECT_EQ(lock.unlock(), 0);
+    ASSERT_EQ(lock.lock(LOCK_EX, 20), 0);
+    EXPECT_EQ(lock.unlock(), 0);
 }
 #endif
 
@@ -251,5 +282,12 @@ TEST(lock, spinlock) {
 TEST(lock, spinlock_try_rd) {
     SpinLock lock(false);
     test_lock_rd_func(lock);
+}
+
+TEST(lock, spinlock_timeout_and_reuse) {
+    SpinLock lock(false);
+    test_timed_lock_timeout(lock, LOCK_EX, LOCK_EX);
+    ASSERT_EQ(lock.lock(LOCK_EX, 20), 0);
+    EXPECT_EQ(lock.unlock(), 0);
 }
 #endif
