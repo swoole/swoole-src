@@ -49,5 +49,7 @@ fi
 if [ $? -eq 0 ]; then
     PHPT=1 ${TEST_PHP_EXECUTABLE} -d "memory_limit=1024m" ${__DIR__}/run-tests ${glob}
 fi
+status=$?
 
 rm -f /tmp/swoole.log > /dev/null 2>&1
+exit ${status}
