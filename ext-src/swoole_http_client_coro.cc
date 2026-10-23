@@ -99,15 +99,16 @@ static bool websocket_verify_server_handshake(zval *zobject) {
         return false;
     }
 
+    // The token parser returns -1 on error; only 1 is a successful match.
     zval *zupgrade = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("upgrade"));
     if (zupgrade == nullptr || Z_TYPE_P(zupgrade) != IS_STRING ||
-        !swoole_http_token_list_contains_value(Z_STRVAL_P(zupgrade), Z_STRLEN_P(zupgrade), "websocket")) {
+        swoole_http_token_list_contains_value(Z_STRVAL_P(zupgrade), Z_STRLEN_P(zupgrade), "websocket") != 1) {
         return false;
     }
 
     zval *zconnection = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("connection"));
     if (zconnection == nullptr || Z_TYPE_P(zconnection) != IS_STRING ||
-        !swoole_http_token_list_contains_value(Z_STRVAL_P(zconnection), Z_STRLEN_P(zconnection), "Upgrade")) {
+        swoole_http_token_list_contains_value(Z_STRVAL_P(zconnection), Z_STRLEN_P(zconnection), "Upgrade") != 1) {
         return false;
     }
 
@@ -484,7 +485,7 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
     http->add_header(header_name, header_len, (char *) at, length);
 
     if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STREQ(header_name, header_len, "upgrade")) {
-        if (swoole_http_token_list_contains_value(at, length, "websocket")) {
+        if (swoole_http_token_list_contains_value(at, length, "websocket") == 1) {
             http->websocket = true;
         }
         /* TODO: protocol error? */
