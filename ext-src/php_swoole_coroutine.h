@@ -51,7 +51,7 @@ namespace swoole {
 struct PHPContext {
     typedef std::function<void(PHPContext *)> SwapCallback;
 
-    JMP_BUF *bailout;
+    JMP_BUF *bailout;  // Saved Zend longjmp target; distinct from Reactor::terminated.
     zval *vm_stack_top;
     zval *vm_stack_end;
     zend_vm_stack vm_stack;
@@ -293,7 +293,8 @@ class PHPCoroutine {
     static void save_context(PHPContext *ctx);
     static void restore_context(PHPContext *ctx);
     static void destroy_context(PHPContext *ctx);
-    static bool catch_exception();
+    // Handle a pending PHP exception; true means the legacy coroutine bailout is required.
+    static bool handle_exception();
     static void bailout();
     static void on_yield(void *arg);
     static void on_resume(void *arg);

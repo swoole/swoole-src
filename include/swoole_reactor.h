@@ -128,7 +128,9 @@ class Reactor {
     bool once = false;
     bool wait_exit = false;
     bool destroyed = false;
-    bool bailout = false;
+    // A terminal stop: later wait() calls and coroutine resumes must not restart this reactor.
+    // running only controls the current wait(); wait_exit enables normal exit-condition checks.
+    bool terminated = false;
     bool timed_out = false;
 
     /**
@@ -332,7 +334,9 @@ class Reactor {
     }
 
     void before_wait() {
-        start = running = true;
+        start = true;
+        // Startup callbacks may already have requested VM termination. Do not restart that loop.
+        running = !terminated;
         if (timeout_msec == 0) {
             timeout_msec = -1;
         }

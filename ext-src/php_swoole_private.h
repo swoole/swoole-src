@@ -948,6 +948,14 @@ static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable,
         zcallable, zobject, nullptr, check_flags, callable_name, callable_name_len, fci_cache, error);
 }
 
+// Native forked loops cannot simply return: their callers are also used by the parent to spawn
+// workers. Unwind only these C++ frames, catch at Server::start()/Process\Pool::start(), and leave
+// EG(exception) untouched. PhpUnwindExit only transfers control to ZendVM; it is neither the Zend
+// UnwindExit object nor an additional exit state.
+struct PhpUnwindExit {};
+
+zend_result sw_zend_exception_error(zend_object *exception, int severity);
+
 /* this API can work well when retval is NULL */
 static sw_inline int sw_zend_call_function_ex(
     zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval) {
@@ -970,6 +978,8 @@ static sw_inline int sw_zend_call_function_ex(
     fci.params = params;
     fci.named_params = nullptr;
 
+    // Zend already refuses to execute another callback while EG(exception) is pending. In
+    // particular, do not duplicate its UnwindExit guard or its return-value/cache handling here.
     int ret = zend_call_function(&fci, fci_cache);
     if (!retval) {
         zval_ptr_dtor(&_retval);
@@ -982,7 +992,7 @@ static sw_inline int sw_zend_call_function_ex2(
     zval *function_name, zend_fcall_info_cache *fci_cache, uint32_t param_count, zval *params, zval *retval) {
     int ret = sw_zend_call_function_ex(function_name, fci_cache, param_count, params, retval);
     if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
+        sw_zend_exception_error(EG(exception), E_ERROR);
     }
     return ret;
 }

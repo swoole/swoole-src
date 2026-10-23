@@ -229,7 +229,7 @@ static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::
 
     /* the exception should only be thrown after unlocked */
     if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
+        sw_zend_exception_error(EG(exception), E_ERROR);
     }
 
     return ret;

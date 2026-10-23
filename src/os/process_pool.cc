@@ -23,6 +23,7 @@
 #include "swoole_util.h"
 #include "swoole_process_pool.h"
 #include "swoole_client.h"
+#include "swoole_api.h"
 
 SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG = {};
 
@@ -293,7 +294,8 @@ int ProcessPool::start() {
         onStart(this);
     }
 
-    SW_LOOP_N(worker_num) {
+    // onStart may stop the pool before any worker exists (including PHP UnwindExit).
+    for (uint32_t i = 0; i < worker_num && running; i++) {
         if (spawn(&(workers[i])) < 0) {
             return SW_ERR;
         }
@@ -547,6 +549,9 @@ pid_t ProcessPool::spawn(Worker *worker) {
         if (onWorkerStop != nullptr) {
             onWorkerStop(this, worker);
         }
+        // Give language bindings a chance to return to their VM after the native loop has stopped.
+        // The exit below remains the final fallback, including when the binding has already shut down.
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT, nullptr);
         exit(ret_code);
     } else {
         worker->pid = pid;
@@ -1009,7 +1014,10 @@ int ProcessPool::wait() {
                         }
                     }
 
-                    spawn(exit_worker);
+                    // onWorkerError may have requested termination; never fork a replacement then.
+                    if (running) {
+                        spawn(exit_worker);
+                    }
                     map_->erase(exit_status.get_pid());
                 }
                 if (reload_task) {
@@ -1045,9 +1053,13 @@ int ProcessPool::wait() {
         onShutdown(this);
     }
 
+    // onStart may terminate before spawning workers. PID 0 would signal our entire process group.
     // concurrent kill
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];
+        if (worker->pid <= 0) {
+            continue;
+        }
         if (swoole_kill(worker->pid, SIGTERM) < 0) {
             swoole_sys_warning("kill(%d, SIGTERM) failed", worker->pid);
             continue;
@@ -1068,6 +1080,9 @@ int ProcessPool::wait() {
     }
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];
+        if (worker->pid <= 0) {
+            continue;
+        }
         if (swoole_waitpid(worker->pid, &status, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", worker->pid);
         }

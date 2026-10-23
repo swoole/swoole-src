@@ -1,5 +1,40 @@
 #include "php_swoole_cxx.h"
 
+#ifndef _WIN32
+#include "php_swoole_process.h"
+#include "swoole_server.h"
+#endif
+
+zend_result sw_zend_exception_error(zend_object *exception, int severity) {
+    if (EXPECTED(!zend_is_unwind_exit(exception))) {
+        return zend_exception_error(exception, severity);
+    }
+
+    // UnwindExit is VM control flow (e.g. exit() or delayed OOM), not a reportable PHP exception.
+    // zend_exception_error() consumes it without terminating the native caller. Keep ownership in
+    // EG(exception): releasing/clearing it here would let PHP continue after the native loop returns.
+    // Do not bailout or exit here; callbacks may still hold locks or native resources to release.
+    if (auto *reactor = sw_reactor()) {
+        reactor->running = false;
+        // A normal stop can restart on the next wait(); termination also blocks coroutine resumes.
+        reactor->terminated = true;
+    }
+#ifndef _WIN32
+    // Manager and standalone pool masters wait for children without a reactor. Synchronous task
+    // workers likewise need their existing worker shutdown flag to leave blocking receive loops.
+    auto *server = sw_server();
+    auto *pool = sw_process_pool();
+    if (server && (server->is_manager() || server->is_master())) {
+        server->running = false;
+    } else if (pool && pool->is_master()) {
+        pool->running = false;
+    } else if (auto *worker = sw_worker()) {
+        worker->shutdown();
+    }
+#endif
+    return FAILURE;
+}
+
 //----------------------------------known string------------------------------------
 
 static const char *sw_known_strings[] = {
@@ -151,7 +186,7 @@ bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *ret
     }
     /* we have no chance to return to ZendVM to check the exception  */
     if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
+        sw_zend_exception_error(EG(exception), E_ERROR);
     }
     return success;
 }
@@ -166,7 +201,7 @@ Variable call(const std::string &func_name, int argc, zval *argv) {
     zval_dtor(&function_name);
     /* we have no chance to return to ZendVM to check the exception  */
     if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
+        sw_zend_exception_error(EG(exception), E_ERROR);
     }
     return retval;
 }

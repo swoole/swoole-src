@@ -15,6 +15,7 @@
  */
 
 #include "swoole_server.h"
+#include "swoole_api.h"
 
 namespace swoole {
 
@@ -143,6 +144,8 @@ pid_t Factory::spawn_event_worker(Worker *worker) const {
         server_->start_event_worker(worker);
     }
 
+    // The worker loop and its native cleanup have finished; bindings may now return to their VM.
+    swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT, nullptr);
     exit(0);
     return 0;
 }

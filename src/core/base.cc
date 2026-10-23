@@ -320,6 +320,8 @@ pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
         return -1;
     case 0:
         fn();
+        // Run bindings' loop-return handling before the native fallback; exit() itself stays VM-agnostic.
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT, nullptr);
         exit(0);
     default:
         break;

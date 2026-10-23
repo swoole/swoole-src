@@ -703,17 +703,27 @@ static PHP_METHOD(swoole_process_pool, start) {
         pool->onWorkerExit = process_pool_onWorkerExit;
     }
 
-    if (pool->start() < 0) {
-        current_pool = nullptr;
-        restore_signal_handlers();
-        RETURN_FALSE;
+    int result;
+    try {
+        result = pool->start();
+        if (result >= 0) {
+            pool->wait();
+        }
+    } catch (const PhpUnwindExit &) {
+        // A forked child must skip the parent's spawn/wait frames. Restore the PHP-facing state
+        // below and return with EG(exception) pending, rather than calling the native exit fallback.
+        result = SW_ERR;
     }
-
-    pool->wait();
 
     current_pool = nullptr;
 
     restore_signal_handlers();
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
+    if (result < 0) {
+        RETURN_FALSE;
+    }
 }
 
 static PHP_METHOD(swoole_process_pool, detach) {
