@@ -28,6 +28,7 @@ $serv->set([
     'init_arguments'          => function () use ($path) {
         global $ready, $state, $target;
         file_put_contents($path, 'delete me');
+        file_put_contents($path . '.object', 'delete me too');
         $ready = new Thread\Atomic(0);
         $state = new Thread\Atomic(0);
         $target = new Thread\Atomic(0);
@@ -66,6 +67,9 @@ $serv->on('Receive', function (Swoole\Server $serv, int $fd, int $reactorId, str
                 Assert::true($serv->send($targetFd, $chunk));
             }
             Assert::true($serv->sendfile($targetFd, $path, 0, 0, true));
+            $file = new Swoole\SendFile($path . '.object');
+            $file->deleteAfterSend = true;
+            Assert::true($serv->sendfile($targetFd, $file));
             $state->set(2);
             break;
     }
@@ -112,14 +116,14 @@ $serv->addProcess(new Swoole\Process(function () use ($serv, $path, $port) {
     Assert::same($state->get(), 3);
 
     for ($i = 0; $i < 500; $i++) {
-        clearstatcache(true, $path);
-        if (!is_file($path)) {
+        clearstatcache();
+        if (!is_file($path) && !is_file($path . '.object')) {
             break;
         }
         usleep(10 * 1000);
     }
-    clearstatcache(true, $path);
-    $deleted = !is_file($path);
+    clearstatcache();
+    $deleted = !is_file($path) && !is_file($path . '.object');
 
     foreach ($allClients as $client) {
         $client->close();
@@ -129,6 +133,7 @@ $serv->addProcess(new Swoole\Process(function () use ($serv, $path, $port) {
 }));
 $serv->start();
 @unlink($path);
+@unlink($path . '.object');
 ?>
 --EXPECT--
 done

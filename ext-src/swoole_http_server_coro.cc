@@ -276,14 +276,8 @@ static bool http_context_send_data(HttpContext *ctx, const char *data, size_t le
     return ctx->get_co_socket()->send_all(data, length) == (ssize_t) length;
 }
 
-static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file) {
-    bool retval = ctx->get_co_socket()->sendfile(file->val, offset, length);
-    // The coroutine socket send is synchronous, so the file can be removed on any result.
-    if (delete_file) {
-        swoole_coroutine_unlink(file->val);
-        delete_file = false;
-    }
-    return retval;
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &) {
+    return ctx->get_co_socket()->sendfile(file->val, offset, length);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {

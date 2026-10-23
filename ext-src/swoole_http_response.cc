@@ -16,6 +16,7 @@
 
 #include "php_swoole_http_server.h"
 #include "php_swoole_websocket.h"
+#include "php_swoole_sendfile.h"
 #include "swoole_util.h"
 #include "swoole_coroutine_api.h"
 
@@ -702,13 +703,13 @@ void HttpContext::send_trailer(zval *return_value) {
 }
 
 bool HttpContext::send_file(zend_string *file, off_t offset, size_t length, bool delete_file) {
-    if (http2) {
-        bool retval = swoole_http2_server_send_file(this, file, offset, length);
-        // The HTTP/2 source is consumed synchronously, so deletion is safe on any result.
+    ON_SCOPE_EXIT {
         if (delete_file) {
             swoole_coroutine_unlink(file->val);
         }
-        return retval;
+    };
+    if (http2) {
+        return swoole_http2_server_send_file(this, file, offset, length);
     }
 
     zval *zheader =
@@ -729,27 +730,17 @@ bool HttpContext::send_file(zend_string *file, off_t offset, size_t length, bool
 
         if (!send(this, http_buffer->str, http_buffer->length)) {
             send_header_ = 0;
-            // Header dispatch failed before any transport took ownership of the file.
-            if (delete_file) {
-                swoole_coroutine_unlink(file->val);
-            }
             return false;
         }
     }
 
     if (length > 0) {
-        // The transport callback consumes the token when it takes ownership; if it declines
-        // without consuming it, the file is still ours to remove.
+        // Only an asynchronous transport consumes the cleanup token. For synchronous sends,
+        // empty files, and dispatch failures the scope guard remains responsible for cleanup.
         if (!sendfile(this, file, offset, length, delete_file)) {
             close(this);
-            if (delete_file) {
-                swoole_coroutine_unlink(file->val);
-            }
             return false;
         }
-    } else if (delete_file) {
-        // An empty file never reaches the transport callback; delete at the success boundary.
-        swoole_coroutine_unlink(file->val);
     }
 
     end_ = 1;
@@ -970,19 +961,35 @@ static PHP_METHOD(swoole_http_response, sendfile) {
         RETURN_FALSE;
     }
 
-    zend_string *file;
+    zend_string *file = nullptr;
+    zend_object *descriptor = nullptr;
     zend_long offset = 0;
     zend_long length = 0;
-    zend_bool delete_file = 0;
+    bool delete_file = false;
 
     ZEND_PARSE_PARAMETERS_START(1, 4)
-    Z_PARAM_STR(file)
+    Z_PARAM_OBJ_OF_CLASS_OR_STR(descriptor, swoole_sendfile_ce, file)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(offset)
     Z_PARAM_LONG(length)
     Z_PARAM_BOOL(delete_file)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (descriptor) {
+        if (ZEND_NUM_ARGS() > 1) {
+            zend_argument_value_error(2, "must not be provided when $filename is a Swoole\\SendFile");
+            RETURN_THROWS();
+        }
+        if (!php_swoole_sendfile_get_options(descriptor, &file, &offset, &length, &delete_file)) {
+            RETURN_THROWS();
+        }
+    }
+    zend::String filename(file, true);
+    // The string/object parser does not perform the path validation of Z_PARAM_PATH_STR.
+    if (UNEXPECTED(CHECK_NULL_PATH(filename.val(), filename.len()))) {
+        zend_argument_value_error(1, "must not contain any null bytes");
+        RETURN_THROWS();
+    }
     if (ZSTR_LEN(file) == 0) {
         php_swoole_error(E_WARNING, "file name is empty");
         RETURN_FALSE;
@@ -1024,7 +1031,13 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
-    RETURN_BOOL(ctx->send_file(file, offset, length, delete_file));
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
+    if (delete_file && !php_swoole_sendfile_acquire(descriptor)) {
+        RETURN_THROWS();
+    }
+    RETURN_BOOL(ctx->send_file(filename.get(), offset, length, delete_file));
 }
 
 static bool inline http_response_create_cookie(HttpCookie *cookie, zval *zobject) {

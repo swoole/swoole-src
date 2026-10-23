@@ -106,18 +106,13 @@ static bool check_sendfile_parameters(const File *file, off_t begin, size_t leng
         return false;
     }
 
-    if (length == 0) {
-        *end = file_stat.st_size;
-    } else {
-        *end = begin + static_cast<off_t>(length);
-    }
-
-    if (begin < 0 || *end > file_stat.st_size) {
+    if (begin < 0 || begin > file_stat.st_size || length > static_cast<size_t>(file_stat.st_size - begin)) {
         swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%ld] or offset[%ld] is invalid", length, (long) begin);
+            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%zu] or offset[%ld] is invalid", length, (long) begin);
         return false;
     }
 
+    *end = length == 0 ? file_stat.st_size : begin + static_cast<off_t>(length);
     return true;
 }
 

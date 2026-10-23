@@ -415,6 +415,45 @@ TEST(socket, sendfile) {
     ASSERT_TRUE(File::remove(file));
 }
 
+TEST(socket, sendfile_async_cleanup) {
+    for (bool delete_file : {false, true}) {
+        auto file = make_tmpfile();
+        ASSERT_TRUE(file.ready());
+        const auto path = file.get_path();
+        ASSERT_EQ(file.write(SW_STRL(TEST_STR)), static_cast<ssize_t>(strlen(TEST_STR)));
+        file.close();
+
+        auto *socket = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+        ASSERT_NE(socket, nullptr);
+        ASSERT_EQ(socket->sendfile_async(path.c_str(), 0, 0, delete_file), SW_OK);
+        ASSERT_TRUE(File::exists(path));
+        // Discarding a queued transfer closes its file before deleting the source.
+        socket->free();
+        EXPECT_EQ(File::exists(path), !delete_file);
+        if (!delete_file) {
+            EXPECT_TRUE(File::remove(path));
+        }
+    }
+}
+
+TEST(socket, sendfile_async_cleanup_on_invalid_range) {
+    const std::pair<off_t, size_t> ranges[] = {
+        {1, strlen(TEST_STR)}, {static_cast<off_t>(strlen(TEST_STR) + 1), 0}, {1, SIZE_MAX}};
+    for (const auto &range : ranges) {
+        auto file = make_tmpfile();
+        ASSERT_TRUE(file.ready());
+        const auto path = file.get_path();
+        ASSERT_EQ(file.write(SW_STRL(TEST_STR)), static_cast<ssize_t>(strlen(TEST_STR)));
+        file.close();
+
+        auto *socket = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+        ASSERT_NE(socket, nullptr);
+        EXPECT_EQ(socket->sendfile_async(path.c_str(), range.first, range.second, true), SW_ERR);
+        EXPECT_FALSE(File::exists(path));
+        socket->free();
+    }
+}
+
 TEST(socket, peek) {
     char sock1_path[] = "/tmp/udp_unix1.sock";
     char sock2_path[] = "/tmp/udp_unix2.sock";

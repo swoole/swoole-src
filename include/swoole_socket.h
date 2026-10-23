@@ -75,7 +75,7 @@ struct SendfileRequest {
     bool delete_file;
 
   public:
-    SendfileRequest(const char *filename, off_t _offset, bool _delete_file)
+    SendfileRequest(const char *filename, off_t _offset, bool _delete_file = false)
 #ifdef _WIN32
         : file(filename, _O_RDONLY | _O_BINARY) {
 #else

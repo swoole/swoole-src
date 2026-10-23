@@ -16,7 +16,7 @@ use Swoole\Http2\Request as Http2Request;
 
 $content = get_safe_random(256 * 1024);
 
-foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
+foreach ([[SWOOLE_BASE, false], [SWOOLE_BASE, true], [SWOOLE_PROCESS, false], [SWOOLE_PROCESS, true]] as [$mode, $object]) {
     $path = tempnam('/tmp', 'swoole_http2_sendfile_delete_');
     file_put_contents($path, $content);
 
@@ -51,7 +51,7 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
         $pm->kill();
         @unlink($path);
     };
-    $pm->childFunc = function () use ($pm, $mode, $path) {
+    $pm->childFunc = function () use ($pm, $mode, $path, $object) {
         $http = new Server('127.0.0.1', $pm->getFreePort(), $mode);
         $http->set([
             'worker_num'          => 1,
@@ -61,8 +61,14 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
         $http->on('workerStart', function () use ($pm) {
             $pm->wakeup();
         });
-        $http->on('request', function (Request $request, Response $response) use ($path) {
-            $response->sendfile($path, 0, 0, true);
+        $http->on('request', function (Request $request, Response $response) use ($path, $object) {
+            if ($object) {
+                $file = new Swoole\SendFile($path);
+                $file->deleteAfterSend = true;
+                Assert::true($response->sendfile($file));
+            } else {
+                Assert::true($response->sendfile($path, 0, 0, true));
+            }
         });
         $http->start();
     };

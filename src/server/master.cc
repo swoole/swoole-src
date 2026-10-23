@@ -1474,8 +1474,8 @@ int Server::schedule_worker(int fd, SendData *data) {
 void Server::discard_sendfile(DataHead *info, const char *data) {
     if (info->type == SW_SERVER_EVENT_SEND_FILE && (info->ext_flags & SW_SERVER_SENDFILE_DELETE)) {
         const auto *task = reinterpret_cast<const SendfileTask *>(data);
-        swoole_coroutine_unlink(task->filename);
         info->ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
+        swoole_coroutine_unlink(task->filename);
     }
 }
 
@@ -1739,8 +1739,12 @@ bool Server::sendfile(
                          req->filename);
         return false;
     }
-    if (file_stat.st_size <= offset) {
+    if (offset < 0 || file_stat.st_size <= offset) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty", (long) offset);
+        return false;
+    }
+    if (length > static_cast<size_t>(file_stat.st_size - offset)) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "sendfile length[%zu] exceeds the file size", length);
         return false;
     }
     req->offset = offset;

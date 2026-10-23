@@ -23,6 +23,7 @@ $serv->set([
         global $atomic;
         // Worker threads re-run this script, so create the file once here, before they start.
         file_put_contents($path, $content);
+        file_put_contents($path . '.object', $content);
         $atomic = new Thread\Atomic(0);
         return [$atomic];
     },
@@ -32,7 +33,13 @@ $serv->on('WorkerStart', function (Swoole\Server $serv, $workerId) {
     $atomic->add();
 });
 $serv->on('Request', function ($request, $response) use ($path) {
-    $response->sendfile($path, 0, 0, true);
+    if (($request->get['api'] ?? '') === 'object') {
+        $file = new Swoole\SendFile($path . '.object');
+        $file->deleteAfterSend = true;
+        Assert::true($response->sendfile($file));
+    } else {
+        Assert::true($response->sendfile($path, 0, 0, true));
+    }
 });
 $serv->on('shutdown', function () {
     echo "shutdown\n";
@@ -42,22 +49,26 @@ $serv->addProcess(new Swoole\Process(function ($process) use ($serv, $path, $con
     while ($atomic->get() < 1) {
         usleep(10 * 1000);
     }
-    $body = file_get_contents('http://127.0.0.1:' . $port . '/download');
-    Assert::same(md5($body), md5($content));
-    for ($i = 0; $i < 200; $i++) {
-        clearstatcache(true, $path);
-        if (!is_file($path)) {
-            break;
+    foreach (['parameter', 'object'] as $api) {
+        $currentPath = $api === 'object' ? $path . '.object' : $path;
+        $body = file_get_contents('http://127.0.0.1:' . $port . '/download?api=' . $api);
+        Assert::same(md5($body), md5($content));
+        for ($i = 0; $i < 200; $i++) {
+            clearstatcache(true, $currentPath);
+            if (!is_file($currentPath)) {
+                break;
+            }
+            usleep(25 * 1000);
         }
-        usleep(25 * 1000);
+        clearstatcache(true, $currentPath);
+        Assert::false(is_file($currentPath));
     }
-    clearstatcache(true, $path);
-    Assert::false(is_file($path));
     echo "done\n";
     $serv->shutdown();
 }));
 $serv->start();
 @unlink($path);
+@unlink($path . '.object');
 ?>
 --EXPECT--
 done

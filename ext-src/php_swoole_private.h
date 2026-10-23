@@ -327,6 +327,7 @@ void php_swoole_server_port_minit(int module_number);
 void php_swoole_http_request_minit(int module_number);
 void php_swoole_http_response_minit(int module_number);
 void php_swoole_http_cookie_minit(int module_number);
+void php_swoole_sendfile_minit(int module_number);
 #ifndef _WIN32
 void php_swoole_http_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
