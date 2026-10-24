@@ -1200,6 +1200,12 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) try {
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
         sock->set_ssl_allow_self_signed(zval_is_true(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "ssl_client_cert_file", ztmp)) {
+        auto str_v = zend::setting::get_string(ztmp);
+        if (!sock->set_ssl_client_cert_file(str_v.to_std_string())) {
+            return php_swoole_throw_setting_exception("ssl client cert file[%s] not found", str_v.val());
+        }
+    }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
         sock->set_ssl_cafile(zend::setting::get_string(ztmp).to_std_string());
     }
