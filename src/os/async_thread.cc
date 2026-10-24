@@ -290,7 +290,7 @@ void ThreadPool::main_func(const bool is_core_worker) {
 
 void ThreadPool::create_thread(const bool is_core_worker) {
     try {
-        auto *_thread = new std::thread([this, is_core_worker]() { main_func(is_core_worker); });
+        auto *_thread = new std::thread(swoole_thread_create([this, is_core_worker]() { main_func(is_core_worker); }));
         threads[_thread->get_id()] = _thread;
     } catch (const std::system_error &e) {
         swoole_sys_notice("create aio thread failed, please check your system configuration or adjust aio_worker_num");

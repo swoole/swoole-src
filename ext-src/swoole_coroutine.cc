@@ -23,6 +23,7 @@
 #include "swoole_server.h"
 #include "swoole_signal.h"
 #include "swoole_async.h"
+#include "swoole_thread.h"
 
 #include "zend_builtin_functions.h"
 #include "ext/standard/basic_functions.h"
@@ -506,7 +507,7 @@ void PHPCoroutine::interrupt_thread_start() {
     auto *running = &interrupt_thread_running;
     auto *vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running.store(true, std::memory_order_release);
-    interrupt_thread = std::thread([running, vm_interrupt]() {
+    interrupt_thread = swoole_thread_create([running, vm_interrupt]() {
         swoole_signal_block_all();
         while (running->load(std::memory_order_acquire)) {
             zend_atomic_bool_store(vm_interrupt, 1);
