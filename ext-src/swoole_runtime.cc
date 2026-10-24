@@ -133,6 +133,7 @@ struct NetStream {
     php_netstream_data_t stream;
     std::shared_ptr<SocketImpl> socket;
     bool blocking;
+    bool zero_timer = false;
 };
 
 static struct {
@@ -495,7 +496,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         return sock->get_socket()->send_sync(buf, count, 0);
     }
 
-    if (abstract->blocking) {
+    if (abstract->blocking && !abstract->zero_timer) {
         didwrite = sock->send_all(buf, count);
     } else {
         didwrite = sock->send_once(buf, count);
@@ -504,19 +505,34 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
 
     // Preserve positive partial counts so PHP can retry the unwritten remainder.
     if (didwrite < 0) {
-        abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
-
         if (sock->errCode != ETIMEDOUT) {
+            // SW_WAIT is not an error for a non-blocking stream.
+            bool report_errors = false;
+
+            // Only non-blocking mode, or blocking mode with a zero timeout, can possibly take this branch.
             if (sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
                 didwrite = 0;
+                if (abstract->blocking && abstract->zero_timer) {
+                    /**
+                     * Sending after `send` returns `EAGAIN` and immediately using a zero-timeout `poll`
+                     * to check writability is unreasonable, because the buffer state will not change in an instant.
+                     */
+                    report_errors = true;
+                    sock->set_err(ETIMEDOUT);
+                    didwrite = -1;
+                }
             } else {
+                report_errors = true;
+                stream->eof = 1;
+            }
+
+            if (report_errors && !(stream->flags & PHP_STREAM_FLAG_SUPPRESS_ERRORS)) {
                 php_error_docref(nullptr,
                                  E_NOTICE,
                                  "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
                                  (zend_long) count,
                                  sock->errCode,
                                  sock->errMsg);
-                stream->eof = 1;
             }
         }
     } else {
@@ -534,6 +550,7 @@ _exit:
 static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count) {
     std::shared_ptr<SocketImpl> sock;
     ssize_t nr_bytes = -1;
+    bool dont_wait = false;
 
     auto *abstract = static_cast<NetStream *>(stream->abstract);
     if (UNEXPECTED(!abstract || !abstract->socket)) {
@@ -545,11 +562,13 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->blocking
 #if PHP_VERSION_ID >= 80300
-        && !stream->has_buffered_data
+    dont_wait = stream->has_buffered_data || abstract->zero_timer;
+#else
+    dont_wait = abstract->zero_timer;
 #endif
-    ) {
+
+    if (abstract->blocking && !dont_wait) {
         nr_bytes = sock->recv(buf, count);
     } else {
         nr_bytes = sock->recv_once(buf, count);
@@ -1134,9 +1153,14 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
+        auto timeout = static_cast<timeval *>(ptrparam);
+
+        // When the timeout is 0, all reads and writes are fully asynchronous.
+        abstract->zero_timer = timeout->tv_sec == 0 && timeout->tv_usec == 0;
+
         // Despite its name, PHP socket streams use this option as the shared timeout for both blocking reads and
         // writes (see php_sockop_read() and php_sockop_write()).
-        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_RDWR);
+        abstract->socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
         break;
     }
     case PHP_STREAM_OPTION_CRYPTO_API: {
