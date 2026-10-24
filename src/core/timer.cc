@@ -96,7 +96,8 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
     tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;
     tnode->callback = callback;
-    tnode->round = round;
+    // This round has already been selected, so make the timer eligible for the next selection.
+    tnode->round = reactor_ && reactor_->end_callback_phase && round > 0 ? round - 1 : round;
     tnode->destructor = nullptr;
 
     if (next_msec_ < 0 || next_msec_ > _msec) {

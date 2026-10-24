@@ -437,8 +437,10 @@ void Reactor::defer(const Callback &cb, void *data) {
 void Reactor::execute_end_callbacks(bool _timed_out) {
     timed_out = _timed_out;
     for (auto &kv : end_callbacks) {
+        end_callback_phase = kv.first > PRIORITY_TIMER;
         kv.second(this);
     }
+    end_callback_phase = false;
 }
 
 void Reactor::execute_begin_callback() const {
