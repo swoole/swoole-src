@@ -23,7 +23,7 @@ Timer::Timer(bool manually_trigger) : heap(1024, Heap::MIN_HEAP) {
     next_msec_ = -1;
     _next_id = 1;
     round = 0;
-    base_time = get_absolute_msec();
+    base_time = get_absolute_nsec();
     init(manually_trigger);
 }
 
@@ -92,7 +92,9 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
     tnode->id = _next_id++;
     tnode->data = data;
     tnode->type = TimerNode::TYPE_KERNEL;
-    tnode->exec_msec = get_relative_msec() + _msec;
+    const int64_t now_nsec = get_relative_nsec();
+    tnode->exec_msec = now_nsec / SW_NUM_MILLION + _msec;
+    tnode->exec_nsec = now_nsec % SW_NUM_MILLION;
     tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;
     tnode->callback = callback;
@@ -151,7 +153,9 @@ bool Timer::remove(TimerNode *tnode) {
 }
 
 void Timer::select() {
-    const int64_t now_msec = get_relative_msec();
+    const int64_t now_nsec = get_relative_nsec();
+    const int64_t now_msec = now_nsec / SW_NUM_MILLION;
+    const uint32_t now_nsec_remainder = now_nsec % SW_NUM_MILLION;
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
 
@@ -159,7 +163,8 @@ void Timer::select() {
 
     while ((tmp = heap.top())) {
         tnode = static_cast<TimerNode *>(tmp->data);
-        if (tnode->exec_msec > now_msec || tnode->round == round) {
+        if (tnode->exec_msec > now_msec || (tnode->exec_msec == now_msec && tnode->exec_nsec > now_nsec_remainder) ||
+            tnode->round == round) {
             break;
         }
 
@@ -177,7 +182,8 @@ void Timer::select() {
 
         // persistent timer
         if (tnode->interval > 0 && !tnode->removed) {
-            while (tnode->exec_msec <= now_msec) {
+            while (tnode->exec_msec < now_msec ||
+                   (tnode->exec_msec == now_msec && tnode->exec_nsec <= now_nsec_remainder)) {
                 tnode->exec_msec += tnode->interval;
             }
             tnode->exec_count++;
@@ -195,7 +201,7 @@ void Timer::select() {
         next_msec_ = -1;
         set(this, -1);
     } else {
-        next_msec_ = tnode->exec_msec - now_msec;
+        next_msec_ = tnode->exec_msec - now_msec + (tnode->exec_nsec > now_nsec_remainder);
         if (next_msec_ <= 0) {
             next_msec_ = 1;
         }
