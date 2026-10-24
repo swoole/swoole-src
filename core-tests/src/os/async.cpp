@@ -140,3 +140,41 @@ TEST(async, misc) {
     ASSERT_EQ(handle_count, 1);
     ASSERT_EQ(callback_count, 2);
 }
+
+static std::atomic<bool> thread_started_with_sigchld_unblocked;
+
+TEST(async, thread_starts_with_signals_blocked) {
+    auto status = test::spawn_exec_and_wait([]() {
+        sigset_t mask;
+        sigemptyset(&mask);
+        sigprocmask(SIG_SETMASK, &mask, nullptr);
+
+        // swoole_thread_init() allocates the thread's buffer before it blocks signals,
+        // so this sees the mask the thread started with.
+        SwooleG.std_allocator.malloc = [](size_t size) -> void * {
+            if (!swoole_is_main_thread()) {
+                sigset_t thread_mask;
+                pthread_sigmask(SIG_BLOCK, nullptr, &thread_mask);
+                if (!sigismember(&thread_mask, SIGCHLD)) {
+                    thread_started_with_sigchld_unblocked = true;
+                }
+            }
+            return malloc(size);
+        };
+
+        AsyncEvent event = {};
+        event.callback = [](AsyncEvent *event) {};
+        event.handler = [](AsyncEvent *event) {};
+
+        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+        swoole::async::dispatch(&event);
+        swoole_event_wait();
+
+        sigprocmask(SIG_BLOCK, nullptr, &mask);
+        if (thread_started_with_sigchld_unblocked) {
+            _exit(1);
+        }
+        _exit(sigismember(&mask, SIGCHLD) ? 2 : 0);
+    });
+    ASSERT_EQ(status, 0);
+}
