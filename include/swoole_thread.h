@@ -20,11 +20,13 @@
 
 #include <thread>
 #include <string>
+#include <functional>
 
 long swoole_thread_get_native_id();
 bool swoole_thread_set_name(const char *name);
 bool swoole_thread_get_name(char *buf, size_t len);
 std::string swoole_thread_id_to_str(std::thread::id id);
+std::thread swoole_thread_create(const std::function<void()> &fn);
 
 namespace swoole {
 class Thread {

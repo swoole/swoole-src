@@ -19,6 +19,7 @@
 #include "swoole_socket.h"
 #include "swoole_async.h"
 #include "swoole_signal.h"
+#include "swoole_util.h"
 
 #include <pwd.h>
 #include <grp.h>
@@ -292,6 +293,21 @@ std::string swoole_thread_id_to_str(std::thread::id id) {
     std::stringstream ss;
     ss << id;
     return ss.str();
+}
+
+/**
+ * A new thread inherits the creating thread's signal mask and only blocks every signal once it runs. Until then it
+ * can take a signal that the creating thread reads through a signalfd, such as the SIGCHLD that System::waitpid()
+ * waits for, and discard it under the default action. Start it with every signal already blocked.
+ */
+std::thread swoole_thread_create(const std::function<void()> &fn) {
+    sigset_t block_all, previous_mask;
+    sigfillset(&block_all);
+    pthread_sigmask(SIG_BLOCK, &block_all, &previous_mask);
+    ON_SCOPE_EXIT {
+        pthread_sigmask(SIG_SETMASK, &previous_mask, nullptr);
+    };
+    return std::thread(fn);
 }
 
 namespace swoole {
