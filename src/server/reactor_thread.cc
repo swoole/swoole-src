@@ -459,6 +459,13 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
+static void ReactorThread_discard_packet(EventData *send_data) {
+    // Only the first packet of a chunked message starts with its SendfileTask.
+    if (!(send_data->info.flags & SW_EVENT_DATA_CHUNK) || (send_data->info.flags & SW_EVENT_DATA_BEGIN)) {
+        Server::discard_sendfile(&send_data->info, send_data->data);
+    }
+}
+
 /**
  * [ReactorThread] worker pipe can write.
  */
@@ -484,11 +491,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
                                      "Session#%ld is closed by server",
                                      send_data->info.fd);
                 _discard:
-                    // Only the first packet of a chunked message starts with its SendfileTask.
-                    if (!(send_data->info.flags & SW_EVENT_DATA_CHUNK) ||
-                        (send_data->info.flags & SW_EVENT_DATA_BEGIN)) {
-                        Server::discard_sendfile(&send_data->info, send_data->data);
-                    }
+                    ReactorThread_discard_packet(send_data);
                     buffer->pop();
                     continue;
                 }
@@ -855,6 +858,29 @@ void ReactorThread::clean() {
     message_bus.free_buffer();
 }
 
+/**
+ * [Worker] In thread mode, this thread's message bus holds the pipe writes queued for other workers.
+ * Deliver them while the server is running, then discard the rest: at shutdown the other workers stop too.
+ */
+static void ReactorThread_flush_pipe_buffers(Server *serv, Reactor *reactor) {
+    SW_LOOP_N(serv->worker_num + serv->task_worker_num) {
+        Worker *worker = serv->get_worker(i);
+        for (Socket *pipe : {worker->pipe_worker, worker->pipe_master}) {
+            if (!pipe) {
+                continue;
+            }
+            Socket *socket = serv->get_pipe_socket_in_message_bus(pipe);
+            if (serv->is_running()) {
+                reactor->drain_write_buffer(socket);
+            }
+            while (!Buffer::empty(socket->out_buffer)) {
+                ReactorThread_discard_packet(reinterpret_cast<EventData *>(socket->out_buffer->front()->value.str));
+                socket->out_buffer->pop();
+            }
+        }
+    }
+}
+
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     ReactorThread *thread = serv->get_thread(reactor_id);
     thread->id = reactor_id;
@@ -882,7 +908,11 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
         serv->reactor_thread_barrier.wait();
     }
     // main loop
-    swoole_event_wait();
+    reactor->wait();
+    if (serv->is_thread_mode()) {
+        ReactorThread_flush_pipe_buffers(serv, reactor);
+    }
+    swoole_event_free();
     if (serv->is_thread_mode()) {
         serv->call_worker_stop_callback(serv->get_worker(reactor_id));
     }
