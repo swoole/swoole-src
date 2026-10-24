@@ -95,7 +95,9 @@ void destroy_handle(CURL *cp) {
     if (!handle) {
         return;
     }
-    delete handle->easy_multi;
+    if (handle->easy_multi) {
+        handle->easy_multi->release();
+    }
     curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);
     delete handle;
@@ -614,10 +616,11 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     }
     if (timeout_ms < 0) {
         multi->del_timer();
+    } else if (timeout_ms == 0) {
+        multi->del_timer();
+        /* curl_multi_socket_action() must not be called from this callback */
+        multi->callback(nullptr, 0);
     } else {
-        if (timeout_ms == 0) {
-            timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in a bit */
-        }
         multi->add_timer(timeout_ms);
     }
     return 0;
@@ -813,6 +816,10 @@ void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {
     swoole_event_defer(
         [this](void *data) {
             defer_callback = false;
+            if (released) {
+                delete this;
+                return;
+            }
             if (co) {
                 co->resume();
             }
