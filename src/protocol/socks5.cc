@@ -64,6 +64,7 @@ Socks5Proxy *Socks5Proxy::create(
 }
 
 ssize_t Socks5Proxy::pack_negotiate_request() {
+    response.clear();
     char *p = buf;
     p[0] = SW_SOCKS5_VERSION_CODE;  // Version
     p[1] = 0x01;
@@ -92,19 +93,55 @@ ssize_t Socks5Proxy::pack_auth_request() {
     return p - buf;
 }
 
+size_t Socks5Proxy::get_recv_length() const {
+    size_t expected_length;
+
+    if (state == SW_SOCKS5_STATE_HANDSHAKE || state == SW_SOCKS5_STATE_AUTH) {
+        expected_length = 2;
+    } else if (state == SW_SOCKS5_STATE_CONNECT) {
+        if (response.length() < 4) {
+            expected_length = 4;
+        } else {
+            switch (static_cast<uchar>(response[3])) {
+            case 0x01:
+                expected_length = 10;
+                break;
+            case 0x03:
+                if (response.length() < 5) {
+                    return 1;
+                }
+                expected_length = 7 + static_cast<uchar>(response[4]);
+                break;
+            case 0x04:
+                expected_length = 22;
+                break;
+            default:
+                return 0;
+            }
+        }
+    } else {
+        return 0;
+    }
+
+    return expected_length > response.length() ? expected_length - response.length() : 0;
+}
+
 bool Socks5Proxy::handshake(const char *rbuf,
                             size_t rlen,
                             const std::function<ssize_t(const char *buf, size_t len)> &send_fn) {
-    if (rlen < 2) {
-        swoole_error_log(
-            SW_LOG_NOTICE, SW_ERROR_SOCKS5_HANDSHAKE_FAILED, "SOCKS5 handshake failed, data length is too short");
-        return false;
-    }
-
-    const uchar resp_version = rbuf[0];
-    const uchar resp_result = rbuf[1];
+    response.append(rbuf, rlen);
+    auto send_connect_request = [this, &send_fn]() {
+        state = SW_SOCKS5_STATE_CONNECT;
+        const auto len = pack_connect_request();
+        return len >= 0 && send_fn(buf, len) == len;
+    };
 
     if (state == SW_SOCKS5_STATE_HANDSHAKE) {
+        if (response.length() < 2) {
+            return true;
+        }
+        const uchar resp_version = static_cast<uchar>(response[0]);
+        const uchar resp_result = static_cast<uchar>(response[1]);
         if (resp_version != SW_SOCKS5_VERSION_CODE) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
             return false;
@@ -114,23 +151,20 @@ bool Socks5Proxy::handshake(const char *rbuf,
                 SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method is not supported");
             return false;
         }
+        response.clear();
         // authenticate request
         if (method == SW_SOCKS5_METHOD_AUTH) {
             const auto len = pack_auth_request();
             state = SW_SOCKS5_STATE_AUTH;
             return send_fn(buf, len) == len;
         }
-        // send connect request
-        else {
-        _send_connect_request:
-            state = SW_SOCKS5_STATE_CONNECT;
-            const auto len = pack_connect_request();
-            if (len < 0) {
-                return false;
-            }
-            return send_fn(buf, len) == len;
-        }
+        return send_connect_request();
     } else if (state == SW_SOCKS5_STATE_AUTH) {
+        if (response.length() < 2) {
+            return true;
+        }
+        const uchar resp_version = static_cast<uchar>(response[0]);
+        const uchar resp_result = static_cast<uchar>(response[1]);
         if (resp_version != 0x01) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
             return false;
@@ -140,28 +174,36 @@ bool Socks5Proxy::handshake(const char *rbuf,
                 SW_LOG_NOTICE, SW_ERROR_SOCKS5_AUTH_FAILED, "SOCKS username/password authentication failed");
             return false;
         }
-        goto _send_connect_request;
+        response.clear();
+        return send_connect_request();
     } else if (state == SW_SOCKS5_STATE_CONNECT) {
+        if (response.length() < 4) {
+            return true;
+        }
+        const uchar resp_version = static_cast<uchar>(response[0]);
+        const uchar resp_result = static_cast<uchar>(response[1]);
         if (resp_version != SW_SOCKS5_VERSION_CODE) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_VERSION, "SOCKS version is not supported");
             return false;
         }
-#if 0
-        uchar reg = recv_data[2];
-        uchar type = recv_data[3];
-        uint32_t ip = *(uint32_t *) (recv_data + 4);
-        uint16_t port = *(uint16_t *) (recv_data + 8);
-#endif
-        if (resp_result == 0) {
-            state = SW_SOCKS5_STATE_READY;
-            return true;
-        } else {
+        if (resp_result != 0) {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SOCKS5_SERVER_ERROR,
                              "Socks5 server error, reason :%s",
                              Socks5Proxy::strerror(resp_result));
             return false;
         }
+        const uchar address_type = static_cast<uchar>(response[3]);
+        if (address_type != 0x01 && address_type != 0x03 && address_type != 0x04) {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_HANDSHAKE_FAILED, "SOCKS5 address type is not supported");
+            return false;
+        }
+        if (get_recv_length() > 0) {
+            return true;
+        }
+        response.clear();
+        state = SW_SOCKS5_STATE_READY;
+        return true;
     }
     return true;
 }
