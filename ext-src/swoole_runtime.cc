@@ -199,6 +199,15 @@ static bool class_exists(const char *name) {
     return !!ce;
 }
 
+static bool extension_loaded(const char *name) {
+    zend_string *extension_name = zend_string_init(name, strlen(name), false);
+    zend_string *lcname = zend_string_tolower(extension_name);
+    bool rv = zend_hash_exists(&module_registry, lcname);
+    zend_string_release(lcname);
+    zend_string_release(extension_name);
+    return rv;
+}
+
 static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
     auto *zf = zend::get_function(name, l_name);
     if (zf == nullptr) {
@@ -2172,6 +2181,23 @@ static PHP_FUNCTION(swoole_stream_select) {
     RETURN_LONG(retval);
 }
 
+static bool init_php_func_cache(PhpFunc *rf, zend_string *fn_str) {
+    if (rf->fci_cache) {
+        return true;
+    }
+
+    std::string func("swoole_");
+    func.append(ZSTR_VAL(fn_str), ZSTR_LEN(fn_str));
+    ZVAL_STRINGL(&rf->name, func.c_str(), func.length());
+    rf->fci_cache = sw_callable_create(&rf->name);
+    if (!rf->fci_cache) {
+        zval_ptr_dtor(&rf->name);
+        ZVAL_UNDEF(&rf->name);
+        return false;
+    }
+    return true;
+}
+
 static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_internal_arg_info *arg_info) {
     auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     bool use_php_func = false;
@@ -2184,6 +2210,9 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
 
     if (rf) {
+        if (use_php_func && !init_php_func_cache(rf, rf->function->common.function_name)) {
+            return;
+        }
         rf->function->internal_function.handler = handler;
         if (arg_info) {
             rf->function->internal_function.arg_info = arg_info;

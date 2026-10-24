@@ -1408,6 +1408,23 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
             return true;
         }
 
+        zend_object *exception = zend_objects_new(swoole_coroutine_canceled_exception_ce);
+        object_properties_init(exception, swoole_coroutine_canceled_exception_ce);
+
+        // The live Co::cancel frame is internal, so Zend redirects the user caller when this call
+        // returns; the saved context describes a stale frame and must not be written here.
+        if (is_current) {
+            zend_string *filename = zend_get_executed_filename_ex();
+            if (filename) {
+                zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_FILE), filename);
+                zend::object_set(exception, ZSTR_KNOWN(ZEND_STR_LINE), zend_get_executed_lineno());
+            }
+            zval zexception;
+            ZVAL_OBJ(&zexception, exception);
+            zend_throw_exception_object(&zexception);
+            RETURN_THROWS();
+        }
+
         zend_object *previous = task->exception;
         task->exception_class = ce;
         task->exception = exception;
