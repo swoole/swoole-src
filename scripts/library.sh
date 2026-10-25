@@ -35,6 +35,12 @@ wget -nv -O instantclient-sdk-linux${arch}.zip https://download.oracle.com/otn_s
 unzip instantclient-sdk-linux${arch}.zip && rm instantclient-sdk-linux${arch}.zip
 mv instantclient_*_* ./instantclient
 rm ./instantclient/sdk/include/ldap.h
+# ldconfig caches libaio's real SONAME, not the libaio.so.1 alias Oracle 19 needs.
+# Keep the alias in the loader's default library directory so it can find it without LD_LIBRARY_PATH.
+libaio_dir="/usr/lib/$(gcc -print-multiarch)"
+if [ ! -e "${libaio_dir}/libaio.so.1" ] && [ -e "${libaio_dir}/libaio.so.1t64" ]; then
+    ln -s libaio.so.1t64 "${libaio_dir}/libaio.so.1"
+fi
 # fix debug build warning: zend_signal: handler was replaced for signal (2) after startup
 echo DISABLE_INTERRUPT=on > ./instantclient/network/admin/sqlnet.ora
 mv ./instantclient /usr/local/

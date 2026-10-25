@@ -2,6 +2,8 @@
 swoole_pdo_odbc: test query
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
+--INI--
+pdo_odbc.connection_pooling=off
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
