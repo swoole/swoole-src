@@ -2945,6 +2945,11 @@ static void _php_curl_reset_handlers(php_curl *ch) {
 
     ch->handlers.write->fp = NULL;
     ch->handlers.write->method = PHP_CURL_STDOUT;
+    if (!Z_ISUNDEF(ch->handlers.write->func_name)) {
+        zval_ptr_dtor(&ch->handlers.write->func_name);
+        ZVAL_UNDEF(&ch->handlers.write->func_name);
+        ch->handlers.write->fci_cache = empty_fcall_info_cache;
+    }
 
     if (!Z_ISUNDEF(ch->handlers.write_header->stream)) {
         zval_ptr_dtor(&ch->handlers.write_header->stream);
@@ -2952,6 +2957,11 @@ static void _php_curl_reset_handlers(php_curl *ch) {
     }
     ch->handlers.write_header->fp = NULL;
     ch->handlers.write_header->method = PHP_CURL_IGNORE;
+    if (!Z_ISUNDEF(ch->handlers.write_header->func_name)) {
+        zval_ptr_dtor(&ch->handlers.write_header->func_name);
+        ZVAL_UNDEF(&ch->handlers.write_header->func_name);
+        ch->handlers.write_header->fci_cache = empty_fcall_info_cache;
+    }
 
     if (!Z_ISUNDEF(ch->handlers.read->stream)) {
         zval_ptr_dtor(&ch->handlers.read->stream);
@@ -2960,6 +2970,11 @@ static void _php_curl_reset_handlers(php_curl *ch) {
     ch->handlers.read->fp = NULL;
     ch->handlers.read->res = NULL;
     ch->handlers.read->method = PHP_CURL_DIRECT;
+    if (!Z_ISUNDEF(ch->handlers.read->func_name)) {
+        zval_ptr_dtor(&ch->handlers.read->func_name);
+        ZVAL_UNDEF(&ch->handlers.read->func_name);
+        ch->handlers.read->fci_cache = empty_fcall_info_cache;
+    }
 
     if (!Z_ISUNDEF(ch->handlers.std_err)) {
         zval_ptr_dtor(&ch->handlers.std_err);
@@ -3017,6 +3032,10 @@ PHP_FUNCTION(swoole_native_curl_reset) {
 
     curl_easy_reset(ch->cp);
     _php_curl_reset_handlers(ch);
+    zval_ptr_dtor(&ch->postfields);
+    ZVAL_UNDEF(&ch->postfields);
+    zval_ptr_dtor(&ch->private_data);
+    ZVAL_UNDEF(&ch->private_data);
     _php_curl_set_default_options(ch);
 }
 /* }}} */
