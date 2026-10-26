@@ -101,6 +101,15 @@ SQLRETURN SQL_API swoole_odbc_SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Ha
 
 SQLRETURN SQL_API swoole_odbc_SQLDisconnect(SQLHDBC ConnectionHandle);
 
+SQLRETURN SQL_API swoole_odbc_SQLParamData(SQLHSTMT StatementHandle, SQLPOINTER *Value);
+
+SQLRETURN SQL_API swoole_odbc_SQLDescribeParam(SQLHSTMT StatementHandle,
+                                               SQLUSMALLINT ParameterNumber,
+                                               SQLSMALLINT *DataType,
+                                               SQLULEN *ParameterSize,
+                                               SQLSMALLINT *DecimalDigits,
+                                               SQLSMALLINT *Nullable);
+
 void swoole_odbc_set_blocking(bool blocking);
 
 #ifdef SW_USE_ODBC_HOOK
@@ -120,6 +129,8 @@ void swoole_odbc_set_blocking(bool blocking);
 #define SQLEndTran swoole_odbc_SQLEndTran
 #define SQLFreeHandle swoole_odbc_SQLFreeHandle
 #define SQLDisconnect swoole_odbc_SQLDisconnect
+#define SQLParamData swoole_odbc_SQLParamData
+#define SQLDescribeParam swoole_odbc_SQLDescribeParam
 
 #endif
 END_EXTERN_C()
