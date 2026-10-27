@@ -210,6 +210,30 @@ SQLRETURN SQL_API swoole_odbc_SQLDisconnect(SQLHDBC ConnectionHandle) {
     return rc;
 }
 
+// pdo_odbc binds string parameters as data-at-execution: SQLExecute returns SQL_NEED_DATA, and the
+// statement is sent to the server and awaited in the final SQLParamData call.
+SQLRETURN SQL_API swoole_odbc_SQLParamData(SQLHSTMT StatementHandle, SQLPOINTER *Value) {
+    SQLRETURN rc;
+    swoole_trace_log(SW_TRACE_CO_ODBC, "SQLParamData");
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLParamData(StatementHandle, Value); });
+    return rc;
+}
+
+// Drivers may ask the server for parameter metadata (SQL Server: sp_describe_undeclared_parameters).
+SQLRETURN SQL_API swoole_odbc_SQLDescribeParam(SQLHSTMT StatementHandle,
+                                               SQLUSMALLINT ParameterNumber,
+                                               SQLSMALLINT *DataType,
+                                               SQLULEN *ParameterSize,
+                                               SQLSMALLINT *DecimalDigits,
+                                               SQLSMALLINT *Nullable) {
+    SQLRETURN rc;
+    swoole_trace_log(SW_TRACE_CO_ODBC, "SQLDescribeParam");
+    php_swoole_async(swoole_odbc_blocking, [&]() {
+        rc = SQLDescribeParam(StatementHandle, ParameterNumber, DataType, ParameterSize, DecimalDigits, Nullable);
+    });
+    return rc;
+}
+
 int php_swoole_odbc_minit(int module_id) {
     if (zend_hash_str_find(&php_pdo_get_dbh_ce()->constants_table, ZEND_STRL("ODBC_ATTR_USE_CURSOR_LIBRARY")) ==
         nullptr) {
