@@ -122,10 +122,11 @@ SQLRETURN SQL_API swoole_odbc_SQLExecute(SQLHSTMT StatementHandle) {
     return rc;
 }
 
+// Closing a cursor before the result is read to the end may wait for the rest of it from the server.
 SQLRETURN SQL_API swoole_odbc_SQLCloseCursor(SQLHSTMT StatementHandle) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLCloseCursor");
-    rc = SQLCloseCursor(StatementHandle);
+    php_swoole_async(swoole_odbc_blocking, [&]() { rc = SQLCloseCursor(StatementHandle); });
     return rc;
 }
 
@@ -189,10 +190,14 @@ SQLRETURN SQL_API swoole_odbc_SQLRowCount(SQLHSTMT StatementHandle, SQLLEN *RowC
     return rc;
 }
 
+// Freeing a statement handle may wait for the server: Microsoft ODBC Driver for SQL Server does so for
+// prepared statements. Environment and connection handles are freed after SQLDisconnect and stay on the
+// calling thread.
 SQLRETURN SQL_API swoole_odbc_SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle) {
     RETCODE rc;
     swoole_trace_log(SW_TRACE_CO_ODBC, "SQLFreeHandle");
-    rc = SQLFreeHandle(HandleType, Handle);
+    php_swoole_async(swoole_odbc_blocking || HandleType != SQL_HANDLE_STMT,
+                     [&]() { rc = SQLFreeHandle(HandleType, Handle); });
     return rc;
 }
 
