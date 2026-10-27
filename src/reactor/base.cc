@@ -434,11 +434,24 @@ void Reactor::defer(const Callback &cb, void *data) {
     defer_tasks->append(cb, data);
 }
 
+int Reactor::wait() const {
+    if (sw_unlikely(waiting_)) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "event loop is already running");
+        errno = EBUSY;
+        return SW_ERR;
+    }
+    waiting_ = true;
+    auto rc = impl->wait();
+    waiting_ = false;
+    return rc;
+}
+
 void Reactor::execute_end_callbacks(bool _timed_out) {
     timed_out = _timed_out;
     for (auto &kv : end_callbacks) {
         kv.second(this);
     }
+    round_++;
 }
 
 void Reactor::execute_begin_callback() const {

@@ -54,7 +54,6 @@ class Timer {
     Reactor *reactor_ = nullptr;
     Heap heap;
     std::unordered_map<long, TimerNode *> map;
-    uint64_t round;
     long _next_id;
     long _current_id;
     /*---------------event timer--------------*/
@@ -125,7 +124,7 @@ class Timer {
     }
 
     uint64_t get_round() const {
-        return round;
+        return reactor_ ? reactor_->get_round() : 0;
     }
 
     bool remove(long id) {
