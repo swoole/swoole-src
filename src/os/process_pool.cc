@@ -36,6 +36,7 @@ static inline swReturnCode catch_system_error(int error) {
     case SW_SUCCESS:
     case EAGAIN:
     case EINTR:
+    case ETIMEDOUT:
         return SW_CONTINUE;
     default:
         return SW_ERROR;
