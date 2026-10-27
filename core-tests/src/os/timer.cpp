@@ -213,3 +213,44 @@ TEST(timer, realtime_add) {
 	ASSERT_EQ(ts.tv_sec, 3);
 	ASSERT_EQ(ts.tv_nsec, 805L * SW_NUM_MILLION);
 }
+
+TEST(timer, reactor_round) {
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    int count = 0;
+    auto *node = swoole_timer_add(1L, false, [&](TIMER_PARAMS) { count++; });
+    ASSERT_NE(node, nullptr);
+    node->exec_msec = 0;
+    sw_timer()->update(node);
+
+    // Selection cannot advance the event loop's round.
+    sw_timer()->select();
+    EXPECT_EQ(count, 0);
+    sw_timer()->select();
+    EXPECT_EQ(count, 0);
+    EXPECT_EQ(sw_timer()->get_round(), 0);
+    sw_reactor()->execute_end_callbacks();
+    EXPECT_EQ(sw_timer()->get_round(), 1);
+    sw_timer()->select();
+    EXPECT_EQ(count, 1);
+    swoole_event_free();
+}
+
+TEST(timer, reactor_reinit_manual_round) {
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    int count = 0;
+    auto *node = swoole_timer_add(1L, false, [&](TIMER_PARAMS) { count++; });
+    ASSERT_NE(node, nullptr);
+    node->exec_msec = 0;
+    sw_timer()->update(node);
+
+    sw_reactor()->execute_end_callbacks();
+    EXPECT_EQ(sw_timer()->get_round(), 1);
+    sw_timer()->reinit(true);
+    EXPECT_EQ(sw_timer()->get_round(), 0);
+    EXPECT_EQ(sw_timer()->get_reactor(), nullptr);
+    sw_timer()->select();
+    EXPECT_EQ(count, 1);
+    EXPECT_EQ(sw_timer()->get_round(), 0);
+    EXPECT_EQ(sw_reactor()->get_round(), 1);
+    swoole_event_free();
+}

@@ -163,6 +163,29 @@ TEST(reactor, wait) {
     ASSERT_EQ(SwooleTG.reactor, nullptr);
 }
 
+TEST(reactor, wait_reentry) {
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    auto *reactor = sw_reactor();
+    EXPECT_FALSE(reactor->is_waiting());
+    reactor->once = true;
+    reactor->defer([reactor](void *) {
+        EXPECT_TRUE(reactor->is_waiting());
+        EXPECT_EQ(reactor->wait(), SW_ERR);
+        EXPECT_EQ(errno, EBUSY);
+        EXPECT_ERREQ(SW_ERROR_WRONG_OPERATION);
+        EXPECT_TRUE(reactor->is_waiting());
+    });
+    EXPECT_EQ(reactor->wait(), SW_OK);
+    EXPECT_FALSE(reactor->is_waiting());
+    swoole_clear_last_error();
+
+    // A completed wait does not prevent the caller from dispatching the next iteration.
+    reactor->defer([](void *) {});
+    EXPECT_EQ(reactor->wait(), SW_OK);
+    EXPECT_FALSE(reactor->is_waiting());
+    swoole_event_free();
+}
+
 TEST(reactor, get_missing_socket) {
     UnixSocket p(true, SOCK_DGRAM);
     ASSERT_TRUE(p.ready());
