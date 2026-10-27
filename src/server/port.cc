@@ -686,8 +686,8 @@ _parse:
         swoole_trace_log(
             SW_TRACE_SERVER, "received chunked eof, real content-length=%" PRIu64, request->content_length_);
     } else {
-        // Header parsing is capped at the minimum package_max_length before this subtraction.
-        if (request->content_length_ > protocol->package_max_length - request->header_length_) {
+        if (request->header_length_ > protocol->package_max_length ||
+            request->content_length_ > protocol->package_max_length - request->header_length_) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
                              "Request Entity Too Large: header-length (%u) + content-length (%" PRIu64
