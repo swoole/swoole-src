@@ -18,16 +18,16 @@ run(function() {
     $db = PdoOracleTest::create();
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     try {
-            $db->exec("DROP TABLE test");
+            $db->exec("DROP TABLE swoole_oci_utf8");
     } catch (Exception $e) {
     }
-    $db->exec("CREATE TABLE test (col1 NVARCHAR2(20))");
-    $db->exec("INSERT INTO test VALUES('12345678901234567890')");
-    $db->exec("INSERT INTO test VALUES('あいうえおかきくけこさしすせそたちつてと')");
-    $stmt = $db->prepare("SELECT * FROM test");
+    $db->exec("CREATE TABLE swoole_oci_utf8 (col1 NVARCHAR2(20))");
+    $db->exec("INSERT INTO swoole_oci_utf8 VALUES('12345678901234567890')");
+    $db->exec("INSERT INTO swoole_oci_utf8 VALUES('あいうえおかきくけこさしすせそたちつてと')");
+    $stmt = $db->prepare("SELECT * FROM swoole_oci_utf8");
     $stmt->execute();
     var_dump($stmt->fetchAll(PDO::FETCH_ASSOC));
-    $db->exec("DROP TABLE test");
+    $db->exec("DROP TABLE swoole_oci_utf8");
 });
 ?>
 --EXPECT--

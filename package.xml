@@ -2040,7 +2040,7 @@
             <file role="test" name="tests/swoole_pdo_oracle/bug60994.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/bug_33707.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/checkliveness.phpt" />
-            <file role="test" name="tests/swoole_pdo_oracle/coroutint.phpt" />
+            <file role="test" name="tests/swoole_pdo_oracle/coroutine.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/oci_success_with_info.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/pdo_oci_attr_action.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/pdo_oci_attr_autocommit_1.phpt" />
@@ -2752,6 +2752,7 @@
             <file role="test" name="tests/swoole_table/stats.phpt" />
             <file role="test" name="tests/swoole_table/stats_before_create.phpt" />
             <file role="test" name="tests/swoole_table/type_conv.phpt" />
+            <file role="test" name="tests/swoole_test_runner/port_reservation.phpt" />
             <file role="test" name="tests/swoole_thread/add_update.phpt" />
             <file role="test" name="tests/swoole_thread/affinity.phpt" />
             <file role="test" name="tests/swoole_thread/arraylist.phpt" />

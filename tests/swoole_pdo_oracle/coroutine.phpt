@@ -17,18 +17,26 @@ require __DIR__ . '/pdo_oracle.inc';
 Co::set(['hook_flags'=> SWOOLE_HOOK_ALL]);
 run(function() {
     $db = PdoOracleTest::create();
-    $db->exec("create table test (id int)");
+    try {
+        $db->exec("drop table swoole_oci_coroutine");
+    } catch (PDOException $e) {
+        if ((int) $e->errorInfo[1] !== 942) {
+            throw $e;
+        }
+    }
+    $db->exec("create table swoole_oci_coroutine (id int)");
+    $coroutines = [];
     for($i = 0; $i < 10; $i++) {
-        go(function () use($db, $i){
-            $stmt = $db->prepare("insert into test values (?)");
+        $coroutines[] = go(function () use($db, $i){
+            $stmt = $db->prepare("insert into swoole_oci_coroutine values (?)");
             $stmt->execute([$i]);
-            $stmt = $db->prepare("select id from test where id = ?");
+            $stmt = $db->prepare("select id from swoole_oci_coroutine where id = ?");
             $stmt->execute([$i]);
             var_dump($stmt->fetch(PDO::FETCH_ASSOC)['id'] == $i);
         });
     }
-    sleep(1);
-    $db->exec("drop table test");
+    Assert::true(Co::join($coroutines, 10));
+    $db->exec("drop table swoole_oci_coroutine");
 });
 
 ?>

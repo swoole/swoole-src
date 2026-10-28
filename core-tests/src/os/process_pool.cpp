@@ -360,6 +360,19 @@ TEST(process_pool, shutdown) {
     sysv_signal(SIGTERM, SIG_DFL);
 }
 
+TEST(process_pool, shutdown_after_reaped_worker) {
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1), SW_OK);
+    pool.main_loop = nullptr;
+    pool.onWorkerStart = [](ProcessPool *, Worker *) { kill(getpid(), SIGKILL); };
+    pool.onWorkerError = [](ProcessPool *pool, Worker *, const ExitStatus &) { pool->running = false; };
+    pool.onShutdown = [](ProcessPool *pool) { EXPECT_EQ(pool->get_worker(0)->pid, 0); };
+
+    ASSERT_EQ(pool.start(), SW_OK);
+    ASSERT_EQ(pool.wait(), SW_OK);
+    pool.destroy();
+}
+
 TEST(process_pool, shutdown_cancels_timeout) {
     ProcessPool pool{};
     test::counter_init();

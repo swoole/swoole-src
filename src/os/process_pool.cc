@@ -978,6 +978,11 @@ int ProcessPool::wait() {
         }
 
         if (!running) {
+            // wait_process() may have reaped this worker before dispatching the shutdown signal.
+            if (auto *worker = get_worker_by_pid(exit_status.get_pid())) {
+                map_->erase(exit_status.get_pid());
+                worker->pid = 0;
+            }
             break;
         }
         if (exit_status.get_pid() < 0) {
@@ -1017,6 +1022,8 @@ int ProcessPool::wait() {
                     // onWorkerError may have requested termination; never fork a replacement then.
                     if (running) {
                         spawn(exit_worker);
+                    } else {
+                        exit_worker->pid = 0;
                     }
                     map_->erase(exit_status.get_pid());
                 }

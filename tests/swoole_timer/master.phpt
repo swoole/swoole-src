@@ -12,7 +12,7 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Server;
 use Swoole\Timer;
 
-const RES_FILE = __DIR__ . '/result.txt';
+const RES_FILE = __DIR__ . '/master.result';
 file_put_contents(RES_FILE, '');
 
 $pm = new ProcessManager();

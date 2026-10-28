@@ -35,6 +35,7 @@ struct Manager {
 
     std::vector<pid_t> kill_workers;
 
+    void init(Server *_server);
     void wait(Server *_server);
     void terminate_all_worker();
     void reopen_logger() const;
@@ -65,7 +66,9 @@ int Server::start_manager_process() {
     }
 
     auto fn = [this]() {
-        gs->manager_pid = getpid();
+        Manager manager{};
+        // Workers may request shutdown as soon as they enter their startup callback.
+        manager.init(this);
 
         if (task_worker_num > 0) {
             if (get_task_worker_pool()->start() == SW_ERR) {
@@ -98,7 +101,6 @@ int Server::start_manager_process() {
             }
         }
 
-        Manager manager{};
         manager.wait(this);
     };
 
@@ -113,7 +115,7 @@ int Server::start_manager_process() {
     return SW_OK;
 }
 
-void Manager::wait(Server *_server) {
+void Manager::init(Server *_server) {
     server_ = _server;
     server_->manager_ = this;
 
@@ -136,6 +138,11 @@ void Manager::wait(Server *_server) {
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, signal_handler);
 #endif
+}
+
+void Manager::wait(Server *_server) {
+    ProcessPool *pool = _server->get_event_worker_pool();
+    ProcessPool *task_pool = _server->get_task_worker_pool();
 
     if (_server->is_process_mode()) {
         swoole_set_process_death_signal(SIGTERM);

@@ -29,7 +29,11 @@ $serv->addProcess($proc);
 
 $proc2 = new Swoole\Process(function ($process) use ($serv) {
     $json = $process->read();
+    if ($json === false || $json === '') {
+        return;
+    }
     $data = json_decode($json, true);
+    Assert::isArray($data);
     $response = Swoole\Http\Response::create($data['fd']);
     $response->end($data['uid']);
     $response->close();

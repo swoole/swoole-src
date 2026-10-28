@@ -36,8 +36,14 @@ swoole_async_set([
 
 // Run default remote object server
 if (!is_win()) {
+    $remoteObjectDirectory = __DIR__ . '/tmp';
+    if (!is_dir($remoteObjectDirectory)
+        && !@mkdir($remoteObjectDirectory, 0755, true)
+        && !is_dir($remoteObjectDirectory)) {
+        throw new RuntimeException("Unable to create remote object server directory: $remoteObjectDirectory");
+    }
     swoole_library_set_option('default_remote_object_server_worker_num', 2);
-    swoole_library_set_option('default_remote_object_server_dir', __DIR__ . '/tmp');
+    swoole_library_set_option('default_remote_object_server_dir', $remoteObjectDirectory);
     swoole_init_default_remote_object_server();
 }
 

@@ -20,7 +20,7 @@ run(function() {
         $db = PdoOracleTest::create();
         $db->exec(<<<SQL
     BEGIN
-       EXECUTE IMMEDIATE 'DROP TABLE test';
+       EXECUTE IMMEDIATE 'DROP TABLE swoole_oci_columnmeta';
     EXCEPTION
        WHEN OTHERS THEN
           IF SQLCODE != -942 THEN
@@ -29,11 +29,11 @@ run(function() {
     END;
     SQL
     );
-        $db->exec("CREATE TABLE test(id INT)");
+        $db->exec("CREATE TABLE swoole_oci_columnmeta(id INT)");
 
         $db->beginTransaction();
 
-        $stmt = $db->prepare('SELECT id FROM test ORDER BY id ASC');
+        $stmt = $db->prepare('SELECT id FROM swoole_oci_columnmeta ORDER BY id ASC');
 
         echo "Test 1. calling function with invalid parameters\n";
 
@@ -92,7 +92,7 @@ run(function() {
         echo "Test 2. testing return values\n";
         echo "Test 2.1 testing array returned\n";
 
-        $stmt = $db->prepare('SELECT id FROM test ORDER BY id ASC');
+        $stmt = $db->prepare('SELECT id FROM swoole_oci_columnmeta ORDER BY id ASC');
         $stmt->execute();
         $native = $stmt->getColumnMeta(0);
         if (count($native) == 0) {
@@ -154,7 +154,7 @@ run(function() {
 
             $db->exec(<<<SQL
     BEGIN
-       EXECUTE IMMEDIATE 'DROP TABLE test';
+       EXECUTE IMMEDIATE 'DROP TABLE swoole_oci_columnmeta';
     EXCEPTION
        WHEN OTHERS THEN
           IF SQLCODE != -942 THEN
@@ -164,17 +164,17 @@ run(function() {
     SQL
     );
 
-            $sql = sprintf('CREATE TABLE test(id INT, label %s)', $sql_type);
+            $sql = sprintf('CREATE TABLE swoole_oci_columnmeta(id INT, label %s)', $sql_type);
             $stmt = $db->prepare($sql);
             $stmt->execute();
 
-            if (!$db->exec(sprintf("INSERT INTO test(id, label) VALUES (1, '%s')", $value))) {
+            if (!$db->exec(sprintf("INSERT INTO swoole_oci_columnmeta(id, label) VALUES (1, '%s')", $value))) {
                 printf("[%03d] + 1] Insert failed, %d - %s\n", $offset,
                     $db->errorCode(), var_export($db->errorInfo(), true));
                 return false;
             }
 
-            $stmt = $db->prepare('SELECT id, label FROM test');
+            $stmt = $db->prepare('SELECT id, label FROM swoole_oci_columnmeta');
             $stmt->execute();
             $meta = $stmt->getColumnMeta(1);
             return test_return($meta, $offset, $native_type, $pdo_type);
@@ -236,7 +236,7 @@ run(function() {
 
         $db->exec(<<<SQL
     BEGIN
-       EXECUTE IMMEDIATE 'DROP TABLE test';
+       EXECUTE IMMEDIATE 'DROP TABLE swoole_oci_columnmeta';
     EXCEPTION
        WHEN OTHERS THEN
           IF SQLCODE != -942 THEN
@@ -260,11 +260,11 @@ run(function() {
 
         echo "Test 2.7 testing flags returned\n";
 
-        $sql = sprintf('CREATE TABLE test(id INT NOT NULL, label INT NULL)');
+        $sql = sprintf('CREATE TABLE swoole_oci_columnmeta(id INT NOT NULL, label INT NULL)');
         $stmt = $db->prepare($sql);
         $stmt->execute();
-        $db->exec('INSERT INTO test(id, label) VALUES (1, 1)');
-        $stmt = $db->query('SELECT id, label FROM test');
+        $db->exec('INSERT INTO swoole_oci_columnmeta(id, label) VALUES (1, 1)');
+        $stmt = $db->query('SELECT id, label FROM swoole_oci_columnmeta');
         $meta = $stmt->getColumnMeta(0);
         // verify the flags array contains a not_null flag and not nullable flags
         if (!isset($meta['flags'])) {
@@ -306,7 +306,7 @@ run(function() {
 
     $db->exec(<<<SQL
     BEGIN
-       EXECUTE IMMEDIATE 'DROP TABLE test';
+       EXECUTE IMMEDIATE 'DROP TABLE swoole_oci_columnmeta';
     EXCEPTION
        WHEN OTHERS THEN
           IF SQLCODE != -942 THEN
