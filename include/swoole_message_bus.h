@@ -287,7 +287,8 @@ class MessageBus {
      * Each thread must have a unique buffer and the socket memory must be separated.
      */
     network::Socket *get_pipe_socket(const network::Socket *sock) const {
-        return pipe_sockets_[sock->get_fd()];
+        int pipe_fd = sock->get_fd();
+        return pipe_fd >= 0 && (size_t) pipe_fd < pipe_sockets_.size() ? pipe_sockets_[pipe_fd] : nullptr;
     }
     /**
      * Create the socket object of the given pipe fd, see get_pipe_socket().
