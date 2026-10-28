@@ -314,7 +314,7 @@ std::string swoole_get_task_tmpdir() {
 
 #ifndef _WIN32
 pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
-    pid_t pid = fork();
+    pid_t pid = swoole_fork(0);
     switch (pid) {
     case -1:
         return -1;

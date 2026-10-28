@@ -175,6 +175,7 @@
             <file role="src" name="core-tests/src/_lib/ssl.cpp" />
             <file role="src" name="core-tests/src/core/base.cpp" />
             <file role="src" name="core-tests/src/core/channel.cpp" />
+            <file role="src" name="core-tests/src/core/fork.cpp" />
             <file role="src" name="core-tests/src/core/hash.cpp" />
             <file role="src" name="core-tests/src/core/heap.cpp" />
             <file role="src" name="core-tests/src/core/log.cpp" />
@@ -2839,6 +2840,7 @@
             <file role="test" name="tests/swoole_timer/info.phpt" />
             <file role="test" name="tests/swoole_timer/list.phpt" />
             <file role="test" name="tests/swoole_timer/manager.phpt" />
+            <file role="test" name="tests/swoole_timer/manager_inherited_timer.phpt" />
             <file role="test" name="tests/swoole_timer/master.phpt" />
             <file role="test" name="tests/swoole_timer/master_base.phpt" />
             <file role="test" name="tests/swoole_timer/memory.phpt" />

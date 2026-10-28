@@ -125,6 +125,10 @@ void Manager::init(Server *_server) {
     pool->max_wait_time = server_->max_wait_time;
     _server->gs->manager_pid = pool->master_pid = task_pool->master_pid = getpid();
 
+    // System timers are inherited too, even when no reactor exists to release them.
+    if (swoole_timer_is_available()) {
+        swoole_timer_free();
+    }
     swoole_event_free();
 
     swoole_signal_set(SIGHUP, nullptr);
