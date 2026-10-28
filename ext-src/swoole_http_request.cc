@@ -46,6 +46,9 @@ static int http_request_on_url(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_body(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length);
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length);
+static int http_request_stream_on_header_field(llhttp_t *parser, const char *at, size_t length);
+static int http_request_stream_on_header_value(llhttp_t *parser, const char *at, size_t length);
+static int http_request_on_header_value_complete(llhttp_t *parser);
 static int http_request_on_headers_complete(llhttp_t *parser);
 static int http_request_message_complete(llhttp_t *parser);
 static int http_request_parse_on_url(llhttp_t *parser, const char *at, size_t length);
@@ -138,8 +141,8 @@ static constexpr llhttp_settings_t http_parser_settings =
     nullptr,                                // on_status
     nullptr,                                // on_method
     nullptr,                                // on_version
-    http_request_on_header_field,           // on_header_field
-    http_request_on_header_value,           // on_header_value
+    http_request_stream_on_header_field,    // on_header_field
+    http_request_stream_on_header_value,    // on_header_value
     nullptr,                                // on_chunk_extension_name
     nullptr,                                // on_chunk_extension_value
     http_request_on_headers_complete,       // on_headers_complete
@@ -151,7 +154,7 @@ static constexpr llhttp_settings_t http_parser_settings =
     nullptr,                                // on_method_complete
     nullptr,                                // on_version_complete
     nullptr,                                // on_header_field_complete
-    nullptr,                                // on_header_value_complete
+    http_request_on_header_value_complete,  // on_header_value_complete
     nullptr,                                // on_chunk_extension_name_complete
     nullptr,                                // on_chunk_extension_value_complete
     nullptr,                                // on_chunk_header
@@ -371,6 +374,37 @@ static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t
     ctx->current_header_name_len = length;
     ctx->current_header_value_len = 0;
     return 0;
+}
+
+static int http_request_stream_on_header_field(llhttp_t *parser, const char *at, size_t length) {
+    if (parser->flags & F_TRAILING) {
+        auto *ctx = static_cast<HttpContext *>(parser->data);
+        ctx->trailer_header_name.append(at, length);
+        return 0;
+    }
+    return http_request_on_header_field(parser, at, length);
+}
+
+static int http_request_stream_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+    if (parser->flags & F_TRAILING) {
+        auto *ctx = static_cast<HttpContext *>(parser->data);
+        ctx->trailer_header_value.append(at, length);
+        return 0;
+    }
+    return http_request_on_header_value(parser, at, length);
+}
+
+static int http_request_on_header_value_complete(llhttp_t *parser) {
+    if (!(parser->flags & F_TRAILING)) {
+        return 0;
+    }
+    auto *ctx = static_cast<HttpContext *>(parser->data);
+    http_request_on_header_field(parser, ctx->trailer_header_name.data(), ctx->trailer_header_name.length());
+    int result =
+        http_request_on_header_value(parser, ctx->trailer_header_value.data(), ctx->trailer_header_value.length());
+    ctx->trailer_header_name.clear();
+    ctx->trailer_header_value.clear();
+    return result;
 }
 
 static int http_request_parse_on_url(llhttp_t *parser, const char *at, size_t length) {

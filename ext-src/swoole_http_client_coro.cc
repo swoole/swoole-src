@@ -44,6 +44,7 @@ namespace WebSocket = swoole::websocket;
 
 static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length);
 static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length);
+static int http_parser_on_header_value_complete(llhttp_t *parser);
 static int http_parser_on_headers_complete(llhttp_t *parser);
 static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length);
 static int http_parser_on_message_complete(llhttp_t *parser);
@@ -71,7 +72,7 @@ static constexpr llhttp_settings_t http_parser_settings =
     nullptr,                                // on_method_complete
     nullptr,                                // on_version_complete
     nullptr,                                // on_header_field_complete
-    nullptr,                                // on_header_value_complete
+    http_parser_on_header_value_complete,   // on_header_value_complete
     nullptr,                                // on_chunk_extension_name_complete
     nullptr,                                // on_chunk_extension_value_complete
     nullptr,                                // on_chunk_header
@@ -149,6 +150,8 @@ class Client {
     /* for response parser */
     const char *tmp_header_field_name = nullptr;
     int tmp_header_field_name_len = 0;
+    std::string trailer_header_name;
+    std::string trailer_header_value;
     String *body = nullptr;
 #ifdef SW_HAVE_COMPRESSION
     enum swHttpCompressMethod compress_method = HTTP_COMPRESS_NONE;
@@ -464,17 +467,20 @@ void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcoo
 
 static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
+    if (parser->flags & F_TRAILING) {
+        http->trailer_header_name.append(at, length);
+        return 0;
+    }
     http->tmp_header_field_name = at;
     http->tmp_header_field_name_len = length;
     return 0;
 }
 
-static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+static int http_parser_add_header(
+    llhttp_t *parser, const char *header_name, size_t header_len, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
     zval *zobject = static_cast<zval *>(http->zobject);
 
-    const char *header_name = http->tmp_header_field_name;
-    size_t header_len = http->tmp_header_field_name_len;
     zend::CharPtr _header_name;
 
     if (http->lowercase_header) {
@@ -537,6 +543,30 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
     }
 
     return 0;
+}
+
+static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+    auto *http = static_cast<Client *>(parser->data);
+    if (parser->flags & F_TRAILING) {
+        http->trailer_header_value.append(at, length);
+        return 0;
+    }
+    return http_parser_add_header(parser, http->tmp_header_field_name, http->tmp_header_field_name_len, at, length);
+}
+
+static int http_parser_on_header_value_complete(llhttp_t *parser) {
+    if (!(parser->flags & F_TRAILING)) {
+        return 0;
+    }
+    auto *http = static_cast<Client *>(parser->data);
+    int result = http_parser_add_header(parser,
+                                        http->trailer_header_name.data(),
+                                        http->trailer_header_name.length(),
+                                        http->trailer_header_value.data(),
+                                        http->trailer_header_value.length());
+    http->trailer_header_name.clear();
+    http->trailer_header_value.clear();
+    return result;
 }
 
 static int http_parser_on_headers_complete(llhttp_t *parser) {
@@ -1574,6 +1604,8 @@ bool Client::recv_response(double timeout) {
     String *buffer = socket->get_read_buffer();
     bool header_completed = false;
     off_t header_crlf_offset = 0;
+    trailer_header_name.clear();
+    trailer_header_value.clear();
 
     // re-init http response parser
     swoole_llhttp_parser_init(&parser, HTTP_RESPONSE, (void *) this);

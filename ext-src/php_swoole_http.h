@@ -206,6 +206,8 @@ struct Context {
     const char *current_header_name;
     size_t current_header_name_len;
     size_t current_header_value_len;
+    std::string trailer_header_name;
+    std::string trailer_header_value;
     char *current_form_data_name;
     size_t current_form_data_name_len;
     zval *current_multipart_header;
