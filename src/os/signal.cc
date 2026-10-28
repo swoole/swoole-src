@@ -248,7 +248,7 @@ void swoole_signal_clear() {
 #endif
 
 #ifdef HAVE_KQUEUE
-    if (SwooleG.enable_kqueue) {
+    if (SwooleG.enable_kqueue && swoole_event_is_available()) {
         swoole_signal_kqueue_clear();
         return;
     }

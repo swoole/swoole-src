@@ -2148,6 +2148,8 @@
             <file role="test" name="tests/swoole_process/ignore_sigpipe.phpt" />
             <file role="test" name="tests/swoole_process/ignore_sigpipe_2.phpt" />
             <file role="test" name="tests/swoole_process/kill.phpt" />
+            <file role="test" name="tests/swoole_process/kqueue_signal_clear.phpt" />
+            <file role="test" name="tests/swoole_process/kqueue_signal_clear_in_manager.phpt" />
             <file role="test" name="tests/swoole_process/msgq_capacity.phpt" />
             <file role="test" name="tests/swoole_process/name.phpt" />
             <file role="test" name="tests/swoole_process/null_callback.phpt" />
