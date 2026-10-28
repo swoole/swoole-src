@@ -4004,6 +4004,7 @@ TEST(server, no_idle_worker) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 4;
     serv.dispatch_mode = 3;
+    test::counter_init();
 
     swoole_set_log_file(TEST_LOG_FILE);
     swoole_set_log_level(SW_LOG_WARNING);
@@ -4029,11 +4030,8 @@ TEST(server, no_idle_worker) {
             ListenPort *port = serv->get_primary_port();
 
             network::SyncClient c(SW_SOCK_TCP);
-            c.connect(TEST_HOST, port->port);
-
-            SW_LOOP_N(1024) {
-                c.send(packet, strlen(packet));
-            }
+            EXPECT_TRUE(c.connect(TEST_HOST, port->port));
+            EXPECT_EQ(c.send(packet, strlen(packet)), strlen(packet));
 
             sleep(3);
 
@@ -4044,15 +4042,15 @@ TEST(server, no_idle_worker) {
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
-        if (worker->id == 0) {
+        // A burst of TCP writes may arrive as a single read. Establish the busy
+        // state before dispatch instead of relying on traffic to occupy every worker.
+        worker->set_status_to_busy();
+        if (test::counter_incr(0, 1) == static_cast<int>(serv->worker_num)) {
             lock->unlock();
         }
     };
 
-    serv.onReceive = [](Server *serv, RecvData *req) -> int {
-        usleep(10000);
-        return SW_OK;
-    };
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
 
     ASSERT_EQ(serv.start(), 0);
 
@@ -4060,6 +4058,7 @@ TEST(server, no_idle_worker) {
     delete lock;
 
     auto log = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(log);
     ASSERT_TRUE(log->contains("No idle worker is available"));
 
     remove(TEST_LOG_FILE);
@@ -4140,6 +4139,7 @@ TEST(server, no_idle_task_worker) {
     delete lock;
 
     auto log = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(log);
     ASSERT_TRUE(log->contains("No idle task worker is available"));
 
     remove(TEST_LOG_FILE);
