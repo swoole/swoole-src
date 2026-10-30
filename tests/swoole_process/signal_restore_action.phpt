@@ -44,6 +44,7 @@ foreach ($backends as $settings) {
         Co::sleep(0.01);
         Assert::true(Process::signal(SIGTERM, function () {}));
         Process::signal(SIGTERM, null);
+        Assert::same(Co::stats()['signal_listener_num'], 0);
     });
     Assert::same($status['signal'], 0);
 

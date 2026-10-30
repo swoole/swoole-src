@@ -517,7 +517,9 @@ static PHP_METHOD(swoole_process, signal) {
     if (sw_server() && sw_server()->is_sync_process()) {
         if (signal_fci_caches[signo]) {
             sw_callable_free(signal_fci_caches[signo]);
-        } else {
+            SwooleG.signal_listener_num--;
+        }
+        if (fci_cache) {
             SwooleG.signal_listener_num++;
         }
         signal_fci_caches[signo] = fci_cache;
@@ -540,7 +542,9 @@ static PHP_METHOD(swoole_process, signal) {
     if (signal_fci_caches[signo]) {
         // free the old fci_cache
         swoole_event_defer(sw_callable_free, signal_fci_caches[signo]);
-    } else {
+        SwooleG.signal_listener_num--;
+    }
+    if (fci_cache) {
         SwooleG.signal_listener_num++;
     }
     signal_fci_caches[signo] = fci_cache;
