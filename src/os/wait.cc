@@ -79,7 +79,18 @@ static void signal_handler(int signo) {
 static void signal_init() {
     if (!signal_ready) {
         Reactor *reactor = SwooleTG.reactor;
+#ifdef SW_USE_THREAD_CONTEXT
+        // Coroutine threads block all signals, so register SIGCHLD on the reactor thread,
+        // then reap children that exited before it ran.
+        swoole_event_defer(
+            [](void *) {
+                swoole_signal_set(SIGCHLD, signal_handler);
+                signal_handler(SIGCHLD);
+            },
+            nullptr);
+#else
         swoole_signal_set(SIGCHLD, signal_handler);
+#endif
 
         reactor->set_exit_condition(Reactor::EXIT_CONDITION_WAIT_PID, [](Reactor *reactor, size_t &event_num) -> bool {
             return swoole_coroutine_wait_count() == 0;
