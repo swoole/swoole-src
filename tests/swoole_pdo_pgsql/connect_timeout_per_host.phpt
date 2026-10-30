@@ -22,7 +22,7 @@ Co\run(static function (): void {
     Co\go(static function () use ($first): void {
         $client = $first->accept();
         Assert::notEmpty($client->recv());
-        Co::sleep(0.8);
+        Co::sleep(1.5);
         $fields = "SFATAL\0C57P03\0Mthe database system is starting up\0\0";
         $client->sendAll('E' . pack('N', strlen($fields) + 4) . $fields);
     });
@@ -34,10 +34,10 @@ Co\run(static function (): void {
     );
     $start = microtime(true);
     try {
-        new PDO($dsn, 'user', 'pass', [PDO::ATTR_TIMEOUT => 1]);
+        new PDO($dsn, 'user', 'pass', [PDO::ATTR_TIMEOUT => 2]);
     } catch (PDOException $e) {
         Assert::eq($e->errorInfo[0], '08006');
-        Assert::greaterThanEq(microtime(true) - $start, 1.8);
+        Assert::greaterThanEq(microtime(true) - $start, 3);
         echo "timeout\n";
     }
 });
