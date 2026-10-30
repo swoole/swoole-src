@@ -1193,6 +1193,8 @@
             <file role="test" name="tests/swoole_client_sync/keep4.phpt" />
             <file role="test" name="tests/swoole_client_sync/keep5.phpt" />
             <file role="test" name="tests/swoole_client_sync/keep6.phpt" />
+            <file role="test" name="tests/swoole_client_sync/keep_shutdown.phpt" />
+            <file role="test" name="tests/swoole_client_sync/keep_socket_state.phpt" />
             <file role="test" name="tests/swoole_client_sync/length_protocol.phpt" />
             <file role="test" name="tests/swoole_client_sync/length_protocol_02.phpt" />
             <file role="test" name="tests/swoole_client_sync/length_protocol_func.phpt" />
