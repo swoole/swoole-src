@@ -20,15 +20,15 @@ $port = get_constant_port(__FILE__);
 
 $serv = new Server('127.0.0.1', $port, SWOOLE_THREAD);
 $serv->set([
-    'worker_num' => 1,
+    'worker_num'       => 1,
     'enable_coroutine' => false,
-    'log_file' => '/dev/null',
-    'log_level' => SWOOLE_LOG_ERROR,
-    'init_arguments' => function () {
+    'log_file'         => '/dev/null',
+    'log_level'        => SWOOLE_LOG_ERROR,
+    'init_arguments'   => function () {
         global $ready, $connection, $starts;
-        $ready = new Thread\Queue();
+        $ready      = new Thread\Queue();
         $connection = new Thread\Queue();
-        $starts = new Thread\Atomic(0);
+        $starts     = new Thread\Atomic(0);
         return [$ready, $connection, $starts];
     },
 ]);
@@ -43,6 +43,9 @@ $serv->on('Request', function ($request, $response) {
     if ($request->server['request_uri'] === '/block') {
         $connection->push($request->fd, Thread\Queue::NOTIFY_ALL);
         usleep(200_000);
+    } elseif ($request->server['request_uri'] === '/probe') {
+        $response->detach();
+        $connection->push($request->fd, Thread\Queue::NOTIFY_ALL);
     } else {
         swoole_implicit_fn('bailout');
     }
@@ -69,8 +72,18 @@ $serv->addProcess(new Swoole\Process(function () use ($serv, $port) {
         while ($starts->get() < 2) {
             Coroutine::sleep(0.01);
         }
+
+        $probe = new Client(SWOOLE_SOCK_TCP);
+        Assert::true($probe->connect('127.0.0.1', $port));
+        Assert::greaterThan($probe->send("GET /probe HTTP/1.1\r\nHost: localhost\r\n\r\n"), 0);
+        $probeFd = $connection->pop(-1);
+        // Queued behind the leftover chunks, so its arrival proves the replacement consumed them.
+        Assert::true($serv->send($probeFd, "drained\n"));
+        Assert::same($probe->recv(), "drained\n");
+
         $blocked->close();
         $bailout->close();
+        $probe->close();
         echo "restarted\n";
         $serv->shutdown();
     });
