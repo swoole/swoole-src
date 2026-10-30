@@ -604,6 +604,8 @@ static void sw_after_fork(void *args) {
 #if PHP_VERSION_ID >= 80500
     refresh_memory_manager();
 #endif
+    // swoole_fork() has removed the inherited signal handlers
+    php_swoole_process_signal_clean();
 #ifdef ZEND_MAX_EXECUTION_TIMERS
     zend_max_execution_timer_init();
 #endif
