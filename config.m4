@@ -557,6 +557,7 @@ install following package to obtain them:
 EOF
             AC_MSG_ERROR([postgresql support needs libpq libraries to build])
         ])
+        AC_CHECK_LIB(pq, PQhostaddr, AC_DEFINE(HAVE_PQHOSTADDR, 1, [have PQhostaddr]))
         LIBS="$_libpq_saved_libs"
 
         dnl FIXME: this should be SWOOLE_CFLAGS="$SWOOLE_CFLAGS $LIBPQ_CFLAGS"

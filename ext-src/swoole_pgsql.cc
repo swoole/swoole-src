@@ -38,6 +38,14 @@ static bool swoole_pgsql_blocking = true;
  */
 static const double swoole_pgsql_poll_timeout = 0.1;
 
+static const char *swoole_pgsql_hostaddr(const PGconn *conn) {
+#ifdef HAVE_PQHOSTADDR
+    return PQhostaddr(conn);
+#else
+    return "";
+#endif
+}
+
 static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_nonblock = false) {
     if (swoole_pgsql_blocking) {
         struct pollfd fds[1];
@@ -131,7 +139,11 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         }
     }
     PQconninfoFree(options);
-    std::string host, port;
+    // libpq before 17 treats a connect_timeout of 1 as 2.
+    if (timeout == 1 && PQlibVersion() < 170000) {
+        timeout = 2;
+    }
+    std::string host, address, port;
     int64_t start_msec = Timer::get_absolute_msec();
 
     SW_LOOP {
@@ -139,9 +151,10 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         if (r == PGRES_POLLING_OK || r == PGRES_POLLING_FAILED) {
             break;
         }
-        // Like libpq, give each host its own connect_timeout.
-        if (host != PQhost(conn) || port != PQport(conn)) {
+        // Like libpq, give each host address its own connect_timeout.
+        if (host != PQhost(conn) || address != swoole_pgsql_hostaddr(conn) || port != PQport(conn)) {
             host = PQhost(conn);
+            address = swoole_pgsql_hostaddr(conn);
             port = PQport(conn);
             start_msec = Timer::get_absolute_msec();
         }
