@@ -48,6 +48,9 @@ Factory *Server::create_thread_factory() {
 }
 
 void Server::destroy_thread_factory() const {
+    SW_LOOP_N(reactor_num) {
+        reactor_threads[i].discard_pipe_buffers(this);
+    }
     sw_free(connection_list);
     delete[] reactor_threads;
 }
