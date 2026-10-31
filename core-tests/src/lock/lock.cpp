@@ -172,7 +172,9 @@ TEST(lock, coroutine_lock_cancel) {
         ASSERT_EQ(lock.lock(), 0);
         Coroutine::create([&](void *) {
             auto co = Coroutine::get_current();
-            swoole_timer_after(20, [co](TIMER_PARAMS) {
+            Coroutine::create([co](void *) {
+                // io_uring cancellation waits for completion and requires a coroutine context.
+                System::sleep(0.02);
                 DEBUG() << "cancel coroutine " << co->get_cid() << "\n";
                 co->cancel();
             });
