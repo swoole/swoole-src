@@ -452,7 +452,7 @@ long Multi::select(php_curlm *mh, double timeout) {
 void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {
     swoole_trace_log(
         SW_TRACE_CO_CURL, "curl_socket=%p, bitmask=%d, co=%p, sockfd=%d", curl_socket, bitmask, co, sockfd);
-    if (released) {
+    if (sw_unlikely(released)) {
         // The queued deferred callback owns the object now; do not touch any state.
         return;
     }
