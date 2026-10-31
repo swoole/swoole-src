@@ -528,6 +528,9 @@ CURLcode Multi::exec(Handle *handle) {
         return CURLE_FAILED_INIT;
     }
 
+    // Adding a handle schedules an immediate timeout that starts the socket API.
+    selector.timer_callback = true;
+
     bool is_canceled = false;
     CURL_IOCP_DEBUG("exec begin handle=%p curl=%p running=%d sockets=%zu",
                     handle,
@@ -542,7 +545,7 @@ CURLcode Multi::exec(Handle *handle) {
                         timer);
         selector_prepare();
 
-        if (selector.active_sockets.empty() && wait_event()) {
+        if (!selector.timer_callback && selector.active_sockets.empty() && wait_event()) {
             co = check_bound_co();
             CURL_IOCP_DEBUG("exec yield cid=%ld running=%d sockets=%zu timer=%p",
                             co ? co->get_cid() : -1,
