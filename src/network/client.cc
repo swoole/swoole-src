@@ -491,9 +491,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
                 size_t response_length = 0;
                 // Parse the consumed prefix with the queued bytes. Incomplete fragments are consumed so the next peek
                 // advances, while bytes after a complete proxy header remain queued.
-                recv_buf.length += n_peek;
-                auto status = HttpProxy::parse_response(recv_buf.str, recv_buf.length, &response_length);
-                recv_buf.length -= n_peek;
+                auto status = HttpProxy::parse_response(recv_buf.str, recv_buf.length + n_peek, &response_length);
                 if (status == SW_HTTP_PROXY_RESPONSE_ERROR) {
                     swoole_set_last_error(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
                     return SW_ERR;
@@ -805,9 +803,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         size_t response_length = 0;
         // Parse the consumed prefix with the queued bytes. Incomplete fragments are consumed so the next peek
         // advances, while bytes after a complete proxy header remain queued.
-        cli->buffer->length += n;
-        auto status = HttpProxy::parse_response(cli->buffer->str, cli->buffer->length, &response_length);
-        cli->buffer->length -= n;
+        auto status = HttpProxy::parse_response(cli->buffer->str, cli->buffer->length + n, &response_length);
         if (status == SW_HTTP_PROXY_RESPONSE_ERROR) {
             swoole_set_last_error(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
             return connect_fail();

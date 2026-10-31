@@ -129,9 +129,11 @@ static sw_inline void client_execute_callback(zval *zobject, AsyncClientCallback
 }
 
 static sw_inline void client_execute_callback_and_dtor(Client *cli, zval *zobject, AsyncClientCallbackType type) {
-    client_execute_callback(zobject, type);
-    php_swoole_client_free(zobject, cli);
-    zval_delref_p(zobject);
+    // Transfer the connection's reference out of AsyncClientObject before releasing its storage.
+    zval object = *zobject;
+    client_execute_callback(&object, type);
+    php_swoole_client_free(&object, cli);
+    zval_ptr_dtor(&object);
 }
 
 // clang-format off

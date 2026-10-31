@@ -286,9 +286,7 @@ bool Socket::http_proxy_handshake() {
         size_t response_length = 0;
         // Parse the consumed prefix with the queued bytes. Incomplete fragments are consumed so the next peek
         // advances, while bytes after a complete proxy header remain queued.
-        recv_buffer.length += n_peek;
-        auto status = HttpProxy::parse_response(recv_buffer.str, recv_buffer.length, &response_length);
-        recv_buffer.length -= n_peek;
+        auto status = HttpProxy::parse_response(recv_buffer.str, recv_buffer.length + n_peek, &response_length);
         if (status == SW_HTTP_PROXY_RESPONSE_ERROR) {
             set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, "invalid HTTP proxy response");
             return false;
