@@ -16,13 +16,13 @@ Assert::true($client->connect(TCP_SERVER_HOST, $port, 0.5));
 $peer = stream_socket_accept($server, 1);
 Assert::notSame($peer, false);
 
-// Keep this port bound but not listening so an unrelated connect reliably fails.
+// A bound, non-listening port fails with ECONNREFUSED or ETIMEDOUT depending on the platform.
 $refused = stream_socket_server('tcp://' . TCP_SERVER_HOST . ':0', $errno, $errstr, STREAM_SERVER_BIND);
 Assert::notSame($refused, false, "$errstr ($errno)");
 $refusedPort = (int) substr(strrchr(stream_socket_get_name($refused, false), ':'), 1);
 $failed = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SYNC);
 Assert::false(@$failed->connect(TCP_SERVER_HOST, $refusedPort, 0.5));
-Assert::same(swoole_last_error(), SOCKET_ECONNREFUSED);
+Assert::true(in_array(swoole_last_error(), [SOCKET_ECONNREFUSED, SOCKET_ETIMEDOUT], true));
 Assert::true($client->close());
 
 $reused = new Swoole\Client($type);
