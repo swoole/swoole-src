@@ -1,7 +1,10 @@
 --TEST--
 swoole_coroutine_system: waitPid for a child that exits before the event loop runs
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist(Swoole\Process::class);
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

@@ -27,27 +27,36 @@ $dsn = 'sqlite:' . $database;
 @unlink($database);
 @unlink($database . '-journal');
 
-run(function () use ($dsn) {
-    // Start the pool before SQLite setup so setup tasks cannot affect the saturation boundary.
+// Set up SQLite outside the coroutine so setup tasks cannot grow the AIO pool.
+$holder = new PDO($dsn, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$holder->exec('CREATE TABLE counter (value INTEGER NOT NULL)');
+$holder->exec('INSERT INTO counter VALUES (0)');
+
+$waiters = [];
+for ($i = 0; $i < 3; $i++) {
+    $waiters[$i] = new PDO($dsn, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $waiters[$i]->exec('PRAGMA busy_timeout = 5000');
+}
+
+$holder->exec('BEGIN IMMEDIATE');
+$holder->exec('UPDATE counter SET value = value + 1');
+
+run(function () use ($holder, $waiters) {
     System::readFile(__FILE__);
-    System::sleep(0.05);
-    $workerNum = Coroutine::stats()['aio_worker_num'];
-
-    $holder = new PDO($dsn, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-    $holder->exec('CREATE TABLE counter (value INTEGER NOT NULL)');
-    $holder->exec('INSERT INTO counter VALUES (0)');
-
-    $waiters = [];
-    for ($i = 0; $i < 3; $i++) {
-        $waiters[$i] = new PDO($dsn, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-        $waiters[$i]->exec('PRAGMA busy_timeout = 5000');
-    }
-
-    $holder->exec('BEGIN IMMEDIATE');
-    $holder->exec('UPDATE counter SET value = value + 1');
-
-    System::sleep(0.05);
-    Assert::same(Coroutine::stats()['aio_worker_num'], $workerNum);
+    $deadline = microtime(true) + 2;
+    do {
+        $stats = Coroutine::stats();
+        if ($stats['aio_task_num'] === 0 &&
+            $stats['aio_queue_size'] === 0 &&
+            $stats['aio_idle_worker_num'] === $stats['aio_worker_num']) {
+            break;
+        }
+        System::sleep(0.001);
+    } while (microtime(true) < $deadline);
+    Assert::same($stats['aio_task_num'], 0);
+    Assert::same($stats['aio_queue_size'], 0);
+    Assert::same($stats['aio_idle_worker_num'], $stats['aio_worker_num']);
+    $workerNum = $stats['aio_worker_num'];
     if ($workerNum >= 4) {
         throw new RuntimeException('AIO pool has no capacity for the regression test');
     }

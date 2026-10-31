@@ -4,7 +4,9 @@ swoole_client_sync: http client with http_proxy
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_no_http_proxy();
-skip_if_offline();
+if (!defined('HTTPBIN_LOCALLY')) {
+    skip_if_offline();
+}
 ?>
 --FILE--
 <?php
@@ -17,6 +19,6 @@ $cli->set([
     'http_proxy_host' => HTTP_PROXY_HOST,
     'http_proxy_port' => HTTP_PROXY_PORT
 ]);
-client_http_v10_get($cli);
+client_http_v10_get($cli, HTTPBIN_SERVER_HOST, HTTPBIN_SERVER_PORT);
 ?>
 --EXPECT--
