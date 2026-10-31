@@ -91,59 +91,36 @@ size_t HttpProxy::pack(const String *send_buffer, const std::string &host_name) 
     }
 }
 
-bool HttpProxy::handshake(const String *recv_buffer) {
-    bool ret = false;
-    char *buf = recv_buffer->str;
-    size_t len = recv_buffer->length;
-    int state = 0;
-    char *p = buf;
-    char *pe = buf + len;
-
-    if (recv_buffer->length < sizeof(SW_HTTP_PROXY_HANDSHAKE_RESPONSE) - 1) {
-        return false;
+swHttpProxyResponseStatus HttpProxy::parse_response(const char *buf, size_t len, size_t *response_length) {
+    if (len < sizeof("HTTP/1.x") - 1) {
+        return SW_HTTP_PROXY_RESPONSE_WAIT;
+    }
+    // Check the version first so a non-HTTP peer fails without waiting for a complete status line.
+    if (!SW_STR_ISTARTS_WITH(buf, len, "HTTP/1.1") && !SW_STR_ISTARTS_WITH(buf, len, "HTTP/1.0")) {
+        return SW_HTTP_PROXY_RESPONSE_ERROR;
     }
 
-    for (; p < buf + len; p++) {
-        if (state == 0) {
-            if (SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.1") || SW_STR_ISTARTS_WITH(p, pe - p, "HTTP/1.0")) {
-                state = 1;
-                p += sizeof("HTTP/1.x") - 1;
-            } else {
-                break;
-            }
-        } else if (state == 1) {
-            if (isspace(*p)) {
-                continue;
-            } else {
-                if (SW_STR_ISTARTS_WITH(p, pe - p, "200")) {
-                    state = 2;
-                    p += sizeof("200") - 1;
-                } else {
-                    swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
-                    break;
-                }
-            }
-        } else if (state == 2) {
-            ret = true;
-            break;
-            /**
-             * The response message is generally "Connection established,"
-             * although it is not specified in the RFC documents, and thus will not be checked for now.
-             */
-#if SW_HTTP_PROXY_CHECK_MESSAGE
-            if (isspace(*p)) {
-                continue;
-            } else {
-                if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection established")) {
-                    ret = true;
-                }
-                break;
-            }
-#endif
-        }
+    const char *status_line_end = swoole_strnstr(buf, len, SW_STRL("\r\n"));
+    if (!status_line_end) {
+        return SW_HTTP_PROXY_RESPONSE_WAIT;
     }
 
-    return ret;
+    const char *p = buf + sizeof("HTTP/1.x") - 1;
+    while (p < status_line_end && isspace(static_cast<unsigned char>(*p))) {
+        p++;
+    }
+    if (status_line_end - p < 3 || memcmp(p, "200", 3) != 0 ||
+        (status_line_end - p > 3 && !isspace(static_cast<unsigned char>(p[3])))) {
+        return SW_HTTP_PROXY_RESPONSE_ERROR;
+    }
+
+    const char *response_end = swoole_strnstr(buf, len, SW_STRL("\r\n\r\n"));
+    if (!response_end) {
+        return SW_HTTP_PROXY_RESPONSE_WAIT;
+    }
+
+    *response_length = response_end - buf + sizeof("\r\n\r\n") - 1;
+    return SW_HTTP_PROXY_RESPONSE_READY;
 }
 
 namespace http_server {
