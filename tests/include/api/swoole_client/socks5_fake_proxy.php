@@ -17,10 +17,10 @@ function socks5_read_exact($socket, int $length, string $description): string
 
 function socks5_write($socket, string $data): void
 {
-    Assert::same(fwrite($socket, $data), strlen($data));
+    @fwrite($socket, $data);
 }
 
-function socks5_run_proxy(ProcessManager $pm, int $port, bool $fragment = true): void
+function socks5_run_proxy(ProcessManager $pm, int $port, bool $fragment = true, bool $truncate = false): void
 {
     $server = stream_socket_server('tcp://' . TCP_SERVER_HOST . ":{$port}", $errno, $errstr);
     Assert::notSame($server, false, "{$errstr} ({$errno})");
@@ -46,7 +46,9 @@ function socks5_run_proxy(ProcessManager $pm, int $port, bool $fragment = true):
     Assert::same(unpack('n', socks5_read_exact($socket, 2, 'CONNECT target port'))[1], 80);
 
     $response = "\x05\x00\x00\x01\x7f\x00\x00\x01\x1f\x90";
-    if ($fragment) {
+    if ($truncate) {
+        socks5_write($socket, $response[0]);
+    } elseif ($fragment) {
         for ($i = 0; $i < strlen($response) - 1; $i++) {
             socks5_write($socket, $response[$i]);
             usleep(20000);
