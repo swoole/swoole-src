@@ -1,7 +1,10 @@
 --TEST--
 swoole_pdo_pgsql: connect timeout applies to each host
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_libpq_version_lower_than(14);
+?>
 --FILE--
 <?php
 
