@@ -8,11 +8,18 @@ class Socks5ProtocolTest : public testing::Test {
   protected:
     void SetUp() override {
         saved_error = swoole_get_last_error();
+        reset_proxy();
+    }
+
+    void reset_proxy() {
+        proxy = Socks5Proxy{};
         proxy.socket_type = SW_SOCK_TCP;
         proxy.target_host = "example.test";
         proxy.target_port = 443;
         proxy.dns_tunnel = true;
         proxy.state = SW_SOCKS5_STATE_HANDSHAKE;
+        sent.clear();
+        swoole_clear_last_error();
     }
 
     void TearDown() override {
@@ -65,6 +72,39 @@ TEST_F(Socks5ProtocolTest, username_password_authentication) {
     EXPECT_EQ(proxy.state, SW_SOCKS5_STATE_READY);
 }
 
+TEST_F(Socks5ProtocolTest, buffers_incomplete_replies_without_sending) {
+    struct Case {
+        uint8_t state;
+        std::string response;
+        size_t remaining;
+    };
+    const Case cases[] = {
+        {SW_SOCKS5_STATE_HANDSHAKE, "", 2},
+        {SW_SOCKS5_STATE_HANDSHAKE, std::string("\x05", 1), 1},
+        {SW_SOCKS5_STATE_AUTH, "", 2},
+        {SW_SOCKS5_STATE_AUTH, std::string("\x01", 1), 1},
+        {SW_SOCKS5_STATE_CONNECT, "", 4},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05", 1), 3},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x00", 2), 2},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x00\x00", 3), 1},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x00\x00\x01", 4), 6},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x00\x00\x03", 4), 1},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x00\x00\x03\x03", 5), 5},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x00\x00\x04", 4), 18},
+    };
+    for (const auto &item : cases) {
+        SCOPED_TRACE(item.state);
+        SCOPED_TRACE(testing::PrintToString(item.response));
+        reset_proxy();
+        proxy.state = item.state;
+        ASSERT_TRUE(reply(item.response));
+        EXPECT_EQ(proxy.get_recv_length(), item.remaining);
+        EXPECT_EQ(proxy.state, item.state);
+        EXPECT_ERREQ(0);
+        EXPECT_TRUE(sent.empty());
+    }
+}
+
 TEST_F(Socks5ProtocolTest, rejects_invalid_replies_without_sending) {
     struct Case {
         uint8_t state;
@@ -83,7 +123,7 @@ TEST_F(Socks5ProtocolTest, rejects_invalid_replies_without_sending) {
     };
     for (const auto &item : cases) {
         SCOPED_TRACE(testing::PrintToString(item.response));
-        proxy.response.clear();
+        reset_proxy();
         proxy.state = item.state;
         proxy.method = SW_SOCKS5_METHOD_NO_AUTH;
         EXPECT_FALSE(reply(item.response));
@@ -98,6 +138,7 @@ TEST_F(Socks5ProtocolTest, rejects_failed_or_partial_writes) {
         for (const bool partial : {false, true}) {
             SCOPED_TRACE(state);
             SCOPED_TRACE(partial);
+            reset_proxy();
             proxy.state = state;
             proxy.method = SW_SOCKS5_METHOD_AUTH;
             proxy.username = "user";
