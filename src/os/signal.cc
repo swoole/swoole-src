@@ -79,29 +79,30 @@ char *swoole_signal_to_str(int sig) {
     return buf;
 }
 
-void swoole_signal_block_all() {
+bool swoole_signal_block_all() {
     if (SwooleTG.signal_blocking_all) {
-        return;
+        return false;
     }
     sigset_t mask;
     sigfillset(&mask);
-    int ret = pthread_sigmask(SIG_BLOCK, &mask, nullptr);
-    if (ret < 0) {
+    int ret = pthread_sigmask(SIG_BLOCK, &mask, &SwooleTG.signal_previous_mask);
+    if (ret != 0) {
+        errno = ret;
         swoole_sys_warning("pthread_sigmask(SIG_BLOCK) failed");
-    } else {
-        SwooleTG.signal_blocking_all = true;
+        return false;
     }
+    SwooleTG.signal_blocking_all = true;
+    return true;
 }
 
 void swoole_signal_unblock_all() {
     if (!SwooleTG.signal_blocking_all) {
         return;
     }
-    sigset_t mask;
-    sigfillset(&mask);
-    int ret = pthread_sigmask(SIG_UNBLOCK, &mask, nullptr);
-    if (ret < 0) {
-        swoole_sys_warning("pthread_sigmask(SIG_UNBLOCK) failed");
+    int ret = pthread_sigmask(SIG_SETMASK, &SwooleTG.signal_previous_mask, nullptr);
+    if (ret != 0) {
+        errno = ret;
+        swoole_sys_warning("pthread_sigmask(SIG_SETMASK) failed");
     } else {
         SwooleTG.signal_blocking_all = false;
     }

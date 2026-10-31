@@ -66,6 +66,32 @@ TEST(os_signal, unblock) {
     ASSERT_EQ(exit_status.get_code(), 255);
 }
 
+TEST(os_signal, restore_previous_mask) {
+    ASSERT_EQ(swoole::test::spawn_exec_and_wait([]() {
+                  for (int signo : {SIGUSR1, SIGUSR2}) {
+                      sigset_t expected, actual;
+                      sigemptyset(&expected);
+                      sigaddset(&expected, signo);
+                      if (pthread_sigmask(SIG_SETMASK, &expected, nullptr) != 0) {
+                          _exit(1);
+                      }
+                      swoole_signal_block_all();
+                      swoole_signal_block_all();  // Must not overwrite the saved mask.
+                      swoole_signal_unblock_all();
+                      swoole_signal_unblock_all();  // Already restored.
+                      if (SwooleTG.signal_blocking_all || pthread_sigmask(SIG_BLOCK, nullptr, &actual) != 0) {
+                          _exit(2);
+                      }
+                      for (int signal = 1; signal < NSIG; signal++) {
+                          if (sigismember(&expected, signal) != sigismember(&actual, signal)) {
+                              _exit(3);
+                          }
+                      }
+                  }
+              }),
+              0);
+}
+
 TEST(os_signal, signal_to_str) {
     ASSERT_STREQ(swoole_signal_to_str(SIGTERM), "Terminated: 15");
     ASSERT_STREQ(swoole_signal_to_str(SIGIO), "I/O possible: 29");

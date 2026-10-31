@@ -532,6 +532,13 @@ void PHPCoroutine::interrupt_thread_start() {
     if (interrupt_thread_running.load(std::memory_order_acquire)) {
         return;
     }
+    const bool restore_signal_mask = swoole_signal_block_all();
+    ON_SCOPE_EXIT {
+        if (restore_signal_mask) {
+            swoole_signal_unblock_all();
+        }
+    };
+
     auto *running = &interrupt_thread_running;
     auto *vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running.store(true, std::memory_order_release);
