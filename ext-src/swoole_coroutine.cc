@@ -75,6 +75,7 @@ SW_THREAD_LOCAL std::atomic_bool PHPCoroutine::interrupt_thread_running{false};
 extern void php_swoole_load_library();
 
 static SW_THREAD_LOCAL unordered_map<long, Coroutine *> user_yield_coros;
+static SW_THREAD_LOCAL int default_error_reporting = E_ALL;
 static zend_function swoole_coroutine_internal_function;
 
 #if PHP_VERSION_ID < 80400
@@ -344,6 +345,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(current_execute_data) = call;
     memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
 
+    EG(error_reporting) = default_error_reporting;
     EG(error_handling) = EH_NORMAL;
     EG(exception_class) = nullptr;
     EG(exception) = nullptr;
@@ -413,6 +415,14 @@ void PHPCoroutine::activate() {
     if (sw_unlikely(activated)) {
         return;
     }
+
+    // The first activation may be silenced by @, so snapshot the configured level rather than EG(error_reporting).
+    if (!EG(error_reporting_ini_entry)) {
+        EG(error_reporting_ini_entry) =
+            static_cast<zend_ini_entry *>(zend_hash_find_ptr(EG(ini_directives), ZSTR_KNOWN(ZEND_STR_ERROR_REPORTING)));
+    }
+    const auto *ini_entry = EG(error_reporting_ini_entry);
+    default_error_reporting = ini_entry && ini_entry->value ? atoi(ZSTR_VAL(ini_entry->value)) : E_ALL;
 
     zval *enable_library = zend_get_constant_str(ZEND_STRL("SWOOLE_LIBRARY"));
     if (enable_library == nullptr || !zval_is_true(enable_library)) {

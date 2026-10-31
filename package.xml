@@ -1272,6 +1272,8 @@
             <file role="test" name="tests/swoole_coroutine/dnslookup_ipv6.phpt" />
             <file role="test" name="tests/swoole_coroutine/dnslookup_query_hosts.phpt" />
             <file role="test" name="tests/swoole_coroutine/empty.phpt" />
+            <file role="test" name="tests/swoole_coroutine/error_reporting_after_silenced_create.phpt" />
+            <file role="test" name="tests/swoole_coroutine/error_reporting_configuration.phpt" />
             <file role="test" name="tests/swoole_coroutine/eval.phpt" />
             <file role="test" name="tests/swoole_coroutine/exception.phpt" />
             <file role="test" name="tests/swoole_coroutine/exception/core_error.phpt" />
