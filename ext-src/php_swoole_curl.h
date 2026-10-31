@@ -90,6 +90,11 @@ class Multi {
     Coroutine *co = nullptr;
     int running_handles_ = 0;
     bool defer_callback = false;
+    /**
+     * When defer_callback is true, a deferred resume holding `this` is queued in the reactor.
+     * release() then only marks the object instead of deleting it, and the queued callback
+     * performs the deletion on entry.
+     */
     bool released = false;
     Selector selector;
     std::unordered_map<curl_socket_t, Socket *> sockets;
@@ -146,7 +151,17 @@ class Multi {
         curl_multi_cleanup(multi_handle_);
     }
 
+    /**
+     * Free the Multi object. If a deferred resume is still queued (defer_callback == true),
+     * only mark the object; the queued callback deletes it, so the callback never dereferences
+     * a freed pointer.
+     *
+     * Precondition: no coroutine may be suspended in select() on this object (co == nullptr).
+     * Otherwise the queued callback would skip the resume, leaving the coroutine suspended
+     * until its yield timeout wakes it up to touch freed memory.
+     */
     void release() {
+        assert(!co);
         if (defer_callback) {
             released = true;
         } else {

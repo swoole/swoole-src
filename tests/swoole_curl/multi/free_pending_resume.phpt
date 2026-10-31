@@ -10,6 +10,9 @@ USE_ZEND_ALLOC=0
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
+// USE_ZEND_ALLOC=0 above makes the freed Multi allocation reach malloc(3),
+// so a use-after-free crashes reliably instead of staying inside Zend MM.
+
 use Swoole\Coroutine;
 use Swoole\Event;
 use Swoole\Runtime;
@@ -47,6 +50,10 @@ Coroutine\run(static function () use ($server, $address): void {
         }
     } while (!str_contains($request, "\r\n\r\n"));
 
+    // Reactor end callbacks run timers before defer tasks, so blocking the reactor
+    // here guarantees that the 1ms select timeout has expired before the readable
+    // socket is observed. The socket event then queues a deferred resume for the
+    // still-suspended coroutine, and the timeout resumes it right afterwards.
     Event::defer(static function () use ($connection): void {
         fwrite($connection, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
         usleep(3000);
@@ -56,6 +63,8 @@ Coroutine\run(static function () use ($server, $address): void {
     curl_multi_remove_handle($multi, $handle);
     unset($multi);
 
+    // Reuse the freed Multi allocation so the pending deferred resume dereferences
+    // poisoned memory instead of stale-but-valid data on unfixed builds.
     $strings = [];
     for ($index = 0; $index < 64; ++$index) {
         $strings[] = str_repeat(chr(65 + $index % 26), 160 + $index);
