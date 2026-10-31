@@ -7,9 +7,7 @@
 <p align="center">An event-driven networking engine and coroutine runtime for PHP</p>
 
 <p align="center">
-  <a href="https://github.com/swoole/swoole-src/actions/workflows/ext.yml"><img src="https://github.com/swoole/swoole-src/actions/workflows/ext.yml/badge.svg" alt="Extension build"></a>
-  <a href="https://github.com/swoole/swoole-src/actions/workflows/core.yml"><img src="https://github.com/swoole/swoole-src/actions/workflows/core.yml/badge.svg" alt="Core tests"></a>
-  <a href="https://github.com/swoole/swoole-src/actions/workflows/unit.yml"><img src="https://github.com/swoole/swoole-src/actions/workflows/unit.yml/badge.svg" alt="PHP tests"></a>
+  <a href="https://github.com/swoole/swoole-src/actions/workflows/ci.yml?query=branch%3Amaster+event%3Apush"><img src="https://github.com/swoole/swoole-src/actions/workflows/ci.yml/badge.svg?branch=master&amp;event=push" alt="CI"></a>
   <a href="https://github.com/swoole/swoole-src/releases"><img src="https://img.shields.io/github/v/release/swoole/swoole-src" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/swoole/swoole-src" alt="License"></a>
 </p>
