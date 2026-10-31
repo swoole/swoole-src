@@ -227,9 +227,13 @@ bool Socket::socks5_handshake() {
 
     auto send_fn = [this](const char *buf, size_t len) { return send(buf, len); };
     char recv_buf[512];
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
+    if (!timer.start()) {
+        return false;
+    }
     ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
     while (true) {
-        const ssize_t n = recv(recv_buf, sizeof(recv_buf));
+        const ssize_t n = recv(recv_buf, ctx->get_recv_length());
         if (n > 0 && ctx->handshake(recv_buf, n, send_fn)) {
             if (ctx->state == SW_SOCKS5_STATE_READY) {
                 return true;
