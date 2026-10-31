@@ -147,7 +147,11 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         worker->type = SW_EVENT_WORKER;
         worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
+        auto reactor_thread = server_->get_thread(i);
+        server_->init_pipe_sockets(&reactor_thread->message_bus);
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
+        reactor_thread->clean();
+        reactor_thread->message_bus.release_pipe_sockets();
 
         at_thread_exit(worker);
     });
