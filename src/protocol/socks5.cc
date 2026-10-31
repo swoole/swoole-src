@@ -177,7 +177,7 @@ bool Socks5Proxy::handshake(const char *rbuf,
         response.clear();
         return send_connect_request();
     } else if (state == SW_SOCKS5_STATE_CONNECT) {
-        if (response.length() < 4) {
+        if (response.length() < 2) {
             return true;
         }
         const uchar resp_version = static_cast<uchar>(response[0]);
@@ -192,6 +192,9 @@ bool Socks5Proxy::handshake(const char *rbuf,
                              "Socks5 server error, reason :%s",
                              Socks5Proxy::strerror(resp_result));
             return false;
+        }
+        if (response.length() < 4) {
+            return true;
         }
         const uchar address_type = static_cast<uchar>(response[3]);
         if (address_type != 0x01 && address_type != 0x03 && address_type != 0x04) {
