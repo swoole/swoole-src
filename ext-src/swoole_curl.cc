@@ -43,7 +43,9 @@ void destroy_handle(CURL *cp) {
     if (!handle) {
         return;
     }
-    delete handle->easy_multi;
+    if (handle->easy_multi) {
+        handle->easy_multi->release();
+    }
     curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);
     delete handle;
@@ -464,6 +466,10 @@ long Multi::select(php_curlm *mh, double timeout) {
 void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {
     swoole_trace_log(
         SW_TRACE_CO_CURL, "curl_socket=%p, bitmask=%d, co=%p, sockfd=%d", curl_socket, bitmask, co, sockfd);
+    if (sw_unlikely(released)) {
+        // The queued deferred callback owns the object now; do not touch any state.
+        return;
+    }
     if (!curl_socket) {
         selector.timer_callback = true;
     }
@@ -485,6 +491,10 @@ void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {
     swoole_event_defer(
         [this](void *data) {
             defer_callback = false;
+            if (released) {
+                delete this;
+                return;
+            }
             if (co) {
                 co->resume();
             }
