@@ -25,7 +25,11 @@ $pm->parentFunc = function ($pid) use ($port) {
     });
 };
 $pm->childFunc = function () use ($pm, $port) {
-    socks5_run_proxy($pm, $port);
+    try {
+        socks5_run_proxy($pm, $port);
+    } catch (RuntimeException $exception) {
+        Assert::startsWith($exception->getMessage(), 'connection closed while waiting for CONNECT ');
+    }
 };
 $pm->childFirst();
 $pm->run();

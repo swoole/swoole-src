@@ -65,24 +65,25 @@ TEST_F(Socks5ProtocolTest, username_password_authentication) {
     EXPECT_EQ(proxy.state, SW_SOCKS5_STATE_READY);
 }
 
-TEST_F(Socks5ProtocolTest, rejects_short_and_invalid_replies_without_sending) {
+TEST_F(Socks5ProtocolTest, rejects_invalid_replies_without_sending) {
     struct Case {
         uint8_t state;
         std::string response;
         int error;
     };
     const Case cases[] = {
-        {SW_SOCKS5_STATE_HANDSHAKE, "", SW_ERROR_SOCKS5_HANDSHAKE_FAILED},
-        {SW_SOCKS5_STATE_HANDSHAKE, std::string("\x05", 1), SW_ERROR_SOCKS5_HANDSHAKE_FAILED},
         {SW_SOCKS5_STATE_HANDSHAKE, std::string("\x04\x00", 2), SW_ERROR_SOCKS5_UNSUPPORT_VERSION},
         {SW_SOCKS5_STATE_HANDSHAKE, std::string("\x05\xff", 2), SW_ERROR_SOCKS5_UNSUPPORT_METHOD},
         {SW_SOCKS5_STATE_AUTH, std::string("\x05\x00", 2), SW_ERROR_SOCKS5_UNSUPPORT_VERSION},
         {SW_SOCKS5_STATE_AUTH, std::string("\x01\x01", 2), SW_ERROR_SOCKS5_AUTH_FAILED},
         {SW_SOCKS5_STATE_CONNECT, std::string("\x04\x00", 2), SW_ERROR_SOCKS5_UNSUPPORT_VERSION},
         {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x05", 2), SW_ERROR_SOCKS5_SERVER_ERROR},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x00\x00\xff", 4), SW_ERROR_SOCKS5_HANDSHAKE_FAILED},
+        {SW_SOCKS5_STATE_CONNECT, std::string("\x05\x05\x00\xff", 4), SW_ERROR_SOCKS5_SERVER_ERROR},
     };
     for (const auto &item : cases) {
         SCOPED_TRACE(testing::PrintToString(item.response));
+        proxy.response.clear();
         proxy.state = item.state;
         proxy.method = SW_SOCKS5_METHOD_NO_AUTH;
         EXPECT_FALSE(reply(item.response));

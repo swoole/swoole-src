@@ -387,51 +387,6 @@ TEST(protocol, socks5_long_domain_response) {
     ASSERT_EQ(domain_proxy->state, SW_SOCKS5_STATE_READY);
 }
 
-TEST(protocol, socks5_response_errors) {
-    auto send_fn = [](const char *, size_t len) { return static_cast<ssize_t>(len); };
-
-    auto version_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
-    ASSERT_NE(version_proxy, nullptr);
-    version_proxy->state = SW_SOCKS5_STATE_CONNECT;
-    ASSERT_FALSE(version_proxy->handshake("\x04\x00\x00\x01", 4, send_fn));
-    ASSERT_ERREQ(SW_ERROR_SOCKS5_UNSUPPORT_VERSION);
-
-    auto server_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
-    ASSERT_NE(server_proxy, nullptr);
-    server_proxy->state = SW_SOCKS5_STATE_CONNECT;
-    ASSERT_FALSE(server_proxy->handshake("\x05\x05\x00\xff", 4, send_fn));
-    ASSERT_ERREQ(SW_ERROR_SOCKS5_SERVER_ERROR);
-
-    auto address_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
-    ASSERT_NE(address_proxy, nullptr);
-    address_proxy->state = SW_SOCKS5_STATE_CONNECT;
-    ASSERT_FALSE(address_proxy->handshake("\x05\x00\x00\xff", 4, send_fn));
-    ASSERT_ERREQ(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
-
-    auto method_proxy = std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "", ""));
-    ASSERT_NE(method_proxy, nullptr);
-    ASSERT_EQ(method_proxy->pack_negotiate_request(), 3);
-    method_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
-    ASSERT_FALSE(method_proxy->handshake("\x05\x02", 2, send_fn));
-    ASSERT_ERREQ(SW_ERROR_SOCKS5_UNSUPPORT_METHOD);
-
-    auto auth_version_proxy =
-        std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "username", "password"));
-    ASSERT_NE(auth_version_proxy, nullptr);
-    ASSERT_EQ(auth_version_proxy->pack_negotiate_request(), 3);
-    auth_version_proxy->state = SW_SOCKS5_STATE_AUTH;
-    ASSERT_FALSE(auth_version_proxy->handshake("\x02\x00", 2, send_fn));
-    ASSERT_ERREQ(SW_ERROR_SOCKS5_UNSUPPORT_VERSION);
-
-    auto auth_proxy =
-        std::unique_ptr<Socks5Proxy>(Socks5Proxy::create(SW_SOCK_TCP, "127.0.0.1", 1080, "username", "password"));
-    ASSERT_NE(auth_proxy, nullptr);
-    ASSERT_EQ(auth_proxy->pack_negotiate_request(), 3);
-    auth_proxy->state = SW_SOCKS5_STATE_AUTH;
-    ASSERT_FALSE(auth_proxy->handshake("\x01\x01", 2, send_fn));
-    ASSERT_ERREQ(SW_ERROR_SOCKS5_AUTH_FAILED);
-}
-
 TEST(protocol, swap_byte_order) {
     {
         EXPECT_EQ(swoole_swap_endian16(0x1234), 0x3412);
