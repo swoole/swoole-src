@@ -442,8 +442,25 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
                 return SW_ERR;
             }
             ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
+            const double read_timeout = cli->socket->read_timeout;
+            const double deadline = read_timeout > 0 ? microtime() + read_timeout : 0;
+            ON_SCOPE_EXIT {
+                cli->socket->read_timeout = read_timeout;
+            };
             while (true) {
+                if (read_timeout > 0) {
+                    const double remaining = deadline - microtime();
+                    if (remaining <= 0) {
+                        swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
+                        return SW_ERR;
+                    }
+                    cli->socket->read_timeout = remaining;
+                }
                 const ssize_t n = cli->recv(recv_buf->str, ctx->get_recv_length(), 0);
+                if (n == 0) {
+                    swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
+                    return SW_ERR;
+                }
                 if (n > 0 && cli->socks5_handshake(recv_buf->str, n)) {
                     if (cli->socks5_proxy->state == SW_SOCKS5_STATE_READY) {
                         break;
