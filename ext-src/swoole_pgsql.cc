@@ -46,6 +46,12 @@ static const char *swoole_pgsql_hostaddr(const PGconn *conn) {
 #endif
 }
 
+// PQport() may return nullptr before libpq 13 when the port is empty.
+static const char *swoole_pgsql_port(const PGconn *conn) {
+    const char *port = PQport(conn);
+    return port ? port : "";
+}
+
 static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_nonblock = false) {
     if (swoole_pgsql_blocking) {
         struct pollfd fds[1];
@@ -53,12 +59,8 @@ static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_no
         fds[0].events = translate_events_to_poll(event);
         fds[0].revents = 0;
 
-        int result = 0;
-        do {
-            result = poll(fds, 1, swoole_pgsql_poll_timeout * 1000);
-        } while (result < 0 && errno == EINTR);
-
-        return result;
+        int result = poll(fds, 1, swoole_pgsql_poll_timeout * 1000);
+        return result < 0 && errno == EINTR ? 0 : result;
     }
 
     Socket sock(PQsocket(conn), SW_SOCK_RAW);
@@ -145,17 +147,14 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
     }
     std::string host, address, port;
     int64_t start_msec = Timer::get_absolute_msec();
+    int r = PGRES_POLLING_WRITING;
 
     SW_LOOP {
-        int r = PQconnectPoll(conn);
-        if (r == PGRES_POLLING_OK || r == PGRES_POLLING_FAILED) {
-            break;
-        }
         // Like libpq, give each host address its own connect_timeout.
-        if (host != PQhost(conn) || address != swoole_pgsql_hostaddr(conn) || port != PQport(conn)) {
+        if (host != PQhost(conn) || address != swoole_pgsql_hostaddr(conn) || port != swoole_pgsql_port(conn)) {
             host = PQhost(conn);
             address = swoole_pgsql_hostaddr(conn);
-            port = PQport(conn);
+            port = swoole_pgsql_port(conn);
             start_msec = Timer::get_absolute_msec();
         }
         EventType event;
@@ -173,10 +172,19 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
             break;
         }
 
-        if (swoole_pgsql_socket_poll(conn, event) < 0) {
+        int poll_result = swoole_pgsql_socket_poll(conn, event);
+        if (poll_result < 0) {
             break;
         }
         if (timeout > 0 && (Timer::get_absolute_msec() - start_msec) / 1000 >= timeout) {
+            break;
+        }
+        // libpq sends its first packet from these states and assumes the socket is writable.
+        if (poll_result == 0 && (PQstatus(conn) == CONNECTION_STARTED || PQstatus(conn) == CONNECTION_MADE)) {
+            continue;
+        }
+        r = PQconnectPoll(conn);
+        if (r == PGRES_POLLING_OK || r == PGRES_POLLING_FAILED) {
             break;
         }
     }
