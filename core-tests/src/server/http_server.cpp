@@ -1067,8 +1067,10 @@ TEST(http_server, upload_preprocessed_file) {
     std::thread t;
     std::string probe_file = std::string(TEST_TMP_FILE) + ".upload_marker." + std::to_string(getpid());
     std::string upload_content(80 * 1024, 'A');
-    auto server = http_server::listen(
-        ":0", [&probe_file, &upload_content](Context &ctx) { check_single_upload(ctx, probe_file, upload_content); });
+    auto server = http_server::listen(":0", [&probe_file, &upload_content](Context &ctx) {
+        EXPECT_EQ(ctx.headers["X-Whitespace"], "alpha \t beta");
+        check_single_upload(ctx, probe_file, upload_content);
+    });
     server->worker_num = 1;
     server->get_primary_port()->set_package_max_length(64 * 1024);
     server->upload_max_filesize = 1024 * 1024;
@@ -1083,7 +1085,10 @@ TEST(http_server, upload_preprocessed_file) {
 
             std::string boundary = "------------------------d3f990cdce762596";
             std::string body = make_multipart_upload_body(boundary, upload_content, probe_file, false);
-            std::string request = make_multipart_upload_request(boundary, body);
+            std::string request = "POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n"
+                                  "Content-Type: multipart/form-data; boundary=" +
+                                  boundary + " \t\r\nX-Whitespace: \talpha \t beta \t \r\nContent-Length: " +
+                                  std::to_string(body.length()) + "\r\n\r\n" + body;
             SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, server->get_primary_port()->port);
             c.send(request.c_str(), request.length());
@@ -1983,6 +1988,13 @@ TEST(http_server, has_expect_header) {
                         "Content-Length: 1000000\r\n"
                         "Expect: 100-continue\r\n\r\n");
     ASSERT_TRUE(req.has_expect_header());
+
+    req.buffer_->clear();
+    req.buffer_->append("POST /submit HTTP/1.1\r\n"
+                        "Host: www.example.com\r\n"
+                        "Content-Length: 1000000\r\n"
+                        "Expect:\t100-continue\r\n\r\n");
+    ASSERT_TRUE(req.has_expect_header());
 }
 
 TEST(http_server, duplicate_content_type) {
@@ -2010,6 +2022,23 @@ TEST(http_server, duplicate_content_type) {
         delete request.buffer_;
         request.buffer_ = nullptr;
     } while (0);
+}
+
+TEST(http_server, header_value_whitespace) {
+    swoole::http_server::Request request;
+    request.buffer_ = new String("POST / HTTP/1.1\r\n"
+                                 "Host: localhost\r\n"
+                                 "Connection:\tkeep-alive\r\n"
+                                 "Content-Type:\tmultipart/form-data; boundary=test\r\n"
+                                 "\r\n");
+
+    ASSERT_EQ(request.get_protocol(), SW_OK);
+    ASSERT_EQ(request.get_header_length(), SW_OK);
+    request.parse_header_info();
+    EXPECT_TRUE(request.keep_alive);
+    EXPECT_NE(request.form_data_, nullptr);
+    delete request.buffer_;
+    request.buffer_ = nullptr;
 }
 
 TEST(http_server, invalid_multipart_boundary) {

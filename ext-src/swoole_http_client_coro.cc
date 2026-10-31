@@ -471,6 +471,7 @@ static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t 
 
 static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
+    length = swoole::rtrim(at, length);
     zval *zobject = static_cast<zval *>(http->zobject);
 
     const char *header_name = http->tmp_header_field_name;
