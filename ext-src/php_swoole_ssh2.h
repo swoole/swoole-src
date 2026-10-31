@@ -57,7 +57,6 @@ static inline int ssh2_async_call(LIBSSH2_SESSION *session,
                                   const std::function<int(void)> &fn,
                                   double timeout = 0,
                                   bool *timeout_event = nullptr) {
-    auto event = ssh2_get_event_type(session);
     auto socket = ssh2_get_socket(session);
 
     if (timeout_event) {
@@ -71,6 +70,7 @@ static inline int ssh2_async_call(LIBSSH2_SESSION *session,
     while (1) {
         rc = fn();
         if (rc == LIBSSH2_ERROR_EAGAIN) {
+            auto event = ssh2_get_event_type(session);
             if (!socket->poll(event, timeout)) {
                 if (timeout_event) {
                     *timeout_event = socket->errCode == ETIMEDOUT;
@@ -86,7 +86,6 @@ static inline int ssh2_async_call(LIBSSH2_SESSION *session,
 
 template <typename T>
 static inline T *ssh2_async_call_ex(LIBSSH2_SESSION *session, const std::function<T *(void)> &fn) {
-    auto event = ssh2_get_event_type(session);
     auto socket = ssh2_get_socket(session);
 
     socket->check_bound_co(SW_EVENT_READ);
@@ -98,10 +97,53 @@ static inline T *ssh2_async_call_ex(LIBSSH2_SESSION *session, const std::functio
         if (handle) {
             return handle;
         }
-        if (libssh2_session_last_errno(session) == LIBSSH2_ERROR_EAGAIN && socket->poll(event)) {
-            continue;
+        if (libssh2_session_last_errno(session) == LIBSSH2_ERROR_EAGAIN) {
+            auto event = ssh2_get_event_type(session);
+            if (socket->poll(event)) {
+                continue;
+            }
         }
         break;
     }
     return nullptr;
+}
+
+static inline int ssh2_release_call(LIBSSH2_SESSION *session, const std::function<int(void)> &fn, double timeout = 0) {
+    auto socket = ssh2_get_socket(session);
+
+    if (socket->has_bound()) {
+        return fn();
+    }
+    if (swoole_coroutine_is_in()) {
+        return ssh2_async_call(session, fn, timeout);
+    }
+    if (EG(flags) & EG_FLAGS_IN_SHUTDOWN) {
+        return fn();
+    }
+
+    double release_timeout = timeout > 0 ? timeout : socket->get_timeout(SW_TIMEOUT_READ);
+    if (release_timeout <= 0) {
+        release_timeout = SW_SOCKET_DEFAULT_READ_TIMEOUT;
+    }
+
+    double timeout_ms_value = release_timeout * 1000;
+    long timeout_ms = timeout_ms_value >= LONG_MAX ? LONG_MAX : static_cast<long>(timeout_ms_value);
+    if (timeout_ms == 0) {
+        timeout_ms = 1;
+    }
+
+    int blocking = libssh2_session_get_blocking(session);
+    long session_timeout = libssh2_session_get_timeout(session);
+
+    libssh2_session_set_timeout(session, timeout_ms);
+    libssh2_session_set_blocking(session, 1);
+    int rc = fn();
+    libssh2_session_set_blocking(session, blocking);
+    libssh2_session_set_timeout(session, session_timeout);
+
+    return rc;
+}
+
+static inline int ssh2_release_channel(LIBSSH2_SESSION *session, LIBSSH2_CHANNEL *channel, double timeout = 0) {
+    return ssh2_release_call(session, [&]() { return libssh2_channel_free(channel); }, timeout);
 }
