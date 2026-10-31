@@ -249,6 +249,14 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
         return -1;
     }
 
+    // Validate every signal before registering any of them.
+    for (auto &signo : signals) {
+        if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD) {
+            swoole_set_last_error(EINVAL);
+            return -1;
+        }
+    }
+
     auto callback_fn = [](int signo) {
         auto listener = listeners[signo];
         if (listener) {
@@ -258,19 +266,28 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
         }
     };
 
-    for (auto &signo : signals) {
-        if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD) {
-            swoole_set_last_error(EINVAL);
-            return -1;
+    struct PreviousSignal {
+        swoole::SignalHandler handler = nullptr;
+        bool registered = false;
+    };
+    PreviousSignal previous_signals[SW_SIGNO_MAX];
+    auto register_signal = [&callback_fn, &previous_signals](int signo) {
+        auto &previous = previous_signals[signo];
+        if (!previous.registered) {
+            previous.handler = swoole_signal_get_handler(signo);
+            previous.registered = true;
+            swoole_signal_set(signo, callback_fn);
         }
+    };
 
+    for (auto &signo : signals) {
         /* resgiter signal */
         listeners[signo] = &listener;
 
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, &callback_fn](void *) { swoole_signal_set(signo, callback_fn); }, nullptr);
+        swoole_event_defer([signo, register_signal](void *) { register_signal(signo); }, nullptr);
 #else
-        swoole_signal_set(signo, callback_fn);
+        register_signal(signo);
 #endif
     }
 
@@ -286,10 +303,16 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
     bool retval = listener.co->yield_ex(timeout);
 
     for (auto &signo : signals) {
+        auto &previous = previous_signals[signo];
+        if (!previous.registered) {
+            continue;
+        }
+        auto handler = previous.handler;
+        previous.registered = false;
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
+        swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler); }, nullptr);
 #else
-        swoole_signal_set(signo, nullptr);
+        swoole_signal_set(signo, handler);
 #endif
         listeners[signo] = nullptr;
     }
