@@ -1375,10 +1375,11 @@ void Server::store_pipe_fd(UnixSocket *p) {
 /**
  * @process Worker
  */
-bool Server::send(SessionId session_id, const void *data, uint32_t length) const {
+bool Server::send(SessionId session_id, const void *data, uint32_t length, uint16_t ext_flags) const {
     SendData _send{};
     _send.info.fd = session_id;
     _send.info.type = SW_SERVER_EVENT_SEND_DATA;
+    _send.info.ext_flags = ext_flags;
     _send.data = (char *) data;
     _send.info.len = length;
     if (factory_->finish(&_send)) {
@@ -1555,6 +1556,7 @@ int Server::send_to_connection(SendData *_send) const {
      * pause recv data
      */
     else if (_send->info.type == SW_SERVER_EVENT_PAUSE_RECV) {
+        conn->recv_paused = 1;
         if (_socket->removed || !(_socket->events & SW_EVENT_READ)) {
             return SW_OK;
         }
@@ -1568,6 +1570,11 @@ int Server::send_to_connection(SendData *_send) const {
      * resume recv data
      */
     else if (_send->info.type == SW_SERVER_EVENT_RESUME_RECV) {
+        conn->recv_paused = 0;
+        if (conn->http_request_waiting) {
+            resume_http_request(conn);
+            return SW_OK;
+        }
         if (!_socket->removed || (_socket->events & SW_EVENT_READ)) {
             return SW_OK;
         }
@@ -1597,7 +1604,7 @@ int Server::send_to_connection(SendData *_send) const {
             ssize_t n = _socket->send(_send_data, _send_length, 0);
             if (n == _send_length) {
                 conn->last_send_time = microtime();
-                return SW_OK;
+                goto _send_complete;
             } else if (n > 0) {
                 _send_data += n;
                 _send_length -= n;
@@ -1672,6 +1679,13 @@ int Server::send_to_connection(SendData *_send) const {
 
     if (!_socket->isset_writable_event()) {
         reactor->add_write_event(_socket);
+    }
+
+_send_complete:
+    if (sw_unlikely(conn->http_request_in_flight && _send->info.type != SW_SERVER_EVENT_CLOSE &&
+                    !(_send->info.ext_flags & SW_SERVER_SEND_MORE_DATA))) {
+        conn->http_request_in_flight = 0;
+        resume_http_request(conn);
     }
 
     return SW_OK;
