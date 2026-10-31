@@ -19,8 +19,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
     // handler in onManagerStart used to segfault the manager process, because
     // swoole_event_defer() dereferenced the null reactor.
     Assert::true(Process::kill($manager_pid, 0));
-    // The removed callback must not be invoked (SIGINT is ignored after unregistration).
-    Process::kill($manager_pid, SIGINT);
+    // SIGURG's default action is to ignore it; restoring that action must keep the manager alive.
+    Process::kill($manager_pid, SIGURG);
     usleep(100000);
     Assert::true(Process::kill($manager_pid, 0));
     Process::kill($manager_pid, SIGTERM);
@@ -35,10 +35,10 @@ $pm->childFunc = function () use ($pm) {
     ]);
     $serv->on('ManagerStart', function (Server $serv) use ($pm) {
         file_put_contents(PID_FILE, $serv->getManagerPid());
-        Process::signal(SIGINT, static function () {
-            echo "SIGINT triggered\n";
+        Process::signal(SIGURG, static function () {
+            echo "SIGURG triggered\n";
         });
-        Assert::true(Process::signal(SIGINT, null));
+        Assert::true(Process::signal(SIGURG, null));
         echo "signal unregistered\n";
         $pm->wakeup();
     });
