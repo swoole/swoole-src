@@ -831,7 +831,7 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     auto fn = [&]() -> ReturnCode {
         while (true) {
             if (worker->pipe_worker->wait_event(swoole_timer_get_next_msec(), SW_EVENT_READ) < 0) {
-                return errno == EINTR ? SW_CONTINUE : SW_ERROR;
+                return catch_system_error(errno);
             }
             auto rv = pool->message_bus->read(worker->pipe_worker);
             if (rv < 0) {
@@ -858,9 +858,8 @@ int ProcessPool::run_with_message_protocol(ProcessPool *pool, Worker *worker) {
     while (pool->is_worker_running(worker)) {
         switch (fn()) {
         case SW_CONTINUE:
-            worker_end_callback();
-            break;
         case SW_READY:
+            worker_end_callback();
             break;
         case SW_ERROR:
         default:

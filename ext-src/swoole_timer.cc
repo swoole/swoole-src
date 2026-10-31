@@ -161,7 +161,8 @@ static bool timer_if_use_reactor() {
     }
     auto process_pool = sw_process_pool();
     if (process_pool) {
-        return !process_pool->is_master();
+        // A synchronous worker loop dispatches timers itself and never runs a reactor.
+        return !process_pool->is_master() && (process_pool->async || !process_pool->main_loop);
     }
 #endif
     return true;
