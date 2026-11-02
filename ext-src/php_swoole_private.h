@@ -436,7 +436,6 @@ void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set);
 
 zend_bool php_swoole_signal_isset_handler(int signo);
 
-#define sw_zend7_object zend_object
 #define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
 
 typedef ssize_t php_stream_size_t;
@@ -828,7 +827,10 @@ static sw_inline void sw_zend_update_property_null_ex(zend_class_entry *scope, z
     zend_update_property_ex(scope, SW_Z8_OBJ_P(object), s, &tmp);
 }
 
-static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce, zval *zobject, zend_string *name, int silent) {
+static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce,
+                                                const zval *zobject,
+                                                zend_string *name,
+                                                int silent) {
     zval *zv = zend_hash_find(&ce->properties_info, name);
     auto *property_info = (zend_property_info *) Z_PTR_P(zv);
     zval *property = OBJ_PROP(SW_Z8_OBJ_P(zobject), property_info->offset);

@@ -48,8 +48,7 @@ struct PacketLength {
     uint32_t header_len;
 };
 
-struct WebSocketSettings {
-    std::string protocol;           // with `Sec-WebSocket-Protocol` HTTP Header
+struct WebSocketFrameSettings {
     bool in_server;                 // server or client
     bool mask = true;               // enable websocket mask
     bool open_ping_frame = false;   // handle websocket ping frame by user
@@ -61,6 +60,10 @@ struct WebSocketSettings {
      * (depending on whether the `Sec-Websocket-Extensions` header contains `permessage-deflate`)
      */
     bool compression = false;
+};
+
+struct WebSocketSettings : WebSocketFrameSettings {
+    std::string protocol;  // with `Sec-WebSocket-Protocol` HTTP Header
 };
 
 struct Protocol {

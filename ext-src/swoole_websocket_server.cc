@@ -248,8 +248,8 @@ void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, Htt
     if (cb) {
         zval args[3];
         args[0] = *php_swoole_server_zval_ptr(serv);
-        args[1] = *ctx->request.zobject;
-        args[2] = *ctx->response.zobject;
+        args[1] = ctx->request.zobject;
+        args[2] = ctx->response.zobject;
         if (UNEXPECTED(!zend::function::call(cb, 3, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(
                 E_WARNING, "%s->onBeforeHandshakeResponse handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
@@ -268,7 +268,7 @@ void swoole_websocket_onOpen(Server *serv, const HttpContext *ctx) {
     if (cb) {
         zval args[2];
         args[0] = *php_swoole_server_zval_ptr(serv);
-        args[1] = *ctx->request.zobject;
+        args[1] = ctx->request.zobject;
         if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
             serv->close(ctx->fd, false);
@@ -303,7 +303,7 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest) {
 
 bool swoole_websocket_handshake(HttpContext *ctx) {
     char sec_buf[128];
-    zval *header = ctx->request.zheader;
+    zval *header = &ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
     zval *zprotocol;

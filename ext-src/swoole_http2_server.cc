@@ -59,8 +59,8 @@ Http2Stream::~Stream() {
     if (receive_phase != ReceivePhase::COMPLETE) {
         // The receive path owns the PHP objects until the request is dispatched.
         ctx->end_ = true;
-        zval_ptr_dtor(ctx->request.zobject);
-        zval_ptr_dtor(ctx->response.zobject);
+        zval_ptr_dtor(&ctx->request.zobject);
+        zval_ptr_dtor(&ctx->response.zobject);
     }
     ctx->stream_id = 0;
     ctx->end_ = true;
@@ -121,7 +121,7 @@ std::shared_ptr<Http2Stream> Http2Session::create_stream(uint32_t stream_id) {
         return {};
     }
     auto ctx = stream->ctx;
-    zend::object_set(ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
+    zend::object_set(&ctx->request.zobject, ZEND_STRL("streamId"), stream_id);
     return stream;
 }
 
@@ -172,8 +172,8 @@ static ssize_t http2_server_deflate_header_block(const std::shared_ptr<Http2Sess
 }
 
 static ssize_t http2_server_build_trailer(const HttpContext *ctx, String *buffer) {
-    zval *ztrailer =
-        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    zval *ztrailer = sw_zend_read_property_ex(
+        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     uint32_t size = php_swoole_array_length_safe(ztrailer);
 
     if (size > 0) {
@@ -209,7 +209,7 @@ static ssize_t http2_server_build_trailer(const HttpContext *ctx, String *buffer
 
 #ifndef _WIN32
 static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
-    zval *zserver = ctx->request.zserver;
+    zval *zserver = &ctx->request.zserver;
     zval *zrequest_uri = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_uri"));
     if (zrequest_uri && Z_TYPE_P(zrequest_uri) == IS_STRING) {
         StaticHandler handler(serv, Z_STRVAL_P(zrequest_uri), Z_STRLEN_P(zrequest_uri));
@@ -246,7 +246,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         auto date_str = handler.get_date();
         auto date_str_last_modified = handler.get_date_last_modified();
 
-        zval *zheader = ctx->request.zheader;
+        zval *zheader = &ctx->request.zheader;
         ctx->set_header(ZEND_STRL("Last-Modified"), date_str_last_modified, false);
 
         zval *zdate_if_modified_since = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-modified-since"));
@@ -312,7 +312,7 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
     }
 
     do {
-        zval *zserver = ctx->request.zserver;
+        zval *zserver = &ctx->request.zserver;
         HashTable *ht = Z_ARR_P(zserver);
         swoole_http_server_populate_ip_and_port(serv, ht, conn, client->fd, ctx->keepalive);
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (zend_long) time(nullptr));
@@ -328,24 +328,24 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
         return;
     }
 
-    args[0] = *ctx->request.zobject;
-    args[1] = *ctx->response.zobject;
+    args[0] = ctx->request.zobject;
+    args[1] = ctx->response.zobject;
     if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
         stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
         php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
     }
 
 _destroy:
-    zval_ptr_dtor(ctx->request.zobject);
-    zval_ptr_dtor(ctx->response.zobject);
+    zval_ptr_dtor(&ctx->request.zobject);
+    zval_ptr_dtor(&ctx->response.zobject);
 }
 #endif
 
 static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const String *body) {
     zval *zheader =
-        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
+        sw_zend_read_property_ex(swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     zval *zcookie =
-        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
+        sw_zend_read_property_ex(swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     Http2::HeaderSet headers(32 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
     char intbuf[2][16];
 
@@ -492,7 +492,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const
         }
     } else if (body) {
         // HTTP/2 keeps the method in the request_method server var, not in llhttp's parser.
-        zval *zrequest_method = zend_hash_str_find(Z_ARR_P(ctx->request.zserver), ZEND_STRL("request_method"));
+        zval *zrequest_method = zend_hash_str_find(Z_ARR(ctx->request.zserver), ZEND_STRL("request_method"));
         bool is_head = zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING &&
                        SW_STRCASEEQ(Z_STRVAL_P(zrequest_method), Z_STRLEN_P(zrequest_method), "HEAD");
 
@@ -758,8 +758,8 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     auto client = http2_sessions[ctx->fd];
     auto stream = client->get_stream(ctx->stream_id);
 
-    zval *ztrailer =
-        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    zval *ztrailer = sw_zend_read_property_ex(
+        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     if (php_swoole_array_length_safe(ztrailer) == 0) {
         ztrailer = nullptr;
     }
@@ -825,13 +825,13 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     ctx->accept_compression = 0;
 #endif
     bool error = false;
-    zval *ztrailer =
-        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    zval *ztrailer = sw_zend_read_property_ex(
+        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     if (php_swoole_array_length_safe(ztrailer) == 0) {
         ztrailer = nullptr;
     }
-    zval *zheader =
-        sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
+    zval *zheader = sw_zend_read_and_convert_property_array(
+        swoole_http_response_ce, &ctx->response.zobject, ZEND_STRL("header"), 0);
     if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("content-type"))) {
         ctx->set_header(ZEND_STRL("content-type"), handler->get_content_type(), false);
     }
@@ -939,14 +939,14 @@ bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t of
         return false;
     }
 
-    zval *ztrailer =
-        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    zval *ztrailer = sw_zend_read_property_ex(
+        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     if (php_swoole_array_length_safe(ztrailer) == 0) {
         ztrailer = nullptr;
     }
 
-    zval *zheader =
-        sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
+    zval *zheader = sw_zend_read_and_convert_property_array(
+        swoole_http_response_ce, &ctx->response.zobject, ZEND_STRL("header"), 0);
     if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("content-type"))) {
         ctx->set_header(ZEND_STRL("content-type"), swoole::mime_type::get({ZSTR_VAL(file), ZSTR_LEN(file)}), false);
     }
@@ -1021,8 +1021,8 @@ static bool http2_server_onBeforeRequest(HttpContext *ctx) {
         String null_body{};
         ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
         http2_server_respond(ctx, &null_body);
-        zval_ptr_dtor(ctx->request.zobject);
-        zval_ptr_dtor(ctx->response.zobject);
+        zval_ptr_dtor(&ctx->request.zobject);
+        zval_ptr_dtor(&ctx->response.zobject);
         return false;
     }
     return swoole_http_server_onBeforeRequest(ctx);
@@ -1065,7 +1065,7 @@ static void http2_server_complete_request(const std::shared_ptr<Http2Session> &c
         auto buffer = ctx->get_http2_data_buffer();
         if (ctx->parse_body && ctx->request.post_form_urlencoded) {
             auto post_prop = swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post"));
+                swoole_http_request_ce, &ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post"));
             // treat_data takes ownership of the copied body.
             sapi_module.treat_data(PARSE_STRING, estrndup(buffer->str, buffer->length), post_prop);
         } else if (ctx->mt_parser != nullptr) {
@@ -1087,8 +1087,8 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
                                     const nghttp2_nv &nv,
                                     uint32_t max_headers) {
     auto ctx = stream->ctx;
-    zval *zheader = ctx->request.zheader;
-    zval *zserver = ctx->request.zserver;
+    zval *zheader = &ctx->request.zheader;
+    zval *zserver = &ctx->request.zserver;
     if (stream->header_error != SW_HTTP2_ERROR_NO_ERROR) {
         return SW_OK;
     }
@@ -1113,7 +1113,7 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
         }
         zval value;
         ZVAL_STRINGL(&value, (const char *) nv.value, nv.valuelen);
-        zend::array_add_or_merge(ctx->request.ztrailer, (const char *) nv.name, nv.namelen, &value);
+        zend::array_add_or_merge(&ctx->request.ztrailer, (const char *) nv.name, nv.namelen, &value);
         return SW_OK;
     }
 
@@ -1141,12 +1141,12 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
                     PARSE_STRING,
                     estrndup(v_str, v_len),  // it will be freed by treat_data
                     swoole_http_init_and_read_property(
-                        swoole_http_request_ce, ctx->request.zobject, &ctx->request.zget, ZEND_STRL("get")));
+                        swoole_http_request_ce, &ctx->request.zobject, &ctx->request.zget, ZEND_STRL("get")));
             } else {
                 zstr_path = zend_string_init((char *) nv.value, nv.valuelen, false);
             }
-            ctx->request.path = estrndup((char *) nv.value, nv.valuelen);
-            ctx->request.path_len = nv.valuelen;
+            ctx->request.path =
+                v_str ? zend_string_init((char *) nv.value, nv.valuelen, false) : zend_string_copy(zstr_path);
             add_assoc_str_ex(zserver, ZEND_STRL("request_uri"), zstr_path);
             // path_info should be decoded
             zstr_path = zend_string_dup(zstr_path, false);
@@ -1178,7 +1178,7 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
         } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "cookie")) {
             swoole_http_parse_cookie(
                 swoole_http_init_and_read_property(
-                    swoole_http_request_ce, ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie")),
+                    swoole_http_request_ce, &ctx->request.zobject, &ctx->request.zcookie, ZEND_STRL("cookie")),
                 (const char *) nv.value,
                 nv.valuelen);
             // RFC 9113 requires separate Cookie fields to be joined with "; " when forwarding them.
@@ -1373,7 +1373,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             } else if (stream->receive_phase == Http2Stream::ReceivePhase::BODY) {
                 stream->receive_phase = Http2Stream::ReceivePhase::TRAILERS;
                 swoole_http_init_and_read_property(swoole_http_request_ce,
-                                                   stream->ctx->request.zobject,
+                                                   &stream->ctx->request.zobject,
                                                    &stream->ctx->request.ztrailer,
                                                    SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER));
                 if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {

@@ -136,8 +136,10 @@ class HttpServer {
             if (handler.second == default_handler) {
                 continue;
             }
-            if (swoole_str_istarts_with(
-                    ctx->request.path, ctx->request.path_len, handler.first.c_str(), handler.first.length())) {
+            if (swoole_str_istarts_with(ZSTR_VAL(ctx->request.path),
+                                        ZSTR_LEN(ctx->request.path),
+                                        handler.first.c_str(),
+                                        handler.first.length())) {
                 return handler.second;
             }
         }
@@ -164,7 +166,7 @@ class HttpServer {
         swoole_llhttp_parser_init(parser, HTTP_REQUEST, (void *) ctx);
 
         zend_update_property_ex(
-            swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zconn);
+            swoole_http_response_ce, Z_OBJ(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zconn);
 
         return ctx;
     }
@@ -200,8 +202,8 @@ class HttpServer {
         swoole_http2_server_session_free(ctx->fd);
 
         ctx->detached = 1;
-        zval_dtor(ctx->request.zobject);
-        zval_dtor(ctx->response.zobject);
+        zval_dtor(&ctx->request.zobject);
+        zval_dtor(&ctx->response.zobject);
     }
 };
 };  // namespace coroutine
@@ -688,7 +690,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
             // This block runs once per request, so the interim response is not repeated while the body arrives.
             if (!ctx->completed && ctx->request.version == 101) {
-                zval *zexpect = zend_hash_str_find(Z_ARRVAL_P(ctx->request.zheader), ZEND_STRL("expect"));
+                zval *zexpect = zend_hash_str_find(Z_ARRVAL(ctx->request.zheader), ZEND_STRL("expect"));
                 if (zexpect && Z_TYPE_P(zexpect) == IS_STRING &&
                     SW_STRCASEEQ(Z_STRVAL_P(zexpect), Z_STRLEN_P(zexpect), "100-continue")) {
                     sock->send_all(SW_STRL(SW_HTTP_100_CONTINUE_PACKET));
@@ -739,7 +741,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
         }
 
-        zval *zserver = ctx->request.zserver;
+        zval *zserver = &ctx->request.zserver;
         HashTable *ht = Z_ARRVAL_P(zserver);
 
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), remote_addr.ptr());
@@ -763,7 +765,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
 
         zend::Callable *cb = hs->get_handler(ctx);
-        zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
+        zval args[2] = {ctx->request.zobject, ctx->response.zobject};
         bool keep_alive = !!llhttp_should_keep_alive(&ctx->parser) && !ctx->websocket;
         sock->get_socket()->recv_wait = 0;
 
@@ -792,8 +794,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     }
 
     if (ctx) {
-        zval_dtor(ctx->request.zobject);
-        zval_dtor(ctx->response.zobject);
+        zval_dtor(&ctx->request.zobject);
+        zval_dtor(&ctx->response.zobject);
     }
     zend_hash_index_del(Z_ARRVAL_P(&hs->zclients), co->get_cid());
 }
@@ -820,8 +822,8 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
                                    const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
-    zval *zserver_http2 = ctx->request.zserver;
-    zval *zserver_http1 = session->default_ctx->request.zserver;
+    zval *zserver_http2 = &ctx->request.zserver;
+    zval *zserver_http1 = &session->default_ctx->request.zserver;
 
     zend_string *key;
     zval *zvalue;
@@ -838,7 +840,7 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
 
     auto *hs = static_cast<HttpServer *>(session->private_data);
     zend::Callable *cb = hs->get_handler(ctx);
-    zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
+    zval args[2] = {ctx->request.zobject, ctx->response.zobject};
 
     if (cb) {
         if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, true))) {

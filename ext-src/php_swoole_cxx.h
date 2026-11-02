@@ -838,6 +838,7 @@ static inline void array_unset(zval *arg, const char *key, size_t l_key) {
  * If the key already exists, merge all into a two-dimensional array.
  */
 void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new_element);
+void array_add_or_merge(zval *zarray, zend_string *key, zval *new_element);
 
 static inline zend_long object_get_long(zval *obj, zend_string *key) {
     static zval rv;

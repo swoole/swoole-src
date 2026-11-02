@@ -191,7 +191,7 @@ class Client {
      * allowing access to the sent Request data even after the connection has been closed.
      */
     String *tmp_write_buffer = nullptr;
-    std::shared_ptr<String> continue_frame_buffer;
+    std::unique_ptr<String> continue_frame_buffer;
     bool connection_close = false;
     bool completed = false;
     bool event_stream = false;
