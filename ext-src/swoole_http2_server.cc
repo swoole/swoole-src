@@ -1082,6 +1082,28 @@ static void http2_server_complete_request(const std::shared_ptr<Http2Session> &c
     client->handle(client, stream);
 }
 
+static int http2_server_on_headers_complete(HttpContext *ctx) {
+    zval *content_type = zend_hash_find(Z_ARR(ctx->request.zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_TYPE));
+    if (!content_type) {
+        return SW_OK;
+    }
+    const char *value = Z_STRVAL_P(content_type);
+    size_t length = Z_STRLEN_P(content_type);
+    if (SW_STR_ISTARTS_WITH(value, length, "application/x-www-form-urlencoded")) {
+        ctx->request.post_form_urlencoded = 1;
+    } else if (SW_STR_ISTARTS_WITH(value, length, "multipart/form-data")) {
+        char *boundary;
+        int boundary_length;
+        if (!ctx->get_multipart_boundary(
+                value, length, sizeof("multipart/form-data") - 1, &boundary, &boundary_length) ||
+            !ctx->init_multipart_parser(boundary, boundary_length)) {
+            return SW_ERR;
+        }
+        ctx->parser.data = ctx;
+    }
+    return SW_OK;
+}
+
 static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
                                     const std::shared_ptr<Http2Stream> &stream,
                                     const nghttp2_nv &nv,
@@ -1157,24 +1179,11 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
         }
     } else {
         if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-type")) {
-            // A repeated Content-Type replaces the parser state derived from the previous value.
-            ctx->request.post_form_urlencoded = 0;
-            ctx->destroy_multipart_parser();
-            if (SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "application/x-www-form-urlencoded")) {
-                ctx->request.post_form_urlencoded = 1;
-            } else if (SW_STR_ISTARTS_WITH((char *) nv.value, nv.valuelen, "multipart/form-data")) {
-                size_t offset = sizeof("multipart/form-data") - 1;
-                char *boundary_str;
-                int boundary_len;
-                if (!ctx->get_multipart_boundary(
-                        (char *) nv.value, nv.valuelen, offset, &boundary_str, &boundary_len)) {
-                    return SW_ERR;
-                }
-                if (!ctx->init_multipart_parser(boundary_str, boundary_len)) {
-                    return SW_ERR;
-                }
-                ctx->parser.data = ctx;
-            }
+            // Only the last value configures body parsing, after the complete initial header block.
+            zval value;
+            ZVAL_STRINGL(&value, (const char *) nv.value, nv.valuelen);
+            zend_hash_update(Z_ARR_P(zheader), SW_ZSTR_KNOWN(SW_ZEND_STR_CONTENT_TYPE), &value);
+            return SW_OK;
         } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "cookie")) {
             swoole_http_parse_cookie(
                 swoole_http_init_and_read_property(
@@ -1415,7 +1424,13 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         client->continuation_stream_id = 0;
         if (stream->header_error != SW_HTTP2_ERROR_NO_ERROR) {
             http2_server_reject_request(client, stream, stream->header_error);
-        } else if (stream->header_end_stream) {
+            break;
+        }
+        if (stream->receive_phase == Http2Stream::ReceivePhase::HEADERS &&
+            http2_server_on_headers_complete(stream->ctx) < 0) {
+            return SW_ERR;
+        }
+        if (stream->header_end_stream) {
             http2_server_complete_request(client, stream);
         } else {
             stream->receive_phase = Http2Stream::ReceivePhase::BODY;
