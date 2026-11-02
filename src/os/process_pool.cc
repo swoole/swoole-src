@@ -106,7 +106,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
     ipc_mode = _ipc_mode;
     main_loop = run_with_task_protocol;
     protocol_type_ = SW_PROTOCOL_TASK;
-    max_packet_size_ = SW_INPUT_BUFFER_SIZE;
+    set_max_packet_size(SW_INPUT_BUFFER_SIZE);
     max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     SW_LOOP_N(_worker_num) {
@@ -592,7 +592,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
         if (n < 0) {
             goto _end;
         }
-        {
+        do {
             uint64_t packet_size = sizeof(out.buf.info) + (uint64_t) out.buf.info.len;
             if ((uint64_t) n != packet_size ||
                 ((out.buf.info.ext_flags & SW_TASK_TMPFILE) && out.buf.info.len != sizeof(PacketTask))) {
@@ -606,7 +606,7 @@ int ProcessPool::run_with_task_protocol(ProcessPool *pool, Worker *worker) {
                 swoole_warning(
                     "[Worker#%d] the execution of task#%ld has failed", worker->id, pool->get_task_id(&out.buf));
             }
-        }
+        } while (0);
         if (pool->use_socket && pool->stream_info_->last_connection) {
             int _end = 0;
             pool->stream_info_->last_connection->send_sync((void *) &_end, sizeof(_end));
@@ -675,9 +675,8 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
 
     QueueNode *outbuf = nullptr;
     if (pool->use_msgqueue) {
-        // MsgQueue::pop() does not truncate oversized messages. Receive the protocol maximum, including the message
-        // type prefix written by msgrcv(), then enforce max_packet_size_ after receipt.
-        pool->packet_buffer = new char[offsetof(QueueNode, mdata) + SW_MSGMAX];
+        // msgrcv() also writes the message type prefix before the payload.
+        pool->packet_buffer = new char[offsetof(QueueNode, mdata) + pool->max_packet_size_];
         outbuf = reinterpret_cast<QueueNode *>(pool->packet_buffer);
         outbuf->mtype = 0;
     } else {
@@ -693,7 +692,7 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
          * fetch task
          */
         if (pool->use_msgqueue) {
-            n = pool->queue->pop(outbuf, SW_MSGMAX);
+            n = pool->queue->pop(outbuf, pool->max_packet_size_);
             /**
              * A fatal error has occurred; the message queue is no longer available, and the loop must be exited.
              */
@@ -706,15 +705,6 @@ int ProcessPool::run_with_stream_protocol(ProcessPool *pool, Worker *worker) {
             }
             swoole_trace_log(SW_TRACE_WORKER, "pop from MsgQ#%d %lu bytes", pool->queue->get_id(), (ulong_t) n);
             outbuf->mtype = 0;
-            if ((size_t) n > pool->max_packet_size_) {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                                 "[Worker#%d] message is too large, length=%zd, max_package_size=%u",
-                                 worker->id,
-                                 n,
-                                 pool->max_packet_size_);
-                goto _end;
-            }
             msg.data = outbuf->mdata;
         } else if (pool->use_socket) {
             Socket *conn = pool->stream_info_->socket->accept();

@@ -340,35 +340,36 @@ TEST(process_pool, stream_protocol_small_packet) {
 }
 
 #ifdef HAVE_MSGQUEUE
-TEST(process_pool, stream_protocol_msgqueue_package_limit) {
-    constexpr size_t max_packet_size = 1024;
-    std::vector<char> oversized_message(offsetof(QueueNode, mdata) + max_packet_size + 1);
-    std::vector<char> valid_message(offsetof(QueueNode, mdata) + max_packet_size);
-    auto *oversized_node = reinterpret_cast<QueueNode *>(oversized_message.data());
-    auto *valid_node = reinterpret_cast<QueueNode *>(valid_message.data());
-    oversized_node->mtype = 1;
-    valid_node->mtype = 1;
+TEST(process_pool, stream_protocol_msgqueue_ignores_package_size) {
+    const std::vector<std::string> messages = {std::string(1025, 'a'), std::string(1024, 'b'), "x", ""};
+    for (uint32_t limit : {0u, 1u, 1024u, static_cast<uint32_t>(SW_MSGMAX + 1)}) {
+        SCOPED_TRACE(limit);
+        ProcessPool pool{};
+        ASSERT_EQ(pool.create(1, IPC_PRIVATE, SW_IPC_MSGQUEUE), SW_OK);
+        pool.set_max_packet_size(limit);
+        pool.set_protocol(SW_PROTOCOL_STREAM);
+        pool.get_worker(0)->init();
+        pool.running = true;
+        std::vector<std::string> received;
+        pool.ptr = &received;
+        pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
+            static_cast<std::vector<std::string> *>(pool->ptr)->emplace_back(rdata->data, rdata->info.len);
+            if (rdata->info.len == 0) {
+                pool->running = false;
+            }
+        };
 
-    ProcessPool pool{};
-    ASSERT_EQ(pool.create(1, IPC_PRIVATE, SW_IPC_MSGQUEUE), SW_OK);
-    pool.set_max_packet_size(max_packet_size);
-    pool.set_protocol(SW_PROTOCOL_STREAM);
-    pool.get_worker(0)->init();
-    pool.running = true;
-    size_t received = 0;
-    pool.ptr = &received;
-    pool.onMessage = [](ProcessPool *pool, RecvData *rdata) {
-        *static_cast<size_t *>(pool->ptr) = rdata->info.len;
-        pool->running = false;
-    };
+        QueueNode message{};
+        for (const auto &data : messages) {
+            message.mtype++;
+            memcpy(message.mdata, data.data(), data.length());
+            ASSERT_TRUE(pool.queue->push(&message, data.length()));
+        }
+        pool.main_loop(&pool, pool.get_worker(0));
 
-    ASSERT_TRUE(pool.queue->push(oversized_node, max_packet_size + 1));
-    ASSERT_TRUE(pool.queue->push(valid_node, max_packet_size));
-    pool.main_loop(&pool, pool.get_worker(0));
-
-    EXPECT_EQ(received, max_packet_size);
-    EXPECT_ERREQ(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
-    pool.destroy();
+        EXPECT_EQ(received, messages);
+        pool.destroy();
+    }
 }
 #endif
 
