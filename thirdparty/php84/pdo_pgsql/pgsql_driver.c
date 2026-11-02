@@ -78,6 +78,9 @@ int _pdo_pgsql_error(pdo_dbh_t *dbh,
     pdo_pgsql_db_handle *H = (pdo_pgsql_db_handle *) dbh->driver_data;
     pdo_error_type *pdo_err = stmt ? &stmt->error_code : &dbh->error_code;
     pdo_pgsql_error_info *einfo = &H->einfo;
+    if (php_swoole_pgsql_handle_io_error(dbh, &msg)) {
+        sqlstate = PHP_PDO_PGSQL_CONNECTION_FAILURE_SQLSTATE;
+    }
     char *errmsg = PQerrorMessage(H->server);
 
     einfo->errcode = errcode;
@@ -545,11 +548,7 @@ static int pdo_pgsql_get_attribute(pdo_dbh_t *dbh, zend_long attr, zval *return_
 
 /* {{{ */
 static zend_result pdo_pgsql_check_liveness(pdo_dbh_t *dbh) {
-    pdo_pgsql_db_handle *H = (pdo_pgsql_db_handle *) dbh->driver_data;
-    if (!PQconsumeInput(H->server) || PQstatus(H->server) == CONNECTION_BAD) {
-        PQreset(H->server);
-    }
-    return (PQstatus(H->server) == CONNECTION_OK) ? SUCCESS : FAILURE;
+    return php_swoole_pgsql_check_liveness(dbh);
 }
 /* }}} */
 

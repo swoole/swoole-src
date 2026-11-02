@@ -1,5 +1,5 @@
 --TEST--
-swoole_pdo_pgsql: cancel connect with an empty error message
+swoole_pdo_pgsql: cancel connect reports an error even when libpq has no message
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -19,7 +19,9 @@ run(static function (): void {
         try {
             new PDO("pgsql:host=127.0.0.1;port={$port};dbname=test", 'test', 'test');
         } catch (PDOException $e) {
-            var_dump($e->getMessage());
+            Assert::contains($e->getMessage(), 'SQLSTATE[08006]');
+            Assert::greaterThan(strlen($e->getMessage()), strlen('SQLSTATE[08006] [7] '));
+            echo "canceled\n";
         }
     });
     $client = stream_socket_accept($server, 1);
@@ -28,5 +30,5 @@ run(static function (): void {
 echo "DONE\n";
 ?>
 --EXPECT--
-string(20) "SQLSTATE[08006] [7] "
+canceled
 DONE
