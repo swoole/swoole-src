@@ -35,33 +35,48 @@ BEGIN_EXTERN_C()
 #include "thirdparty/php85/pdo_pgsql/php_pdo_pgsql_int.h"
 #endif
 
-
 extern const pdo_driver_t swoole_pdo_pgsql_driver;
 
 #include <libpq-fe.h>
 #include <libpq/libpq-fs.h>
 
 void swoole_pgsql_set_blocking(bool blocking);
+void swoole_pgsql_finish(PGconn *conn);
+bool php_swoole_pgsql_handle_io_error(pdo_dbh_t *dbh, const char **message);
+zend_result php_swoole_pgsql_check_liveness(pdo_dbh_t *dbh);
 
 PGconn *swoole_pgsql_connectdb(const char *conninfo);
-PGresult *swoole_pgsql_prepare(PGconn *conn, const char *stmt_name, const char *query, int n_params, const Oid *param_types);
-PGresult *swoole_pgsql_exec_prepared(PGconn *conn, const char *stmt_name, int n_params,
-    const char *const *param_values, const int *param_lengths, const int *param_formats, int result_format);
+PGresult *swoole_pgsql_prepare(
+    PGconn *conn, const char *stmt_name, const char *query, int n_params, const Oid *param_types);
+PGresult *swoole_pgsql_exec_prepared(PGconn *conn,
+                                     const char *stmt_name,
+                                     int n_params,
+                                     const char *const *param_values,
+                                     const int *param_lengths,
+                                     const int *param_formats,
+                                     int result_format);
 PGresult *swoole_pgsql_exec(PGconn *conn, const char *query);
-PGresult *swoole_pgsql_exec_params(PGconn *conn, const char *command, int n_params,
-    const Oid *param_types, const char *const *param_values, const int *param_lengths, const int *param_formats, int result_format);
+PGresult *swoole_pgsql_exec_params(PGconn *conn,
+                                   const char *command,
+                                   int n_params,
+                                   const Oid *param_types,
+                                   const char *const *param_values,
+                                   const int *param_lengths,
+                                   const int *param_formats,
+                                   int result_format);
 #ifdef HAVE_PQCLOSEPREPARED
-PGresult * swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName);
+PGresult *swoole_pgsql_close_prepared(PGconn *conn, const char *stmtName);
 #endif
 
 #ifdef SW_USE_PGSQL_HOOK
-#define PQconnectdb  swoole_pgsql_connectdb
-#define PQprepare  swoole_pgsql_prepare
-#define PQexecPrepared  swoole_pgsql_exec_prepared
-#define PQexec  swoole_pgsql_exec
-#define PQexecParams  swoole_pgsql_exec_params
+#define PQconnectdb swoole_pgsql_connectdb
+#define PQfinish swoole_pgsql_finish
+#define PQprepare swoole_pgsql_prepare
+#define PQexecPrepared swoole_pgsql_exec_prepared
+#define PQexec swoole_pgsql_exec
+#define PQexecParams swoole_pgsql_exec_params
 #ifdef HAVE_PQCLOSEPREPARED
-#define PQclosePrepared  swoole_pgsql_close_prepared
+#define PQclosePrepared swoole_pgsql_close_prepared
 #endif
 #endif
 
