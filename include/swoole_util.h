@@ -36,6 +36,11 @@
 
 namespace swoole {
 template <typename T>
+constexpr T clamp(T value, T lower, T upper) {
+    return (std::min) ((std::max) (value, lower), upper);
+}
+
+template <typename T>
 bool in_range(T value, std::initializer_list<T> allowed_values) {
     return std::find(allowed_values.begin(), allowed_values.end(), value) != allowed_values.end();
 }

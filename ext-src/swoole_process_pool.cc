@@ -19,6 +19,7 @@
 
 #include "swoole_server.h"
 #include "swoole_signal.h"
+#include "swoole_util.h"
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_process_pool_arginfo.h"
@@ -473,7 +474,7 @@ static PHP_METHOD(swoole_process_pool, set) try {
                 "max_package_size must be greater than or equal to 0, got " ZEND_LONG_FMT, v);
             RETURN_THROWS();
         } else {
-            pool->set_max_packet_size(SW_MIN(v, UINT32_MAX));
+            pool->set_max_packet_size(swoole::clamp<int64_t>(v, 1, UINT32_MAX));
         }
     }
     if (php_swoole_array_get_value(vht, "max_wait_time", ztmp)) {
