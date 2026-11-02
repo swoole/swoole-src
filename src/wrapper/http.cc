@@ -87,6 +87,7 @@ struct ContextImpl {
     String *form_data_buffer;
 
     bool completed = false;
+    bool upload_preprocessed = false;
     bool is_beginning = true;
 
     bool parse(Context &ctx, const char *at, size_t length) {
@@ -215,7 +216,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         } else {
             impl->current_input_name = filename->second;
         }
-    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE) && impl->upload_preprocessed) {
         /**
          * When the "SW_HTTP_UPLOAD_FILE" header appears in the request, it indicates that the uploaded file has been
          * saved in a temporary file. The binary content in the message body will be replaced with the temporary
@@ -379,6 +380,7 @@ std::shared_ptr<Server> listen(const std::string &addr, const std::function<void
             return SW_OK;
         }
         ContextImpl impl;
+        impl.upload_preprocessed = (req->info.ext_flags & SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED) != 0;
         Context ctx(server, session_id, &impl);
         if (impl.parse(ctx, req->data, req->info.len)) {
             http_server_on_request(ctx);
