@@ -1,5 +1,5 @@
 --TEST--
-swoole_pdo_pgsql: connect timeout applies to each host
+swoole_pdo_pgsql: connection timeout budget covers all configured hosts
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -12,6 +12,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Socket;
 
+Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_PDO_PGSQL);
 Co\run(static function (): void {
     $first = new Socket(AF_INET, SOCK_STREAM, 0);
     Assert::true($first->bind('127.0.0.1'));

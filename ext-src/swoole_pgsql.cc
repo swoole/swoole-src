@@ -21,6 +21,8 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
+#include <algorithm>
+
 #ifdef SW_USE_PGSQL
 
 using swoole::Coroutine;
@@ -37,20 +39,6 @@ static bool swoole_pgsql_blocking = true;
  * and let the libpq underlying code determine whether the connection is ready or if an error has occurred.
  */
 static const double swoole_pgsql_poll_timeout = 0.1;
-
-static const char *swoole_pgsql_hostaddr(const PGconn *conn) {
-#ifdef HAVE_PQHOSTADDR
-    return PQhostaddr(conn);
-#else
-    return "";
-#endif
-}
-
-// PQport() may return nullptr before libpq 13 when the port is empty.
-static const char *swoole_pgsql_port(const PGconn *conn) {
-    const char *port = PQport(conn);
-    return port ? port : "";
-}
 
 static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_nonblock = false) {
     if (swoole_pgsql_blocking) {
@@ -133,11 +121,19 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
 
     // PQconnectPoll() ignores connect_timeout, so the caller has to enforce it.
     long timeout = 0;
+    size_t host_count = 1;
+    size_t address_count = 0;
     PQconninfoOption *options = PQconninfo(conn);
     for (PQconninfoOption *option = options; option && option->keyword; option++) {
-        if (strcmp(option->keyword, "connect_timeout") == 0 && option->val) {
+        if (!option->val || option->val[0] == '\0') {
+            continue;
+        }
+        if (strcmp(option->keyword, "connect_timeout") == 0) {
             timeout = strtol(option->val, nullptr, 10);
-            break;
+        } else if (strcmp(option->keyword, "host") == 0) {
+            host_count = std::count(option->val, option->val + strlen(option->val), ',') + 1;
+        } else if (strcmp(option->keyword, "hostaddr") == 0) {
+            address_count = std::count(option->val, option->val + strlen(option->val), ',') + 1;
         }
     }
     PQconninfoFree(options);
@@ -145,18 +141,13 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
     if (timeout == 1 && PQlibVersion() < 170000) {
         timeout = 2;
     }
-    std::string host, address, port;
-    int64_t start_msec = Timer::get_absolute_msec();
+    // The public polling API cannot skip an expired target. Give the complete configured list its combined budget
+    // instead, allowing libpq to perform failover without depending on private target indexes or address APIs.
+    const size_t target_count = address_count ? address_count : host_count;
+    const int64_t start_msec = Timer::get_absolute_msec();
     int r = PGRES_POLLING_WRITING;
 
     SW_LOOP {
-        // Like libpq, give each host address its own connect_timeout.
-        if (host != PQhost(conn) || address != swoole_pgsql_hostaddr(conn) || port != swoole_pgsql_port(conn)) {
-            host = PQhost(conn);
-            address = swoole_pgsql_hostaddr(conn);
-            port = swoole_pgsql_port(conn);
-            start_msec = Timer::get_absolute_msec();
-        }
         EventType event;
 
         switch (r) {
@@ -176,7 +167,9 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         if (poll_result < 0) {
             break;
         }
-        if (timeout > 0 && (Timer::get_absolute_msec() - start_msec) / 1000 >= timeout) {
+        // Divide the elapsed time to avoid overflowing when multiplying a user-supplied timeout by the target count.
+        const uint64_t elapsed_sec = (Timer::get_absolute_msec() - start_msec) / 1000;
+        if (timeout > 0 && elapsed_sec / target_count >= static_cast<uint64_t>(timeout)) {
             break;
         }
         // libpq sends its first packet from these states and assumes the socket is writable.

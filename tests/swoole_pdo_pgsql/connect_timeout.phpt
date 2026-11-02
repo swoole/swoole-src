@@ -23,6 +23,7 @@ $connect = static function () use ($port): void {
 };
 
 $connect();
+Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_PDO_PGSQL);
 Co\run($connect);
 ?>
 --EXPECT--

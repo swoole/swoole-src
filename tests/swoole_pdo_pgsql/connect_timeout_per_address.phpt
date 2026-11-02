@@ -1,11 +1,9 @@
 --TEST--
-swoole_pdo_pgsql: connect timeout applies to each host address
+swoole_pdo_pgsql: connection timeout budget covers all configured addresses
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_libpq_version_lower_than(14);
-$config = @file_get_contents(__DIR__ . '/../../config.h');
-skip('PQhostaddr is not available', !$config || !preg_match('/^#define HAVE_PQHOSTADDR 1$/m', $config));
 ?>
 --FILE--
 <?php
@@ -25,6 +23,7 @@ $pm->parentFunc = static function () use ($pm): void {
     };
 
     $connect();
+    Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_PDO_PGSQL);
     Co\run($connect);
 };
 

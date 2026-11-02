@@ -33,6 +33,7 @@ $pm->parentFunc = static function () use ($pm): void {
     };
 
     $connect();
+    Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_PDO_PGSQL);
     Co\run($connect);
 };
 

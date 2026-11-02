@@ -64,6 +64,7 @@ $connect = static function (bool $hooked): void {
     };
 
     if ($hooked) {
+        Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_PDO_PGSQL);
         Co\run($run);
     } else {
         $run();
