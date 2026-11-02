@@ -119,6 +119,8 @@ struct Request {
     zval _zserver;
     zval *zheader;
     zval _zheader;
+    zval *ztrailer;
+    zval _ztrailer;
     zval *zget;
     zval _zget;
     zval *zpost;
@@ -335,6 +337,8 @@ class Cookie {
 namespace http2 {
 class Stream {
   public:
+    enum class ReceivePhase : uint8_t { HEADERS, BODY, TRAILERS, COMPLETE };
+
     http::Context *ctx;
     // uint8_t priority; // useless now
     uint32_t id;
@@ -342,6 +346,10 @@ class Stream {
     uint32_t remote_window_size;
     uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
+    ReceivePhase receive_phase = ReceivePhase::HEADERS;
+    uint32_t header_count = 0;
+    uint32_t header_error = SW_HTTP2_ERROR_NO_ERROR;
+    bool header_end_stream = false;
 
     Stream(const Session *client, uint32_t _id);
     ~Stream();
@@ -375,6 +383,7 @@ class Session {
 
     uint32_t max_body_size;
     uint32_t last_stream_id;
+    uint32_t continuation_stream_id = 0;
     bool shutting_down;
     bool is_coro;
 

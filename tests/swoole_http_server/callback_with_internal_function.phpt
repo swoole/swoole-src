@@ -45,6 +45,8 @@ object(Swoole\Http\Request)#%d (%d) {
     ["accept-encoding"]=>
     string(%d) "%s"
   }
+  ["trailer"]=>
+  NULL
   ["server"]=>
   array(11) {
     ["request_method"]=>
