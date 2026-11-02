@@ -402,7 +402,7 @@ static sw_inline zval *swoole_http_init_and_read_property(
     if (UNEXPECTED(Z_ISUNDEF_P(zproperty_store))) {
         zval *zv = zend_hash_find(&ce->properties_info, name);
         auto *property_info = (zend_property_info *) Z_PTR_P(zv);
-        zval *property = OBJ_PROP(SW_Z8_OBJ_P(zobject), property_info->offset);
+        zval *property = OBJ_PROP(Z_OBJ_P(zobject), property_info->offset);
         array_init_size(property, size);
         ZVAL_COPY_VALUE(zproperty_store, property);
     }
@@ -413,7 +413,7 @@ static sw_inline zval *swoole_http_init_and_read_property(
     zend_class_entry *ce, const zval *zobject, zval *zproperty_store, const char *name, size_t name_len) {
     if (UNEXPECTED(Z_ISUNDEF_P(zproperty_store))) {
         // Notice: swoole http server properties can not be unset anymore, so we can read it without checking
-        zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(zobject), name, name_len, false, &rv);
+        zval rv, *property = zend_read_property(ce, Z_OBJ_P(zobject), name, name_len, false, &rv);
         array_init(property);
         ZVAL_COPY_VALUE(zproperty_store, property);
     }

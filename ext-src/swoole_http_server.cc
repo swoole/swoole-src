@@ -120,8 +120,8 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         ctx->close(ctx);
         if (ctx->parser.error != HPE_OK) {
             swoole_warning("Invalid HTTP request discarded: %ld bytes unprocessed. Reason: %s",
-                          Z_STRLEN_P(zdata) - parsed_n,
-                          llhttp_get_error_reason(&ctx->parser));
+                           Z_STRLEN_P(zdata) - parsed_n,
+                           llhttp_get_error_reason(&ctx->parser));
         } else {
             swoole_warning("Incomplete HTTP request: parsed successfully but missing required components");
         }
@@ -223,8 +223,8 @@ HttpContext *swoole_http_context_new(SessionId fd) {
     ZVAL_OBJ(zresponse_object, swoole_http_response_ce->create_object(swoole_http_response_ce));
     php_swoole_http_response_set_context(zresponse_object, ctx);
 
-    http_server_set_object_fd_property(SW_Z8_OBJ_P(zrequest_object), swoole_http_request_ce, fd);
-    http_server_set_object_fd_property(SW_Z8_OBJ_P(zresponse_object), swoole_http_response_ce, fd);
+    http_server_set_object_fd_property(Z_OBJ_P(zrequest_object), swoole_http_request_ce, fd);
+    http_server_set_object_fd_property(Z_OBJ_P(zresponse_object), swoole_http_response_ce, fd);
 
     swoole_http_init_and_read_property(swoole_http_request_ce,
                                        zrequest_object,

@@ -665,7 +665,7 @@ static PHP_METHOD(swoole_server_port, on) {
 
         std::string property_name = std::string("on") + i.second.name;
         zend_update_property(
-            swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
+            swoole_server_port_ce, Z_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
 
         if (property->callbacks[index]) {
             sw_callable_free(property->callbacks[index]);
@@ -705,12 +705,9 @@ static PHP_METHOD(swoole_server_port, getCallback) {
     auto i = server_port_event_map.find(_event_name_tolower.to_std_string());
     if (i != server_port_event_map.end()) {
         std::string property_name = "on" + i->second.name;
-        zval rv, *property = zend_read_property(swoole_server_port_ce,
-                                                SW_Z8_OBJ_P(ZEND_THIS),
-                                                property_name.c_str(),
-                                                property_name.length(),
-                                                true,
-                                                &rv);
+        zval rv,
+            *property = zend_read_property(
+                swoole_server_port_ce, Z_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), true, &rv);
         if (!ZVAL_IS_NULL(property)) {
             RETURN_ZVAL(property, 1, 0);
         }

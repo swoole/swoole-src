@@ -270,8 +270,8 @@ static HashTable *http_server_coro_get_gc(zend_object *object, zval **table, int
 }
 
 static void http_server_coro_set_error(const zval *zobject, const SocketImpl *sock) {
-    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
-    zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
+    zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
+    zend_update_property_string(swoole_http_server_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
 }
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
@@ -365,8 +365,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         RETURN_FALSE;
     }
 
-    zend_update_property_stringl(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, l_host);
-    zend_update_property_bool(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
+    zend_update_property_stringl(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, l_host);
+    zend_update_property_bool(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
 
     // check host
     if (l_host == 0) {
@@ -401,8 +401,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         RETURN_FALSE;
     }
 
-    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->get_fd());
-    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_port());
+    zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->get_fd());
+    zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_port());
 }
 
 static PHP_METHOD(swoole_http_server_coro, handle) {
@@ -457,9 +457,9 @@ static PHP_METHOD(swoole_http_server_coro, start) try {
     zval *zsettings =
         sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
     if (!php_swoole_socket_set_protocol(hs->socket, zsettings)) {
-        zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
+        zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
         zend_update_property_string(
-            swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), swoole_strerror(EINVAL));
+            swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), swoole_strerror(EINVAL));
         hs->running = false;
         php_swoole_throw_setting_exception("failed to apply HTTP server protocol settings");
         RETURN_THROWS();
@@ -636,7 +636,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     int server_port = hs->socket->get_port();
 
     while (true) {
-    _recv_request : {
+    _recv_request: {
         sock->get_socket()->recv_wait = 1;
         ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0)) {

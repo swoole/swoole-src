@@ -129,8 +129,8 @@ static void client_coro_socket_dtor(ClientCoroObject *client) {
         client->socket->protocol.private_data_1 = nullptr;
     }
     client->socket = nullptr;
-    zend_update_property_null(Z_OBJCE_P(&client->zobject), SW_Z8_OBJ_P(&client->zobject), ZEND_STRL("socket"));
-    zend_update_property_bool(Z_OBJCE_P(&client->zobject), SW_Z8_OBJ_P(&client->zobject), ZEND_STRL("connected"), 0);
+    zend_update_property_null(Z_OBJCE_P(&client->zobject), Z_OBJ_P(&client->zobject), ZEND_STRL("socket"));
+    zend_update_property_bool(Z_OBJCE_P(&client->zobject), Z_OBJ_P(&client->zobject), ZEND_STRL("connected"), 0);
     zval_ptr_dtor(&client->zsocket);
     ZVAL_NULL(&client->zsocket);
 }
@@ -148,8 +148,8 @@ static SocketImpl *client_coro_create_socket(zval *zobject, zend_long type) {
 
     socket->set_dtor([client](CoSocket *_socket) { client_coro_socket_dtor(client); });
 
-    zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("fd"), socket->get_fd());
-    zend_update_property(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"), &client->zsocket);
+    zend_update_property_long(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("fd"), socket->get_fd());
+    zend_update_property(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("socket"), &client->zsocket);
 
     socket->set_buffer_allocator(sw_zend_string_allocator());
     socket->set_zero_copy(true);
@@ -233,7 +233,7 @@ static PHP_METHOD(swoole_client_coro, __construct) {
         RETURN_FALSE;
     }
     php_swoole_check_reactor();
-    zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("type"), type);
+    zend_update_property_long(swoole_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("type"), type);
     RETURN_TRUE;
 }
 
@@ -288,7 +288,7 @@ static PHP_METHOD(swoole_client_coro, connect) {
         RETURN_FALSE;
     }
     socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
-    zend_update_property_bool(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 1);
+    zend_update_property_bool(swoole_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 1);
     RETURN_TRUE;
 }
 
@@ -434,9 +434,9 @@ static PHP_METHOD(swoole_client_coro, sendfile) {
     // only stream socket can sendfile
     if (!(cli->get_type() == SW_SOCK_TCP || cli->get_type() == SW_SOCK_TCP6 ||
           cli->get_type() == SW_SOCK_UNIX_STREAM)) {
-        zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
+        zend_update_property_long(swoole_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
         zend_update_property_string(
-            swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), "dgram socket cannot use sendfile");
+            swoole_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), "dgram socket cannot use sendfile");
         RETURN_FALSE;
     }
     if (!cli->sendfile(file, offset, length)) {
@@ -576,7 +576,7 @@ static PHP_METHOD(swoole_client_coro, getpeername) {
 
 static PHP_METHOD(swoole_client_coro, close) {
     CLIENT_CORO_GET_SOCKET_SAFE(_socket);
-    zend_update_property_bool(Z_OBJCE_P(ZEND_THIS), SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 0);
+    zend_update_property_bool(Z_OBJCE_P(ZEND_THIS), Z_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 0);
     if (!_socket->close()) {
         php_swoole_socket_set_error_properties(ZEND_THIS, _socket);
         RETURN_FALSE;

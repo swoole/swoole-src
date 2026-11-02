@@ -179,10 +179,10 @@ static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     current_pool = pool;
     current_worker = worker;
 
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), true);
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerRunning"), true);
-    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerPid"), getpid());
-    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerId"), worker->id);
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("running"), true);
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("workerRunning"), true);
+    zend_update_property_long(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("workerPid"), getpid());
+    zend_update_property_long(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("workerId"), worker->id);
 
     swoole_set_worker_type(SW_WORKER);
     SwooleG.enable_coroutine = pp->enable_coroutine;
@@ -242,8 +242,8 @@ static void process_pool_onWorkerStop(ProcessPool *pool, Worker *worker) {
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[2];
 
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), false);
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("running"), false);
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
 
     if (pp->onWorkerStop == nullptr) {
         return;
@@ -262,8 +262,8 @@ static void process_pool_onWorkerExit(ProcessPool *pool, Worker *worker) {
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[2];
 
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), false);
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("running"), false);
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
 
     if (pp->onWorkerExit == nullptr) {
         return;
@@ -282,8 +282,8 @@ static void process_pool_onStart(ProcessPool *pool) {
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[1];
 
-    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), true);
+    zend_update_property_long(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("running"), true);
 
     swoole_set_worker_type(SW_MASTER);
     SwooleG.enable_coroutine = false;
@@ -303,8 +303,8 @@ static void process_pool_onShutdown(ProcessPool *pool) {
     ProcessPoolObject *pp = process_pool_fetch_object(zobject);
     zval args[1];
 
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("running"), false);
-    zend_update_property_bool(swoole_process_pool_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("running"), false);
+    zend_update_property_bool(swoole_process_pool_ce, Z_OBJ_P(zobject), ZEND_STRL("workerRunning"), false);
 
     if (pp->onShutdown == nullptr) {
         return;
@@ -766,8 +766,8 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         *worker = current_pool->workers[worker_id];
 
         object_init_ex(zprocess, swoole_process_ce);
-        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), worker->id);
-        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pid"), worker->pid);
+        zend_update_property_long(swoole_process_ce, Z_OBJ_P(zprocess), ZEND_STRL("id"), worker->id);
+        zend_update_property_long(swoole_process_ce, Z_OBJ_P(zprocess), ZEND_STRL("pid"), worker->pid);
 #ifndef _WIN32
         if (current_pool->ipc_mode == SW_IPC_UNIXSOCK) {
             // current process
@@ -782,7 +782,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
             worker->pipe_object = nullptr;
             worker->shared = true;
             zend_update_property_long(
-                swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pipe"), worker->pipe_current->fd);
+                swoole_process_ce, Z_OBJ_P(zprocess), ZEND_STRL("pipe"), worker->pipe_current->fd);
         }
 #endif
         /**
@@ -807,7 +807,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         auto _worker = php_swoole_process_get_worker(zprocess);
         if (_worker->pid != current_pool->workers[worker_id].pid) {
             _worker->pid = current_pool->workers[worker_id].pid;
-            zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pid"), _worker->pid);
+            zend_update_property_long(swoole_process_ce, Z_OBJ_P(zprocess), ZEND_STRL("pid"), _worker->pid);
         }
     }
 

@@ -533,8 +533,7 @@ bool HttpContext::compress(const char *data, size_t length) {
     // gzip: 0x1f
     else if (compression_method == HTTP_COMPRESS_GZIP) {
         encoding = 0x1f;
-    }
-    else if (compression_method == HTTP_COMPRESS_DEFLATE) {
+    } else if (compression_method == HTTP_COMPRESS_DEFLATE) {
         encoding = SW_ZLIB_ENCODING_DEFLATE;
     }
 #endif
@@ -607,7 +606,7 @@ bool HttpContext::compress(const char *data, size_t length) {
         compression_level = Z_BEST_COMPRESSION;
     }
 
-    size_t memory_size = ((size_t)((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
+    size_t memory_size = ((size_t) ((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
     zlib_buffer = std::make_shared<String>(memory_size);
 
     z_stream zstream = {};
@@ -1579,7 +1578,7 @@ static PHP_METHOD(swoole_http_response, create) {
             }
         } else
 #endif
-        if (sw_zval_is_co_socket(zobject)) {
+            if (sw_zval_is_co_socket(zobject)) {
             zsocket = zobject;
             fd = php_swoole_get_socket(zobject)->get_fd();
         } else {
@@ -1600,8 +1599,9 @@ static PHP_METHOD(swoole_http_response, create) {
         } else {
             ctx = php_swoole_http_request_get_context(zrequest);
             if (ctx == nullptr) {
-                zend_throw_exception_ex(
-                    swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "parameter $1.second has no valid Http\\Request context");
+                zend_throw_exception_ex(swoole_exception_ce,
+                                        SW_ERROR_INVALID_PARAMS,
+                                        "parameter $1.second has no valid Http\\Request context");
                 RETURN_FALSE;
             }
             goto _type_detect;
@@ -1635,8 +1635,9 @@ static PHP_METHOD(swoole_http_response, create) {
             swoole_llhttp_parser_init(&ctx->parser, HTTP_REQUEST, (void *) ctx);
         } else {
             delete ctx;
-            zend_throw_exception_ex(
-                swoole_exception_ce, SW_ERROR_INVALID_PARAMS, "failed to create Http\\Response from the given arguments");
+            zend_throw_exception_ex(swoole_exception_ce,
+                                    SW_ERROR_INVALID_PARAMS,
+                                    "failed to create Http\\Response from the given arguments");
             RETURN_FALSE;
         }
     } else {
@@ -1657,7 +1658,7 @@ static PHP_METHOD(swoole_http_response, create) {
     php_swoole_http_response_set_context(return_value, ctx);
     ctx->fd = fd;
     ZVAL_COPY_VALUE(&ctx->response.zobject, return_value);
-    zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_response_ce, Z_OBJ_P(return_value), ZEND_STRL("fd"), fd);
     if (ctx->is_co_socket()) {
         zend_update_property_ex(
             swoole_http_response_ce, Z_OBJ(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zobject);

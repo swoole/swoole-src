@@ -68,7 +68,7 @@ BEGIN_EXTERN_C()
     if (___tmp_return_value == 0) {                                                                                    \
         RETURN_TRUE;                                                                                                   \
     } else {                                                                                                           \
-        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value);              \
+        zend_update_property_long(NULL, Z_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value);                  \
         RETURN_FALSE;                                                                                                  \
     }
 
@@ -435,8 +435,6 @@ void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set);
 #endif
 
 zend_bool php_swoole_signal_isset_handler(int signo);
-
-#define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
 
 typedef ssize_t php_stream_size_t;
 typedef zend_string error_filename_t;
@@ -812,10 +810,10 @@ static sw_inline void sw_zend_class_unset_property_deny(zend_object *object, zen
 }
 
 static sw_inline zval *sw_zend_read_property(zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
-    zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
+    zval rv, *property = zend_read_property(ce, Z_OBJ_P(obj), s, len, silent, &rv);
     if (UNEXPECTED(property == &EG(uninitialized_zval))) {
-        zend_update_property_null(ce, SW_Z8_OBJ_P(obj), s, len);
-        return zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
+        zend_update_property_null(ce, Z_OBJ_P(obj), s, len);
+        return zend_read_property(ce, Z_OBJ_P(obj), s, len, silent, &rv);
     }
     return property;
 }
@@ -824,7 +822,7 @@ static sw_inline void sw_zend_update_property_null_ex(zend_class_entry *scope, z
     zval tmp;
 
     ZVAL_NULL(&tmp);
-    zend_update_property_ex(scope, SW_Z8_OBJ_P(object), s, &tmp);
+    zend_update_property_ex(scope, Z_OBJ_P(object), s, &tmp);
 }
 
 static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce,
@@ -833,7 +831,7 @@ static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce,
                                                 int silent) {
     zval *zv = zend_hash_find(&ce->properties_info, name);
     auto *property_info = (zend_property_info *) Z_PTR_P(zv);
-    zval *property = OBJ_PROP(SW_Z8_OBJ_P(zobject), property_info->offset);
+    zval *property = OBJ_PROP(Z_OBJ_P(zobject), property_info->offset);
     if (UNEXPECTED(property == &EG(uninitialized_zval))) {
         ZVAL_NULL(property);
     }
@@ -842,13 +840,13 @@ static sw_inline zval *sw_zend_read_property_ex(zend_class_entry *ce,
 
 static sw_inline zval *sw_zend_read_property_not_null(
     zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
-    zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
+    zval rv, *property = zend_read_property(ce, Z_OBJ_P(obj), s, len, silent, &rv);
     zend_uchar type = Z_TYPE_P(property);
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? nullptr : property;
 }
 
 static sw_inline zval *sw_zend_read_property_not_null_ex(zend_class_entry *ce, zval *obj, zend_string *s, int silent) {
-    zval rv, *property = zend_read_property_ex(ce, SW_Z8_OBJ_P(obj), s, silent, &rv);
+    zval rv, *property = zend_read_property_ex(ce, Z_OBJ_P(obj), s, silent, &rv);
     zend_uchar type = Z_TYPE_P(property);
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? nullptr : property;
 }
@@ -859,14 +857,14 @@ static sw_inline zval *sw_zend_update_and_read_property_array(zend_class_entry *
                                                               size_t len) {
     zval ztmp;
     array_init(&ztmp);
-    zend_update_property(ce, SW_Z8_OBJ_P(obj), s, len, &ztmp);
+    zend_update_property(ce, Z_OBJ_P(obj), s, len, &ztmp);
     zval_ptr_dtor(&ztmp);
-    return zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, true, &ztmp);
+    return zend_read_property(ce, Z_OBJ_P(obj), s, len, true, &ztmp);
 }
 
 static sw_inline zval *sw_zend_read_and_convert_property_array(
     zend_class_entry *ce, zval *obj, const char *s, size_t len, int silent) {
-    zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(obj), s, len, silent, &rv);
+    zval rv, *property = zend_read_property(ce, Z_OBJ_P(obj), s, len, silent, &rv);
     if (Z_TYPE_P(property) != IS_ARRAY) {
         // NOTICE: if user unset the property, zend_read_property will return uninitialized_zval instead of NULL pointer
         if (UNEXPECTED(property == &EG(uninitialized_zval))) {
@@ -896,13 +894,13 @@ static sw_inline zval *sw_zend_read_and_convert_property_array(
  * Notice (sw_zend_call_method_with_%u_params): If you don't want to check the return value, please set retval to NULL
  */
 #define sw_zend_call_method_with_0_params(zobj, obj_ce, fn_ptr_ptr, fn_name, retval)                                   \
-    zend_call_method_with_0_params(SW_Z8_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval)
+    zend_call_method_with_0_params(Z_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval)
 
 #define sw_zend_call_method_with_1_params(zobj, obj_ce, fn_ptr_ptr, fn_name, retval, v1)                               \
-    zend_call_method_with_1_params(SW_Z8_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval, v1)
+    zend_call_method_with_1_params(Z_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval, v1)
 
 #define sw_zend_call_method_with_2_params(zobj, obj_ce, fn_ptr_ptr, fn_name, retval, v1, v2)                           \
-    zend_call_method_with_2_params(SW_Z8_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval, v1, v2)
+    zend_call_method_with_2_params(Z_OBJ_P(zobj), obj_ce, fn_ptr_ptr, fn_name, retval, v1, v2)
 
 static sw_inline int sw_zend_function_max_num_args(zend_function *function) {
     // https://github.com/php/php-src/commit/2646f7bcb98dcdd322ea21701c8bb101104ea619

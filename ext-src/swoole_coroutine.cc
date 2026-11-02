@@ -237,9 +237,9 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
         }
         zend_object *obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
         ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
-        zend_update_property(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), exit_status);
+        zend_update_property(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("status"), exit_status);
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
@@ -273,11 +273,11 @@ PHP_FUNCTION(swoole_exit) {
         zend_object *obj =
             zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
         ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         if (message) {
-            zend_update_property_str(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), message);
+            zend_update_property_str(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("status"), message);
         } else {
-            zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
+            zend_update_property_long(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("status"), status);
         }
     } else {
         if (!php_swoole_call_original_handler(ZEND_STRL("exit"), INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
@@ -1208,11 +1208,14 @@ static PHP_METHOD(swoole_coroutine, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), sw_async_threads()->get_task_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), sw_async_threads()->get_worker_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_idle_worker_num"), sw_async_threads()->get_idle_worker_num());
-        add_assoc_long_ex(
-            return_value, ZEND_STRL("aio_pending_release_worker_num"), sw_async_threads()->get_pending_release_worker_num());
+        add_assoc_long_ex(return_value,
+                          ZEND_STRL("aio_pending_release_worker_num"),
+                          sw_async_threads()->get_pending_release_worker_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_peak_worker_num"), sw_async_threads()->get_peak_worker_num());
-        add_assoc_long_ex(return_value, ZEND_STRL("aio_created_worker_num"), sw_async_threads()->get_created_worker_num());
-        add_assoc_long_ex(return_value, ZEND_STRL("aio_released_worker_num"), sw_async_threads()->get_released_worker_num());
+        add_assoc_long_ex(
+            return_value, ZEND_STRL("aio_created_worker_num"), sw_async_threads()->get_created_worker_num());
+        add_assoc_long_ex(
+            return_value, ZEND_STRL("aio_released_worker_num"), sw_async_threads()->get_released_worker_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_up_count"), sw_async_threads()->get_scale_up_count());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_down_count"), sw_async_threads()->get_scale_down_count());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_queue_size"), sw_async_threads()->get_queue_size());
@@ -1244,9 +1247,8 @@ static PHP_METHOD(swoole_coroutine, stats) {
 #endif
 #ifdef _WIN32
     add_assoc_long_ex(return_value, ZEND_STRL("iocp_task_num"), SwooleTG.iocp ? SwooleTG.iocp->get_task_num() : 0);
-    add_assoc_long_ex(return_value,
-                      ZEND_STRL("iocp_blocking_task_num"),
-                      SwooleTG.iocp ? SwooleTG.iocp->get_blocking_task_num() : 0);
+    add_assoc_long_ex(
+        return_value, ZEND_STRL("iocp_blocking_task_num"), SwooleTG.iocp ? SwooleTG.iocp->get_blocking_task_num() : 0);
 #endif
 }
 

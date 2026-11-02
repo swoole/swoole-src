@@ -352,10 +352,9 @@ static PHP_METHOD(swoole_table, create) {
         php_swoole_fatal_error(E_ERROR, "unable to allocate memory");
         RETURN_FALSE;
     }
+    zend_update_property_long(swoole_table_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("size"), (zend_long) table->get_size());
     zend_update_property_long(
-        swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("size"), (zend_long) table->get_size());
-    zend_update_property_long(
-        swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), (zend_long) table->get_memory_size());
+        swoole_table_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), (zend_long) table->get_memory_size());
     RETURN_TRUE;
 }
 
