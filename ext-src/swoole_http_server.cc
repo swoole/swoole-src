@@ -80,6 +80,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
+    ctx->upload_preprocessed = (req->info.ext_flags & swoole::http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED) != 0;
     ctx->onBeforeRequest = swoole_http_server_onBeforeRequest;
 
     zval *zdata = &ctx->request.zdata;
@@ -220,6 +221,8 @@ void php_swoole_http_server_rshutdown() {
 
 HttpContext *swoole_http_context_new(SessionId fd) {
     auto *ctx = new HttpContext();
+    // Only the reactor-to-worker dispatch may set this flag; every other entry point parses client input.
+    ctx->upload_preprocessed = 0;
 
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;

@@ -502,6 +502,7 @@ _recv_data:
     buffer->length += n;
 
 _parse:
+    dispatch_data.info.ext_flags = 0;
     if (request->method == 0 && request->get_protocol() < 0) {
         if (!request->excepted && buffer->length < SW_HTTP_HEADER_MAX_SIZE) {
             return SW_OK;
@@ -574,7 +575,12 @@ _parse:
             if (serv->upload_max_filesize > 0 &&
                 request->header_length_ + request->content_length_ > request->max_length_) {
                 const bool send_continue = buffer->length == request->header_length_ && request->has_expect_header();
-                request->init_multipart_parser(serv);
+                if (!request->init_multipart_parser(serv)) {
+                    delete request->form_data_;
+                    request->form_data_ = nullptr;
+                    goto _bad_request;
+                }
+                request->upload_preprocessed = 1;
                 if (send_continue) {
                     _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
                 }
@@ -713,6 +719,7 @@ _parse:
     buffer->offset = request_length;
     dispatch_data.data = buffer->str;
     dispatch_data.info.len = request_length;
+    dispatch_data.info.ext_flags = request->upload_preprocessed ? http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED : 0;
 
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
         goto _close_fd;

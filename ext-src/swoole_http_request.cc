@@ -213,7 +213,13 @@ static void http_request_free_object(zend_object *object) {
     auto *ctx = request->ctx;
 
     if (ctx) {
-        zval *ztmpfiles = ctx->request.ztmpfiles;
+        zval *ztmpfiles = nullptr;
+        if (ctx->request.ztmpfiles) {
+            // User code may have replaced the array, invalidating the cached property value.
+            ztmpfiles = sw_zend_read_property_ex(
+                swoole_http_request_ce, ctx->request.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TMPFILES), 1);
+            ZVAL_DEREF(ztmpfiles);
+        }
         if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles)) {
             zval *z_file_path;
             SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmpfiles), z_file_path) {
@@ -683,7 +689,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             ctx->tmp_content_type = at;
             ctx->tmp_content_type_len = length;
         }
-    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE)) {
+    } else if (SW_STRCASEEQ(header_name, header_len, SW_HTTP_UPLOAD_FILE) && ctx->upload_preprocessed) {
         /**
          * When the "SW_HTTP_UPLOAD_FILE" header appears in the request, it indicates that the uploaded file has been
          * saved in a temporary file. The binary content in the message body will be replaced with the temporary
@@ -1046,6 +1052,8 @@ static PHP_METHOD(swoole_http_request, create) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     auto *ctx = new HttpContext();
+    // Manually created requests parse client input, so no upload path is trusted here.
+    ctx->upload_preprocessed = 0;
     ctx->request.parser_state = new swoole::http::RequestParserState();
     object_init_ex(return_value, swoole_http_request_ce);
     zval *zrequest_object = &ctx->request._zobject;

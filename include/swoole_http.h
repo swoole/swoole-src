@@ -113,6 +113,11 @@ namespace swoole {
 class Server;
 namespace http_server {
 //-----------------------------------------------------------------
+// Internal request provenance, carried only by reactor-to-worker dispatch.
+enum HttpExtFlags {
+    SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED = 1u << 0,
+};
+
 enum ChunkState {
     CHUNK_STATE_SIZE,
     CHUNK_STATE_DATA,
@@ -148,6 +153,7 @@ struct Request {
     uchar header_parsed : 1;
     uchar tried_to_dispatch : 1;
     uchar multipart_header_parsed : 1;
+    uchar upload_preprocessed : 1;
 
     uchar known_length : 1;
     uchar keep_alive : 1;
