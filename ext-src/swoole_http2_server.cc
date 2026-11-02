@@ -608,9 +608,10 @@ bool Http2Stream::send_body(
 
     int flags = end_stream ? SW_HTTP2_FLAG_END_STREAM : SW_HTTP2_FLAG_NONE;
     String *http_buffer = ctx->get_write_buffer();
-    auto max_frame_size = session->remote_settings.max_frame_size;
 
     while (l > 0) {
+        // The peer may update its frame limit while a flow-control wait yields.
+        auto max_frame_size = session->remote_settings.max_frame_size;
         size_t send_n;
         int _send_flags;
         if (l > max_frame_size) {
