@@ -50,7 +50,13 @@ function http2_test_read_frame($client)
     ];
 }
 
-function http2_test_open_request(int $port, string $path)
+function http2_test_request_headers(int $streamId, string $path): string
+{
+    $headers = "\x82\x86\x04" . chr(strlen($path)) . $path . "\x01\x09localhost";
+    return http2_test_frame(1, 5, $streamId, $headers);
+}
+
+function http2_test_open_request(int $port, string $path, int $windowSize = 1)
 {
     $client = stream_socket_client("tcp://127.0.0.1:{$port}", $errno, $errstr, 2);
     if ($client === false) {
@@ -58,11 +64,10 @@ function http2_test_open_request(int $port, string $path)
     }
     stream_set_timeout($client, 2);
 
-    $settings = http2_test_frame(4, 0, 0, pack('nN', 4, 1));
-    $headers = "\x82\x86\x04" . chr(strlen($path)) . $path . "\x01\x09localhost";
+    $settings = http2_test_frame(4, 0, 0, pack('nN', 4, $windowSize));
     $request = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
         . $settings
-        . http2_test_frame(1, 5, 1, $headers);
+        . http2_test_request_headers(1, $path);
     Assert::same(fwrite($client, $request), strlen($request));
     return $client;
 }
