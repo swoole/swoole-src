@@ -97,6 +97,9 @@ bool Http2Session::remove_stream(uint32_t stream_id) {
 
     auto stream = iter->second;
     streams.erase(iter);
+    if (stream->waiting_coroutine) {
+        stream->waiting_coroutine->resume();
+    }
     return true;
 }
 
@@ -553,8 +556,20 @@ bool Http2Stream::send_end_stream_data_frame() const {
     return ctx->send(ctx, frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
 }
 
+static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &session, Http2Stream *stream) {
+    if (session->get_stream(stream->id).get() == stream) {
+        return true;
+    }
+    stream->ctx->end_ = 1;
+    return false;
+}
+
 bool Http2Stream::send_body(
     const String *body, bool end_stream, const std::shared_ptr<Http2Session> &session, off_t offset, size_t length) {
+    if (!http2_server_check_stream(session, this)) {
+        return false;
+    }
+
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
     size_t l = length == 0 ? body->length : length;
@@ -582,9 +597,15 @@ bool Http2Stream::send_body(
                 swoole_warning("The data sent exceeded remote_window_size");
             } else {
                 if (remote_window_size == 0) {
+                    if (!http2_server_check_stream(session, this)) {
+                        return false;
+                    }
                     waiting_coroutine = Coroutine::get_current();
                     waiting_coroutine->yield();
                     waiting_coroutine = nullptr;
+                    if (!http2_server_check_stream(session, this)) {
+                        return false;
+                    }
                     continue;
                 } else {
                     send_n = remote_window_size;
@@ -721,10 +742,10 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
         break;
     }
 
-    if (error) {
-        ctx->close(ctx);
-    } else {
+    if (!error) {
         client->remove_stream(stream->id);
+    } else if (client->get_stream(stream->id)) {
+        ctx->close(ctx);
     }
 
     if (client->shutting_down && client->streams.empty()) {
@@ -841,10 +862,10 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
         }
     }
 
-    if (error) {
-        ctx->close(ctx);
-    } else {
+    if (!error) {
         client->remove_stream(ctx->stream_id);
+    } else if (client->get_stream(ctx->stream_id)) {
+        ctx->close(ctx);
     }
 
     return true;
@@ -869,6 +890,10 @@ bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t of
             return false;
         }
         body = fp.read_content();
+    }
+    // Reading the file may suspend while the peer resets the stream or closes the connection.
+    if (!http2_server_check_stream(client, stream.get())) {
+        return false;
     }
     body->length = SW_MIN(length, body->length);
 
@@ -906,13 +931,13 @@ bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t of
         }
     }
 
-    if (error) {
-        ctx->close(ctx);
-    } else {
+    if (!error) {
         client->remove_stream(stream->id);
+    } else if (client->get_stream(stream->id)) {
+        ctx->close(ctx);
     }
 
-    return true;
+    return !error;
 }
 
 static bool http2_server_onBeforeRequest(HttpContext *ctx) {
@@ -1314,7 +1339,11 @@ void swoole_http2_server_session_free(SessionId session_id) {
     if (iter == http2_sessions.end()) {
         return;
     }
+    auto session = iter->second;
     /* default_ctx does not blong to session object */
-    iter->second->default_ctx = nullptr;
+    session->default_ctx = nullptr;
+    while (!session->streams.empty()) {
+        session->remove_stream(session->streams.begin()->first);
+    }
     http2_sessions.erase(iter);
 }
