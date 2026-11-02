@@ -33,6 +33,16 @@ using namespace std;
 
 static const string test_data("hello world\n");
 
+TEST(base, clamp) {
+    static_assert(swoole::clamp<int64_t>(-1, 1, UINT32_MAX) == 1, "clamp must support constant expressions");
+    EXPECT_EQ(swoole::clamp<int64_t>(0, 1, UINT32_MAX), 1);
+    EXPECT_EQ(swoole::clamp<int64_t>(1, 1, UINT32_MAX), 1);
+    EXPECT_EQ(swoole::clamp<int64_t>(1024, 1, UINT32_MAX), 1024);
+    EXPECT_EQ(swoole::clamp<int64_t>(UINT32_MAX, 1, UINT32_MAX), UINT32_MAX);
+    EXPECT_EQ(swoole::clamp<int64_t>(static_cast<int64_t>(UINT32_MAX) + 1, 1, UINT32_MAX), UINT32_MAX);
+    EXPECT_EQ(swoole::clamp<uint32_t>(UINT32_MAX, 0, 1024), 1024u);
+}
+
 TEST(base, datahead_dump) {
     swDataHead data = {};
     data.fd = 123;
