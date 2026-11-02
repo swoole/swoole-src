@@ -33,7 +33,8 @@ Coroutine\run(function () {
                 'path' => '/',
                 'content' => $request->rawContent(),
                 'data' => $request->getData(),
-                'trailer' => $request->header['x-trailer'] ?? null,
+                'trailer' => $request->trailer,
+                'trailer_header' => $request->header['x-trailer'] ?? null,
             ];
             $response->end('FIRST');
         });
@@ -76,7 +77,8 @@ Coroutine\run(function () {
     Assert::same($requests[0]['path'], '/');
     Assert::same($requests[0]['content'], "0\r\n\r\n" . $payload);
     Assert::same($requests[0]['data'], $chunkedRequest);
-    Assert::same($requests[0]['trailer'], 'yes');
+    Assert::null($requests[0]['trailer']);
+    Assert::null($requests[0]['trailer_header']);
     Assert::same($requests[1]['path'], '/next');
     Assert::same($requests[1]['data'], $pipelineRequest);
 
