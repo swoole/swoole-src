@@ -21,11 +21,14 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
+#include <algorithm>
+
 #ifdef SW_USE_PGSQL
 
 using swoole::Coroutine;
 using swoole::EventType;
 using swoole::Reactor;
+using swoole::Timer;
 using swoole::translate_events_to_poll;
 using swoole::coroutine::Socket;
 
@@ -44,12 +47,8 @@ static int swoole_pgsql_socket_poll(PGconn *conn, EventType event, bool check_no
         fds[0].events = translate_events_to_poll(event);
         fds[0].revents = 0;
 
-        int result = 0;
-        do {
-            result = poll(fds, 1, swoole_pgsql_poll_timeout * 1000);
-        } while (result < 0 && errno == EINTR);
-
-        return result;
+        int result = poll(fds, 1, swoole_pgsql_poll_timeout * 1000);
+        return result < 0 && errno == EINTR ? 0 : result;
     }
 
     Socket sock(PQsocket(conn), SW_SOCK_RAW);
@@ -120,11 +119,35 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
         PQsetnonblocking(conn, 0);
     }
 
-    SW_LOOP {
-        int r = PQconnectPoll(conn);
-        if (r == PGRES_POLLING_OK || r == PGRES_POLLING_FAILED) {
-            break;
+    // PQconnectPoll() ignores connect_timeout, so the caller has to enforce it.
+    long timeout = 0;
+    size_t host_count = 1;
+    size_t address_count = 0;
+    PQconninfoOption *options = PQconninfo(conn);
+    for (PQconninfoOption *option = options; option && option->keyword; option++) {
+        if (!option->val || option->val[0] == '\0') {
+            continue;
         }
+        if (strcmp(option->keyword, "connect_timeout") == 0) {
+            timeout = strtol(option->val, nullptr, 10);
+        } else if (strcmp(option->keyword, "host") == 0) {
+            host_count = std::count(option->val, option->val + strlen(option->val), ',') + 1;
+        } else if (strcmp(option->keyword, "hostaddr") == 0) {
+            address_count = std::count(option->val, option->val + strlen(option->val), ',') + 1;
+        }
+    }
+    PQconninfoFree(options);
+    // libpq before 17 treats a connect_timeout of 1 as 2.
+    if (timeout == 1 && PQlibVersion() < 170000) {
+        timeout = 2;
+    }
+    // The public polling API cannot skip an expired target. Give the complete configured list its combined budget
+    // instead, allowing libpq to perform failover without depending on private target indexes or address APIs.
+    const size_t target_count = address_count ? address_count : host_count;
+    const int64_t start_msec = Timer::get_absolute_msec();
+    int r = PGRES_POLLING_WRITING;
+
+    SW_LOOP {
         EventType event;
 
         switch (r) {
@@ -140,7 +163,21 @@ PGconn *swoole_pgsql_connectdb(const char *conninfo) {
             break;
         }
 
-        if (swoole_pgsql_socket_poll(conn, event) < 0) {
+        int poll_result = swoole_pgsql_socket_poll(conn, event);
+        if (poll_result < 0) {
+            break;
+        }
+        // Divide the elapsed time to avoid overflowing when multiplying a user-supplied timeout by the target count.
+        const uint64_t elapsed_sec = (Timer::get_absolute_msec() - start_msec) / 1000;
+        if (timeout > 0 && elapsed_sec / target_count >= static_cast<uint64_t>(timeout)) {
+            break;
+        }
+        // libpq sends its first packet from these states and assumes the socket is writable.
+        if (poll_result == 0 && (PQstatus(conn) == CONNECTION_STARTED || PQstatus(conn) == CONNECTION_MADE)) {
+            continue;
+        }
+        r = PQconnectPoll(conn);
+        if (r == PGRES_POLLING_OK || r == PGRES_POLLING_FAILED) {
             break;
         }
     }
