@@ -251,6 +251,26 @@ function skip_if_no_database()
     skip("no database", !!getenv('SWOOLE_CI_IN_MACOS'));
 }
 
+function skip_if_libpq_version_lower_than(int $major)
+{
+    $version = 0;
+    Swoole\Coroutine\run(function () use (&$version) {
+        $server = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
+        $server->bind('127.0.0.1', 0);
+        $server->listen();
+        Swoole\Coroutine::create(function () use ($server) {
+            $client = $server->accept();
+            $client->recv();
+            $client->sendAll("R\0\0\0\x08\0\0\0\0Z\0\0\0\x05I");
+        });
+
+        $port = $server->getsockname()['port'];
+        $pdo = new PDO("pgsql:host=127.0.0.1;port={$port};dbname=test;sslmode=disable", 'user', 'pass');
+        $version = (int) $pdo->getAttribute(PDO::ATTR_CLIENT_VERSION);
+    });
+    skip("require libpq {$major} or later", $version < $major);
+}
+
 function skip_if_not_mysql8()
 {
     skip_if_no_database();
