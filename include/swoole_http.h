@@ -137,8 +137,8 @@ struct FormData {
     String *multipart_buffer_;
     String *upload_tmpfile;
     std::string upload_tmpfile_fmt_;
-    const char *current_header_name;
-    size_t current_header_name_len;
+    // Header names may arrive in several fragments across reads, so they must be copied, never referenced.
+    std::string current_header_name;
     size_t upload_filesize;
     size_t upload_max_filesize;
 };
