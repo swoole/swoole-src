@@ -2185,7 +2185,10 @@ static PHP_METHOD(swoole_http_client_coro, recv) {
 static PHP_METHOD(swoole_http_client_coro, close) {
     Client *phc = http_client_coro_get_client(ZEND_THIS);
     if (!ZVAL_IS_OBJECT(&phc->zsocket)) {
-        php_swoole_socket_set_error_properties(ZEND_THIS, SW_ERROR_CLIENT_NO_CONNECTION);
+        // Failed requests already close their socket. Preserve the original error during cleanup.
+        if (zend::object_get_long(ZEND_THIS, ZEND_STRL("errCode")) == 0) {
+            php_swoole_socket_set_error_properties(ZEND_THIS, SW_ERROR_CLIENT_NO_CONNECTION);
+        }
         RETURN_FALSE;
     }
     SW_CLIENT_PRESERVE_SOCKET(&phc->zsocket);
