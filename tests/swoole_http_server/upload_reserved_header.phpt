@@ -96,6 +96,20 @@ function assert_server_is_alive(ProcessManager $pm): void
     Assert::same($responseBody, 'OK');
 }
 
+function assert_uploads_cleaned(string $uploadDir): void
+{
+    $deadline = microtime(true) + 3;
+    do {
+        clearstatcache();
+        $files = glob($uploadDir . '/swoole.upfile.*');
+        if ($files === []) {
+            break;
+        }
+        usleep(1000);
+    } while (microtime(true) < $deadline);
+    Assert::same($files, []);
+}
+
 function run_upload_reserved_header(int $mode): void
 {
     $pm = new ProcessManager;
@@ -141,7 +155,8 @@ function run_upload_reserved_header(int $mode): void
             $body = build_malformed_file_body($boundary, str_repeat('B', 80 * 1024), $disposition);
             [$responseHeader] = send_raw_request($pm, build_multipart_request($boundary, $body));
             Assert::contains($responseHeader, '400 Bad Request');
-            Assert::same(glob($uploadDir . '/swoole.upfile.*'), []);
+            // The response can reach the client before the request destructor unlinks its uploads.
+            assert_uploads_cleaned($uploadDir);
             assert_server_is_alive($pm);
         }
 
@@ -155,7 +170,7 @@ function run_upload_reserved_header(int $mode): void
         Assert::same($json['file_count'], 1);
 
         $pm->kill();
-        Assert::same(glob($uploadDir . '/swoole.upfile.*'), []);
+        assert_uploads_cleaned($uploadDir);
         Assert::true(rmdir($uploadDir));
     };
 

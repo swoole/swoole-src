@@ -370,7 +370,11 @@ struct ProcessPool {
 
     void set_max_packet_size(uint32_t _max_packet_size) {
         // SysV message queues have a fixed receive limit and ignore max_package_size.
+#ifndef _WIN32
         max_packet_size_ = use_msgqueue ? SW_MSGMAX : _max_packet_size;
+#else
+        max_packet_size_ = _max_packet_size;
+#endif
     }
 
     bool is_master() const {

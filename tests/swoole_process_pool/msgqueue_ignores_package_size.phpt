@@ -21,9 +21,7 @@ try {
     $pool->on('workerStart', function (Pool $pool) use ($queueKey, $messages) {
         $process = $pool->getProcess();
         Assert::true($process->useQueue($queueKey));
-        foreach ($messages as $message) {
-            Assert::true($process->push($message));
-        }
+        Assert::true($process->push($messages[0]));
     });
     $received = [];
     $pool->on('message', function (Pool $pool, string $message) use ($messages, &$received) {
@@ -32,6 +30,9 @@ try {
             Assert::same($received, $messages);
             $pool->shutdown();
             echo "DONE\n";
+        } else {
+            // Consume each message before enqueuing the next: macOS queues may hold only 2048 bytes.
+            Assert::true($pool->getProcess()->push($messages[count($received)]));
         }
     });
     $pool->start();
