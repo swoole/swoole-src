@@ -151,8 +151,15 @@ namespace http_server {
 
 static int multipart_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *request = static_cast<Request *>(p->data);
-    request->form_data_->current_header_name = at;
-    request->form_data_->current_header_name_len = length;
+    auto *form_data = request->form_data_;
+
+    if (form_data->current_header_name.length() + length > request->max_length_) {
+        request->excepted = 1;
+        request->too_large = 1;
+        return MPPE_PAUSED;
+    }
+    // A header name may be split across reads: assemble the complete name before using it.
+    form_data->current_header_name.append(at, length);
 
     swoole_trace("header_field: at=%.*s, length=%lu", (int) length, at, length);
     return 0;
@@ -163,19 +170,25 @@ static int multipart_on_header_value(multipart_parser *p, const char *at, size_t
 
     auto *request = static_cast<Request *>(p->data);
     auto *form_data = request->form_data_;
+    // The value callback means the name is complete.
+    const std::string header_name = std::move(form_data->current_header_name);
+    form_data->current_header_name.clear();
 
-    // Only headers generated below by the reactor may identify a preprocessed upload.
-    // Check the name that would be forwarded, including when a header was split across reads.
-    if (SW_STRCASEEQ(form_data->current_header_name, form_data->current_header_name_len, SW_HTTP_UPLOAD_FILE)) {
-        return 0;
+    // Only the reactor may generate this header, a client must never use it as a form-data header name.
+    if (SW_STRCASEEQ(header_name.c_str(), header_name.length(), SW_HTTP_UPLOAD_FILE)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SERVER_INVALID_REQUEST,
+                         "Bad Request: the reserved header '%s' may not be sent by clients",
+                         SW_HTTP_UPLOAD_FILE);
+        return MPPE_ERROR;
     }
 
-    form_data->multipart_buffer_->append(form_data->current_header_name, form_data->current_header_name_len);
+    form_data->multipart_buffer_->append(header_name.c_str(), header_name.length());
     form_data->multipart_buffer_->append(SW_STRL(": "));
     form_data->multipart_buffer_->append(at, length);
     form_data->multipart_buffer_->append(SW_STRL("\r\n"));
 
-    if (SW_STRCASEEQ(form_data->current_header_name, form_data->current_header_name_len, "content-disposition")) {
+    if (SW_STRCASEEQ(header_name.c_str(), header_name.length(), "content-disposition")) {
         ParseCookieCallback cb = [request, form_data, p](char *key, size_t key_len, char *value, size_t value_len) {
             if (SW_STRCASEEQ(key, key_len, "filename")) {
                 memcpy(form_data->upload_tmpfile->str,
@@ -245,6 +258,7 @@ static int multipart_on_header_complete(multipart_parser *p) {
     swoole_trace("on_header_complete");
     auto *request = static_cast<Request *>(p->data);
     auto *form_data = request->form_data_;
+    form_data->current_header_name.clear();
     if (p->fp) {
         form_data->multipart_buffer_->append(SW_STRL(SW_HTTP_UPLOAD_FILE ": "));
         form_data->multipart_buffer_->append(form_data->upload_tmpfile->str, strlen(form_data->upload_tmpfile->str));
@@ -273,6 +287,7 @@ static int multipart_on_part_begin(multipart_parser *p) {
     swoole_trace("on_part_begin");
     auto *request = static_cast<Request *>(p->data);
     auto *form_data = request->form_data_;
+    form_data->current_header_name.clear();
     form_data->multipart_buffer_->append(p->boundary, p->boundary_length);
     form_data->multipart_buffer_->append(SW_STRL("\r\n"));
     return 0;
