@@ -262,8 +262,14 @@ static void http_request_free_object(zend_object *object) {
     auto *ctx = request->ctx;
 
     if (ctx) {
-        zval *ztmpfiles = &ctx->request.ztmpfiles;
-        if (ZVAL_IS_ARRAY(ztmpfiles)) {
+        zval *ztmpfiles = nullptr;
+        if (!Z_ISUNDEF(ctx->request.ztmpfiles)) {
+            // User code may have replaced the array, invalidating the cached property value.
+            ztmpfiles = sw_zend_read_property_ex(
+                swoole_http_request_ce, &ctx->request.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TMPFILES), 1);
+            ZVAL_DEREF(ztmpfiles);
+        }
+        if (ztmpfiles && ZVAL_IS_ARRAY(ztmpfiles)) {
             // Windows cannot unlink a file while its upload handle is still open.
             ctx->destroy_multipart_parser();
             zval *z_file_path;
