@@ -334,6 +334,8 @@ class Stream {
     uint32_t remote_window_size;
     uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
+    bool headers_received = false;
+    bool request_received = false;
 
     Stream(const Session *client, uint32_t _id);
     ~Stream();
@@ -367,6 +369,8 @@ class Session {
 
     uint32_t max_body_size;
     uint32_t last_stream_id;
+    uint32_t header_stream_id = 0;
+    bool header_end_stream = false;
     bool shutting_down;
     bool is_coro;
 
