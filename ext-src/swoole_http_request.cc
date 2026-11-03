@@ -320,6 +320,9 @@ static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) 
 }
 
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length) {
+    if (sw_unlikely(parser->flags & F_TRAILING)) {
+        return 0;
+    }
     auto *ctx = static_cast<HttpContext *>(parser->data);
     ctx->current_header_name = at;
     ctx->current_header_name_len = length;
@@ -341,6 +344,9 @@ static int http_request_parse_on_url(llhttp_t *parser, const char *at, size_t le
 }
 
 static int http_request_parse_on_header_field(llhttp_t *parser, const char *at, size_t length) {
+    if (sw_unlikely(parser->flags & F_TRAILING)) {
+        return 0;
+    }
     auto *ctx = static_cast<HttpContext *>(parser->data);
     auto *state = ctx->request.parser_state;
     if (state->header_name_length == 0) {
@@ -351,6 +357,9 @@ static int http_request_parse_on_header_field(llhttp_t *parser, const char *at, 
 }
 
 static int http_request_parse_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+    if (sw_unlikely(parser->flags & F_TRAILING)) {
+        return 0;
+    }
     auto *ctx = static_cast<HttpContext *>(parser->data);
     auto *state = ctx->request.parser_state;
     state->header_value_length += length;
@@ -443,6 +452,9 @@ int swoole_http_token_list_contains_value(const char *at, size_t length, const c
 }
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+    if (sw_unlikely(parser->flags & F_TRAILING)) {
+        return 0;
+    }
     auto *ctx = static_cast<HttpContext *>(parser->data);
     zval *zheader = ctx->request.zheader;
     const char *header_name = ctx->current_header_name;
@@ -580,7 +592,11 @@ static int http_request_on_headers_complete(llhttp_t *parser) {
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<HttpContext *>(p->data);
-    return http_request_on_header_field(&ctx->parser, at, length);
+    // Multipart part headers are independent of the outer HTTP parser's trailer flags.
+    ctx->current_header_name = at;
+    ctx->current_header_name_len = length;
+    ctx->current_header_value_len = 0;
+    return 0;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {

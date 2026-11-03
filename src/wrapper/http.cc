@@ -79,12 +79,12 @@ static  constexpr multipart_parser_settings mt_parser_settings = {
 
 struct ContextImpl {
     llhttp_t parser;
-    multipart_parser *mt_parser;
+    multipart_parser *mt_parser = nullptr;
 
     std::string current_header_name;
     std::string current_input_name;
     std::string current_form_data_name;
-    String *form_data_buffer;
+    String *form_data_buffer = nullptr;
 
     bool completed = false;
     bool upload_preprocessed = false;
@@ -115,12 +115,18 @@ static int http_request_on_url(llhttp_t *parser, const char *at, size_t length) 
 }
 
 static int http_request_on_header_field(llhttp_t *parser, const char *at, size_t length) {
+    if (sw_unlikely(parser->flags & F_TRAILING)) {
+        return 0;
+    }
     auto *ctx = static_cast<Context *>(parser->data);
     ctx->impl->current_header_name = std::string(at, length);
     return 0;
 }
 
 static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+    if (sw_unlikely(parser->flags & F_TRAILING)) {
+        return 0;
+    }
     auto *ctx = static_cast<Context *>(parser->data);
     ContextImpl *impl = ctx->impl;
     ctx->headers[impl->current_header_name] = std::string(at, length);
@@ -193,7 +199,8 @@ static int http_request_on_body(llhttp_t *parser, const char *at, size_t length)
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
     auto *ctx = static_cast<Context *>(p->data);
     ContextImpl *impl = ctx->impl;
-    return http_request_on_header_field(&impl->parser, at, length);
+    impl->current_header_name.assign(at, length);
+    return 0;
 }
 
 static int multipart_body_on_header_value(multipart_parser *p, const char *at, size_t length) {
