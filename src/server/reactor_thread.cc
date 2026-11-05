@@ -860,9 +860,7 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
         return;
     }
 
-    if (serv->is_thread_mode()) {
-        serv->call_worker_start_callback(serv->get_worker(reactor_id));
-    } else {
+    if (!serv->is_thread_mode()) {
         swoole_set_thread_id(reactor_id);
         swoole_set_thread_type(Server::THREAD_REACTOR);
     }
@@ -871,6 +869,13 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     if (thread->init(serv, reactor, reactor_id) < 0) {
         swoole_event_free();
         return;
+    }
+
+    if (serv->is_thread_mode()) {
+        // WorkerStart may send to connections owned by another worker. Initialize the entire reactor first:
+        // MessageBus needs its ID generator and chunk buffer, and queued writes need the pipe event handlers.
+        // Initializing only the pipe sockets before entering PHP does not make these operations ready.
+        serv->call_worker_start_callback(serv->get_worker(reactor_id));
     }
 
     // wait other thread
