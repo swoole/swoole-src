@@ -355,6 +355,9 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
         resource = php_url_parse(path);
     }
     if (!resource || !resource->path) {
+        if (resource) {
+            php_url_free(resource);
+        }
         return NULL;
     }
 
@@ -371,6 +374,7 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
     }
 
     if (!resource->host) {
+        php_url_free(resource);
         return NULL;
     }
 
