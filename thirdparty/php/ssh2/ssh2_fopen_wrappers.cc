@@ -1219,7 +1219,7 @@ PHP_FUNCTION(ssh2_scp_recv) {
 
     while (sb.st_size) {
         char buffer[8192];
-        int bytes_read;
+        ssize_t bytes_read, bytes_written;
 
         bytes_read = libssh2_channel_read(remote_file, buffer, sb.st_size > 8192 ? 8192 : sb.st_size);
         // A zero read alone is allowed by libssh2. EOF with bytes still outstanding, however,
@@ -1230,7 +1230,20 @@ PHP_FUNCTION(ssh2_scp_recv) {
             php_stream_close(local_file);
             RETURN_FALSE;
         }
-        php_stream_write(local_file, buffer, bytes_read);
+        bytes_written = php_stream_write(local_file, buffer, bytes_read);
+        if (bytes_written < 0) {
+            php_error_docref(NULL, E_WARNING, "Error writing to local file");
+            libssh2_channel_free(remote_file);
+            php_stream_close(local_file);
+            RETURN_FALSE;
+        }
+        if (bytes_read != bytes_written) {
+            php_error_docref(
+                NULL, E_WARNING, "Mismatch in bytes read from remote file and bytes written to local file");
+            libssh2_channel_free(remote_file);
+            php_stream_close(local_file);
+            RETURN_FALSE;
+        }
         sb.st_size -= bytes_read;
     }
 
