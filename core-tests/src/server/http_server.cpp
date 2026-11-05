@@ -1118,8 +1118,8 @@ TEST(http_server, reject_preprocessed_file_without_name) {
     server->get_primary_port()->set_package_max_length(64 * 1024);
     server->upload_max_filesize = 1024 * 1024;
     server->upload_tmp_dir = upload_tmp_dir;
-    server->onWorkerStart = [&t, &upload_tmp_dir, &upload_content](Server *server, Worker *worker) {
-        t = std::thread([server, &upload_tmp_dir, &upload_content]() {
+    server->onWorkerStart = [&t, &upload_content](Server *server, Worker *worker) {
+        t = std::thread([server, &upload_content]() {
             swoole_signal_block_all();
             std::string boundary = "------------------------d3f990cdce762596";
             std::string body = make_multipart_upload_body(boundary, upload_content, "", false, false);
@@ -1133,13 +1133,15 @@ TEST(http_server, reject_preprocessed_file_without_name) {
             std::string resp(buf, n);
 
             EXPECT_TRUE(resp.find("400 Bad Request") != resp.npos);
-            EXPECT_EQ(test::recursive_rmdir(upload_tmp_dir.c_str()), 1);
 
             kill(server->get_master_pid(), SIGTERM);
         });
     };
     server->start();
     t.join();
+    // The response can arrive before ContextImpl unlinks the generated upload file. Check after shutdown
+    // so request cleanup is complete; recursive_rmdir still fails if any temporary file was leaked.
+    EXPECT_EQ(test::recursive_rmdir(upload_tmp_dir.c_str()), 1);
 }
 
 TEST(http_server, clean_preprocessed_duplicate_files) {
