@@ -48,8 +48,9 @@ Factory *Server::create_thread_factory() {
 }
 
 void Server::destroy_thread_factory() const {
+    // All workers have joined. Cover queues left by abnormal exits or PHP shutdown callbacks as well.
     SW_LOOP_N(reactor_num) {
-        reactor_threads[i].discard_pipe_buffers(this);
+        reactor_threads[i].discard_pipe_buffers();
     }
     sw_free(connection_list);
     delete[] reactor_threads;
@@ -151,12 +152,14 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
         auto reactor_thread = server_->get_thread(i);
-        // Expose the bus before PHP RINIT binds its allocator, and retain it through PHP RSHUTDOWN.
+        // The bus belongs to the logical reactor slot, not this worker generation.
+        // Publish it before PHP RINIT; RSHUTDOWN clears only its request-owned packets.
         SwooleTG.message_bus = &reactor_thread->message_bus;
         server_->init_pipe_sockets(&reactor_thread->message_bus);
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
         reactor_thread->clean();
-        reactor_thread->message_bus.release_pipe_sockets();
+        // Keep native wrappers and their queued writes for the replacement worker to resume.
+        // The MessageBus destructor releases them when the ReactorThread is finally destroyed.
         SwooleTG.message_bus = nullptr;
 
         at_thread_exit(worker);

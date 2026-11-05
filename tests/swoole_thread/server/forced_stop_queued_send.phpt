@@ -41,7 +41,7 @@ $serv->on('WorkerStart', function () {
     $ready->add();
 });
 $serv->on('Receive', function (Swoole\Server $serv, int $fd, int $reactorId, string $data) use ($path) {
-    [, $state, $target] = Thread::getArguments();
+    [$ready, $state, $target] = Thread::getArguments();
 
     switch (trim($data)) {
         case 'owner':
@@ -55,8 +55,12 @@ $serv->on('Receive', function (Swoole\Server $serv, int $fd, int $reactorId, str
             while ($state->get() < 2) {
                 usleep(1000);
             }
-            // let the stopped worker's event loop end before its queued data can be read
-            usleep(200 * 1000);
+            // Resume the destination only after the sending worker has been replaced.
+            // Waiting for WorkerStart makes queue handoff deterministic without a fixed delay.
+            for ($i = 0; $i < 1000 && $ready->get() < 4; $i++) {
+                usleep(10 * 1000);
+            }
+            Assert::same($ready->get(), 4);
             break;
 
         case 'block_shutdown':
@@ -137,6 +141,7 @@ $serv->addProcess(new Swoole\Process(function () use ($serv, $port) {
     Assert::greaterThan($sender->send("queue_stop\n"), 0);
     $received = 0;
     while ($received < QUEUED_BYTES && ($data = $target->recv(65536))) {
+        Assert::same($data, str_repeat('x', strlen($data)));
         $received += strlen($data);
     }
     echo $received === QUEUED_BYTES ? "delivered\n" : "received {$received} of " . QUEUED_BYTES . "\n";

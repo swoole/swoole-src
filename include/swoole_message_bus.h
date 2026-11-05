@@ -288,10 +288,23 @@ class MessageBus {
      */
     network::Socket *get_pipe_socket(const network::Socket *sock) const {
         int pipe_fd = sock->get_fd();
-        return pipe_fd >= 0 && (size_t) pipe_fd < pipe_sockets_.size() ? pipe_sockets_[pipe_fd] : nullptr;
+        return pipe_fd >= 0 && static_cast<size_t>(pipe_fd) < pipe_sockets_.size() ? pipe_sockets_[pipe_fd] : nullptr;
+    }
+    /**
+     * Visit the pipe wrappers owned by this MessageBus, including command pipes. Empty slots are skipped.
+     * Return false from the callback to stop traversal; wrappers must not be added or released during traversal.
+     */
+    bool foreach_pipe_socket(const std::function<bool(network::Socket *)> &callback) const {
+        for (auto socket : pipe_sockets_) {
+            if (socket && !callback(socket)) {
+                return false;
+            }
+        }
+        return true;
     }
     /**
      * Create the socket object of the given pipe fd, see get_pipe_socket().
+     * Repeated initialization preserves the existing wrapper and its queued writes.
      */
     void init_pipe_socket(const network::Socket *sock);
     /**

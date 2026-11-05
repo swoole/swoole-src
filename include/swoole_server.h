@@ -182,7 +182,7 @@ struct ReactorThread {
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
     void shutdown(Reactor *reactor);
     int close_connection(Reactor *reactor, SessionId session_id);
-    void discard_pipe_buffers(const Server *serv);
+    void discard_pipe_buffers();
     void clean();
 };
 

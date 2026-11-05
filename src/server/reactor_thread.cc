@@ -870,21 +870,15 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         }
     }
 
-    // A replacement worker reuses its predecessor's pipe sockets and resumes their queued writes.
-    SW_LOOP_N(serv->get_core_worker_num()) {
-        if (i >= serv->worker_num && serv->task_ipc_mode != Server::TASK_IPC_UNIXSOCK) {
-            continue;
+    if (serv->is_thread_mode()) {
+        // The logical ReactorThread retains its native pipe queues across worker replacement.
+        // Register pending writes on the new reactor before WorkerStart can append more packets.
+        // Traverse the bus's own wrappers so worker, task-worker and command pipes follow the same rules.
+        if (!message_bus.foreach_pipe_socket([reactor](Socket *socket) {
+                return Buffer::empty(socket->out_buffer) || reactor->add_write_event(socket) == SW_OK;
+            })) {
+            return SW_ERR;
         }
-        Worker *worker = serv->get_worker(i);
-        for (Socket *pipe : {worker->pipe_worker, worker->pipe_master}) {
-            Socket *socket = message_bus.get_pipe_socket(pipe);
-            if (!Buffer::empty(socket->out_buffer) && reactor->add_write_event(socket) < 0) {
-                return SW_ERR;
-            }
-        }
-    }
-    if (pipe_command && !Buffer::empty(pipe_command->out_buffer) && reactor->add_write_event(pipe_command) < 0) {
-        return SW_ERR;
     }
 
     return SW_OK;
@@ -894,26 +888,17 @@ void ReactorThread::clean() {
     message_bus.free_buffer();
 }
 
-void ReactorThread::discard_pipe_buffers(const Server *serv) {
-    SW_LOOP_N(serv->get_core_worker_num()) {
-        if (i >= serv->worker_num && serv->task_ipc_mode != Server::TASK_IPC_UNIXSOCK) {
-            continue;
+void ReactorThread::discard_pipe_buffers() {
+    // Shutdown cannot wait for peer workers to read: they may already have stopped with full pipes.
+    // Discard queued packets directly, releasing owned sendfiles before the wrappers are destroyed.
+    message_bus.foreach_pipe_socket([](Socket *socket) {
+        while (!Buffer::empty(socket->out_buffer)) {
+            auto *packet = reinterpret_cast<EventData *>(socket->out_buffer->front()->value.str);
+            ReactorThread_discard_packet(packet);
+            socket->out_buffer->pop();
         }
-        Worker *worker = serv->get_worker(i);
-        for (Socket *pipe : {worker->pipe_worker, worker->pipe_master}) {
-            if (!pipe) {
-                continue;
-            }
-            Socket *socket = message_bus.get_pipe_socket(pipe);
-            if (!socket) {
-                continue;
-            }
-            while (!Buffer::empty(socket->out_buffer)) {
-                ReactorThread_discard_packet(reinterpret_cast<EventData *>(socket->out_buffer->front()->value.str));
-                socket->out_buffer->pop();
-            }
-        }
-    }
+        return true;
+    });
 }
 
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
@@ -950,7 +935,7 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     // main loop
     swoole_event_wait();
     if (serv->is_thread_mode() && !serv->is_running()) {
-        thread->discard_pipe_buffers(serv);
+        thread->discard_pipe_buffers();
     }
     if (serv->is_thread_mode()) {
         serv->call_worker_stop_callback(serv->get_worker(reactor_id));
