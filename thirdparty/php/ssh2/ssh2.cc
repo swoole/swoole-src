@@ -468,10 +468,10 @@ PHP_FUNCTION(ssh2_set_timeout) {
         return;
     }
 
-    /* The session is nonblocking, so libssh2_session_set_timeout() would have no effect. */
-    zend_long timeout_ms = seconds * 1000 + (microseconds + 1000 - 1) / 1000;
-    ssh2_get_socket(session)->set_timeout(timeout_ms == 0 ? -1 : timeout_ms / 1000.0,
-                                          SW_TIMEOUT_READ | SW_TIMEOUT_WRITE);
+    /* The session is nonblocking, so libssh2_session_set_timeout() would have no effect. Round in double, since the
+     * integer arithmetic pecl ssh2 uses can overflow. */
+    double timeout = seconds + std::ceil(microseconds / 1000.0) / 1000.0;
+    ssh2_get_socket(session)->set_timeout(timeout == 0 ? -1 : timeout, SW_TIMEOUT_READ | SW_TIMEOUT_WRITE);
 }
 /* }}} */
 
