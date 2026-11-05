@@ -657,7 +657,7 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session,
                     php_error_docref(
                         NULL, E_WARNING, "Failed setting environment variable %s on remote end", ZSTR_VAL(key));
                 }
-                zval_dtor(&copyval);
+                zval_ptr_dtor_nogc(&copyval);
             } else {
                 php_error_docref(NULL, E_NOTICE, "Skipping numeric index in environment array");
             }
@@ -918,7 +918,7 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
                     php_error_docref(
                         NULL, E_WARNING, "Failed setting environment variable %s on remote end", ZSTR_VAL(key));
                 }
-                zval_dtor(&copyval);
+                zval_ptr_dtor_nogc(&copyval);
             } else {
                 php_error_docref(NULL, E_NOTICE, "Skipping numeric index in environment array");
             }
