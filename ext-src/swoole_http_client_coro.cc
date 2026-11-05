@@ -1483,9 +1483,10 @@ bool Client::recv_response(double timeout) {
         if (sw_unlikely(retval <= 0)) {
             if (retval == 0) {
                 socket->set_err(ECONNRESET);
-                if (total_bytes > 0 && !llhttp_should_keep_alive(&parser)) {
+                if (total_bytes > 0 && llhttp_message_needs_eof(&parser)) {
                     llhttp_finish(&parser);
-                    success = true;
+                    // The completion callback pauses llhttp, so use its flag to determine success.
+                    success = completed;
                     break;
                 }
             }
