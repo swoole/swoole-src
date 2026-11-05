@@ -192,7 +192,7 @@ class Client {
      */
     String *tmp_write_buffer = nullptr;
     std::unique_ptr<String> continue_frame_buffer;
-    bool connection_close = false;
+    bool request_connection_close = false;
     bool completed = false;
     bool event_stream = false;
 
@@ -531,8 +531,6 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 #endif
     else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
         http->chunked = true;
-    } else if (SW_STREQ(header_name, header_len, "connection")) {
-        http->connection_close = SW_STR_ISTARTS_WITH(at, length, "close");
     } else if (SW_STREQ(header_name, header_len, "content-type")) {
         http->event_stream = SW_STR_ISTARTS_WITH(at, length, "text/event-stream");
     }
@@ -1002,6 +1000,7 @@ bool Client::keep_liveness() {
 }
 
 bool Client::send_request() {
+    request_connection_close = false;
     zval *zvalue = nullptr;
     uint32_t header_flag = 0x0;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
@@ -1173,8 +1172,8 @@ bool Client::send_request() {
 
             if (SW_STRCASEEQ(key, keylen, "Connection")) {
                 header_flag |= HTTP_HEADER_CONNECTION;
-                if (SW_STRCASEEQ(str_value.val(), str_value.len(), "close")) {
-                    keep_alive = false;
+                if (swoole_http_token_list_contains_value(str_value.val(), str_value.len(), "close") == 1) {
+                    request_connection_close = true;
                 }
             }
         }
@@ -1193,7 +1192,7 @@ bool Client::send_request() {
         if (keep_alive) {
             add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
         } else {
-            add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
+            add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("close"));
         }
     }
 #ifdef SW_HAVE_COMPRESSION
@@ -1704,7 +1703,7 @@ bool Client::recv_response(double timeout) {
         socket->protocol.get_package_length = websocket::get_package_length;
     }
     // handler keep alive
-    if (!websocket && (!keep_alive || connection_close)) {
+    if (!websocket && (!keep_alive || request_connection_close || (parser.flags & F_CONNECTION_CLOSE))) {
         close();
     } else {
         reset();
