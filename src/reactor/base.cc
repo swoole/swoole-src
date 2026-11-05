@@ -391,13 +391,22 @@ int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
-void Reactor::drain_write_buffer(Socket *socket) {
+void Reactor::drain_write_buffer(Socket *socket, int timeout_msec) {
     Event event = {};
     event.socket = socket;
     event.fd = socket->fd;
 
+    int64_t deadline = time<std::chrono::milliseconds>(true) + timeout_msec;
     while (!Buffer::empty(socket->out_buffer)) {
-        if (socket->wait_event(static_cast<int>(sec2msec(Socket::default_write_timeout)), SW_EVENT_WRITE) == SW_ERR) {
+        int wait_msec = static_cast<int>(sec2msec(Socket::default_write_timeout));
+        if (timeout_msec >= 0) {
+            int64_t remaining = deadline - time<std::chrono::milliseconds>(true);
+            if (remaining <= 0) {
+                break;
+            }
+            wait_msec = static_cast<int>(remaining);
+        }
+        if (socket->wait_event(wait_msec, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
         _writable_callback(this, &event);

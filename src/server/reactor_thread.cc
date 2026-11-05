@@ -796,12 +796,6 @@ _init_master_thread:
     return start_master_thread(reactor);
 }
 
-ReactorThread::~ReactorThread() {
-    // Workers have joined before the logical reactor slot is destroyed. Release queued
-    // sendfile tokens first; the MessageBus member then frees its native buffers and borrowed-fd wrappers.
-    discard_pipe_buffers();
-}
-
 int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     reactor->ptr = serv;
     reactor->id = reactor_id;
@@ -893,6 +887,77 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     return SW_OK;
 }
 
+void ReactorThread::clean() {
+    // Pair with init() in the reactor's execution context. Native output queues have a separate
+    // lifetime: reload hands them to the next worker, while final shutdown drains them before release.
+    message_bus.free_buffer();
+}
+
+void ReactorThread::drain_pipe_buffers(Server *serv, int timeout_msec) {
+    bool pending = false;
+    message_bus.foreach_pipe_socket([&pending](Socket *socket) {
+        pending = !Buffer::empty(socket->out_buffer);
+        return !pending;
+    });
+    if (!pending) {
+        return;
+    }
+    if (timeout_msec <= 0) {
+        discard_pipe_buffers();
+        return;
+    }
+
+    // The request's main reactor has already been freed. Use a write-only reactor here:
+    // it cannot accept connections or invoke request handlers while PHP is shutting down.
+    Reactor reactor;
+    if (!reactor.ready()) {
+        return;
+    }
+    reactor.ptr = serv;
+    reactor.id = id;
+    reactor.wait_exit = true;
+    reactor.timeout_msec = timeout_msec;
+    reactor.set_handler(SW_FD_PIPE, SW_EVENT_WRITE, ReactorThread_onPipeWrite);
+    ON_SCOPE_EXIT {
+        message_bus.foreach_pipe_socket([&reactor](Socket *socket) {
+            if (reactor.exists(socket->fd)) {
+                reactor.del(socket);
+            }
+            return true;
+        });
+    };
+
+    bool registered = message_bus.foreach_pipe_socket([&reactor](Socket *socket) {
+        if (Buffer::empty(socket->out_buffer)) {
+            return true;
+        }
+        // A shutdown callback may have created its own event loop. Detach its pipe watch before
+        // lending the wrapper to this reactor so that both event loops cannot own the same queue.
+        if (sw_reactor() && sw_reactor()->exists(socket->fd)) {
+            sw_reactor()->del(socket);
+        }
+        return reactor.add(socket, SW_EVENT_WRITE) == SW_OK;
+    });
+    if (!registered) {
+        return;
+    }
+
+    int64_t deadline = time<std::chrono::milliseconds>(true) + timeout_msec;
+    reactor.set_end_callback(Reactor::PRIORITY_TRY_EXIT, [deadline](Reactor *reactor) {
+        int64_t remaining = deadline - time<std::chrono::milliseconds>(true);
+        if (reactor->if_exit() || remaining <= 0) {
+            reactor->running = false;
+        } else {
+            reactor->timeout_msec = static_cast<int>(remaining);
+        }
+    });
+    reactor.wait();
+    if (time<std::chrono::milliseconds>(true) >= deadline) {
+        // Only the expired wait budget permits dropping still-sendable packets, including owned sendfiles.
+        discard_pipe_buffers();
+    }
+}
+
 void ReactorThread::discard_pipe_buffers() {
     // Shutdown cannot wait for peer workers to read: they may already have stopped with full pipes.
     // Discard queued packets directly, releasing owned sendfiles before the wrappers are destroyed.
@@ -939,14 +1004,10 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     }
     // main loop
     swoole_event_wait();
-    if (serv->is_thread_mode() && !serv->is_running()) {
-        // At whole-server shutdown there is no replacement reactor to resume these writes.
-        // This is a terminal discard, not a graceful drain or a guarantee of client delivery.
-        thread->discard_pipe_buffers();
-    }
     if (serv->is_thread_mode()) {
         serv->call_worker_stop_callback(serv->get_worker(reactor_id));
     }
+    thread->clean();
 }
 
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) {

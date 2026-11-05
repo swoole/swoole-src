@@ -24,6 +24,8 @@
 #include "swoole_util.h"
 #include "swoole_api.h"
 
+#include <atomic>
+
 #ifdef HAVE_EPOLL
 #include <sys/resource.h>
 #endif
@@ -805,6 +807,49 @@ TEST(reactor, drain_write_buffer) {
     ASSERT_EQ(ret, SW_OK);
     ASSERT_FALSE(swoole_event_is_available());
     t.join();
+}
+
+TEST(reactor, drain_write_buffer_timeout) {
+    UnixSocket pipe(true, SOCK_STREAM);
+    ASSERT_TRUE(pipe.ready());
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ON_SCOPE_EXIT {
+        swoole_event_free();
+    };
+    pipe.set_blocking(false);
+    pipe.set_buffer_size(4096);
+
+    std::string payload(2 * 1024 * 1024, 'x');
+    auto writer = pipe.get_socket(true);
+    ASSERT_EQ(swoole_event_write(writer, payload.data(), payload.size()), payload.size());
+    size_t pending = writer->get_out_buffer_length();
+    ASSERT_GT(pending, 0);
+
+    // An exhausted budget must preserve the queue without making another write attempt.
+    sw_reactor()->drain_write_buffer(writer, 0);
+    ASSERT_EQ(writer->get_out_buffer_length(), pending);
+
+    std::atomic<bool> reading{true};
+    std::thread reader([&]() {
+        char buffer[4096];
+        while (reading.load()) {
+            pipe.get_socket(false)->read(buffer, sizeof(buffer));
+            usleep(10000);
+        }
+    });
+
+    // The peer makes progress throughout the drain. The timeout must cover all polls together,
+    // rather than restarting after every successful chunk and extending the worker's exit indefinitely.
+    long started = swoole::time<std::chrono::milliseconds>(true);
+    sw_reactor()->drain_write_buffer(writer, 100);
+    long elapsed = swoole::time<std::chrono::milliseconds>(true) - started;
+    reading.store(false);
+    reader.join();
+
+    EXPECT_GE(elapsed, 90);
+    EXPECT_LT(elapsed, 1000);
+    EXPECT_GT(writer->get_out_buffer_length(), 0);
+    EXPECT_LT(writer->get_out_buffer_length(), pending);
 }
 
 TEST(reactor, handle_fail) {

@@ -25,6 +25,7 @@ $serv = new Swoole\Server('127.0.0.1', $port, SWOOLE_THREAD);
 $serv->set([
     'worker_num'       => 3,
     'reload_async'     => false,
+    'max_wait_time'    => 1,
     // a blocked worker must not yield to its event loop
     'enable_coroutine' => false,
     'log_level'        => SWOOLE_LOG_ERROR,
@@ -88,10 +89,14 @@ $serv->on('Receive', function (Swoole\Server $serv, int $fd, int $reactorId, str
         case 'block_shutdown':
             $target->set($fd);
             $state->set(3);
+            $started = microtime(true);
             for ($i = 0; $i < 200 && is_file($path); $i++) {
                 usleep(10 * 1000);
                 clearstatcache();
             }
+            // The destination never reads during this interval, so the owned file must remain
+            // queued until the sender has spent its max_wait_time rather than being discarded immediately.
+            Assert::greaterThan(microtime(true) - $started, 0.9);
             echo is_file($path) ? "file remains\n" : "file deleted\n";
             break;
 

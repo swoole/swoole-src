@@ -48,6 +48,11 @@ Factory *Server::create_thread_factory() {
 }
 
 void Server::destroy_thread_factory() const {
+    // Normal shutdown releases these queues in their worker threads. Keep an idempotent
+    // fallback after all joins for partially initialized slots and abnormal exits.
+    SW_LOOP_N(reactor_num) {
+        reactor_threads[i].discard_pipe_buffers();
+    }
     sw_free(connection_list);
     delete[] reactor_threads;
 }
@@ -156,8 +161,16 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         SwooleTG.message_bus = &reactor_thread->message_bus;
         server_->init_pipe_sockets(&reactor_thread->message_bus);
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
-        // Keep native buffers, wrappers and queued writes for the replacement worker to resume.
-        // The MessageBus destructor releases them when the ReactorThread is finally destroyed.
+        // Zend bailout can skip reactor_thread_main_loop()'s clean(). This idempotent fallback
+        // still runs on the exiting worker thread, after all PHP request shutdown callbacks.
+        reactor_thread->clean();
+        if (!server_->is_running()) {
+            // Final cleanup belongs to this worker, before it notifies the manager. Reuse the
+            // original exit deadline for any late writes; reload keeps the wrappers for its successor.
+            reactor_thread->drain_pipe_buffers(server_, server_->get_worker_exit_timeout_msec());
+            reactor_thread->discard_pipe_buffers();
+            reactor_thread->message_bus.release_pipe_sockets();
+        }
         SwooleTG.message_bus = nullptr;
 
         at_thread_exit(worker);

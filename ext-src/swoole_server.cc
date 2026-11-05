@@ -92,13 +92,18 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
 
 void php_swoole_server_rshutdown() {
-    if (!sw_server() || !sw_worker()) {
+    if (!sw_server()) {
         return;
     }
 
     Server *serv = sw_server();
-    Worker *worker = sw_worker();
+    // User shutdown callbacks have finished, but their writes may still be queued. WorkerStop
+    // can clear the local worker pointer, so drain before checking it and before the Zend heap is destroyed.
     serv->drain_worker_pipe();
+    Worker *worker = sw_worker();
+    if (!worker) {
+        return;
+    }
 
     if (serv->is_started() && worker->is_running() && !serv->is_user_worker()) {
         worker->shutdown();
