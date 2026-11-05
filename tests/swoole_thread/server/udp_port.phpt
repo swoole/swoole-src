@@ -34,10 +34,11 @@ $udp->on('packet', function ($serv, $data, $addr) {
 });
 $serv->on('WorkerStart', function (Swoole\Server $serv, $workerId) use ($port) {
     [$queue, $atomic] = Thread::getArguments();
-    if ($atomic->add() == 1) {
+    // Publish readiness only after both workers have printed their startup message.
+    echo "worker start\n";
+    if ($atomic->add() === $serv->setting['worker_num']) {
         $queue->push("begin\n", Thread\Queue::NOTIFY_ALL);
     }
-    echo "worker start\n";
 });
 $serv->on('message', function (Server $server, $frame) {
     echo "message\n";

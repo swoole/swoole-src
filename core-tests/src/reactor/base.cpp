@@ -817,17 +817,25 @@ TEST(reactor, drain_write_buffer_timeout) {
         swoole_event_free();
     };
     pipe.set_blocking(false);
-    pipe.set_buffer_size(4096);
+    ASSERT_TRUE(pipe.set_buffer_size(4096));
 
     std::string payload(2 * 1024 * 1024, 'x');
     auto writer = pipe.get_socket(true);
     ASSERT_EQ(swoole_event_write(writer, payload.data(), payload.size()), payload.size());
-    size_t pending = writer->get_out_buffer_length();
+    auto get_pending_bytes = [writer]() -> size_t {
+        if (Buffer::empty(writer->out_buffer)) {
+            return 0;
+        }
+        // Buffer length includes the sent prefix until the front chunk is popped.
+        // Subtract its offset to measure progress even when no whole chunk has been sent.
+        return writer->get_out_buffer_length() - writer->out_buffer->front()->offset;
+    };
+    const size_t pending = get_pending_bytes();
     ASSERT_GT(pending, 0);
 
     // An exhausted budget must preserve the queue without making another write attempt.
     sw_reactor()->drain_write_buffer(writer, 0);
-    ASSERT_EQ(writer->get_out_buffer_length(), pending);
+    ASSERT_EQ(get_pending_bytes(), pending);
 
     std::atomic<bool> reading{true};
     std::thread reader([&]() {
@@ -848,8 +856,8 @@ TEST(reactor, drain_write_buffer_timeout) {
 
     EXPECT_GE(elapsed, 90);
     EXPECT_LT(elapsed, 1000);
-    EXPECT_GT(writer->get_out_buffer_length(), 0);
-    EXPECT_LT(writer->get_out_buffer_length(), pending);
+    EXPECT_GT(get_pending_bytes(), 0);
+    EXPECT_LT(get_pending_bytes(), pending);
 }
 
 TEST(reactor, handle_fail) {

@@ -5,6 +5,8 @@ swoole_thread/server: forced worker stop delivers queued cross-thread sends, or 
 require __DIR__ . '/../../include/skipif.inc';
 skip_if_nts();
 ?>
+--INI--
+swoole.socket_buffer_size=65536
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -41,6 +43,8 @@ $serv->set([
         return [$ready, $state, $target];
     },
 ]);
+// INI bounds IPC kernel buffers; configure client capacity only on the port to preserve that limit.
+$serv->ports[0]->set(['socket_buffer_size' => 8 * 1024 * 1024]);
 $serv->on('WorkerStart', function (Swoole\Server $serv) {
     [$ready, , $target] = Thread::getArguments();
     $starts = $ready->add();
