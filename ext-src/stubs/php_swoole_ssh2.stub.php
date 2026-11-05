@@ -25,6 +25,14 @@ function ssh2_connect(string $host, int $port = 22, ?array $methods = null, ?arr
 function ssh2_disconnect($session): bool {}
 
 /**
+ * Set how long session operations may wait before they fail
+ * @param resource $session The SSH session
+ * @param int $seconds The timeout in seconds, or 0 with no microseconds to disable the timeout
+ * @param int $microseconds [optional] Additional microseconds, rounded up to milliseconds
+ */
+function ssh2_set_timeout($session, int $seconds, int $microseconds = 0): void {}
+
+/**
  * Configure keepalive messages
  * @param resource $session The SSH session
  * @param bool $want_reply Whether keepalive messages should request a reply from the server

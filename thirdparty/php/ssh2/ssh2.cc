@@ -450,6 +450,31 @@ PHP_FUNCTION(ssh2_disconnect) {
 }
 /* }}} */
 
+/* {{{ proto void ssh2_set_timeout(resource session, long seconds [, long microseconds])
+ * Set how long session operations may wait on the socket before they fail. This method takes microseconds to align
+ * with stream_set_timeout, but rounds them up to milliseconds as pecl ssh2 does. A timeout of zero disables it.
+ */
+PHP_FUNCTION(ssh2_set_timeout) {
+    LIBSSH2_SESSION *session;
+    zval *zsession;
+    zend_long seconds, microseconds = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "rl|l", &zsession, &seconds, &microseconds) == FAILURE) {
+        return;
+    }
+
+    if ((session = (LIBSSH2_SESSION *) zend_fetch_resource(
+             Z_RES_P(zsession), PHP_SSH2_SESSION_RES_NAME, le_ssh2_session)) == NULL) {
+        return;
+    }
+
+    /* The session is nonblocking, so libssh2_session_set_timeout() would have no effect. */
+    zend_long timeout_ms = seconds * 1000 + (microseconds + 1000 - 1) / 1000;
+    ssh2_get_socket(session)->set_timeout(timeout_ms == 0 ? -1 : timeout_ms / 1000.0,
+                                          SW_TIMEOUT_READ | SW_TIMEOUT_WRITE);
+}
+/* }}} */
+
 /* {{{ proto void ssh2_keepalive_config(resource session, bool want_reply, int interval)
  * Set how often keepalive messages should be sent. interval is the number
  * of seconds that can pass without any I/O; use 0 (the default) to disable

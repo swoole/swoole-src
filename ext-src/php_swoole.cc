@@ -187,6 +187,7 @@ const zend_function_entry swoole_functions[] = {
 #ifdef SW_HAVE_SSH2LIB
 	ZEND_FE(ssh2_connect, arginfo_ssh2_connect)
 	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
+	ZEND_FE(ssh2_set_timeout, arginfo_ssh2_set_timeout)
 	ZEND_FE(ssh2_keepalive_config, arginfo_ssh2_keepalive_config)
 	ZEND_FE(ssh2_keepalive_send, arginfo_ssh2_keepalive_send)
 	ZEND_FE(ssh2_methods_negotiated, arginfo_ssh2_methods_negotiated)

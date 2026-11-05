@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 5715f2ea9b7d5cd8e0fc1aff16aae53351eabcb9 */
+ * Stub hash: 08cd1c773e208284fc34e02ded940298e33c83b7 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_connect, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
@@ -10,6 +10,12 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_disconnect, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_INFO(0, session)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_set_timeout, 0, 2, IS_VOID, 0)
+	ZEND_ARG_INFO(0, session)
+	ZEND_ARG_TYPE_INFO(0, seconds, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, microseconds, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_keepalive_config, 0, 3, IS_VOID, 0)

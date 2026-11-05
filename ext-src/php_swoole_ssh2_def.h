@@ -3,6 +3,7 @@
 BEGIN_EXTERN_C()
 ZEND_FUNCTION(ssh2_connect);
 ZEND_FUNCTION(ssh2_disconnect);
+ZEND_FUNCTION(ssh2_set_timeout);
 ZEND_FUNCTION(ssh2_keepalive_config);
 ZEND_FUNCTION(ssh2_keepalive_send);
 ZEND_FUNCTION(ssh2_methods_negotiated);
