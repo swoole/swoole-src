@@ -1597,7 +1597,9 @@ static void php_swoole_server_onWorkerStart(Server *serv, Worker *worker) {
     if (serv->is_task_worker() && !serv->task_enable_coroutine && !serv->is_thread_mode()) {
         PHPCoroutine::disable_hook();
     }
-    serv->get_worker_message_bus()->set_allocator(sw_zend_string_allocator());
+    if (!serv->is_thread_mode()) {
+        serv->get_worker_message_bus()->set_allocator(sw_zend_string_allocator());
+    }
 
     zval args[2];
     args[0] = *zserv;
@@ -1688,7 +1690,6 @@ static void php_swoole_server_onUserWorkerStart(Server *serv, Worker *worker) {
         ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
         int index = worker->id - serv->worker_num - serv->task_worker_num;
         object = server_object->property->user_processes[index];
-        serv->get_worker_message_bus()->set_allocator(sw_zend_string_allocator());
     } else {
         object = (zval *) worker->ptr;
     }
