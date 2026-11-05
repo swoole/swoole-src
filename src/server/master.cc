@@ -1001,8 +1001,7 @@ bool Server::shutdown() {
      * Sending a signal to its own process can inform the main thread to prepare for exit.
      */
     if (is_thread_mode() && is_master_thread()) {
-        stop_master_thread();
-        return true;
+        return signal_handler_shutdown();
     }
 
     if (is_process_mode()) {

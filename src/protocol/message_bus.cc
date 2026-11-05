@@ -362,6 +362,9 @@ void MessageBus::init_pipe_socket(const Socket *sock) {
     if ((size_t) pipe_fd >= pipe_sockets_.size()) {
         pipe_sockets_.resize(pipe_fd + 1);
     }
+    if (pipe_sockets_[pipe_fd]) {
+        return;
+    }
     auto _socket = make_socket(pipe_fd, SW_FD_PIPE);
     _socket->buffer_size = UINT_MAX;
     if (!_socket->nonblock) {
