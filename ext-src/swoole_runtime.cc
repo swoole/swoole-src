@@ -661,6 +661,10 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
 
     if (abstract->stream.is_blocked) {
         didwrite = sock->send_all(buf, count);
+        // PHP retries the rest of a partial write at once, which would wait again after a cancellation.
+        if (didwrite > 0 && (size_t) didwrite < count && sock->errCode == ECANCELED) {
+            didwrite = -1;
+        }
     } else {
         didwrite = sock->send_once(buf, count);
         sock->set_err(errno);
