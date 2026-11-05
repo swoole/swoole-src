@@ -145,7 +145,8 @@ struct WorkerGlobal {
      *  It is not visible to other worker processes.
      */
     Worker *worker_copy;
-    time_t exit_time;
+    // Monotonic start of worker shutdown; all exit phases share the same wait budget.
+    int64_t exit_time_msec;
 };
 
 struct Worker {

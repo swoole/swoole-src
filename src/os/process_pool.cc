@@ -1154,7 +1154,6 @@ void ProcessPool::destroy() {
     }
 
     if (message_bus) {
-        message_bus->free_buffer();
         delete message_bus;
         message_bus = nullptr;
     }
@@ -1172,6 +1171,7 @@ void Worker::init() {
     set_status_to_idle();
     SwooleWG.running = true;
     SwooleWG.shutdown = false;
+    SwooleWG.exit_time_msec = 0;
 }
 
 void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
@@ -1186,6 +1186,9 @@ bool Worker::has_exceeded_max_request() const {
 }
 
 void Worker::shutdown() {
+    if (!SwooleWG.shutdown) {
+        SwooleWG.exit_time_msec = time<std::chrono::milliseconds>(true);
+    }
     status = SW_WORKER_EXIT;
     SwooleWG.shutdown = true;
 }

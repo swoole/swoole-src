@@ -48,6 +48,11 @@ Factory *Server::create_thread_factory() {
 }
 
 void Server::destroy_thread_factory() const {
+    // Normal shutdown releases these queues in their worker threads. Keep an idempotent
+    // fallback after all joins for partially initialized slots and abnormal exits.
+    SW_LOOP_N(reactor_num) {
+        reactor_threads[i].discard_pipe_buffers();
+    }
     sw_free(connection_list);
     delete[] reactor_threads;
 }
@@ -75,6 +80,11 @@ bool ThreadFactory::start() {
     }
     if (server_->get_user_worker_num() > 0 && !server_->create_user_workers()) {
         return false;
+    }
+    // These buses survive event-worker replacement, including callbacks after the old reactor exits.
+    // Keep such writes queued for the next reactor rather than falling back to synchronous I/O.
+    SW_LOOP_N(server_->reactor_num) {
+        server_->get_thread(i)->message_bus.set_defer_write();
     }
     return true;
 }
@@ -132,10 +142,8 @@ void ThreadFactory::create_message_bus() const {
 }
 
 void ThreadFactory::destroy_message_bus() {
-    auto mb = SwooleTG.message_bus;
-    mb->free_buffer();
-    mb->clear();
-    delete mb;
+    // Pair with create_message_bus(); native resources and remaining packets belong to the bus.
+    delete SwooleTG.message_bus;
     SwooleTG.message_bus = nullptr;
 }
 
@@ -148,12 +156,21 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
         auto reactor_thread = server_->get_thread(i);
-        // Expose the bus before PHP RINIT binds its allocator, and retain it through PHP RSHUTDOWN.
+        // The bus belongs to the logical reactor slot, not this worker generation.
+        // Publish it before PHP RINIT; RSHUTDOWN clears only its request-owned packets.
         SwooleTG.message_bus = &reactor_thread->message_bus;
         server_->init_pipe_sockets(&reactor_thread->message_bus);
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
+        // Zend bailout can skip reactor_thread_main_loop()'s clean(). This idempotent fallback
+        // still runs on the exiting worker thread, after all PHP request shutdown callbacks.
         reactor_thread->clean();
-        reactor_thread->message_bus.release_pipe_sockets();
+        if (!server_->is_running()) {
+            // Final cleanup belongs to this worker, before it notifies the manager. Reuse the
+            // original exit deadline for any late writes; reload keeps the wrappers for its successor.
+            reactor_thread->drain_pipe_buffers(server_, server_->get_worker_exit_timeout_msec());
+            reactor_thread->discard_pipe_buffers();
+            reactor_thread->message_bus.release_pipe_sockets();
+        }
         SwooleTG.message_bus = nullptr;
 
         at_thread_exit(worker);

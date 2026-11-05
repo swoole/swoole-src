@@ -116,6 +116,13 @@ class MessageBus {
      * Always send the data in chunked mode, even if it fits in a single packet.
      */
     bool always_chunked_transfer_ = false;
+    /**
+     * Keep writes queued while this bus has no reactor. Only an owner that preserves the bus and
+     * later resumes or explicitly discards its pipe queues may enable this mode.
+     */
+    bool defer_write_ = false;
+
+    ssize_t enqueue_write(network::Socket *sock, const struct iovec *iov, size_t iovcnt) const;
 
     /**
      * Find or create the accumulation buffer of the packet which is being received.
@@ -157,7 +164,8 @@ class MessageBus {
     }
 
     /**
-     * Drop all the unprocessed packets.
+     * Drop all unprocessed receive packets. Pipe output queues are separate and remain intact.
+     * With a Zend allocator, call this before the PHP request heap is destroyed.
      */
     void clear() {
         packet_pool_.clear();
@@ -199,6 +207,14 @@ class MessageBus {
     }
 
     /**
+     * WorkerStop and PHP shutdown callbacks run after the old reactor is freed. A persistent
+     * event-worker bus must enqueue their writes for its successor instead of blocking or bypassing older packets.
+     */
+    void set_defer_write() {
+        defer_write_ = true;
+    }
+
+    /**
      * Get the max size of an IPC packet, same as the size of buffer_.
      */
     size_t get_buffer_size() const {
@@ -211,13 +227,13 @@ class MessageBus {
     size_t get_memory_size() const;
     /**
      * Allocate buffer_ with buffer_size_ bytes. It is a no-op if the buffer has already
-     * been allocated, throws std::bad_alloc on failure.
+     * been allocated, throws std::bad_alloc on failure. The destructor releases this native buffer.
      */
     void alloc_buffer();
 
     /**
-     * The buffer is the internal scratch memory of MessageBus, it is never exposed to PHP,
-     * so it does not use the allocator(set by set_allocator), must be released manually.
+     * Release the native scratch buffer early. It is never exposed to PHP and does not use allocator_.
+     * The destructor also calls this method; request-owned packet_pool_ entries are cleared separately.
      */
     void free_buffer() {
         if (buffer_ == nullptr) {
@@ -238,7 +254,8 @@ class MessageBus {
      * Send data to socket. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
      * Otherwise, send it directly.
      * When sending data in multi-thread environment, must use get_pipe_socket() to separate socket memory.
-     * @return: send success returns true, send failure returns false.
+     * @return true when accepted by the pipe or its event-loop output queue, false on failure.
+     * Acceptance does not acknowledge delivery to the peer or the final client.
      */
     bool write(network::Socket *sock, SendData *packet) const;
     /**
@@ -287,10 +304,24 @@ class MessageBus {
      * Each thread must have a unique buffer and the socket memory must be separated.
      */
     network::Socket *get_pipe_socket(const network::Socket *sock) const {
-        return pipe_sockets_[sock->get_fd()];
+        size_t pipe_fd = static_cast<size_t>(sock->get_fd());
+        return pipe_fd < pipe_sockets_.size() ? pipe_sockets_[pipe_fd] : nullptr;
+    }
+    /**
+     * Visit the pipe wrappers owned by this MessageBus, including command pipes. Empty slots are skipped.
+     * Return false from the callback to stop traversal; wrappers must not be added or released during traversal.
+     */
+    bool foreach_pipe_socket(const std::function<bool(network::Socket *)> &callback) const {
+        for (auto socket : pipe_sockets_) {
+            if (socket && !callback(socket)) {
+                return false;
+            }
+        }
+        return true;
     }
     /**
      * Create the socket object of the given pipe fd, see get_pipe_socket().
+     * Repeated initialization preserves the existing wrapper and its queued writes.
      */
     void init_pipe_socket(const network::Socket *sock);
     /**

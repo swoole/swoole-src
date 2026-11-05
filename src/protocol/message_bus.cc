@@ -263,6 +263,32 @@ _read_from_pipe:
     }
 }
 
+ssize_t MessageBus::enqueue_write(Socket *sock, const iovec *iov, size_t iovcnt) const {
+    size_t length = 0;
+    SW_LOOP_N(iovcnt) {
+        length += iov[i].iov_len;
+    }
+    size_t queued_length = sock->out_buffer ? sock->out_buffer->length() : 0;
+    if (queued_length + length > sock->buffer_size) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
+                         "pipe#%d output buffer overflow: (%zu/%u)",
+                         sock->get_fd(),
+                         queued_length + length,
+                         sock->buffer_size);
+        // This is the local queue limit, not a kernel ENOBUFS/EMSGSIZE that should reduce the IPC chunk size.
+        errno = ENOSPC;
+        return SW_ERR;
+    }
+    if (!sock->out_buffer) {
+        sock->out_buffer = new Buffer(sock->chunk_size);
+    }
+    // No reactor is available to register a writable event now. The bus owner must attach the
+    // same wrapper to the next reactor; appending here keeps the old and new packets in one FIFO.
+    sock->out_buffer->append(iov, iovcnt, 0);
+    return length;
+}
+
 bool MessageBus::write(Socket *sock, SendData *resp) const {
     const char *payload = resp->data;
     uint32_t l_payload = resp->info.len;
@@ -275,10 +301,14 @@ bool MessageBus::write(Socket *sock, SendData *resp) const {
     uint32_t max_length = buffer_size_ - sizeof(resp->info);
     resp->info.msg_id = msg_id;
 
-    auto send_fn = [](Socket *sock, const iovec *iov, size_t iovcnt) {
+    auto send_fn = [this](Socket *sock, const iovec *iov, size_t iovcnt) {
         if (swoole_event_is_available()) {
             return swoole_event_writev(sock, iov, iovcnt);
+        } else if (defer_write_) {
+            return enqueue_write(sock, iov, iovcnt);
         } else {
+            // Other callers may have no later event loop or persistent owner to consume a queue.
+            // Preserve their synchronous contract instead of accepting writes that can never resume.
             return sock->writev_sync(iov, iovcnt);
         }
     };
@@ -362,6 +392,11 @@ void MessageBus::init_pipe_socket(const Socket *sock) {
     if ((size_t) pipe_fd >= pipe_sockets_.size()) {
         pipe_sockets_.resize(pipe_fd + 1);
     }
+    if (pipe_sockets_[pipe_fd]) {
+        // Event-worker replacement initializes the same bus again. Reuse the wrapper:
+        // its output queue still owns writes accepted by the previous worker generation.
+        return;
+    }
     auto _socket = make_socket(pipe_fd, SW_FD_PIPE);
     _socket->buffer_size = UINT_MAX;
     if (!_socket->nonblock) {
@@ -381,7 +416,10 @@ void MessageBus::release_pipe_sockets() {
 }
 
 MessageBus::~MessageBus() {
+    // These allocations belong to the bus, independently of any PHP request or worker generation.
+    // Zend-backed packet_pool_ entries must already have been cleared before their request heap is destroyed.
     release_pipe_sockets();
+    free_buffer();
 }
 
 }  // namespace swoole

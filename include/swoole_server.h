@@ -182,6 +182,8 @@ struct ReactorThread {
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
     void shutdown(Reactor *reactor);
     int close_connection(Reactor *reactor, SessionId session_id);
+    void drain_pipe_buffers(Server *serv, int timeout_msec);
+    void discard_pipe_buffers();
     void clean();
 };
 
@@ -1727,7 +1729,9 @@ class Server {
 
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
-    void drain_worker_pipe() const;
+    void drain_worker_pipe();
+    // Remaining milliseconds in the original shutdown budget, shared by all cleanup phases.
+    int get_worker_exit_timeout_msec() const;
     void clean_worker_connections(Worker *worker);
 
     /**
