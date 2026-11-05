@@ -204,6 +204,9 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ssh2_scp_recv, arginfo_ssh2_scp_recv)
 	ZEND_FE(ssh2_scp_send, arginfo_ssh2_scp_send)
 	ZEND_FE(ssh2_fetch_stream, arginfo_ssh2_fetch_stream)
+#ifdef PHP_SSH2_CHANNEL_SIGNAL
+	ZEND_FE(ssh2_send_signal, arginfo_ssh2_send_signal)
+#endif
 	ZEND_FE(ssh2_send_eof, arginfo_ssh2_send_eof)
 	ZEND_FE(ssh2_sftp, arginfo_ssh2_sftp)
 	ZEND_FE(ssh2_sftp_rename, arginfo_ssh2_sftp_rename)

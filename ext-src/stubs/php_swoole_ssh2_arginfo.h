@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 747b92caa56c855a7c3608c8bb7965fe6c80d62c */
+ * Stub hash: 0e7c9e3f2fe9060b786651e0f9505d001a58ce7e */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_connect, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
@@ -123,6 +123,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ssh2_fetch_stream, 0, 0, 2)
 	ZEND_ARG_INFO(0, channel)
 	ZEND_ARG_TYPE_INFO(0, streamid, IS_LONG, 0)
 ZEND_END_ARG_INFO()
+
+#if defined(PHP_SSH2_CHANNEL_SIGNAL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_send_signal, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, channel)
+	ZEND_ARG_TYPE_INFO(0, signal, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+#endif
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ssh2_send_eof, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_INFO(0, channel)

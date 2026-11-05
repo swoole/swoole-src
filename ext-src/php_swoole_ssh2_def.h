@@ -20,6 +20,9 @@ ZEND_FUNCTION(ssh2_tunnel);
 ZEND_FUNCTION(ssh2_scp_recv);
 ZEND_FUNCTION(ssh2_scp_send);
 ZEND_FUNCTION(ssh2_fetch_stream);
+#ifdef PHP_SSH2_CHANNEL_SIGNAL
+ZEND_FUNCTION(ssh2_send_signal);
+#endif
 ZEND_FUNCTION(ssh2_send_eof);
 ZEND_FUNCTION(ssh2_sftp);
 ZEND_FUNCTION(ssh2_sftp_rename);

@@ -185,6 +185,16 @@ function ssh2_scp_send($session, string $local_file, string $remote_file, int $c
  */
 function ssh2_fetch_stream($channel, int $streamid) {}
 
+#ifdef PHP_SSH2_CHANNEL_SIGNAL
+/**
+ * Send a signal to the remote process of a channel
+ * @param resource $channel The channel resource
+ * @param string $signal The signal name without the "SIG" prefix, such as "INT"
+ * @return bool Returns true on success or false on failure
+ */
+function ssh2_send_signal($channel, string $signal): bool {}
+#endif
+
 /**
  * Send EOF to a channel
  * @param resource $channel The channel resource

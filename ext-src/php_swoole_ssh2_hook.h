@@ -78,6 +78,9 @@
 #undef libssh2_channel_send_eof
 #define libssh2_channel_send_eof(channel) SSH2_ASYNC_CALL(session, libssh2_channel_send_eof, channel)
 
+#define libssh2_channel_signal_ex(channel, signame, signame_len)                                                       \
+    SSH2_ASYNC_CALL(session, libssh2_channel_signal_ex, channel, signame, signame_len)
+
 #undef libssh2_channel_request_pty_size_ex
 #define libssh2_channel_request_pty_size_ex(channel, width, height, width_px, height_px)                               \
     SSH2_ASYNC_CALL(session, libssh2_channel_request_pty_size_ex, channel, width, height, width_px, height_px)
