@@ -231,6 +231,7 @@ class Client {
     void set_error(int error, const char *msg, int status) const;
     bool keep_liveness();
     bool send_request();
+    void reset_download();
     void reset();
 
     static void add_headers(String *buf, const char *key, size_t key_len, const char *data, size_t data_len) {
@@ -1534,6 +1535,8 @@ bool Client::exec(const std::string &_path) {
     }
     SW_LOOP_N(max_retries + 1) {
         if (send_request() == false) {
+            // Connection and validation failures may precede initialization of the internal download state.
+            reset_download();
             return false;
         }
         if (collect_stats) {
@@ -1551,12 +1554,23 @@ bool Client::exec(const std::string &_path) {
         if (defer) {
             return true;
         }
+        zend::String retry_download_file;
+        zend_long retry_download_offset = download_offset;
+        if (max_retries > 0 && download_file_name.get()) {
+            retry_download_file = download_file_name;
+        }
         if (recv_response() == false) {
             return false;
         }
         if (max_retries > 0 &&
             (parser.status_code == SW_HTTP_BAD_GATEWAY || parser.status_code == SW_HTTP_SERVICE_UNAVAILABLE)) {
             close(true);
+            if (i < max_retries && retry_download_file.get()) {
+                zend_update_property_str(
+                    swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadFile"), retry_download_file.get());
+                zend_update_property_long(
+                    swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadOffset"), retry_download_offset);
+            }
             continue;
         }
         return true;
@@ -1792,6 +1806,14 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
     }
 }
 
+void Client::reset_download() {
+    download_file.reset();
+    download_file_name.release();
+    download_offset = 0;
+    zend_update_property_null(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadFile"));
+    zend_update_property_long(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadOffset"), 0);
+}
+
 void Client::reset() {
     wait_response = false;
     completed = false;
@@ -1821,12 +1843,8 @@ void Client::reset() {
     if (has_upload_files) {
         zend_update_property_null(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("uploadFiles"));
     }
-    if (download_file != nullptr) {
-        download_file.reset();
-        download_file_name.release();
-        download_offset = 0;
-        zend_update_property_null(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadFile"));
-        zend_update_property_long(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadOffset"), 0);
+    if (download_file != nullptr || download_file_name.get()) {
+        reset_download();
     }
 }
 
