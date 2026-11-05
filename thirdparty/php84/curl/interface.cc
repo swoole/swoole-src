@@ -468,6 +468,10 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string) {
     zval argv[3];
     zval retval;
 
+    if (!ZEND_FCC_INITIALIZED(ch->handlers.fnmatch)) {
+        return rval;
+    }
+
     GC_ADDREF(&ch->std);
     ZVAL_OBJ(&argv[0], &ch->std);
     ZVAL_STRING(&argv[1], pattern);
@@ -504,6 +508,9 @@ static int fn_progress(void *clientp, double dltotal, double dlnow, double ultot
             ultotal,
             ulnow);
 #endif
+    if (!ZEND_FCC_INITIALIZED(ch->handlers.progress)) {
+        return rval;
+    }
 
     zval args[5];
     zval retval;
@@ -547,6 +554,9 @@ static int fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl
             ultotal,
             ulnow);
 #endif
+    if (!ZEND_FCC_INITIALIZED(ch->handlers.xferinfo)) {
+        return rval;
+    }
 
     zval argv[5];
     zval retval;
