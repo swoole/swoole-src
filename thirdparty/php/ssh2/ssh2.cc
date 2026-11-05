@@ -48,26 +48,25 @@ int le_ssh2_pkey_subsys;
  ************* */
 
 /* {{{ php_ssh2_alloc_cb
- * Wrap emalloc()
+ * Use system malloc to avoid allocator mismatch: libssh2 1.11.1
+ * _libssh2_ecdsa_sign() allocates via LIBSSH2_ALLOC but frees via
+ * OPENSSL_clear_free, crashing when emalloc is the registered allocator.
+ * https://github.com/libssh2/libssh2/issues/1828
  */
 static LIBSSH2_ALLOC_FUNC(php_ssh2_alloc_cb) {
-    return emalloc(count);
+    return malloc(count);
 }
 /* }}} */
 
-/* {{{ php_ssh2_free_cb
- * Wrap efree()
- */
+/* {{{ php_ssh2_free_cb */
 static LIBSSH2_FREE_FUNC(php_ssh2_free_cb) {
-    efree(ptr);
+    free(ptr);
 }
 /* }}} */
 
-/* {{{ php_ssh2_realloc_cb
- * Wrap erealloc()
- */
+/* {{{ php_ssh2_realloc_cb */
 static LIBSSH2_REALLOC_FUNC(php_ssh2_realloc_cb) {
-    return erealloc(ptr, count);
+    return realloc(ptr, count);
 }
 /* }}} */
 
@@ -649,8 +648,14 @@ static void kbd_callback(const char *name,
     }
 
     if (num_prompts >= 1 && session_data && *session_data && (*session_data)->kbd_password) {
-        responses[0].text = estrndup((*session_data)->kbd_password, (*session_data)->kbd_password_len);
-        responses[0].length = (unsigned int) (*session_data)->kbd_password_len;
+        /* libssh2 releases response text through the session's system free() callback. */
+        auto data = *session_data;
+        responses[0].text = (char *) malloc(data->kbd_password_len + 1);
+        if (responses[0].text) {
+            memcpy(responses[0].text, data->kbd_password, data->kbd_password_len);
+            responses[0].text[data->kbd_password_len] = '\0';
+            responses[0].length = (unsigned int) data->kbd_password_len;
+        }
     }
 }
 

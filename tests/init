@@ -82,7 +82,7 @@ Swoole\Coroutine\run(function () use ($load_mysql, $load_firebird, $load_odbc_my
 
         echo "[SSH2-init] Copying SSH test key pair...\n";
 
-        exec("cat " . __DIR__ . '/swoole_ssh2/testkey_ed25519.pub' . " > /home/$ssh_user/.ssh/authorized_keys");
+        exec("cat " . __DIR__ . '/swoole_ssh2/testkey_ed25519.pub ' . __DIR__ . '/swoole_ssh2/testkey_ecdsa.pub' . " > /home/$ssh_user/.ssh/authorized_keys");
         readfile("/home/$ssh_user/.ssh/authorized_keys");
         readfile('/etc/ssh/sshd_config');
 
