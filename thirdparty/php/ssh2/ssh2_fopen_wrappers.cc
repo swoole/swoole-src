@@ -375,9 +375,16 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
     }
 
     /*
-     * Find resource->path in the path string, then copy the entire string from the original path.
-     * This includes ?query#fragment in the path string
+     * php_url_parse() strips ?query and #fragment from resource->path, but both can be part of a file name.
+     * Copy the path from the original string instead, starting at the first '/' after the authority, which
+     * can itself contain '#' ("Resource id #N").
      */
+    const char *path_in_original = strstr(path, "://");
+    path_in_original = path_in_original ? strchr(path_in_original + 3, '/') : nullptr;
+    if (path_in_original && strpbrk(path_in_original, "#?")) {
+        zend_string_release(resource->path);
+        resource->path = zend_string_init(path_in_original, strlen(path_in_original), 0);
+    }
 
     /* Look for a resource ID to reuse a session */
     if (is_numeric_string(ZSTR_VAL(resource->host), ZSTR_LEN(resource->host), &resource_id, NULL, 0) == IS_LONG) {
