@@ -460,12 +460,14 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
             if (sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
                 didwrite = 0;
             } else {
-                php_error_docref(nullptr,
-                                 E_NOTICE,
-                                 "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
-                                 (zend_long) count,
-                                 sock->errCode,
-                                 sock->errMsg);
+                if (!(stream->flags & PHP_STREAM_FLAG_SUPPRESS_ERRORS)) {
+                    php_error_docref(nullptr,
+                                     E_NOTICE,
+                                     "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
+                                     (zend_long) count,
+                                     sock->errCode,
+                                     sock->errMsg);
+                }
                 stream->eof = 1;
             }
         }
