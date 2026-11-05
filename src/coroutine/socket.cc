@@ -1665,10 +1665,7 @@ void Socket::close_fd() {
     if (swoole_event_is_available() && !socket->removed) {
         swoole_event_del(socket);
     }
-    int fd = socket->move_fd();
-    if (::close(fd) != 0) {
-        swoole_sys_warning("close(%d) failed", fd);
-    }
+    socket->close_fd();
 }
 
 /**
@@ -1693,7 +1690,13 @@ Socket::~Socket() {
         return;
     }
     /* {{{ release socket resources */
-    close_fd();
+#ifdef SW_USE_OPENSSL
+    ssl_shutdown();
+#endif
+    // only a closed socket releases its descriptor here, an open one keeps the deferred release in free()
+    if (is_closed() || socket->close_wait) {
+        close_fd();
+    }
     socket->free();
 }
 

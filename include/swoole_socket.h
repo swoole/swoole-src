@@ -463,6 +463,7 @@ struct Socket {
     int wait_event(int timeout_ms, int _events) const;
     bool wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec = -1);
     int what_event_want(int default_event) const;
+    void close_fd();
     void free();
 
     static inline bool is_dgram(SocketType type) {
