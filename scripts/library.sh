@@ -19,8 +19,15 @@ if ! id -u swoole_ssh2_test_user > /dev/null 2>&1; then
     useradd -m -s /bin/bash swoole_ssh2_test_user
 fi
 echo 'swoole_ssh2_test_user:swoole_ssh2_test_pass' | chpasswd
+if ! id -u swoole_ssh2_truncated_scp_user > /dev/null 2>&1; then
+    useradd -m -s /bin/sh swoole_ssh2_truncated_scp_user
+fi
+echo 'swoole_ssh2_truncated_scp_user:swoole_ssh2_truncated_scp_pass' | chpasswd
+install -m 0555 ./truncated_scp_server.sh /usr/local/bin/swoole-truncated-scp-server
 mkdir -p /etc/ssh/sshd_config.d
 printf '%s\n' 'AcceptEnv SWOOLE_TEST_*' 'PasswordAuthentication yes' > /etc/ssh/sshd_config.d/swoole-tests.conf
+printf '%s\n' 'Match User swoole_ssh2_truncated_scp_user' \
+    '    ForceCommand /usr/local/bin/swoole-truncated-scp-server' >> /etc/ssh/sshd_config.d/swoole-tests.conf
 mkdir -p /run/sshd
 sshd -t || { echo 'sshd configuration is invalid'; exit 1; }
 service ssh start

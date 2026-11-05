@@ -1222,7 +1222,9 @@ PHP_FUNCTION(ssh2_scp_recv) {
         int bytes_read;
 
         bytes_read = libssh2_channel_read(remote_file, buffer, sb.st_size > 8192 ? 8192 : sb.st_size);
-        if (bytes_read < 0) {
+        // A zero read alone is allowed by libssh2. EOF with bytes still outstanding, however,
+        // cannot make progress and would otherwise keep this loop running without yielding.
+        if (bytes_read < 0 || (bytes_read == 0 && libssh2_channel_eof(remote_file))) {
             php_error_docref(NULL, E_WARNING, "Error reading from remote file");
             libssh2_channel_free(remote_file);
             php_stream_close(local_file);
