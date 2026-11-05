@@ -25,6 +25,21 @@ function ssh2_connect(string $host, int $port = 22, ?array $methods = null, ?arr
 function ssh2_disconnect($session): bool {}
 
 /**
+ * Configure keepalive messages
+ * @param resource $session The SSH session
+ * @param bool $want_reply Whether keepalive messages should request a reply from the server
+ * @param int $interval Seconds without I/O before a keepalive is due, or 0 to disable keepalives
+ */
+function ssh2_keepalive_config($session, bool $want_reply, int $interval): void {}
+
+/**
+ * Send a keepalive message if one is due
+ * @param resource $session The SSH session
+ * @return int|false Returns the number of seconds until the next call is needed, or false on failure
+ */
+function ssh2_keepalive_send($session): int|false {}
+
+/**
  * Return list of negotiated methods
  * @param resource $session The SSH session to list methods for
  * @return array Returns an associative array of negotiated methods

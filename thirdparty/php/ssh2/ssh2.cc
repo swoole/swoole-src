@@ -450,6 +450,62 @@ PHP_FUNCTION(ssh2_disconnect) {
 }
 /* }}} */
 
+/* {{{ proto void ssh2_keepalive_config(resource session, bool want_reply, int interval)
+ * Set how often keepalive messages should be sent. interval is the number
+ * of seconds that can pass without any I/O; use 0 (the default) to disable
+ * keepalives. want_reply indicates whether the keepalive messages should
+ * request a response from the server.
+ */
+PHP_FUNCTION(ssh2_keepalive_config) {
+    LIBSSH2_SESSION *session;
+    zval *zsession;
+    zend_bool want_reply;
+    zend_long interval;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "rbl", &zsession, &want_reply, &interval) == FAILURE) {
+        return;
+    }
+
+    if (interval < 0 || interval > UINT_MAX) {
+        php_error_docref(NULL, E_WARNING, "Argument #3 ($interval) must be between 0 and %u", UINT_MAX);
+        return;
+    }
+
+    if ((session = (LIBSSH2_SESSION *) zend_fetch_resource(
+             Z_RES_P(zsession), PHP_SSH2_SESSION_RES_NAME, le_ssh2_session)) == NULL) {
+        return;
+    }
+
+    libssh2_keepalive_config(session, want_reply, (unsigned int) interval);
+}
+/* }}} */
+
+/* {{{ proto int|false ssh2_keepalive_send(resource session)
+ * Send a keepalive message if needed. Returns the number of seconds you
+ * can sleep before you need to call this function again, or false on error.
+ */
+PHP_FUNCTION(ssh2_keepalive_send) {
+    LIBSSH2_SESSION *session;
+    zval *zsession;
+    int seconds_to_next;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &zsession) == FAILURE) {
+        return;
+    }
+
+    if ((session = (LIBSSH2_SESSION *) zend_fetch_resource(
+             Z_RES_P(zsession), PHP_SSH2_SESSION_RES_NAME, le_ssh2_session)) == NULL) {
+        return;
+    }
+
+    if (libssh2_keepalive_send(session, &seconds_to_next)) {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(seconds_to_next);
+}
+/* }}} */
+
 /* {{{ proto array ssh2_methods_negotiated(resource session)
  * Return list of negotiaed methods
  */
