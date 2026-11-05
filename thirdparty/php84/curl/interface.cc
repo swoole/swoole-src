@@ -306,7 +306,6 @@ static zend_object *swoole_curl_clone_obj(zend_object *object) {
 
     clone_object = swoole_curl_create_object(php_curl_ce);
     clone_ch = curl_from_obj(clone_object);
-    swoole_curl_init_handle(clone_ch);
 
     ch = curl_from_obj(object);
     cp = curl_easy_duphandle(ch->cp);
@@ -315,6 +314,7 @@ static zend_object *swoole_curl_clone_obj(zend_object *object) {
         return &clone_ch->std;
     }
 
+    swoole_curl_init_handle(clone_ch);
     clone_ch->cp = cp;
     swoole_setup_easy_copy_handlers(clone_ch, ch);
     swoole::curl::create_handle(clone_ch->cp);
