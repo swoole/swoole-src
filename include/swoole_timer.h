@@ -29,7 +29,7 @@
 #define SW_TIMER_MAX_SEC ((double) LONG_MAX / 1000)
 
 namespace swoole {
-typedef std::function<void(TimerNode *)> TimerDestructor;
+typedef void (*TimerDestructor)(TimerNode *);
 
 struct TimerNode {
     enum Type {

@@ -18,7 +18,7 @@
 #include "swoole_timer.h"
 
 namespace swoole {
-Timer::Timer(bool manually_trigger) : heap(1024, Heap::MIN_HEAP) {
+Timer::Timer(bool manually_trigger) : heap(16, Heap::MIN_HEAP) {
     _current_id = -1;
     next_msec_ = -1;
     _next_id = 1;

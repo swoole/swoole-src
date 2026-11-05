@@ -43,9 +43,9 @@ TEST(timer, sys) {
     ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
 
     // dtor test
-    auto timer = swoole_timer_add(20L, false, [&](TIMER_PARAMS) { counter[2]++; });
+    auto timer = swoole_timer_add(20L, false, [&](TIMER_PARAMS) { counter[2]++; }, counter);
     ASSERT_TRUE(timer);
-    timer->destructor = [&](TimerNode *tnode) { counter[3] = 9999; };
+    timer->destructor = [](TimerNode *tnode) { static_cast<int *>(tnode->data)[3] = 9999; };
 
     swoole_timer_add(
         100L,
