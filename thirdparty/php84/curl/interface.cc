@@ -633,6 +633,7 @@ static int fn_prereqfunction(
                                  "CURL_PREREQFUNC_ABORT");
             }
         } else {
+            zval_ptr_dtor(&retval);
             zend_type_error(
                 "The CURLOPT_PREREQFUNCTION callback must return either CURL_PREREQFUNC_OK or CURL_PREREQFUNC_ABORT");
         }
