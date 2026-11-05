@@ -49,6 +49,7 @@ Co\run(function () use (&$server, &$sender, &$receiver): void {
         }
 
         stream_set_blocking($sender, false);
+        Assert::false(stream_get_meta_data($sender)['blocked']);
 
         $payload                     = str_repeat('partial-write:', 65536);
         $firstWrite                  = fwrite($sender, $payload);
@@ -57,6 +58,7 @@ Co\run(function () use (&$server, &$sender, &$receiver): void {
 
         stream_socket_shutdown($sender, STREAM_SHUT_WR);
         stream_set_blocking($receiver, true);
+        Assert::true(stream_get_meta_data($receiver)['blocked']);
 
         $received = stream_get_contents($receiver);
 

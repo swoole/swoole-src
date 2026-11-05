@@ -132,8 +132,15 @@ static php_stream_ops socket_ops {
 struct NetStream {
     php_netstream_data_t stream;
     std::shared_ptr<SocketImpl> socket;
-    bool blocking;
 };
+
+#ifndef _WIN32
+static php_stream_ops socket_stdio_ops;
+static php_stream_ops socket_stdio_coroutine_ops;
+static const php_stream_wrapper *ori_php_stdio_wrapper;
+static php_stream_wrapper_ops socket_stdio_wrapper_ops;
+static php_stream_wrapper socket_stdio_wrapper;
+#endif
 
 static struct {
     php_stream_transport_factory tcp;
@@ -275,7 +282,141 @@ SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
 #undef close
+#undef read
+#undef write
 SW_EXTERN_C_END
+
+#ifndef _WIN32
+/**
+ * php://stdin, stdout, stderr and fd can use PHP's native socket ops rather than its stdio ops.
+ * Mark these streams when they are opened (or when HOOK_STDIO is enabled), but leave their fd and
+ * native allocation untouched until coroutine I/O is actually requested.
+ */
+static void hook_socket_stdio_stream(php_stream *stream) {
+    if (stream->ops == &php_stream_socket_ops) {
+        stream->ops = &socket_stdio_ops;
+    }
+}
+
+static void hook_socket_stdio_streams() {
+    zval *value;
+    ZEND_HASH_FOREACH_VAL(&EG(regular_list), value) {
+        zend_resource *resource = Z_RES_P(value);
+        if (resource->type == php_file_le_stream()) {
+            auto *stream = static_cast<php_stream *>(resource->ptr);
+            if (stream->wrapper == &socket_stdio_wrapper) {
+                hook_socket_stdio_stream(stream);
+            }
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+}
+
+static php_stream *socket_stdio_wrapper_opener(php_stream_wrapper *wrapper,
+                                               const char *path,
+                                               const char *mode,
+                                               int options,
+                                               zend_string **opened_path,
+                                               php_stream_context *context STREAMS_DC) {
+    auto *stream =
+        ori_php_stdio_wrapper->wops->stream_opener(wrapper, path, mode, options, opened_path, context STREAMS_CC);
+    if (stream && !(options & STREAM_OPEN_FOR_INCLUDE) && (runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
+        hook_socket_stdio_stream(stream);
+    }
+    return stream;
+}
+
+static NetStream *socket_stdio_get_socket(php_stream *stream, swoole::EventType event) {
+    if (!stream->abstract) {
+        return nullptr;
+    }
+    if (stream->ops == &socket_stdio_ops) {
+        auto *native = static_cast<php_netstream_data_t *>(stream->abstract);
+        auto *abstract = new NetStream();
+        abstract->stream = *native;
+        abstract->socket.reset(new SocketImpl(native->socket, SW_SOCK_RAW));
+        // Reactor I/O requires O_NONBLOCK. As with other coroutine sockets, dup/fork aliases of
+        // this fd share that flag. The stream's logical blocking mode is kept separately.
+        if (!abstract->socket->get_socket()->set_nonblock()) {
+            abstract->socket->move_fd();
+            delete abstract;
+            return nullptr;
+        }
+        abstract->socket->set_timeout(&native->timeout, SW_TIMEOUT_RDWR);
+        pefree(native, stream->is_persistent);
+        stream->abstract = abstract;
+        // From here on the existing Socket close path owns the fd and cancels pending I/O before
+        // PHP frees the stream, including when socket_import_stream() closes it indirectly.
+        stream->ops = &socket_stdio_coroutine_ops;
+    }
+    auto *abstract = static_cast<NetStream *>(stream->abstract);
+    abstract->socket->check_bound_co(event);
+    return abstract;
+}
+
+static bool socket_stdio_use_coroutine(php_stream *stream) {
+    auto *native = static_cast<php_netstream_data_t *>(stream->abstract);
+    // PHP treats a zero timeout as an immediate attempt, whereas Socket uses zero for its default timeout.
+    return native && (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) && Coroutine::get_current() &&
+           (native->timeout.tv_sec != 0 || native->timeout.tv_usec != 0);
+}
+
+static php_stream_size_t socket_stdio_read(php_stream *stream, char *buf, size_t count) {
+    if (!socket_stdio_use_coroutine(stream)) {
+        if (stream->abstract && stream->ops == &socket_stdio_coroutine_ops) {
+            static_cast<NetStream *>(stream->abstract)->socket->check_bound_co(SW_EVENT_READ);
+        }
+        return php_stream_socket_ops.read(stream, buf, count);
+    }
+    auto *abstract = socket_stdio_get_socket(stream, SW_EVENT_READ);
+    if (!abstract) {
+        return -1;
+    }
+    abstract->stream.timeout_event = 0;
+    auto result = socket_read(stream, buf, count);
+    if (stream->abstract) {
+        abstract->stream.timeout_event = result < 0 && abstract->socket->errCode == ETIMEDOUT;
+    }
+    return result;
+}
+
+static php_stream_size_t socket_stdio_write(php_stream *stream, const char *buf, size_t count) {
+    if (!socket_stdio_use_coroutine(stream)) {
+        if (stream->abstract && stream->ops == &socket_stdio_coroutine_ops) {
+            static_cast<NetStream *>(stream->abstract)->socket->check_bound_co(SW_EVENT_WRITE);
+        }
+        return php_stream_socket_ops.write(stream, buf, count);
+    }
+    auto *abstract = socket_stdio_get_socket(stream, SW_EVENT_WRITE);
+    if (!abstract) {
+        return -1;
+    }
+    abstract->stream.timeout_event = 0;
+    auto result = socket_write(stream, buf, count);
+    if (stream->abstract) {
+        abstract->stream.timeout_event = abstract->stream.is_blocked && abstract->socket->errCode == ETIMEDOUT;
+    }
+    return result;
+}
+
+static int socket_stdio_set_option(php_stream *stream, int option, int value, void *ptrparam) {
+    auto *abstract = static_cast<NetStream *>(stream->abstract);
+    if (!abstract) {
+        return PHP_STREAM_OPTION_RETURN_ERR;
+    }
+    if (option == PHP_STREAM_OPTION_BLOCKING) {
+        // Do not clear the fd's O_NONBLOCK when PHP changes the logical stream mode.
+        abstract->stream.is_blocked = (bool) value;
+        return PHP_STREAM_OPTION_RETURN_OK;
+    }
+    if (option == PHP_STREAM_OPTION_READ_TIMEOUT) {
+        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_RDWR);
+    }
+    // NetStream retains PHP's native prefix, so metadata and native I/O after disabling hooks
+    // continue to use the same timeout and blocking state as coroutine I/O.
+    return php_stream_socket_ops.set_option(stream, option, value, ptrparam);
+}
+#endif
 
 void php_swoole_runtime_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_BASE(swoole_runtime, "Swoole\\Runtime", nullptr, swoole_runtime_methods, nullptr);
@@ -332,6 +473,25 @@ void php_swoole_runtime_minit(int module_number) {
     php_stream_xport_register("async.tls", socket_create);
 
     php_register_url_stream_wrapper(SW_ASYNC_FILE_PROTOCOL, &sw_php_plain_files_wrapper);
+#ifndef _WIN32
+    socket_stdio_ops = php_stream_socket_ops;
+    socket_stdio_ops.read = socket_stdio_read;
+    socket_stdio_ops.write = socket_stdio_write;
+    socket_stdio_coroutine_ops = socket_ops;
+    socket_stdio_coroutine_ops.read = socket_stdio_read;
+    socket_stdio_coroutine_ops.write = socket_stdio_write;
+    socket_stdio_coroutine_ops.set_option = socket_stdio_set_option;
+
+    auto *wrappers = php_stream_get_url_stream_wrappers_hash_global();
+    ori_php_stdio_wrapper =
+        static_cast<const php_stream_wrapper *>(zend_hash_str_find_ptr(wrappers, ZEND_STRL("php")));
+    socket_stdio_wrapper_ops = *ori_php_stdio_wrapper->wops;
+    socket_stdio_wrapper_ops.stream_opener = socket_stdio_wrapper_opener;
+    socket_stdio_wrapper = *ori_php_stdio_wrapper;
+    socket_stdio_wrapper.wops = &socket_stdio_wrapper_ops;
+    php_unregister_url_stream_wrapper("php");
+    php_register_url_stream_wrapper("php", &socket_stdio_wrapper);
+#endif
 }
 
 struct PhpFunc {
@@ -442,6 +602,10 @@ void php_swoole_runtime_rshutdown() {
 }
 
 void php_swoole_runtime_mshutdown() {
+#ifndef _WIN32
+    php_unregister_url_stream_wrapper("php");
+    php_register_url_stream_wrapper("php", ori_php_stdio_wrapper);
+#endif
 #ifdef SW_USE_CURL
     swoole_native_curl_mshutdown();
 #endif
@@ -495,7 +659,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         return sock->get_socket()->send_sync(buf, count, 0);
     }
 
-    if (abstract->blocking) {
+    if (abstract->stream.is_blocked) {
         didwrite = sock->send_all(buf, count);
     } else {
         didwrite = sock->send_once(buf, count);
@@ -545,7 +709,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->blocking
+    if (abstract->stream.is_blocked
 #if PHP_VERSION_ID >= 80300
         && !stream->has_buffered_data
 #endif
@@ -583,15 +747,19 @@ static int socket_close(php_stream *stream, int close_handle) {
     if (UNEXPECTED(!abstract)) {
         return FAILURE;
     }
-    /** set it null immediately */
+    // Cancellation resumes pending I/O synchronously; those calls must see the stream as closed
+    // before PHP releases either the stream or its NetStream allocation.
     stream->abstract = nullptr;
-    /**
-     * it's always successful (even if the destructor rule is violated)
-     * every calls passes through the hook function in PHP
-     * so there is unnecessary to worry about the null pointer.
-     */
     if (abstract->socket) {
-        abstract->socket->close();
+        if (close_handle) {
+            abstract->socket->close();
+        } else {
+            // PHP preserves the CLI standard descriptors during resource shutdown so extensions
+            // can still use them in module shutdown. Release our state without closing the fd.
+            abstract->socket->cancel(SW_EVENT_WRITE);
+            abstract->socket->cancel(SW_EVENT_READ);
+            abstract->socket->move_fd();
+        }
     }
     delete abstract;
     return SUCCESS;
@@ -796,7 +964,7 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
         auto abstract = new NetStream();
         abstract->socket = clisock;
         abstract->stream.socket = (int) clisock->get_fd();
-        abstract->blocking = true;
+        abstract->stream.is_blocked = true;
 
         xparam->outputs.client = php_stream_alloc_rel(stream->ops, abstract, nullptr, "r+");
         if (xparam->outputs.client == nullptr) {
@@ -1077,10 +1245,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     auto sock = sock_wrapped.get();
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
-        if (abstract->blocking == (bool) value) {
-            break;
-        }
-        abstract->blocking = (bool) value;
+        abstract->stream.is_blocked = (bool) value;
         break;
     case PHP_STREAM_OPTION_XPORT_API: {
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
@@ -1130,7 +1295,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         }
         add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
         add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
-        add_assoc_bool((zval *) ptrparam, "blocked", true);
+        add_assoc_bool((zval *) ptrparam, "blocked", abstract->stream.is_blocked);
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
@@ -1300,7 +1465,7 @@ static php_stream *socket_create(const char *proto,
     auto abstract = new NetStream();
     abstract->socket.reset(sock);
     abstract->stream.socket = (int)sock->get_fd();
-    abstract->blocking = true;
+    abstract->stream.is_blocked = true;
 
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
     if (stream == nullptr) {
@@ -1503,6 +1668,7 @@ static void hook_stream_ops(uint32_t flags) {
     if (flags & PHPCoroutine::HOOK_STDIO) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
             memcpy(&php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+            hook_socket_stdio_streams();
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) {
@@ -2283,7 +2449,7 @@ php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int
     }
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = static_cast<php_socket_t>(abstract->socket->get_fd());
-    abstract->blocking = true;
+    abstract->stream.is_blocked = true;
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
 
