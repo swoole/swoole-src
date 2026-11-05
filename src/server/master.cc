@@ -1575,6 +1575,13 @@ int Server::send_to_connection(SendData *_send) const {
         }
     }
 
+    // peer_closed is terminal: the socket only waits for the worker's close, so a direct send must not reach it.
+    if (conn->peer_closed && _send->info.type != SW_SERVER_EVENT_CLOSE) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
+        discard_sendfile(&_send->info, _send->data);
+        return SW_ERR;
+    }
+
     if (Buffer::empty(_socket->out_buffer)) {
         /**
          * close connection.
@@ -1628,11 +1635,6 @@ int Server::send_to_connection(SendData *_send) const {
             return SW_ERR;
         }
     } else {
-        // connection is closed
-        if (conn->peer_closed) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
-            return SW_ERR;
-        }
         // connection output buffer overflow
         if (_socket->out_buffer->length() >= _socket->buffer_size) {
             if (send_yield) {
