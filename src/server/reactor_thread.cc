@@ -523,6 +523,9 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             }
         }
 
+        // Keep the front packet owned by the queue until the nonblocking datagram write succeeds.
+        // EAGAIN leaves it in place for the next writable event, including after worker replacement.
+        // Popping before send would lose data on EAGAIN or require another queue to preserve ordering.
         ret = ev->socket->send(chunk->value.str, chunk->length, 0);
         if (ret < 0) {
             return (ev->socket->catch_write_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
@@ -793,6 +796,12 @@ _init_master_thread:
     return start_master_thread(reactor);
 }
 
+ReactorThread::~ReactorThread() {
+    // Workers have joined before the logical reactor slot is destroyed. Release queued
+    // sendfile tokens first; the MessageBus member then frees its native buffers and borrowed-fd wrappers.
+    discard_pipe_buffers();
+}
+
 int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     reactor->ptr = serv;
     reactor->id = reactor_id;
@@ -884,10 +893,6 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     return SW_OK;
 }
 
-void ReactorThread::clean() {
-    message_bus.free_buffer();
-}
-
 void ReactorThread::discard_pipe_buffers() {
     // Shutdown cannot wait for peer workers to read: they may already have stopped with full pipes.
     // Discard queued packets directly, releasing owned sendfiles before the wrappers are destroyed.
@@ -935,12 +940,13 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     // main loop
     swoole_event_wait();
     if (serv->is_thread_mode() && !serv->is_running()) {
+        // At whole-server shutdown there is no replacement reactor to resume these writes.
+        // This is a terminal discard, not a graceful drain or a guarantee of client delivery.
         thread->discard_pipe_buffers();
     }
     if (serv->is_thread_mode()) {
         serv->call_worker_stop_callback(serv->get_worker(reactor_id));
     }
-    thread->clean();
 }
 
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) {

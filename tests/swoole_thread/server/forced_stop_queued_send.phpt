@@ -13,6 +13,10 @@ use Swoole\Thread;
 use Swoole\Timer;
 
 const QUEUED_BYTES = 4 * 1024 * 1024;
+const EXIT_QUEUED_BYTES = 1024 * 1024;
+const REPLACEMENT_MARKER = "replacement-ready\n";
+
+Swoole\Coroutine::set(['socket_write_timeout' => 0]);
 
 $port = get_constant_port(__FILE__);
 $path = sys_get_temp_dir() . '/swoole_thread_forced_stop_' . $port . '.bin';
@@ -36,9 +40,27 @@ $serv->set([
         return [$ready, $state, $target];
     },
 ]);
-$serv->on('WorkerStart', function () {
-    [$ready] = Thread::getArguments();
-    $ready->add();
+$serv->on('WorkerStart', function (Swoole\Server $serv) {
+    [$ready, , $target] = Thread::getArguments();
+    $starts = $ready->add();
+    if ($serv->worker_id === 0 && $starts <= 3) {
+        register_shutdown_function(function () use ($serv, $target) {
+            Assert::true($serv->send($target->get(), str_repeat('t', EXIT_QUEUED_BYTES)));
+        });
+    }
+    if ($starts === 4) {
+        // This generation appends while its predecessor's queue is still pending.
+        // The marker must arrive after the complete old payload, without overtaking it.
+        Assert::true($serv->send($target->get(), REPLACEMENT_MARKER));
+    }
+});
+$serv->on('WorkerStop', function (Swoole\Server $serv) {
+    [$ready, , $target] = Thread::getArguments();
+    if ($serv->worker_id === 0 && $ready->get() === 3) {
+        // The reactor is already gone, but the destination is still blocked. This must enqueue
+        // behind the old payload, without a synchronous wait even with an infinite write timeout.
+        Assert::true($serv->send($target->get(), str_repeat('s', EXIT_QUEUED_BYTES)));
+    }
 });
 $serv->on('Receive', function (Swoole\Server $serv, int $fd, int $reactorId, string $data) use ($path) {
     [$ready, $state, $target] = Thread::getArguments();
@@ -139,12 +161,16 @@ $serv->addProcess(new Swoole\Process(function () use ($serv, $port) {
     Assert::greaterThan($target->send("block_restart\n"), 0);
     $wait(fn () => $state->get() === 1);
     Assert::greaterThan($sender->send("queue_stop\n"), 0);
-    $received = 0;
-    while ($received < QUEUED_BYTES && ($data = $target->recv(65536))) {
-        Assert::same($data, str_repeat('x', strlen($data)));
-        $received += strlen($data);
+    $received = '';
+    $expected = str_repeat('x', QUEUED_BYTES)
+        . str_repeat('s', EXIT_QUEUED_BYTES)
+        . str_repeat('t', EXIT_QUEUED_BYTES)
+        . REPLACEMENT_MARKER;
+    while (strlen($received) < strlen($expected) && ($data = $target->recv(65536))) {
+        $received .= $data;
     }
-    echo $received === QUEUED_BYTES ? "delivered\n" : "received {$received} of " . QUEUED_BYTES . "\n";
+    Assert::same($received, $expected);
+    echo "delivered\n";
 
     // the restarted worker 0 queues data and an owned file for worker 1's connection, then the master shuts down
     $wait(fn () => $ready->get() === 4);

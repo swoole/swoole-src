@@ -48,10 +48,6 @@ Factory *Server::create_thread_factory() {
 }
 
 void Server::destroy_thread_factory() const {
-    // All workers have joined. Cover queues left by abnormal exits or PHP shutdown callbacks as well.
-    SW_LOOP_N(reactor_num) {
-        reactor_threads[i].discard_pipe_buffers();
-    }
     sw_free(connection_list);
     delete[] reactor_threads;
 }
@@ -79,6 +75,11 @@ bool ThreadFactory::start() {
     }
     if (server_->get_user_worker_num() > 0 && !server_->create_user_workers()) {
         return false;
+    }
+    // These buses survive event-worker replacement, including callbacks after the old reactor exits.
+    // Keep such writes queued for the next reactor rather than falling back to synchronous I/O.
+    SW_LOOP_N(server_->reactor_num) {
+        server_->get_thread(i)->message_bus.set_defer_write();
     }
     return true;
 }
@@ -136,10 +137,8 @@ void ThreadFactory::create_message_bus() const {
 }
 
 void ThreadFactory::destroy_message_bus() {
-    auto mb = SwooleTG.message_bus;
-    mb->free_buffer();
-    mb->clear();
-    delete mb;
+    // Pair with create_message_bus(); native resources and remaining packets belong to the bus.
+    delete SwooleTG.message_bus;
     SwooleTG.message_bus = nullptr;
 }
 
@@ -157,8 +156,7 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         SwooleTG.message_bus = &reactor_thread->message_bus;
         server_->init_pipe_sockets(&reactor_thread->message_bus);
         server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
-        reactor_thread->clean();
-        // Keep native wrappers and their queued writes for the replacement worker to resume.
+        // Keep native buffers, wrappers and queued writes for the replacement worker to resume.
         // The MessageBus destructor releases them when the ReactorThread is finally destroyed.
         SwooleTG.message_bus = nullptr;
 

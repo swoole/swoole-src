@@ -996,11 +996,9 @@ bool Server::shutdown() {
         return false;
     }
 
-    /**
-     * In thread mode, the worker thread masks all signals, and only a specific signal is processed.
-     * Sending a signal to its own process can inform the main thread to prepare for exit.
-     */
     if (is_thread_mode() && is_master_thread()) {
+        // Already on the master thread: run the common shutdown sequence directly, without sending SIGTERM.
+        // The signal handler uses the same sequence; it does not call shutdown() again.
         return signal_handler_shutdown();
     }
 
