@@ -31,6 +31,7 @@
 #include <unordered_map>
 
 BEGIN_EXTERN_C()
+#include "ext/standard/file.h"
 #include "stubs/php_swoole_runtime_arginfo.h"
 
 #ifdef SW_USE_PGSQL
@@ -130,9 +131,16 @@ static php_stream_ops socket_ops {
 };
 
 struct NetStream {
-    php_netstream_data_t stream;
+    php_netstream_data_t stream{};
     std::shared_ptr<SocketImpl> socket;
-    bool zero_timeout = false;
+
+    NetStream() {
+        stream.timeout.tv_sec = FG(default_socket_timeout);
+    }
+
+    bool has_zero_timeout() const {
+        return stream.timeout.tv_sec == 0 && stream.timeout.tv_usec == 0;
+    }
 };
 
 #ifndef _WIN32
@@ -280,7 +288,6 @@ static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(null
 static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_arg_infos(nullptr);
 
 SW_EXTERN_C_BEGIN
-#include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
 #undef close
 #undef read
@@ -335,7 +342,6 @@ static NetStream *socket_stdio_get_socket(php_stream *stream, swoole::EventType 
         auto *native = static_cast<php_netstream_data_t *>(stream->abstract);
         auto *abstract = new NetStream();
         abstract->stream = *native;
-        abstract->zero_timeout = native->timeout.tv_sec == 0 && native->timeout.tv_usec == 0;
         abstract->socket.reset(new SocketImpl(native->socket, SW_SOCK_RAW));
         // Reactor I/O requires O_NONBLOCK. As with other coroutine sockets, dup/fork aliases of
         // this fd share that flag. The stream's logical blocking mode is kept separately.
@@ -413,8 +419,8 @@ static int socket_stdio_set_option(php_stream *stream, int option, int value, vo
     }
     if (option == PHP_STREAM_OPTION_READ_TIMEOUT) {
         auto *timeout = static_cast<timeval *>(ptrparam);
-        abstract->zero_timeout = timeout->tv_sec == 0 && timeout->tv_usec == 0;
-        if (abstract->zero_timeout) {
+        abstract->stream.timeout = *timeout;
+        if (abstract->has_zero_timeout()) {
             abstract->socket->set_timeout(-1, SW_TIMEOUT_RDWR);
         } else {
             abstract->socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
@@ -667,7 +673,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         return sock->get_socket()->send_sync(buf, count, 0);
     }
 
-    if (abstract->stream.is_blocked && (!abstract->zero_timeout || sock->get_socket()->ssl)) {
+    if (abstract->stream.is_blocked && (!abstract->has_zero_timeout() || sock->get_socket()->ssl)) {
         didwrite = sock->send_all(buf, count);
         // PHP retries the rest of a partial write at once, which would wait again after a cancellation.
         if (didwrite > 0 && (size_t) didwrite < count && sock->errCode == ECANCELED) {
@@ -735,7 +741,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->stream.is_blocked && (!abstract->zero_timeout || sock->get_socket()->ssl)
+    if (abstract->stream.is_blocked && (!abstract->has_zero_timeout() || sock->get_socket()->ssl)
 #if PHP_VERSION_ID >= 80300
         && !stream->has_buffered_data
 #endif
@@ -1327,7 +1333,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
         auto *timeout = static_cast<timeval *>(ptrparam);
-        abstract->zero_timeout = timeout->tv_sec == 0 && timeout->tv_usec == 0;
         abstract->stream.timeout = *timeout;
         abstract->stream.timeout_event = 0;
         sock->set_err(0);
@@ -1335,7 +1340,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         // writes (see php_sockop_read() and php_sockop_write()).
         // Generic socket streams perform a single immediate attempt for a zero timeout.
         // OpenSSL streams instead use it as an unlimited timeout, as native PHP does.
-        if (abstract->zero_timeout) {
+        if (abstract->has_zero_timeout()) {
             abstract->socket->set_timeout(-1, SW_TIMEOUT_RDWR);
         } else {
             abstract->socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
@@ -2485,7 +2490,6 @@ php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int
     if (FG(default_socket_timeout) > 0) {
         abstract->socket->set_timeout((double) FG(default_socket_timeout));
     }
-    abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = static_cast<php_socket_t>(abstract->socket->get_fd());
     abstract->stream.is_blocked = true;
 
