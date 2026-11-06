@@ -2706,10 +2706,13 @@ PHP_FUNCTION(swoole_native_curl_reset) {
     }
 
     curl_easy_reset(ch->cp);
-    zval_ptr_dtor(&ch->private_data);
+    zval private_data;
+    ZVAL_COPY_VALUE(&private_data, &ch->private_data);
     ZVAL_UNDEF(&ch->private_data);
     _php_curl_reset_handlers(ch);
     _php_curl_set_default_options(ch);
+    /* Release it last: its destructor can use the handle again. */
+    zval_ptr_dtor(&private_data);
 }
 /* }}} */
 
