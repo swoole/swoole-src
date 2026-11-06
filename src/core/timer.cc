@@ -18,7 +18,17 @@
 #include "swoole_timer.h"
 
 namespace swoole {
-Timer::Timer(bool manually_trigger) : heap(1024, Heap::MIN_HEAP) {
+static void noop_user_timer_destructor(TimerNode *) {}
+
+static TimerDestructor user_timer_destructor = noop_user_timer_destructor;
+
+TimerDestructor Timer::set_user_destructor(TimerDestructor destructor) {
+    const auto previous = user_timer_destructor;
+    user_timer_destructor = destructor ? destructor : noop_user_timer_destructor;
+    return previous;
+}
+
+Timer::Timer(bool manually_trigger) : heap(16, Heap::MIN_HEAP) {
     _current_id = -1;
     next_msec_ = -1;
     _next_id = 1;
@@ -40,8 +50,8 @@ void Timer::init(bool manually_trigger) {
 }
 
 void Timer::release_node(TimerNode *tnode) {
-    if (tnode->destructor) {
-        tnode->destructor(tnode);
+    if (tnode->type == TimerNode::TYPE_USER) {
+        user_timer_destructor(tnode);
     }
     delete tnode;
 }
@@ -97,7 +107,6 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
     tnode->removed = false;
     tnode->callback = callback;
     tnode->round = get_round();
-    tnode->destructor = nullptr;
 
     if (next_msec_ < 0 || next_msec_ > _msec) {
         set(this, _msec);
