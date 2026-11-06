@@ -18,22 +18,30 @@
 #include "swoole_base64.h"
 
 #include <memory>
+#include <stdexcept>
 
 namespace swoole {
+
+static size_t aligned_string_capacity(size_t size) {
+    if (sw_unlikely(size > SIZE_MAX - (SW_DEFAULT_ALIGNMENT - 1))) {
+        throw std::length_error("string capacity is too large");
+    }
+    return SW_MEM_ALIGNED_SIZE(size);
+}
 
 void String::alloc(size_t _size, const Allocator *_allocator) {
     if (_allocator == nullptr) {
         _allocator = sw_std_allocator();
     }
 
-    _size = SW_MEM_ALIGNED_SIZE(_size);
+    _size = aligned_string_capacity(_size);
     length = 0;
     size = _size;
     offset = 0;
     str = (char *) _allocator->malloc(_size);
     allocator = _allocator;
 
-    if (str == nullptr) {
+    if (sw_unlikely(str == nullptr)) {
         throw std::bad_alloc();
     }
 }
@@ -51,26 +59,40 @@ void String::move(String &&src) {
     src.offset = 0;
 }
 
-String &String::operator=(const String &src) noexcept {
-    if (&src == this) {
+String &String::operator=(const String &src) {
+    if (sw_unlikely(&src == this)) {
         return *this;
     }
-    if (allocator && str) {
-        allocator->free(str);
+    const auto source_allocator = src.allocator ? src.allocator : sw_std_allocator();
+    if (str && src.str && allocator == source_allocator && size >= SW_MAX(src.size, src.length)) {
+        if (src.length > 0) {
+            memmove(str, src.str, src.length);
+        }
+        length = src.length;
+        offset = src.offset;
+        return *this;
     }
-    copy(src);
+
+    String replacement(src);
+    *this = std::move(replacement);
     return *this;
 }
 
-void String::copy(const String &src) {
-    alloc(src.size, src.allocator);
-    memcpy(str, src.str, src.length);
+String::String(const String &src) : String() {
+    if (!src.str) {
+        allocator = src.allocator;
+        return;
+    }
+    alloc(SW_MAX(src.size, src.length), src.allocator);
+    if (src.length > 0) {
+        memcpy(str, src.str, src.length);
+    }
     length = src.length;
     offset = src.offset;
 }
 
 String &String::operator=(String &&src) noexcept {
-    if (&src == this) {
+    if (sw_unlikely(&src == this)) {
         return *this;
     }
     if (allocator && str) {
@@ -127,10 +149,10 @@ char *String::pop(size_t init_size) {
 
     char *val = str;
     size_t _length = length - offset;
-    size_t alloc_size = SW_MEM_ALIGNED_SIZE(_length == 0 ? init_size : SW_MAX(_length, init_size));
+    size_t alloc_size = aligned_string_capacity(_length == 0 ? init_size : SW_MAX(_length, init_size));
 
     auto new_val = static_cast<char *>(allocator->malloc(alloc_size));
-    if (new_val == nullptr) {
+    if (sw_unlikely(new_val == nullptr)) {
         return nullptr;
     }
 
@@ -223,13 +245,13 @@ bool String::append_random_bytes(size_t _length, bool base64) {
 
 void String::reserve(size_t new_size) {
     if (size == 0) {
-        alloc(new_size, nullptr);
+        alloc(new_size, allocator);
         return;
     }
 
-    new_size = SW_MEM_ALIGNED_SIZE(new_size);
+    new_size = aligned_string_capacity(new_size);
     auto new_str = static_cast<char *>(allocator->realloc(str, new_size));
-    if (new_str == nullptr) {
+    if (sw_unlikely(new_str == nullptr)) {
         throw std::bad_alloc();
     }
 
@@ -248,17 +270,30 @@ char *String::release() {
 
 void String::repeat(const char *data, size_t len, size_t n) {
     assert(n > 0);
+    if (len == 0 || n == 0) {
+        return;
+    }
+    if (sw_unlikely(n > (SIZE_MAX - length) / len)) {
+        throw std::length_error("repeated string is too large");
+    }
+    const size_t repeated_length = len * n;
+    const size_t new_length = length + repeated_length;
+    if (new_length > size) {
+        reserve(new_length);
+    }
+    char *destination = str + length;
     if (len == 1) {
-        if ((size < length + n)) {
-            reserve(length + n);
-        }
-        memset(str + length, data[0], n);
-        length += n;
+        memset(destination, data[0], repeated_length);
     } else {
-        for (size_t i = 0; i < n; i++) {
-            append(data, len);
+        memcpy(destination, data, len);
+        size_t filled = len;
+        while (filled < repeated_length) {
+            const size_t bytes = std::min(filled, repeated_length - filled);
+            memcpy(destination + filled, destination, bytes);
+            filled += bytes;
         }
     }
+    length = new_length;
 }
 
 /**

@@ -437,6 +437,162 @@ TEST(string, copy_owns_independent_binary_storage_and_offset) {
     EXPECT_TRUE(copy.empty());
 }
 
+TEST(string, copy_assignment_preserves_destination_on_allocation_failure) {
+    ASSERT_EXIT(
+        {
+            static bool fail = false;
+            auto allocator = *sw_std_allocator();
+            allocator.malloc = [](size_t size) -> void * { return fail ? nullptr : sw_std_allocator()->malloc(size); };
+            String source(64, &allocator);
+            source.append("source");
+            String destination("kept");
+            destination.offset = 2;
+            const auto storage = destination.str;
+            const auto capacity = destination.capacity();
+            const auto original_allocator = destination.allocator;
+            fail = true;
+            try {
+                destination = source;
+            } catch (const std::bad_alloc &) {
+                const bool preserved = destination.str == storage && destination.capacity() == capacity &&
+                                       destination.offset == 2 && destination.allocator == original_allocator &&
+                                       destination.to_std_string() == "kept" && source.to_std_string() == "source";
+                _exit(preserved ? 0 : 2);
+            }
+            _exit(3);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+}
+
+TEST(string, copy_assignment_reuses_storage_with_the_same_allocator) {
+    static size_t allocations;
+    allocations = 0;
+    auto allocator = *sw_std_allocator();
+    allocator.malloc = [](size_t size) -> void * {
+        allocations++;
+        return sw_std_allocator()->malloc(size);
+    };
+    String source(16, &allocator);
+    source.append("a\0bc", 4);
+    source.offset = 1;
+    String destination(128, &allocator);
+    destination.append("old");
+    const auto storage = destination.str;
+    const auto capacity = destination.capacity();
+    allocations = 0;
+
+    destination = source;
+    EXPECT_EQ(allocations, 0);
+    EXPECT_EQ(destination.str, storage);
+    EXPECT_EQ(destination.capacity(), capacity);
+    EXPECT_EQ(destination.to_std_string(), std::string("a\0bc", 4));
+    EXPECT_EQ(destination.offset, 1);
+    source.write(0, "z", 1);
+    EXPECT_EQ(destination.to_std_string(), std::string("a\0bc", 4));
+    auto *alias = &destination;
+    destination = *alias;
+    EXPECT_EQ(allocations, 0);
+    EXPECT_EQ(destination.str, storage);
+}
+
+TEST(string, empty_copy_and_moved_from_storage_keep_allocator_policy) {
+    static size_t allocations;
+    allocations = 0;
+    auto allocator = *sw_std_allocator();
+    allocator.malloc = [](size_t size) -> void * {
+        allocations++;
+        return sw_std_allocator()->malloc(size);
+    };
+    String empty;
+    String empty_copy(empty);
+    EXPECT_EQ(empty_copy.str, nullptr);
+    EXPECT_EQ(empty_copy.capacity(), 0);
+
+    String source(16, &allocator);
+    source.append("moved");
+    String owner(std::move(source));
+    allocations = 0;
+    String moved_copy(source);
+    EXPECT_EQ(allocations, 0);
+    EXPECT_EQ(moved_copy.str, nullptr);
+    EXPECT_EQ(moved_copy.allocator, &allocator);
+    source.append("reused");
+    EXPECT_EQ(allocations, 1);
+    EXPECT_EQ(source.allocator, &allocator);
+    EXPECT_EQ(source.to_std_string(), "reused");
+    owner = empty;
+    EXPECT_EQ(owner.str, nullptr);
+    EXPECT_TRUE(owner.empty());
+}
+
+TEST(string, copy_of_borrowed_storage_owns_its_bytes) {
+    char bytes[] = {'a', '\0', 'b'};
+    String view;
+    view.str = bytes;
+    view.length = sizeof(bytes);
+    view.offset = 1;
+
+    String copy(view);
+    ASSERT_NE(copy.str, view.str);
+    EXPECT_GE(copy.capacity(), copy.length);
+    EXPECT_EQ(copy.offset, 1);
+    EXPECT_EQ(copy.to_std_string(), std::string("a\0b", 3));
+    bytes[0] = 'z';
+    EXPECT_EQ(copy.to_std_string(), std::string("a\0b", 3));
+
+    String destination(16);
+    destination = view;
+    EXPECT_EQ(destination.to_std_string(), std::string("z\0b", 3));
+    EXPECT_EQ(destination.offset, 1);
+}
+
+TEST(string, repeat_reserves_once_for_binary_patterns) {
+    static size_t reallocations;
+    reallocations = 0;
+    auto allocator = *sw_std_allocator();
+    allocator.realloc = [](void *ptr, size_t size) -> void * {
+        reallocations++;
+        return sw_std_allocator()->realloc(ptr, size);
+    };
+    String str(8, &allocator);
+    str.append("prefix:");
+    const std::string pattern("a\0b", 3);
+    std::string expected("prefix:");
+    for (int i = 0; i < 1000; i++) {
+        expected += pattern;
+    }
+    str.repeat(pattern.data(), pattern.size(), 1000);
+    EXPECT_EQ(str.to_std_string(), expected);
+    EXPECT_EQ(reallocations, 1);
+    str.repeat("unused", 0, 1000);
+    EXPECT_EQ(str.to_std_string(), expected);
+    EXPECT_EQ(reallocations, 1);
+}
+
+TEST(string, repeat_rejects_size_overflow_without_changing_content) {
+    String str("kept");
+    const auto storage = str.str;
+    EXPECT_THROW(str.repeat("ab", 2, SIZE_MAX), std::length_error);
+    EXPECT_THROW(str.repeat("a", 1, SIZE_MAX - str.length), std::length_error);
+    EXPECT_EQ(str.str, storage);
+    EXPECT_EQ(str.to_std_string(), "kept");
+}
+
+TEST(string, allocation_alignment_overflow_preserves_existing_storage) {
+    EXPECT_THROW(String(SIZE_MAX), std::length_error);
+    String str("kept");
+    str.offset = 1;
+    const auto storage = str.str;
+    const auto capacity = str.capacity();
+    EXPECT_THROW(str.reserve(SIZE_MAX), std::length_error);
+    EXPECT_THROW(str.pop(SIZE_MAX), std::length_error);
+    EXPECT_EQ(str.str, storage);
+    EXPECT_EQ(str.capacity(), capacity);
+    EXPECT_EQ(str.offset, 1);
+    EXPECT_EQ(str.to_std_string(), "kept");
+}
+
 TEST(string, null_termination_grows_full_buffer_without_changing_length) {
     String str(8);
     str.repeat("x", 1, str.capacity());

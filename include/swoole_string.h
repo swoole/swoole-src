@@ -35,7 +35,6 @@ class String {
   private:
     void alloc(size_t _size, const Allocator *_allocator);
     void move(String &&src);
-    void copy(const String &src);
 
   public:
     size_t length;
@@ -63,15 +62,13 @@ class String {
 
     explicit String(const std::string &_str) : String(_str.c_str(), _str.length()) {}
 
-    String(const String &src) {
-        copy(src);
-    }
+    String(const String &src);
 
     String(String &&src) noexcept {
         move(std::move(src));
     }
 
-    String &operator=(const String &src) noexcept;
+    String &operator=(const String &src);
     String &operator=(String &&src) noexcept;
 
     ~String() {
