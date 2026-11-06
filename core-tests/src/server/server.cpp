@@ -3221,6 +3221,108 @@ TEST(server, forward_message) {
     t1.join();
 }
 
+// Server::sendfile() checks the file before handing it over, so queue the event directly, as if the file
+// disappeared before the connection's owner opened it.
+static bool queue_missing_sendfile(Server *serv, SessionId session_id) {
+    const char *file = "/tmp/swoole_core_tests_missing_sendfile";
+    char buffer[SW_IPC_BUFFER_SIZE];
+    auto *task = reinterpret_cast<network::SendfileTask *>(buffer);
+    swoole_strlcpy(task->filename, file, sizeof(buffer) - sizeof(*task));
+    task->offset = 0;
+    task->length = 0;
+
+    SendData send_data{};
+    send_data.info.fd = session_id;
+    send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
+    send_data.info.len = sizeof(*task) + strlen(file) + 1;
+    send_data.data = buffer;
+    return serv->factory_->finish(&send_data);
+}
+
+static void test_queued_sendfile_failure(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 2;
+    swoole_set_log_level(SW_LOG_WARNING);
+    test::counter_init();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    Mutex lock(true);
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+
+        lock.lock();
+
+        network::SyncClient c(SW_SOCK_TCP);
+        EXPECT_TRUE(c.connect(TEST_HOST, port->port, 2));
+        c.send(packet, strlen(packet));
+
+        std::string received;
+        char buf[1024];
+        ssize_t n;
+        while ((n = c.recv(buf, sizeof(buf))) > 0) {
+            received.append(buf, n);
+        }
+        // The connection is closed after the failed file; nothing queued after it reaches the client.
+        EXPECT_EQ(n, 0);
+        EXPECT_EQ(received, "head");
+        c.close();
+
+        kill(getpid(), SIGTERM);
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock.unlock();
+        }
+    };
+
+    // The other worker sends, so in base and thread modes the events are forwarded to the connection's owner.
+    serv.onPipeMessage = [](Server *serv, EventData *req) -> void {
+        SessionId client_fd;
+        memcpy(&client_fd, req->data, sizeof(client_fd));
+        EXPECT_TRUE(serv->send(client_fd, SW_STRL("head")));
+        EXPECT_TRUE(queue_missing_sendfile(serv, client_fd));
+        EXPECT_TRUE(queue_missing_sendfile(serv, client_fd));
+        serv->send(client_fd, SW_STRL("marker"));
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EventData msg;
+        SessionId client_fd = req->info.fd;
+        Server::task_pack(&msg, &client_fd, sizeof(client_fd));
+        EXPECT_TRUE(serv->send_pipe_message(1 - swoole_get_worker_id(), &msg));
+        // Delay this worker's close handling until the reactor has failed both files.
+        usleep(100000);
+        return SW_OK;
+    };
+
+    serv.onClose = [](Server *serv, DataHead *ev) { test::counter_incr(0); };
+
+    ASSERT_EQ(serv.start(), SW_OK);
+    t1.join();
+    ASSERT_EQ(test::counter_get(0), 1);
+}
+
+TEST(server, queued_sendfile_failure_process) {
+    test_queued_sendfile_failure(Server::MODE_PROCESS);
+}
+
+TEST(server, queued_sendfile_failure_base) {
+    test_queued_sendfile_failure(Server::MODE_BASE);
+}
+
+#ifdef SW_THREAD
+TEST(server, queued_sendfile_failure_thread) {
+    test_queued_sendfile_failure(Server::MODE_THREAD);
+}
+#endif
+
 TEST(server, abnormal_pipeline_data) {
     Server *server = new Server(Server::MODE_PROCESS);
     server->worker_num = 2;

@@ -122,6 +122,8 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         _send.info.len = packet.length;
         if (!factory->finish(&_send)) {
             Server::discard_sendfile(&_send.info, _send.data);
+            // The forwarding worker has already reported the file as sent, so the client would wait for its body.
+            factory->end(_send.info.fd, Server::CLOSE_ACTIVELY);
         }
         break;
     }

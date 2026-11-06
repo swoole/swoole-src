@@ -467,7 +467,14 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             _send.info = resp->info;
             _send.info.len = packet.length;
             _send.data = packet.data;
-            serv->send_to_connection(&_send);
+            // The worker has already reported the file as sent, so the client would wait for a body that never comes.
+            if (serv->send_to_connection(&_send) < 0 && _send.info.type == SW_SERVER_EVENT_SEND_FILE) {
+                Connection *conn = serv->get_connection_verify_no_ssl(_send.info.fd);
+                // The worker's close is already pending; closing again would release the session before onClose.
+                if (conn && !conn->peer_closed) {
+                    thread->close_connection(reactor, _send.info.fd);
+                }
+            }
             break;
         }
         }
