@@ -40,8 +40,8 @@ void Timer::init(bool manually_trigger) {
 }
 
 void Timer::release_node(TimerNode *tnode) {
-    if (tnode->destructor) {
-        tnode->destructor(tnode);
+    if (destructor) {
+        destructor(tnode);
     }
     delete tnode;
 }
@@ -97,7 +97,6 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
     tnode->removed = false;
     tnode->callback = callback;
     tnode->round = get_round();
-    tnode->destructor = nullptr;
 
     if (next_msec_ < 0 || next_msec_ > _msec) {
         set(this, _msec);

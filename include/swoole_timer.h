@@ -38,15 +38,14 @@ struct TimerNode {
     };
     long id;
     Type type;
+    bool removed;
     int64_t exec_msec;
     int64_t interval;
     uint64_t exec_count;
     uint64_t round;
-    bool removed;
     HeapNode *heap_node;
     TimerCallback callback;
     void *data;
-    TimerDestructor destructor;
 };
 
 class Timer {
@@ -74,6 +73,9 @@ class Timer {
     void release_node(TimerNode *tnode);
 
   public:
+    // Shared node destructor; dispatch by type when node data has different owners.
+    TimerDestructor destructor = nullptr;
+
     explicit Timer(bool manually_trigger);
     ~Timer();
 

@@ -110,10 +110,17 @@ void php_swoole_timer_rshutdown() {
 }
 
 static void timer_dtor(TimerNode *tnode) {
-    auto *fci = static_cast<Function *>(tnode->data);
-    sw_zend_fci_params_discard(&fci->fci);
-    sw_zend_fci_cache_discard(&fci->fci_cache);
-    efree(fci);
+    switch (tnode->type) {
+    case TimerNode::TYPE_PHP: {
+        auto *fci = static_cast<Function *>(tnode->data);
+        sw_zend_fci_params_discard(&fci->fci);
+        sw_zend_fci_cache_discard(&fci->fci_cache);
+        efree(fci);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 bool php_swoole_timer_clear(TimerNode *tnode) {
@@ -200,7 +207,7 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
         goto _failed;
     }
     tnode->type = TimerNode::TYPE_PHP;
-    tnode->destructor = timer_dtor;
+    sw_timer()->destructor = timer_dtor;
     if (persistent) {
         if (fci->fci.param_count > 0) {
             auto params = static_cast<zval *>(ecalloc(fci->fci.param_count + 1, sizeof(zval)));
