@@ -2264,6 +2264,38 @@ TEST(server, task_worker_3) {
     EXPECT_EQ(test::counter_get(31), 0);  // SIGTERM was sent to task worker 2
 }
 
+TEST(server, manager_signal_in_forked_child) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 2;
+    test::counter_init();
+
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+
+    int status = 0;
+    // A raw fork keeps the manager's handlers, like a worker before swoole_fork() clears them.
+    serv.onManagerStart = [&status](Server *) {
+        pid_t pid = fork();
+        ASSERT_GE(pid, 0);
+        if (pid == 0) {
+            raise(SIGTERM);
+            _exit(0);
+        }
+        ASSERT_EQ(swoole_waitpid(pid, &status, 0), pid);
+    };
+    serv.onWorkerStart = [](Server *serv, Worker *) {
+        if (test::counter_incr(1) == 2) {
+            serv->shutdown();
+        }
+    };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_TRUE(WIFSIGNALED(status));
+    ASSERT_EQ(WTERMSIG(status), SIGTERM);
+}
+
 TEST(server, reload_single_process) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
