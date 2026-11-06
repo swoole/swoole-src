@@ -45,15 +45,11 @@ TEST(timer, sys) {
     // dtor test
     auto timer = swoole_timer_add(20L, false, [&](TIMER_PARAMS) { counter[2]++; }, counter);
     ASSERT_TRUE(timer);
-    timer->type = TimerNode::TYPE_PHP;
-    sw_timer()->destructor = [](TimerNode *tnode) {
-        switch (tnode->type) {
-        case TimerNode::TYPE_PHP:
-            static_cast<int *>(tnode->data)[3] = 9999;
-            break;
-        default:
-            break;
-        }
+    timer->type = TimerNode::TYPE_USER;
+    auto previous_destructor =
+        Timer::set_user_destructor([](TimerNode *tnode) { static_cast<int *>(tnode->data)[3] = 9999; });
+    ON_SCOPE_EXIT {
+        Timer::set_user_destructor(previous_destructor);
     };
 
     swoole_timer_add(
@@ -90,36 +86,30 @@ TEST(timer, destructor_dispatch) {
     int destroyed[3] = {};
     int kernel_data = 7;
     int callbacks = 0;
+    auto previous_destructor = Timer::set_user_destructor([](TimerNode *tnode) { ++*static_cast<int *>(tnode->data); });
+    ON_SCOPE_EXIT {
+        Timer::set_user_destructor(previous_destructor);
+    };
     {
         Timer timer(true);
-        EXPECT_EQ(timer.destructor, nullptr);
-        timer.destructor = [](TimerNode *tnode) {
-            switch (tnode->type) {
-            case TimerNode::TYPE_PHP:
-                ++*static_cast<int *>(tnode->data);
-                break;
-            default:
-                break;
-            }
-        };
-        TimerNode *php_nodes[3];
+        TimerNode *user_nodes[3];
         TimerNode *kernel_nodes[3];
         auto callback = [&](Timer *, TimerNode *) { callbacks++; };
         for (int i = 0; i < 3; i++) {
-            php_nodes[i] = timer.add(60000, false, &destroyed[i], callback);
-            ASSERT_NE(php_nodes[i], nullptr);
-            php_nodes[i]->type = TimerNode::TYPE_PHP;
+            user_nodes[i] = timer.add(60000, false, &destroyed[i], callback);
+            ASSERT_NE(user_nodes[i], nullptr);
+            user_nodes[i]->type = TimerNode::TYPE_USER;
             kernel_nodes[i] = timer.add(60000, false, &kernel_data, callback);
             ASSERT_NE(kernel_nodes[i], nullptr);
         }
 
-        ASSERT_TRUE(timer.remove(php_nodes[0]));
+        ASSERT_TRUE(timer.remove(user_nodes[0]));
         ASSERT_TRUE(timer.remove(kernel_nodes[0]));
         EXPECT_EQ(destroyed[0], 1);
         EXPECT_EQ(callbacks, 0);
 
-        php_nodes[1]->exec_msec = 0;
-        timer.update(php_nodes[1]);
+        user_nodes[1]->exec_msec = 0;
+        timer.update(user_nodes[1]);
         kernel_nodes[1]->exec_msec = 0;
         timer.update(kernel_nodes[1]);
         timer.select();
@@ -132,6 +122,30 @@ TEST(timer, destructor_dispatch) {
     EXPECT_EQ(destroyed[1], 1);
     EXPECT_EQ(destroyed[2], 1);
     EXPECT_EQ(kernel_data, 7);
+
+    int other_destroyed = 0;
+    {
+        Timer other_timer(true);
+        auto *node = other_timer.add(60000, false, &other_destroyed, [](Timer *, TimerNode *) {});
+        ASSERT_NE(node, nullptr);
+        node->type = TimerNode::TYPE_USER;
+    }
+    EXPECT_EQ(other_destroyed, 1);
+}
+
+TEST(timer, user_timer_default_destructor) {
+    auto previous_destructor = Timer::set_user_destructor(nullptr);
+    ON_SCOPE_EXIT {
+        Timer::set_user_destructor(previous_destructor);
+    };
+    EXPECT_NE(previous_destructor, nullptr);
+    int data = 7;
+    Timer timer(true);
+    auto *node = timer.add(60000, false, &data, [](Timer *, TimerNode *) {});
+    ASSERT_NE(node, nullptr);
+    node->type = TimerNode::TYPE_USER;
+    EXPECT_TRUE(timer.remove(node));
+    EXPECT_EQ(data, 7);
 }
 
 TEST(timer, async) {

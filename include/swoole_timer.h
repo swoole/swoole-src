@@ -34,7 +34,7 @@ typedef void (*TimerDestructor)(TimerNode *);
 struct TimerNode {
     enum Type {
         TYPE_KERNEL,
-        TYPE_PHP,
+        TYPE_USER,
     };
     long id;
     Type type;
@@ -73,8 +73,9 @@ class Timer {
     void release_node(TimerNode *tnode);
 
   public:
-    // Shared node destructor; dispatch by type when node data has different owners.
-    TimerDestructor destructor = nullptr;
+    // Set before creating user timers or starting worker threads; returns the previous handler.
+    // Passing nullptr restores the default no-op destructor.
+    static TimerDestructor set_user_destructor(TimerDestructor destructor);
 
     explicit Timer(bool manually_trigger);
     ~Timer();
