@@ -2130,17 +2130,23 @@ TEST(server, task_wait_multi_dispatch_fail_restores_tasking_num) {
     close(task_worker->pipe_master->fd);
     task_worker->pipe_master->fd = SW_BAD_SOCKET;
 
-    uint16_t fail_count = 0;
-    Server::MultiTask mt(1);
-    mt.pack = [](uint16_t, EventData *buf) -> TaskId {
-        return Server::task_pack(buf, SW_STRL("task")) ? buf->info.fd : -1;
-    };
-    mt.unpack = [](uint16_t, EventData *) {};
-    mt.fail = [&fail_count](uint16_t) { fail_count++; };
+    for (bool pack_failure : {false, true}) {
+        uint16_t fail_count = 0;
+        std::string result_path;
+        Server::MultiTask mt(1);
+        mt.pack = [&serv, &result_path, pack_failure](uint16_t, EventData *buf) -> TaskId {
+            result_path = serv.get_task_result()->data + 4;
+            return !pack_failure && Server::task_pack(buf, SW_STRL("task")) ? buf->info.fd : -1;
+        };
+        mt.unpack = [](uint16_t, EventData *) {};
+        mt.fail = [&fail_count](uint16_t) { fail_count++; };
 
-    ASSERT_FALSE(serv.task_sync(mt, 0.01));
-    EXPECT_EQ(fail_count, 1);
-    EXPECT_EQ(serv.get_tasking_num(), 0);
+        EXPECT_FALSE(serv.task_sync(mt, 0.01));
+        EXPECT_EQ(fail_count, 1);
+        EXPECT_EQ(serv.get_tasking_num(), 0);
+        ASSERT_FALSE(result_path.empty());
+        EXPECT_NE(access(result_path.c_str(), F_OK), 0);
+    }
 
     swoole_set_worker_id(old_worker_id);
     delete serv.workers[0].lock;

@@ -20,6 +20,7 @@
 #include <string>
 #include <dirent.h>
 #include <algorithm>
+#include <memory>
 #include <cctype>
 #include <sstream>
 #include <regex>
@@ -303,17 +304,15 @@ bool StaticHandler::get_dir_files() {
         return false;
     }
 
-    DIR *dir = sw_opendir(filename);
-    if (dir == nullptr) {
+    const auto close_dir = [](DIR *dir) { sw_closedir(dir); };
+    std::unique_ptr<DIR, decltype(close_dir)> dir(sw_opendir(filename), close_dir);
+    if (!dir) {
         return false;
     }
 
-    struct dirent *ptr;
-    while ((ptr = sw_readdir(dir)) != nullptr) {
-        dir_files.insert(ptr->d_name);
+    while (auto *entry = sw_readdir(dir.get())) {
+        dir_files.emplace(entry->d_name);
     }
-
-    ::sw_closedir(dir);
 
     return true;
 }

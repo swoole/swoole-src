@@ -212,16 +212,16 @@ bool ProcessFactory::shutdown() {
 
 bool Server::create_worker_pipes() {
     SW_LOOP_N(worker_num) {
-        auto _sock = new UnixSocket(true, SOCK_DGRAM);
-        if (!_sock->ready()) {
-            delete _sock;
+        auto pipe = std::make_shared<UnixSocket>(true, SOCK_DGRAM);
+        if (!pipe->ready()) {
             return false;
         }
 
-        worker_pipes.emplace_back(_sock);
-        workers[i].pipe_master = _sock->get_socket(true);
-        workers[i].pipe_worker = _sock->get_socket(false);
-        workers[i].pipe_object = _sock;
+        worker_pipes.emplace_back(std::move(pipe));
+        const auto &owned_pipe = worker_pipes.back();
+        workers[i].pipe_master = owned_pipe->get_socket(true);
+        workers[i].pipe_worker = owned_pipe->get_socket(false);
+        workers[i].pipe_object = owned_pipe.get();
     }
 
     init_ipc_max_size();

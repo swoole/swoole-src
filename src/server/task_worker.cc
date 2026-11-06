@@ -230,6 +230,9 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
 
     std::string file_path = fp.get_path();
     fp.close();
+    ON_SCOPE_EXIT {
+        unlink(file_path.c_str());
+    };
 
     auto finish_count = reinterpret_cast<int *>(task_result->data);
 
@@ -251,17 +254,14 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
             goto _fail;
         }
         buf.info.ext_flags |= SW_TASK_WAITALL;
-        sw_atomic_fetch_add(&gs->tasking_num, 1);
+        // task() already increments the dispatch counter and rolls it back on failure.
         dst_worker_id = -1;
         if (!task(&buf, &dst_worker_id, true)) {
             swoole_warning("failed to dispatch task");
-            sw_atomic_fetch_sub(&gs->tasking_num, 1);
             task_id = -1;
         _fail:
             mtask.fail(i);
             n_task--;
-        } else {
-            sw_atomic_fetch_sub(&gs->tasking_num, 1);
         }
         mtask.map[task_id] = i;
     }
@@ -302,8 +302,6 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
         }
         content->offset += result->size();
     } while (content->offset < 0 || (size_t) content->offset < content->length);
-    // delete tmp file
-    unlink(file_path.c_str());
 
     return true;
 }

@@ -25,6 +25,16 @@
 using swoole::ListenPort;
 using swoole::Server;
 
+TEST(server_port, ssl_wildcard_does_not_overlap_prefix_and_suffix) {
+    EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("abc", "ab*bc"));
+    EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("foo", "foo*foo"));
+    EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("abc.example.com", "ab*bc.example.com"));
+    EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("www.example.com", "*.example.com"));
+    EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("foo.example.com", "foo*.example.com"));
+    EXPECT_TRUE(ListenPort::ssl_matches_wildcard_name("foobar.example.com", "foo*bar.example.com"));
+    EXPECT_FALSE(ListenPort::ssl_matches_wildcard_name("foo.bar.example.com", "foo*.example.com"));
+}
+
 TEST(server_port, import) {
     ListenPort port(nullptr);
     ASSERT_FALSE(port.import(fileno(stdin)));
@@ -33,7 +43,46 @@ TEST(server_port, import) {
     auto sock = swoole::make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
     ASSERT_FALSE(port.import(sock->fd));
     ASSERT_ERREQ(EINVAL);
+    EXPECT_EQ(port.socket, nullptr);
+    int socket_type;
+    EXPECT_EQ(sock->get_option(SOL_SOCKET, SO_TYPE, &socket_type), SW_OK);
+    EXPECT_EQ(socket_type, SOCK_STREAM);
     sock->free();
+}
+
+TEST(server_port, import_listening_socket) {
+    ListenPort port(nullptr);
+    auto *listener = swoole::make_server_socket(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(listener, nullptr);
+    const auto fd = listener->fd;
+    const bool imported = port.import(fd);
+    if (imported) {
+        listener->move_fd();
+    }
+    listener->free();
+
+    ASSERT_TRUE(imported);
+    ASSERT_NE(port.socket, nullptr);
+    EXPECT_EQ(port.socket->fd, fd);
+    EXPECT_TRUE(port.listening);
+    EXPECT_EQ(port.host, TEST_HOST);
+    EXPECT_GT(port.port, 0);
+}
+
+TEST(server_port, create_socket_failure_can_retry) {
+    Server server(Server::MODE_BASE);
+    server.enable_reuse_port = false;
+    ListenPort port(&server);
+    port.type = SW_SOCK_TCP;
+    port.host = TEST_HOST;
+    port.port = -1;
+
+    EXPECT_EQ(port.create_socket(), SW_ERR);
+    EXPECT_EQ(port.socket, nullptr);
+    port.port = 0;
+    ASSERT_EQ(port.create_socket(), SW_OK);
+    ASSERT_NE(port.socket, nullptr);
+    EXPECT_GT(port.port, 0);
 }
 
 TEST(server_port, create) {

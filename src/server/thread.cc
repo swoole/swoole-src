@@ -112,9 +112,10 @@ void ThreadFactory::at_thread_enter(WorkerId id, int worker_type) {
 }
 
 void ThreadFactory::push_to_wait_queue(Worker *worker) {
-    lock_.lock();
-    queue_.push(worker);
-    lock_.unlock();
+    do {
+        std::lock_guard<std::mutex> lock(lock_);
+        queue_.push(worker);
+    } while (0);
     cv_.notify_one();
 
     swoole_trace_log(SW_TRACE_THREAD, "push [%p] to wait queue", worker);
@@ -132,13 +133,13 @@ void ThreadFactory::at_thread_exit(Worker *worker) {
 }
 
 void ThreadFactory::create_message_bus() const {
-    auto mb = new MessageBus();
+    auto mb = std::make_unique<MessageBus>();
     mb->set_id_generator(server_->msg_id_generator);
     mb->set_buffer_size(server_->ipc_max_size);
     mb->set_always_chunked_transfer();
     mb->alloc_buffer();
-    server_->init_pipe_sockets(mb);
-    SwooleTG.message_bus = mb;
+    server_->init_pipe_sockets(mb.get());
+    SwooleTG.message_bus = mb.release();
 }
 
 void ThreadFactory::destroy_message_bus() {
@@ -148,7 +149,7 @@ void ThreadFactory::destroy_message_bus() {
 }
 
 void ThreadFactory::spawn_event_worker(WorkerId i) {
-    threads_[i]->start([=]() {
+    threads_[i]->start([this, i]() {
         at_thread_enter(i, SW_EVENT_WORKER);
 
         Worker *worker = server_->get_worker(i);
@@ -160,7 +161,7 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
         // Publish it before PHP RINIT; RSHUTDOWN clears only its request-owned packets.
         SwooleTG.message_bus = &reactor_thread->message_bus;
         server_->init_pipe_sockets(&reactor_thread->message_bus);
-        server_->worker_thread_start(threads_[i], [=]() { Server::reactor_thread_main_loop(server_, i); });
+        server_->worker_thread_start(threads_[i], [this, i]() { Server::reactor_thread_main_loop(server_, i); });
         // Zend bailout can skip reactor_thread_main_loop()'s clean(). This idempotent fallback
         // still runs on the exiting worker thread, after all PHP request shutdown callbacks.
         reactor_thread->clean();
@@ -178,7 +179,7 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
 }
 
 void ThreadFactory::spawn_task_worker(WorkerId i) {
-    threads_[i]->start([=]() {
+    threads_[i]->start([this, i]() {
         at_thread_enter(i, SW_TASK_WORKER);
 
         create_message_bus();
@@ -188,7 +189,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
         worker->set_status_to_idle();
         SwooleWG.worker = worker;
         const auto pool = server_->get_task_worker_pool();
-        server_->worker_thread_start(threads_[i], [=]() {
+        server_->worker_thread_start(threads_[i], [pool, worker]() {
             if (pool->onWorkerStart != nullptr) {
                 pool->onWorkerStart(pool, worker);
             }
@@ -204,7 +205,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
 }
 
 void ThreadFactory::spawn_user_worker(WorkerId i) {
-    threads_[i]->start([=]() {
+    threads_[i]->start([this, i]() {
         at_thread_enter(i, SW_USER_WORKER);
 
         create_message_bus();
@@ -212,7 +213,7 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
         worker->type = SW_USER_WORKER;
         worker->pid = swoole_get_worker_pid();
         SwooleWG.worker = worker;
-        server_->worker_thread_start(threads_[i], [=]() { server_->onUserWorkerStart(server_, worker); });
+        server_->worker_thread_start(threads_[i], [this, worker]() { server_->onUserWorkerStart(server_, worker); });
         destroy_message_bus();
 
         at_thread_exit(worker);
@@ -220,12 +221,12 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
 }
 
 void ThreadFactory::spawn_manager_thread(WorkerId i) {
-    threads_[i]->start([=]() {
+    threads_[i]->start([this, i]() {
         at_thread_enter(i, SW_MANAGER);
 
         swoole_timer_create(true);
 
-        server_->worker_thread_start(threads_[i], [=]() {
+        server_->worker_thread_start(threads_[i], [this]() {
             if (server_->onManagerStart) {
                 server_->onManagerStart(server_);
             }

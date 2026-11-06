@@ -603,13 +603,12 @@ bool Server::create_task_workers() {
         return false;
     }
     SW_LOOP_N(worker_num) {
-        auto _pipe = new Pipe(true);
-        if (!_pipe->ready()) {
-            delete _pipe;
+        auto pipe = std::make_shared<Pipe>(true);
+        if (!pipe->ready()) {
             cleanup();
             return false;
         }
-        task_notify_pipes.emplace_back(_pipe);
+        task_notify_pipes.emplace_back(std::move(pipe));
     }
 
     if (!init_task_workers()) {
@@ -1882,12 +1881,11 @@ bool Server::add_command(const std::string &name, int accepted_process_types, co
         return false;
     }
     if (!is_base_mode() && pipe_command == nullptr) {
-        auto _pipe = new UnixSocket(false, SOCK_DGRAM);
-        if (!_pipe->ready()) {
-            delete _pipe;
+        auto pipe = std::make_unique<UnixSocket>(false, SOCK_DGRAM);
+        if (!pipe->ready()) {
             return false;
         }
-        pipe_command = _pipe;
+        pipe_command = pipe.release();
     }
     int command_id = command_current_id++;
     Command command{
@@ -1961,7 +1959,7 @@ int Server::add_systemd_socket() {
     }
 
     for (int sock = start_fd; sock < start_fd + n; sock++) {
-        std::unique_ptr<ListenPort> ptr(new ListenPort(this));
+        auto ptr = std::make_unique<ListenPort>(this);
         ListenPort *ls = ptr.get();
 
         if (!ls->import(sock)) {
@@ -2006,7 +2004,7 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
         return nullptr;
     }
 
-    std::unique_ptr<ListenPort> ptr(new ListenPort(this));
+    auto ptr = std::make_unique<ListenPort>(this);
     ListenPort *ls = ptr.get();
 
     ls->type = type;

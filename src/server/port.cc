@@ -73,14 +73,14 @@ bool ListenPort::ssl_matches_wildcard_name(const char *subject_name, const char 
     }
 
     /* 1) prefix, if not empty, must match subject */
-    ptrdiff_t prefix_len = wildcard - cert_name;
+    const auto prefix_len = static_cast<size_t>(wildcard - cert_name);
     if (prefix_len && strncasecmp(subject_name, cert_name, prefix_len) != 0) {
         return false;
     }
 
-    size_t suffix_len = strlen(wildcard + 1);
-    size_t subject_len = strlen(subject_name);
-    if (suffix_len <= subject_len) {
+    const size_t suffix_len = strlen(wildcard + 1);
+    const size_t subject_len = strlen(subject_name);
+    if (prefix_len <= subject_len && suffix_len <= subject_len - prefix_len) {
         /* 2) suffix must match
          * 3) no . between prefix and suffix
          **/
@@ -322,47 +322,43 @@ void ListenPort::set_stream_protocol() {
  * @description: import listen port from socket-fd
  */
 bool ListenPort::import(int sock) {
-    int _type;
+    // The caller retains the descriptor until all validation has succeeded.
+    const auto release_borrowed_socket = [](Socket *candidate) {
+        candidate->move_fd();
+        delete candidate;
+    };
+    std::unique_ptr<Socket, decltype(release_borrowed_socket)> candidate(new Socket(), release_borrowed_socket);
+    candidate->fd = sock;
 
-    auto tmp_sock = socket = new Socket();
-    tmp_sock->fd = sock;
-
-    // get socket type
-    if (socket->get_option(SOL_SOCKET, SO_TYPE, &_type) < 0) {
+    int socket_type;
+    if (candidate->get_option(SOL_SOCKET, SO_TYPE, &socket_type) < 0) {
         swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
-    _fail:
-        tmp_sock->move_fd();
-        delete tmp_sock;
-        socket = nullptr;
+        return false;
+    }
+    if (candidate->get_name() < 0) {
+        swoole_sys_warning("getsockname(%d) failed", sock);
         return false;
     }
 
-    if (tmp_sock->get_name() < 0) {
-        swoole_sys_warning("getsockname(%d) failed", sock);
-        goto _fail;
-    }
-
-    int optval;
-    if (tmp_sock->get_option(SOL_SOCKET, SO_ACCEPTCONN, &optval) < 0) {
+    int accepting;
+    if (candidate->get_option(SOL_SOCKET, SO_ACCEPTCONN, &accepting) < 0) {
         swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_ACCEPTCONN) failed", sock);
-        goto _fail;
+        return false;
     }
-
-    if (optval == 0) {
+    if (accepting == 0) {
         swoole_error_log(SW_LOG_WARNING, EINVAL, "the socket[%d] is not a listening socket", sock);
-        goto _fail;
+        return false;
     }
 
-    socket = tmp_sock;
-    int _family = socket->info.addr.ss.sa_family;
-    socket->socket_type = socket->info.type = type = Socket::convert_to_type(_family, _type);
-    host = socket->info.get_addr();
-    port = socket->info.get_port();
+    const int family = candidate->info.addr.ss.sa_family;
+    candidate->socket_type = candidate->info.type = type = Socket::convert_to_type(family, socket_type);
+    host = candidate->info.get_addr();
+    port = candidate->info.get_port();
+    candidate->fd_type = candidate->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
+    candidate->removed = 1;
+
+    socket = candidate.release();
     listening = true;
-
-    socket->fd_type = socket->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
-    socket->removed = 1;
-
     return true;
 }
 
@@ -872,52 +868,45 @@ int ListenPort::create_socket() {
         }
     }
 
-    socket =
-        make_socket(type, is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
-    if (socket == nullptr) {
+    const auto release_socket = [](Socket *candidate) { candidate->free(); };
+    std::unique_ptr<Socket, decltype(release_socket)> candidate(
+        make_socket(type, is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK),
+        release_socket);
+    const auto fail = []() {
         swoole_set_last_error(errno);
         return SW_ERR;
+    };
+    if (!candidate) {
+        return fail();
     }
 
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
     if (is_dtls()) {
-        socket->set_reuse_port();
+        candidate->set_reuse_port();
     }
 #endif
 
 #if defined(__linux__) && defined(HAVE_REUSEPORT)
-    if (server->enable_reuse_port) {
-        if (socket->set_reuse_port() < 0) {
-            goto __cleanup;
-        }
+    if (server->enable_reuse_port && candidate->set_reuse_port() < 0) {
+        return fail();
     }
 #endif
 
     Address addr;
     if (!addr.assign(type, host, port, true)) {
-        auto type_str = Address::type_str(type);
+        const auto *type_str = Address::type_str(type);
         swoole_warning("Invalid %s address '%s:%d'", type_str, host.c_str(), port);
-        goto __cleanup;
+        return fail();
+    }
+    if (candidate->set_reuse_addr() < 0) {
+        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", candidate->get_fd());
+    }
+    if (candidate->bind(addr) < 0 || candidate->get_name() < 0) {
+        return fail();
     }
 
-    if (socket->set_reuse_addr() < 0) {
-        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", socket->get_fd());
-    }
-
-    if (socket->bind(addr) < 0) {
-        goto __cleanup;
-    }
-
-    if (socket->get_name() < 0) {
-    __cleanup:
-        swoole_set_last_error(errno);
-        socket->free();
-        socket = nullptr;
-        return SW_ERR;
-    }
-
-    port = socket->get_port();
-
+    port = candidate->get_port();
+    socket = candidate.release();
     return SW_OK;
 }
 
