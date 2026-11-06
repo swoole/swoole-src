@@ -20,6 +20,7 @@
 #include "swoole_async.h"
 #include "swoole_util.h"
 #include "swoole_thread.h"
+#include "swoole_signal.h"
 
 #include <thread>
 #include <atomic>
@@ -289,6 +290,13 @@ void ThreadPool::main_func(const bool is_core_worker) {
 }
 
 void ThreadPool::create_thread(const bool is_core_worker) {
+    const bool restore_signal_mask = swoole_signal_block_all();
+    ON_SCOPE_EXIT {
+        if (restore_signal_mask) {
+            swoole_signal_unblock_all();
+        }
+    };
+
     try {
         auto *_thread = new std::thread([this, is_core_worker]() { main_func(is_core_worker); });
         threads[_thread->get_id()] = _thread;
