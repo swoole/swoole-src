@@ -649,7 +649,11 @@ static int fn_prereqfunction(
                                  "CURL_PREREQFUNC_ABORT");
             }
         } else {
+            /* The return value's destructor may call back into curl while libcurl is still in the callback. */
+            bool was_in_callback = ch->in_callback;
+            ch->in_callback = true;
             zval_ptr_dtor(&retval);
+            ch->in_callback = was_in_callback;
             zend_type_error(
                 "The CURLOPT_PREREQFUNCTION callback must return either CURL_PREREQFUNC_OK or CURL_PREREQFUNC_ABORT");
         }
