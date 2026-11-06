@@ -302,10 +302,7 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
     if (conn == nullptr || conn->active == 0) {
         return SW_ERR;
     }
-    if (event->socket->removed) {
-        return Server::close_connection(reactor, event->socket);
-    }
-    if (reactor->del(event->socket) == 0) {
+    if (event->socket->removed || reactor->del(event->socket) == 0) {
         if (conn->close_queued) {
             return Server::close_connection(reactor, event->socket);
         } else {

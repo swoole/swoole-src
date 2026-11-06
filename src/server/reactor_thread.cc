@@ -305,7 +305,7 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
         return SW_ERR;
     } else if (serv->disable_notify) {
         return Server::close_connection(reactor, socket);
-    } else if (reactor->del(socket) == 0) {
+    } else if (socket->removed || reactor->del(socket) == 0) {
         if (conn->close_queued) {
             return Server::close_connection(reactor, socket);
         } else if (socket->close_notified == 0) {
