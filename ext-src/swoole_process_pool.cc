@@ -27,6 +27,7 @@ END_EXTERN_C()
 
 using swoole::ProcessPool;
 using swoole::RecvData;
+using swoole::SignalGuard;
 using swoole::Worker;
 using swoole::coroutine::System;
 static zend_class_entry *swoole_process_pool_ce;
@@ -639,42 +640,12 @@ static PHP_METHOD(swoole_process_pool, start) {
     }
 
     ProcessPoolObject *pp = process_pool_fetch_object(ZEND_THIS);
-    std::unordered_map<int, swSignalHandler> ori_handlers;
-
-    // The reactor must be cleaned up before registering signal
-    swoole_event_free();
-    ori_handlers[SIGTERM] = swoole_signal_set(SIGTERM, process_pool_signal_handler);
-    ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, process_pool_signal_handler);
-    ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, process_pool_signal_handler);
-    ori_handlers[SIGIO] = swoole_signal_set(SIGIO, process_pool_signal_handler);
-    ori_handlers[SIGWINCH] = swoole_signal_set(SIGWINCH, process_pool_signal_handler);
-#ifdef SIGRTMIN
-    ori_handlers[SIGRTMIN] = swoole_signal_set(SIGRTMIN, process_pool_signal_handler);
-#endif
-    auto restore_signal_handlers = [&ori_handlers]() {
-        for (auto &ori_handler : ori_handlers) {
-            swoole_signal_set(ori_handler.first, ori_handler.second);
-        }
-    };
-
-    if (pp->enable_message_bus) {
-        if (pool->message_bus == nullptr && pool->create_message_bus() != SW_OK) {
-            restore_signal_handlers();
-            RETURN_FALSE;
-        }
-        pool->message_bus->set_allocator(sw_zend_string_allocator());
-        pool->set_protocol(SW_PROTOCOL_MESSAGE);
-    } else {
-        pool->set_protocol(SW_PROTOCOL_STREAM);
-    }
 
     if (pp->onWorkerStart == nullptr && pp->onMessage == nullptr) {
         if (pool->async) {
-            restore_signal_handlers();
             php_swoole_fatal_error(E_ERROR, "require 'onWorkerStart' callback");
             RETURN_FALSE;
         } else if (pool->ipc_mode != SW_IPC_NONE && pp->onMessage == nullptr) {
-            restore_signal_handlers();
             php_swoole_fatal_error(E_ERROR, "require 'onMessage' callback");
             RETURN_FALSE;
         }
@@ -683,8 +654,25 @@ static PHP_METHOD(swoole_process_pool, start) {
     if (pp->onWorkerExit && !pp->enable_coroutine) {
         zend_throw_exception(
             swoole_exception_ce, "cannot set `onWorkerExit` without enable_coroutine", SW_ERROR_INVALID_PARAMS);
-        restore_signal_handlers();
         RETURN_FALSE;
+    }
+
+    // The reactor must be cleaned up before registering signal
+    swoole_event_free();
+    std::vector<int> signal_numbers = {SIGTERM, SIGUSR1, SIGUSR2, SIGIO, SIGWINCH};
+#ifdef SIGRTMIN
+    signal_numbers.push_back(SIGRTMIN);
+#endif
+    SignalGuard signal_guard(signal_numbers, process_pool_signal_handler);
+
+    if (pp->enable_message_bus) {
+        if (pool->message_bus == nullptr && pool->create_message_bus() != SW_OK) {
+            RETURN_FALSE;
+        }
+        pool->message_bus->set_allocator(sw_zend_string_allocator());
+        pool->set_protocol(SW_PROTOCOL_MESSAGE);
+    } else {
+        pool->set_protocol(SW_PROTOCOL_STREAM);
     }
 
     if (pp->onMessage) {
@@ -724,7 +712,6 @@ static PHP_METHOD(swoole_process_pool, start) {
         swoole_timer_free();
     }
 
-    restore_signal_handlers();
     if (UNEXPECTED(EG(exception))) {
         RETURN_THROWS();
     }

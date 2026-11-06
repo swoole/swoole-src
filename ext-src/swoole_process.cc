@@ -554,12 +554,6 @@ static PHP_METHOD(swoole_process, signal) {
     }
 
     php_swoole_check_reactor();
-    if (!SwooleTG.reactor->isset_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER)) {
-        SwooleTG.reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER,
-                                             [](Reactor *reactor, size_t &event_num) -> bool {
-                                                 return SwooleG.signal_listener_num == 0 or !SwooleG.wait_signal;
-                                             });
-    }
 
     if (signal_fci_caches[signo]) {
         // free the old fci_cache
