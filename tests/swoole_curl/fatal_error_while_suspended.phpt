@@ -56,6 +56,6 @@ Coroutine\run(static function () use ($server, $url, &$connections): void {
 --EXPECTF--
 Fatal error: Uncaught RuntimeException: requests in flight in %s:%d
 Stack trace:
-#0 [internal function]: {closure%s}()
+#0 [internal function]: {closure%S}()
 #1 {main}
   thrown in %s on line %d
