@@ -3211,6 +3211,7 @@ static void test_queued_sendfile_failure(Server::Mode mode) {
     Server serv(mode);
     serv.worker_num = 2;
     swoole_set_log_level(SW_LOG_WARNING);
+    test::counter_init();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
@@ -3255,6 +3256,7 @@ static void test_queued_sendfile_failure(Server::Mode mode) {
         memcpy(&client_fd, req->data, sizeof(client_fd));
         EXPECT_TRUE(serv->send(client_fd, SW_STRL("head")));
         EXPECT_TRUE(queue_missing_sendfile(serv, client_fd));
+        EXPECT_TRUE(queue_missing_sendfile(serv, client_fd));
         serv->send(client_fd, SW_STRL("marker"));
     };
 
@@ -3263,11 +3265,16 @@ static void test_queued_sendfile_failure(Server::Mode mode) {
         SessionId client_fd = req->info.fd;
         Server::task_pack(&msg, &client_fd, sizeof(client_fd));
         EXPECT_TRUE(serv->send_pipe_message(1 - swoole_get_worker_id(), &msg));
+        // Delay this worker's close handling until the reactor has failed both files.
+        usleep(100000);
         return SW_OK;
     };
 
+    serv.onClose = [](Server *serv, DataHead *ev) { test::counter_incr(0); };
+
     ASSERT_EQ(serv.start(), SW_OK);
     t1.join();
+    ASSERT_EQ(test::counter_get(0), 1);
 }
 
 TEST(server, queued_sendfile_failure_process) {
