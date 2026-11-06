@@ -46,7 +46,7 @@ for ($i = 0; $i < 10; $i++) {
     echo "Responded to sender with 'Pong!'\n";
 
     socket_close($receiverSocket);
-    unlink($receiverSocketPath);
+    @unlink($receiverSocketPath);
     socket_close($senderSocket);
 }
 });
