@@ -25,6 +25,29 @@ function ssh2_connect(string $host, int $port = 22, ?array $methods = null, ?arr
 function ssh2_disconnect($session): bool {}
 
 /**
+ * Set how long session operations may wait before they fail
+ * @param resource $session The SSH session
+ * @param int $seconds The timeout in seconds, or 0 with no microseconds to disable the timeout
+ * @param int $microseconds [optional] Additional microseconds, rounded up to milliseconds
+ */
+function ssh2_set_timeout($session, int $seconds, int $microseconds = 0): void {}
+
+/**
+ * Configure keepalive messages
+ * @param resource $session The SSH session
+ * @param bool $want_reply Whether keepalive messages should request a reply from the server
+ * @param int $interval Seconds without I/O before a keepalive is due, or 0 to disable keepalives
+ */
+function ssh2_keepalive_config($session, bool $want_reply, int $interval): void {}
+
+/**
+ * Send a keepalive message if one is due
+ * @param resource $session The SSH session
+ * @return int|false Returns the number of seconds until the next call is needed, or false on failure
+ */
+function ssh2_keepalive_send($session): int|false {}
+
+/**
  * Return list of negotiated methods
  * @param resource $session The SSH session to list methods for
  * @return array Returns an associative array of negotiated methods
@@ -184,6 +207,16 @@ function ssh2_scp_send($session, string $local_file, string $remote_file, int $c
  * @return resource|false Returns a stream resource on success, or false on failure
  */
 function ssh2_fetch_stream($channel, int $streamid) {}
+
+#ifdef PHP_SSH2_CHANNEL_SIGNAL
+/**
+ * Send a signal to the remote process of a channel
+ * @param resource $channel The channel resource
+ * @param string $signal The signal name without the "SIG" prefix, such as "INT"
+ * @return bool Returns true on success or false on failure
+ */
+function ssh2_send_signal($channel, string $signal): bool {}
+#endif
 
 /**
  * Send EOF to a channel

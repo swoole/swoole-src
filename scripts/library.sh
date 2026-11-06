@@ -19,6 +19,11 @@ if ! id -u swoole_ssh2_test_user > /dev/null 2>&1; then
     useradd -m -s /bin/bash swoole_ssh2_test_user
 fi
 echo 'swoole_ssh2_test_user:swoole_ssh2_test_pass' | chpasswd
+mkdir -p /home/swoole_ssh2_test_user/.ssh
+cat ../tests/swoole_ssh2/testkey_ed25519.pub ../tests/swoole_ssh2/testkey_ecdsa.pub \
+    > /home/swoole_ssh2_test_user/.ssh/authorized_keys
+chmod 700 /home/swoole_ssh2_test_user/.ssh
+chown -R swoole_ssh2_test_user:swoole_ssh2_test_user /home/swoole_ssh2_test_user/.ssh
 if ! id -u swoole_ssh2_truncated_scp_user > /dev/null 2>&1; then
     useradd -m -s /bin/sh swoole_ssh2_truncated_scp_user
 fi

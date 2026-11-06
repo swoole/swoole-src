@@ -187,6 +187,9 @@ const zend_function_entry swoole_functions[] = {
 #ifdef SW_HAVE_SSH2LIB
 	ZEND_FE(ssh2_connect, arginfo_ssh2_connect)
 	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
+	ZEND_FE(ssh2_set_timeout, arginfo_ssh2_set_timeout)
+	ZEND_FE(ssh2_keepalive_config, arginfo_ssh2_keepalive_config)
+	ZEND_FE(ssh2_keepalive_send, arginfo_ssh2_keepalive_send)
 	ZEND_FE(ssh2_methods_negotiated, arginfo_ssh2_methods_negotiated)
 	ZEND_FE(ssh2_fingerprint, arginfo_ssh2_fingerprint)
 	ZEND_FE(ssh2_hostkey, arginfo_ssh2_hostkey)
@@ -204,6 +207,9 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ssh2_scp_recv, arginfo_ssh2_scp_recv)
 	ZEND_FE(ssh2_scp_send, arginfo_ssh2_scp_send)
 	ZEND_FE(ssh2_fetch_stream, arginfo_ssh2_fetch_stream)
+#ifdef PHP_SSH2_CHANNEL_SIGNAL
+	ZEND_FE(ssh2_send_signal, arginfo_ssh2_send_signal)
+#endif
 	ZEND_FE(ssh2_send_eof, arginfo_ssh2_send_eof)
 	ZEND_FE(ssh2_sftp, arginfo_ssh2_sftp)
 	ZEND_FE(ssh2_sftp_rename, arginfo_ssh2_sftp_rename)

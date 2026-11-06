@@ -1081,6 +1081,14 @@ EOF
         ],[
             -L$SSH2_DIR/lib -lm
         ])
+
+        PHP_CHECK_LIBRARY(ssh2, libssh2_channel_signal_ex, [
+            AC_DEFINE(PHP_SSH2_CHANNEL_SIGNAL, 1, [Have libssh2 with channel signal support])
+        ],[
+            AC_MSG_WARN([libssh2 < 1.11.0, channel signal support not available])
+        ],[
+            -L$SSH2_DIR/lib -lm
+        ])
     fi
 
     dnl ssh2 stop

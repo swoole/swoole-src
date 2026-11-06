@@ -263,6 +263,11 @@ if (PHP_SWOOLE != "no") {
 		if (CHECK_LIB("ssh2.lib", "swoole", PHP_SWOOLE_SSH2) &&
 			CHECK_HEADER_ADD_INCLUDE("libssh2.h", "CFLAGS_SWOOLE", PHP_SWOOLE_SSH2)) {
 			AC_DEFINE("SW_HAVE_SSH2LIB", 1, "Have libssh2");
+			AC_DEFINE("PHP_SSH2_AGENT_AUTH", 1, "Have libssh2 with ssh-agent support");
+			AC_DEFINE("PHP_SSH2_SESSION_TIMEOUT", 1, "Have libssh2 with session timeout support");
+			if (CHECK_FUNC_IN_HEADER("libssh2.h", "libssh2_channel_signal_ex", PHP_SWOOLE_SSH2)) {
+				AC_DEFINE("PHP_SSH2_CHANNEL_SIGNAL", 1, "Have libssh2 with channel signal support");
+			}
 		}
 	}
 
