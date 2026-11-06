@@ -254,23 +254,29 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
 
 void ThreadFactory::wait() {
     while (true) {
-        std::unique_lock<std::mutex> lock(lock_);
-        int64_t cv_timeout_ms_ = swoole_timer_get_next_msec();
-        if (cv_timeout_ms_ > 0) {
-            cv_.wait_for(lock, std::chrono::milliseconds(cv_timeout_ms_), [this] { return !queue_.empty(); });
-        } else {
-            cv_.wait(lock, [this] { return !queue_.empty(); });
-        }
+        Worker *exited_worker = nullptr;
+        do {
+            std::unique_lock<std::mutex> lock(lock_);
+            const int64_t cv_timeout_ms = swoole_timer_get_next_msec();
+            if (cv_timeout_ms > 0) {
+                cv_.wait_for(lock, std::chrono::milliseconds(cv_timeout_ms), [this] { return !queue_.empty(); });
+            } else {
+                cv_.wait(lock, [this] { return !queue_.empty(); });
+            }
 
-        swoole_trace_log(SW_TRACE_THREAD, "manager thread is waiting for worker exit, queue size: %zu", queue_.size());
+            swoole_trace_log(
+                SW_TRACE_THREAD, "manager thread is waiting for worker exit, queue size: %zu", queue_.size());
 
-        if (!queue_.empty()) {
-            Worker *exited_worker = queue_.front();
-            queue_.pop();
-            lock.unlock();
+            if (!queue_.empty()) {
+                exited_worker = queue_.front();
+                queue_.pop();
+            }
+        } while (0);
 
+        if (exited_worker) {
             if (exited_worker == cmd_ptr(CMD_RELOAD)) {
-                goto _do_reload;
+                do_reload();
+                continue;
             }
             if (exited_worker == cmd_ptr(CMD_MANAGER_EXIT)) {
                 break;
@@ -319,7 +325,6 @@ void ThreadFactory::wait() {
             sw_timer()->select();
         }
         if (server_->running && reloading) {
-        _do_reload:
             do_reload();
         }
     }

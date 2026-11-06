@@ -16,12 +16,93 @@
 
 #include "swoole_server.h"
 
+#include <regex>
+
 #define private public
 #include "swoole_static_handler.h"
 #undef private
 
 using namespace swoole;
 using namespace swoole::http_server;
+
+TEST(static_handler, rewrite_first_match_does_not_chain) {
+    Server serv;
+    serv.add_rewrite_rule("/old/", "/new/");
+    serv.add_rewrite_rule("/new/", "/final/");
+
+    StaticHandler handler(&serv, SW_STRL("/old/file.html"));
+    EXPECT_TRUE(serv.apply_rewrite_rules(&handler));
+    EXPECT_EQ(handler.get_request_url(), "/new/file.html");
+    EXPECT_EQ(handler.get_original_url(), "/old/file.html");
+
+    StaticHandler miss(&serv, SW_STRL("/missing/file.html"));
+    EXPECT_FALSE(serv.apply_rewrite_rules(&miss));
+    EXPECT_EQ(miss.get_request_url(), "/missing/file.html");
+}
+
+TEST(static_handler, rewrite_regex_replaces_all_captures) {
+    Server serv;
+    serv.add_rewrite_rule("~([0-9]+)~", "[$1]");
+
+    StaticHandler handler(&serv, SW_STRL("/12/34.html"));
+    EXPECT_TRUE(serv.apply_rewrite_rules(&handler));
+    EXPECT_EQ(handler.get_request_url(), "/[12]/[34].html");
+}
+
+TEST(static_handler, rewrite_unchanged_regex_uses_next_rule) {
+    Server serv;
+    serv.add_rewrite_rule("~^/same$~", "/same");
+    serv.add_rewrite_rule("/same", "/fallback");
+
+    StaticHandler handler(&serv, SW_STRL("/same"));
+    EXPECT_TRUE(serv.apply_rewrite_rules(&handler));
+    EXPECT_EQ(handler.get_request_url(), "/fallback");
+}
+
+TEST(static_handler, rewrite_invalid_regex_is_ignored) {
+    Server serv;
+    EXPECT_NO_THROW(serv.add_rewrite_rule("~[~", "/invalid"));
+    StaticHandler miss(&serv, SW_STRL("/source"));
+    EXPECT_FALSE(serv.apply_rewrite_rules(&miss));
+    EXPECT_EQ(miss.get_request_url(), "/source");
+
+    serv.add_rewrite_rule("~^/source$~", "/target");
+    StaticHandler handler(&serv, SW_STRL("/source"));
+    EXPECT_TRUE(serv.apply_rewrite_rules(&handler));
+    EXPECT_EQ(handler.get_request_url(), "/target");
+}
+
+TEST(static_handler, rewrite_empty_regex_and_literal_pattern) {
+    Server serv;
+    serv.add_rewrite_rule("/literal.*", "/target");
+    serv.add_rewrite_rule("~~", "x");
+
+    StaticHandler literal(&serv, SW_STRL("/literal.*file"));
+    EXPECT_TRUE(serv.apply_rewrite_rules(&literal));
+    EXPECT_EQ(literal.get_request_url(), "/targetfile");
+
+    StaticHandler empty(&serv, SW_STRL("/a"));
+    EXPECT_TRUE(serv.apply_rewrite_rules(&empty));
+    EXPECT_EQ(empty.get_request_url(), "x/xax");
+}
+
+TEST(static_handler, rewrite_compiled_regex_is_shared_between_threads) {
+    Server serv;
+    serv.add_rewrite_rule("~^/item/([0-9]+)$~", "/static/$1.html");
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 4; i++) {
+        threads.emplace_back([&serv]() {
+            for (int j = 0; j < 64; j++) {
+                StaticHandler handler(&serv, SW_STRL("/item/42"));
+                EXPECT_TRUE(serv.apply_rewrite_rules(&handler));
+                EXPECT_EQ(handler.get_request_url(), "/static/42.html");
+            }
+        });
+    }
+    for (auto &thread : threads) {
+        thread.join();
+    }
+}
 
 TEST(static_handler, set_filename_rejects_path_too_long) {
     Server serv;

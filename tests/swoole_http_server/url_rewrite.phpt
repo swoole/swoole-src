@@ -60,6 +60,8 @@ $pm->childFunc = function () use ($pm) {
         'open_http2_protocol' => true,
         'static_handler_locations' => ['/static'],
         'url_rewrite_rules' => [
+            '~[~' => '/invalid',
+            '~^/view/post/[0-9]+$~' => '$&',
             '~^/view/post/(\d+)$~' => '/static/$1.html',
             '/article/' => '/static/article/'
         ]

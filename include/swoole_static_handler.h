@@ -22,6 +22,8 @@
 
 #include <string>
 #include <set>
+#include <memory>
+#include <regex>
 
 namespace swoole {
 namespace http_server {
@@ -29,7 +31,7 @@ namespace http_server {
 struct RewriteRule {
     std::string pattern;
     std::string replacement;
-    bool is_regex;
+    std::unique_ptr<const std::regex> regex;
 };
 
 class StaticHandler {

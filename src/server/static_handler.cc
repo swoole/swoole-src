@@ -501,21 +501,24 @@ void StaticHandler::parse_range(const char *range, const char *if_range) {
 }  // namespace http_server
 
 void Server::add_rewrite_rule(const std::string &pattern, const std::string &replacement) {
-    if (rewrite_rules == nullptr) {
-        rewrite_rules = std::make_shared<std::vector<http_server::RewriteRule>>();
-    }
-
     http_server::RewriteRule rule;
     rule.replacement = replacement;
 
     if (pattern.length() >= 2 && pattern.at(0) == '~' && pattern.at(pattern.length() - 1) == '~') {
-        rule.pattern = pattern.substr(1, pattern.length() - 2);
-        rule.is_regex = true;
+        try {
+            rule.regex = std::make_unique<std::regex>(pattern.substr(1, pattern.length() - 2));
+        } catch (const std::regex_error &) {
+            // Invalid expressions have always been ignored; reject them once at registration.
+            return;
+        }
     } else {
         rule.pattern = pattern;
-        rule.is_regex = false;
     }
-    rewrite_rules->emplace_back(rule);
+
+    if (rewrite_rules == nullptr) {
+        rewrite_rules = std::make_shared<std::vector<http_server::RewriteRule>>();
+    }
+    rewrite_rules->emplace_back(std::move(rule));
 }
 
 void Server::add_static_handler_location(const std::string &location) {
@@ -723,16 +726,13 @@ bool Server::apply_rewrite_rules(http_server::StaticHandler *handler) {
     }
 
     bool rewritten = false;
-    auto current_url = handler->get_request_url();
+    const auto &current_url = handler->get_request_url();
 
     for (const auto &rule : *rewrite_rules) {
-        if (rule.is_regex) {
+        if (rule.regex) {
             try {
-                std::regex pattern(rule.pattern);
-                std::string rewritten_url;
-
-                if (std::regex_search(current_url, pattern)) {
-                    rewritten_url = std::regex_replace(current_url, pattern, rule.replacement);
+                if (std::regex_search(current_url, *rule.regex)) {
+                    auto rewritten_url = std::regex_replace(current_url, *rule.regex, rule.replacement);
                     if (rewritten_url != current_url) {
                         handler->set_request_url(rewritten_url);
                         rewritten = true;

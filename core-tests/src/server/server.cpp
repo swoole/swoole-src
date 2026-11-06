@@ -650,6 +650,30 @@ static void test_process_send_in_user_worker() {
 // }
 
 #ifdef SW_THREAD
+TEST(server, thread_manager_timer_does_not_block_queue_producer) {
+    ASSERT_EXIT(
+        {
+            alarm(3);
+            Server serv(Server::MODE_THREAD);
+            serv.worker_num = 1;
+            ThreadFactory factory(&serv);
+            swoole_timer_create(true);
+            swoole_timer_add(1L, false, [&factory](TIMER_PARAMS) {
+                std::thread producer([&factory]() {
+                    if (!factory.reload(true)) {
+                        _exit(2);
+                    }
+                });
+                producer.join();
+                _exit(0);
+            });
+            factory.wait();
+            _exit(3);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+}
+
 TEST(server, thread) {
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;
