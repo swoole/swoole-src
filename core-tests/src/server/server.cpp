@@ -2144,6 +2144,164 @@ static std::string make_task_result_record(TaskId id, const std::string &payload
     return std::string(reinterpret_cast<const char *>(&info), sizeof(info)) + payload;
 }
 
+TEST(server, task_ids_are_unique_between_threads) {
+    constexpr int thread_count = 4;
+    constexpr int tasks_per_thread = 1024;
+    std::vector<std::vector<TaskId>> ids(thread_count);
+    std::vector<std::thread> threads;
+    std::atomic<int> ready{0};
+    std::atomic<bool> start{false};
+    for (int i = 0; i < thread_count; i++) {
+        ids[i].resize(tasks_per_thread);
+        threads.emplace_back([&, i]() {
+            swoole_set_worker_id(i);
+            ready.fetch_add(1);
+            while (!start.load()) {
+                std::this_thread::yield();
+            }
+            EventData task;
+            for (int j = 0; j < tasks_per_thread; j++) {
+                EXPECT_TRUE(Server::task_pack(&task, SW_STRL("task")));
+                ids[i][j] = task.info.fd;
+            }
+        });
+    }
+    while (ready.load() != thread_count) {
+        std::this_thread::yield();
+    }
+    start.store(true);
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    std::set<TaskId> unique;
+    for (const auto &batch : ids) {
+        for (auto id : batch) {
+            EXPECT_GE(id, 0);
+            EXPECT_TRUE(unique.insert(id).second);
+        }
+    }
+    EXPECT_EQ(unique.size(), thread_count * tasks_per_thread);
+}
+
+TEST(server, task_ids_are_shared_with_fork_descendants) {
+    constexpr size_t child_count = 2;
+    constexpr size_t tasks_per_process = 128;
+    constexpr size_t total = (child_count + 1) * tasks_per_process;
+    auto *ids = static_cast<TaskId *>(sw_shm_calloc(total, sizeof(TaskId)));
+    ASSERT_NE(ids, nullptr);
+    ON_SCOPE_EXIT {
+        sw_shm_free(ids);
+    };
+    std::vector<pid_t> children;
+    for (size_t i = 0; i < child_count; i++) {
+        const pid_t pid = swoole_fork(0);
+        if (pid == 0) {
+            EventData task;
+            for (size_t j = 0; j < tasks_per_process; j++) {
+                if (!Server::task_pack(&task, SW_STRL("child"))) {
+                    _exit(2);
+                }
+                ids[i * tasks_per_process + j] = task.info.fd;
+            }
+            _exit(0);
+        }
+        ASSERT_GT(pid, 0);
+        children.push_back(pid);
+    }
+    EventData task;
+    for (size_t j = 0; j < tasks_per_process; j++) {
+        EXPECT_TRUE(Server::task_pack(&task, SW_STRL("parent")));
+        ids[child_count * tasks_per_process + j] = task.info.fd;
+    }
+    for (auto pid : children) {
+        int status;
+        EXPECT_EQ(swoole_waitpid(pid, &status, 0), pid);
+        EXPECT_TRUE(WIFEXITED(status));
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+    }
+    std::set<TaskId> unique(ids, ids + total);
+    EXPECT_EQ(unique.size(), total);
+}
+
+TEST(server, task_id_exhaustion_does_not_wrap) {
+    std::atomic<TaskId> boundary{LONG_MAX - 1};
+    auto *original = SwooleG.task_id_counter;
+    const auto original_error = swoole_get_last_error();
+    SwooleG.task_id_counter = &boundary;
+    ON_SCOPE_EXIT {
+        SwooleG.task_id_counter = original;
+        swoole_set_last_error(original_error);
+    };
+    EventData task;
+    ASSERT_TRUE(Server::task_pack(&task, SW_STRL("last")));
+    EXPECT_EQ(task.info.fd, LONG_MAX - 1);
+    for (int i = 0; i < 2; i++) {
+        EXPECT_FALSE(Server::task_pack(&task, SW_STRL("overflow")));
+        EXPECT_EQ(task.info.fd, SW_ERR);
+        EXPECT_EQ(task.info.len, 0);
+        EXPECT_EQ(swoole_get_last_error(), EOVERFLOW);
+        EXPECT_EQ(boundary.load(), LONG_MAX);
+    }
+}
+
+TEST(server, task_id_sequence_survives_repeated_init) {
+    EventData first, second;
+    ASSERT_TRUE(Server::task_pack(&first, SW_STRL("first")));
+    swoole_init();
+    ASSERT_TRUE(Server::task_pack(&second, SW_STRL("second")));
+    EXPECT_GT(second.info.fd, first.info.fd);
+}
+
+TEST(server, task_finish_preserves_id_without_allocating_another) {
+    Server serv;
+    serv.worker_num = 1;
+    serv.task_worker_num = 1;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.get_event_worker_pool()->workers = serv.workers;
+    serv.get_event_worker_pool()->worker_num = serv.worker_num;
+    serv.workers[0].lock = new Mutex(true);
+    ON_SCOPE_EXIT {
+        delete serv.workers[0].lock;
+        serv.workers[0].lock = nullptr;
+    };
+
+    EventData request{};
+    request.info.type = SW_SERVER_EVENT_TASK;
+    request.info.fd = 123;
+    request.info.reactor_id = 0;
+    const auto before = SwooleG.task_id_counter->load();
+    ASSERT_TRUE(serv.finish(SW_STRL("reply"), 0, &request));
+    EXPECT_EQ(serv.task_results[0].info.fd, request.info.fd);
+    EXPECT_EQ(SwooleG.task_id_counter->load(), before);
+
+    auto file = make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    const auto path = file.get_path();
+    file.close();
+    ON_SCOPE_EXIT {
+        unlink(path.c_str());
+    };
+    auto *result = &serv.task_results[0];
+    *reinterpret_cast<sw_atomic_t *>(result->data) = 0;
+    swoole_strlcpy(result->data + 4, path.c_str(), SW_TASK_TMP_PATH_SIZE);
+    request.info.ext_flags = SW_TASK_WAITALL;
+    ASSERT_TRUE(serv.finish(SW_STRL("reply"), 0, &request));
+    EXPECT_EQ(SwooleG.task_id_counter->load(), before);
+    auto content = file_get_contents(path);
+    ASSERT_NE(content, nullptr);
+    Server::MultiTask mt(1);
+    mt.map.emplace(request.info.fd, 0);
+    int calls = 0;
+    mt.unpack = [&calls, &request](uint16_t, EventData *reply) {
+        calls++;
+        EXPECT_EQ(reply->info.fd, request.info.fd);
+        EXPECT_EQ(std::string(reply->data, reply->info.len), "reply");
+    };
+    EXPECT_TRUE(mt.unpack_results(content->str, content->length));
+    EXPECT_EQ(calls, 1);
+}
+
 TEST(server, task_multi_unpack_unaligned_results) {
     Server::MultiTask mt(2);
     mt.map.emplace(7, 1);
@@ -2733,7 +2891,6 @@ TEST(server, task_sync_multi_task) {
     };
 
     ASSERT_EQ(serv.create(), SW_OK);
-    SwooleG.current_task_id = 100;
 
     serv.onWorkerStart = [&tasks, &results](Server *serv, Worker *worker) {
         if (worker->id == 1) {

@@ -125,14 +125,14 @@ void Server::task_dump(EventData *task) {
     }
 }
 
-bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
+static bool TaskWorker_pack(EventData *task, const void *_data, size_t _length, TaskId task_id) {
     task->info = {};
     task->info.type = SW_SERVER_EVENT_TASK;
-    task->info.fd = SwooleG.current_task_id++;
+    task->info.fd = task_id;
     task->info.reactor_id = swoole_get_worker_id();
     task->info.time = microtime();
 
-    if (_length < SW_IPC_MAX_SIZE - sizeof(task->info)) {
+    if (sw_likely(_length < sizeof(task->data))) {
         memcpy(task->data, _data, _length);
         task->info.len = _length;
         return true;
@@ -140,11 +140,11 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
 
     PacketTask pkg{};
     File file = make_tmpfile();
-    if (!file.ready()) {
+    if (sw_unlikely(!file.ready())) {
         return false;
     }
 
-    if (file.write_all(_data, _length) != _length) {
+    if (sw_unlikely(file.write_all(_data, _length) != _length)) {
         const int write_error = errno;
         file.close();
         unlink(file.get_path().c_str());
@@ -160,6 +160,24 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     memcpy(task->data, &pkg, sizeof(pkg));
 
     return true;
+}
+
+bool Server::task_pack(EventData *task, const void *data, size_t length) {
+    assert(SwooleG.task_id_counter != nullptr);
+    auto &counter = *SwooleG.task_id_counter;
+    TaskId current = counter.load(std::memory_order_relaxed);
+    while (true) {
+        if (sw_unlikely(current < 0 || current == LONG_MAX)) {
+            task->info = {};
+            task->info.fd = SW_ERR;
+            swoole_error_log(SW_LOG_WARNING, EOVERFLOW, "task ID range exhausted");
+            return false;
+        }
+        // Relaxed ordering is sufficient for uniqueness; IPC publishes the task payload.
+        if (counter.compare_exchange_weak(current, current + 1, std::memory_order_relaxed)) {
+            return TaskWorker_pack(task, data, length, current);
+        }
+    }
 }
 
 bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
@@ -222,21 +240,21 @@ bool Server::MultiTask::unpack_results(const char *data, size_t length) const {
     EventData result;
     while (offset < length) {
         const size_t remaining = length - offset;
-        if (remaining < sizeof(result.info)) {
+        if (sw_unlikely(remaining < sizeof(result.info))) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_MALFORMED_DATA, "truncated task result header");
             return false;
         }
 
         // Records have variable lengths, so their headers need not be aligned.
         memcpy(&result.info, data + offset, sizeof(result.info));
-        if (result.info.len > sizeof(result.data) || result.info.len > remaining - sizeof(result.info)) {
+        if (sw_unlikely(result.info.len > sizeof(result.data) || result.info.len > remaining - sizeof(result.info))) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_MALFORMED_DATA, "invalid task result length");
             return false;
         }
 
         const size_t record_size = sizeof(result.info) + result.info.len;
         const int index = find(ProcessPool::get_task_id(&result));
-        if (index != -1) {
+        if (sw_likely(index != -1)) {
             memcpy(result.data, data + offset + sizeof(result.info), result.info.len);
             unpack(index, &result);
         }
@@ -333,12 +351,12 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
 }
 
 bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
-    if (task->info.len > sizeof(task->data) ||
-        ((task->info.ext_flags & SW_TASK_TMPFILE) && task->info.len != sizeof(PacketTask))) {
+    if (sw_unlikely(task->info.len > sizeof(task->data) ||
+                    ((task->info.ext_flags & SW_TASK_TMPFILE) && task->info.len != sizeof(PacketTask)))) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_MALFORMED_DATA, "invalid task packet length");
         return false;
     }
-    if (!(task->info.ext_flags & SW_TASK_TMPFILE)) {
+    if (sw_likely(!(task->info.ext_flags & SW_TASK_TMPFILE))) {
         packet->data = task->data;
         packet->length = task->info.len;
         return true;
@@ -346,7 +364,7 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
 
     PacketTask _pkg{};
     memcpy(&_pkg, task->data, sizeof(_pkg));
-    if (memchr(_pkg.tmpfile, '\0', sizeof(_pkg.tmpfile)) == nullptr) {
+    if (sw_unlikely(memchr(_pkg.tmpfile, '\0', sizeof(_pkg.tmpfile)) == nullptr)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_MALFORMED_DATA, "unterminated task tmpfile path");
         return false;
     }
@@ -494,7 +512,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
     if (current_task->info.ext_flags & SW_TASK_NONBLOCK) {
         // write to file
         EventData buf;
-        if (!task_pack(&buf, data, data_len)) {
+        if (!TaskWorker_pack(&buf, data, data_len, get_task_id(current_task))) {
             swoole_warning("large task pack failed()");
             return false;
         }
@@ -506,7 +524,6 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
         }
         buf.info.ext_flags |= flags;
         buf.info.type = SW_SERVER_EVENT_FINISH;
-        buf.info.fd = get_task_id(current_task);
 
         if (worker->pool->use_socket && worker->pool->stream_info_->last_connection) {
             uint32_t _len = htonl(data_len);
@@ -534,13 +551,12 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
                 File file(_tmpfile, O_APPEND | O_WRONLY);
                 if (file.ready()) {
                     EventData buf;
-                    if (!task_pack(&buf, data, data_len)) {
+                    if (!TaskWorker_pack(&buf, data, data_len, get_task_id(current_task))) {
                         swoole_warning("large task pack failed()");
                         buf.info.len = 0;
                     }
                     buf.info.ext_flags |= flags;
                     buf.info.type = SW_SERVER_EVENT_FINISH;
-                    buf.info.fd = get_task_id(current_task);
                     size_t bytes = buf.size();
                     swoole_trace_log(SW_TRACE_SERVER, "write %zu bytes to tmp file '%s'", bytes, _tmpfile);
 
@@ -550,13 +566,12 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
                     sw_atomic_fetch_add(finish_count, 1);
                 }
             } else {
-                if (!task_pack(result, data, data_len)) {
+                if (!TaskWorker_pack(result, data, data_len, get_task_id(current_task))) {
                     swoole_warning("large task pack failed()");
                     return false;
                 }
                 result->info.ext_flags |= flags;
                 result->info.type = SW_SERVER_EVENT_FINISH;
-                result->info.fd = get_task_id(current_task);
             }
         } while (0);
 

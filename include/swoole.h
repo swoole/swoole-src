@@ -58,6 +58,7 @@
 
 #include <string>
 #include <memory>
+#include <atomic>
 #include <list>
 #include <functional>
 #include <mutex>
@@ -783,7 +784,8 @@ struct Global {
     uchar enable_coroutine : 1;
     uchar print_backtrace_on_error : 1;
 
-    TaskId current_task_id;
+    // Created before fork; shared by every thread and descendant process of this runtime.
+    std::atomic<TaskId> *task_id_counter;
 
     int signal_fd;
     bool signal_alarm;

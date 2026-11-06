@@ -52,6 +52,7 @@
 using swoole::Logger;
 using swoole::NameResolver;
 using swoole::String;
+using swoole::TaskId;
 using swoole::coroutine::System;
 
 swoole::Global SwooleG = {};
@@ -150,6 +151,12 @@ void swoole_init() {
 
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
+    static_assert(ATOMIC_LONG_LOCK_FREE == 2, "shared task IDs require lock-free atomic long operations");
+    void *task_id_memory = SwooleG.memory_pool->alloc(sizeof(std::atomic<TaskId>));
+    if (sw_unlikely(task_id_memory == nullptr)) {
+        throw std::bad_alloc();
+    }
+    SwooleG.task_id_counter = new (task_id_memory) std::atomic<TaskId>(0);
 #if !defined(HAVE_FUTEX) && !defined(_WIN32)
     sw_atomic_wait_init();
 #endif
