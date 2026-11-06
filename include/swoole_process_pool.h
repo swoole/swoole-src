@@ -145,7 +145,8 @@ struct WorkerGlobal {
      *  It is not visible to other worker processes.
      */
     Worker *worker_copy;
-    time_t exit_time;
+    // Monotonic start of worker shutdown; all exit phases share the same wait budget.
+    int64_t exit_time_msec;
 };
 
 struct Worker {
@@ -369,7 +370,12 @@ struct ProcessPool {
     }
 
     void set_max_packet_size(uint32_t _max_packet_size) {
+        // SysV message queues have a fixed receive limit and ignore max_package_size.
+#ifndef _WIN32
+        max_packet_size_ = use_msgqueue ? SW_MSGMAX : _max_packet_size;
+#else
         max_packet_size_ = _max_packet_size;
+#endif
     }
 
     bool is_master() const {
@@ -446,7 +452,7 @@ struct ProcessPool {
     bool del_worker(const Worker *worker) const;
     Worker *get_worker_by_pid(pid_t pid) const;
     void destroy();
-    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
+    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE, int msgqueue_perms = 0);
     int create_message_box(size_t memory_size);
     int create_message_bus();
     int push_message(uint8_t _type, const void *data, size_t length) const;

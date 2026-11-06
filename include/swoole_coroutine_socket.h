@@ -171,6 +171,10 @@ class Socket {
         return ssl_context->set_cert_file(file);
     }
 
+    bool set_ssl_client_cert_file(const std::string &file) const {
+        return ssl_context->set_client_cert_file(file);
+    }
+
     void set_ssl_cafile(const std::string &file) const {
         ssl_context->cafile = file;
     }
@@ -569,28 +573,6 @@ class Socket {
       protected:
         double startup_time = 0;
     };
-};
-
-class ProtocolSwitch {
-    bool ori_open_eof_check;
-    bool ori_open_length_check;
-    Protocol ori_protocol;
-    Socket *socket_;
-
-  public:
-    explicit ProtocolSwitch(Socket *socket) {
-        ori_open_eof_check = socket->open_eof_check;
-        ori_open_length_check = socket->open_length_check;
-        ori_protocol = socket->protocol;
-        socket_ = socket;
-    }
-
-    ~ProtocolSwitch() {
-        /* revert protocol settings */
-        socket_->open_eof_check = ori_open_eof_check;
-        socket_->open_length_check = ori_open_length_check;
-        socket_->protocol = ori_protocol;
-    }
 };
 
 std::vector<std::string> dns_lookup(const char *domain, int family = AF_INET, double timeout = 2.0);

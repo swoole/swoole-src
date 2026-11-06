@@ -54,17 +54,31 @@ $server->on('workerStart', function ($server, $workerId) use ($ports) {
         try {
             foreach ($ports as $i => $port) {
                 $seen = [];
-                for ($attempt = 0; $attempt < 32 && count($seen) < 2; $attempt++) {
-                    $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
-                    Assert::true($client->connect('127.0.0.1', $port, 2));
-                    $packet = pack('N', $i === 2 ? 5 : 9) . 'hello';
-                    Assert::same($client->send(substr($packet, 0, 2)), 2);
-                    Coroutine::sleep(0.001);
-                    Assert::same($client->send(substr($packet, 2)), 7);
-                    $reply = $client->recv(2);
-                    Assert::true($reply === '0' || $reply === '1');
-                    $seen[$reply] = true;
-                    $client->close();
+                $clients = [];
+                $descriptors = [];
+                try {
+                    for ($attempt = 0; $attempt < 32 && count($seen) < 2; $attempt++) {
+                        // Client and accepted sockets share an FD table in thread mode. Keep them
+                        // open and add one FD per attempt so fd % worker_num reaches both workers.
+                        $descriptors[] = fopen(__FILE__, 'rb');
+                        $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+                        $clients[] = $client;
+                        Assert::true($client->connect('127.0.0.1', $port, 2));
+                        $packet = pack('N', $i === 2 ? 5 : 9) . 'hello';
+                        Assert::same($client->send(substr($packet, 0, 2)), 2);
+                        Coroutine::sleep(0.001);
+                        Assert::same($client->send(substr($packet, 2)), 7);
+                        $reply = $client->recv(2);
+                        Assert::true($reply === '0' || $reply === '1');
+                        $seen[$reply] = true;
+                    }
+                } finally {
+                    foreach ($clients as $client) {
+                        $client->close();
+                    }
+                    foreach ($descriptors as $descriptor) {
+                        fclose($descriptor);
+                    }
                 }
                 Assert::count($seen, 2);
             }

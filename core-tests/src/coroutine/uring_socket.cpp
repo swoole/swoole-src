@@ -19,8 +19,15 @@
 #include "swoole_util.h"
 #include "swoole_file.h"
 
+#include <arpa/inet.h>
+#include <openssl/ssl.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <unistd.h>
+
+#include <atomic>
+#include <thread>
 
 #ifdef SW_USE_IOURING
 using swoole::Coroutine;
@@ -195,6 +202,72 @@ TEST(uring_socket, ssl_accept) {
     };
 
     coroutine::run({svr, cli});
+}
+
+// A peer that ends the TLS session with close_notify but keeps the TCP connection open must make the
+// next read fail with SW_ERROR_SSL_RESET instead of leaving errCode at 0.
+TEST(uring_socket, ssl_close_notify) {
+    const int port = __LINE__ + TEST_PORT;
+
+    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_GE(listen_fd, 0);
+    int on = 1;
+    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    ASSERT_EQ(bind(listen_fd, (sockaddr *) &addr, sizeof(addr)), 0);
+    ASSERT_EQ(listen(listen_fd, 1), 0);
+
+    std::atomic<bool> client_done{false};
+
+    std::thread server([listen_fd, &client_done]() {
+        SSL_CTX *ctx = SSL_CTX_new(TLS_server_method());
+        SSL_CTX_use_certificate_file(ctx, (swoole::test::get_ssl_dir() + "/server.crt").c_str(), SSL_FILETYPE_PEM);
+        SSL_CTX_use_PrivateKey_file(ctx, (swoole::test::get_ssl_dir() + "/server.key").c_str(), SSL_FILETYPE_PEM);
+
+        int fd = accept(listen_fd, nullptr, nullptr);
+        SSL *ssl = SSL_new(ctx);
+        SSL_set_fd(ssl, fd);
+        if (SSL_accept(ssl) == 1) {
+            char buf[16];
+            SSL_read(ssl, buf, sizeof(buf));
+            SSL_write(ssl, "ok", 2);
+            // sends close_notify, the TCP connection stays open
+            SSL_shutdown(ssl);
+            for (int i = 0; i < 5000 && !client_done; i++) {
+                usleep(1000);
+            }
+        }
+        SSL_free(ssl);
+        close(fd);
+        SSL_CTX_free(ctx);
+    });
+
+    coroutine::run([port, &client_done](void *arg) {
+        UringSocket sock(SW_SOCK_TCP);
+        sock.enable_ssl_encrypt();
+        bool retval = sock.connect("127.0.0.1", port, -1);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.errCode, 0);
+
+        ASSERT_EQ(sock.send("ping", 4), 4);
+
+        char buf[16];
+        ASSERT_EQ(sock.recv(buf, sizeof(buf)), 2);
+
+        // the next read sees the close_notify
+        ASSERT_LE(sock.recv(buf, sizeof(buf)), 0);
+        ASSERT_EQ(sock.errCode, SW_ERROR_SSL_RESET);
+
+        client_done = true;
+        sock.close();
+    });
+
+    client_done = true;
+    server.join();
+    close(listen_fd);
 }
 
 static void socket_set_length_protocol_1(UringSocket &sock) {

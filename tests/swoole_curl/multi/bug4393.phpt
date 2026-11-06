@@ -15,47 +15,51 @@ use GuzzleHttp\Promise;
 
 use function Swoole\Coroutine\run;
 
-Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
-
-run(function () {
-    $guzzle = new Client();
-
-    $test = function () use ($guzzle) {
-        if (IS_IN_CI) {
-            $promises = [
-                'qq' => $guzzle->getAsync('https://www.qq.com/'),
-                'baidu' => $guzzle->getAsync('http://www.baidu.com/'),
-            ];
-        } else {
-            $promises = [
-                'httpbin' => $guzzle->getAsync('https://www.httpbin.org/'),
-                'nghttp2' => $guzzle->getAsync('https://nghttp2.org/'),
-            ];
-        }
-
-        $responses = [];
-        foreach (Promise\Utils::settle($promises)->wait() as $k => $v) {
-            $responses[$k] = $v['value'];
-        }
-
-        if (IS_IN_CI) {
-            Assert::contains($responses['baidu']->getBody(), '百度');
-            Assert::contains($responses['qq']->getBody(), '腾讯');
-        } else {
-            Assert::contains($responses['httpbin']->getBody(), 'httpbin');
-            Assert::contains($responses['nghttp2']->getBody(), 'nghttp2');
-        }
-    };
-
-    $n = 2;
-    while ($n--) {
-        $s = microtime(true);
-        $test();
-        Assert::lessThan(microtime(true) - $s, 3.0);
+$pm = new ProcessManager;
+$pm->setParentSetup(function () { Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL); });
+$pm->parentFunc = function () use ($pm) {
+    try {
+        run(function () use ($pm) {
+            $guzzle = new Client(['base_uri' => 'http://127.0.0.1:' . $pm->getFreePort(), 'timeout' => 5]);
+            for ($i = 0; $i < 2; $i++) {
+                $promises = [
+                    'first' => $guzzle->getAsync('/first'),
+                    'second' => $guzzle->getAsync('/second'),
+                ];
+                foreach (Promise\Utils::settle($promises)->wait() as $name => $result) {
+                    Assert::same($result['state'], 'fulfilled');
+                    Assert::same((string) $result['value']->getBody(), '/' . $name);
+                }
+            }
+            echo "Done\n";
+        });
+    } finally {
+        $pm->kill();
     }
-
-    echo 'Done' . PHP_EOL;
-});
+};
+$pm->childFunc = function () use ($pm) {
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server->set(['worker_num' => 1, 'log_file' => '/dev/null']);
+    $gate = null;
+    $arrived = 0;
+    $server->on('workerStart', function () use ($pm, &$gate) {
+        $gate = new Swoole\Coroutine\Channel(1);
+        $pm->wakeup();
+    });
+    $server->on('request', function ($request, $response) use (&$gate, &$arrived) {
+        // Neither request can finish until both have arrived. This verifies asynchronous
+        // execution without depending on public websites or a wall-clock speed threshold.
+        if (++$arrived % 2 === 1) {
+            Assert::true($gate->pop(5));
+        } else {
+            $gate->push(true);
+        }
+        $response->end($request->server['request_uri']);
+    });
+    $server->start();
+};
+$pm->childFirst();
+$pm->run();
 ?>
 --EXPECT--
 Done

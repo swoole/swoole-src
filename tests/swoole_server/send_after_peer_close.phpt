@@ -45,6 +45,9 @@ $pm->childFunc = function () use ($pm) {
         'enable_coroutine' => true,
     ]);
 
+    $server->on('workerStart', function () use ($pm) {
+        $pm->wakeup();
+    });
     $server->on('message', function () {});
 
     $server->on('open', function ($server, $request) {

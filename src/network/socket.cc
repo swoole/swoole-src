@@ -106,18 +106,13 @@ static bool check_sendfile_parameters(const File *file, off_t begin, size_t leng
         return false;
     }
 
-    if (length == 0) {
-        *end = file_stat.st_size;
-    } else {
-        *end = begin + static_cast<off_t>(length);
-    }
-
-    if (begin < 0 || *end > file_stat.st_size) {
+    if (begin < 0 || begin > file_stat.st_size || length > static_cast<size_t>(file_stat.st_size - begin)) {
         swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%ld] or offset[%ld] is invalid", length, (long) begin);
+            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length[%zu] or offset[%ld] is invalid", length, (long) begin);
         return false;
     }
 
+    *end = length == 0 ? file_stat.st_size : begin + static_cast<off_t>(length);
     return true;
 }
 
@@ -793,29 +788,44 @@ int Socket::handle_sendfile() {
     }
 
     size_t sendn = get_sendfile_chunk_size(task->begin, task->end);
-    ssize_t rv = sendfile(task->file, &task->begin, sendn);
+    // A zero-length request has nothing to send, and FreeBSD's sendfile() would read to the end of the file.
+    ssize_t rv = sendn == 0 ? 0 : sendfile(task->file, &task->begin, sendn);
 
     swoole_trace("rv=%ld|begin=%ld|sendn=%lu|end=%lu", rv, (long) task->begin, sendn, task->end);
 
-    if (rv <= 0) {
+    if (rv < 0) {
         switch (catch_write_error(sw_errno())) {
-        case SW_ERROR:
-            swoole_sys_warning("sendfile(%s, %ld, %zu) failed", task->get_filename(), (long) task->begin, sendn);
-            buffer->pop();
-            return SW_OK;
         case SW_CLOSE:
             close_wait = 1;
             return SW_ERR;
         case SW_WAIT:
             send_wait = 1;
             return SW_ERR;
-        default:
-            break;
+        default: {
+            const int error = sw_errno();
+            if (error == EINTR) {
+                return SW_OK;
+            }
+            // The rest of the file can't be sent, so close instead of sending later data after a gap.
+            swoole_sys_warning("sendfile(%s, %ld, %zu) failed", task->get_filename(), (long) task->begin, sendn);
+            sw_set_errno(error);
+            close_wait = 1;
+            return SW_ERR;
         }
-    } else {
-        if (send_timer) {
-            last_sent_time = time<std::chrono::milliseconds>(true);
         }
+    } else if (rv == 0 && sendn > 0) {
+        // The file ended before the requested range, e.g. it was truncated after the transfer started.
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SYSTEM_CALL_FAIL,
+                         "sendfile(%s, %ld, %zu) reached the end of the file",
+                         task->get_filename(),
+                         (long) task->begin,
+                         sendn);
+        sw_set_errno(EIO);
+        close_wait = 1;
+        return SW_ERR;
+    } else if (send_timer) {
+        last_sent_time = time<std::chrono::milliseconds>(true);
     }
 
     // sendfile completed
@@ -874,6 +884,14 @@ int Socket::handle_send() {
     return SW_OK;
 }
 
+SendfileRequest::~SendfileRequest() {
+    if (delete_file) {
+        // Close before unlink so the handle is released first, which Windows requires.
+        file.close();
+        ::unlink(file.get_path().c_str());
+    }
+}
+
 static void Socket_sendfile_destructor(BufferChunk *chunk) {
     auto *task = static_cast<SendfileRequest *>(chunk->value.ptr);
     delete task;
@@ -887,8 +905,8 @@ ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
     }
 }
 
-int Socket::sendfile_async(const char *filename, off_t offset, size_t length) {
-    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset));
+int Socket::sendfile_async(const char *filename, off_t offset, size_t length, bool delete_file) {
+    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset, delete_file));
 
     if (!check_sendfile_parameters(&task->file, offset, length, &task->end)) {
         return SW_ERR;
@@ -1553,6 +1571,8 @@ ssize_t Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
         }
         swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
         return ret;
+    } else if (n == 0) {
+        return 0;
     } else {
         swoole_sys_warning("pread() failed");
         return SW_ERR;

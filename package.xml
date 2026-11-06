@@ -175,6 +175,7 @@
             <file role="src" name="core-tests/src/_lib/ssl.cpp" />
             <file role="src" name="core-tests/src/core/base.cpp" />
             <file role="src" name="core-tests/src/core/channel.cpp" />
+            <file role="src" name="core-tests/src/core/fork.cpp" />
             <file role="src" name="core-tests/src/core/hash.cpp" />
             <file role="src" name="core-tests/src/core/heap.cpp" />
             <file role="src" name="core-tests/src/core/log.cpp" />
@@ -1192,6 +1193,8 @@
             <file role="test" name="tests/swoole_client_sync/keep4.phpt" />
             <file role="test" name="tests/swoole_client_sync/keep5.phpt" />
             <file role="test" name="tests/swoole_client_sync/keep6.phpt" />
+            <file role="test" name="tests/swoole_client_sync/keep_shutdown.phpt" />
+            <file role="test" name="tests/swoole_client_sync/keep_socket_state.phpt" />
             <file role="test" name="tests/swoole_client_sync/length_protocol.phpt" />
             <file role="test" name="tests/swoole_client_sync/length_protocol_02.phpt" />
             <file role="test" name="tests/swoole_client_sync/length_protocol_func.phpt" />
@@ -1271,6 +1274,8 @@
             <file role="test" name="tests/swoole_coroutine/dnslookup_ipv6.phpt" />
             <file role="test" name="tests/swoole_coroutine/dnslookup_query_hosts.phpt" />
             <file role="test" name="tests/swoole_coroutine/empty.phpt" />
+            <file role="test" name="tests/swoole_coroutine/error_reporting_after_silenced_create.phpt" />
+            <file role="test" name="tests/swoole_coroutine/error_reporting_configuration.phpt" />
             <file role="test" name="tests/swoole_coroutine/eval.phpt" />
             <file role="test" name="tests/swoole_coroutine/exception.phpt" />
             <file role="test" name="tests/swoole_coroutine/exception/core_error.phpt" />
@@ -2040,7 +2045,7 @@
             <file role="test" name="tests/swoole_pdo_oracle/bug60994.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/bug_33707.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/checkliveness.phpt" />
-            <file role="test" name="tests/swoole_pdo_oracle/coroutint.phpt" />
+            <file role="test" name="tests/swoole_pdo_oracle/coroutine.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/oci_success_with_info.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/pdo_oci_attr_action.phpt" />
             <file role="test" name="tests/swoole_pdo_oracle/pdo_oci_attr_autocommit_1.phpt" />
@@ -2148,6 +2153,8 @@
             <file role="test" name="tests/swoole_process/ignore_sigpipe.phpt" />
             <file role="test" name="tests/swoole_process/ignore_sigpipe_2.phpt" />
             <file role="test" name="tests/swoole_process/kill.phpt" />
+            <file role="test" name="tests/swoole_process/kqueue_signal_clear.phpt" />
+            <file role="test" name="tests/swoole_process/kqueue_signal_clear_in_manager.phpt" />
             <file role="test" name="tests/swoole_process/msgq_capacity.phpt" />
             <file role="test" name="tests/swoole_process/name.phpt" />
             <file role="test" name="tests/swoole_process/null_callback.phpt" />
@@ -2752,6 +2759,7 @@
             <file role="test" name="tests/swoole_table/stats.phpt" />
             <file role="test" name="tests/swoole_table/stats_before_create.phpt" />
             <file role="test" name="tests/swoole_table/type_conv.phpt" />
+            <file role="test" name="tests/swoole_test_runner/port_reservation.phpt" />
             <file role="test" name="tests/swoole_thread/add_update.phpt" />
             <file role="test" name="tests/swoole_thread/affinity.phpt" />
             <file role="test" name="tests/swoole_thread/arraylist.phpt" />
@@ -2836,6 +2844,7 @@
             <file role="test" name="tests/swoole_timer/info.phpt" />
             <file role="test" name="tests/swoole_timer/list.phpt" />
             <file role="test" name="tests/swoole_timer/manager.phpt" />
+            <file role="test" name="tests/swoole_timer/manager_inherited_timer.phpt" />
             <file role="test" name="tests/swoole_timer/master.phpt" />
             <file role="test" name="tests/swoole_timer/master_base.phpt" />
             <file role="test" name="tests/swoole_timer/memory.phpt" />

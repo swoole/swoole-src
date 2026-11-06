@@ -24,6 +24,8 @@
 #include "swoole_util.h"
 #include "swoole_api.h"
 
+#include <atomic>
+
 #ifdef HAVE_EPOLL
 #include <sys/resource.h>
 #endif
@@ -161,6 +163,29 @@ TEST(reactor, wait) {
     ret = swoole_event_wait();
     ASSERT_EQ(ret, SW_OK);
     ASSERT_EQ(SwooleTG.reactor, nullptr);
+}
+
+TEST(reactor, wait_reentry) {
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    auto *reactor = sw_reactor();
+    EXPECT_FALSE(reactor->is_waiting());
+    reactor->once = true;
+    reactor->defer([reactor](void *) {
+        EXPECT_TRUE(reactor->is_waiting());
+        EXPECT_EQ(reactor->wait(), SW_ERR);
+        EXPECT_EQ(errno, EBUSY);
+        EXPECT_ERREQ(SW_ERROR_WRONG_OPERATION);
+        EXPECT_TRUE(reactor->is_waiting());
+    });
+    EXPECT_EQ(reactor->wait(), SW_OK);
+    EXPECT_FALSE(reactor->is_waiting());
+    swoole_clear_last_error();
+
+    // A completed wait does not prevent the caller from dispatching the next iteration.
+    reactor->defer([](void *) {});
+    EXPECT_EQ(reactor->wait(), SW_OK);
+    EXPECT_FALSE(reactor->is_waiting());
+    swoole_event_free();
 }
 
 TEST(reactor, get_missing_socket) {
@@ -782,6 +807,57 @@ TEST(reactor, drain_write_buffer) {
     ASSERT_EQ(ret, SW_OK);
     ASSERT_FALSE(swoole_event_is_available());
     t.join();
+}
+
+TEST(reactor, drain_write_buffer_timeout) {
+    UnixSocket pipe(true, SOCK_STREAM);
+    ASSERT_TRUE(pipe.ready());
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ON_SCOPE_EXIT {
+        swoole_event_free();
+    };
+    pipe.set_blocking(false);
+    ASSERT_TRUE(pipe.set_buffer_size(4096));
+
+    std::string payload(2 * 1024 * 1024, 'x');
+    auto writer = pipe.get_socket(true);
+    ASSERT_EQ(swoole_event_write(writer, payload.data(), payload.size()), payload.size());
+    auto get_pending_bytes = [writer]() -> size_t {
+        if (Buffer::empty(writer->out_buffer)) {
+            return 0;
+        }
+        // Buffer length includes the sent prefix until the front chunk is popped.
+        // Subtract its offset to measure progress even when no whole chunk has been sent.
+        return writer->get_out_buffer_length() - writer->out_buffer->front()->offset;
+    };
+    const size_t pending = get_pending_bytes();
+    ASSERT_GT(pending, 0);
+
+    // An exhausted budget must preserve the queue without making another write attempt.
+    sw_reactor()->drain_write_buffer(writer, 0);
+    ASSERT_EQ(get_pending_bytes(), pending);
+
+    std::atomic<bool> reading{true};
+    std::thread reader([&]() {
+        char buffer[4096];
+        while (reading.load()) {
+            pipe.get_socket(false)->read(buffer, sizeof(buffer));
+            usleep(10000);
+        }
+    });
+
+    // The peer makes progress throughout the drain. The timeout must cover all polls together,
+    // rather than restarting after every successful chunk and extending the worker's exit indefinitely.
+    long started = swoole::time<std::chrono::milliseconds>(true);
+    sw_reactor()->drain_write_buffer(writer, 100);
+    long elapsed = swoole::time<std::chrono::milliseconds>(true) - started;
+    reading.store(false);
+    reader.join();
+
+    EXPECT_GE(elapsed, 90);
+    EXPECT_LT(elapsed, 1000);
+    EXPECT_GT(get_pending_bytes(), 0);
+    EXPECT_LT(get_pending_bytes(), pending);
 }
 
 TEST(reactor, handle_fail) {

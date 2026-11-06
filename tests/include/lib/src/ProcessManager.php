@@ -42,9 +42,9 @@ class ProcessManager
     protected $randomDataArray = [];
 
     /**
-     * wait wakeup 1s default
+     * wait wakeup 10s default
      */
-    protected $waitTimeout = 1.0;
+    protected $waitTimeout = 10.0;
 
     public $parentFunc;
     protected $parentSetupFunc;
@@ -138,7 +138,7 @@ class ProcessManager
         return $this->childPid;
     }
 
-    public function setWaitTimeout(int $value)
+    public function setWaitTimeout(float $value)
     {
         $this->waitTimeout = $value;
     }
@@ -150,22 +150,26 @@ class ProcessManager
             return false;
         }
         if (!is_win()) {
-            return $this->atomic->wait($this->waitTimeout);
-        }
-        if ($this->windowsThreadBackend) {
-            return $this->syncQueue->pop($this->waitTimeout) === true;
-        }
-
-        $deadline = microtime(true) + $this->waitTimeout;
-        while (microtime(true) < $deadline) {
-            $current = $this->readSyncCount();
-            if ($current > $this->waitCount) {
-                $this->waitCount = $current;
-                return true;
+            $ready = $this->atomic->wait($this->waitTimeout);
+        } elseif ($this->windowsThreadBackend) {
+            $ready = $this->syncQueue->pop($this->waitTimeout) === true;
+        } else {
+            $deadline = microtime(true) + $this->waitTimeout;
+            $ready = false;
+            while (microtime(true) < $deadline) {
+                $current = $this->readSyncCount();
+                if ($current > $this->waitCount) {
+                    $this->waitCount = $current;
+                    $ready = true;
+                    break;
+                }
+                usleep(10000);
             }
-            usleep(10000);
         }
-        return false;
+        if (!$ready) {
+            throw new RuntimeException("ProcessManager did not receive a wakeup within {$this->waitTimeout}s");
+        }
+        return true;
     }
 
     //唤醒等待的进程
@@ -183,6 +187,50 @@ class ProcessManager
 
         $this->waitCount = max($this->waitCount + 1, $this->readSyncCount() + 1);
         return $this->writeSyncCount($this->waitCount);
+    }
+
+    private function waitForChild(bool $blocking): array|false
+    {
+        if (function_exists('pcntl_waitpid')) {
+            do {
+                $pid = pcntl_waitpid($this->childPid, $status, $blocking ? 0 : WNOHANG);
+            } while ($pid === -1 && pcntl_get_last_error() === PCNTL_EINTR);
+            if ($pid <= 0) {
+                return false;
+            }
+            $waitInfo = [
+                'pid' => $pid,
+                'code' => pcntl_wifexited($status) ? pcntl_wexitstatus($status) : 0,
+                'signal' => pcntl_wifsignaled($status) ? pcntl_wtermsig($status) : 0,
+            ];
+        } else {
+            // Process::wait() cannot select a PID; retain compatibility when pcntl is unavailable.
+            $waitInfo = Process::wait($blocking);
+        }
+        if ($waitInfo && $waitInfo['pid'] === $this->childPid) {
+            $this->childExitStatus = $waitInfo['code'];
+            $this->killed = true;
+        }
+        return $waitInfo;
+    }
+
+    private function terminateChildAfterReadinessFailure(): void
+    {
+        $this->kill();
+        // Servers may use their full three-second max_wait_time to stop workers gracefully.
+        $deadline = microtime(true) + 5;
+        do {
+            $waitInfo = $this->waitForChild(false);
+            if ($waitInfo && $waitInfo['pid'] === $this->childPid) {
+                return;
+            }
+            usleep(10000);
+        } while (microtime(true) < $deadline);
+
+        @Process::kill($this->childPid, SIGKILL);
+        do {
+            $waitInfo = $this->waitForChild(true);
+        } while ($waitInfo && $waitInfo['pid'] !== $this->childPid);
     }
 
     public function runParentFunc($pid = 0)
@@ -311,7 +359,12 @@ class ProcessManager
     public function runChildFunc()
     {
         try {
-            return call_user_func($this->childFunc);
+            $result = call_user_func($this->childFunc);
+            // The callback may only register timers, signals or suspended coroutines. Finish their
+            // event loop before the child wrapper calls exit(), which now propagates UnwindExit
+            // and must not be used to enter the shutdown-time event loop.
+            Event::wait();
+            return $result;
         } finally {
             if ($this->childStopTimer) {
                 \Swoole\Timer::clear($this->childStopTimer);
@@ -399,7 +452,8 @@ class ProcessManager
                 $this->freePorts = $threadArgs[3];
                 $this->randomData = $threadArgs[4];
                 $this->randomDataArray = $threadArgs[5];
-                return $this->runChildFunc();
+                $this->runChildFunc();
+                exit;
             }
         }
         if ($argc > 1) {
@@ -463,7 +517,15 @@ class ProcessManager
                     $this->kill();
                 });
                 if (!$this->parentFirst) {
-                    $this->wait();
+                    try {
+                        $this->wait();
+                    } catch (RuntimeException $e) {
+                        $this->kill();
+                        $this->childThread->join();
+                        $this->childExitCode = $this->childThread->getExitStatus();
+                        $this->childExitStatus = $this->childExitCode;
+                        throw $e;
+                    }
                 }
                 $this->runParentFunc($this->childPid);
                 Event::wait();
@@ -517,8 +579,6 @@ class ProcessManager
                 $this->kill();
             });
             if (!$this->parentFirst) {
-                // Match the POSIX fixture: readiness notification is optional.
-                // Some existing PHPT servers become ready without wakeup().
                 $this->wait();
             }
             $this->runParentSetup();
@@ -538,19 +598,31 @@ class ProcessManager
             $this->runChildFunc();
             exit;
         }, $redirectStdout, $redirectStdout);
-        if (!$this->childProcess || !$this->childProcess->start()) {
+        if (!$this->childProcess || !($this->childPid = $this->childProcess->start())) {
             exit("ERROR: CAN NOT CREATE PROCESS\n");
         }
         register_shutdown_function(function () {
             $this->kill();
         });
         if (!$this->parentFirst) {
-            $this->wait();
+            try {
+                $this->wait();
+            } catch (RuntimeException $e) {
+                $waitInfo = $this->waitForChild(false);
+                if ($waitInfo && $waitInfo['pid'] === $this->childPid) {
+                    throw new RuntimeException(
+                        "ProcessManager child exited with code {$waitInfo['code']} and signal {$waitInfo['signal']} " .
+                        'before sending a wakeup'
+                    );
+                }
+                $this->terminateChildAfterReadinessFailure();
+                throw $e;
+            }
         }
         $this->runParentSetup();
-        $this->runParentFunc($this->childPid = $this->childProcess->pid);
+        $this->runParentFunc($this->childPid);
         Event::wait();
-        $waitInfo = Process::wait(true);
+        $waitInfo = $this->waitForChild(true);
         $this->childExitStatus = $waitInfo['code'];
         if (!in_array($waitInfo['signal'], $this->expectExitSignal)) {
             throw new RuntimeException("Unexpected exit code {$waitInfo['signal']}");

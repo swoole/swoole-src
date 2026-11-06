@@ -222,7 +222,7 @@ std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolve
     if (!ctx->private_data) {
         zval zname;
         ZVAL_STRINGL(&zname, name.c_str(), name.length());
-        zend_call_method_with_1_params(SW_Z8_OBJ_P(zresolver), nullptr, nullptr, "lookup", &retval, &zname);
+        zend_call_method_with_1_params(Z_OBJ_P(zresolver), nullptr, nullptr, "lookup", &retval, &zname);
         zval_dtor(&zname);
         if (EG(exception)) {
             zval_ptr_dtor(&retval);

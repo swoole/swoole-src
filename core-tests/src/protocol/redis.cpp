@@ -122,11 +122,11 @@ TEST(redis, format) {
 
     buf->clear();
     redis::format(buf, redis::REPLY_STATUS, "");
-    ASSERT_MEMEQ(buf->str, "+OK\r\n", buf->length);
+    ASSERT_EQ(std::string(buf->str, buf->length), "+OK\r\n");
 
     buf->clear();
     redis::format(buf, redis::REPLY_ERROR, "");
-    ASSERT_MEMEQ(buf->str, "-ERR\r\n", buf->length);
+    ASSERT_EQ(std::string(buf->str, buf->length), "-ERR\r\n");
 }
 
 TEST(redis, parse) {
@@ -134,6 +134,7 @@ TEST(redis, parse) {
 
     buf->clear();
     auto rs = redis::parse(SW_STRL(":3\r\n"));
+    ASSERT_EQ(rs.size(), 1u);
     ASSERT_EQ(rs[0], "3");
 }
 
@@ -169,3 +170,203 @@ TEST(redis, recv_packet_with_partially_filled_buffer) {
     sw_free(conn.object);
     close(pairs[1]);
 }
+
+TEST(redis, format_empty_bulk_string) {
+    String buffer;
+    redis::format(&buffer, redis::REPLY_STRING, std::string{});
+    EXPECT_EQ(buffer.to_std_string(), "$0\r\n\r\n");
+}
+
+TEST(redis, format_binary_bulk_and_signed_integer) {
+    String buffer;
+    redis::format(&buffer, redis::REPLY_STRING, std::string("a\0b", 3));
+    EXPECT_EQ(buffer.to_std_string(), std::string("$3\r\na\0b\r\n", 9));
+    buffer.clear();
+    redis::format_nil(&buffer);
+    EXPECT_EQ(buffer.to_std_string(), "$-1\r\n");
+    buffer.clear();
+    redis::format(&buffer, redis::REPLY_INT, LONG_MIN);
+    EXPECT_EQ(buffer.to_std_string(), ":" + std::to_string(LONG_MIN) + "\r\n");
+    buffer.clear();
+    redis::format(&buffer, redis::REPLY_INT, LONG_MAX);
+    EXPECT_EQ(buffer.to_std_string(), ":" + std::to_string(LONG_MAX) + "\r\n");
+}
+
+TEST(redis, parse_binary_empty_and_nil_bulk_strings) {
+    const std::string packet = std::string("*4\r\n$3\r\na\0b\r\n", 13) + "$0\r\n\r\n$-1\r\n:-42\r\n";
+    const auto parsed = redis::parse(packet.data(), packet.size());
+    const std::vector<std::string> expected = {std::string("a\0b", 3), "", "-42"};
+    EXPECT_EQ(parsed, expected);
+}
+
+TEST(redis, parse_preserves_complete_arguments_before_incomplete_bulk) {
+    const std::string packet = "*2\r\n$3\r\nGET\r\n$5\r\nhel";
+    EXPECT_EQ(redis::parse(packet.data(), packet.size()), std::vector<std::string>{"GET"});
+}
+
+#ifndef _WIN32
+namespace {
+class RedisProtocolTest : public testing::Test {
+  protected:
+    void SetUp() override {
+        saved_error = swoole_get_last_error();
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+        socket.fd = fds[1];
+        socket.socket_type = SW_SOCK_UNIX_STREAM;
+        ASSERT_TRUE(socket.set_nonblock());
+        conn.fd = fds[1];
+        conn.socket = &socket;
+        protocol.package_max_length = 256;
+        protocol.private_data_1 = this;
+        protocol.onPackage = [](const Protocol *protocol, network::Socket *socket, const RecvData *data) {
+            auto *test = static_cast<RedisProtocolTest *>(protocol->private_data_1);
+            test->packets.emplace_back(data->data, data->info.len);
+            if (test->remove_on_package) {
+                socket->removed = true;
+            }
+            return test->callback_result;
+        };
+    }
+
+    void TearDown() override {
+        sw_free(conn.object);
+        for (int fd : fds) {
+            if (fd >= 0) {
+                close(fd);
+            }
+        }
+        swoole_set_last_error(saved_error);
+    }
+
+    int receive() {
+        return redis::recv_packet(&protocol, &conn, &buffer);
+    }
+
+    void send(const std::string &packet) {
+        ASSERT_EQ(::send(fds[0], packet.data(), packet.size(), 0), static_cast<ssize_t>(packet.size()));
+    }
+
+    int fds[2] = {-1, -1};
+    int saved_error = 0;
+    network::Socket socket{};
+    Connection conn{};
+    Protocol protocol{};
+    String buffer{16};
+    std::vector<std::string> packets;
+    int callback_result = SW_OK;
+    bool remove_on_package = false;
+};
+}  // namespace
+
+TEST_F(RedisProtocolTest, empty_nonblocking_socket_waits_for_data) {
+    EXPECT_EQ(receive(), SW_OK);
+    EXPECT_TRUE(packets.empty());
+    EXPECT_EQ(buffer.length, 0u);
+}
+
+TEST_F(RedisProtocolTest, reuses_request_after_complete_packet) {
+    const std::string packet = "*1\r\n$3\r\nfoo\r\n";
+    for (size_t i = 0; i < 2; i++) {
+        send(packet);
+        ASSERT_EQ(receive(), SW_OK);
+        ASSERT_EQ(packets.size(), i + 1);
+        EXPECT_EQ(packets.back(), packet);
+        EXPECT_EQ(buffer.length, 0u);
+    }
+}
+
+TEST_F(RedisProtocolTest, fragmented_bulk_waits_for_final_crlf) {
+    const std::string packet = "*1\r\n$5\r\nhello\r\n";
+    send(packet.substr(0, packet.size() - 3));
+    ASSERT_EQ(receive(), SW_OK);
+    EXPECT_TRUE(packets.empty());
+    EXPECT_EQ(buffer.length, packet.size() - 3);
+    send(packet.substr(packet.size() - 3));
+    ASSERT_EQ(receive(), SW_OK);
+    ASSERT_EQ(packets.size(), 1u);
+    EXPECT_EQ(packets[0], packet);
+    EXPECT_EQ(buffer.length, 0u);
+}
+
+TEST_F(RedisProtocolTest, crlf_inside_fragmented_bulk_is_not_a_packet_boundary) {
+    const std::string packet = "*1\r\n$6\r\nab\r\ncd\r\n";
+    send(packet.substr(0, 12));
+    ASSERT_EQ(receive(), SW_OK);
+    EXPECT_TRUE(packets.empty());
+    send(packet.substr(12));
+    ASSERT_EQ(receive(), SW_OK);
+    ASSERT_EQ(packets.size(), 1u);
+    EXPECT_EQ(packets[0], packet);
+    EXPECT_EQ(buffer.length, 0u);
+}
+
+TEST_F(RedisProtocolTest, buffer_growth_stops_at_package_limit) {
+    protocol.package_max_length = 24;
+    const std::string packet = "*1\r\n$12\r\n" + std::string(12, 'x') + "\r\n";
+    send(packet);
+    ASSERT_EQ(receive(), SW_OK);
+    ASSERT_EQ(packets.size(), 1u);
+    EXPECT_EQ(packets[0], packet);
+    EXPECT_EQ(buffer.size, protocol.package_max_length);
+}
+
+TEST_F(RedisProtocolTest, buffer_growth_clamps_page_alignment_to_package_limit) {
+    const std::string packet = "*1\r\n$128\r\n" + std::string(128, 'x') + "\r\n";
+    send(packet);
+    ASSERT_EQ(receive(), SW_OK);
+    ASSERT_EQ(packets.size(), 1u);
+    EXPECT_EQ(packets[0], packet);
+    EXPECT_EQ(buffer.size, protocol.package_max_length);
+}
+
+TEST_F(RedisProtocolTest, rejects_oversized_declared_bulk) {
+    send("*1\r\n$1000\r\n");
+    EXPECT_EQ(receive(), SW_ERR);
+    EXPECT_TRUE(packets.empty());
+}
+
+TEST_F(RedisProtocolTest, rejects_unterminated_packet_at_buffer_limit) {
+    send(std::string(protocol.package_max_length, 'x'));
+    EXPECT_EQ(receive(), SW_ERR);
+    EXPECT_EQ(buffer.length, protocol.package_max_length);
+    EXPECT_EQ(buffer.size, protocol.package_max_length);
+    EXPECT_TRUE(packets.empty());
+}
+
+TEST_F(RedisProtocolTest, rejects_malformed_array_length) {
+    send("*x\r\n");
+    EXPECT_EQ(receive(), SW_ERR);
+    EXPECT_TRUE(packets.empty());
+}
+
+TEST_F(RedisProtocolTest, rejects_malformed_bulk_length) {
+    send("*1\r\n$x\r\n");
+    EXPECT_EQ(receive(), SW_ERR);
+    EXPECT_TRUE(packets.empty());
+}
+
+TEST_F(RedisProtocolTest, rejects_malformed_integer) {
+    send("*1\r\n:x\r\n");
+    EXPECT_EQ(receive(), SW_ERR);
+    EXPECT_TRUE(packets.empty());
+}
+
+TEST_F(RedisProtocolTest, propagates_callback_failure) {
+    callback_result = SW_ERR;
+    const std::string packet = "*1\r\n$3\r\nfoo\r\n";
+    send(packet);
+    EXPECT_EQ(receive(), SW_ERR);
+    ASSERT_EQ(packets.size(), 1u);
+    EXPECT_EQ(packets[0], packet);
+}
+
+TEST_F(RedisProtocolTest, callback_may_remove_socket) {
+    remove_on_package = true;
+    const std::string packet = "*1\r\n$3\r\nfoo\r\n";
+    send(packet);
+    EXPECT_EQ(receive(), SW_OK);
+    ASSERT_EQ(packets.size(), 1u);
+    EXPECT_EQ(packets[0], packet);
+    EXPECT_TRUE(socket.removed);
+}
+#endif

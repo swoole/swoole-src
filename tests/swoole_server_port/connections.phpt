@@ -9,7 +9,6 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Constant;
 use Swoole\Coroutine\Http\Client;
 use Swoole\Coroutine\Scheduler;
-use Swoole\Coroutine\System;
 use Swoole\WebSocket\Server;
 use SwooleTest\ProcessManager;
 
@@ -18,84 +17,48 @@ $pm->initFreePorts(2);
 
 $pm->parentFunc = function ($pid) use ($pm) {
     $sch = new Scheduler();
-    $conns_1 = [];
-    $conns_2 = [];
+    $ready = new Swoole\Coroutine\Channel(8);
+    $release = new Swoole\Coroutine\Channel(1);
+    $clients = [];
+    $conns = [[], []];
 
-    $sch->parallel(
-        3,
-        function () use ($pm, &$conns_1) {
-            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(0));
-            $c->upgrade('/');
-            $conns_1[] = $c->recv()->data;
-            $c->recv();
-        }
-    );
-    $sch->parallel(
-        2,
-        function () use ($pm, &$conns_2) {
-            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(1));
-            $c->upgrade('/');
-            $conns_2[] = $c->recv()->data;
-            $c->recv();
-        }
-    );
-
-    // all
-    $sch->add(
-        function () use ($pm, &$conns_1, &$conns_2) {
-            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(0));
-            $c->upgrade('/');
-            $conns_1[] = $c->recv()->data;
-
-            $c->push('all');
-            $frame = $c->recv();
-            Assert::assert($frame);
-            $json = json_decode($frame->data);
-            Assert::eq($json->count, 8);
-
-            $list1 = array_arrange($json->list);
-            $list2 = array_arrange(array_merge($conns_1, $conns_2));
-
-            Assert::eq($list1, $list2);
-        }
-    );
-
-    // port-0
-    $sch->add(
-        function () use ($pm, &$conns_1) {
-            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(0));
-            $c->upgrade('/');
-            $conns_1[] = $c->recv()->data;
-            $c->push('port-0');
-            $frame = $c->recv();
-            Assert::assert($frame);
-            $json = json_decode($frame->data);
-            Assert::eq($json->count, 5);
-            Assert::eq(array_arrange($json->list), array_arrange($conns_1));
-        }
-    );
-
-    // port-1
-    $sch->add(
-        function () use ($pm, &$conns_2) {
-            $c = new Client(TCP_SERVER_HOST, $pm->getFreePort(1));
-            $c->upgrade('/');
-            $conns_2[] = $c->recv()->data;
-            $c->push('port-1');
-            $frame = $c->recv();
-            Assert::assert($frame);
-            $json = json_decode($frame->data);
-            Assert::eq($json->count, 3);
-            Assert::eq(array_arrange($json->list), array_arrange($conns_2));
-        }
-    );
-
-    $sch->add(
-        function () use ($pm) {
-            System::sleep(.5);
+    foreach ([0, 0, 0, 1, 1, 0, 0, 1] as $index => $port) {
+        $sch->add(function () use ($pm, $ready, $release, &$clients, &$conns, $index, $port) {
+            $client = new Client(TCP_SERVER_HOST, $pm->getFreePort($port));
+            Assert::true($client->upgrade('/'));
+            $frame = $client->recv();
+            Assert::true($frame !== false);
+            $conns[$port][] = $frame->data;
+            $clients[$index] = $client;
+            $ready->push(true);
+            // Keep every connection alive until all three iterator checks finish.
+            $release->pop();
+            $client->close();
+        });
+    }
+    $sch->add(function () use ($pm, $ready, $release, &$clients, &$conns) {
+        try {
+            for ($i = 0; $i < 8; $i++) {
+                Assert::true($ready->pop(5));
+            }
+            $queries = [
+                [5, 'all', array_merge($conns[0], $conns[1])],
+                [6, 'port-0', $conns[0]],
+                [7, 'port-1', $conns[1]],
+            ];
+            foreach ($queries as [$index, $query, $expected]) {
+                Assert::true($clients[$index]->push($query));
+                $frame = $clients[$index]->recv();
+                Assert::true($frame !== false);
+                $result = json_decode($frame->data);
+                Assert::eq($result->count, count($expected));
+                Assert::eq(array_arrange($result->list), array_arrange($expected));
+            }
+        } finally {
+            $release->close();
             $pm->kill();
         }
-    );
+    });
     $sch->start();
 };
 

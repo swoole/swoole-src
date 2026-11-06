@@ -109,7 +109,12 @@ do
             test_jobs=1
         fi
         echo "PHPT workers: ${test_jobs}, timeout: ${timeout}s"
-        run_tests tests.list "-j${test_jobs} ${options} --set-timeout ${timeout}"
+        status=0
+        run_tests tests.list "-j${test_jobs} ${options} --set-timeout ${timeout}" || status=$?
+        # 201 reports test failures, which tests.list retries; any other error stopped the run early.
+        if [ ${status} -ne 0 ] && [ ${status} -ne 201 ]; then
+            exit ${status}
+        fi
     else
         break
     fi

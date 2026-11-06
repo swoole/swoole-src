@@ -16,48 +16,51 @@ require __DIR__ . '/pdo_oracle.inc';
 Co::set(['hook_flags'=> SWOOLE_HOOK_PDO_ORACLE]);
 run(function() {
     $db = PdoOracleTest::create();
+    $table = PdoOracleTest::tableName('pdo_blob');
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $db->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, true);
 
-    try {
-        $db->exec("DROP TABLE test_one_blob");
-    } catch (Exception $e) {
-    }
-
     $db->beginTransaction();
 
-    $db->query('CREATE TABLE test_one_blob (id INT NOT NULL, blob1 BLOB)');
+    $db->query("CREATE TABLE {$table} (id INT NOT NULL, blob1 BLOB)");
 
-    $stmt = $db->prepare("INSERT INTO test_one_blob (id, blob1) VALUES (:id, EMPTY_BLOB()) RETURNING blob1 INTO :foo");
+    try {
+        $stmt = $db->prepare("INSERT INTO {$table} (id, blob1) VALUES (:id, EMPTY_BLOB()) RETURNING blob1 INTO :foo");
 
-    $data = 'foo';
-    $blob = fopen('php://memory', 'a');
-    fwrite($blob, $data);
-    rewind($blob);
+        $data = 'foo';
+        $blob = fopen('php://memory', 'a');
+        fwrite($blob, $data);
+        rewind($blob);
 
-    $id = 1;
-    $stmt->bindparam(':id', $id);
-    $stmt->bindparam(':foo', $blob, PDO::PARAM_LOB);
-    $stmt->execute();
+        $id = 1;
+        $stmt->bindparam(':id', $id);
+        $stmt->bindparam(':foo', $blob, PDO::PARAM_LOB);
+        $stmt->execute();
+        // PHP 8.4.27 also closes the cursor automatically before re-execution.
+        Assert::true($stmt->closeCursor());
 
-    $data = '';
-    $blob = fopen('php://memory', 'a');
-    fwrite($blob, $data);
-    rewind($blob);
+        $data = '';
+        $blob = fopen('php://memory', 'a');
+        fwrite($blob, $data);
+        rewind($blob);
 
-    $id = 1;
-    $stmt->bindparam(':id', $id);
-    $stmt->bindparam(':foo', $blob, PDO::PARAM_LOB);
-    $stmt->execute();
+        $id = 1;
+        $stmt->bindparam(':id', $id);
+        $stmt->bindparam(':foo', $blob, PDO::PARAM_LOB);
+        $stmt->execute();
 
-    $res = $db->query("SELECT blob1 from test_one_blob");
-    // Resource
-    var_dump($res->fetch());
+        $res = $db->query("SELECT blob1 from {$table}");
+        // Resource
+        var_dump($res->fetch());
 
-    // Empty string
-    var_dump($res->fetch());
+        // Empty string
+        var_dump($res->fetch());
 
-    $db->exec("DROP TABLE test_one_blob");
+    } finally {
+        $res = null;
+        $stmt = null;
+        $db->exec("DROP TABLE {$table}");
+    }
 });
 ?>
 --EXPECT--

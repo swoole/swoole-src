@@ -17,6 +17,8 @@
 #include "swoole_server.h"
 #include "swoole_websocket.h"
 
+#include <limits>
+
 using swoole::Connection;
 using swoole::Protocol;
 using swoole::Server;
@@ -98,7 +100,9 @@ static ssize_t get_package_length_impl(PacketLength *pl) {
             return 0;
         }
     }
-    if ((ssize_t) payload_length < 0) {
+    // The return value includes the header. Checking only the payload's sign still
+    // allows the addition below to overflow ssize_t, even on a 64-bit platform.
+    if (sw_unlikely(payload_length > static_cast<uint64_t>(std::numeric_limits<ssize_t>::max()) - pl->header_len)) {
         return -1;
     }
     swoole_trace_log(
@@ -187,14 +191,8 @@ bool encode(String *buffer, const char *data, size_t length, uint8_t opcode, uin
 }
 
 bool parse_frame(Frame *frame, const char *data, size_t length) {
-    frame->header.OPCODE = data[0] & 0xf;
-    frame->header.RSV1 = (data[0] >> 6) & 0x1;
-    frame->header.RSV2 = (data[0] >> 5) & 0x1;
-    frame->header.RSV3 = (data[0] >> 4) & 0x1;
-    frame->header.FIN = (data[0] >> 7) & 0x1;
-    frame->header.MASK = (data[1] >> 7) & 0x1;
-    frame->header.LENGTH = data[1] & 0x7f;
-
+    // Validate the available bytes before reading even the fixed two-byte header.
+    // This also keeps truncated extended lengths, masks and payloads on one error path.
     PacketLength pl{data, (uint32_t) length, 0};
     ssize_t total_length = get_package_length_impl(&pl);
     if (total_length <= 0 || length < (size_t) total_length) {
@@ -205,6 +203,14 @@ bool parse_frame(Frame *frame, const char *data, size_t length) {
                          length);
         return false;
     }
+
+    frame->header.OPCODE = data[0] & 0xf;
+    frame->header.RSV1 = (data[0] >> 6) & 0x1;
+    frame->header.RSV2 = (data[0] >> 5) & 0x1;
+    frame->header.RSV3 = (data[0] >> 4) & 0x1;
+    frame->header.FIN = (data[0] >> 7) & 0x1;
+    frame->header.MASK = (data[1] >> 7) & 0x1;
+    frame->header.LENGTH = data[1] & 0x7f;
 
     frame->payload_length = total_length - pl.header_len;
     frame->header_length = pl.header_len;

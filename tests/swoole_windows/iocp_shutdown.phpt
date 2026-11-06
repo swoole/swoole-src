@@ -43,7 +43,11 @@ run(function () use (&$coroutineId) {
     });
 });
 
-Assert::true(Coroutine::cancel($coroutineId));
+// run() has destroyed the scheduler. A pending IOCP operation must be drained
+// during shutdown without resuming PHP on that destroyed scheduler.
+Assert::true(Coroutine::exists($coroutineId));
+Assert::false(Coroutine::cancel($coroutineId));
+Assert::same(swoole_last_error(), SWOOLE_ERROR_CO_CANNOT_CANCEL);
 echo "DONE\n";
 ?>
 --EXPECT--

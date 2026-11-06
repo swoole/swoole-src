@@ -16,6 +16,7 @@
 
 #include "php_swoole_cxx.h"
 #include "php_swoole_thread.h"
+#include "swoole_message_bus.h"
 
 #ifdef SW_THREAD
 
@@ -471,6 +472,12 @@ static PHP_METHOD(swoole_thread, getNativeId) {
 }
 
 void php_swoole_thread_rinit() {
+    if (SwooleTG.message_bus) {
+        // The worker's MessageBus outlives the PHP request. Bind packet allocation to this request's Zend heap;
+        // RSHUTDOWN must release those packets before PHP destroys the heap.
+        SwooleTG.message_bus->set_allocator(sw_zend_string_allocator());
+    }
+
     if (tsrm_is_main_thread()) {
         if (SG(request_info).path_translated) {
             request_info.path_translated = strdup(SG(request_info).path_translated);
@@ -485,6 +492,14 @@ void php_swoole_thread_rinit() {
 }
 
 void php_swoole_thread_rshutdown() {
+    if (SwooleTG.message_bus) {
+        // Pair with RINIT after user shutdown callbacks have finished: they may still receive IPC packets.
+        // Only the request-owned packets are released here; native buffers and pipe sockets are managed
+        // separately by the worker's owner, ThreadFactory.
+        SwooleTG.message_bus->clear();
+        SwooleTG.message_bus->set_allocator(sw_std_allocator());
+    }
+
     zval_dtor(&thread_argv);
     if (!tsrm_is_main_thread()) {
         return;

@@ -26,6 +26,8 @@ typedef struct _php_ssh2_session_data {
     size_t kbd_password_len;
 } php_ssh2_session_data;
 
+// Block directions describe the most recent libssh2 call. Query them after each EAGAIN,
+// since one operation can switch between writing and reading while it is retried.
 static inline swoole::EventType ssh2_get_event_type(LIBSSH2_SESSION *session) {
     int dir = libssh2_session_block_directions(session);
     if (dir & LIBSSH2_SESSION_BLOCK_OUTBOUND) {
@@ -57,7 +59,6 @@ static inline int ssh2_async_call(LIBSSH2_SESSION *session,
                                   const std::function<int(void)> &fn,
                                   double timeout = 0,
                                   bool *timeout_event = nullptr) {
-    auto event = ssh2_get_event_type(session);
     auto socket = ssh2_get_socket(session);
 
     if (timeout_event) {
@@ -71,7 +72,7 @@ static inline int ssh2_async_call(LIBSSH2_SESSION *session,
     while (1) {
         rc = fn();
         if (rc == LIBSSH2_ERROR_EAGAIN) {
-            if (!socket->poll(event, timeout)) {
+            if (!socket->poll(ssh2_get_event_type(session), timeout)) {
                 if (timeout_event) {
                     *timeout_event = socket->errCode == ETIMEDOUT;
                 }
@@ -86,7 +87,6 @@ static inline int ssh2_async_call(LIBSSH2_SESSION *session,
 
 template <typename T>
 static inline T *ssh2_async_call_ex(LIBSSH2_SESSION *session, const std::function<T *(void)> &fn) {
-    auto event = ssh2_get_event_type(session);
     auto socket = ssh2_get_socket(session);
 
     socket->check_bound_co(SW_EVENT_READ);
@@ -98,7 +98,7 @@ static inline T *ssh2_async_call_ex(LIBSSH2_SESSION *session, const std::functio
         if (handle) {
             return handle;
         }
-        if (libssh2_session_last_errno(session) == LIBSSH2_ERROR_EAGAIN && socket->poll(event)) {
+        if (libssh2_session_last_errno(session) == LIBSSH2_ERROR_EAGAIN && socket->poll(ssh2_get_event_type(session))) {
             continue;
         }
         break;

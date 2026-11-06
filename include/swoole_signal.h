@@ -53,8 +53,16 @@ SW_API swSignalHandler swoole_signal_get_handler(int signo);
 SW_API uint32_t swoole_signal_get_listener_num();
 
 SW_API void swoole_signal_clear();
-SW_API void swoole_signal_block_all();
+// Returns true only when this call saves and changes the mask; that caller must restore it with unblock_all().
+#ifndef _WIN32
+SW_API bool swoole_signal_block_all();
 SW_API void swoole_signal_unblock_all();
+#else
+inline bool swoole_signal_block_all() {
+    return false;
+}
+inline void swoole_signal_unblock_all() {}
+#endif
 SW_API char *swoole_signal_to_str(int sig);
 SW_API void swoole_signal_callback(int signo);
 

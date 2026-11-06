@@ -18,11 +18,20 @@
 #include "swoole_timer.h"
 
 namespace swoole {
-Timer::Timer(bool manually_trigger) : heap(1024, Heap::MIN_HEAP) {
+static void noop_user_timer_destructor(TimerNode *) {}
+
+static TimerDestructor user_timer_destructor = noop_user_timer_destructor;
+
+TimerDestructor Timer::set_user_destructor(TimerDestructor destructor) {
+    const auto previous = user_timer_destructor;
+    user_timer_destructor = destructor ? destructor : noop_user_timer_destructor;
+    return previous;
+}
+
+Timer::Timer(bool manually_trigger) : heap(16, Heap::MIN_HEAP) {
     _current_id = -1;
     next_msec_ = -1;
     _next_id = 1;
-    round = 0;
     base_time = get_absolute_msec();
     init(manually_trigger);
 }
@@ -41,8 +50,8 @@ void Timer::init(bool manually_trigger) {
 }
 
 void Timer::release_node(TimerNode *tnode) {
-    if (tnode->destructor) {
-        tnode->destructor(tnode);
+    if (tnode->type == TimerNode::TYPE_USER) {
+        user_timer_destructor(tnode);
     }
     delete tnode;
 }
@@ -69,6 +78,7 @@ void Timer::init_with_reactor(Reactor *reactor) {
 
 void Timer::reinit(bool manually_trigger) {
     close(this);
+    reactor_ = nullptr;
     init(manually_trigger);
     set(this, next_msec_);
 }
@@ -96,8 +106,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
     tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;
     tnode->callback = callback;
-    tnode->round = round;
-    tnode->destructor = nullptr;
+    tnode->round = get_round();
 
     if (next_msec_ < 0 || next_msec_ > _msec) {
         set(this, _msec);
@@ -152,14 +161,15 @@ bool Timer::remove(TimerNode *tnode) {
 
 void Timer::select() {
     const int64_t now_msec = get_relative_msec();
+    const uint64_t current_round = get_round();
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
 
-    swoole_trace_log(SW_TRACE_TIMER, "select begin: now_msec=%" PRId64 ", round=%" PRId64, now_msec, round);
+    swoole_trace_log(SW_TRACE_TIMER, "select begin: now_msec=%" PRId64 ", round=%" PRId64, now_msec, current_round);
 
     while ((tmp = heap.top())) {
         tnode = static_cast<TimerNode *>(tmp->data);
-        if (tnode->exec_msec > now_msec || tnode->round == round) {
+        if (tnode->exec_msec > now_msec || (reactor_ && tnode->round == current_round)) {
             break;
         }
 
@@ -201,6 +211,5 @@ void Timer::select() {
         }
         set(this, next_msec_);
     }
-    round++;
 }
 };  // namespace swoole

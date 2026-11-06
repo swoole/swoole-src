@@ -391,13 +391,22 @@ int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
-void Reactor::drain_write_buffer(Socket *socket) {
+void Reactor::drain_write_buffer(Socket *socket, int timeout_msec) {
     Event event = {};
     event.socket = socket;
     event.fd = socket->fd;
 
+    int64_t deadline = time<std::chrono::milliseconds>(true) + timeout_msec;
     while (!Buffer::empty(socket->out_buffer)) {
-        if (socket->wait_event(static_cast<int>(sec2msec(Socket::default_write_timeout)), SW_EVENT_WRITE) == SW_ERR) {
+        int wait_msec = static_cast<int>(sec2msec(Socket::default_write_timeout));
+        if (timeout_msec >= 0) {
+            int64_t remaining = deadline - time<std::chrono::milliseconds>(true);
+            if (remaining <= 0) {
+                break;
+            }
+            wait_msec = static_cast<int>(remaining);
+        }
+        if (socket->wait_event(wait_msec, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
         _writable_callback(this, &event);
@@ -434,11 +443,24 @@ void Reactor::defer(const Callback &cb, void *data) {
     defer_tasks->append(cb, data);
 }
 
+int Reactor::wait() const {
+    if (sw_unlikely(waiting_)) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_WRONG_OPERATION, "event loop is already running");
+        errno = EBUSY;
+        return SW_ERR;
+    }
+    waiting_ = true;
+    auto rc = impl->wait();
+    waiting_ = false;
+    return rc;
+}
+
 void Reactor::execute_end_callbacks(bool _timed_out) {
     timed_out = _timed_out;
     for (auto &kv : end_callbacks) {
         kv.second(this);
     }
+    round_++;
 }
 
 void Reactor::execute_begin_callback() const {

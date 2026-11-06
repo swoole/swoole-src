@@ -119,6 +119,11 @@ class Client {
         return socket != nullptr;
     }
 
+    // A shutdown in either direction prevents persistent connection reuse.
+    bool is_shutdown() const {
+        return shutdown_read || shutdown_write;
+    }
+
     SocketType get_socket_type() const {
         return socket->socket_type;
     }

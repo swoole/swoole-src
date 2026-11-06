@@ -48,26 +48,25 @@ int le_ssh2_pkey_subsys;
  ************* */
 
 /* {{{ php_ssh2_alloc_cb
- * Wrap emalloc()
+ * Use system malloc to avoid allocator mismatch: libssh2 1.11.1
+ * _libssh2_ecdsa_sign() allocates via LIBSSH2_ALLOC but frees via
+ * OPENSSL_clear_free, crashing when emalloc is the registered allocator.
+ * https://github.com/libssh2/libssh2/issues/1828
  */
 static LIBSSH2_ALLOC_FUNC(php_ssh2_alloc_cb) {
-    return emalloc(count);
+    return malloc(count);
 }
 /* }}} */
 
-/* {{{ php_ssh2_free_cb
- * Wrap efree()
- */
+/* {{{ php_ssh2_free_cb */
 static LIBSSH2_FREE_FUNC(php_ssh2_free_cb) {
-    efree(ptr);
+    free(ptr);
 }
 /* }}} */
 
-/* {{{ php_ssh2_realloc_cb
- * Wrap erealloc()
- */
+/* {{{ php_ssh2_realloc_cb */
 static LIBSSH2_REALLOC_FUNC(php_ssh2_realloc_cb) {
-    return erealloc(ptr, count);
+    return realloc(ptr, count);
 }
 /* }}} */
 
@@ -151,7 +150,7 @@ LIBSSH2_MACERROR_FUNC(php_ssh2_macerror_cb) {
     if (FAILURE == call_user_function(NULL, NULL, data->macerror_cb, &zretval, 1, args)) {
         php_error_docref(NULL, E_WARNING, "Failure calling macerror callback");
     } else {
-        retval = zval_is_true(&zretval) ? 0 : -1;
+        retval = zend_is_true(&zretval) ? 0 : -1;
     }
     if (Z_TYPE_P(&zretval) != IS_UNDEF) {
         zval_ptr_dtor(&zretval);
@@ -451,6 +450,87 @@ PHP_FUNCTION(ssh2_disconnect) {
 }
 /* }}} */
 
+/* {{{ proto void ssh2_set_timeout(resource session, long seconds [, long microseconds])
+ * Set how long session operations may wait on the socket before they fail. This method takes microseconds to align
+ * with stream_set_timeout, but rounds them up to milliseconds as pecl ssh2 does. A timeout of zero disables it.
+ */
+PHP_FUNCTION(ssh2_set_timeout) {
+    LIBSSH2_SESSION *session;
+    zval *zsession;
+    zend_long seconds, microseconds = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "rl|l", &zsession, &seconds, &microseconds) == FAILURE) {
+        return;
+    }
+
+    if ((session = (LIBSSH2_SESSION *) zend_fetch_resource(
+             Z_RES_P(zsession), PHP_SSH2_SESSION_RES_NAME, le_ssh2_session)) == NULL) {
+        return;
+    }
+
+    /* The session is nonblocking, so libssh2_session_set_timeout() would have no effect. Round in double, since the
+     * integer arithmetic pecl ssh2 uses can overflow. */
+    double timeout = seconds + std::ceil(microseconds / 1000.0) / 1000.0;
+    ssh2_get_socket(session)->set_timeout(timeout == 0 ? -1 : timeout, SW_TIMEOUT_READ | SW_TIMEOUT_WRITE);
+}
+/* }}} */
+
+/* {{{ proto void ssh2_keepalive_config(resource session, bool want_reply, int interval)
+ * Set how often keepalive messages should be sent. interval is the number
+ * of seconds that can pass without any I/O; use 0 (the default) to disable
+ * keepalives. want_reply indicates whether the keepalive messages should
+ * request a response from the server.
+ */
+PHP_FUNCTION(ssh2_keepalive_config) {
+    LIBSSH2_SESSION *session;
+    zval *zsession;
+    zend_bool want_reply;
+    zend_long interval;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "rbl", &zsession, &want_reply, &interval) == FAILURE) {
+        return;
+    }
+
+    if (interval < 0 || interval > UINT_MAX) {
+        php_error_docref(NULL, E_WARNING, "Argument #3 ($interval) must be between 0 and %u", UINT_MAX);
+        return;
+    }
+
+    if ((session = (LIBSSH2_SESSION *) zend_fetch_resource(
+             Z_RES_P(zsession), PHP_SSH2_SESSION_RES_NAME, le_ssh2_session)) == NULL) {
+        return;
+    }
+
+    libssh2_keepalive_config(session, want_reply, (unsigned int) interval);
+}
+/* }}} */
+
+/* {{{ proto int|false ssh2_keepalive_send(resource session)
+ * Send a keepalive message if needed. Returns the number of seconds you
+ * can sleep before you need to call this function again, or false on error.
+ */
+PHP_FUNCTION(ssh2_keepalive_send) {
+    LIBSSH2_SESSION *session;
+    zval *zsession;
+    int seconds_to_next;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &zsession) == FAILURE) {
+        return;
+    }
+
+    if ((session = (LIBSSH2_SESSION *) zend_fetch_resource(
+             Z_RES_P(zsession), PHP_SSH2_SESSION_RES_NAME, le_ssh2_session)) == NULL) {
+        return;
+    }
+
+    if (libssh2_keepalive_send(session, &seconds_to_next)) {
+        RETURN_FALSE;
+    }
+
+    RETURN_LONG(seconds_to_next);
+}
+/* }}} */
+
 /* {{{ proto array ssh2_methods_negotiated(resource session)
  * Return list of negotiaed methods
  */
@@ -649,8 +729,14 @@ static void kbd_callback(const char *name,
     }
 
     if (num_prompts >= 1 && session_data && *session_data && (*session_data)->kbd_password) {
-        responses[0].text = estrndup((*session_data)->kbd_password, (*session_data)->kbd_password_len);
-        responses[0].length = (unsigned int) (*session_data)->kbd_password_len;
+        /* libssh2 releases response text through the session's system free() callback. */
+        auto data = *session_data;
+        responses[0].text = (char *) malloc(data->kbd_password_len + 1);
+        if (responses[0].text) {
+            memcpy(responses[0].text, data->kbd_password, data->kbd_password_len);
+            responses[0].text[data->kbd_password_len] = '\0';
+            responses[0].length = (unsigned int) data->kbd_password_len;
+        }
     }
 }
 

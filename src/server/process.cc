@@ -15,6 +15,7 @@
  */
 
 #include "swoole_server.h"
+#include "swoole_api.h"
 
 namespace swoole {
 
@@ -43,6 +44,10 @@ Factory *Server::create_process_factory() {
 
 void Server::destroy_process_factory() {
     sw_shm_free(connection_list);
+    if (single_thread) {
+        // init() ran on the master reactor itself in this mode.
+        get_thread(0)->clean();
+    }
     delete[] reactor_threads;
 
     reactor_thread_barrier.destroy();
@@ -143,6 +148,8 @@ pid_t Factory::spawn_event_worker(Worker *worker) const {
         server_->start_event_worker(worker);
     }
 
+    // The worker loop and its native cleanup have finished; bindings may now return to their VM.
+    swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT, nullptr);
     exit(0);
     return 0;
 }

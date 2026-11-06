@@ -18,6 +18,7 @@
 #include "swoole_protocol.h"
 
 #include <unordered_map>
+#include <vector>
 
 enum swHttpVersion {
     SW_HTTP_VERSION_10 = 1,
@@ -113,6 +114,40 @@ namespace swoole {
 class Server;
 namespace http_server {
 //-----------------------------------------------------------------
+// SW_SERVER_EVENT_RECV_DATA shares ext_flags with WebSocket frames; connection state selects the interpretation.
+enum {
+    SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED = 1u << 0,
+};
+
+struct MultipartHeader {
+    std::string name;
+    std::string value;
+
+    bool append(std::string &buffer, const char *at, size_t length);
+    void clear() {
+        name.clear();
+        value.clear();
+    }
+};
+
+bool collect_upload_tmpfiles(const multipart_parser *parser,
+                             const char *at,
+                             size_t length,
+                             std::vector<std::string> *paths);
+bool close_upload_file(FILE *&fp, ssize_t *size = nullptr);
+
+enum ChunkState {
+    CHUNK_STATE_SIZE,
+    CHUNK_STATE_DATA,
+    CHUNK_STATE_TRAILER,
+};
+
+enum ChunkSizeResult {
+    CHUNK_SIZE_OK,
+    CHUNK_SIZE_MALFORMED,
+    CHUNK_SIZE_TOO_LARGE,
+};
+
 struct FormData {
     const char *multipart_boundary_buf;
     uint32_t multipart_boundary_len;
@@ -120,10 +155,12 @@ struct FormData {
     String *multipart_buffer_;
     String *upload_tmpfile;
     std::string upload_tmpfile_fmt_;
-    const char *current_header_name;
-    size_t current_header_name_len;
+    MultipartHeader header;
+    std::vector<std::string> upload_tmpfile_paths_;
+    uint64_t multipart_body_length_;
     size_t upload_filesize;
     size_t upload_max_filesize;
+    bool disposition_seen;
 };
 
 struct Request {
@@ -135,12 +172,11 @@ struct Request {
 
     uchar header_parsed : 1;
     uchar tried_to_dispatch : 1;
-    uchar multipart_header_parsed : 1;
+    uchar upload_preprocessed : 1;
 
     uchar known_length : 1;
     uchar keep_alive : 1;
     uchar chunked : 1;
-    uchar nobody_chunked : 1;
 
     uint32_t url_offset_;
     uint32_t url_length_;
@@ -149,6 +185,10 @@ struct Request {
     uint32_t request_line_length_; /* without \r\n  */
     uint32_t header_length_;       /* include request_line_length + \r\n */
     uint64_t content_length_;
+    uint8_t chunk_state_;
+    size_t chunk_length_;
+    size_t chunk_offset_;
+    size_t chunk_scan_offset_;
 
     FormData *form_data_;
     String *buffer_;
@@ -190,7 +230,7 @@ char *url_encode(char const *str, size_t len);
 int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 bool parse_multipart_boundary(
     const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
-void parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
+bool parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
 
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 uint8_t get_package_length_size(network::Socket *conn);

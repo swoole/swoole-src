@@ -142,12 +142,9 @@ static sw_inline int socket_coro_public_error_code(int code);
         swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");                                   \
     }                                                                                                                  \
     if (UNEXPECTED(_sock->socket->is_closed())) {                                                                      \
-        zend_update_property_long(swoole_socket_coro_ce,                                                               \
-                                  SW_Z8_OBJ_P(_zobject),                                                               \
-                                  ZEND_STRL("errCode"),                                                               \
-                                  socket_coro_public_error_code(EBADF));                                               \
-        zend_update_property_string(                                                                                   \
-            swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errMsg"), strerror(EBADF));                       \
+        zend_update_property_long(                                                                                     \
+            swoole_socket_coro_ce, Z_OBJ_P(_zobject), ZEND_STRL("errCode"), socket_coro_public_error_code(EBADF));     \
+        zend_update_property_string(swoole_socket_coro_ce, Z_OBJ_P(_zobject), ZEND_STRL("errMsg"), strerror(EBADF));   \
         RETURN_FALSE;                                                                                                  \
     }
 
@@ -785,22 +782,22 @@ static sw_inline int socket_coro_public_error_code(int code) {
 
 static sw_inline void socket_coro_sync_properties(const zval *zobject, const SocketObject *sock) {
     zend_update_property_long(swoole_socket_coro_ce,
-                              SW_Z8_OBJ_P(zobject),
+                              Z_OBJ_P(zobject),
                               ZEND_STRL("errCode"),
                               socket_coro_public_error_code(sock->socket->errCode));
-    zend_update_property_string(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->socket->errMsg);
+    zend_update_property_string(swoole_socket_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->socket->errMsg);
 }
 
 static void sw_inline socket_coro_init(const zval *zobject, const SocketObject *sock) {
     sock->socket->set_zero_copy(true);
     sock->socket->set_buffer_allocator(sw_zend_string_allocator());
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("fd"), sock->socket->get_fd());
+    zend_update_property_long(swoole_socket_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("fd"), sock->socket->get_fd());
     zend_update_property_long(
-        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("domain"), sock->socket->get_sock_domain());
+        swoole_socket_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("domain"), sock->socket->get_sock_domain());
     zend_update_property_long(
-        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("type"), sock->socket->get_sock_type());
+        swoole_socket_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("type"), sock->socket->get_sock_type());
     zend_update_property_long(
-        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
+        swoole_socket_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
 }
 
 SW_API bool php_swoole_export_socket(zval *zobject, SocketImpl *_socket) {
@@ -822,7 +819,7 @@ SW_API zend_object *php_swoole_dup_socket(swSocketFd fd, swSocketType type) {
     php_swoole_check_reactor();
     swSocketFd new_fd = sw_dup(fd);
     if (new_fd == SW_BAD_SOCKET) {
-        php_swoole_sys_error(E_WARNING, "dup(%d) failed", (int)fd);
+        php_swoole_sys_error(E_WARNING, "dup(%d) failed", (int) fd);
         return nullptr;
     }
     return php_swoole_create_socket_from_fd(new_fd, type);
@@ -850,8 +847,8 @@ SW_API zend_object *php_swoole_create_socket(swSocketType type) {
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code, const char *msg) {
     code = socket_coro_public_error_code(code);
     swoole_set_last_error(code);
-    zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), code);
-    zend_update_property_string(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);
+    zend_update_property_long(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("errCode"), code);
+    zend_update_property_string(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);
 }
 
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code) {
@@ -1199,6 +1196,12 @@ SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset) try {
     }
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
         sock->set_ssl_allow_self_signed(zval_is_true(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "ssl_client_cert_file", ztmp)) {
+        auto str_v = zend::setting::get_string(ztmp);
+        if (!sock->set_ssl_client_cert_file(str_v.to_std_string())) {
+            return php_swoole_throw_setting_exception("ssl client cert file[%s] not found", str_v.val());
+        }
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
         sock->set_ssl_cafile(zend::setting::get_string(ztmp).to_std_string());
@@ -2074,7 +2077,6 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
             RETURN_FALSE;                                                                                              \
         }                                                                                                              \
     } while (0)
-
 
     if (level == IPPROTO_IP) {
         int res = php_do_setsockopt_ip_mcast(sock->socket, level, optname, optval);

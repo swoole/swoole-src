@@ -17,6 +17,8 @@
 #pragma once
 
 #include "swoole_lock.h"
+#include "swoole_signal.h"
+#include "swoole_util.h"
 
 #include <thread>
 #include <string>
@@ -64,6 +66,12 @@ class Thread {
 
     template <typename Callable>
     void start(Callable fn) {
+        const bool restore_signal_mask = swoole_signal_block_all();
+        ON_SCOPE_EXIT {
+            if (restore_signal_mask) {
+                swoole_signal_unblock_all();
+            }
+        };
         thread = std::thread(fn);
     }
 

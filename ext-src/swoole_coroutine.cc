@@ -75,6 +75,7 @@ SW_THREAD_LOCAL std::atomic_bool PHPCoroutine::interrupt_thread_running{false};
 extern void php_swoole_load_library();
 
 static SW_THREAD_LOCAL unordered_map<long, Coroutine *> user_yield_coros;
+static SW_THREAD_LOCAL int default_error_reporting = E_ALL;
 static zend_function swoole_coroutine_internal_function;
 
 #if PHP_VERSION_ID < 80400
@@ -186,6 +187,15 @@ static constexpr zend_function_entry swoole_exit_exception_methods[] = {
 };
 // clang-format on
 
+static PHP_METHOD(swoole_coroutine_canceled_exception, getReason);
+
+// clang-format off
+static constexpr zend_function_entry swoole_coroutine_canceled_exception_methods[] = {
+    PHP_ME(swoole_coroutine_canceled_exception, getReason, arginfo_class_Swoole_Coroutine_CanceledException_getReason, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
+// clang-format on
+
 #if PHP_VERSION_ID < 80400
 static int coro_exit_handler(zend_execute_data *execute_data) {
     zval ex;
@@ -227,9 +237,9 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
         }
         zend_object *obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
         ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
-        zend_update_property(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), exit_status);
+        zend_update_property(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("status"), exit_status);
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
@@ -263,11 +273,11 @@ PHP_FUNCTION(swoole_exit) {
         zend_object *obj =
             zend_throw_exception(swoole_exit_exception_ce, (message ? ZSTR_VAL(message) : "swoole exit"), 0);
         ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         if (message) {
-            zend_update_property_str(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), message);
+            zend_update_property_str(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("status"), message);
         } else {
-            zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), status);
+            zend_update_property_long(swoole_exit_exception_ce, Z_OBJ_P(&ex), ZEND_STRL("status"), status);
         }
     } else {
         if (!php_swoole_call_original_handler(ZEND_STRL("exit"), INTERNAL_FUNCTION_PARAM_PASSTHRU)) {
@@ -335,6 +345,7 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     EG(current_execute_data) = call;
     memset(EG(current_execute_data), 0, sizeof(zend_execute_data));
 
+    EG(error_reporting) = default_error_reporting;
     EG(error_handling) = EH_NORMAL;
     EG(exception_class) = nullptr;
     EG(exception) = nullptr;
@@ -376,26 +387,26 @@ void PHPCoroutine::bailout() {
     Coroutine::bailout([]() {
         if (sw_reactor()) {
             sw_reactor()->running = false;
-            sw_reactor()->bailout = true;
+            sw_reactor()->terminated = true;
         }
         zend_bailout();
     });
 }
 
-bool PHPCoroutine::catch_exception() {
+bool PHPCoroutine::handle_exception() {
     if (UNEXPECTED(EG(exception))) {
 #if SW_RECOVER_CANCELED_EXCEPTION
         if (EG(exception)->ce == swoole_coroutine_canceled_exception_ce) {
             OBJ_RELEASE(EG(exception));
             EG(exception) = nullptr;
-        } else {
-#endif
-            // the exception error messages MUST be output on the current coroutine stack
-            zend_exception_error(EG(exception), E_ERROR);
-            return true;
-#if SW_RECOVER_CANCELED_EXCEPTION
+            return false;
         }
 #endif
+        // Report real exceptions on their own coroutine stack. UnwindExit instead survives context
+        // destruction below; returning true here would invoke the legacy, immediate coroutine bailout.
+        bool is_unwind_exit = zend_is_unwind_exit(EG(exception));
+        sw_zend_exception_error(EG(exception), E_ERROR);
+        return !UNEXPECTED(is_unwind_exit);
     }
     return false;
 }
@@ -404,6 +415,14 @@ void PHPCoroutine::activate() {
     if (sw_unlikely(activated)) {
         return;
     }
+
+    // The first activation may be silenced by @, so snapshot the configured level rather than EG(error_reporting).
+    if (!EG(error_reporting_ini_entry)) {
+        EG(error_reporting_ini_entry) =
+            static_cast<zend_ini_entry *>(zend_hash_find_ptr(EG(ini_directives), ZSTR_KNOWN(ZEND_STR_ERROR_REPORTING)));
+    }
+    const auto *ini_entry = EG(error_reporting_ini_entry);
+    default_error_reporting = ini_entry && ini_entry->value ? atoi(ZSTR_VAL(ini_entry->value)) : E_ALL;
 
     zval *enable_library = zend_get_constant_str(ZEND_STRL("SWOOLE_LIBRARY"));
     if (enable_library == nullptr || !zval_is_true(enable_library)) {
@@ -487,7 +506,7 @@ void PHPCoroutine::deadlock_check() {
     if (Coroutine::count() == 0) {
         return;
     }
-    if (php_swoole_is_fatal_error() || (sw_reactor() && sw_reactor()->bailout)) {
+    if (php_swoole_is_fatal_error() || (sw_reactor() && sw_reactor()->terminated)) {
         return;
     }
     if (SWOOLE_G(enable_library)) {
@@ -513,6 +532,13 @@ void PHPCoroutine::interrupt_thread_start() {
     if (interrupt_thread_running.load(std::memory_order_acquire)) {
         return;
     }
+    const bool restore_signal_mask = swoole_signal_block_all();
+    ON_SCOPE_EXIT {
+        if (restore_signal_mask) {
+            swoole_signal_unblock_all();
+        }
+    };
+
     auto *running = &interrupt_thread_running;
     auto *vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running.store(true, std::memory_order_release);
@@ -755,12 +781,27 @@ void PHPCoroutine::destroy_context(PHPContext *ctx) {
                      (uintmax_t) zend_memory_usage(0),
                      (uintmax_t) zend_memory_usage(1));
 
+    // restore_context() overwrites EG(exception) with the caller's saved exception state. Preserve
+    // UnwindExit across that restore, then throw it on the caller's frame so Zend also installs its
+    // exception opcode there. Simply assigning EG(exception) would miss that VM bookkeeping.
+    // Transfer the existing reference; neither addref nor release it, and add no PHPContext field.
+    zend_object *unwind_exit = EG(exception) && zend_is_unwind_exit(EG(exception)) ? EG(exception) : nullptr;
+    if (UNEXPECTED(unwind_exit)) {
+        // Context/closure/output-handler destruction can raise UnwindExit after main_func() checked
+        // the callback's exception. Mark termination before restoring another context or invoking
+        // Zend's exception hooks, or an asynchronous cleanup failure could leave the reactor waiting
+        // forever for other suspended coroutines.
+        sw_zend_exception_error(unwind_exit, E_ERROR);
+    }
     zend_vm_stack_destroy();
     restore_context(get_origin_context(ctx));
+    if (UNEXPECTED(unwind_exit)) {
+        zend_throw_exception_internal(unwind_exit);
+    }
 }
 
 void PHPCoroutine::main_func(void *_args) {
-    bool exception_caught = false;
+    bool bailout_required = false;
     const auto args = static_cast<Args *>(_args);
     PHPContext *ctx = create_context(args);
 
@@ -798,11 +839,12 @@ void PHPCoroutine::main_func(void *_args) {
 
         zend_call_function(&ctx->fci, &ctx->fci_cache);
 
-        // Catch exception in main function of the coroutine
-        exception_caught = catch_exception();
+        // Handle the callback exception and decide whether legacy coroutine bailout is required.
+        bailout_required = handle_exception();
 
-        // The defer tasks still need to be executed after an exception occurs
-        if (ctx->defer_tasks) {
+        // Ordinary exceptions still run defers. UnwindExit must not execute more PHP callbacks;
+        // destroy_context() releases any remaining defer closures without invoking them.
+        if (ctx->defer_tasks && !UNEXPECTED(EG(exception) && zend_is_unwind_exit(EG(exception)))) {
             std::stack<zend::Function *> *tasks = ctx->defer_tasks;
             while (!tasks->empty()) {
                 zend::Function *defer_fci = tasks->top();
@@ -815,28 +857,39 @@ void PHPCoroutine::main_func(void *_args) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
                 }
                 if (EG(exception)) {
+                    if (UNEXPECTED(zend_is_unwind_exit(EG(exception)))) {
+                        sw_zend_exception_error(EG(exception), E_ERROR);
+                        // This task has already been popped; destroy_context() only owns the rest.
+                        sw_zend_fci_cache_discard(&defer_fci->fci_cache);
+                        efree(defer_fci);
+                        break;
+                    }
                     zend_bailout();
                 }
                 sw_zend_fci_cache_discard(&defer_fci->fci_cache);
                 efree(defer_fci);
             }
-            delete ctx->defer_tasks;
-            ctx->defer_tasks = nullptr;
         }
     }
     zend_catch {
         // zend_bailout is executed in the c function
-        catch_exception();
-        exception_caught = true;
+        handle_exception();
+        bailout_required = true;
     }
     zend_end_try();
     destroy_context(ctx);
-    if (exception_caught) {
+    if (bailout_required) {
         bailout();
     }
 }
 
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *callable) {
+    // Unlike zend_call_function(), creating a coroutine installs a fresh exception-free VM stack.
+    // Reject it before saving/resetting the caller's state, or it could hide a pending UnwindExit.
+    if (UNEXPECTED(EG(exception) && zend_is_unwind_exit(EG(exception)))) {
+        sw_zend_exception_error(EG(exception), E_ERROR);
+        return Coroutine::ERR_INVALID;
+    }
     if (sw_unlikely(Coroutine::count() >= config.max_num)) {
         php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
         return Coroutine::ERR_LIMIT;
@@ -1042,9 +1095,10 @@ void php_swoole_coroutine_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_EX2(swoole_coroutine_canceled_exception,
                             "Swoole\\Coroutine\\CanceledException",
                             nullptr,
-                            nullptr,
+                            swoole_coroutine_canceled_exception_methods,
                             zend_ce_exception,
                             zend_get_std_object_handlers());
+    zend_declare_property_null(swoole_coroutine_canceled_exception_ce, ZEND_STRL("reason"), ZEND_ACC_PRIVATE);
     swoole_coroutine_canceled_exception_ce->ce_flags |= ZEND_ACC_FINAL;
 
     SW_INIT_CLASS_ENTRY_EX2(swoole_coroutine_timeout_exception,
@@ -1094,6 +1148,10 @@ static PHP_METHOD(swoole_exit_exception, getFlags) {
 
 static PHP_METHOD(swoole_exit_exception, getStatus) {
     SW_RETURN_PROPERTY("status");
+}
+
+static PHP_METHOD(swoole_coroutine_canceled_exception, getReason) {
+    SW_RETURN_PROPERTY("reason");
 }
 
 PHP_FUNCTION(swoole_coroutine_create) {
@@ -1150,11 +1208,14 @@ static PHP_METHOD(swoole_coroutine, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), sw_async_threads()->get_task_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), sw_async_threads()->get_worker_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_idle_worker_num"), sw_async_threads()->get_idle_worker_num());
-        add_assoc_long_ex(
-            return_value, ZEND_STRL("aio_pending_release_worker_num"), sw_async_threads()->get_pending_release_worker_num());
+        add_assoc_long_ex(return_value,
+                          ZEND_STRL("aio_pending_release_worker_num"),
+                          sw_async_threads()->get_pending_release_worker_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_peak_worker_num"), sw_async_threads()->get_peak_worker_num());
-        add_assoc_long_ex(return_value, ZEND_STRL("aio_created_worker_num"), sw_async_threads()->get_created_worker_num());
-        add_assoc_long_ex(return_value, ZEND_STRL("aio_released_worker_num"), sw_async_threads()->get_released_worker_num());
+        add_assoc_long_ex(
+            return_value, ZEND_STRL("aio_created_worker_num"), sw_async_threads()->get_created_worker_num());
+        add_assoc_long_ex(
+            return_value, ZEND_STRL("aio_released_worker_num"), sw_async_threads()->get_released_worker_num());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_up_count"), sw_async_threads()->get_scale_up_count());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_scale_down_count"), sw_async_threads()->get_scale_down_count());
         add_assoc_long_ex(return_value, ZEND_STRL("aio_queue_size"), sw_async_threads()->get_queue_size());
@@ -1186,9 +1247,8 @@ static PHP_METHOD(swoole_coroutine, stats) {
 #endif
 #ifdef _WIN32
     add_assoc_long_ex(return_value, ZEND_STRL("iocp_task_num"), SwooleTG.iocp ? SwooleTG.iocp->get_task_num() : 0);
-    add_assoc_long_ex(return_value,
-                      ZEND_STRL("iocp_blocking_task_num"),
-                      SwooleTG.iocp ? SwooleTG.iocp->get_blocking_task_num() : 0);
+    add_assoc_long_ex(
+        return_value, ZEND_STRL("iocp_blocking_task_num"), SwooleTG.iocp ? SwooleTG.iocp->get_blocking_task_num() : 0);
 #endif
 }
 
@@ -1389,7 +1449,10 @@ static PHP_METHOD(swoole_coroutine, join) {
     RETURN_TRUE;
 }
 
-static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception, zend_class_entry *ce) {
+static bool php_swoole_coroutine_throw_exception(long cid,
+                                                 bool throw_exception,
+                                                 zend_class_entry *ce,
+                                                 zval *reason = nullptr) {
     if (throw_exception) {
         auto *task = PHPCoroutine::get_context_by_cid(cid);
         // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
@@ -1406,6 +1469,9 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
 
         zend_object *exception = zend_objects_new(ce);
         object_properties_init(exception, ce);
+        if (reason) {
+            zend_update_property(swoole_coroutine_canceled_exception_ce, exception, ZEND_STRL("reason"), reason);
+        }
 
         // The live Co::cancel frame is internal, so Zend redirects the user caller when this call
         // returns; the saved context describes a stale frame and must not be written here.
@@ -1462,14 +1528,22 @@ static bool php_swoole_coroutine_throw_exception(long cid, bool throw_exception,
 static PHP_METHOD(swoole_coroutine, cancel) {
     zend_long cid;
     bool throw_exception = false;
+    zval *zreason = nullptr;
 
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_LONG(cid)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(throw_exception)
+    Z_PARAM_ZVAL_OR_NULL(zreason)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(php_swoole_coroutine_throw_exception(cid, throw_exception, swoole_coroutine_canceled_exception_ce));
+    if (!throw_exception && zreason) {
+        zend_argument_value_error(3, "must be null when argument #2 ($throw_exception) is false");
+        RETURN_THROWS();
+    }
+
+    RETURN_BOOL(
+        php_swoole_coroutine_throw_exception(cid, throw_exception, swoole_coroutine_canceled_exception_ce, zreason));
 }
 
 static PHP_METHOD(swoole_coroutine, setTimeLimit) {

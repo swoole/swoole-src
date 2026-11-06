@@ -1473,7 +1473,7 @@ function run_all_tests($test_files, $env, $redir_tested = null)
             }
 
             $test_results[$index] = $result;
-            if ($failed_tests_file && ($result == 'XFAILED' || $result == 'XLEAKED' || $result == 'FAILED' || $result == 'WARNED' || $result == 'LEAKED')) {
+            if ($failed_tests_file && ($result == 'XFAILED' || $result == 'XLEAKED' || $result == 'FAILED' || $result == 'WARNED' || $result == 'LEAKED' || $result == 'BORKED')) {
                 fwrite($failed_tests_file, "$index\n");
             }
             if ($result_tests_file) {
@@ -1774,7 +1774,7 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                             if (!is_array($name) && $result != 'REDIR') {
                                 $test_results[$index] = $result;
 
-                                if ($failed_tests_file && ($result == 'XFAILED' || $result == 'XLEAKED' || $result == 'FAILED' || $result == 'WARNED' || $result == 'LEAKED')) {
+                                if ($failed_tests_file && ($result == 'XFAILED' || $result == 'XLEAKED' || $result == 'FAILED' || $result == 'WARNED' || $result == 'LEAKED' || $result == 'BORKED')) {
                                     fwrite($failed_tests_file, "$index\n");
                                 }
                                 if ($result_tests_file) {

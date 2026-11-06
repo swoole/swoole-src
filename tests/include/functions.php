@@ -216,6 +216,11 @@ function find_free_port(callable $probe): int
      * them, otherwise two servers of the same test may get the same port.
      */
     static $handed_out = [];
+    $owner = function_exists('posix_geteuid') ? (string) posix_geteuid() : 'windows';
+    $directory = sys_get_temp_dir() . '/swoole-test-ports-' . $owner;
+    if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
+        throw new RuntimeException("Unable to create port reservation directory: $directory");
+    }
     [$min, $max] = get_test_port_range();
     $used = get_used_ports();
     $size = $max - $min + 1;
@@ -226,7 +231,22 @@ function find_free_port(callable $probe): int
             continue;
         }
         if ($probe($port)) {
-            $handed_out[$port] = true;
+            $reservation = fopen($directory . '/' . $port, 'c');
+            if ($reservation === false) {
+                throw new RuntimeException("Unable to reserve test port $port");
+            }
+            if (!flock($reservation, LOCK_EX | LOCK_NB)) {
+                fclose($reservation);
+                continue;
+            }
+            // The first bind probe and the reservation are separate operations.
+            if (!$probe($port)) {
+                flock($reservation, LOCK_UN);
+                fclose($reservation);
+                continue;
+            }
+            // Retain the lock across fork and until both fixture processes have exited.
+            $handed_out[$port] = $reservation;
             return $port;
         }
     }

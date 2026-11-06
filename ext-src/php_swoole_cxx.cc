@@ -1,5 +1,40 @@
 #include "php_swoole_cxx.h"
 
+#ifndef _WIN32
+#include "php_swoole_process.h"
+#include "swoole_server.h"
+#endif
+
+zend_result sw_zend_exception_error(zend_object *exception, int severity) {
+    if (EXPECTED(!zend_is_unwind_exit(exception))) {
+        return zend_exception_error(exception, severity);
+    }
+
+    // UnwindExit is VM control flow (e.g. exit() or delayed OOM), not a reportable PHP exception.
+    // zend_exception_error() consumes it without terminating the native caller. Keep ownership in
+    // EG(exception): releasing/clearing it here would let PHP continue after the native loop returns.
+    // Do not bailout or exit here; callbacks may still hold locks or native resources to release.
+    if (auto *reactor = sw_reactor()) {
+        reactor->running = false;
+        // A normal stop can restart on the next wait(); termination also blocks coroutine resumes.
+        reactor->terminated = true;
+    }
+#ifndef _WIN32
+    // Manager and standalone pool masters wait for children without a reactor. Synchronous task
+    // workers likewise need their existing worker shutdown flag to leave blocking receive loops.
+    auto *server = sw_server();
+    auto *pool = sw_process_pool();
+    if (server && (server->is_manager() || server->is_master())) {
+        server->running = false;
+    } else if (pool && pool->is_master()) {
+        pool->running = false;
+    } else if (auto *worker = sw_worker()) {
+        worker->shutdown();
+    }
+#endif
+    return FAILURE;
+}
+
 //----------------------------------known string------------------------------------
 
 static const char *sw_known_strings[] = {
@@ -105,12 +140,15 @@ static zend_always_inline zval *sw_zend_symtable_str_find(
     }
 }
 
-static zend_always_inline zval *sw_zend_symtable_str_update(
-    HashTable *ht, const char *str, size_t len, zend_ulong idx, bool numeric_key, zval *pData) {
-    if (numeric_key) {
-        return zend_hash_index_update(ht, idx, pData);
+static zend_always_inline void array_merge_value(zval *current, zval *new_element) {
+    if (ZVAL_IS_ARRAY(current)) {
+        add_next_index_zval(current, new_element);
     } else {
-        return zend_hash_str_update(ht, str, len, pData);
+        zval previous;
+        ZVAL_COPY_VALUE(&previous, current);
+        array_init_size(current, 2);
+        add_next_index_zval(current, &previous);
+        add_next_index_zval(current, new_element);
     }
 }
 
@@ -119,20 +157,18 @@ void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new
     bool numeric_key = ZEND_HANDLE_NUMERIC_STR(key, key_len, idx);
 
     zend_array *array = Z_ARRVAL_P(zarray);
-    zval *zresult = sw_zend_symtable_str_add(array, key, key_len, idx, numeric_key, new_element);
-    // Adding element failed, indicating that this key already exists and must be converted to an array
-    if (!zresult) {
-        zval *current_elements = sw_zend_symtable_str_find(array, key, key_len, idx, numeric_key);
-        if (ZVAL_IS_ARRAY(current_elements)) {
-            add_next_index_zval(current_elements, new_element);
-        } else {
-            zval zvalue_array;
-            array_init_size(&zvalue_array, 2);
-            Z_ADDREF_P(current_elements);
-            add_next_index_zval(&zvalue_array, current_elements);
-            add_next_index_zval(&zvalue_array, new_element);
-            sw_zend_symtable_str_update(array, key, key_len, idx, numeric_key, &zvalue_array);
-        }
+    if (!sw_zend_symtable_str_add(array, key, key_len, idx, numeric_key, new_element)) {
+        array_merge_value(sw_zend_symtable_str_find(array, key, key_len, idx, numeric_key), new_element);
+    }
+}
+
+void array_add_or_merge(zval *zarray, zend_string *key, zval *new_element) {
+    zend_ulong idx;
+    bool numeric_key = ZEND_HANDLE_NUMERIC(key, idx);
+    zend_array *array = Z_ARRVAL_P(zarray);
+    zval *result = numeric_key ? zend_hash_index_add(array, idx, new_element) : zend_hash_add(array, key, new_element);
+    if (!result) {
+        array_merge_value(numeric_key ? zend_hash_index_find(array, idx) : zend_hash_find(array, key), new_element);
     }
 }
 
@@ -151,7 +187,7 @@ bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *ret
     }
     /* we have no chance to return to ZendVM to check the exception  */
     if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
+        sw_zend_exception_error(EG(exception), E_ERROR);
     }
     return success;
 }
@@ -166,7 +202,7 @@ Variable call(const std::string &func_name, int argc, zval *argv) {
     zval_dtor(&function_name);
     /* we have no chance to return to ZendVM to check the exception  */
     if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
+        sw_zend_exception_error(EG(exception), E_ERROR);
     }
     return retval;
 }

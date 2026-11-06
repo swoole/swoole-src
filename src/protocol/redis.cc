@@ -212,11 +212,10 @@ void format(String *buf, ReplyType type, const std::string &value) {
             buf->format("-%.*s\r\n", value.length(), value.c_str());
         }
     } else if (type == REPLY_STRING) {
-        if (!value.empty()) {
-            buf->format("$%zu\r\n", value.length());
-            buf->append(value);
-            buf->append(SW_CRLF, SW_CRLF_LEN);
-        }
+        // Empty bulk strings are valid RESP values and still require their length and CRLF.
+        buf->format("$%zu\r\n", value.length());
+        buf->append(value);
+        buf->append(SW_CRLF, SW_CRLF_LEN);
     }
 }
 

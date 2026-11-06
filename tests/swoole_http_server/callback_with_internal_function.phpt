@@ -20,6 +20,11 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => 1,
         'log_file' => '/dev/null'
     ]);
+    $http->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $http->on('request', 'var_dump');
     $http->start();
 };
@@ -40,6 +45,8 @@ object(Swoole\Http\Request)#%d (%d) {
     ["accept-encoding"]=>
     string(%d) "%s"
   }
+  ["trailer"]=>
+  NULL
   ["server"]=>
   array(11) {
     ["request_method"]=>

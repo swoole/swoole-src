@@ -42,6 +42,9 @@ $pm->childFunc = function () use ($pm) {
         'enable_coroutine' => true,
     ]);
 
+    $server->on('workerStart', function () use ($pm) {
+        $pm->wakeup();
+    });
     $server->on('message', function () {});
     $server->on('close', function ($server, $fd) {
         echo $fd . ' close' . PHP_EOL;

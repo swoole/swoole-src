@@ -227,9 +227,13 @@ bool Socket::socks5_handshake() {
 
     auto send_fn = [this](const char *buf, size_t len) { return send(buf, len); };
     char recv_buf[512];
+    TimerController timer(&read_timer, socket->read_timeout, this, timer_callback);
+    if (!timer.start()) {
+        return false;
+    }
     ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
     while (true) {
-        const ssize_t n = recv(recv_buf, sizeof(recv_buf));
+        const ssize_t n = recv(recv_buf, ctx->get_recv_length());
         if (n > 0 && ctx->handshake(recv_buf, n, send_fn)) {
             if (ctx->state == SW_SOCKS5_STATE_READY) {
                 return true;
@@ -257,31 +261,56 @@ bool Socket::http_proxy_handshake() {
         return false;
     }
 
-    String *recv_buffer = get_read_buffer();
-    ON_SCOPE_EXIT {
-        recv_buffer->clear();
-    };
+    String recv_buffer(SW_BUFFER_SIZE_BIG);
+    const double read_timeout = socket->read_timeout;
+    const double deadline = read_timeout > 0 ? microtime() + read_timeout : 0;
+    while (recv_buffer.length < recv_buffer.size) {
+        ssize_t n_peek = socket->peek(recv_buffer.str + recv_buffer.length, recv_buffer.size - recv_buffer.length, 0);
+        if (n_peek < 0) {
+            if (socket->catch_read_error(sw_errno()) == SW_WAIT) {
+                double timeout = -1;
+                if (read_timeout > 0) {
+                    timeout = deadline - microtime();
+                    if (timeout <= 0) {
+                        set_err(ETIMEDOUT);
+                        return false;
+                    }
+                }
+                if (poll(SW_EVENT_READ, timeout)) {
+                    continue;
+                }
+            }
+            return false;
+        }
+        if (n_peek == 0) {
+            set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, "connection closed before the HTTP proxy response was complete");
+            return false;
+        }
 
-    ProtocolSwitch ps(this);
-    open_eof_check = true;
-    open_length_check = false;
-    protocol.package_eof_len = sizeof("\r\n\r\n") - 1;
-    memcpy(protocol.package_eof, SW_STRS("\r\n\r\n"));
+        size_t response_length = 0;
+        // Parse the consumed prefix with the queued bytes. Incomplete fragments are consumed so the next peek
+        // advances, while bytes after a complete proxy header remain queued.
+        auto status = HttpProxy::parse_response(recv_buffer.str, recv_buffer.length + n_peek, &response_length);
+        if (status == SW_HTTP_PROXY_RESPONSE_ERROR) {
+            set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, "invalid HTTP proxy response");
+            return false;
+        }
 
-    if (recv_packet() <= 0) {
-        return false;
+        size_t consume_length = status == SW_HTTP_PROXY_RESPONSE_READY ? response_length - recv_buffer.length : n_peek;
+        ssize_t n_read = recv_all(recv_buffer.str + recv_buffer.length, consume_length);
+        if (n_read != (ssize_t) consume_length) {
+            return false;
+        }
+        recv_buffer.length += n_read;
+        if (status == SW_HTTP_PROXY_RESPONSE_READY) {
+            swoole_trace_log(
+                SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", (int) recv_buffer.length, recv_buffer.str);
+            return true;
+        }
     }
 
-    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", (int) n, recv_buffer->str);
-
-    if (!http_proxy->handshake(recv_buffer)) {
-        set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE,
-                std::string("wrong http_proxy response received, \n[Request]: ") + send_buffer->to_std_string() +
-                    "\n[Response]: " + send_buffer->to_std_string());
-        return false;
-    }
-
-    return true;
+    set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, "HTTP proxy response header is too large");
+    return false;
 }
 
 void Socket::init_sock_type(SocketType _type) {
@@ -653,7 +682,9 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
     }
     // http proxy
     if (http_proxy && !http_proxy->dont_handshake && !http_proxy_handshake()) {
-        set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
+        if (errCode != SW_ERROR_HTTP_PROXY_BAD_RESPONSE) {
+            set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
+        }
         return false;
     }
     ssl_is_server = false;
@@ -1152,7 +1183,7 @@ bool Socket::ssl_context_create() {
 #endif
     }
     ssl_context->http_v2 = http2;
-    if (!ssl_context->create()) {
+    if (!ssl_context->create(ssl_is_server ? SW_SSL_SERVER : SW_SSL_CLIENT)) {
         set_err(SW_ERROR_SSL_CREATE_CONTEXT_FAILED);
         return false;
     }
@@ -1240,6 +1271,19 @@ bool Socket::ssl_handshake() {
 }
 
 bool Socket::ssl_verify(bool allow_self_signed) {
+    if (ssl_is_server) {
+        // SSL_get_verify_result() returns X509_V_OK when the peer did not provide a certificate.
+        X509 *cert = socket->ssl_get_peer_certificate();
+        if (cert == nullptr) {
+            swoole_error_log(SW_LOG_NOTICE,
+                             SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE,
+                             "peer certificate from fd#%d is required",
+                             socket->fd);
+            set_err(SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE);
+            return false;
+        }
+        X509_free(cert);
+    }
     if (!socket->ssl_verify(allow_self_signed)) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;

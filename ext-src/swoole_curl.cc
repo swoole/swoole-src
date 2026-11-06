@@ -95,7 +95,9 @@ void destroy_handle(CURL *cp) {
     if (!handle) {
         return;
     }
-    delete handle->easy_multi;
+    if (handle->easy_multi) {
+        handle->easy_multi->release();
+    }
     curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p", "[DESTROY]", handle, cp);
     delete handle;
@@ -526,6 +528,9 @@ CURLcode Multi::exec(Handle *handle) {
         return CURLE_FAILED_INIT;
     }
 
+    // Adding a handle schedules an immediate timeout that starts the socket API.
+    selector.timer_callback = true;
+
     bool is_canceled = false;
     CURL_IOCP_DEBUG("exec begin handle=%p curl=%p running=%d sockets=%zu",
                     handle,
@@ -540,7 +545,7 @@ CURLcode Multi::exec(Handle *handle) {
                         timer);
         selector_prepare();
 
-        if (selector.active_sockets.empty() && wait_event()) {
+        if (!selector.timer_callback && selector.active_sockets.empty() && wait_event()) {
             co = check_bound_co();
             CURL_IOCP_DEBUG("exec yield cid=%ld running=%d sockets=%zu timer=%p",
                             co ? co->get_cid() : -1,
@@ -789,6 +794,10 @@ void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {
                     defer_callback);
     swoole_trace_log(
         SW_TRACE_CO_CURL, "curl_socket=%p, bitmask=%d, co=%p, sockfd=%d", curl_socket, bitmask, co, sockfd);
+    if (sw_unlikely(released)) {
+        // The queued deferred callback owns the object now; do not touch any state.
+        return;
+    }
     if (!curl_socket) {
         selector.timer_callback = true;
     }
@@ -813,6 +822,10 @@ void Multi::callback(Socket *curl_socket, int bitmask, int sockfd) {
     swoole_event_defer(
         [this](void *data) {
             defer_callback = false;
+            if (released) {
+                delete this;
+                return;
+            }
             if (co) {
                 co->resume();
             }

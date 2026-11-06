@@ -9,7 +9,7 @@ namespace Swoole {
         public function pop(int $size = 65536): string|false {}
         public function push(string $data): bool {}
         public static function kill(int $pid, int $signal_no = SIGTERM): bool {}
-        public static function signal(int $signal_no, ?callable $callback = null): bool {}
+        public static function signal(int $signal_no, callable|int|null $callback = null): bool {}
         public static function alarm(int $usec, int $type = 0): bool {}
         public static function wait(bool $blocking = true): array|false {}
         public static function daemon(bool $nochdir = true, bool $noclose = true, array $pipes = []): bool {}

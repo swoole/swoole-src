@@ -9,7 +9,7 @@ skip_if_class_not_exist(Swoole\Server::class);
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
-const RES_FILE = __DIR__.'/result.txt';
+const RES_FILE = __DIR__ . '/manager.result';
 file_put_contents(RES_FILE, "");
 
 //设置等待10秒

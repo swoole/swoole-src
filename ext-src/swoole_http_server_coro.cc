@@ -16,6 +16,7 @@
 
 #include "php_swoole_http_server.h"
 #include "php_swoole_websocket.h"
+#include "swoole_coroutine_api.h"
 
 #include <string>
 
@@ -42,7 +43,7 @@ static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
-static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length);
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file);
 static bool http_context_disconnect(HttpContext *ctx);
 
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
@@ -135,8 +136,10 @@ class HttpServer {
             if (handler.second == default_handler) {
                 continue;
             }
-            if (swoole_str_istarts_with(
-                    ctx->request.path, ctx->request.path_len, handler.first.c_str(), handler.first.length())) {
+            if (swoole_str_istarts_with(ZSTR_VAL(ctx->request.path),
+                                        ZSTR_LEN(ctx->request.path),
+                                        handler.first.c_str(),
+                                        handler.first.length())) {
                 return handler.second;
             }
         }
@@ -163,7 +166,7 @@ class HttpServer {
         swoole_llhttp_parser_init(parser, HTTP_REQUEST, (void *) ctx);
 
         zend_update_property_ex(
-            swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zconn);
+            swoole_http_response_ce, Z_OBJ(ctx->response.zobject), SW_ZSTR_KNOWN(SW_ZEND_STR_SOCKET), zconn);
 
         return ctx;
     }
@@ -199,8 +202,8 @@ class HttpServer {
         swoole_http2_server_session_free(ctx->fd);
 
         ctx->detached = 1;
-        zval_dtor(ctx->request.zobject);
-        zval_dtor(ctx->response.zobject);
+        zval_dtor(&ctx->request.zobject);
+        zval_dtor(&ctx->response.zobject);
     }
 };
 };  // namespace coroutine
@@ -267,15 +270,15 @@ static HashTable *http_server_coro_get_gc(zend_object *object, zval **table, int
 }
 
 static void http_server_coro_set_error(const zval *zobject, const SocketImpl *sock) {
-    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
-    zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
+    zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
+    zend_update_property_string(swoole_http_server_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
 }
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     return ctx->get_co_socket()->send_all(data, length) == (ssize_t) length;
 }
 
-static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &) {
     return ctx->get_co_socket()->sendfile(file->val, offset, length);
 }
 
@@ -362,8 +365,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         RETURN_FALSE;
     }
 
-    zend_update_property_stringl(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, l_host);
-    zend_update_property_bool(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
+    zend_update_property_stringl(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, l_host);
+    zend_update_property_bool(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
 
     // check host
     if (l_host == 0) {
@@ -398,8 +401,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         RETURN_FALSE;
     }
 
-    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->get_fd());
-    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_port());
+    zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->get_fd());
+    zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_port());
 }
 
 static PHP_METHOD(swoole_http_server_coro, handle) {
@@ -454,9 +457,9 @@ static PHP_METHOD(swoole_http_server_coro, start) try {
     zval *zsettings =
         sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
     if (!php_swoole_socket_set_protocol(hs->socket, zsettings)) {
-        zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
+        zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
         zend_update_property_string(
-            swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), swoole_strerror(EINVAL));
+            swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), swoole_strerror(EINVAL));
         hs->running = false;
         php_swoole_throw_setting_exception("failed to apply HTTP server protocol settings");
         RETURN_THROWS();
@@ -633,7 +636,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     int server_port = hs->socket->get_port();
 
     while (true) {
-    _recv_request : {
+    _recv_request: {
         sock->get_socket()->recv_wait = 1;
         ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0)) {
@@ -687,7 +690,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
             // This block runs once per request, so the interim response is not repeated while the body arrives.
             if (!ctx->completed && ctx->request.version == 101) {
-                zval *zexpect = zend_hash_str_find(Z_ARRVAL_P(ctx->request.zheader), ZEND_STRL("expect"));
+                zval *zexpect = zend_hash_str_find(Z_ARRVAL(ctx->request.zheader), ZEND_STRL("expect"));
                 if (zexpect && Z_TYPE_P(zexpect) == IS_STRING &&
                     SW_STRCASEEQ(Z_STRVAL_P(zexpect), Z_STRLEN_P(zexpect), "100-continue")) {
                     sock->send_all(SW_STRL(SW_HTTP_100_CONTINUE_PACKET));
@@ -738,7 +741,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
         }
 
-        zval *zserver = ctx->request.zserver;
+        zval *zserver = &ctx->request.zserver;
         HashTable *ht = Z_ARRVAL_P(zserver);
 
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), remote_addr.ptr());
@@ -762,7 +765,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
 
         zend::Callable *cb = hs->get_handler(ctx);
-        zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
+        zval args[2] = {ctx->request.zobject, ctx->response.zobject};
         bool keep_alive = !!llhttp_should_keep_alive(&ctx->parser) && !ctx->websocket;
         sock->get_socket()->recv_wait = 0;
 
@@ -791,8 +794,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     }
 
     if (ctx) {
-        zval_dtor(ctx->request.zobject);
-        zval_dtor(ctx->response.zobject);
+        zval_dtor(&ctx->request.zobject);
+        zval_dtor(&ctx->response.zobject);
     }
     zend_hash_index_del(Z_ARRVAL_P(&hs->zclients), co->get_cid());
 }
@@ -819,8 +822,8 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
                                    const std::shared_ptr<Http2Stream> &stream) {
     HttpContext *ctx = stream->ctx;
-    zval *zserver_http2 = ctx->request.zserver;
-    zval *zserver_http1 = session->default_ctx->request.zserver;
+    zval *zserver_http2 = &ctx->request.zserver;
+    zval *zserver_http1 = &session->default_ctx->request.zserver;
 
     zend_string *key;
     zval *zvalue;
@@ -837,7 +840,7 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
 
     auto *hs = static_cast<HttpServer *>(session->private_data);
     zend::Callable *cb = hs->get_handler(ctx);
-    zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
+    zval args[2] = {ctx->request.zobject, ctx->response.zobject};
 
     if (cb) {
         if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, true))) {

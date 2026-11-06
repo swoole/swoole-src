@@ -27,6 +27,10 @@
 #include <nghttp2/nghttp2.h>
 #include <nghttp2/nghttp2ver.h>
 
+#include <array>
+#include <limits>
+#include <map>
+
 using namespace swoole;
 using namespace std;
 using http_server::Context;
@@ -37,77 +41,228 @@ using swoole::network::AsyncClient;
 const std::string REDIS_TEST_KEY = "key-swoole";
 const std::string REDIS_TEST_VALUE = "value-swoole";
 
-TEST(http2, default_settings) {
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE), SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH), SW_HTTP2_DEFAULT_ENABLE_PUSH);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS),
-              SW_HTTP2_DEFAULT_MAX_CONCURRENT_STREAMS);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE), SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE), SW_HTTP2_DEFAULT_MAX_FRAME_SIZE);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE),
-              SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE);
+namespace {
+struct SettingField {
+    swHttp2SettingId id;
+    uint32_t http2::Settings::*member;
+};
 
-    http2::Settings _settings = {
-        (uint32_t) swoole_rand(1, 100000),
-        (uint32_t) swoole_rand(1, 100000),
-        (uint32_t) swoole_rand(1, 100000),
-        (uint32_t) swoole_rand(1, 100000),
-        (uint32_t) swoole_rand(1, 100000),
-        (uint32_t) swoole_rand(1, 100000),
+const SettingField setting_fields[] = {
+    {SW_HTTP2_SETTING_HEADER_TABLE_SIZE, &http2::Settings::header_table_size},
+    {SW_HTTP2_SETTINGS_ENABLE_PUSH, &http2::Settings::enable_push},
+    {SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, &http2::Settings::max_concurrent_streams},
+    {SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, &http2::Settings::init_window_size},
+    {SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, &http2::Settings::max_frame_size},
+    {SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, &http2::Settings::max_header_list_size},
+};
+
+class Http2SettingsTest : public testing::Test {
+  protected:
+    void SetUp() override {
+        http2::init_settings(&saved_settings);
+        saved_max_headers = http2::get_http2_max_headers();
+    }
+
+    void TearDown() override {
+        // Settings are process-wide. Restore them even when a fatal assertion returns early,
+        // otherwise repetition or a different test order changes later sessions' defaults.
+        for (const auto &field : setting_fields) {
+            http2::put_default_setting(field.id, saved_settings.*(field.member));
+        }
+        http2::set_http2_max_headers(saved_max_headers);
+    }
+
+    http2::Settings saved_settings{};
+    uint32_t saved_max_headers = 0;
+};
+}  // namespace
+
+TEST_F(Http2SettingsTest, default_settings) {
+    const http2::Settings defaults = {
+        SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE,
+        SW_HTTP2_DEFAULT_ENABLE_PUSH,
+        SW_HTTP2_DEFAULT_MAX_CONCURRENT_STREAMS,
+        SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE,
+        SW_HTTP2_DEFAULT_MAX_FRAME_SIZE,
+        SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE,
     };
+    const http2::Settings replacement = {1024, 0, 17, 65535, 32768, 4096};
+    for (const auto &field : setting_fields) {
+        SCOPED_TRACE(field.id);
+        EXPECT_EQ(http2::get_default_setting(field.id), defaults.*(field.member));
+        http2::put_default_setting(field.id, replacement.*(field.member));
+        EXPECT_EQ(http2::get_default_setting(field.id), replacement.*(field.member));
+    }
+    http2::Settings initialized{};
+    http2::init_settings(&initialized);
+    for (const auto &field : setting_fields) {
+        EXPECT_EQ(initialized.*(field.member), replacement.*(field.member));
+    }
+}
 
-    http2::put_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE, _settings.header_table_size);
-    http2::put_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH, _settings.enable_push);
-    http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, _settings.max_concurrent_streams);
-    http2::put_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE, _settings.init_window_size);
-    http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE, _settings.max_frame_size);
-    http2::put_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, _settings.max_header_list_size);
+TEST_F(Http2SettingsTest, unknown_setting_preserves_defaults) {
+    const auto unknown = static_cast<swHttp2SettingId>(7);
+    http2::put_default_setting(unknown, UINT32_MAX);
+    EXPECT_EQ(http2::get_default_setting(unknown), 0u);
+    for (const auto &field : setting_fields) {
+        EXPECT_EQ(http2::get_default_setting(field.id), saved_settings.*(field.member));
+    }
+}
 
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTING_HEADER_TABLE_SIZE), _settings.header_table_size);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_ENABLE_PUSH), _settings.enable_push);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS), _settings.max_concurrent_streams);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE), _settings.init_window_size);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_MAX_FRAME_SIZE), _settings.max_frame_size);
-    ASSERT_EQ(http2::get_default_setting(SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE), _settings.max_header_list_size);
+TEST_F(Http2SettingsTest, max_headers_ignores_zero) {
+    http2::set_http2_max_headers(17);
+    EXPECT_EQ(http2::get_http2_max_headers(), 17u);
+    http2::set_http2_max_headers(0);
+    EXPECT_EQ(http2::get_http2_max_headers(), 17u);
+    http2::set_http2_max_headers(UINT32_MAX);
+    EXPECT_EQ(http2::get_http2_max_headers(), UINT32_MAX);
 }
 
 TEST(http2, pack_setting_frame) {
-    char frame[SW_HTTP2_SETTING_FRAME_SIZE + SW_HTTP2_FRAME_HEADER_SIZE];
-    http2::Settings settings_1{};
-    http2::init_settings(&settings_1);
-    size_t n = http2::pack_setting_frame(frame, settings_1, false);
+    const http2::Settings settings = {1024, 1, 17, 65535, 32768, UINT32_MAX};
+    for (const bool server_side : {false, true}) {
+        SCOPED_TRACE(server_side);
+        std::array<char, SW_HTTP2_SETTING_FRAME_SIZE> frame{};
+        const size_t size = http2::pack_setting_frame(frame.data(), settings, server_side);
+        const size_t item_count = server_side ? 5 : 6;
+        ASSERT_EQ(size, SW_HTTP2_FRAME_HEADER_SIZE + item_count * SW_HTTP2_SETTING_OPTION_SIZE);
+        EXPECT_EQ(http2::get_length(frame.data()), item_count * SW_HTTP2_SETTING_OPTION_SIZE);
+        EXPECT_EQ(frame[3], SW_HTTP2_TYPE_SETTINGS);
+        EXPECT_EQ(frame[4], 0);
+        EXPECT_EQ(std::string(frame.data() + 5, 4), std::string(4, '\0'));
 
-    ASSERT_GT(n, 16);
-
-    http2::Settings settings_2{};
-    http2::unpack_setting_data(
-        frame + SW_HTTP2_FRAME_HEADER_SIZE, n, [&settings_2](uint16_t id, uint32_t value) -> ReturnCode {
-            switch (id) {
-            case SW_HTTP2_SETTING_HEADER_TABLE_SIZE:
-                settings_2.header_table_size = value;
-                break;
-            case SW_HTTP2_SETTINGS_ENABLE_PUSH:
-                settings_2.enable_push = value;
-                break;
-            case SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS:
-                settings_2.max_concurrent_streams = value;
-                break;
-            case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-                settings_2.init_window_size = value;
-                break;
-            case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
-                settings_2.max_frame_size = value;
-                break;
-            case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
-                settings_2.max_header_list_size = value;
-                break;
-            default:
-                return SW_ERROR;
+        std::map<uint16_t, uint32_t> decoded;
+        // The parser takes payload bytes only. Passing the total frame size makes it read
+        // past the settings array; the extra iteration used to go unnoticed by this test.
+        ASSERT_EQ(http2::unpack_setting_data(frame.data() + SW_HTTP2_FRAME_HEADER_SIZE,
+                                             size - SW_HTTP2_FRAME_HEADER_SIZE,
+                                             [&](uint16_t id, uint32_t value) {
+                                                 EXPECT_TRUE(decoded.emplace(id, value).second);
+                                                 return SW_SUCCESS;
+                                             }),
+                  SW_SUCCESS);
+        ASSERT_EQ(decoded.size(), item_count);
+        for (const auto &field : setting_fields) {
+            if (server_side && field.id == SW_HTTP2_SETTINGS_ENABLE_PUSH) {
+                EXPECT_EQ(decoded.count(field.id), 0u);
+            } else {
+                ASSERT_EQ(decoded.count(field.id), 1u);
+                EXPECT_EQ(decoded.at(field.id), settings.*(field.member));
             }
-            return SW_SUCCESS;
-        });
+        }
+    }
+}
 
-    ASSERT_MEMEQ(&settings_1, &settings_2, sizeof(settings_2));
+TEST(http2, unpack_settings_stops_on_callback_error) {
+    char frame[SW_HTTP2_SETTING_FRAME_SIZE];
+    http2::Settings settings{};
+    http2::init_settings(&settings);
+    const auto size = http2::pack_setting_frame(frame, settings, false);
+    size_t calls = 0;
+    EXPECT_EQ(http2::unpack_setting_data(frame + SW_HTTP2_FRAME_HEADER_SIZE,
+                                         size - SW_HTTP2_FRAME_HEADER_SIZE,
+                                         [&](uint16_t, uint32_t) {
+                                             calls++;
+                                             return SW_ERROR;
+                                         }),
+              SW_ERROR);
+    EXPECT_EQ(calls, 1u);
+    EXPECT_EQ(http2::unpack_setting_data(nullptr,
+                                         0,
+                                         [&](uint16_t, uint32_t) {
+                                             calls++;
+                                             return SW_SUCCESS;
+                                         }),
+              SW_SUCCESS);
+    EXPECT_EQ(calls, 1u);
+}
+
+TEST(http2, content_length_boundaries) {
+    struct Case {
+        std::string text;
+        uint64_t limit;
+        bool valid;
+        uint64_t value;
+    };
+    const auto max = std::numeric_limits<uint64_t>::max();
+    const Case cases[] = {
+        {"0", 0, true, 0},
+        {"00042", 42, true, 42},
+        {"42", 41, false, 0},
+        {"18446744073709551615", max, true, max},
+        {"18446744073709551616", max, false, 0},
+        {"", max, false, 0},
+        {"+1", max, false, 0},
+        {"-1", max, false, 0},
+        {" 1", max, false, 0},
+        {"1 ", max, false, 0},
+        {"1.0", max, false, 0},
+        {std::string("1\0", 2), max, false, 0},
+        {std::string(1, static_cast<char>(0xff)), max, false, 0},
+    };
+    for (const auto &item : cases) {
+        SCOPED_TRACE(testing::PrintToString(item.text));
+        uint64_t result = 123;
+        EXPECT_EQ(http2::parse_content_length(item.text.data(), item.text.size(), item.limit, &result), item.valid);
+        EXPECT_EQ(result, item.valid ? item.value : 123u);
+        EXPECT_EQ(http2::parse_content_length(item.text.data(), item.text.size(), item.limit, nullptr), item.valid);
+    }
+    const char bounded[] = {'4', '2', 'x'};
+    uint64_t result = 0;
+    ASSERT_TRUE(http2::parse_content_length(bounded, 2, 42, &result));
+    EXPECT_EQ(result, 42u);
+}
+
+TEST(http2, status_code_boundaries) {
+    const std::pair<std::string, bool> cases[] = {
+        {"100", true},
+        {"200", true},
+        {"599", true},
+        {"099", false},
+        {"600", false},
+        {"", false},
+        {"20", false},
+        {"2000", false},
+        {"+20", false},
+        {"2 0", false},
+        {std::string("20\0", 3), false},
+        {std::string("2\xff"
+                     "0",
+                     3),
+         false},
+    };
+    for (const auto &item : cases) {
+        SCOPED_TRACE(testing::PrintToString(item.first));
+        uint16_t result = 42;
+        EXPECT_EQ(http2::parse_status_code(item.first.data(), item.first.size(), &result), item.second);
+        EXPECT_EQ(result, item.second ? std::stoul(item.first) : 42u);
+        EXPECT_EQ(http2::parse_status_code(item.first.data(), item.first.size(), nullptr), item.second);
+    }
+    const char bounded[] = {'2', '0', '0', 'x'};
+    uint16_t result = 0;
+    ASSERT_TRUE(http2::parse_status_code(bounded, 3, &result));
+    EXPECT_EQ(result, 200);
+}
+
+TEST(http2, frame_length_requires_complete_header) {
+    Protocol protocol{};
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE];
+    http2::set_frame_header(frame, SW_HTTP2_TYPE_DATA, 0xffffff, 0, 1);
+    for (size_t size = 0; size < sizeof(frame); size++) {
+        PacketLength length{frame, static_cast<uint32_t>(size)};
+        EXPECT_EQ(http2::get_frame_length(&protocol, nullptr, &length), 0);
+    }
+    PacketLength length{frame, sizeof(frame)};
+    EXPECT_EQ(http2::get_frame_length(&protocol, nullptr, &length), 0xffffff + SW_HTTP2_FRAME_HEADER_SIZE);
+    http2::set_frame_header(frame, SW_HTTP2_TYPE_DATA, 0, 0, 1);
+    EXPECT_EQ(http2::get_frame_length(&protocol, nullptr, &length), SW_HTTP2_FRAME_HEADER_SIZE);
+}
+
+TEST(http2, frame_header_uses_network_byte_order) {
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE];
+    http2::set_frame_header(frame, SW_HTTP2_TYPE_DATA, 0x123456, SW_HTTP2_FLAG_PADDED, 0x01020304);
+    EXPECT_EQ(std::string(frame, sizeof(frame)), std::string("\x12\x34\x56\x00\x08\x01\x02\x03\x04", 9));
+    EXPECT_EQ(http2::get_length(frame), 0x123456);
 }
 
 #define HTTP2_GET_TYPE_TEST(t) ASSERT_STREQ(http2::get_type(SW_HTTP2_TYPE_##t), #t)
@@ -123,6 +278,7 @@ TEST(http2, get_type) {
     HTTP2_GET_TYPE_TEST(GOAWAY);
     HTTP2_GET_TYPE_TEST(WINDOW_UPDATE);
     HTTP2_GET_TYPE_TEST(CONTINUATION);
+    ASSERT_STREQ(http2::get_type(255), "UNKNOWN");
 }
 
 TEST(http2, get_type_color) {
@@ -133,6 +289,13 @@ TEST(http2, get_type_color) {
 
 TEST(http2, get_flag_string_empty) {
     ASSERT_EQ(http2::get_flag_string(0), "none");
+}
+
+TEST(http2, get_flag_string_combinations) {
+    EXPECT_EQ(http2::get_flag_string(SW_HTTP2_FLAG_ACK), "ACK|END_STREAM");
+    EXPECT_EQ(http2::get_flag_string(SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_PADDED | SW_HTTP2_FLAG_PRIORITY),
+              "END_HEADERS|PADDED|PRIORITY");
+    EXPECT_EQ(http2::get_flag_string(0x80), "none");
 }
 
 struct Http2Session {

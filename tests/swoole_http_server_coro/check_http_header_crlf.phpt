@@ -34,6 +34,7 @@ $pm->childFunc = function () use ($pm) {
             $response->end('Redirecting...');
         });
 
+        $pm->wakeup();
         $server->start();
     });
 };

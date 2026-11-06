@@ -28,6 +28,8 @@ Coroutine\run(function () {
                 'content' => isset($request->files['file']['tmp_name'])
                     ? file_get_contents($request->files['file']['tmp_name'])
                     : null,
+                'trailer' => $request->trailer,
+                'content_type' => $request->header['content-type'],
             ];
             $response->end('OK');
         });
@@ -75,7 +77,13 @@ Coroutine\run(function () {
         Coroutine::sleep(0.05);
         Assert::same($handled, 0);
     }
-    Assert::same($socket->sendAll("0\r\n\r\n"), 5);
+    // Split both a trailer name and its value across receive calls.
+    foreach (["0\r\nContent-Ty", "pe: text/pl", "ain\r\nX-Empty:"] as $part) {
+        Assert::same($socket->sendAll($part), strlen($part));
+        Coroutine::sleep(0.05);
+        Assert::same($handled, 0);
+    }
+    Assert::same($socket->sendAll("\r\n\r\n"), 4);
 
     $response = '';
     while (($data = $socket->recv()) !== '' && $data !== false) {
@@ -88,6 +96,8 @@ Coroutine\run(function () {
     Assert::same($result['name'], 'test.txt');
     Assert::same($result['raw'], $body);
     Assert::same($result['content'], $fileContent);
+    Assert::null($result['trailer']);
+    Assert::same($result['content_type'], "multipart/form-data; boundary={$boundary}");
     Assert::same($handled, 1);
 
     echo "DONE\n";

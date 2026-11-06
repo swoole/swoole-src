@@ -187,6 +187,9 @@ const zend_function_entry swoole_functions[] = {
 #ifdef SW_HAVE_SSH2LIB
 	ZEND_FE(ssh2_connect, arginfo_ssh2_connect)
 	ZEND_FE(ssh2_disconnect, arginfo_ssh2_disconnect)
+	ZEND_FE(ssh2_set_timeout, arginfo_ssh2_set_timeout)
+	ZEND_FE(ssh2_keepalive_config, arginfo_ssh2_keepalive_config)
+	ZEND_FE(ssh2_keepalive_send, arginfo_ssh2_keepalive_send)
 	ZEND_FE(ssh2_methods_negotiated, arginfo_ssh2_methods_negotiated)
 	ZEND_FE(ssh2_fingerprint, arginfo_ssh2_fingerprint)
 	ZEND_FE(ssh2_hostkey, arginfo_ssh2_hostkey)
@@ -204,6 +207,9 @@ const zend_function_entry swoole_functions[] = {
 	ZEND_FE(ssh2_scp_recv, arginfo_ssh2_scp_recv)
 	ZEND_FE(ssh2_scp_send, arginfo_ssh2_scp_send)
 	ZEND_FE(ssh2_fetch_stream, arginfo_ssh2_fetch_stream)
+#ifdef PHP_SSH2_CHANNEL_SIGNAL
+	ZEND_FE(ssh2_send_signal, arginfo_ssh2_send_signal)
+#endif
 	ZEND_FE(ssh2_send_eof, arginfo_ssh2_send_eof)
 	ZEND_FE(ssh2_sftp, arginfo_ssh2_sftp)
 	ZEND_FE(ssh2_sftp_rename, arginfo_ssh2_sftp_rename)
@@ -669,6 +675,10 @@ static void sw_after_fork(void *args) {
 #if PHP_VERSION_ID >= 80500
     refresh_memory_manager();
 #endif
+#ifndef _WIN32
+    // swoole_fork() has removed the inherited signal handlers
+    php_swoole_process_signal_clean();
+#endif
 #ifdef ZEND_MAX_EXECUTION_TIMERS
     zend_max_execution_timer_init();
 #endif
@@ -1090,6 +1100,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_http_request_minit(module_number);
     php_swoole_http_response_minit(module_number);
     php_swoole_http_cookie_minit(module_number);
+    php_swoole_sendfile_minit(module_number);
 #ifndef _WIN32
     php_swoole_http_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);
@@ -1125,6 +1136,22 @@ PHP_MINIT_FUNCTION(swoole) {
 
     SwooleG.fatal_error = fatal_error;
     SwooleG.print_backtrace = print_backtrace;
+
+#ifndef _WIN32
+    swoole_add_hook(
+        SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT,
+        [](void *) {
+            // A forked worker/manager normally ends in the core's fallback exit(). UnwindExit must
+            // instead reach the PHP method which entered that loop, so ZendVM can terminate the
+            // request and run PHP shutdown functions. Never inspect exceptions after request shutdown.
+            // Swoole\Process already leaves through zend_bailout() and does not need this bridge.
+            if (SWOOLE_G(req_status) < PHP_SWOOLE_RSHUTDOWN_BEGIN &&
+                UNEXPECTED(EG(exception) && zend_is_unwind_exit(EG(exception)))) {
+                throw PhpUnwindExit{};
+            }
+        },
+        0);
+#endif
 
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;

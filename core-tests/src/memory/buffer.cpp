@@ -24,83 +24,96 @@
 using namespace std;
 using namespace swoole;
 
-TEST(buffer, append_iov) {
-    Buffer buf(1024);
-    Buffer buf_for_offset(1024);
-
-    constexpr int N = 4;
-    int iovcnt = N;
-    iovec v[N];
-    size_t total_len = 0;
-
-    SW_LOOP_N(iovcnt) {
-        v[i].iov_len = swoole_rand(99, 4095);
-        total_len += v[i].iov_len;
+TEST(buffer, append_iov_boundaries_and_chunk_sizes) {
+    const std::string segments[] = {"abc", std::string("d\0e", 3), "fghi"};
+    iovec vectors[3];
+    std::string combined;
+    for (size_t i = 0; i < 3; i++) {
+        vectors[i].iov_base = const_cast<char *>(segments[i].data());
+        vectors[i].iov_len = segments[i].size();
+        combined += segments[i];
     }
-
-    unique_ptr<char[]> s1(new char[v[0].iov_len]);
-    unique_ptr<char[]> s2(new char[v[1].iov_len]);
-    unique_ptr<char[]> s3(new char[v[2].iov_len]);
-    unique_ptr<char[]> s4(new char[v[3].iov_len]);
-
-    v[0].iov_base = s1.get();
-    v[1].iov_base = s2.get();
-    v[2].iov_base = s3.get();
-    v[3].iov_base = s4.get();
-
-    memset(v[0].iov_base, 'A', v[0].iov_len);
-    memset(v[1].iov_base, 'B', v[1].iov_len);
-    memset(v[2].iov_base, 'C', v[2].iov_len);
-    memset(v[3].iov_base, 'D', v[3].iov_len);
-
-    buf.append(v, iovcnt, 0);
-    ASSERT_EQ(buf.length(), total_len);
-
-    size_t offset = swoole_rand(v[0].iov_len + 1, total_len - 1);
-    buf_for_offset.append(v, iovcnt, offset);
-    ASSERT_EQ(buf_for_offset.length(), total_len - offset);
-
-    String str(buf_for_offset.length());
-
-    while (!buf_for_offset.empty()) {
-        auto chunk = buf_for_offset.front();
-        str.append(chunk->value.str, chunk->length);
-        buf_for_offset.pop();
-    }
-
-    size_t indent = 0;
-    SW_LOOP_N(iovcnt) {
-        if (offset >= v[i].iov_len) {
-            offset -= v[i].iov_len;
-            continue;
+    for (uint32_t chunk_size : {0u, 1u, 4u, 64u}) {
+        for (off_t offset : {-1, 0, 1, 3, 4, 6, 9, 10, 11}) {
+            SCOPED_TRACE(chunk_size);
+            SCOPED_TRACE(offset);
+            Buffer buffer(chunk_size);
+            buffer.append(vectors, 3, offset);
+            const std::string expected =
+                offset < 0 || static_cast<size_t>(offset) >= combined.size() ? "" : combined.substr(offset);
+            EXPECT_EQ(buffer.length(), expected.size());
+            const size_t capacity = chunk_size == 0 ? combined.size() : chunk_size;
+            const size_t expected_chunks = (expected.size() + capacity - 1) / capacity;
+            EXPECT_EQ(buffer.count(), expected_chunks);
+            std::string actual;
+            size_t remaining = expected.size();
+            while (!buffer.empty()) {
+                auto *chunk = buffer.front();
+                ASSERT_EQ(chunk->type, BufferChunk::TYPE_DATA);
+                ASSERT_GT(chunk->length, 0u);
+                if (chunk_size != 0) {
+                    EXPECT_LE(chunk->length, chunk_size);
+                }
+                actual.append(chunk->value.str, chunk->length);
+                ASSERT_LE(chunk->length, remaining);
+                remaining -= chunk->length;
+                buffer.pop();
+                EXPECT_EQ(buffer.length(), remaining);
+            }
+            EXPECT_EQ(actual, expected);
+            EXPECT_EQ(remaining, 0u);
+            EXPECT_EQ(buffer.count(), 0u);
+            EXPECT_TRUE(Buffer::empty(&buffer));
         }
-
-        ASSERT_EQ(memcmp(str.str + indent, (char *) v[i].iov_base + offset, v[i].iov_len - offset), 0);
-        indent += v[i].iov_len - offset;
-        offset = 0;
     }
 }
 
-TEST(buffer, append_iov_with_offset_pop_length) {
-    Buffer buf(64);
+TEST(buffer, empty_iov_append_preserves_existing_data) {
+    Buffer buffer(4);
+    buffer.append("keep", 4);
+    buffer.append(nullptr, 0, 0);
+    ASSERT_EQ(buffer.count(), 1u);
+    EXPECT_EQ(buffer.length(), 4u);
+    EXPECT_EQ(std::string(buffer.front()->value.str, buffer.front()->length), "keep");
+    EXPECT_FALSE(Buffer::empty(&buffer));
+    EXPECT_TRUE(Buffer::empty(nullptr));
+}
 
-    char s1[50];
-    char s2[50];
-    memset(s1, 'A', sizeof(s1));
-    memset(s2, 'B', sizeof(s2));
-
-    iovec v[2];
-    v[0].iov_base = s1;
-    v[0].iov_len = sizeof(s1);
-    v[1].iov_base = s2;
-    v[1].iov_len = sizeof(s2);
-
-    buf.append(v, 2, 60);
-    ASSERT_EQ(buf.length(), 40);
-
-    while (!buf.empty()) {
-        buf.pop();
+TEST(buffer, append_binary_data_and_pop_tracks_remaining_length) {
+    Buffer buffer(3);
+    const std::string data("abc\0def", 7);
+    buffer.append(data.data(), data.size());
+    buffer.append("hi", 2);
+    EXPECT_EQ(buffer.count(), 4u);
+    std::string actual;
+    size_t remaining = data.size() + 2;
+    while (!buffer.empty()) {
+        auto *chunk = buffer.front();
+        actual.append(chunk->value.str, chunk->length);
+        remaining -= chunk->length;
+        buffer.pop();
+        EXPECT_EQ(buffer.length(), remaining);
     }
+    EXPECT_EQ(actual, data + "hi");
+}
 
-    ASSERT_EQ(buf.length(), 0);
+TEST(buffer, pop_and_destruction_release_control_chunks_once) {
+    std::vector<BufferChunk::Type> destroyed;
+    {
+        Buffer buffer(4);
+        for (const auto type : {BufferChunk::TYPE_SENDFILE, BufferChunk::TYPE_CLOSE}) {
+            auto *chunk = buffer.alloc(type, 0);
+            chunk->value.ptr = &destroyed;
+            chunk->destroy = [](BufferChunk *chunk) {
+                auto *destroyed = static_cast<std::vector<BufferChunk::Type> *>(chunk->value.ptr);
+                destroyed->push_back(chunk->type);
+            };
+        }
+        EXPECT_EQ(buffer.count(), 2u);
+        EXPECT_EQ(buffer.length(), 0u);
+        buffer.pop();
+        EXPECT_EQ(destroyed, std::vector<BufferChunk::Type>{BufferChunk::TYPE_SENDFILE});
+    }
+    const std::vector<BufferChunk::Type> expected = {BufferChunk::TYPE_SENDFILE, BufferChunk::TYPE_CLOSE};
+    EXPECT_EQ(destroyed, expected);
 }

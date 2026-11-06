@@ -99,15 +99,16 @@ static bool websocket_verify_server_handshake(zval *zobject) {
         return false;
     }
 
+    // The token parser returns -1 on error; only 1 is a successful match.
     zval *zupgrade = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("upgrade"));
     if (zupgrade == nullptr || Z_TYPE_P(zupgrade) != IS_STRING ||
-        !swoole_http_token_list_contains_value(Z_STRVAL_P(zupgrade), Z_STRLEN_P(zupgrade), "websocket")) {
+        swoole_http_token_list_contains_value(Z_STRVAL_P(zupgrade), Z_STRLEN_P(zupgrade), "websocket") != 1) {
         return false;
     }
 
     zval *zconnection = zend_hash_str_find(Z_ARRVAL_P(zresponse_headers), ZEND_STRL("connection"));
     if (zconnection == nullptr || Z_TYPE_P(zconnection) != IS_STRING ||
-        !swoole_http_token_list_contains_value(Z_STRVAL_P(zconnection), Z_STRLEN_P(zconnection), "Upgrade")) {
+        swoole_http_token_list_contains_value(Z_STRVAL_P(zconnection), Z_STRLEN_P(zconnection), "Upgrade") != 1) {
         return false;
     }
 
@@ -190,8 +191,8 @@ class Client {
      * allowing access to the sent Request data even after the connection has been closed.
      */
     String *tmp_write_buffer = nullptr;
-    std::shared_ptr<String> continue_frame_buffer;
-    bool connection_close = false;
+    std::unique_ptr<String> continue_frame_buffer;
+    bool request_connection_close = false;
     bool completed = false;
     bool event_stream = false;
 
@@ -230,6 +231,7 @@ class Client {
     void set_error(int error, const char *msg, int status) const;
     bool keep_liveness();
     bool send_request();
+    void reset_download();
     void reset();
 
     static void add_headers(String *buf, const char *key, size_t key_len, const char *data, size_t data_len) {
@@ -484,7 +486,7 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
     http->add_header(header_name, header_len, (char *) at, length);
 
     if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STREQ(header_name, header_len, "upgrade")) {
-        if (swoole_http_token_list_contains_value(at, length, "websocket")) {
+        if (swoole_http_token_list_contains_value(at, length, "websocket") == 1) {
             http->websocket = true;
         }
         /* TODO: protocol error? */
@@ -529,8 +531,6 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 #endif
     else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
         http->chunked = true;
-    } else if (SW_STREQ(header_name, header_len, "connection")) {
-        http->connection_close = SW_STR_ISTARTS_WITH(at, length, "close");
     } else if (SW_STREQ(header_name, header_len, "content-type")) {
         http->event_stream = SW_STR_ISTARTS_WITH(at, length, "text/event-stream");
     }
@@ -541,7 +541,7 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 static int http_parser_on_headers_complete(llhttp_t *parser) {
     auto *http = static_cast<Client *>(parser->data);
     zend_update_property_long(
-        swoole_http_client_coro_ce, SW_Z8_OBJ_P(http->zobject), ZEND_STRL("statusCode"), parser->status_code);
+        swoole_http_client_coro_ce, Z_OBJ_P(http->zobject), ZEND_STRL("statusCode"), parser->status_code);
     if (http->collect_stats) {
         zval *zstats = http->stats();
         add_assoc_long(zstats, "http_version", parser->http_minor == 0 ? 1 : 2);
@@ -648,7 +648,7 @@ static int http_parser_on_message_complete(llhttp_t *parser) {
 
     if (http->download_file == nullptr) {
         zend_update_property_stringl(
-            swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("body"), SW_STRINGL(http->body));
+            swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("body"), SW_STRINGL(http->body));
     } else {
         http->download_file_name.release();
     }
@@ -968,14 +968,14 @@ bool Client::connect() {
         return false;
     }
 
-    zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"), &zsocket);
-    zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 1);
+    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("socket"), &zsocket);
+    zend_update_property_bool(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("connected"), 1);
     return true;
 }
 
 void Client::set_error(int error, const char *msg, int status) const {
     auto ce = swoole_http_client_coro_ce;
-    auto obj = SW_Z8_OBJ_P(zobject);
+    auto obj = Z_OBJ_P(zobject);
     zend_update_property_long(ce, obj, ZEND_STRL("errCode"), error);
     zend_update_property_string(ce, obj, ZEND_STRL("errMsg"), msg);
     zend_update_property_long(ce, obj, ZEND_STRL("statusCode"), status);
@@ -1000,6 +1000,7 @@ bool Client::keep_liveness() {
 }
 
 bool Client::send_request() {
+    request_connection_close = false;
     zval *zvalue = nullptr;
     uint32_t header_flag = 0x0;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
@@ -1010,9 +1011,9 @@ bool Client::send_request() {
     }
 
     // when new request, clear all properties about the last response
-    zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("headers"));
-    zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("set_cookie_headers"));
-    zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("body"), "");
+    zend_update_property_null(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("headers"));
+    zend_update_property_null(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("set_cookie_headers"));
+    zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("body"), "");
 
     if (!keep_liveness()) {
         return false;
@@ -1032,9 +1033,9 @@ bool Client::send_request() {
         }
     }
 
-    zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), 0);
-    zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), "");
-    zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), 0);
+    zend_update_property_long(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errCode"), 0);
+    zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errMsg"), "");
+    zend_update_property_long(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("statusCode"), 0);
 
     /* another coroutine is connecting */
     socket->check_bound_co(SW_EVENT_WRITE);
@@ -1171,8 +1172,8 @@ bool Client::send_request() {
 
             if (SW_STRCASEEQ(key, keylen, "Connection")) {
                 header_flag |= HTTP_HEADER_CONNECTION;
-                if (SW_STRCASEEQ(str_value.val(), str_value.len(), "close")) {
-                    keep_alive = false;
+                if (swoole_http_token_list_contains_value(str_value.val(), str_value.len(), "close") == 1) {
+                    request_connection_close = true;
                 }
             }
         }
@@ -1191,7 +1192,7 @@ bool Client::send_request() {
         if (keep_alive) {
             add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("keep-alive"));
         } else {
-            add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("closed"));
+            add_headers(buffer, ZEND_STRL("Connection"), ZEND_STRL("close"));
         }
     }
 #ifdef SW_HAVE_COMPRESSION
@@ -1518,7 +1519,7 @@ bool Client::exec(const std::string &_path) {
     path = _path;
     if (collect_stats) {
         stats_begin = microtime();
-        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("stats"));
+        zend_update_property_null(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("stats"));
     }
     ON_SCOPE_EXIT {
         if (collect_stats) {
@@ -1533,6 +1534,8 @@ bool Client::exec(const std::string &_path) {
     }
     SW_LOOP_N(max_retries + 1) {
         if (send_request() == false) {
+            // Connection and validation failures may precede initialization of the internal download state.
+            reset_download();
             return false;
         }
         if (collect_stats) {
@@ -1550,12 +1553,23 @@ bool Client::exec(const std::string &_path) {
         if (defer) {
             return true;
         }
+        zend::String retry_download_file;
+        zend_long retry_download_offset = download_offset;
+        if (max_retries > 0 && download_file_name.get()) {
+            retry_download_file = download_file_name;
+        }
         if (recv_response() == false) {
             return false;
         }
         if (max_retries > 0 &&
             (parser.status_code == SW_HTTP_BAD_GATEWAY || parser.status_code == SW_HTTP_SERVICE_UNAVAILABLE)) {
             close(true);
+            if (i < max_retries && retry_download_file.get()) {
+                zend_update_property_str(
+                    swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadFile"), retry_download_file.get());
+                zend_update_property_long(
+                    swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadOffset"), retry_download_offset);
+            }
             continue;
         }
         return true;
@@ -1590,9 +1604,10 @@ bool Client::recv_response(double timeout) {
         if (sw_unlikely(retval <= 0)) {
             if (retval == 0) {
                 socket->set_err(ECONNRESET);
-                if (total_bytes > 0 && !llhttp_should_keep_alive(&parser)) {
+                if (total_bytes > 0 && llhttp_message_needs_eof(&parser)) {
                     llhttp_finish(&parser);
-                    success = true;
+                    // The completion callback pauses llhttp, so use its flag to determine success.
+                    success = completed;
                     break;
                 }
             }
@@ -1688,7 +1703,7 @@ bool Client::recv_response(double timeout) {
         socket->protocol.get_package_length = websocket::get_package_length;
     }
     // handler keep alive
-    if (!websocket && (!keep_alive || connection_close)) {
+    if (!websocket && (!keep_alive || request_connection_close || (parser.flags & F_CONNECTION_CLOSE))) {
         close();
     } else {
         reset();
@@ -1721,7 +1736,7 @@ bool Client::upgrade(const std::string &_path) {
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 0);
-    zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("requestMethod"), "GET");
+    zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("requestMethod"), "GET");
     create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
     add_assoc_string(zheaders, "Connection", "Upgrade");
     add_assoc_string(zheaders, "Upgrade", "websocket");
@@ -1751,9 +1766,9 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
         swoole_set_last_error(SW_ERROR_WEBSOCKET_HANDSHAKE_FAILED);
         php_swoole_fatal_error(E_WARNING, "websocket handshake failed, cannot push data");
         zend_update_property_long(
-            swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
+            swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
         zend_update_property_string(swoole_http_client_coro_ce,
-                                    SW_Z8_OBJ_P(zobject),
+                                    Z_OBJ_P(zobject),
                                     ZEND_STRL("errMsg"),
                                     "websocket handshake failed, cannot push data");
         zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_CONNECT_FAILED);
@@ -1774,9 +1789,9 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
     if (sw_unlikely(!frame.pack(buffer))) {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_PACK_FAILED);
         zend_update_property_long(
-            swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
+            swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
         zend_update_property_string(
-            swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), "websocket frame pack failed");
+            swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errMsg"), "websocket frame pack failed");
         return false;
     }
 
@@ -1788,6 +1803,14 @@ bool Client::push(zval *zdata, zend_long opcode, uint8_t flags, zend_long code) 
     } else {
         return true;
     }
+}
+
+void Client::reset_download() {
+    download_file.reset();
+    download_file_name.release();
+    download_offset = 0;
+    zend_update_property_null(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadFile"));
+    zend_update_property_long(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadOffset"), 0);
 }
 
 void Client::reset() {
@@ -1817,14 +1840,10 @@ void Client::reset() {
     }
 #endif
     if (has_upload_files) {
-        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("uploadFiles"));
+        zend_update_property_null(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("uploadFiles"));
     }
-    if (download_file != nullptr) {
-        download_file.reset();
-        download_file_name.release();
-        download_offset = 0;
-        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("downloadFile"));
-        zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("downloadOffset"), 0);
+    if (download_file != nullptr || download_file_name.get()) {
+        reset_download();
     }
 }
 
@@ -1832,8 +1851,8 @@ void Client::socket_dtor() {
     delete tmp_write_buffer;
     tmp_write_buffer = socket->pop_write_buffer();
     socket = nullptr;
-    zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
-    zend_update_property_null(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("socket"));
+    zend_update_property_bool(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+    zend_update_property_null(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("socket"));
     zval_ptr_dtor(&zsocket);
     ZVAL_NULL(&zsocket);
 }
@@ -1853,7 +1872,7 @@ bool Client::close(const bool should_be_reset) {
         return true;
     }
 
-    zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
+    zend_update_property_bool(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_socket->close()) {
         php_swoole_socket_set_error_properties(zobject, _socket);
         return false;
@@ -1978,8 +1997,8 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
         RETURN_FALSE;
     }
 
-    zend_update_property_stringl(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, host_len);
-    zend_update_property_bool(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
+    zend_update_property_stringl(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, host_len);
+    zend_update_property_bool(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
     // check host
     if (host_len == 0) {
         zend_throw_exception_ex(swoole_http_client_coro_exception_ce, EINVAL, "host is empty");
@@ -1993,7 +2012,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
         RETURN_FALSE;
     }
     hcc->client = new Client(ZEND_THIS, socket_type, std::move(host_string), port, ssl);
-    zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), hcc->client->port);
+    zend_update_property_long(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("port"), hcc->client->port);
 }
 
 static PHP_METHOD(swoole_http_client_coro, __destruct) {}
@@ -2047,7 +2066,7 @@ static PHP_METHOD(swoole_http_client_coro, setMethod) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property_stringl(
-        swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), method, method_length);
+        swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), method, method_length);
 
     RETURN_TRUE;
 }
@@ -2059,7 +2078,7 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders) {
     Z_PARAM_ARRAY_EX(headers, 0, 1)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("requestHeaders"), headers);
+    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestHeaders"), headers);
 
     RETURN_TRUE;
 }
@@ -2084,7 +2103,7 @@ static PHP_METHOD(swoole_http_client_coro, setCookies) {
     Z_PARAM_ARRAY_EX(cookies, 0, 1)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("cookies"), cookies);
+    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("cookies"), cookies);
 
     RETURN_TRUE;
 }
@@ -2096,7 +2115,7 @@ static PHP_METHOD(swoole_http_client_coro, setData) {
     Z_PARAM_ZVAL(zdata)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("requestBody"), zdata);
+    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestBody"), zdata);
 
     RETURN_TRUE;
 }
@@ -2241,7 +2260,7 @@ static PHP_METHOD(swoole_http_client_coro, get) {
     Z_PARAM_STRING(path, path_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), "GET");
+    zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), "GET");
 
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
 }
@@ -2257,8 +2276,8 @@ static PHP_METHOD(swoole_http_client_coro, post) {
     Z_PARAM_ZVAL(post_data)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_string(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), "POST");
-    zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("requestBody"), post_data);
+    zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), "POST");
+    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestBody"), post_data);
 
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
 }
@@ -2282,8 +2301,8 @@ static PHP_METHOD(swoole_http_client_coro, download) {
         RETURN_FALSE;
     }
 
-    zend_update_property(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("downloadFile"), download_file);
-    zend_update_property_long(swoole_http_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("downloadOffset"), offset);
+    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("downloadFile"), download_file);
+    zend_update_property_long(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("downloadOffset"), offset);
 
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
 }
@@ -2350,7 +2369,10 @@ static PHP_METHOD(swoole_http_client_coro, recv) {
 static PHP_METHOD(swoole_http_client_coro, close) {
     Client *phc = http_client_coro_get_client(ZEND_THIS);
     if (!ZVAL_IS_OBJECT(&phc->zsocket)) {
-        php_swoole_socket_set_error_properties(ZEND_THIS, SW_ERROR_CLIENT_NO_CONNECTION);
+        // Failed requests already close their socket. Preserve the original error during cleanup.
+        if (zend::object_get_long(ZEND_THIS, ZEND_STRL("errCode")) == 0) {
+            php_swoole_socket_set_error_properties(ZEND_THIS, SW_ERROR_CLIENT_NO_CONNECTION);
+        }
         RETURN_FALSE;
     }
     SW_CLIENT_PRESERVE_SOCKET(&phc->zsocket);

@@ -37,6 +37,7 @@ enum swGlobalHookType {
     SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE,
     SW_GLOBAL_HOOK_AFTER_SERVER_CREATE,
     SW_GLOBAL_HOOK_AFTER_FORK,
+    SW_GLOBAL_HOOK_BEFORE_CHILD_PROCESS_EXIT,  // Forked child loop returned; native exit() is still the fallback.
     SW_GLOBAL_HOOK_USER = 24,
     SW_GLOBAL_HOOK_END = SW_MAX_HOOK_TYPE - 1,
 };

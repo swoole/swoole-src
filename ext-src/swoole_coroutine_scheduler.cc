@@ -118,7 +118,7 @@ static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &even
         php_swoole_fatal_error(E_ERROR, "Coroutine can_exit callback handler error");
     }
     if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
+        sw_zend_exception_error(EG(exception), E_ERROR);
     }
     return Z_TYPE_P(&retval) != IS_FALSE;
 }

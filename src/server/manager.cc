@@ -35,6 +35,7 @@ struct Manager {
 
     std::vector<pid_t> kill_workers;
 
+    void init(Server *_server);
     void wait(Server *_server);
     void terminate_all_worker();
     void reopen_logger() const;
@@ -65,7 +66,9 @@ int Server::start_manager_process() {
     }
 
     auto fn = [this]() {
-        gs->manager_pid = getpid();
+        Manager manager{};
+        // Workers may request shutdown as soon as they enter their startup callback.
+        manager.init(this);
 
         if (task_worker_num > 0) {
             if (get_task_worker_pool()->start() == SW_ERR) {
@@ -98,7 +101,6 @@ int Server::start_manager_process() {
             }
         }
 
-        Manager manager{};
         manager.wait(this);
     };
 
@@ -113,7 +115,7 @@ int Server::start_manager_process() {
     return SW_OK;
 }
 
-void Manager::wait(Server *_server) {
+void Manager::init(Server *_server) {
     server_ = _server;
     server_->manager_ = this;
 
@@ -123,6 +125,10 @@ void Manager::wait(Server *_server) {
     pool->max_wait_time = server_->max_wait_time;
     _server->gs->manager_pid = pool->master_pid = task_pool->master_pid = getpid();
 
+    // System timers are inherited too, even when no reactor exists to release them.
+    if (swoole_timer_is_available()) {
+        swoole_timer_free();
+    }
     swoole_event_free();
 
     swoole_signal_set(SIGHUP, nullptr);
@@ -136,6 +142,11 @@ void Manager::wait(Server *_server) {
 #ifdef SIGRTMIN
     swoole_signal_set(SIGRTMIN, signal_handler);
 #endif
+}
+
+void Manager::wait(Server *_server) {
+    ProcessPool *pool = _server->get_event_worker_pool();
+    ProcessPool *task_pool = _server->get_task_worker_pool();
 
     if (_server->is_process_mode()) {
         swoole_set_process_death_signal(SIGTERM);
@@ -353,10 +364,18 @@ void Manager::reopen_logger() const {
 
 void Manager::signal_handler(int signo) {
     Server *_server = sw_server();
+    if (!_server || !_server->manager_) {
+        return;
+    }
     // A newly forked worker briefly inherits the manager's signal handlers before
     // swoole_fork() clears them. It must never execute manager-only actions here:
     // reopening the log would broadcast SIGWINCH back to itself indefinitely.
-    if (!_server || !_server->manager_ || getpid() != _server->gs->manager_pid) {
+    if (getpid() != _server->gs->manager_pid) {
+        // The manager sends SIGTERM to each worker only once, so terminate as the default action would.
+        if (signo == SIGTERM) {
+            signal(SIGTERM, SIG_DFL);
+            raise(SIGTERM);
+        }
         return;
     }
     Manager *manager = _server->manager_;
@@ -410,6 +429,10 @@ pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
     }
 
     factory_->check_worker_exit_status(exited_worker, exit_status);
+    // The PHP WorkerError callback can terminate the manager while checking this exit status.
+    if (!running) {
+        return SW_ERR;
+    }
 
     if (exited_worker->type == SW_EVENT_WORKER) {
         return factory_->spawn_event_worker(exited_worker);

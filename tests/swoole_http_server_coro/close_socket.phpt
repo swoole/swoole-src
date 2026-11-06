@@ -91,6 +91,7 @@ $pm->childFunc = function () use ($pm) {
             'http_parse_post' => false,
             'http_parse_files' => false,
         ]);
+        $pm->wakeup();
         go(function () use ($server) {
             $server->start();
         });

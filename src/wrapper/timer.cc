@@ -122,8 +122,10 @@ void swoole_timer_free() {
         swoole_warning("timer is not available");
         return;
     }
-    delete SwooleTG.timer;
+    // Node destructors can run PHP code that uses the timer API, which must not reach the timer being destroyed.
+    Timer *timer = SwooleTG.timer;
     SwooleTG.timer = nullptr;
+    delete timer;
 }
 
 void swoole_timer_select() {

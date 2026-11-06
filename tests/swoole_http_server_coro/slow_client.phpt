@@ -43,6 +43,7 @@ $pm->childFunc = function () use ($pm)
             Assert::eq($request->header['content-length'], strlen($request->getContent()));
             $response->end("OK");
         });
+        $pm->wakeup();
         $server->start();
     });
 };

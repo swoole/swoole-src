@@ -23,6 +23,11 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
         'enable_coroutine' => false, // close build-in coroutine
     ]);
+    $http->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         go(function () use ($response) {
             co::sleep(0.001);

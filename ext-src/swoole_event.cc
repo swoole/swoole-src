@@ -287,7 +287,7 @@ void php_swoole_event_wait() {
         php_swoole_fatal_error(E_ERROR, "Unable to call Event::wait() in coroutine");
         return;
     }
-    if (!sw_reactor()->if_exit() && !sw_reactor()->bailout) {
+    if (!sw_reactor()->if_exit() && !UNEXPECTED(sw_reactor()->terminated)) {
 #ifdef _WIN32
         swoole_trace_log(SW_TRACE_PHP, "wait Windows reactor");
         if (sw_reactor()->wait() < 0) {
@@ -720,7 +720,7 @@ static PHP_FUNCTION(swoole_event_rshutdown) {
         // when throw Exception, do not show the info
         if (!php_swoole_is_fatal_error() && sw_reactor()) {
 #ifndef _WIN32
-            if (!sw_reactor()->bailout) {
+            if (!UNEXPECTED(sw_reactor()->terminated)) {
                 php_swoole_fatal_error(E_DEPRECATED, "Event::wait() in shutdown function is deprecated");
             }
 #endif

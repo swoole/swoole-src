@@ -229,6 +229,9 @@ int ReactorKqueue::wait() {
 
     while (reactor_->running) {
         reactor_->execute_begin_callback();
+        if (sw_unlikely(reactor_->terminated)) {
+            break;
+        }
 
         if (reactor_->timeout_msec > 0) {
             t.tv_sec = reactor_->timeout_msec / 1000;

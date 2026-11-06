@@ -71,7 +71,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install redis tinyproxy nginx md5sha1sum
+          brew install curl redis tinyproxy nginx md5sha1sum
+          # The system LibreSSL curl fails TLS 1.3 client authentication with OpenSSL 4.1.
+          echo "$(brew --prefix curl)/bin" >> "$GITHUB_PATH"
           brew services start redis
           brew services start nginx
           brew services start tinyproxy
@@ -95,6 +97,7 @@ jobs:
           export SWOOLE_BUILD_DIR=$(realpath .)
           export PHP_VERSION=${{ matrix.php-version }}
           export SWOOLE_CI_IN_MACOS=1
+          curl --version
           cd ${{runner.workspace}}/swoole-src
           ulimit -n 100000
           ./scripts/run-tests.sh

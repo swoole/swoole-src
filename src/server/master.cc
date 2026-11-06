@@ -22,8 +22,11 @@
 #include "swoole_hash.h"
 
 #include "swoole_api.h"
+#include "swoole_coroutine_api.h"
 
 #include <cassert>
+#include <grp.h>
+#include <pwd.h>
 #include <net/if.h>
 #include <ifaddrs.h>
 
@@ -535,8 +538,32 @@ bool Server::create_task_workers() {
         destroy_task_workers();
         *pool = {};
     };
-    if (pool->create(task_worker_num, key, ipc_mode) < 0) {
+
+    uid_t worker_uid = geteuid();
+    gid_t worker_gid = getegid();
+    if (swoole_is_root_user()) {
+        if (!user_.empty()) {
+            auto *passwd = getpwnam(user_.c_str());
+            if (passwd) {
+                worker_uid = passwd->pw_uid;
+            }
+        }
+        if (!group_.empty()) {
+            auto *group = getgrnam(group_.c_str());
+            if (group) {
+                worker_gid = group->gr_gid;
+            }
+        }
+    }
+
+    int msgqueue_perms = ipc_mode == SW_IPC_MSGQUEUE ? 0600 : 0;
+    if (pool->create(task_worker_num, key, ipc_mode, msgqueue_perms) < 0) {
         swoole_warning("[Master] create task_workers failed");
+        cleanup();
+        return false;
+    }
+    if (ipc_mode == SW_IPC_MSGQUEUE && !pool->queue->set_access(worker_uid, worker_gid, 0600)) {
+        swoole_warning("[Master] configure task message queue[key=%ld, uid=%d] failed", (long) key, (int) geteuid());
         cleanup();
         return false;
     }
@@ -547,8 +574,20 @@ bool Server::create_task_workers() {
 
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
-        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
-        if (get_task_worker_pool()->listen(sockfile, 2048) < 0) {
+        // Task endpoints are created before daemonization and before master_pid is initialized.
+        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", getpid());
+        do {
+            mode_t old_umask = umask(0177);
+            ON_SCOPE_EXIT {
+                umask(old_umask);
+            };
+            if (pool->listen(sockfile, 2048) < 0) {
+                cleanup();
+                return false;
+            }
+        } while (0);
+        if ((worker_uid != geteuid() || worker_gid != getegid()) && chown(sockfile, worker_uid, worker_gid) < 0) {
+            swoole_sys_warning("chown(%s, %d, %d) failed", sockfile, (int) worker_uid, (int) worker_gid);
             cleanup();
             return false;
         }
@@ -957,13 +996,10 @@ bool Server::shutdown() {
         return false;
     }
 
-    /**
-     * In thread mode, the worker thread masks all signals, and only a specific signal is processed.
-     * Sending a signal to its own process can inform the main thread to prepare for exit.
-     */
     if (is_thread_mode() && is_master_thread()) {
-        stop_master_thread();
-        return true;
+        // Already on the master thread: run the common shutdown sequence directly, without sending SIGTERM.
+        // The signal handler uses the same sequence; it does not call shutdown() again.
+        return signal_handler_shutdown();
     }
 
     if (is_process_mode()) {
@@ -1432,11 +1468,19 @@ int Server::schedule_worker(int fd, SendData *data) {
     return key % worker_num;
 }
 
+void Server::discard_sendfile(DataHead *info, const char *data) {
+    if (info->type == SW_SERVER_EVENT_SEND_FILE && (info->ext_flags & SW_SERVER_SENDFILE_DELETE)) {
+        const auto *task = reinterpret_cast<const SendfileTask *>(data);
+        info->ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
+        swoole_coroutine_unlink(task->filename);
+    }
+}
+
 /**
  * [Master] send to client or append to out_buffer
  * @return SW_OK or SW_ERR
  */
-int Server::send_to_connection(const SendData *_send) const {
+int Server::send_to_connection(SendData *_send) const {
     const SessionId session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
@@ -1461,6 +1505,7 @@ int Server::send_to_connection(const SendData *_send) const {
                              _send->info.type,
                              session_id);
         }
+        discard_sendfile(&_send->info, _send->data);
         return SW_ERR;
     }
 
@@ -1483,6 +1528,7 @@ int Server::send_to_connection(const SendData *_send) const {
          */
         if (conn->peer_closed) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
+            discard_sendfile(&_send->info, _send->data);
             return SW_ERR;
         }
         if (send_yield) {
@@ -1490,6 +1536,7 @@ int Server::send_to_connection(const SendData *_send) const {
         } else {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
         }
+        discard_sendfile(&_send->info, _send->data);
         return SW_ERR;
     }
 
@@ -1526,6 +1573,13 @@ int Server::send_to_connection(const SendData *_send) const {
         } else {
             return reactor->add(_socket, SW_EVENT_READ);
         }
+    }
+
+    // peer_closed is terminal: the socket only waits for the worker's close, so a direct send must not reach it.
+    if (conn->peer_closed && _send->info.type != SW_SERVER_EVENT_CLOSE) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
+        discard_sendfile(&_send->info, _send->data);
+        return SW_ERR;
     }
 
     if (Buffer::empty(_socket->out_buffer)) {
@@ -1573,15 +1627,14 @@ int Server::send_to_connection(const SendData *_send) const {
         conn->close_queued = 1;
     } else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         auto *task = (SendfileTask *) _send_data;
-        if (conn->socket->sendfile_async(task->filename, task->offset, task->length) < 0) {
+        // Hand the delete token to the request that now owns the transfer, and clear it from
+        // the event so a synchronous base/thread caller does not delete the file again.
+        const bool delete_file = _send->info.ext_flags & SW_SERVER_SENDFILE_DELETE;
+        _send->info.ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
+        if (conn->socket->sendfile_async(task->filename, task->offset, task->length, delete_file) < 0) {
             return SW_ERR;
         }
     } else {
-        // connection is closed
-        if (conn->peer_closed) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
-            return SW_ERR;
-        }
         // connection output buffer overflow
         if (_socket->out_buffer->length() >= _socket->buffer_size) {
             if (send_yield) {
@@ -1639,6 +1692,12 @@ bool Server::notify(Connection *conn, ServerEventType event) const {
  * @process Worker
  */
 bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) const {
+    bool delete_file = false;
+    return sendfile(session_id, file, l_file, offset, length, delete_file);
+}
+
+bool Server::sendfile(
+    SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length, bool &delete_file) const {
     if (sw_unlikely(session_id <= 0)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld]", session_id);
         return false;
@@ -1679,8 +1738,12 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
                          req->filename);
         return false;
     }
-    if (file_stat.st_size <= offset) {
+    if (offset < 0 || file_stat.st_size <= offset) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty", (long) offset);
+        return false;
+    }
+    if (length > static_cast<size_t>(file_stat.st_size - offset)) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "sendfile length[%zu] exceeds the file size", length);
         return false;
     }
     req->offset = offset;
@@ -1691,9 +1754,20 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
     send_data.info.fd = session_id;
     send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
     send_data.info.len = sizeof(SendfileTask) + l_file + 1;
+    // Validation has passed, so ownership of the file moves into the SEND_FILE event.
+    send_data.info.ext_flags = delete_file ? SW_SERVER_SENDFILE_DELETE : 0;
     send_data.data = _buffer;
+    delete_file = false;
 
-    return factory_->finish(&send_data);
+    const bool accepted = factory_->finish(&send_data);
+
+    // The handoff failed before any layer consumed the event token, so clean up here. A
+    // synchronous base/thread path that already handled cleanup has cleared the flag.
+    if (!accepted) {
+        discard_sendfile(&send_data.info, send_data.data);
+    }
+
+    return accepted;
 }
 
 /**

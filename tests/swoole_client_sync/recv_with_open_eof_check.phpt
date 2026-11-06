@@ -35,6 +35,11 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
     ]);
 
+    $serv->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $serv->on('receive', function (Server $serv, $fd, $reactor_id, $data) {
     });
 

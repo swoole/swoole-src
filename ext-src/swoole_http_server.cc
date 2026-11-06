@@ -45,20 +45,20 @@ static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> server_ips;
 static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
-static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length);
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file);
 static bool http_context_disconnect(HttpContext *ctx);
 
 static void http_context_discard(HttpContext *ctx) {
     ctx->end_ = 1;
     ctx->onAfterResponse = nullptr;
-    zval_ptr_dtor(ctx->request.zobject);
-    zval_ptr_dtor(ctx->response.zobject);
+    zval_ptr_dtor(&ctx->request.zobject);
+    zval_ptr_dtor(&ctx->response.zobject);
 }
 
 static void http_server_process_request(const Server *serv, zend::Callable *cb, HttpContext *ctx) {
     zval args[2];
-    args[0] = *ctx->request.zobject;
-    args[1] = *ctx->response.zobject;
+    args[0] = ctx->request.zobject;
+    args[1] = ctx->response.zobject;
     if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
@@ -96,6 +96,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
     ctx->onBeforeRequest = swoole_http_server_onBeforeRequest;
+    ctx->upload_preprocessed = (req->info.ext_flags & swoole::http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED) != 0;
 
     zval *zdata = &ctx->request.zdata;
     php_swoole_get_recv_data(serv, zdata, req);
@@ -107,8 +108,8 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                      (int) Z_STRLEN_P(zdata),
                      Z_STRVAL_P(zdata));
 
-    zval *zrequest_object = ctx->request.zobject;
-    zval *zresponse_object = ctx->response.zobject;
+    zval *zrequest_object = &ctx->request.zobject;
+    zval *zresponse_object = &ctx->response.zobject;
 
     llhttp_t *parser = &ctx->parser;
     swoole_llhttp_parser_init(parser, HTTP_REQUEST, (void *) ctx);
@@ -119,8 +120,8 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         ctx->close(ctx);
         if (ctx->parser.error != HPE_OK) {
             swoole_warning("Invalid HTTP request discarded: %ld bytes unprocessed. Reason: %s",
-                          Z_STRLEN_P(zdata) - parsed_n,
-                          llhttp_get_error_reason(&ctx->parser));
+                           Z_STRLEN_P(zdata) - parsed_n,
+                           llhttp_get_error_reason(&ctx->parser));
         } else {
             swoole_warning("Incomplete HTTP request: parsed successfully but missing required components");
         }
@@ -128,7 +129,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     }
 
     do {
-        zval *zserver = ctx->request.zserver;
+        zval *zserver = &ctx->request.zserver;
         HashTable *ht = Z_ARR_P(zserver);
         swoole_http_server_populate_ip_and_port(serv, ht, conn, session_id, ctx->keepalive);
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->last_recv_time);
@@ -214,18 +215,16 @@ void php_swoole_http_server_rshutdown() {
 HttpContext *swoole_http_context_new(SessionId fd) {
     auto *ctx = new HttpContext();
 
-    zval *zrequest_object = &ctx->request._zobject;
-    ctx->request.zobject = zrequest_object;
+    zval *zrequest_object = &ctx->request.zobject;
     ZVAL_OBJ(zrequest_object, swoole_http_request_ce->create_object(swoole_http_request_ce));
     php_swoole_http_request_set_context(zrequest_object, ctx);
 
-    zval *zresponse_object = &ctx->response._zobject;
-    ctx->response.zobject = zresponse_object;
+    zval *zresponse_object = &ctx->response.zobject;
     ZVAL_OBJ(zresponse_object, swoole_http_response_ce->create_object(swoole_http_response_ce));
     php_swoole_http_response_set_context(zresponse_object, ctx);
 
-    http_server_set_object_fd_property(SW_Z8_OBJ_P(zrequest_object), swoole_http_request_ce, fd);
-    http_server_set_object_fd_property(SW_Z8_OBJ_P(zresponse_object), swoole_http_response_ce, fd);
+    http_server_set_object_fd_property(Z_OBJ_P(zrequest_object), swoole_http_request_ce, fd);
+    http_server_set_object_fd_property(Z_OBJ_P(zresponse_object), swoole_http_response_ce, fd);
 
     swoole_http_init_and_read_property(swoole_http_request_ce,
                                        zrequest_object,
@@ -286,7 +285,7 @@ void HttpContext::copy(const HttpContext *ctx) {
 }
 
 bool HttpContext::is_available() const {
-    if (!response.zobject) {
+    if (Z_ISUNDEF(response.zobject)) {
         return false;
     }
     if (is_co_socket()) {
@@ -306,14 +305,14 @@ bool HttpContext::is_available() const {
 void HttpContext::free() {
     // http context can only be freed after request and response were freed
     // If is an HTTP2 request, must wait for the stream to release before releasing the HTTP context
-    if (request.zobject || response.zobject || stream_id > 0) {
+    if (!Z_ISUNDEF(request.zobject) || !Z_ISUNDEF(response.zobject) || stream_id > 0) {
         return;
     }
 
     HttpRequest *req = &request;
     HttpResponse *res = &response;
     if (req->path) {
-        efree(req->path);
+        zend_string_release(req->path);
     }
     if (Z_TYPE(req->zdata) == IS_STRING) {
         zend_string_release(Z_STR(req->zdata));
@@ -324,26 +323,9 @@ void HttpContext::free() {
     delete req->parser_state;
 
     if (res->reason) {
-        efree(res->reason);
+        zend_string_release(res->reason);
     }
-    if (mt_parser) {
-        multipart_parser_free(mt_parser);
-        mt_parser = nullptr;
-    }
-    if (current_form_data_name) {
-        efree(current_form_data_name);
-        current_form_data_name = nullptr;
-        current_form_data_name_len = 0;
-    }
-    if (current_multipart_header) {
-        sw_zval_free(current_multipart_header);
-        current_multipart_header = nullptr;
-    }
-    if (form_data_buffer) {
-        delete form_data_buffer;
-        form_data_buffer = nullptr;
-    }
-
+    destroy_multipart_parser();
     if (is_co_socket()) {
         zval_ptr_dtor(&zsocket);
     }
@@ -365,9 +347,9 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     return retval;
 }
 
-static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
+static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file) {
     auto *serv = ctx->get_async_server();
-    return serv->sendfile(ctx->fd, file->val, file->len, offset, length);
+    return serv->sendfile(ctx->fd, file->val, file->len, offset, length, delete_file);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {
@@ -427,17 +409,17 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
 
     if (!queued_http_contexts.empty()) {
         HttpContext *_ctx = queued_http_contexts.front();
-        swoole_trace("[POP 1] concurrency=%u, ctx=%p, request=%p", worker->concurrency, _ctx, _ctx->request.zobject);
+        swoole_trace("[POP 1] concurrency=%u, ctx=%p, request=%p", worker->concurrency, _ctx, &_ctx->request.zobject);
         queued_http_contexts.pop();
         swoole_event_defer(
             [](void *private_data) {
                 auto *ctx = static_cast<HttpContext *>(private_data);
                 auto *serv = ctx->get_async_server();
                 auto *cb = static_cast<zend::Callable *>(ctx->private_data_2);
-                swoole_trace("[POP 2] ctx=%p, request=%p", ctx, ctx->request.zobject);
+                swoole_trace("[POP 2] ctx=%p, request=%p", ctx, &ctx->request.zobject);
                 http_server_process_request(serv, cb, ctx);
-                zval_ptr_dtor(ctx->request.zobject);
-                zval_ptr_dtor(ctx->response.zobject);
+                zval_ptr_dtor(&ctx->request.zobject);
+                zval_ptr_dtor(&ctx->response.zobject);
             },
             _ctx);
     }

@@ -320,8 +320,13 @@ class String {
         return str;
     }
 
-    void rtrim() const {
-        ZSTR_LEN(str) = swoole::rtrim(val(), len());
+    void rtrim() {
+        size_t trimmed_len = swoole::rtrim(static_cast<const char *>(val()), len());
+        if (trimmed_len < len()) {
+            str = zend_string_separate(str, false);
+            ZSTR_LEN(str) = trimmed_len;
+            ZSTR_VAL(str)[trimmed_len] = '\0';
+        }
     }
 
     std::string to_std_string() const {
@@ -833,6 +838,7 @@ static inline void array_unset(zval *arg, const char *key, size_t l_key) {
  * If the key already exists, merge all into a two-dimensional array.
  */
 void array_add_or_merge(zval *zarray, const char *key, size_t key_len, zval *new_element);
+void array_add_or_merge(zval *zarray, zend_string *key, zval *new_element);
 
 static inline zend_long object_get_long(zval *obj, zend_string *key) {
     static zval rv;

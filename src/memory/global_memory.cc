@@ -18,6 +18,7 @@
 
 #include <vector>
 #include <mutex>
+#include <stdexcept>
 
 #define SW_MIN_PAGE_SIZE 4096
 
@@ -84,14 +85,15 @@ char *GlobalMemoryImpl::new_page() {
  */
 void *GlobalMemory::alloc(uint32_t size) {
     MemoryBlock *block;
+    // This pool serves small allocations. Check the request before alignment:
+    // otherwise a huge uint32_t value can wrap into a small successful allocation.
+    // The half-chunk bound also leaves room for alignment and block metadata.
+    if (sw_unlikely(size > impl->pagesize / 2)) {
+        throw std::invalid_argument("GlobalMemory allocation exceeds half the chunk size");
+    }
     size = SW_MEM_ALIGNED_SIZE(size);
     uint32_t alloc_size = sizeof(*block) + size;
     std::unique_lock<std::mutex> lock(impl->lock);
-
-    if (alloc_size > impl->pagesize) {
-        swoole_warning("failed to alloc %d bytes, exceed the maximum size[%d]", size, impl->pagesize);
-        return nullptr;
-    }
 
     if (impl->shared && impl->create_pid != getpid()) {
         GlobalMemoryImpl *old_impl = impl;
@@ -100,7 +102,7 @@ void *GlobalMemory::alloc(uint32_t size) {
 
     swoole_trace("alloc_size=%u, size=%u", alloc_size, size);
 
-    if (impl->alloc_offset + alloc_size > impl->pagesize) {
+    if (alloc_size > impl->pagesize - impl->alloc_offset) {
         char *page = impl->new_page();
         if (page == nullptr) {
             swoole_warning("alloc memory error");

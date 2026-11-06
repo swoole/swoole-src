@@ -68,6 +68,7 @@ static inline bool swoole_signalfd_is_available() {
 #endif
 static Signal signals[SW_SIGNO_MAX];
 static bool triggered_signals[SW_SIGNO_MAX];
+static struct sigaction origin_actions[SW_SIGNO_MAX];
 
 char *swoole_signal_to_str(int sig) {
     static char buf[64];
@@ -79,29 +80,30 @@ char *swoole_signal_to_str(int sig) {
     return buf;
 }
 
-void swoole_signal_block_all() {
+bool swoole_signal_block_all() {
     if (SwooleTG.signal_blocking_all) {
-        return;
+        return false;
     }
     sigset_t mask;
     sigfillset(&mask);
-    int ret = pthread_sigmask(SIG_BLOCK, &mask, nullptr);
-    if (ret < 0) {
+    int ret = pthread_sigmask(SIG_BLOCK, &mask, &SwooleTG.signal_previous_mask);
+    if (ret != 0) {
+        errno = ret;
         swoole_sys_warning("pthread_sigmask(SIG_BLOCK) failed");
-    } else {
-        SwooleTG.signal_blocking_all = true;
+        return false;
     }
+    SwooleTG.signal_blocking_all = true;
+    return true;
 }
 
 void swoole_signal_unblock_all() {
     if (!SwooleTG.signal_blocking_all) {
         return;
     }
-    sigset_t mask;
-    sigfillset(&mask);
-    int ret = pthread_sigmask(SIG_UNBLOCK, &mask, nullptr);
-    if (ret < 0) {
-        swoole_sys_warning("pthread_sigmask(SIG_UNBLOCK) failed");
+    int ret = pthread_sigmask(SIG_SETMASK, &SwooleTG.signal_previous_mask, nullptr);
+    if (ret != 0) {
+        errno = ret;
+        swoole_sys_warning("pthread_sigmask(SIG_SETMASK) failed");
     } else {
         SwooleTG.signal_blocking_all = false;
     }
@@ -169,6 +171,15 @@ SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
         return swoole_signal_kqueue_set(signo, handler);
     }
 #endif
+
+    if (handler == nullptr && signals[signo].activated) {
+        sw_memset_zero(&signals[signo], sizeof(Signal));
+        sigaction(signo, &origin_actions[signo], nullptr);
+        return nullptr;
+    }
+    if (!signals[signo].activated) {
+        sigaction(signo, nullptr, &origin_actions[signo]);
+    }
 
     signals[signo].handler = handler;
     signals[signo].activated = true;
@@ -248,7 +259,7 @@ void swoole_signal_clear() {
 #endif
 
 #ifdef HAVE_KQUEUE
-    if (SwooleG.enable_kqueue) {
+    if (SwooleG.enable_kqueue && swoole_event_is_available()) {
         swoole_signal_kqueue_clear();
         return;
     }
@@ -405,12 +416,19 @@ static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler) 
 
     // clear signal
     if (handler == nullptr) {
-        signal(signo, SIG_DFL);
+        if (signals[signo].activated) {
+            sigaction(signo, &origin_actions[signo], nullptr);
+        } else {
+            signal(signo, SIG_DFL);
+        }
         sw_memset_zero(&signals[signo], sizeof(Signal));
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
     }
     // add/update signal
     else {
+        if (!signals[signo].activated) {
+            sigaction(signo, nullptr, &origin_actions[signo]);
+        }
         signal(signo, SIG_IGN);
         origin_handler = signals[signo].handler;
         signals[signo].handler = handler;

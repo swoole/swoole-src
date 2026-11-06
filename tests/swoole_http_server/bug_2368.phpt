@@ -27,6 +27,11 @@ $pm->childFunc = function () use ($pm) {
     $http->set(array(
         'log_file' => '/dev/null',
     ));
+    $http->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->cookie('name', COOKIE);
         $response->end();

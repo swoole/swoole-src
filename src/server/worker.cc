@@ -466,8 +466,6 @@ void Server::stop_async_worker(Worker *worker) {
 
     reactor->set_wait_exit(true);
     reactor->set_end_callback(Reactor::PRIORITY_TRY_EXIT, Worker_reactor_try_to_exit);
-    SwooleWG.exit_time = ::time(nullptr);
-
     Worker_reactor_try_to_exit(reactor);
 }
 
@@ -490,13 +488,12 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
                 serv->onWorkerExit(serv, sw_worker());
                 continue;
             }
-            int remaining_time = serv->max_wait_time - (::time(nullptr) - SwooleWG.exit_time);
-            if (remaining_time <= 0) {
+            int timeout_msec = serv->get_worker_exit_timeout_msec();
+            if (timeout_msec <= 0) {
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced termination");
                 reactor->running = false;
             } else {
-                int timeout_msec = remaining_time * 1000;
                 if (reactor->timeout_msec < 0 || reactor->timeout_msec > timeout_msec) {
                     reactor->timeout_msec = timeout_msec;
                 }
@@ -506,15 +503,44 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
     }
 }
 
-void Server::drain_worker_pipe() const {
+int Server::get_worker_exit_timeout_msec() const {
+    int64_t now = time<std::chrono::milliseconds>(true);
+    if (SwooleWG.exit_time_msec == 0) {
+        // A fatal exit or a synchronous task's normal return can reach request shutdown without stop_async_worker().
+        SwooleWG.exit_time_msec = now;
+    }
+    int64_t remaining = SwooleWG.exit_time_msec + static_cast<int64_t>(max_wait_time) * 1000 - now;
+    return static_cast<int>(clamp<int64_t>(remaining, 0, INT_MAX));
+}
+
+void Server::drain_worker_pipe() {
+    if (!is_event_worker() && !is_task_worker() && !is_user_worker()) {
+        return;
+    }
+    if (is_thread_mode() && is_event_worker()) {
+        if (!is_running()) {
+            // Reload hands queues to the replacement worker. Whole-server shutdown has no successor;
+            // give writes from WorkerStop and PHP shutdown callbacks the remaining asynchronous send budget.
+            get_thread(swoole_get_worker_id())->drain_pipe_buffers(this, get_worker_exit_timeout_msec());
+        }
+        return;
+    }
+
+    Reactor *reactor = sw_reactor();
+    if (!reactor) {
+        // Synchronous task workers without a reactor write directly through MessageBus::writev_sync().
+        return;
+    }
+    // Keep synchronous draining for synchronous task workers and existing non-thread callers.
+    // Recompute the remaining budget for each pipe; do not grant a fresh max_wait_time to every queue.
     for (uint32_t i = 0; i < worker_num + task_worker_num; i++) {
         Worker *worker = get_worker(i);
-        if (sw_reactor()) {
-            if (worker->pipe_worker) {
-                sw_reactor()->drain_write_buffer(worker->pipe_worker);
-            }
-            if (worker->pipe_master) {
-                sw_reactor()->drain_write_buffer(worker->pipe_master);
+        for (Socket *pipe : {worker->pipe_worker, worker->pipe_master}) {
+            if (pipe) {
+                Socket *socket = get_pipe_socket_in_message_bus(pipe);
+                if (socket) {
+                    reactor->drain_write_buffer(socket, get_worker_exit_timeout_msec());
+                }
             }
         }
     }

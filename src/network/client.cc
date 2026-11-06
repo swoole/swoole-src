@@ -259,7 +259,7 @@ int Client::ssl_handshake() const {
     }
     if (!ssl_context->ready()) {
         ssl_context->http_v2 = http2;
-        if (!ssl_context->create()) {
+        if (!ssl_context->create(SW_SSL_CLIENT)) {
             return SW_ERR;
         }
     }
@@ -434,17 +434,33 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
     int ret = cli->socket->connect_sync(cli->server_addr);
     if (ret >= 0) {
         cli->active = true;
-        auto recv_buf = sw_tg_buffer();
-
         if (cli->socks5_proxy) {
+            auto recv_buf = sw_tg_buffer();
             const auto ctx = cli->socks5_proxy.get();
             const auto len = ctx->pack_negotiate_request();
             if (cli->send(ctx->buf, len) < 0) {
                 return SW_ERR;
             }
             ctx->state = SW_SOCKS5_STATE_HANDSHAKE;
+            const double read_timeout = cli->socket->read_timeout;
+            const double deadline = read_timeout > 0 ? microtime() + read_timeout : 0;
+            ON_SCOPE_EXIT {
+                cli->socket->read_timeout = read_timeout;
+            };
             while (true) {
-                const ssize_t n = cli->recv(recv_buf->str, recv_buf->size, 0);
+                if (read_timeout > 0) {
+                    const double remaining = deadline - microtime();
+                    if (remaining <= 0) {
+                        swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
+                        return SW_ERR;
+                    }
+                    cli->socket->read_timeout = remaining;
+                }
+                const ssize_t n = cli->recv(recv_buf->str, ctx->get_recv_length(), 0);
+                if (n == 0) {
+                    swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
+                    return SW_ERR;
+                }
                 if (n > 0 && cli->socks5_handshake(recv_buf->str, n)) {
                     if (cli->socks5_proxy->state == SW_SOCKS5_STATE_READY) {
                         break;
@@ -454,17 +470,65 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
                 return SW_ERR;
             }
         } else if (cli->http_proxy) {
+            auto send_buf = sw_tg_buffer();
             auto target_host = cli->get_http_proxy_host_name();
-            const size_t n_write = cli->http_proxy->pack(recv_buf, target_host);
-            if (cli->send(recv_buf->str, n_write, 0) < 0) {
+            const size_t n_write = cli->http_proxy->pack(send_buf, target_host);
+            if (cli->send(send_buf->str, n_write, 0) < 0) {
                 return SW_ERR;
             }
-            const ssize_t n_read = cli->recv(recv_buf->str, recv_buf->size, 0);
-            if (n_read <= 0) {
-                return SW_ERR;
+
+            String recv_buf(cli->input_buffer_size);
+            bool response_complete = false;
+            const double read_timeout = cli->socket->read_timeout;
+            const double deadline = read_timeout > 0 ? microtime() + read_timeout : 0;
+            ON_SCOPE_EXIT {
+                cli->socket->read_timeout = read_timeout;
+            };
+            while (recv_buf.length < recv_buf.size) {
+                if (read_timeout > 0) {
+                    const double remaining = deadline - microtime();
+                    if (remaining <= 0) {
+                        swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
+                        return SW_ERR;
+                    }
+                    cli->socket->read_timeout = remaining;
+                }
+
+                const ssize_t n_peek =
+                    cli->recv(recv_buf.str + recv_buf.length, recv_buf.size - recv_buf.length, MSG_PEEK);
+                if (n_peek < 0) {
+                    swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
+                    return SW_ERR;
+                }
+                if (n_peek == 0) {
+                    swoole_set_last_error(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
+                    return SW_ERR;
+                }
+
+                size_t response_length = 0;
+                // Parse the consumed prefix with the queued bytes. Incomplete fragments are consumed so the next peek
+                // advances, while bytes after a complete proxy header remain queued.
+                auto status = HttpProxy::parse_response(recv_buf.str, recv_buf.length + n_peek, &response_length);
+                if (status == SW_HTTP_PROXY_RESPONSE_ERROR) {
+                    swoole_set_last_error(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
+                    return SW_ERR;
+                }
+
+                size_t consume_length =
+                    status == SW_HTTP_PROXY_RESPONSE_READY ? response_length - recv_buf.length : n_peek;
+                const ssize_t n_read = cli->recv(recv_buf.str + recv_buf.length, consume_length, MSG_WAITALL);
+                if (n_read != (ssize_t) consume_length) {
+                    swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
+                    return SW_ERR;
+                }
+                recv_buf.length += n_read;
+                if (status == SW_HTTP_PROXY_RESPONSE_READY) {
+                    response_complete = true;
+                    break;
+                }
             }
-            recv_buf->length = n_read;
-            if (!cli->http_proxy->handshake(recv_buf)) {
+            if (!response_complete) {
+                swoole_set_last_error(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
                 return SW_ERR;
             }
         }
@@ -722,27 +786,57 @@ static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData 
 static int Client_onStreamRead(Reactor *reactor, Event *event) {
     ssize_t n;
     auto *cli = (Client *) event->socket->object;
+    auto connect_fail = [cli]() {
+        cli->active = false;
+        cli->close();
+        if (cli->onError) {
+            cli->onError(cli);
+        }
+        return SW_OK;
+    };
     char *buf = cli->buffer->str + cli->buffer->length;
     ssize_t buf_size = cli->buffer->size - cli->buffer->length;
     bool do_ssl_handshake = cli->open_ssl;
 
     if (cli->http_proxy && cli->http_proxy->state != SW_HTTP_PROXY_STATE_READY) {
-        n = event->socket->recv(buf, buf_size, 0);
-        if (n <= 0) {
-            swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
-        _connect_fail:
-            cli->active = false;
-            cli->close();
-            if (cli->onError) {
-                cli->onError(cli);
+        if (buf_size == 0) {
+            swoole_set_last_error(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
+            return connect_fail();
+        }
+
+        n = event->socket->peek(buf, buf_size, 0);
+        if (n < 0) {
+            if (event->socket->catch_read_error(sw_errno()) == SW_WAIT) {
+                return SW_OK;
             }
-            return SW_OK;
+            swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
+            return connect_fail();
+        }
+        if (n == 0) {
+            swoole_set_last_error(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
+            return connect_fail();
+        }
+
+        size_t response_length = 0;
+        // Parse the consumed prefix with the queued bytes. Incomplete fragments are consumed so the next peek
+        // advances, while bytes after a complete proxy header remain queued.
+        auto status = HttpProxy::parse_response(cli->buffer->str, cli->buffer->length + n, &response_length);
+        if (status == SW_HTTP_PROXY_RESPONSE_ERROR) {
+            swoole_set_last_error(SW_ERROR_HTTP_PROXY_BAD_RESPONSE);
+            return connect_fail();
+        }
+
+        size_t consume_length = status == SW_HTTP_PROXY_RESPONSE_READY ? response_length - cli->buffer->length : n;
+        n = event->socket->recv(buf, consume_length, 0);
+        if (n != (ssize_t) consume_length) {
+            swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
+            return connect_fail();
         }
         cli->buffer->length += n;
-        if (!cli->http_proxy->handshake(cli->buffer)) {
-            swoole_set_last_error(SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR);
-            goto _connect_fail;
+        if (status == SW_HTTP_PROXY_RESPONSE_WAIT) {
+            return SW_OK;
         }
+
         cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
         cli->buffer->clear();
         if (!do_ssl_handshake) {
@@ -752,20 +846,18 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     }
 
     if (cli->socks5_proxy && cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
-        n = event->socket->recv(buf, buf_size, 0);
+        n = event->socket->recv(buf, cli->socks5_proxy->get_recv_length(), 0);
         if (n <= 0) {
             swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
-            goto _connect_fail;
+            return connect_fail();
         }
-        cli->buffer->length += n;
         if (!cli->socks5_handshake(buf, n)) {
             swoole_set_last_error(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
-            goto _connect_fail;
+            return connect_fail();
         }
         if (cli->socks5_proxy->state != SW_SOCKS5_STATE_READY) {
             return SW_OK;
         }
-        cli->buffer->clear();
         if (!do_ssl_handshake) {
             execute_onConnect(cli);
             return SW_OK;
@@ -775,7 +867,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
     if (cli->open_ssl && cli->socket->ssl_state != SW_SSL_STATE_READY) {
         if (cli->ssl_handshake() < 0) {
             swoole_set_last_error(SW_ERROR_SSL_HANDSHAKE_FAILED);
-            goto _connect_fail;
+            return connect_fail();
         }
         if (cli->socket->ssl_state != SW_SSL_STATE_READY) {
             return SW_OK;
@@ -927,6 +1019,10 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         }
         if (Reactor::_writable_callback(reactor, event) < 0) {
             return SW_ERR;
+        }
+        // A write failure closes the client, and onClose may have released it.
+        if (_socket->object == nullptr || cli->closed) {
+            return SW_OK;
         }
         if (cli->onBufferEmpty && cli->high_watermark &&
             _socket->get_out_buffer_length() <= cli->buffer_low_watermark) {

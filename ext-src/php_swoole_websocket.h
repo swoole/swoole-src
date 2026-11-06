@@ -27,12 +27,12 @@
 namespace swoole {
 namespace websocket {
 void apply_setting(WebSocketSettings &settings, zend_array *vht, bool in_server);
-void recv_frame(const WebSocketSettings &settings,
-                std::shared_ptr<String> &frame_buffer,
+void recv_frame(const WebSocketFrameSettings &settings,
+                std::unique_ptr<String> &frame_buffer,
                 SocketImpl *sock,
                 zval *return_value,
                 double timeout);
-ssize_t send_frame(const WebSocketSettings &settings,
+ssize_t send_frame(const WebSocketFrameSettings &settings,
                    SocketImpl *sock,
                    uchar opcode,
                    uchar flags,

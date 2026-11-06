@@ -10,6 +10,9 @@
 #define libssh2_session_disconnect(session, description)                                                               \
     SSH2_ASYNC_CALL(session, libssh2_session_disconnect_ex, (session), SSH_DISCONNECT_BY_APPLICATION, (description), "")
 
+#define libssh2_keepalive_send(session, seconds_to_next)                                                               \
+    SSH2_ASYNC_CALL(session, libssh2_keepalive_send, session, seconds_to_next)
+
 #undef libssh2_channel_open_session
 #define libssh2_channel_open_session(session)                                                                          \
     SSH2_ASYNC_CALL_EX(LIBSSH2_CHANNEL,                                                                                \
@@ -77,6 +80,9 @@
 
 #undef libssh2_channel_send_eof
 #define libssh2_channel_send_eof(channel) SSH2_ASYNC_CALL(session, libssh2_channel_send_eof, channel)
+
+#define libssh2_channel_signal_ex(channel, signame, signame_len)                                                       \
+    SSH2_ASYNC_CALL(session, libssh2_channel_signal_ex, channel, signame, signame_len)
 
 #undef libssh2_channel_request_pty_size_ex
 #define libssh2_channel_request_pty_size_ex(channel, width, height, width_px, height_px)                               \

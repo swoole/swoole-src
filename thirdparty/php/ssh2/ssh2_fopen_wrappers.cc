@@ -355,6 +355,9 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
         resource = php_url_parse(path);
     }
     if (!resource || !resource->path) {
+        if (resource) {
+            php_url_free(resource);
+        }
         return NULL;
     }
 
@@ -371,13 +374,21 @@ php_url *php_ssh2_fopen_wraper_parse_path(const char *path,
     }
 
     if (!resource->host) {
+        php_url_free(resource);
         return NULL;
     }
 
     /*
-     * Find resource->path in the path string, then copy the entire string from the original path.
-     * This includes ?query#fragment in the path string
+     * php_url_parse() strips ?query and #fragment from resource->path, but both can be part of a file name.
+     * Copy the path from the original string instead, starting at the first '/' after the authority, which
+     * can itself contain '#' ("Resource id #N").
      */
+    const char *path_in_original = strstr(path, "://");
+    path_in_original = path_in_original ? strchr(path_in_original + 3, '/') : nullptr;
+    if (path_in_original && strpbrk(path_in_original, "#?")) {
+        zend_string_release(resource->path);
+        resource->path = zend_string_init(path_in_original, strlen(path_in_original), 0);
+    }
 
     /* Look for a resource ID to reuse a session */
     if (is_numeric_string(ZSTR_VAL(resource->host), ZSTR_LEN(resource->host), &resource_id, NULL, 0) == IS_LONG) {
@@ -650,7 +661,7 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session,
                     php_error_docref(
                         NULL, E_WARNING, "Failed setting environment variable %s on remote end", ZSTR_VAL(key));
                 }
-                zval_dtor(&copyval);
+                zval_ptr_dtor_nogc(&copyval);
             } else {
                 php_error_docref(NULL, E_NOTICE, "Skipping numeric index in environment array");
             }
@@ -911,7 +922,7 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
                     php_error_docref(
                         NULL, E_WARNING, "Failed setting environment variable %s on remote end", ZSTR_VAL(key));
                 }
-                zval_dtor(&copyval);
+                zval_ptr_dtor_nogc(&copyval);
             } else {
                 php_error_docref(NULL, E_NOTICE, "Skipping numeric index in environment array");
             }
@@ -1219,16 +1230,31 @@ PHP_FUNCTION(ssh2_scp_recv) {
 
     while (sb.st_size) {
         char buffer[8192];
-        int bytes_read;
+        ssize_t bytes_read, bytes_written;
 
         bytes_read = libssh2_channel_read(remote_file, buffer, sb.st_size > 8192 ? 8192 : sb.st_size);
-        if (bytes_read < 0) {
+        // A zero read alone is allowed by libssh2. EOF with bytes still outstanding, however,
+        // cannot make progress and would otherwise keep this loop running without yielding.
+        if (bytes_read < 0 || (bytes_read == 0 && libssh2_channel_eof(remote_file))) {
             php_error_docref(NULL, E_WARNING, "Error reading from remote file");
             libssh2_channel_free(remote_file);
             php_stream_close(local_file);
             RETURN_FALSE;
         }
-        php_stream_write(local_file, buffer, bytes_read);
+        bytes_written = php_stream_write(local_file, buffer, bytes_read);
+        if (bytes_written < 0) {
+            php_error_docref(NULL, E_WARNING, "Error writing to local file");
+            libssh2_channel_free(remote_file);
+            php_stream_close(local_file);
+            RETURN_FALSE;
+        }
+        if (bytes_read != bytes_written) {
+            php_error_docref(
+                NULL, E_WARNING, "Mismatch in bytes read from remote file and bytes written to local file");
+            libssh2_channel_free(remote_file);
+            php_stream_close(local_file);
+            RETURN_FALSE;
+        }
         sb.st_size -= bytes_read;
     }
 
@@ -1537,6 +1563,51 @@ PHP_FUNCTION(ssh2_fetch_stream) {
     php_stream_to_zval(stream, return_value);
 }
 /* }}} */
+
+#ifdef PHP_SSH2_CHANNEL_SIGNAL
+/* {{{ proto bool ssh2_send_signal(stream channel, string signal)
+ * Sends a signal to a stream.
+ */
+PHP_FUNCTION(ssh2_send_signal) {
+    php_ssh2_channel_data *data;
+    php_stream *parent;
+    zval *zparent;
+    zend_string *signal;
+    int ssh2_ret;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "rS", &zparent, &signal) == FAILURE) {
+        return;
+    }
+
+    php_stream_from_zval(parent, zparent);
+    if (parent->ops != &php_ssh2_channel_stream_ops) {
+        php_error_docref(NULL, E_WARNING, "Provided stream is not of type " PHP_SSH2_CHANNEL_STREAM_NAME);
+        RETURN_FALSE;
+    }
+
+    data = (php_ssh2_channel_data *) parent->abstract;
+    if (!data) {
+        php_error_docref(NULL, E_WARNING, "Abstract in stream is null");
+        RETURN_FALSE;
+    }
+
+    if (!php_ssh2_session_is_open(data->session_rsrc)) {
+        RETURN_FALSE;
+    }
+
+    auto session = ssh2_get_session(data);
+
+    ssh2_ret = libssh2_channel_signal_ex(data->channel, ZSTR_VAL(signal), ZSTR_LEN(signal));
+    if (ssh2_ret < 0) {
+        php_error_docref(
+            NULL, E_WARNING, "Couldn't send signal %s to channel (Return code %d)", ZSTR_VAL(signal), ssh2_ret);
+        RETURN_FALSE;
+    }
+
+    RETURN_TRUE;
+}
+/* }}} */
+#endif
 
 /* {{{ proto stream ssh2_send_eof(stream channel)
  * Sends EOF to a stream. Primary use is to close stdin of an stdio stream.

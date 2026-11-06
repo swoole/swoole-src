@@ -32,6 +32,11 @@ $pm->childFunc = function () use ($pm) {
         'open_eof_check' => true,
         'package_eof'    => "\r\n\r\n",
     ]);
+    $server->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $server->on('Receive', function ($server, $fd, $reactor_id, $data) {
         echo $data;
         $server->close($fd);

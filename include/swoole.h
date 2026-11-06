@@ -751,7 +751,10 @@ struct ThreadGlobal {
 #ifdef _WIN32
     Iocp *iocp;
 #endif
+#ifndef _WIN32
     bool signal_blocking_all;
+    sigset_t signal_previous_mask;
+#endif
     // PHP resolver objects belong to the interpreter of the current thread.
     std::list<NameResolver> name_resolvers;
 };

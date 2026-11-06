@@ -74,6 +74,11 @@ $pm->childFunc = function () use ($pm) {
         'open_eof_split' => true,
         'package_eof' => "\r\n",
     ));
+    $serv->on('WorkerStart', function ($server, $workerId) use ($pm) {
+        if ($workerId === 0) {
+            $pm->wakeup();
+        }
+    });
     $serv->on('receive', function ($serv, $fd, $rid, $data) {
         $ret = "server reply {" . trim($data) . "} \r\n";
         $serv->send($fd, $ret);

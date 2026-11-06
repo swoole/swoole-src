@@ -415,6 +415,37 @@ TEST(server, base) {
     test_base();
 }
 
+TEST(server, task_finish_rejects_task_worker_source) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+    serv.task_worker_num = 1;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    EventData task{};
+    task.info.type = SW_SERVER_EVENT_TASK;
+    task.info.reactor_id = serv.worker_num;
+    EXPECT_FALSE(serv.finish("result", sizeof("result") - 1, 0, &task));
+}
+
+TEST(server, task_stream_socket_uses_creator_pid) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.task_worker_num = 1;
+    serv.task_ipc_mode = Server::TASK_IPC_STREAM;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    ON_SCOPE_EXIT {
+        serv.destroy();
+    };
+
+    auto *pool = serv.get_task_worker_pool();
+    const std::string path = "/tmp/swoole.task." + std::to_string(getpid()) + ".sock";
+    ASSERT_NE(pool->stream_info_, nullptr);
+    ASSERT_NE(pool->stream_info_->socket, nullptr);
+    EXPECT_STREQ(pool->stream_info_->socket_address, path.c_str());
+    EXPECT_EQ(access(path.c_str(), F_OK), 0);
+}
+
 static void test_process(bool single_thread = false) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
@@ -2233,6 +2264,38 @@ TEST(server, task_worker_3) {
     EXPECT_EQ(test::counter_get(31), 0);  // SIGTERM was sent to task worker 2
 }
 
+TEST(server, manager_signal_in_forked_child) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 2;
+    test::counter_init();
+
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+
+    int status = 0;
+    // A raw fork keeps the manager's handlers, like a worker before swoole_fork() clears them.
+    serv.onManagerStart = [&status](Server *) {
+        pid_t pid = fork();
+        ASSERT_GE(pid, 0);
+        if (pid == 0) {
+            raise(SIGTERM);
+            _exit(0);
+        }
+        ASSERT_EQ(swoole_waitpid(pid, &status, 0), pid);
+    };
+    serv.onWorkerStart = [](Server *serv, Worker *) {
+        if (test::counter_incr(1) == 2) {
+            serv->shutdown();
+        }
+    };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.start(), SW_OK);
+
+    ASSERT_TRUE(WIFSIGNALED(status));
+    ASSERT_EQ(WTERMSIG(status), SIGTERM);
+}
+
 TEST(server, reload_single_process) {
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
@@ -3158,6 +3221,108 @@ TEST(server, forward_message) {
     t1.join();
 }
 
+// Server::sendfile() checks the file before handing it over, so queue the event directly, as if the file
+// disappeared before the connection's owner opened it.
+static bool queue_missing_sendfile(Server *serv, SessionId session_id) {
+    const char *file = "/tmp/swoole_core_tests_missing_sendfile";
+    char buffer[SW_IPC_BUFFER_SIZE];
+    auto *task = reinterpret_cast<network::SendfileTask *>(buffer);
+    swoole_strlcpy(task->filename, file, sizeof(buffer) - sizeof(*task));
+    task->offset = 0;
+    task->length = 0;
+
+    SendData send_data{};
+    send_data.info.fd = session_id;
+    send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
+    send_data.info.len = sizeof(*task) + strlen(file) + 1;
+    send_data.data = buffer;
+    return serv->factory_->finish(&send_data);
+}
+
+static void test_queued_sendfile_failure(Server::Mode mode) {
+    Server serv(mode);
+    serv.worker_num = 2;
+    swoole_set_log_level(SW_LOG_WARNING);
+    test::counter_init();
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_TRUE(port);
+
+    Mutex lock(true);
+    lock.lock();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::thread t1([&]() {
+        swoole_signal_block_all();
+
+        lock.lock();
+
+        network::SyncClient c(SW_SOCK_TCP);
+        EXPECT_TRUE(c.connect(TEST_HOST, port->port, 2));
+        c.send(packet, strlen(packet));
+
+        std::string received;
+        char buf[1024];
+        ssize_t n;
+        while ((n = c.recv(buf, sizeof(buf))) > 0) {
+            received.append(buf, n);
+        }
+        // The connection is closed after the failed file; nothing queued after it reaches the client.
+        EXPECT_EQ(n, 0);
+        EXPECT_EQ(received, "head");
+        c.close();
+
+        kill(getpid(), SIGTERM);
+    });
+
+    serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
+        if (worker->id == 0) {
+            lock.unlock();
+        }
+    };
+
+    // The other worker sends, so in base and thread modes the events are forwarded to the connection's owner.
+    serv.onPipeMessage = [](Server *serv, EventData *req) -> void {
+        SessionId client_fd;
+        memcpy(&client_fd, req->data, sizeof(client_fd));
+        EXPECT_TRUE(serv->send(client_fd, SW_STRL("head")));
+        EXPECT_TRUE(queue_missing_sendfile(serv, client_fd));
+        EXPECT_TRUE(queue_missing_sendfile(serv, client_fd));
+        serv->send(client_fd, SW_STRL("marker"));
+    };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EventData msg;
+        SessionId client_fd = req->info.fd;
+        Server::task_pack(&msg, &client_fd, sizeof(client_fd));
+        EXPECT_TRUE(serv->send_pipe_message(1 - swoole_get_worker_id(), &msg));
+        // Delay this worker's close handling until the reactor has failed both files.
+        usleep(100000);
+        return SW_OK;
+    };
+
+    serv.onClose = [](Server *serv, DataHead *ev) { test::counter_incr(0); };
+
+    ASSERT_EQ(serv.start(), SW_OK);
+    t1.join();
+    ASSERT_EQ(test::counter_get(0), 1);
+}
+
+TEST(server, queued_sendfile_failure_process) {
+    test_queued_sendfile_failure(Server::MODE_PROCESS);
+}
+
+TEST(server, queued_sendfile_failure_base) {
+    test_queued_sendfile_failure(Server::MODE_BASE);
+}
+
+#ifdef SW_THREAD
+TEST(server, queued_sendfile_failure_thread) {
+    test_queued_sendfile_failure(Server::MODE_THREAD);
+}
+#endif
+
 TEST(server, abnormal_pipeline_data) {
     Server *server = new Server(Server::MODE_PROCESS);
     server->worker_num = 2;
@@ -3973,6 +4138,7 @@ TEST(server, no_idle_worker) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 4;
     serv.dispatch_mode = 3;
+    test::counter_init();
 
     swoole_set_log_file(TEST_LOG_FILE);
     swoole_set_log_level(SW_LOG_WARNING);
@@ -3998,11 +4164,8 @@ TEST(server, no_idle_worker) {
             ListenPort *port = serv->get_primary_port();
 
             network::SyncClient c(SW_SOCK_TCP);
-            c.connect(TEST_HOST, port->port);
-
-            SW_LOOP_N(1024) {
-                c.send(packet, strlen(packet));
-            }
+            EXPECT_TRUE(c.connect(TEST_HOST, port->port));
+            EXPECT_EQ(c.send(packet, strlen(packet)), strlen(packet));
 
             sleep(3);
 
@@ -4013,15 +4176,15 @@ TEST(server, no_idle_worker) {
     };
 
     serv.onWorkerStart = [&lock](Server *serv, Worker *worker) {
-        if (worker->id == 0) {
+        // A burst of TCP writes may arrive as a single read. Establish the busy
+        // state before dispatch instead of relying on traffic to occupy every worker.
+        worker->set_status_to_busy();
+        if (test::counter_incr(0, 1) == static_cast<int>(serv->worker_num)) {
             lock->unlock();
         }
     };
 
-    serv.onReceive = [](Server *serv, RecvData *req) -> int {
-        usleep(10000);
-        return SW_OK;
-    };
+    serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
 
     ASSERT_EQ(serv.start(), 0);
 
@@ -4029,6 +4192,7 @@ TEST(server, no_idle_worker) {
     delete lock;
 
     auto log = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(log);
     ASSERT_TRUE(log->contains("No idle worker is available"));
 
     remove(TEST_LOG_FILE);
@@ -4109,6 +4273,7 @@ TEST(server, no_idle_task_worker) {
     delete lock;
 
     auto log = swoole::file_get_contents(TEST_LOG_FILE);
+    ASSERT_TRUE(log);
     ASSERT_TRUE(log->contains("No idle task worker is available"));
 
     remove(TEST_LOG_FILE);

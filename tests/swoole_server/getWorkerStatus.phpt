@@ -7,6 +7,7 @@ swoole_server: getWorkerStatus
 require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new SwooleTest\ProcessManager;
+$ready = new Swoole\Atomic(0);
 $pm->parentFunc = function () use ($pm) {
     Co\run(function () use ($pm) {
         $client = new Co\Client(SWOOLE_SOCK_TCP);
@@ -24,14 +25,16 @@ $pm->parentFunc = function () use ($pm) {
         $pm->kill();
     });
 };
-$pm->childFunc = function () use ($pm) {
+$pm->childFunc = function () use ($pm, $ready) {
     $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'worker_num' => 2,
         'log_file' => '/dev/null'
     ]);
-    $server->on('workerStart', function (Swoole\Server $serv) use ($pm) {
-        $pm->wakeup();
+    $server->on('workerStart', function (Swoole\Server $serv) use ($pm, $ready) {
+        if ($ready->add() === $serv->setting['worker_num']) {
+            $pm->wakeup();
+        }
     });
 
     $server->on('receive', function (Swoole\Server $serv, int $fd, int $rid, string $data) {

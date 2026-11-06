@@ -49,6 +49,10 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
     if (!port->get_ssl_client_cert_file().empty()) {
         if (!_socket->ssl_get_peer_certificate(sw_tg_buffer())) {
             if (port->get_ssl_verify_peer()) {
+                swoole_error_log(SW_LOG_NOTICE,
+                                 SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE,
+                                 "peer certificate from fd#%d is required",
+                                 _socket->fd);
                 return SW_ERROR;
             }
         } else {
@@ -64,6 +68,20 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
             } else {
                 return SW_ERROR;
             }
+        }
+    } else if (port->get_ssl_verify_peer()) {
+        // SSL_get_verify_result() returns X509_V_OK when the peer did not provide a certificate.
+        X509 *cert = _socket->ssl_get_peer_certificate();
+        if (cert == nullptr) {
+            swoole_error_log(SW_LOG_NOTICE,
+                             SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE,
+                             "peer certificate from fd#%d is required",
+                             _socket->fd);
+            return SW_ERROR;
+        }
+        X509_free(cert);
+        if (!_socket->ssl_verify(port->get_ssl_allow_self_signed())) {
+            return SW_ERROR;
         }
     }
 
@@ -449,7 +467,14 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             _send.info = resp->info;
             _send.info.len = packet.length;
             _send.data = packet.data;
-            serv->send_to_connection(&_send);
+            // The worker has already reported the file as sent, so the client would wait for a body that never comes.
+            if (serv->send_to_connection(&_send) < 0 && _send.info.type == SW_SERVER_EVENT_SEND_FILE) {
+                Connection *conn = serv->get_connection_verify_no_ssl(_send.info.fd);
+                // The worker's close is already pending; closing again would release the session before onClose.
+                if (conn && !conn->peer_closed) {
+                    thread->close_connection(reactor, _send.info.fd);
+                }
+            }
             break;
         }
         }
@@ -457,6 +482,13 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     }
 
     return SW_OK;
+}
+
+static void ReactorThread_discard_packet(EventData *send_data) {
+    // Only the first packet of a chunked message starts with its SendfileTask.
+    if (!(send_data->info.flags & SW_EVENT_DATA_CHUNK) || (send_data->info.flags & SW_EVENT_DATA_BEGIN)) {
+        Server::discard_sendfile(&send_data->info, send_data->data);
+    }
 }
 
 /**
@@ -470,7 +502,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
 
     while (!Buffer::empty(buffer)) {
         const BufferChunk *chunk = buffer->front();
-        const auto *send_data = reinterpret_cast<EventData *>(chunk->value.str);
+        auto *send_data = reinterpret_cast<EventData *>(chunk->value.str);
 
         // server actively closed connection, should discard the data
         if (Server::is_stream_event(send_data->info.type)) {
@@ -484,6 +516,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
                                      "Session#%ld is closed by server",
                                      send_data->info.fd);
                 _discard:
+                    ReactorThread_discard_packet(send_data);
                     buffer->pop();
                     continue;
                 }
@@ -497,6 +530,9 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             }
         }
 
+        // Keep the front packet owned by the queue until the nonblocking datagram write succeeds.
+        // EAGAIN leaves it in place for the next writable event, including after worker replacement.
+        // Popping before send would lose data on EAGAIN or require another queue to preserve ordering.
         ret = ev->socket->send(chunk->value.str, chunk->length, 0);
         if (ret < 0) {
             return (ev->socket->catch_write_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
@@ -800,7 +836,6 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     }
 
     serv->init_reactor(reactor);
-    serv->init_pipe_sockets(&message_bus);
 
     if (serv->is_thread_mode()) {
         Worker *worker = serv->get_worker(reactor_id);
@@ -812,6 +847,8 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
             heartbeat_timer =
                 swoole_timer_add(sec2msec(serv->heartbeat_check_interval), true, Server::heartbeat_check, reactor);
         }
+    } else {
+        serv->init_pipe_sockets(&message_bus);
     }
 
     if (serv->pipe_command) {
@@ -843,11 +880,102 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         }
     }
 
+    if (serv->is_thread_mode()) {
+        // The logical ReactorThread retains its native pipe queues across worker replacement.
+        // Register pending writes on the new reactor before WorkerStart can append more packets.
+        // Traverse the bus's own wrappers so worker, task-worker and command pipes follow the same rules.
+        if (!message_bus.foreach_pipe_socket([reactor](Socket *socket) {
+                return Buffer::empty(socket->out_buffer) || reactor->add_write_event(socket) == SW_OK;
+            })) {
+            return SW_ERR;
+        }
+    }
+
     return SW_OK;
 }
 
 void ReactorThread::clean() {
+    // Pair with init() in the reactor's execution context. Native output queues have a separate
+    // lifetime: reload hands them to the next worker, while final shutdown drains them before release.
     message_bus.free_buffer();
+}
+
+void ReactorThread::drain_pipe_buffers(Server *serv, int timeout_msec) {
+    bool pending = false;
+    message_bus.foreach_pipe_socket([&pending](Socket *socket) {
+        pending = !Buffer::empty(socket->out_buffer);
+        return !pending;
+    });
+    if (!pending) {
+        return;
+    }
+    if (timeout_msec <= 0) {
+        discard_pipe_buffers();
+        return;
+    }
+
+    // The request's main reactor has already been freed. Use a write-only reactor here:
+    // it cannot accept connections or invoke request handlers while PHP is shutting down.
+    Reactor reactor;
+    if (!reactor.ready()) {
+        return;
+    }
+    reactor.ptr = serv;
+    reactor.id = id;
+    reactor.wait_exit = true;
+    reactor.timeout_msec = timeout_msec;
+    reactor.set_handler(SW_FD_PIPE, SW_EVENT_WRITE, ReactorThread_onPipeWrite);
+    ON_SCOPE_EXIT {
+        message_bus.foreach_pipe_socket([&reactor](Socket *socket) {
+            if (reactor.exists(socket->fd)) {
+                reactor.del(socket);
+            }
+            return true;
+        });
+    };
+
+    bool registered = message_bus.foreach_pipe_socket([&reactor](Socket *socket) {
+        if (Buffer::empty(socket->out_buffer)) {
+            return true;
+        }
+        // A shutdown callback may have created its own event loop. Detach its pipe watch before
+        // lending the wrapper to this reactor so that both event loops cannot own the same queue.
+        if (sw_reactor() && sw_reactor()->exists(socket->fd)) {
+            sw_reactor()->del(socket);
+        }
+        return reactor.add(socket, SW_EVENT_WRITE) == SW_OK;
+    });
+    if (!registered) {
+        return;
+    }
+
+    int64_t deadline = time<std::chrono::milliseconds>(true) + timeout_msec;
+    reactor.set_end_callback(Reactor::PRIORITY_TRY_EXIT, [deadline](Reactor *reactor) {
+        int64_t remaining = deadline - time<std::chrono::milliseconds>(true);
+        if (reactor->if_exit() || remaining <= 0) {
+            reactor->running = false;
+        } else {
+            reactor->timeout_msec = static_cast<int>(remaining);
+        }
+    });
+    reactor.wait();
+    if (time<std::chrono::milliseconds>(true) >= deadline) {
+        // Only the expired wait budget permits dropping still-sendable packets, including owned sendfiles.
+        discard_pipe_buffers();
+    }
+}
+
+void ReactorThread::discard_pipe_buffers() {
+    // Shutdown cannot wait for peer workers to read: they may already have stopped with full pipes.
+    // Discard queued packets directly, releasing owned sendfiles before the wrappers are destroyed.
+    message_bus.foreach_pipe_socket([](Socket *socket) {
+        while (!Buffer::empty(socket->out_buffer)) {
+            auto *packet = reinterpret_cast<EventData *>(socket->out_buffer->front()->value.str);
+            ReactorThread_discard_packet(packet);
+            socket->out_buffer->pop();
+        }
+        return true;
+    });
 }
 
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
@@ -859,9 +987,7 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
         return;
     }
 
-    if (serv->is_thread_mode()) {
-        serv->call_worker_start_callback(serv->get_worker(reactor_id));
-    } else {
+    if (!serv->is_thread_mode()) {
         swoole_set_thread_id(reactor_id);
         swoole_set_thread_type(Server::THREAD_REACTOR);
     }
@@ -870,6 +996,13 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
     if (thread->init(serv, reactor, reactor_id) < 0) {
         swoole_event_free();
         return;
+    }
+
+    if (serv->is_thread_mode()) {
+        // WorkerStart may send to connections owned by another worker. Initialize the entire reactor first:
+        // MessageBus needs its ID generator and chunk buffer, and queued writes need the pipe event handlers.
+        // Initializing only the pipe sockets before entering PHP does not make these operations ready.
+        serv->call_worker_start_callback(serv->get_worker(reactor_id));
     }
 
     // wait other thread

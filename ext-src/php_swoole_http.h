@@ -99,53 +99,53 @@ struct RequestParserState {
 
 struct Request {
     int version;
-    char *path;
-    uint32_t path_len;
-    const char *ext;
-    uint32_t ext_len;
     uint8_t post_form_urlencoded;
+    zend_string *path;
 
     zval zdata;
     const char *body_at;
     size_t body_length;
     String *chunked_body;
     String *h2_data_buffer;
+    // Used only by Request::create()->parse() to assemble fragmented URLs and headers; null for server requests.
     RequestParserState *parser_state;
 
-    // Notice: Do not change the order
-    zval *zobject;
-    zval _zobject;
-    zval *zserver;
-    zval _zserver;
-    zval *zheader;
-    zval _zheader;
-    zval *zget;
-    zval _zget;
-    zval *zpost;
-    zval _zpost;
-    zval *zcookie;
-    zval _zcookie;
-    zval *zfiles;
-    zval _zfiles;
-    zval *ztmpfiles;
-    zval _ztmpfiles;
+    zval zobject;
+    // Borrowed property values; the PHP request object owns their references.
+    zval zserver;
+    zval zheader;
+    zval ztrailer;
+    zval zget;
+    zval zpost;
+    zval zcookie;
+    zval zfiles;
+    zval ztmpfiles;
 };
 
 struct Response {
-    enum llhttp_method method;
-    int version;
     int status;
-    char *reason;
+    zend_string *reason;
 
-    // Notice: Do not change the order
-    zval *zobject;
-    zval _zobject;
-    zval *zheader;
-    zval _zheader;
-    zval *zcookie;
-    zval _zcookie;
-    zval *ztrailer;
-    zval _ztrailer;
+    zval zobject;
+    // Borrowed property values; the PHP response object owns their references.
+    zval zheader;
+    zval zcookie;
+    zval ztrailer;
+};
+
+struct MultipartState {
+    http_server::MultipartHeader header;
+    std::string content_type;
+    String buffer{SW_BUFFER_SIZE_STD};
+    zend_string *field_name = nullptr;
+    zval file = {};
+    uint16_t input_var_num = 0;
+    bool is_file = false;
+    bool disposition_seen = false;
+    bool upload_files_collected = false;
+
+    ~MultipartState();
+    void reset_part();
 };
 
 struct Context {
@@ -169,7 +169,7 @@ struct Context {
     uchar parse_cookie : 1;
     uchar parse_body : 1;
     uchar parse_files : 1;
-    uchar current_part_is_file : 1;
+    uchar upload_preprocessed : 1;
     uchar http2 : 1;
 
     zval zsocket;
@@ -184,8 +184,8 @@ struct Context {
     std::shared_ptr<String> zlib_buffer;
 #endif
 
-    std::shared_ptr<String> continue_frame_buffer;
-    WebSocketSettings websocket_settings;
+    std::unique_ptr<String> continue_frame_buffer;
+    WebSocketFrameSettings websocket_settings;
 
     Request request;
     Response response;
@@ -193,16 +193,10 @@ struct Context {
     llhttp_t parser;
     multipart_parser *mt_parser;
 
-    uint16_t input_var_num;
     const char *current_header_name;
     size_t current_header_name_len;
     size_t current_header_value_len;
-    char *current_form_data_name;
-    size_t current_form_data_name_len;
-    zval *current_multipart_header;
-    const char *tmp_content_type;
-    size_t tmp_content_type_len;
-    String *form_data_buffer;
+    MultipartState *multipart;
 
     std::string upload_tmp_dir;
 
@@ -211,7 +205,7 @@ struct Context {
     // The `private_data_2` pointer is used to save callback function
     void *private_data_2;
     bool (*send)(Context *ctx, const char *data, size_t length);
-    bool (*sendfile)(Context *ctx, zend_string *file, off_t offset, size_t length);
+    bool (*sendfile)(Context *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file);
     bool (*close)(Context *ctx);
     bool (*onBeforeRequest)(Context *ctx);
     void (*onAfterResponse)(Context *ctx);
@@ -224,17 +218,18 @@ struct Context {
     void bind(zval *zsock);
     void copy(const Context *ctx);
     bool init_multipart_parser(const char *boundary_str, int boundary_len);
+    void destroy_multipart_parser();
     bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
     size_t parse(const char *data, size_t length);
-    bool parse_multipart_data(const char *at, size_t length) const;
+    bool parse_multipart_data(const char *at, size_t length);
 
     HTTP_API bool set_header(const char *, size_t, zval *, bool);
     HTTP_API bool set_header(const char *, size_t, const char *, size_t, bool);
     HTTP_API bool set_header(const char *, size_t, const std::string &, bool);
     HTTP_API void end(zend_string *sdata, zval *return_value);
     HTTP_API void write(zend_string *sdata, zval *return_value);
-    HTTP_API bool send_file(zend_string *file, off_t offset, size_t length);
+    HTTP_API bool send_file(zend_string *file, off_t offset, size_t length, bool delete_file);
 
     String *get_write_buffer();
 
@@ -327,6 +322,8 @@ class Cookie {
 namespace http2 {
 class Stream {
   public:
+    enum class ReceivePhase : uint8_t { HEADERS, BODY, TRAILERS, COMPLETE };
+
     http::Context *ctx;
     // uint8_t priority; // useless now
     uint32_t id;
@@ -334,6 +331,10 @@ class Stream {
     uint32_t remote_window_size;
     uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
+    ReceivePhase receive_phase = ReceivePhase::HEADERS;
+    uint32_t header_count = 0;
+    uint32_t header_error = SW_HTTP2_ERROR_NO_ERROR;
+    bool header_end_stream = false;
 
     Stream(const Session *client, uint32_t _id);
     ~Stream();
@@ -367,6 +368,7 @@ class Session {
 
     uint32_t max_body_size;
     uint32_t last_stream_id;
+    uint32_t continuation_stream_id = 0;
     bool shutting_down;
     bool is_coro;
 
@@ -395,32 +397,27 @@ swoole::http::Cookie *php_swoole_http_get_cooke_safety(const zval *zobject);
  *  These class properties cannot be modified by the user before assignment, such as Swoole\\Http\\Request.
  *  So we can use this function to init property.
  */
-static sw_inline zval *swoole_http_init_and_read_property(const zend_class_entry *ce,
-                                                          const zval *zobject,
-                                                          zval **zproperty_store_pp,
-                                                          zend_string *name,
-                                                          int size = HT_MIN_SIZE) {
-    if (UNEXPECTED(!*zproperty_store_pp)) {
+static sw_inline zval *swoole_http_init_and_read_property(
+    const zend_class_entry *ce, const zval *zobject, zval *zproperty_store, zend_string *name, int size = HT_MIN_SIZE) {
+    if (UNEXPECTED(Z_ISUNDEF_P(zproperty_store))) {
         zval *zv = zend_hash_find(&ce->properties_info, name);
         auto *property_info = (zend_property_info *) Z_PTR_P(zv);
-        zval *property = OBJ_PROP(SW_Z8_OBJ_P(zobject), property_info->offset);
+        zval *property = OBJ_PROP(Z_OBJ_P(zobject), property_info->offset);
         array_init_size(property, size);
-        *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
-        **zproperty_store_pp = *property;
+        ZVAL_COPY_VALUE(zproperty_store, property);
     }
-    return *zproperty_store_pp;
+    return zproperty_store;
 }
 
 static sw_inline zval *swoole_http_init_and_read_property(
-    zend_class_entry *ce, const zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {
-    if (UNEXPECTED(!*zproperty_store_pp)) {
+    zend_class_entry *ce, const zval *zobject, zval *zproperty_store, const char *name, size_t name_len) {
+    if (UNEXPECTED(Z_ISUNDEF_P(zproperty_store))) {
         // Notice: swoole http server properties can not be unset anymore, so we can read it without checking
-        zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(zobject), name, name_len, false, &rv);
+        zval rv, *property = zend_read_property(ce, Z_OBJ_P(zobject), name, name_len, false, &rv);
         array_init(property);
-        *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
-        **zproperty_store_pp = *property;
+        ZVAL_COPY_VALUE(zproperty_store, property);
     }
-    return *zproperty_store_pp;
+    return zproperty_store;
 }
 
 static sw_inline bool swoole_http_has_crlf(const char *value, size_t length) {

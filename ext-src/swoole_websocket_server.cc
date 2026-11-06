@@ -93,13 +93,13 @@ void WebSocket::construct_frame(zval *zframe, zend_long opcode, zval *zpayload, 
         if (payload_length >= SW_WEBSOCKET_CLOSE_CODE_LEN) {
             // WebSocket Close code
             zend_update_property_long(swoole_websocket_closeframe_ce,
-                                      SW_Z8_OBJ_P(zframe),
+                                      Z_OBJ_P(zframe),
                                       ZEND_STRL("code"),
                                       WebSocket::parse_close_code(payload));
             if (payload_length > SW_WEBSOCKET_CLOSE_CODE_LEN) {
                 // WebSocket Close reason message
                 zend_update_property_stringl(swoole_websocket_closeframe_ce,
-                                             SW_Z8_OBJ_P(zframe),
+                                             Z_OBJ_P(zframe),
                                              ZEND_STRL("reason"),
                                              payload + SW_WEBSOCKET_CLOSE_CODE_LEN,
                                              payload_length - SW_WEBSOCKET_CLOSE_CODE_LEN);
@@ -107,14 +107,14 @@ void WebSocket::construct_frame(zval *zframe, zend_long opcode, zval *zpayload, 
         }
     } else {
         object_init_ex(zframe, swoole_websocket_frame_ce);
-        zend_update_property(swoole_websocket_frame_ce, SW_Z8_OBJ_P(zframe), ZEND_STRL("data"), zpayload);
+        zend_update_property(swoole_websocket_frame_ce, Z_OBJ_P(zframe), ZEND_STRL("data"), zpayload);
     }
     if (flags & FLAG_RSV1) {
         flags |= FLAG_COMPRESS;
     }
-    zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(zframe), ZEND_STRL("opcode"), opcode);
-    zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(zframe), ZEND_STRL("flags"), flags);
-    zend_update_property_bool(swoole_websocket_frame_ce, SW_Z8_OBJ_P(zframe), ZEND_STRL("finish"), flags & FLAG_FIN);
+    zend_update_property_long(swoole_websocket_frame_ce, Z_OBJ_P(zframe), ZEND_STRL("opcode"), opcode);
+    zend_update_property_long(swoole_websocket_frame_ce, Z_OBJ_P(zframe), ZEND_STRL("flags"), flags);
+    zend_update_property_bool(swoole_websocket_frame_ce, Z_OBJ_P(zframe), ZEND_STRL("finish"), flags & FLAG_FIN);
 }
 
 bool FrameObject::uncompress(zval *zpayload, const char *data, size_t length) {
@@ -150,13 +150,11 @@ bool FrameObject::pack(String *buffer) {
     }
 
     if (sw_unlikely(opcode == WebSocket::OPCODE_CLOSE && len > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)) {
-        php_swoole_fatal_error(
-            E_WARNING, "the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
+        php_swoole_fatal_error(E_WARNING, "the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return false;
     }
 
-    if (sw_unlikely(WebSocket::is_control_frame(opcode) &&
-                    len > SW_WEBSOCKET_CONTROL_FRAME_PAYLOAD_MAX_LEN)) {
+    if (sw_unlikely(WebSocket::is_control_frame(opcode) && len > SW_WEBSOCKET_CONTROL_FRAME_PAYLOAD_MAX_LEN)) {
         php_swoole_fatal_error(E_WARNING,
                                "websocket control frame payload must not exceed %d bytes",
                                SW_WEBSOCKET_CONTROL_FRAME_PAYLOAD_MAX_LEN);
@@ -248,8 +246,8 @@ void swoole_websocket_onBeforeHandshakeResponse(Server *serv, int server_fd, Htt
     if (cb) {
         zval args[3];
         args[0] = *php_swoole_server_zval_ptr(serv);
-        args[1] = *ctx->request.zobject;
-        args[2] = *ctx->response.zobject;
+        args[1] = ctx->request.zobject;
+        args[2] = ctx->response.zobject;
         if (UNEXPECTED(!zend::function::call(cb, 3, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(
                 E_WARNING, "%s->onBeforeHandshakeResponse handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
@@ -268,7 +266,7 @@ void swoole_websocket_onOpen(Server *serv, const HttpContext *ctx) {
     if (cb) {
         zval args[2];
         args[0] = *php_swoole_server_zval_ptr(serv);
-        args[1] = *ctx->request.zobject;
+        args[1] = ctx->request.zobject;
         if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
             serv->close(ctx->fd, false);
@@ -303,7 +301,7 @@ void php_swoole_sha1(const char *str, int _len, unsigned char *digest) {
 
 bool swoole_websocket_handshake(HttpContext *ctx) {
     char sec_buf[128];
-    zval *header = ctx->request.zheader;
+    zval *header = &ctx->request.zheader;
     HashTable *ht = Z_ARRVAL_P(header);
     zval *pData;
     zval *zprotocol;
@@ -356,9 +354,8 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
             zprotocol = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-protocol"));
             if (zprotocol) {
                 zend::String client_protocols(zprotocol);
-                if (swoole_http_token_list_contains_value(client_protocols.val(),
-                                                          client_protocols.len(),
-                                                          port->websocket_settings.protocol.c_str())) {
+                if (swoole_http_token_list_contains_value(
+                        client_protocols.val(), client_protocols.len(), port->websocket_settings.protocol.c_str())) {
                     ctx->set_header(ZEND_STRL("Sec-WebSocket-Protocol"), port->websocket_settings.protocol, false);
                 }
             }
@@ -550,7 +547,7 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
 
     args[0] = *php_swoole_server_zval_ptr(serv);
     WebSocket::construct_frame(&args[1], opcode, &zdata, flags);
-    zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(&args[1]), ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_websocket_frame_ce, Z_OBJ_P(&args[1]), ZEND_STRL("fd"), fd);
 
     if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(swoole_websocket_server_ce->name));

@@ -52,6 +52,7 @@ $pm->childFunc = function () use ($pm) {
             }
         });
 
+        $pm->wakeup();
         $server->start();
     });
 };

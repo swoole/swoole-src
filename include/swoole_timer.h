@@ -29,24 +29,23 @@
 #define SW_TIMER_MAX_SEC ((double) LONG_MAX / 1000)
 
 namespace swoole {
-typedef std::function<void(TimerNode *)> TimerDestructor;
+typedef void (*TimerDestructor)(TimerNode *);
 
 struct TimerNode {
     enum Type {
         TYPE_KERNEL,
-        TYPE_PHP,
+        TYPE_USER,
     };
     long id;
     Type type;
+    bool removed;
     int64_t exec_msec;
     int64_t interval;
     uint64_t exec_count;
     uint64_t round;
-    bool removed;
     HeapNode *heap_node;
     TimerCallback callback;
     void *data;
-    TimerDestructor destructor;
 };
 
 class Timer {
@@ -54,7 +53,6 @@ class Timer {
     Reactor *reactor_ = nullptr;
     Heap heap;
     std::unordered_map<long, TimerNode *> map;
-    uint64_t round;
     long _next_id;
     long _current_id;
     /*---------------event timer--------------*/
@@ -75,6 +73,10 @@ class Timer {
     void release_node(TimerNode *tnode);
 
   public:
+    // Set before creating user timers or starting worker threads; returns the previous handler.
+    // Passing nullptr restores the default no-op destructor.
+    static TimerDestructor set_user_destructor(TimerDestructor destructor);
+
     explicit Timer(bool manually_trigger);
     ~Timer();
 
@@ -125,7 +127,7 @@ class Timer {
     }
 
     uint64_t get_round() const {
-        return round;
+        return reactor_ ? reactor_->get_round() : 0;
     }
 
     bool remove(long id) {

@@ -129,9 +129,11 @@ static sw_inline void client_execute_callback(zval *zobject, AsyncClientCallback
 }
 
 static sw_inline void client_execute_callback_and_dtor(Client *cli, zval *zobject, AsyncClientCallbackType type) {
-    client_execute_callback(zobject, type);
-    php_swoole_client_free(zobject, cli);
-    zval_delref_p(zobject);
+    // Transfer the connection's reference out of AsyncClientObject before releasing its storage.
+    zval object = *zobject;
+    client_execute_callback(&object, type);
+    php_swoole_client_free(&object, cli);
+    zval_ptr_dtor(&object);
 }
 
 // clang-format off
@@ -236,7 +238,7 @@ static PHP_METHOD(swoole_client_async, __construct) {
 
     php_swoole_check_reactor();
 
-    zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("type"), type);
+    zend_update_property_long(swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("type"), type);
     RETURN_TRUE;
 }
 
@@ -271,12 +273,12 @@ static Client *php_swoole_client_async_new(zval *zobject, char *host, int host_l
     auto *cli = new Client(php_swoole_client_get_type(type), true);
     if (!cli->ready()) {
         php_swoole_sys_error(E_WARNING, "failed to create client");
-        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), errno);
+        zend_update_property_long(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("errCode"), errno);
         delete cli;
         return nullptr;
     }
 
-    zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("sock"), cli->socket->fd);
+    zend_update_property_long(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("sock"), cli->socket->fd);
 
     if (type & SW_SOCK_SSL) {
         cli->enable_ssl_encrypt();

@@ -128,7 +128,9 @@ class Reactor {
     bool once = false;
     bool wait_exit = false;
     bool destroyed = false;
-    bool bailout = false;
+    // A terminal stop: later wait() calls and coroutine resumes must not restart this reactor.
+    // running only controls the current wait(); wait_exit enables normal exit-condition checks.
+    bool terminated = false;
     bool timed_out = false;
 
     /**
@@ -163,9 +165,7 @@ class Reactor {
         return impl->del(socket);
     }
 
-    int wait() const {
-        return impl->wait();
-    }
+    int wait() const;
 
     CallbackManager *defer_tasks = nullptr;
     CallbackManager destroy_callbacks;
@@ -183,6 +183,8 @@ class Reactor {
 
   private:
     ReactorImpl *impl;
+    uint64_t round_ = 0;
+    mutable bool waiting_ = false;
     std::map<int, std::function<void(Reactor *)>> end_callbacks;
     std::map<int, std::function<bool(Reactor *, size_t &)>> exit_conditions;
     std::unordered_map<int, network::Socket *> sockets_;
@@ -190,6 +192,12 @@ class Reactor {
   public:
     explicit Reactor(int max_event = SW_REACTOR_MAXEVENTS, Type _type = TYPE_AUTO);
     ~Reactor();
+    uint64_t get_round() const {
+        return round_;
+    }
+    bool is_waiting() const {
+        return waiting_;
+    }
     bool if_exit();
     void defer(const Callback &cb, void *data = nullptr);
     void set_end_callback(EndCallback _id, const std::function<void(Reactor *)> &fn);
@@ -200,7 +208,8 @@ class Reactor {
     void add_destroy_callback(const Callback &cb, void *data = nullptr);
     void execute_begin_callback() const;
     void execute_end_callbacks(bool _timed_out = false);
-    void drain_write_buffer(network::Socket *socket);
+    // A nonnegative timeout bounds the entire drain, rather than each individual poll.
+    void drain_write_buffer(network::Socket *socket, int timeout_msec = -1);
 
     bool ready() const {
         return ready_;
@@ -332,14 +341,16 @@ class Reactor {
     }
 
     void before_wait() {
-        start = running = true;
+        start = true;
+        // Startup callbacks may already have requested VM termination. Do not restart that loop.
+        running = !terminated;
         if (timeout_msec == 0) {
             timeout_msec = -1;
         }
     }
 
     int trigger_close_event(Event *event) {
-        return default_error_handler(this, event);
+        return get_handler(event->socket->fd_type, SW_EVENT_ERROR)(this, event);
     }
 
     void set_wait_exit(const bool enable) {

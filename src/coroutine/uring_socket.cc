@@ -505,7 +505,7 @@ bool UringSocket::ssl_bio_perform(int rc, const char *fn) {
         return true;
     } else if (error == SSL_ERROR_ZERO_RETURN) {
         swoole_debug("%s(fd=%d) return zero value", fn, socket->get_fd());
-        error = SW_ERROR_SSL_RESET;
+        set_err(SW_ERROR_SSL_RESET);
         goto _error;
     } else if (error == SSL_ERROR_SYSCALL) {
         goto _error;

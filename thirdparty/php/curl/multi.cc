@@ -667,7 +667,7 @@ static void _php_curl_multi_free(php_curlm *mh) {
     }
     if (mh->multi) {
         if (is_in_coroutine) {
-            delete mh->multi;
+            mh->multi->release();
         } else {
             curl_multi_cleanup(mh->multi);
         }

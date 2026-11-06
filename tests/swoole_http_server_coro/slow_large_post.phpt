@@ -50,6 +50,7 @@ $pm->childFunc = function () use ($pm)
             Assert::eq(VALUE, $request->post[KEY]);
             $response->end("OK");
         });
+        $pm->wakeup();
         $server->start();
     });
 };

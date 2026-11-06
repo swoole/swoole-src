@@ -16,29 +16,34 @@ require __DIR__ . '/pdo_oracle.inc';
 Co::set(['hook_flags'=> SWOOLE_HOOK_PDO_ORACLE]);
 run(function() {
     $db = PdoOracleTest::create();
-    $db->query("create table poq_tab (t varchar2(100))");
-    $stmt = $db->prepare('select * from poq_tab');
+    $table = PdoOracleTest::tableName('pdo_quote');
+    $db->query("create table {$table} (t varchar2(100))");
+    try {
+        $stmt = $db->prepare("select * from {$table}");
 
-    // The intent is that the fetched data be identical to the unquoted string.
-    // Remember!: use bind variables instead of PDO->quote()
+        // The intent is that the fetched data be identical to the unquoted string.
+        // Remember!: use bind variables instead of PDO->quote()
 
-    $a = array("", "a", "ab", "abc", "ab'cd", "a\b\n", "'", "''", "a'", "'z", "a''b", '"');
-    foreach ($a as $u) {
-        $q = $db->quote($u);
-        echo "Unquoted : ";
-        var_dump($u);
-        echo "Quoted   : ";
-        var_dump($q);
+        $a = array("", "a", "ab", "abc", "ab'cd", "a\b\n", "'", "''", "a'", "'z", "a''b", '"');
+        foreach ($a as $u) {
+            $q = $db->quote($u);
+            echo "Unquoted : ";
+            var_dump($u);
+            echo "Quoted   : ";
+            var_dump($q);
 
-        $db->exec("delete from poq_tab");
+            $db->exec("delete from {$table}");
 
-        $db->query("insert into poq_tab (t) values($q)");
-        $stmt->execute();
-        var_dump($stmt->fetchAll(PDO::FETCH_ASSOC));
+            $db->query("insert into {$table} (t) values($q)");
+            $stmt->execute();
+            var_dump($stmt->fetchAll(PDO::FETCH_ASSOC));
+        }
+
+        echo "Done\n";
+    } finally {
+        $stmt = null;
+        $db->exec("drop table {$table}");
     }
-
-    echo "Done\n";
-    $db->exec("drop table poq_tab");
 });
 ?>
 --EXPECT--

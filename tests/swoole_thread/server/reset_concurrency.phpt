@@ -42,7 +42,7 @@ $serv->on('WorkerStart', function (Server $serv, $workerId) use ($port) {
     }
 });
 $serv->on('WorkerStop', function (Server $serv, $workerId) {
-    echo 'WORKER STOP', PHP_EOL;
+    echo "WORKER STOP\n";
 });
 $serv->on('pipeMessage', function (Server $serv, $wid, $msg) {
     swoole_implicit_fn('bailout');
