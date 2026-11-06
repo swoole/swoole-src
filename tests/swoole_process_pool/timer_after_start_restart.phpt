@@ -18,7 +18,7 @@ class Restart
 
     public function __destruct()
     {
-        $this->pool->on('Shutdown', function () {});
+        $this->pool->on('Shutdown', static function () {});
         $this->pool->start();
         Timer::after(1, $this->onTimer);
     }
