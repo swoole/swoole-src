@@ -709,11 +709,6 @@ static PHP_METHOD(swoole_process_pool, start) {
         result = pool->start();
         if (result >= 0) {
             pool->wait();
-            // Nothing runs the master's system timer after wait(), so release it and let later timers use a reactor.
-            if (swoole_timer_is_available() && !sw_timer()->get_reactor()) {
-                php_swoole_timer_clear_all();
-                swoole_timer_free();
-            }
         }
     } catch (const PhpUnwindExit &) {
         // A forked child must skip the parent's spawn/wait frames. Restore the PHP-facing state
@@ -722,6 +717,12 @@ static PHP_METHOD(swoole_process_pool, start) {
     }
 
     current_pool = nullptr;
+
+    // Nothing runs the master's system timer after wait(), so release it and let later timers use a reactor. Do it
+    // after leaving the pool context: node destructors can run PHP code that adds timers or restarts the pool.
+    if (result >= 0 && swoole_timer_is_available() && !sw_timer()->get_reactor()) {
+        swoole_timer_free();
+    }
 
     restore_signal_handlers();
     if (UNEXPECTED(EG(exception))) {
