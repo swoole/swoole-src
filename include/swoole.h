@@ -668,6 +668,7 @@ struct ThreadGlobal {
     Iouring *iouring;
 #endif
     bool signal_blocking_all;
+    sigset_t signal_previous_mask;
 };
 
 struct Allocator {
