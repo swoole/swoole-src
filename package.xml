@@ -52,7 +52,7 @@
     <date>2026-10-25</date>
     <time>12:00:00</time>
     <version>
-        <release>6.2.4</release>
+        <release>6.2.5</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,112 +61,30 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Build fix for platforms without futex: Changed `sw_usleep` to the standard `usleep` to fix compilation failure on that platform.
-        - WebSocket decoding validation: The decoder rejects CLOSE/PING/PONG control frames with RSV1 set before unmasking, preventing compressed control frames from entering the receive path.
-        - WebSocket encoding validation: The encoder rejects fragmented control frames or control frames with payloads exceeding 125 bytes, and makes `ping()` return false and set `SWOOLE_ERROR_WEBSOCKET_PACK_FAILED` when encoding fails.
-        - Thread stdio fd leak: After a thread exits, manually close the STDIN/STDOUT/STDERR file descriptors that were not released due to `PHP_STREAM_FLAG_NO_CLOSE`.
-        - Reactor unregistered fd lookup: When looking up an unregistered fd, return null instead of inserting an empty entry into the socket map, and change the accessor to const.
-        - SOCKS5 target host length validation: The DNS tunnel now validates that the target host length does not exceed 255 bytes, and returns an error as a handshake failure when it is too long.
-        - Thread scheduling policy preservation: When no policy is specified in `Thread::setPriority()`, first read the current scheduling policy before setting the priority, fixing the issue of using the invalid `-1` policy.
-        - Buffered stream read fix: Under PHP 8.3, when the stream already has buffered data, use the non-waiting receive path so that hooked streams directly return buffered data without waiting for new events.
-        - Atomic wait on systems without futex: Implement an atomic wait registry based on a shared-memory hash table, replace the mutex with a spinlock, and add timeout, generation notification, and entry reuse mechanisms.
-        - Stream write timeout reporting: When `fwrite` encounters ETIMEDOUT, no longer print an error notice, preserve the `timed_out` metadata and do not set `eof`; only set eof for genuine write errors.
-        - Stream read timeout error preservation: When `fread` encounters ETIMEDOUT, return failure (false) instead of 0 so callers can identify the timeout through metadata, and do not mistakenly set eof.
-        - Poll dispatch socket identity preservation: The Poll reactor additionally stores the Socket pointer corresponding to each pollfd during `set_events`, and directly uses that pointer during dispatch, avoiding events being dispatched to the wrong socket after the fd is reused in a handler.
-        - Process pool message bus reuse: `start()` no longer recreates the message bus when it already exists, allowing the same process pool to be shut down and started again and still deliver messages normally.
-        - BASE event pool resource release: A multi-worker BASE server destroys the event process pool after the manager ends and reuses the message boxes already allocated by `create()`, fixing resource leaks.
-        - TCP listener rebindability: `make_server_socket()` enables `SO_REUSEADDR` only for TCP listeners, avoiding TIME_WAIT preventing immediate restart while not affecting Unix and UDP socket behavior.
-        - ProcessPool truncated packet handling: The stream/task protocol requires both the length prefix and the packet body to be read exactly in full; a short read is treated as an incomplete packet and the connection is closed, and old data in the reused buffer is no longer passed to the callback as a valid payload.
-        - Message queue key range validation: The Process, ProcessPool, and Server entry points validate the range before narrowing a PHP integer to `key_t`; keys outside the representable range of `key_t` are rejected, while unsigned 32-bit boundaries are still accepted.
-        - Multipart upload temporary file error: When a temporary file cannot be created for a multipart upload, mark `UPLOAD_ERR_NO_TMP_DIR` in the file information, avoiding handing an empty upload to the handler as a successful file.
-        - Support HTTP QUERY method: Add QUERY to the HTTP/1 method table and let URL-encoded form bodies go through the existing request parsing path, keeping parsing consistent between normal servers and coroutine servers.
-        - Apply stream timeout to hooked write operations: When `stream_set_timeout()` sets a timeout, also update both the read and write coroutine socket deadlines, so that a blocking `fwrite()` no longer exceeds the configured stream timeout.
-        - Coroutine HTTP client socket initialization: Initialize the internal socket zval to null at construction so that calling `close()` before connecting is safe and returns `SWOOLE_ERROR_CLIENT_NO_CONNECTION`.
-        - Pass null for DNS when there is no service: `getaddrinfo()` passes a null pointer instead of an empty string when no service is specified, fixing the issue on musl (Alpine Linux) where EAI_SERVICE caused resolution to always fail.
-        - Ignore external interrupts when preemption is disabled: Apply the scheduling deadline only when the preemptive scheduling thread is running, preventing signal interrupts triggered by other extensions from switching coroutines using stale context state when preemption is off.
-        - CPU affinity ID validation: Each affinity entry is converted only once and used for validation, diagnostics, and `CPU_SET`; negative IDs and IDs exceeding `CPU_SETSIZE` are rejected, and `Thread::setAffinity()` treats any nonzero return value from `pthread_setaffinity_np` as failure.
-        - Validate affinity IDs by CPU count: On top of the previous commit, change the upper limit to `SW_CPU_NUM` (also not exceeding `CPU_SETSIZE`), rejecting IDs outside the available CPU range before Linux silently trims the invalid mask.
-        - Prevent workers from executing manager-only signal handling: In signal handling, first verify that the current process PID equals the manager PID, avoiding a newly forked worker briefly inheriting the manager's signal handler and then repeatedly broadcasting SIGWINCH to itself.
-        - Preserve native coroutine socket errors: After a socket call fails, immediately read errno and store it in a local variable; `shutdown()` and `check_liveness()` no longer depend on the C runtime errno that may be overwritten.
-        - Initialize PHP hook after switching hooks: When switching from the native hook to the PHP hook, add the missing function cache initialization so that subsequent calls go through the `swoole_*` PHP functions instead of an empty cache.
-        - Redis server packet receive buffer handling: Check the length before reading the trailing CRLF, expand only when the buffer is full, and perform the expansion calculation without narrowing and within `package_max_length`, fixing fragmented request parsing.
-        - Preserve package length limit for partial settings: When `set()` on a coroutine socket does not provide `package_max_length`, no longer reset it to the default value, preserving the current limit.
-        - Crash when initiating PHP requests in non-Swoole threads: `sw_is_main_thread()` now uses the `ZTS` check, and all reads and writes of the task temporary directory are protected by `sw_thread_lock`, avoiding crashes in threads not created by Swoole.
-        - Coroutine HTTP server request boundaries and 100 Continue: When the chunked request buffer is full, expand it to the limit and return 413 if exceeded; use llhttp completion events to precisely determine request end and preserve pipeline bytes, and send a 100 Continue once before waiting for the request body.
-        - HTTP/1.0 ignores 100-continue: Send the 100 Continue interim response only for HTTP/1.1 (version 101) requests; HTTP/1.0 clients do not recognize informational responses, so wait directly for the request body.
-        - Reject overly long HTTP Upgrade values: Accumulate the Upgrade header length across multiple parsing fragments, and return a parse error when it exceeds the thread temporary buffer capacity, avoiding out-of-bounds writes and heap corruption.
-        - Server SSL context initialization: Always initialize the main context and register the SNI callback even when only SNI certificates are configured without a default certificate, and make `SSLContext::create()` return failure and release the incompletely initialized context when certificate loading fails.
-        - Preserve request fields across parse calls: Standalone `Request::parse()` now performs llhttp parsing of appended ranges on retained request storage, and rebuilds URL and header field spans across fragments, avoiding fragments being treated as complete fields or referencing freed pointers.
-        - Reject repeated calls to native resource constructors: The constructors of coroutine HTTP/HTTP2 clients, coroutine HTTP servers, Process Pool, Cookie, and Thread report an error on the second call, protecting the original native resources and object state from being replaced.
-        - Server cpu_affinity_ignore handling: First validate that the option must be an array, then compute candidate CPUs based on the process's actual affinity mask, ignore invalid IDs, report an error when all available CPUs are excluded, and free that memory when the Server is destructed.
-        - Terminate chunked responses after clearing trailers: Always append the trailing CRLF even if the public trailer property is empty or null, ensuring wire format integrity and connection reusability.
-        - RSHUTDOWN cleanup of PHP timers: Use `std::vector` and a timer ID list instead of a pointer array allocated with `emalloc`, look up each one again before deleting it, avoiding timers remaining until `swoole_clean()` due to a fatal error when request heap memory is exhausted.
-        - Register after-fork hook during MINIT: Move the registration of the after-fork hook from RINIT to MINIT, avoiding repeated mounting when requests are started and shut down repeatedly in thread mode.
-        - curl multi preserves select readiness state: `curl_multi_exec` is driven by `curl_multi_socket_action`, and `select` is only responsible for waiting and recording readiness, covering polling, callback timing, removal, and reuse scenarios.
-        - HTTP/1 trailer completion fix: Determine whether sending is needed using the actual length of the built trailer buffer, preserve the trailing CRLF even for trailers containing only null values, and make `end()` return false when trailer sending fails instead of being overwritten by a success result.
-        - Preserve incomplete packets on receive timeout: Under the length protocol, no longer clear the read buffer on timeout and do not set `offset` to the packet length, allowing subsequent reads to continue assembling the complete packet from the interruption point; HTTP/2 and socket fragmentation tests cover this behavior.
-        - Recognize PHP sockaddr length macros on BSD: Change the compilation condition for address traversal to `HAVE_SOCKADDR_SA_LEN` or `HAVE_STRUCT_SOCKADDR_SA_LEN`, fixing the check on BSD platforms.
-        - Coroutine exception delivery in SPL directory iteration: Save `EG(opline_before_exception)` and the interrupt opline for each PHP coroutine, and restore the suspended user code through Zend's normal exception path on external cancellation; also support throw-style self-cancellation and reject non-coroutine main contexts.
-        - Reject global HTTP response headers in coroutines: At coroutine runtime, replace `http_get_last_response_headers()` with a handler that indicates it is unsupported, and restore the native handler after runtime stops, avoiding request-level global headers polluting each other across coroutines.
-        - CPU affinity for worker application configuration: Extract `cpu_affinity_ignore` validation into a separate helper function, and select CPU binding for event/task workers based on the actual allowed affinity mask before the worker startup callback; in THREAD mode bind the current pthread, and keep the master mask unchanged.
-        - Out-of-bounds read on empty PDO pgsql error message: `_pdo_pgsql_trim_message()` first checks whether the length is 0 and directly returns an empty string, avoiding `strlen - 1` underflowing to `SIZE_MAX` and then reading bytes before the buffer.
-        - Do not lose signals during signal handling: The sigaction fallback path fills `sa_mask` for non-safe handlers to block other signals, so that signals arriving during handling remain pending and are delivered after handling returns, fixing the issue where the master's SIGTERM is lost during SIGCHLD handling.
-        - Enforce EOF packet length limit: Immediately report `SW_ERROR_PACKAGE_LENGTH_TOO_LARGE` when the first complete EOF packet exceeds `package_max_length`, or when an unterminated buffer reaches/exceeds the limit; coroutine sockets, synchronous/asynchronous clients, split mode, and server protocols enforce this uniformly, preserving packets exactly equal to the limit and valid first packets in merged reads.
-        - Validate WebSocket handshake response headers: The coroutine HTTP client validates `Upgrade: websocket`, `Connection: Upgrade`, and `Sec-WebSocket-Accept` in the 101 response (recomputed and compared using the request key); if invalid, the handshake fails and the connection is closed.
-        - UNIX datagram address ownership: When `recvfrom` has no peer address, clear the cached `sun_path`; during destruction, first refresh its own bound address with `getsockname` before unlinking, avoiding mistakenly deleting the peer socket file when releasing the receiver or exposing the previous peer address to PHP.
-        - write_func receives decompressed response body: Compressed responses are decompressed before being handed to `write_func`; the callback receives plaintext chunks and the internal body buffer is cleared; covers gzip/deflate/br and compressed SSE streams.
-        - Safe buffer expansion for WebSocket compressed output: `Z_SYNC_FLUSH` output may exceed `deflateBound()`; change to `extend` first when `bytes_written + max_length` exceeds capacity, and accumulate `length` according to the write position, avoiding out-of-bounds and length loss; add regression tests for incompressible payloads and control frames.
-        - Shared settings array isolation: Each `set()` performs `SEPARATE_ARRAY` on the `setting` property array before merging, avoiding in-place modification of a copy-on-write shared array, so that previously taken snapshots and caller-provided arrays remain unchanged; also remove the erroneous extra reference to the port object when inheriting settings across multiple ports.
-        - Preserve reload initiated in worker callbacks: The wait loop no longer deletes reload tasks during the `reload_init` phase, and instead waits until the next initialization round fills in the worker snapshot before checking completion, avoiding reloads requested in callbacks being discarded prematurely.
-        - Backport adaptation for pending reload and regression cases: When there is already a pending reload in the queue, use `wait_process` with `WNOHANG` to avoid blocking, and fix the `pid less than or equal to zero` check; on the test side, reap child processes, drain accepted HTTP connections before closing listeners, and adapt the test runner's output limit handling.
-        - Free captured HTTP/1 Content-Type: Move the freeing of `content_type` out of the branch that only matches compressed types, so that it is also freed when `Content-Encoding` is set and compression is disabled due to a mismatch, fixing a memory leak of about 1 KiB per request.
-        - Added `\Swoole\Coroutine\Http2\MultiplexClient`, an HTTP/2 client that multiplexes requests from many coroutines over one shared connection, reconnects on demand, and closes an idle connection after a configurable period (options `heartbeat_check_interval` and `heartbeat_idle_time`) (by @tw2066).
-        - `\Swoole\Database\RedisConfig::withAuth()` now also accepts a `[username, password]` array for Redis ACL authentication (by @catchem88). A class extending `RedisConfig` that overrides `withAuth()` or redeclares `$auth` has to widen its `string` type to `string|array`.
-        - Support the `CURLOPT_PREREQFUNCTION` option in the coroutine curl handler; on PHP versions without the native constants, use `\Swoole\Curl\CURLOPT_PREREQFUNCTION`, `\Swoole\Curl\CURL_PREREQFUNC_OK` and `\Swoole\Curl\CURL_PREREQFUNC_ABORT` (by @lazerg).
-        - Support the `http2_max_headers` server option, with the constant `\Swoole\Constant::OPTION_HTTP2_MAX_HEADERS`; it takes effect on Swoole 6.3.0 and later (by @NathanFreeman).
-        - `\Swoole\Database\MysqliProxy::inTransaction()` and `reset()`, which report and forget the transaction state the proxy tracks. `\Swoole\Database\MysqliPool::get()` hands out a connection with that state reset.
-        - `\Swoole\RemoteObject\Exception::getRemoteClass()` and `getRemoteCode()`, which give the class and the code of an exception thrown on the server.
-        - `\Swoole\Server\Helper` uses the `\Swoole\Constant::OPTION_*` constants instead of string literals in its option tables and lookups.
-        - The FastCGI `Params` record encodes and decodes its parameters in linear time, about 2.5 and 8 times faster than before; the bytes produced and the parameters read are the same.
-        - `\Swoole\ArrayObject::lastIndexOf()` and `remove()` with `$loop` find their keys in one `array_keys()` call instead of walking the array in PHP, with the same results.
-        - `\Swoole\StringObject::endsWith()` uses `str_ends_with()` and no longer scans the whole string, with the same results.
-        - PR swoole/library#192: Report fatal `\Swoole\Coroutine\Server` accept failures through `start()` and `errCode` (by @binaryfire).
-        - PR swoole/library#193: Fixed a memory leak in `\Swoole\RemoteObject\Client`, present since 6.2.0, where every client was kept alive for the lifetime of the process (issue swoole/swoole-src#6191). `\Swoole\RemoteObject\Client::getInstance()` now returns `null` for a client that is gone, and a client can no longer be cloned.
-        - Fixed a startup race in the default remote object server that let a coroutine see the server as ready while another one was still starting it ([commit](https://github.com/swoole/library/commit/b0ba7b46d995feff9427b83ceedfcc87e8ca96e8)).
-        - A failed reconnect left a database statement proxy wrapping `false` ([commit](https://github.com/swoole/library/commit/63f1fe387f78627ff1904de3e49ee6894adfd240)).
-        - `\Swoole\RemoteObject\Client` now throws a `\Swoole\RemoteObject\Exception` on a response that does not unserialize.
-        - An empty FastCGI response is now reported as `502 Invalid FastCGI Response`.
-        - `\Swoole\Coroutine\FastCGI\Client` kept a connection whose response could not be parsed, and the next request sent over it read the rest of that response as its own.
-        - A `\Swoole\RemoteObject\Client` used from several coroutines at once ended the process with a fatal "Socket has already been bound to another coroutine"; calls through one client are now serialized.
-        - `swoole_container_cpu_num()` ignored the CPU quota of cgroup v2 containers.
-        - The mysqli proxies did not reconnect after a lost connection under the default mysqli report mode of PHP 8.1+, where failures are thrown as `\mysqli_sql_exception`.
-        - The mysqli proxies no longer reconnect inside a transaction, and report a lost connection in a method they do not retry, such as `store_result()`, where they returned `false`.
-        - `\Swoole\Database\MysqliStatementProxy` did not re-bind the `bind_result()` variables correctly after a reconnect, and retried `fetch()` on a statement that was prepared again but never executed.
-        - `\Swoole\Database\MysqliStatementProxy` did not recover from a second lost connection on the same statement.
-        - `\Swoole\Database\PDOStatementProxy` turned a connection lost while reading rows into an empty result, and did not recover from a second lost connection on the same statement. It now retries `execute()` only, and reports a lost connection in any other method.
-        - `\Swoole\Database\PDOStatementProxy`: after a connection lost inside a transaction started by hand, e.g. with `exec('BEGIN')`, `execute()` ran the statement again on a new connection, outside the transaction. The lost connection is now reported.
-        - The database proxies recognise more lost-connection errors: SSL failures during a query, PostgreSQL's `canceling statement due to conflict with recovery`, and the PlanetScale PostgreSQL / pg_bouncer messages, in line with Laravel's list.
-        - `\Swoole\Database\RedisPool` passed the `connect()` arguments in the wrong positions when only some of the connect timeout, retry interval and read timeout were configured.
-        - `\Swoole\Coroutine\Server` never backed off when a coroutine could not be created for an accepted connection.
-        - A FastCGI request body of `"0"` was dropped as empty.
-        - An exception the remote object server caught became a `TypeError` on the client when its code was not an integer, as with a `\PDOException`, and so did the server's own errors such as an invalid API key. Both now arrive as a `\Swoole\RemoteObject\Exception`.
-        - `\Swoole\NameResolver\Nacos::getCluster()` threw a `TypeError`, because Nacos reports the weight of a node as a float.
-        - Several scripts under `examples/` did not run: the remote object, Nacos, Consul, PDO and short name examples.
-        - `\Swoole\ConnectionPool::close()` failed with an `Error` when called twice, and `fill()` on a closed pool made connections only to drop them.
-        - `\Swoole\Database\PDOProxy`: `query()` and `prepare()` failed with a `TypeError` outside the exception error mode.
-        - `\Swoole\Database\PDOProxy`: `query()`, `exec()` and `beginTransaction()` did not reconnect after a connection lost outside a transaction on PostgreSQL.
-        - `\Swoole\Database\PDOProxy` stayed on a dead connection after a connection lost inside a transaction, and on PostgreSQL after a reconnect that failed. The next call now reconnects, and `rollBack()` of the transaction lost with the connection returns `true`.
-        - `\Swoole\ArrayObject` and `swoole_array_default_value()` raised a deprecation on PHP 8.5 when given a `null` key, which still stands for the empty string.
-        - The mysqli proxies raised a warning on `prepare(query: ...)`, with the query passed by name, and could not prepare that statement again after a reconnect.
-        - `\Swoole\Database\PDOStatementProxy`: after a reconnect, a statement used the value a variable had when `bindParam()` was called, not its present one, and no longer filled the variables of `bindColumn()`.
-        - `\Swoole\Database\PDOStatementProxy::bindColumn()` threw a `TypeError` when called without a type.
-        - `isset()` and `empty()` on an offset of a `\Swoole\RemoteObject` always failed with a `TypeError`.
-        - `\Swoole\Database\PDOStatementProxy`: after a reconnect, a parameter bound by both `bindValue()` and `bindParam()` could take the binding made first instead of the one made last.
-        - Array access on a `\Swoole\RemoteObject` used the properties of the object on the server instead of its `ArrayAccess` implementation.
-        - The remote object server passed `null` to a function called with a remote object it no longer has, where it now reports the object as not found.
-        - The default remote object server did not start in a directory whose path has a space or a quote in it.
-        - `isset()`, `empty()` and `??` on a property of a `\Swoole\RemoteObject` treated the property as unset without asking the server, and `unset()` did not reach the server.
-        - Dropped support for PHP below 8.2 and Swoole below 6.2.
+        - Fix the release of suspended cURL handles after the request is closed.
+        - Fix the cleanup of the `CURLOPT_PRIVATE` option in `curl_reset()`.
+        - Fix the inheritance of blocked signals by PHP worker threads and server worker threads.
+        - Fix the restoration of signal actions before the listener is removed.
+        - Fix the resume lifecycle of queued cURL requests.
+        - Fix the test client's acceptance of platform-specific connection failures.
+        - Fix the scheduling issue of process pool synchronous worker threads.
+        - Fix the reset of signal listener state in forked child processes.
+        - Fix the client's check of socket state before connection pooling.
+        - Fix the issue of coroutines registering SIGCHLD in the reactor thread context.
+        - Fix the exit logic of process pool worker processes on timeout (ETIMEDOUT).
+        - Fix the underflow issue in the HTTP packet length limit.
+        - Fix the handling of HTTP body boundaries and the 100 Continue status.
+        - Fix the ignoring of blocked signals in the main thread and server worker threads.
+        - Fix the preservation of the signal mask when starting background threads.
+        - Fix the discarding of HTTP request trailers on the maintenance branch.
+        - Fix the rejection of reserved HTTP upload header names assembled from split reads.
+        - Fix the issue of the HTTP client retaining request errors on repeated closes.
+        - Fix the rejection of client-provided HTTP upload file markers (security fix).
+        - Fix the buffer boundary and DATA frame handling issues in HTTP/2.
+        - Fix the issue of pgsql query waiting cancellation.
+        - Fix the write stall issue after HTTP/2 stream termination.
+        - Fix the enforcement of connection timeouts in the PDO pgsql driver.
+        - Fix the packet boundary validation issue in the process pool (ProcessPool).
     </notes>
     <contents>
         <dir name="/">
