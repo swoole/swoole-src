@@ -147,10 +147,11 @@ class Multi {
      *
      * Precondition: no coroutine may be suspended in select() on this object (co == nullptr).
      * Otherwise the queued callback would skip the resume, leaving the coroutine suspended
-     * until its yield timeout wakes it up to touch freed memory.
+     * until its yield timeout wakes it up to touch freed memory. Handles freed after RSHUTDOWN
+     * are the exception: their coroutine can still be suspended, but nothing can resume it.
      */
     void release() {
-        assert(!co);
+        assert(!co || SWOOLE_G(req_status) == PHP_SWOOLE_RSHUTDOWN_END);
         if (defer_callback) {
             released = true;
         } else {
