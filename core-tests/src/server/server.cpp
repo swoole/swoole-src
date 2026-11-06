@@ -26,7 +26,9 @@
 #include "swoole_util.h"
 
 #include <condition_variable>
+#include <dirent.h>
 #include <numeric>
+#include <sys/resource.h>
 
 using namespace std;
 using namespace swoole;
@@ -2134,6 +2136,147 @@ TEST(server, task_worker) {
     ASSERT_EQ(serv.gs->task_count, 2);
 }
 
+static std::string make_task_result_record(TaskId id, const std::string &payload) {
+    DataHead info{};
+    info.fd = id;
+    info.type = SW_SERVER_EVENT_FINISH;
+    info.len = payload.size();
+    return std::string(reinterpret_cast<const char *>(&info), sizeof(info)) + payload;
+}
+
+TEST(server, task_multi_unpack_unaligned_results) {
+    Server::MultiTask mt(2);
+    mt.map.emplace(7, 1);
+    mt.map.emplace(9, 0);
+    std::vector<std::pair<uint16_t, std::string>> results;
+    mt.unpack = [&results](uint16_t index, EventData *result) {
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(result) % alignof(EventData), 0);
+        results.emplace_back(index, std::string(result->data, result->info.len));
+    };
+
+    const auto records =
+        make_task_result_record(7, "a") + make_task_result_record(8, "ignored") + make_task_result_record(9, "");
+    ASSERT_TRUE(mt.unpack_results(records.data(), records.size()));
+    ASSERT_EQ(results.size(), 2);
+    EXPECT_EQ(results[0], std::make_pair(uint16_t{1}, std::string("a")));
+    EXPECT_EQ(results[1], std::make_pair(uint16_t{0}, std::string("")));
+    EXPECT_TRUE(mt.unpack_results(nullptr, 0));
+}
+
+TEST(server, task_multi_rejects_truncated_results) {
+    const auto record = make_task_result_record(7, "payload");
+    for (size_t length : {size_t{1}, sizeof(DataHead) - 1, sizeof(DataHead), record.size() - 1}) {
+        Server::MultiTask mt(1);
+        mt.map.emplace(7, 0);
+        int calls = 0;
+        mt.unpack = [&calls](uint16_t, EventData *) { calls++; };
+        swoole_clear_last_error();
+        EXPECT_FALSE(mt.unpack_results(record.data(), length));
+        EXPECT_EQ(swoole_get_last_error(), SW_ERROR_PACKAGE_MALFORMED_DATA);
+        EXPECT_EQ(calls, 0);
+    }
+
+    Server::MultiTask mt(1);
+    mt.map.emplace(7, 0);
+    int calls = 0;
+    mt.unpack = [&calls](uint16_t, EventData *) { calls++; };
+    const auto truncated_tail = record + "x";
+    EXPECT_FALSE(mt.unpack_results(truncated_tail.data(), truncated_tail.size()));
+    EXPECT_EQ(calls, 1);
+}
+
+TEST(server, task_multi_rejects_oversized_results) {
+    Server::MultiTask mt(1);
+    mt.map.emplace(7, 0);
+    int calls = 0;
+    mt.unpack = [&calls](uint16_t, EventData *) { calls++; };
+
+    const auto oversized = make_task_result_record(7, std::string(SW_IPC_BUFFER_SIZE + 1, 'a'));
+    EXPECT_FALSE(mt.unpack_results(oversized.data(), oversized.size()));
+
+    DataHead header{};
+    header.fd = 7;
+    header.len = UINT32_MAX;
+    EXPECT_FALSE(mt.unpack_results(reinterpret_cast<const char *>(&header), sizeof(header)));
+    EXPECT_EQ(calls, 0);
+}
+
+TEST(server, task_unpack_validates_tmpfile_metadata) {
+    auto file = make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    const auto path = file.get_path();
+    ON_SCOPE_EXIT {
+        unlink(path.c_str());
+    };
+    ASSERT_EQ(file.write_all(SW_STRL("payload")), strlen("payload"));
+    file.close();
+
+    PacketTask pkg{};
+    pkg.length = strlen("payload");
+    swoole_strlcpy(pkg.tmpfile, path.c_str(), sizeof(pkg.tmpfile));
+    EventData task{};
+    task.info.ext_flags = SW_TASK_TMPFILE;
+    task.info.len = sizeof(pkg) - 1;
+    memcpy(task.data, &pkg, sizeof(pkg));
+    String buffer(32);
+    PacketPtr packet{};
+
+    EXPECT_FALSE(Server::task_unpack(&task, &buffer, &packet));
+    ASSERT_TRUE(file_exists(path));
+    task.info.len = sizeof(pkg);
+    task.info.ext_flags |= SW_TASK_PEEK;
+    ASSERT_TRUE(Server::task_unpack(&task, &buffer, &packet));
+    EXPECT_EQ(std::string(packet.data, packet.length), "payload");
+    EXPECT_TRUE(file_exists(path));
+    task.info.ext_flags &= ~SW_TASK_PEEK;
+    ASSERT_TRUE(Server::task_unpack(&task, &buffer, &packet));
+    EXPECT_FALSE(file_exists(path));
+
+    memset(pkg.tmpfile, 'a', sizeof(pkg.tmpfile));
+    memcpy(task.data, &pkg, sizeof(pkg));
+    swoole_clear_last_error();
+    EXPECT_FALSE(Server::task_unpack(&task, &buffer, &packet));
+    EXPECT_EQ(swoole_get_last_error(), SW_ERROR_PACKAGE_MALFORMED_DATA);
+    task.info.ext_flags = 0;
+    task.info.len = sizeof(task.data) + 1;
+    EXPECT_FALSE(Server::task_unpack(&task, &buffer, &packet));
+}
+
+TEST(server, task_pack_write_failure_removes_tmpfile) {
+    char dir_template[] = "/tmp/swoole-task-pack-XXXXXX";
+    const char *dir = mkdtemp(dir_template);
+    ASSERT_NE(dir, nullptr);
+    ON_SCOPE_EXIT {
+        rmdir(dir);
+    };
+
+    ASSERT_EXIT(
+        {
+            signal(SIGXFSZ, SIG_IGN);
+            const rlimit limit{};
+            if (setrlimit(RLIMIT_FSIZE, &limit) != 0 || !swoole_set_task_tmpdir(dir)) {
+                _exit(2);
+            }
+            EventData task;
+            const std::string payload(SW_IPC_MAX_SIZE * 2, 'a');
+            _exit(Server::task_pack(&task, payload.data(), payload.size()) ? 3 : 0);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+
+    DIR *directory = opendir(dir);
+    ASSERT_NE(directory, nullptr);
+    std::vector<std::string> leaked;
+    while (auto *entry = readdir(directory)) {
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+            leaked.emplace_back(entry->d_name);
+            unlink((std::string(dir) + "/" + entry->d_name).c_str());
+        }
+    }
+    closedir(directory);
+    EXPECT_TRUE(leaked.empty());
+}
+
 TEST(server, task_wait_multi_dispatch_fail_restores_tasking_num) {
     Server serv;
     serv.worker_num = 1;
@@ -2168,6 +2311,7 @@ TEST(server, task_wait_multi_dispatch_fail_restores_tasking_num) {
         EXPECT_FALSE(serv.task_sync(mt, 0.01));
         EXPECT_EQ(fail_count, 1);
         EXPECT_EQ(serv.get_tasking_num(), 0);
+        EXPECT_TRUE(mt.map.empty());
         ASSERT_FALSE(result_path.empty());
         EXPECT_NE(access(result_path.c_str(), F_OK), 0);
     }

@@ -727,11 +727,12 @@ class Server {
         std::function<void(uint16_t index, EventData *result)> unpack;
         std::function<void(uint16_t index)> fail;
 
-        explicit MultiTask(uint16_t n) {
-            count = n;
+        explicit MultiTask(uint16_t n) : count(n) {
+            map.reserve(n);
         }
 
-        int find(TaskId task_id);
+        int find(TaskId task_id) const;
+        bool unpack_results(const char *data, size_t length) const;
     };
 
     enum Mode {
