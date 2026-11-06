@@ -31,6 +31,7 @@
 #include <unordered_map>
 
 BEGIN_EXTERN_C()
+#include "ext/standard/file.h"
 #include "stubs/php_swoole_runtime_arginfo.h"
 
 #ifdef SW_USE_PGSQL
@@ -130,8 +131,16 @@ static php_stream_ops socket_ops {
 };
 
 struct NetStream {
-    php_netstream_data_t stream;
+    php_netstream_data_t stream{};
     std::shared_ptr<SocketImpl> socket;
+
+    NetStream() {
+        stream.timeout.tv_sec = FG(default_socket_timeout);
+    }
+
+    bool has_zero_timeout() const {
+        return stream.timeout.tv_sec == 0 && stream.timeout.tv_usec == 0;
+    }
 };
 
 #ifndef _WIN32
@@ -279,7 +288,6 @@ static zend::ConcurrencyHashMap<std::string, zif_handler> ori_func_handlers(null
 static zend::ConcurrencyHashMap<std::string, zend_internal_arg_info *> ori_func_arg_infos(nullptr);
 
 SW_EXTERN_C_BEGIN
-#include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
 #undef close
 #undef read
@@ -410,7 +418,13 @@ static int socket_stdio_set_option(php_stream *stream, int option, int value, vo
         return PHP_STREAM_OPTION_RETURN_OK;
     }
     if (option == PHP_STREAM_OPTION_READ_TIMEOUT) {
-        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_RDWR);
+        auto *timeout = static_cast<timeval *>(ptrparam);
+        abstract->stream.timeout = *timeout;
+        if (abstract->has_zero_timeout()) {
+            abstract->socket->set_timeout(-1, SW_TIMEOUT_RDWR);
+        } else {
+            abstract->socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
+        }
     }
     // NetStream retains PHP's native prefix, so metadata and native I/O after disabling hooks
     // continue to use the same timeout and blocking state as coroutine I/O.
@@ -659,15 +673,29 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         return sock->get_socket()->send_sync(buf, count, 0);
     }
 
-    if (abstract->stream.is_blocked) {
+    if (abstract->stream.is_blocked && (!abstract->has_zero_timeout() || sock->get_socket()->ssl)) {
         didwrite = sock->send_all(buf, count);
         // PHP retries the rest of a partial write at once, which would wait again after a cancellation.
         if (didwrite > 0 && (size_t) didwrite < count && sock->errCode == ECANCELED) {
             didwrite = -1;
         }
     } else {
-        didwrite = sock->send_once(buf, count);
-        sock->set_err(errno);
+        while (true) {
+            didwrite = sock->send_once(buf, count);
+            sock->set_err(didwrite < 0 ? errno : 0);
+            if (didwrite >= 0 || !abstract->stream.is_blocked ||
+                sock->get_socket()->catch_write_error(sock->errCode) != SW_WAIT) {
+                break;
+            }
+            // The peer can make space between send() and poll(), even with a zero timeout.
+            timeval timeout{};
+            int ready = php_pollfd_for(static_cast<php_socket_t>(sock->get_fd()), POLLOUT, &timeout);
+            if (ready > 0 || (ready < 0 && errno == EINTR)) {
+                continue;
+            }
+            sock->set_err(ready == 0 ? ETIMEDOUT : errno);
+            break;
+        }
     }
 
     // Preserve positive partial counts so PHP can retry the unwritten remainder.
@@ -713,7 +741,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->stream.is_blocked
+    if (abstract->stream.is_blocked && (!abstract->has_zero_timeout() || sock->get_socket()->ssl)
 #if PHP_VERSION_ID >= 80300
         && !stream->has_buffered_data
 #endif
@@ -721,7 +749,8 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         nr_bytes = sock->recv(buf, count);
     } else {
         nr_bytes = sock->recv_once(buf, count);
-        sock->set_err(errno);
+        // A successful system call does not clear errno left by an earlier timeout.
+        sock->set_err(nr_bytes < 0 ? errno : 0);
     }
 
     if (nr_bytes > 0) {
@@ -1303,9 +1332,19 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
+        auto *timeout = static_cast<timeval *>(ptrparam);
+        abstract->stream.timeout = *timeout;
+        abstract->stream.timeout_event = 0;
+        sock->set_err(0);
         // Despite its name, PHP socket streams use this option as the shared timeout for both blocking reads and
         // writes (see php_sockop_read() and php_sockop_write()).
-        abstract->socket->set_timeout(static_cast<timeval *>(ptrparam), SW_TIMEOUT_RDWR);
+        // Generic socket streams perform a single immediate attempt for a zero timeout.
+        // OpenSSL streams instead use it as an unlimited timeout, as native PHP does.
+        if (abstract->has_zero_timeout()) {
+            abstract->socket->set_timeout(-1, SW_TIMEOUT_RDWR);
+        } else {
+            abstract->socket->set_timeout(timeout, SW_TIMEOUT_RDWR);
+        }
         break;
     }
     case PHP_STREAM_OPTION_CRYPTO_API: {
@@ -2451,7 +2490,6 @@ php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int
     if (FG(default_socket_timeout) > 0) {
         abstract->socket->set_timeout((double) FG(default_socket_timeout));
     }
-    abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = static_cast<php_socket_t>(abstract->socket->get_fd());
     abstract->stream.is_blocked = true;
 
