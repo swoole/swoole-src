@@ -469,11 +469,15 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
         ZVAL_STRINGL(&argv[1], data, length);
 
         php_curl_call_callback(ch, &write_handler->fcc, &retval, /* argc */ 2, argv);
+        /* Checking and releasing the result can run PHP code while libcurl is still in this callback. */
+        bool was_in_callback = ch->in_callback;
+        ch->in_callback = true;
         if (!Z_ISUNDEF(retval)) {
             swoole_curl_verify_handlers(ch, /* reporterror */ true);
             /* TODO Check callback returns an int or something castable to int */
             length = swoole_curl_get_long(&retval);
         }
+        ch->in_callback = was_in_callback;
 
         zval_ptr_dtor(&argv[0]);
         zval_ptr_dtor(&argv[1]);
@@ -503,11 +507,14 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string) {
 
     php_curl_call_callback(ch, &ch->handlers.fnmatch, &retval, /* argc */ 3, argv);
 
+    bool was_in_callback = ch->in_callback;
+    ch->in_callback = true;
     if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
         /* TODO Check callback returns an int or something castable to int */
         rval = swoole_curl_get_long(&retval);
     }
+    ch->in_callback = was_in_callback;
     zval_ptr_dtor(&argv[0]);
     zval_ptr_dtor(&argv[1]);
     zval_ptr_dtor(&argv[2]);
@@ -546,6 +553,8 @@ static int fn_progress(void *clientp, double dltotal, double dlnow, double ultot
 
     php_curl_call_callback(ch, &ch->handlers.progress, &retval, /* argc */ 5, args);
 
+    bool was_in_callback = ch->in_callback;
+    ch->in_callback = true;
     if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
         /* TODO Check callback returns an int or something castable to int */
@@ -553,6 +562,7 @@ static int fn_progress(void *clientp, double dltotal, double dlnow, double ultot
             rval = 1;
         }
     }
+    ch->in_callback = was_in_callback;
 
     zval_ptr_dtor(&args[0]);
     return rval;
@@ -590,6 +600,8 @@ static int fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl
 
     php_curl_call_callback(ch, &ch->handlers.xferinfo, &retval, /* argc */ 5, argv);
 
+    bool was_in_callback = ch->in_callback;
+    ch->in_callback = true;
     if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
         /* TODO Check callback returns an int or something castable to int */
@@ -597,6 +609,7 @@ static int fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl
             rval = 1;
         }
     }
+    ch->in_callback = was_in_callback;
 
     zval_ptr_dtor(&argv[0]);
     return rval;
@@ -638,6 +651,8 @@ static int fn_prereqfunction(
 
     php_curl_call_callback(ch, &ch->handlers.prereq, &retval, /* argc */ 5, args);
 
+    bool was_in_callback = ch->in_callback;
+    ch->in_callback = true;
     if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
         if (Z_TYPE(retval) == IS_LONG) {
@@ -649,15 +664,12 @@ static int fn_prereqfunction(
                                  "CURL_PREREQFUNC_ABORT");
             }
         } else {
-            /* The return value's destructor may call back into curl while libcurl is still in the callback. */
-            bool was_in_callback = ch->in_callback;
-            ch->in_callback = true;
             zval_ptr_dtor(&retval);
-            ch->in_callback = was_in_callback;
             zend_type_error(
                 "The CURLOPT_PREREQFUNCTION callback must return either CURL_PREREQFUNC_OK or CURL_PREREQFUNC_ABORT");
         }
     }
+    ch->in_callback = was_in_callback;
 
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[1]);
@@ -688,6 +700,8 @@ static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, s
 
     php_curl_call_callback(ch, &ch->handlers.sshhostkey, &retval, /* argc */ 4, args);
 
+    bool was_in_callback = ch->in_callback;
+    ch->in_callback = true;
     if (!Z_ISUNDEF(retval)) {
         swoole_curl_verify_handlers(ch, /* reporterror */ true);
         if (Z_TYPE(retval) == IS_LONG) {
@@ -706,6 +720,7 @@ static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, s
             zval_ptr_dtor(&retval);
         }
     }
+    ch->in_callback = was_in_callback;
 
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[2]);
@@ -740,6 +755,9 @@ static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx) {
         ZVAL_LONG(&argv[2], (int) size * nmemb);
 
         php_curl_call_callback(ch, &read_handler->fcc, &retval, /* argc */ 3, argv);
+        /* Checking and releasing the result or the stream can run PHP code while libcurl is still in this callback. */
+        bool was_in_callback = ch->in_callback;
+        ch->in_callback = true;
         if (!Z_ISUNDEF(retval)) {
             swoole_curl_verify_handlers(ch, /* reporterror */ true);
             if (Z_TYPE(retval) == IS_STRING) {
@@ -751,9 +769,10 @@ static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx) {
             // TODO Do type error if invalid type?
             zval_ptr_dtor(&retval);
         }
+        zval_ptr_dtor(&argv[1]);
+        ch->in_callback = was_in_callback;
 
         zval_ptr_dtor(&argv[0]);
-        zval_ptr_dtor(&argv[1]);
         break;
     }
     }
@@ -789,11 +808,14 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx) 
         ZVAL_STRINGL(&argv[1], data, length);
 
         php_curl_call_callback(ch, &write_handler->fcc, &retval, /* argc */ 2, argv);
+        bool was_in_callback = ch->in_callback;
+        ch->in_callback = true;
         if (!Z_ISUNDEF(retval)) {
             // TODO: Check for valid int type for return value
             swoole_curl_verify_handlers(ch, /* reporterror */ true);
             length = swoole_curl_get_long(&retval);
         }
+        ch->in_callback = was_in_callback;
         zval_ptr_dtor(&argv[0]);
         zval_ptr_dtor(&argv[1]);
         break;

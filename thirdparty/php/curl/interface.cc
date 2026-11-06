@@ -440,7 +440,6 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
         fci.named_params = NULL;
         ch->in_callback = 1;
         error = zend_call_function(&fci, &t->fci_cache);
-        ch->in_callback = 0;
         if (error == FAILURE) {
             php_error_docref(NULL, E_WARNING, "Could not call the CURLOPT_WRITEFUNCTION");
             length = -1;
@@ -452,6 +451,7 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
             length = zval_get_long(&retval);
 #endif
         }
+        ch->in_callback = 0;
 
         zval_ptr_dtor(&argv[0]);
         zval_ptr_dtor(&argv[1]);
@@ -489,7 +489,6 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string) {
 
     ch->in_callback = 1;
     error = zend_call_function(&fci, &t->fci_cache);
-    ch->in_callback = 0;
     if (error == FAILURE) {
         php_error_docref(NULL, E_WARNING, "Cannot call the CURLOPT_FNMATCH_FUNCTION");
     } else if (!Z_ISUNDEF(retval)) {
@@ -500,6 +499,7 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string) {
         rval = zval_get_long(&retval);
 #endif
     }
+    ch->in_callback = 0;
     zval_ptr_dtor(&argv[0]);
     zval_ptr_dtor(&argv[1]);
     zval_ptr_dtor(&argv[2]);
@@ -547,7 +547,6 @@ static int fn_progress(void *clientp, double dltotal, double dlnow, double ultot
 
     ch->in_callback = 1;
     error = zend_call_function(&fci, &t->fci_cache);
-    ch->in_callback = 0;
     if (error == FAILURE) {
         php_error_docref(NULL, E_WARNING, "Cannot call the CURLOPT_PROGRESSFUNCTION");
     } else if (!Z_ISUNDEF(retval)) {
@@ -560,6 +559,7 @@ static int fn_progress(void *clientp, double dltotal, double dlnow, double ultot
             rval = 1;
         }
     }
+    ch->in_callback = 0;
     zval_ptr_dtor(&argv[0]);
     return rval;
 }
@@ -605,7 +605,6 @@ static size_t fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, c
 
     ch->in_callback = 1;
     error = zend_call_function(&fci, &t->fci_cache);
-    ch->in_callback = 0;
     if (error == FAILURE) {
         php_error_docref(NULL, E_WARNING, "Cannot call the CURLOPT_XFERINFOFUNCTION");
     } else if (!Z_ISUNDEF(retval)) {
@@ -618,6 +617,7 @@ static size_t fn_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, c
             rval = 1;
         }
     }
+    ch->in_callback = 0;
     zval_ptr_dtor(&argv[0]);
     return rval;
 }
@@ -656,7 +656,6 @@ static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, s
 
     ch->in_callback = 1;
     error = zend_call_function(&fci, &t->fci_cache);
-    ch->in_callback = 0;
     if (error == FAILURE) {
         php_error_docref(NULL, E_WARNING, "Cannot call the CURLOPT_SSH_HOSTKEYFUNCTION");
     } else if (!Z_ISUNDEF(retval)) {
@@ -679,6 +678,7 @@ static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, s
 #endif
         }
     }
+    ch->in_callback = 0;
     zval_ptr_dtor(&argv[0]);
     zval_ptr_dtor(&argv[2]);
     return rval;
@@ -724,7 +724,6 @@ static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx) {
 
         ch->in_callback = 1;
         error = zend_call_function(&fci, &t->fci_cache);
-        ch->in_callback = 0;
         if (error == FAILURE) {
             php_error_docref(NULL, E_WARNING, "Cannot call the CURLOPT_READFUNCTION");
             length = CURL_READFUNC_ABORT;
@@ -738,9 +737,11 @@ static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx) {
             }
             zval_ptr_dtor(&retval);
         }
+        /* Releasing the stream can run PHP code, e.g. a wrapper's stream_close(). */
+        zval_ptr_dtor(&argv[1]);
+        ch->in_callback = 0;
 
         zval_ptr_dtor(&argv[0]);
-        zval_ptr_dtor(&argv[1]);
         break;
     }
     }
@@ -789,7 +790,6 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx) 
 
         ch->in_callback = 1;
         error = zend_call_function(&fci, &t->fci_cache);
-        ch->in_callback = 0;
         if (error == FAILURE) {
             php_error_docref(NULL, E_WARNING, "Could not call the CURLOPT_HEADERFUNCTION");
             length = -1;
@@ -801,6 +801,7 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx) 
             length = zval_get_long(&retval);
 #endif
         }
+        ch->in_callback = 0;
         zval_ptr_dtor(&argv[0]);
         zval_ptr_dtor(&argv[1]);
         break;
