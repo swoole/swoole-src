@@ -350,7 +350,7 @@ class Reactor {
     }
 
     int trigger_close_event(Event *event) {
-        return default_error_handler(this, event);
+        return get_handler(event->socket->fd_type, SW_EVENT_ERROR)(this, event);
     }
 
     void set_wait_exit(const bool enable) {

@@ -93,7 +93,11 @@ _do_sendfile:
             return ret;
         }
     } else if (ret == 0) {
+#ifdef __MACH__
         return size;
+#else
+        return sent_bytes;
+#endif
     } else {
         swoole_sys_warning("sendfile failed");
         return SW_ERR;
@@ -114,6 +118,8 @@ ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
             *offset += ret;
         }
         return ret;
+    } else if (n == 0) {
+        return 0;
     } else {
         swoole_sys_warning("pread() failed");
         return SW_ERR;
