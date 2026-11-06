@@ -1020,6 +1020,10 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         if (Reactor::_writable_callback(reactor, event) < 0) {
             return SW_ERR;
         }
+        // A write failure closes the client, and onClose may have released it.
+        if (_socket->object == nullptr || cli->closed) {
+            return SW_OK;
+        }
         if (cli->onBufferEmpty && cli->high_watermark &&
             _socket->get_out_buffer_length() <= cli->buffer_low_watermark) {
             cli->high_watermark = false;
