@@ -718,6 +718,12 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     current_pool = nullptr;
 
+    // Nothing runs the master's system timer after wait(), so release it and let later timers use a reactor. Do it
+    // after leaving the pool context: node destructors can run PHP code that adds timers or restarts the pool.
+    if (result >= 0 && swoole_timer_is_available() && !sw_timer()->get_reactor()) {
+        swoole_timer_free();
+    }
+
     restore_signal_handlers();
     if (UNEXPECTED(EG(exception))) {
         RETURN_THROWS();
