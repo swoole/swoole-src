@@ -1027,6 +1027,11 @@ bool ServerObject::on_before_start() {
         }
     }
 
+    bool has_http2_port = false;
+    for (auto zport : property->ports) {
+        has_http2_port |= php_swoole_server_port_get_and_check_ptr(zport)->open_http2_protocol;
+    }
+
     for (auto zport : property->ports) {
         ListenPort *port = php_swoole_server_port_get_and_check_ptr(zport);
 
@@ -1045,6 +1050,18 @@ bool ServerObject::on_before_start() {
                 "server dispatch mode should be FDMOD(%d) or IPMOD(%d) if open_http2_protocol is true",
                 Server::DISPATCH_FDMOD,
                 Server::DISPATCH_IPMOD);
+        }
+
+        // Other ports fall back to the primary port's callbacks.
+        if (php_swoole_server_get_port_property(port)->callbacks[SW_SERVER_CB_onStreamReset] &&
+            !(port == primary_port ? has_http2_port : port->open_http2_protocol)) {
+            php_swoole_error(E_WARNING,
+                             "port[%s:%d] sets the streamReset callback without open_http2_protocol",
+                             port->get_host(),
+                             port->get_port());
+            if (UNEXPECTED(EG(exception))) {
+                return false;
+            }
         }
 
         if (!port->open_http_protocol) {
