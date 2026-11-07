@@ -49,6 +49,7 @@ enum php_swoole_server_port_callback_type {
     SW_SERVER_CB_onClose,                    // stream, worker(event)
     SW_SERVER_CB_onPacket,                   // dgram, worker(event)
     SW_SERVER_CB_onRequest,                  // http, worker(event)
+    SW_SERVER_CB_onStreamReset,              // http2, worker(event)
     SW_SERVER_CB_onHandshake,                // websocket, worker(event)
     SW_SERVER_CB_onBeforeHandshakeResponse,  // websocket, worker(event)
     SW_SERVER_CB_onOpen,                     // websocket, worker(event)
