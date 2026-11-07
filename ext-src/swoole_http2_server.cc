@@ -339,6 +339,27 @@ _destroy:
     zval_ptr_dtor(&ctx->request.zobject);
     zval_ptr_dtor(&ctx->response.zobject);
 }
+
+static void http2_server_onStreamReset(const std::shared_ptr<Http2Session> &client, uint32_t stream_id) {
+    auto serv = client->default_ctx->get_async_server();
+    Connection *conn = serv->get_connection_by_session_id(client->fd);
+    if (!conn) {
+        return;
+    }
+
+    auto cb = php_swoole_server_get_callback(serv, conn->server_fd, SW_SERVER_CB_onStreamReset);
+    if (!cb) {
+        return;
+    }
+
+    zval args[3];
+    args[0] = *php_swoole_server_zval_ptr(serv);
+    ZVAL_LONG(&args[1], client->fd);
+    ZVAL_LONG(&args[2], stream_id);
+    if (UNEXPECTED(!zend::function::call(cb, 3, args, nullptr, serv->is_enable_coroutine()))) {
+        php_swoole_error(E_WARNING, "%s->onStreamReset handler error", ZSTR_VAL(swoole_http_server_ce->name));
+    }
+}
 #endif
 
 static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const String *body) {
@@ -1516,7 +1537,18 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
     case SW_HTTP2_TYPE_RST_STREAM: {
         value = ntohl(*(int *) (buf));
         swoole_http2_frame_trace_log("error_code=%d", value);
+        bool request_complete = false;
+        if (auto stream = client->get_stream(stream_id)) {
+            // A send suspended on connection backpressure keeps the stream alive after removal.
+            stream->ctx->end_ = 1;
+            request_complete = stream->receive_phase == Http2Stream::ReceivePhase::COMPLETE;
+        }
         client->remove_stream(stream_id);
+#ifndef _WIN32
+        if (request_complete && !client->is_coro) {
+            http2_server_onStreamReset(client, stream_id);
+        }
+#endif
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY: {
