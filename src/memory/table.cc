@@ -281,10 +281,8 @@ void Table::destroy() {
            insert_count);
 #endif
 
-    auto i = column_map->begin();
-    while (i != column_map->end()) {
-        delete i->second;
-        column_map->erase(i++);
+    for (const auto &column : *column_map) {
+        delete column.second;
     }
     delete column_map;
     delete column_list;

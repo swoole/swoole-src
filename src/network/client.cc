@@ -543,8 +543,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
 
 static int Client_dns_lookup(Client *cli) {
     AsyncEvent ev{};
-    auto req = new GethostbynameRequest(cli->server_host, cli->sock_domain_);
-    ev.data = std::shared_ptr<AsyncRequest>(req);
+    ev.data = std::make_shared<GethostbynameRequest>(cli->server_host, cli->sock_domain_);
     ev.object = cli;
     ev.handler = async::handler_gethostbyname;
     ev.callback = Client_onResolveCompleted;

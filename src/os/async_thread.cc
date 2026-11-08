@@ -222,7 +222,7 @@ class ThreadPool {
     }
 
     size_t get_queue_size() {
-        std::unique_lock<std::mutex> lock(event_mutex);
+        std::lock_guard<std::mutex> lock(event_mutex);
         return queue_.count();
     }
 

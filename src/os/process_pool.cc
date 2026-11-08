@@ -126,15 +126,14 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
         auto worker_pipes = std::make_unique<std::vector<std::shared_ptr<UnixSocket>>>();
         worker_pipes->reserve(_worker_num);
         SW_LOOP_N(_worker_num) {
-            auto sock = new UnixSocket(true, SOCK_DGRAM);
+            auto sock = std::make_shared<UnixSocket>(true, SOCK_DGRAM);
             if (!sock->ready()) {
-                delete sock;
                 return SW_ERR;
             }
-            worker_pipes->emplace_back(sock);
+            worker_pipes->push_back(sock);
             workers[i].pipe_master = sock->get_socket(true);
             workers[i].pipe_worker = sock->get_socket(false);
-            workers[i].pipe_object = sock;
+            workers[i].pipe_object = sock.get();
         }
         pipes = worker_pipes.release();
     } else if (_ipc_mode == SW_IPC_SOCKET) {
