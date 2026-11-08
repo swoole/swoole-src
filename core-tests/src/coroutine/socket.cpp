@@ -21,6 +21,8 @@
 #include "test_coroutine.h"
 #include "test_server.h"
 
+#include <stdexcept>
+
 using swoole::Coroutine;
 using swoole::HttpProxy;
 using swoole::Protocol;
@@ -36,6 +38,68 @@ using swoole::test::Process;
 using swoole::test::Server;
 
 const std::string host = "www.baidu.com";
+
+template <typename Guard>
+static void check_timeout_guard_restoration(Socket &socket) {
+    const double original[] = {0.125, 0.25, 0.5, 1.0};
+    for (size_t i = 0; i < SW_ARRAY_SIZE(Socket::timeout_type_list); ++i) {
+        socket.set_timeout(original[i], Socket::timeout_type_list[i]);
+    }
+    for (unsigned subset = 0; subset < (1u << SW_ARRAY_SIZE(Socket::timeout_type_list)); ++subset) {
+        int mask = 0;
+        for (size_t i = 0; i < SW_ARRAY_SIZE(Socket::timeout_type_list); ++i) {
+            if (subset & (1u << i)) {
+                mask |= Socket::timeout_type_list[i];
+            }
+        }
+        bool caught = false;
+        try {
+            Guard guard(&socket, 2.0, static_cast<swoole::TimeoutType>(mask));
+            for (size_t i = 0; i < SW_ARRAY_SIZE(Socket::timeout_type_list); ++i) {
+                EXPECT_EQ(socket.get_timeout(Socket::timeout_type_list[i]), (subset & (1u << i)) ? 2.0 : original[i]);
+            }
+            throw std::runtime_error("unwind timeout guard");
+        } catch (const std::runtime_error &) {
+            caught = true;
+        }
+        EXPECT_TRUE(caught);
+        for (size_t i = 0; i < SW_ARRAY_SIZE(Socket::timeout_type_list); ++i) {
+            EXPECT_EQ(socket.get_timeout(Socket::timeout_type_list[i]), original[i]);
+        }
+    }
+}
+
+TEST(coroutine_socket, timeout_guards_restore_all_masks_after_exception) {
+    coroutine::run([](void *) {
+        Socket socket(SW_SOCK_TCP);
+        check_timeout_guard_restoration<Socket::TimeoutSetter>(socket);
+        check_timeout_guard_restoration<Socket::TimeoutController>(socket);
+    });
+}
+
+TEST(coroutine_socket, nested_timeout_guards_restore_outer_values) {
+    coroutine::run([](void *) {
+        Socket socket(SW_SOCK_TCP);
+        socket.set_timeout(0.125);
+        do {
+            Socket::TimeoutSetter outer(&socket, 1.0, SW_TIMEOUT_ALL);
+            do {
+                Socket::TimeoutController inner(&socket, 2.0, SW_TIMEOUT_RDWR);
+                EXPECT_EQ(socket.get_timeout(SW_TIMEOUT_DNS), 1.0);
+                EXPECT_EQ(socket.get_timeout(SW_TIMEOUT_CONNECT), 1.0);
+                EXPECT_EQ(socket.get_timeout(SW_TIMEOUT_READ), 2.0);
+                EXPECT_EQ(socket.get_timeout(SW_TIMEOUT_WRITE), 2.0);
+            } while (0);
+            Socket::TimeoutSetter unchanged(&socket, 0, SW_TIMEOUT_ALL);
+            for (auto type : Socket::timeout_type_list) {
+                EXPECT_EQ(socket.get_timeout(type), 1.0);
+            }
+        } while (0);
+        for (auto type : Socket::timeout_type_list) {
+            EXPECT_EQ(socket.get_timeout(type), 0.125);
+        }
+    });
+}
 
 TEST(coroutine_socket, connect_refused) {
     coroutine::run([](void *arg) {
