@@ -220,13 +220,15 @@ const char *get_method_string(int method);
 const char *get_status_message(int code);
 extern int list_of_status_code[128];
 /**
- * This function will directly modify the data in the input buffer.
+ * Decodes in place and returns the byte length, which may include embedded NULs.
+ * The input buffer must have space for len bytes and a trailing NUL.
  */
 size_t url_decode(char *str, size_t len);
 /**
- * Returns a new memory address, and the pointer at this address needs to be manually released in the calling layer.
+ * Returns a NUL-terminated buffer owned by the caller and released with sw_free().
+ * Returns nullptr on allocation failure or if the worst-case output length would overflow size_t.
  */
-char *url_encode(char const *str, size_t len);
+char *url_encode(const char *str, size_t len);
 int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 bool parse_multipart_boundary(
     const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);

@@ -25,6 +25,8 @@
 
 #include "thirdparty/multipart_parser.h"
 
+#include <limits>
+
 using swoole::http_server::Request;
 using swoole::http_server::StaticHandler;
 using swoole::network::SendfileTask;
@@ -682,20 +684,16 @@ bool parse_multipart_boundary(
     return true;
 }
 
-static int url_htoi(const char *s) {
-    int c = ((unsigned char *) s)[0];
-    if (isupper(c)) {
-        c = tolower(c);
-    }
-    int value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
+static constexpr int url_hex_value(unsigned char c) {
+    return c >= '0' && c <= '9'   ? c - '0'
+           : c >= 'A' && c <= 'F' ? c - 'A' + 10
+           : c >= 'a' && c <= 'f' ? c - 'a' + 10
+                                  : -1;
+}
 
-    c = ((unsigned char *) s)[1];
-    if (isupper(c)) {
-        c = tolower(c);
-    }
-    value += c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10;
-
-    return (value);
+static constexpr bool url_is_unreserved(unsigned char c) {
+    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '.' ||
+           c == '_' || c == '~';
 }
 
 /* return value: length of decoded string */
@@ -703,50 +701,57 @@ size_t url_decode(char *str, size_t len) {
     char *dest = str;
     char *data = str;
 
-    while (len--) {
-        if (*data == '+') {
-            *dest = ' ';
-        } else if (*data == '%' && len >= 2 && isxdigit((int) *(data + 1)) && isxdigit((int) *(data + 2))) {
-            *dest = (char) url_htoi(data + 1);
-            data += 2;
-            len -= 2;
-        } else {
-            *dest = *data;
+    while (len > 0) {
+        if (*data == '%' && len >= 3) {
+            const int high = url_hex_value(static_cast<unsigned char>(data[1]));
+            const int low = url_hex_value(static_cast<unsigned char>(data[2]));
+            if (high >= 0 && low >= 0) {
+                *dest++ = static_cast<char>((high << 4) | low);
+                data += 3;
+                len -= 3;
+                continue;
+            }
         }
+        *dest++ = *data == '+' ? ' ' : *data;
         data++;
-        dest++;
+        len--;
     }
     *dest = '\0';
 
     return dest - str;
 }
 
-char *url_encode(char const *str, size_t len) {
-    static uchar hexchars[] = "0123456789ABCDEF";
+char *url_encode(const char *str, size_t len) {
+    static constexpr char hexchars[] = "0123456789ABCDEF";
+    if (sw_unlikely(len > (std::numeric_limits<size_t>::max() - 1) / 3)) {
+        errno = EOVERFLOW;
+        return nullptr;
+    }
 
-    size_t x, y;
-    char *ret = (char *) sw_malloc(len * 3);
-
-    for (x = 0, y = 0; len--; x++, y++) {
-        char c = str[x];
-
-        ret[y] = c;
-        if ((c < '0' && c != '-' && c != '.') || (c < 'A' && c > '9') || (c > 'Z' && c < 'a' && c != '_') ||
-            (c > 'z' && c != '~')) {
-            ret[y++] = '%';
-            ret[y++] = hexchars[(unsigned char) c >> 4];
-            ret[y] = hexchars[(unsigned char) c & 15];
+    size_t encoded_length = len;
+    for (size_t i = 0; i < len; i++) {
+        if (!url_is_unreserved(static_cast<unsigned char>(str[i]))) {
+            encoded_length += 2;
         }
     }
-    ret[y] = '\0';
 
-    do {
-        size_t size = y + 1;
-        char *tmp = (char *) sw_malloc(size);
-        memcpy(tmp, ret, size);
-        sw_free(ret);
-        ret = tmp;
-    } while (false);
+    auto *ret = static_cast<char *>(sw_malloc(encoded_length + 1));
+    if (sw_unlikely(!ret)) {
+        return nullptr;
+    }
+
+    char *dest = ret;
+    for (size_t i = 0; i < len; i++) {
+        const auto c = static_cast<unsigned char>(str[i]);
+        if (url_is_unreserved(c)) {
+            *dest++ = static_cast<char>(c);
+        } else {
+            *dest++ = '%';
+            *dest++ = hexchars[c >> 4];
+            *dest++ = hexchars[c & 15];
+        }
+    }
+    *dest = '\0';
 
     return ret;
 }
