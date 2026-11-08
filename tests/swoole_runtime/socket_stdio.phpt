@@ -137,7 +137,7 @@ foreach (['stream', 'native', 'coroutine'] as $owner) {
         fclose($stdin);
         $exitCode = proc_close($process);
         $partialWrite = $direction === 'read' ||
-            (str_contains($status, 'written:' . strlen($output) . "\n") && substr_count($output, 'A') === strlen($output));
+            (strlen($output) > 0 && strlen($output) < 1024 * 1024 && substr_count($output, 'A') === strlen($output));
         printf(
             "close %s during %s: %s\n",
             $owner,

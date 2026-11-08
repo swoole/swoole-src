@@ -88,12 +88,10 @@ if (str_starts_with($scenario, 'close-')) {
     Co\run(static function () use ($stream, $socket, $direction, $owner): void {
         go(static function () use ($stream, $direction): void {
             $result = $direction === 'read' ? @fread($stream, 1) : @fwrite($stream, str_repeat('A', 1024 * 1024));
+            // Cancelled blocking writes fail even when some bytes have already reached the peer.
             $cancelled = $direction === 'read'
                 ? ($result === false || $result === '')
-                : is_int($result) && $result > 0 && $result < 1024 * 1024;
-            if ($direction === 'write') {
-                write_all(STDERR, "written:{$result}\n");
-            }
+                : $result === false;
             write_all(STDERR, $cancelled ? "cancelled\n" : "not cancelled\n");
         });
         go(static function () use ($stream, $socket, $owner): void {
