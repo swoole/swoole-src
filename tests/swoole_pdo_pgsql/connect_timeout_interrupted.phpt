@@ -39,7 +39,8 @@ try {
 } catch (PDOException $exception) {
     $elapsed = microtime(true) - $start;
     Assert::same($exception->errorInfo[0], '08006');
-    Assert::greaterThanEq($elapsed, 1);
+    // libpq rounds the remaining time when polling.
+    Assert::greaterThanEq($elapsed, 0.99);
     Assert::lessThan($elapsed, 3);
     echo "timeout\n";
 }
