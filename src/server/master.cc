@@ -99,8 +99,9 @@ void Server::call_command_callback(const int64_t request_id, const std::string &
                          request_id);
         return;
     }
-    iter->second(this, result);
-    command_callbacks.erase(request_id);
+    auto callback = std::move(iter->second);
+    command_callbacks.erase(iter);
+    callback(this, result);
 }
 
 void Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Socket *sock) {
@@ -1265,7 +1266,8 @@ bool Server::command(WorkerId process_id,
         process_id = 0;
     }
 
-    int command_id = iter->second.id;
+    const int command_id = iter->second.id;
+    const int accepted_process_types = iter->second.accepted_process_types;
     int64_t request_id = command_current_request_id++;
     Socket *pipe_sock;
 
@@ -1277,47 +1279,52 @@ bool Server::command(WorkerId process_id,
     task.info.len = msg.length();
     task.data = msg.c_str();
 
-    command_callbacks[request_id] = fn;
+    command_callbacks.emplace(request_id, fn);
+    bool dispatched = false;
+    ON_SCOPE_EXIT {
+        if (!dispatched) {
+            command_callbacks.erase(request_id);
+        }
+    };
 
-    if (!(process_type & iter->second.accepted_process_types)) {
+    if (!(process_type & accepted_process_types)) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
-    _fail:
-        command_callbacks.erase(request_id);
         return false;
     }
 
     if (process_type == Command::REACTOR_THREAD) {
         if (!is_process_mode()) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [server_mode]");
-            goto _fail;
+            return false;
         }
         if (process_id >= reactor_num) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid thread_id[%d]", process_id);
-            goto _fail;
+            return false;
         }
         pipe_sock = get_worker(process_id)->pipe_worker;
     } else if (process_type == Command::EVENT_WORKER) {
         if (process_id >= worker_num) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid worker_id[%d]", process_id);
-            goto _fail;
+            return false;
         }
         pipe_sock = get_worker(process_id)->pipe_master;
     } else if (process_type == Command::TASK_WORKER) {
         if (process_id >= task_worker_num) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid task_worker_id[%d]", process_id);
-            goto _fail;
+            return false;
         }
         EventData buf;
         if (!task_pack(&buf, msg.c_str(), msg.length())) {
-            goto _fail;
+            return false;
         }
         buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
         buf.info.fd = request_id;
         buf.info.server_fd = command_id;
         int _dst_worker_id = process_id;
         if (!this->task(&buf, &_dst_worker_id)) {
-            goto _fail;
+            return false;
         }
+        dispatched = true;
         return true;
     } else if (process_type == Command::MANAGER) {
         EventData buf;
@@ -1327,7 +1334,7 @@ bool Server::command(WorkerId process_id,
                              "message is too large, maximum length is %lu, the given length is %lu",
                              sizeof(buf.data),
                              msg.length());
-            goto _fail;
+            return false;
         }
         memset(&buf.info, 0, sizeof(buf.info));
         buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
@@ -1336,20 +1343,23 @@ bool Server::command(WorkerId process_id,
         buf.info.len = msg.length();
         memcpy(buf.data, msg.c_str(), msg.length());
         if (get_event_worker_pool()->push_message(&buf) < 0) {
-            goto _fail;
+            return false;
         }
+        dispatched = true;
         return true;
     } else if (process_type == Command::MASTER) {
         auto result = call_command_handler_in_master(command_id, msg);
-        fn(this, result);
+        dispatched = true;
+        call_command_callback(request_id, result);
         return true;
     } else {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
-        goto _fail;
+        return false;
     }
     if (!message_bus.write(pipe_sock, &task)) {
-        goto _fail;
+        return false;
     }
+    dispatched = true;
     return true;
 }
 
@@ -1893,8 +1903,15 @@ bool Server::add_command(const std::string &name, int accepted_process_types, co
         accepted_process_types,
         name,
     };
-    commands.emplace(name, command);
-    command_handlers[command_id] = func;
+    const auto inserted = commands.emplace(name, std::move(command));
+    bool registered = false;
+    ON_SCOPE_EXIT {
+        if (!registered) {
+            commands.erase(inserted.first);
+        }
+    };
+    command_handlers.emplace(command_id, func);
+    registered = true;
     return true;
 }
 

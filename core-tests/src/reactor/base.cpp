@@ -41,6 +41,93 @@ static int reactor_destroy_count;
 static_assert(!std::is_copy_constructible<Reactor>::value, "A reactor must exclusively own its backend");
 static_assert(!std::is_copy_assignable<Reactor>::value, "A reactor must exclusively own its backend");
 
+TEST(reactor, wrapper_init_preserves_existing_reactor) {
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    auto *reactor = sw_reactor();
+    EXPECT_EQ(swoole_event_init(0), SW_ERR);
+    EXPECT_EQ(errno, EBUSY);
+    EXPECT_EQ(sw_reactor(), reactor);
+    EXPECT_TRUE(swoole_event_is_available());
+    EXPECT_EQ(swoole_event_free(), SW_OK);
+    EXPECT_EQ(swoole_event_free(), SW_ERR);
+    EXPECT_EQ(swoole_event_wait(), SW_ERR);
+    EXPECT_EQ(swoole_event_init(0), SW_OK);
+    EXPECT_EQ(swoole_event_free(), SW_OK);
+}
+
+TEST(reactor, wrapper_destruction_rejects_reentry_and_preserves_internal_cleanup) {
+    void *previous_hook = SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY];
+    SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
+    ON_SCOPE_EXIT {
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]);
+        SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = previous_hook;
+    };
+    int calls = 0;
+    const auto check_reentry = [&](Reactor *reactor) {
+        EXPECT_EQ(sw_reactor(), reactor);
+        EXPECT_TRUE(reactor->destroyed);
+        EXPECT_FALSE(swoole_event_is_available());
+        EXPECT_EQ(swoole_event_free(), SW_ERR);
+        EXPECT_EQ(swoole_event_wait(), SW_ERR);
+        EXPECT_EQ(swoole_event_init(0), SW_ERR);
+        EXPECT_EQ(sw_reactor(), reactor);
+        ++calls;
+    };
+    hook_add(
+        SwooleG.hooks,
+        SW_GLOBAL_HOOK_ON_REACTOR_DESTROY,
+        [&](void *data) { check_reentry(static_cast<Reactor *>(data)); },
+        1);
+    UnixSocket sockets(true, SOCK_STREAM);
+    ASSERT_TRUE(sockets.ready());
+    const int fd = sockets.get_socket(false)->fd;
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    auto *reactor = sw_reactor();
+    ASSERT_EQ(swoole_event_add(sockets.get_socket(false), SW_EVENT_READ), SW_OK);
+    reactor->add_destroy_callback([&](void *) {
+        check_reentry(reactor);
+        EXPECT_EQ(swoole_event_del(sockets.get_socket(false)), SW_OK);
+        sockets.close();
+    });
+    EXPECT_EQ(swoole_event_free(), SW_OK);
+    EXPECT_EQ(sw_reactor(), nullptr);
+    EXPECT_EQ(calls, 2);
+    EXPECT_FALSE(test::is_valid_fd(fd));
+}
+
+TEST(reactor, wrapper_wait_reentry_preserves_running_reactor) {
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    auto *reactor = sw_reactor();
+    int destroyed = 0;
+    reactor->add_destroy_callback([&](void *) { ++destroyed; });
+    reactor->defer([reactor](void *) {
+        EXPECT_EQ(swoole_event_wait(), SW_ERR);
+        EXPECT_EQ(errno, EBUSY);
+        EXPECT_EQ(sw_reactor(), reactor);
+        EXPECT_FALSE(reactor->destroyed);
+        EXPECT_TRUE(reactor->is_waiting());
+    });
+    EXPECT_EQ(swoole_event_wait(), SW_OK);
+    EXPECT_EQ(sw_reactor(), nullptr);
+    EXPECT_EQ(destroyed, 1);
+    swoole_clear_last_error();
+}
+
+TEST(reactor, wrapper_wait_exception_releases_pending_callbacks) {
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    int destroyed = 0;
+    sw_reactor()->add_destroy_callback([&](void *) { ++destroyed; });
+    sw_reactor()->defer([](void *) { throw std::runtime_error("callback failed"); });
+    auto owner = std::make_shared<int>(42);
+    std::weak_ptr<int> lifetime = owner;
+    sw_reactor()->defer([owner](void *) { ADD_FAILURE() << "unexpected deferred callback"; });
+    owner.reset();
+    EXPECT_THROW(swoole_event_wait(), std::runtime_error);
+    EXPECT_EQ(sw_reactor(), nullptr);
+    EXPECT_EQ(destroyed, 1);
+    EXPECT_TRUE(lifetime.expired());
+}
+
 TEST(reactor, callback_exception_restores_wait_and_pending_fifo) {
     std::vector<Reactor::Type> types{Reactor::TYPE_POLL};
 #ifdef HAVE_EPOLL

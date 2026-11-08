@@ -18,6 +18,7 @@
 #include "swoole_client.h"
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_util.h"
 
 using swoole::Callback;
 using swoole::Reactor;
@@ -25,6 +26,10 @@ using swoole::ReactorHandler;
 using swoole::network::Socket;
 
 int swoole_event_init(int flags) {
+    if (SwooleTG.reactor) {
+        errno = EBUSY;
+        return SW_ERR;
+    }
     auto reactor = std::make_unique<Reactor>(SW_REACTOR_MAXEVENTS);
     if (!reactor->ready()) {
         return SW_ERR;
@@ -68,18 +73,28 @@ int swoole_event_del(Socket *socket) {
 
 int swoole_event_wait() {
     Reactor *reactor = SwooleTG.reactor;
+    if (!swoole_event_is_available()) {
+        return SW_ERR;
+    }
+    if (reactor->is_waiting()) {
+        // Preserve wait()'s reentry error without freeing the running reactor below.
+        return reactor->wait();
+    }
+    ON_SCOPE_EXIT {
+        swoole_event_free();
+    };
     int retval = 0;
     if (!reactor->wait_exit || !reactor->if_exit()) {
         retval = reactor->wait();
     }
-    swoole_event_free();
     return retval;
 }
 
 int swoole_event_free() {
-    if (!SwooleTG.reactor) {
+    if (!swoole_event_is_available()) {
         return SW_ERR;
     }
+    // Destruction marks the reactor unavailable, but internal cleanup still uses this pointer.
     delete SwooleTG.reactor;
     SwooleTG.reactor = nullptr;
     return SW_OK;
