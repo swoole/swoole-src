@@ -45,16 +45,16 @@ class ChannelBase {
 
     struct TimeoutMessage {
         TimeoutMessage(ChannelBase *channel, Opcode opcode, Coroutine *coroutine)
-            : chan(channel), type(opcode), co(coroutine), error(false), timer(nullptr) {}
+            : chan(channel), co(coroutine), timer(nullptr), type(opcode), error(false) {}
         TimeoutMessage(const TimeoutMessage &) = delete;
         TimeoutMessage &operator=(const TimeoutMessage &) = delete;
         ~TimeoutMessage();
 
         ChannelBase *chan;
-        Opcode type;
         Coroutine *co;
-        bool error;
         TimerNode *timer;
+        Opcode type;
+        bool error;
     };
 
     explicit ChannelBase(size_t _capacity = 1) : capacity(_capacity == 0 ? 1 : _capacity) {}

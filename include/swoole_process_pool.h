@@ -128,11 +128,11 @@ struct Worker;
 
 struct WorkerGlobal {
     WorkerId id;
-    uint8_t type;
     pid_t pid;
+    uint32_t max_request;
+    uint8_t type;
     bool shutdown;
     bool running;
-    uint32_t max_request;
     /**
      * worker is shared memory, visible in other work processes.
      * When a worker process restarts, it may be held by both the old and new processes simultaneously,
