@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 namespace swoole {
 
@@ -34,13 +35,18 @@ class Heap {
         MAX_HEAP,
     };
 
+    // _n excludes the unused slot zero; an unrepresentable capacity throws std::length_error.
     Heap(size_t _n, Type _type);
     ~Heap();
+
+    Heap(const Heap &) = delete;
+    Heap &operator=(const Heap &) = delete;
 
     size_t count() const {
         return num - 1;
     }
 
+    // Returns nullptr if the index array cannot grow; allocating a node can throw std::bad_alloc.
     HeapNode *push(uint64_t priority, void *data);
     void *pop();
     void change_priority(uint64_t new_priority, HeapNode *ptr) const;
@@ -57,11 +63,17 @@ class Heap {
     }
 
   private:
+    struct NodeArrayDeleter {
+        void operator()(HeapNode **ptr) const;
+    };
+
     uint32_t num;
     uint32_t size;
     enum Type type;
-    HeapNode **nodes;
+    // Own the nodes and their index array; HeapNode::data remains caller-owned.
+    std::unique_ptr<HeapNode *[], NodeArrayDeleter> nodes;
 
+    bool grow();
     void bubble_up(uint32_t i) const;
     uint32_t maxchild(uint32_t i) const;
     void percolate_down(uint32_t i) const;
