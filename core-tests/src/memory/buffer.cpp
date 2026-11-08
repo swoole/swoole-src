@@ -21,6 +21,9 @@
 #include "swoole_memory.h"
 #include "swoole_buffer.h"
 
+#include <limits>
+#include <stdexcept>
+
 using namespace std;
 using namespace swoole;
 
@@ -116,4 +119,90 @@ TEST(buffer, pop_and_destruction_release_control_chunks_once) {
     }
     const std::vector<BufferChunk::Type> expected = {BufferChunk::TYPE_SENDFILE, BufferChunk::TYPE_CLOSE};
     EXPECT_EQ(destroyed, expected);
+}
+
+TEST(buffer, zero_byte_append_throws_without_changing_buffer) {
+    ASSERT_EXIT(
+        {
+            Buffer buffer(4);
+            buffer.append("keep", 4);
+            try {
+                buffer.append(nullptr, 0);
+            } catch (const std::invalid_argument &) {
+                const bool unchanged = buffer.count() == 1 && buffer.length() == 4 &&
+                                       std::string(buffer.front()->value.str, buffer.front()->length) == "keep";
+                _exit(unchanged ? 0 : 2);
+            }
+            _exit(3);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+}
+
+TEST(buffer, zero_length_iov_entry_is_rejected_before_append) {
+    ASSERT_EXIT(
+        {
+            std::string input("input");
+            iovec vectors[2]{};
+            vectors[0].iov_base = &input[0];
+            vectors[0].iov_len = input.size();
+            Buffer buffer(4);
+            buffer.append("keep", 4);
+            try {
+                buffer.append(vectors, 2, 0);
+            } catch (const std::invalid_argument &) {
+                const bool unchanged = buffer.count() == 1 && buffer.length() == 4 &&
+                                       std::string(buffer.front()->value.str, buffer.front()->length) == "keep";
+                _exit(unchanged ? 0 : 2);
+            }
+            _exit(3);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+}
+
+TEST(buffer, length_overflow_is_rejected_before_reading_input) {
+    Buffer buffer(4);
+    buffer.append("keep", 4);
+    const auto *front = buffer.front();
+    char byte = 'x';
+
+    EXPECT_THROW(buffer.append(&byte, UINT32_MAX), std::length_error);
+    iovec vectors[2] = {{&byte, UINT32_MAX}, {&byte, 1}};
+    EXPECT_THROW(buffer.append(vectors, 2, 0), std::length_error);
+    vectors[0].iov_len = SIZE_MAX;
+    EXPECT_THROW(buffer.append(vectors, 2, 0), std::length_error);
+
+    EXPECT_EQ(buffer.front(), front);
+    EXPECT_EQ(buffer.count(), 1);
+    EXPECT_EQ(buffer.length(), 4);
+    EXPECT_EQ(std::string(front->value.str, front->length), "keep");
+}
+
+TEST(buffer, large_offset_is_checked_before_narrowing) {
+    const std::string data("tail");
+    iovec vector{const_cast<char *>(data.data()), data.size()};
+    Buffer buffer(4);
+    buffer.append(&vector, 1, std::numeric_limits<off_t>::max());
+    EXPECT_TRUE(buffer.empty());
+}
+
+TEST(buffer, skipped_prefix_does_not_count_toward_buffer_limit) {
+    if (sizeof(size_t) <= sizeof(uint32_t) || sizeof(off_t) < sizeof(int64_t)) {
+        return;
+    }
+    char prefix = 'x';
+    const std::string tail("tail");
+    const size_t prefix_length = static_cast<size_t>(UINT32_MAX) + 64;
+    iovec vectors[2] = {{&prefix, prefix_length}, {const_cast<char *>(tail.data()), tail.size()}};
+    Buffer buffer(3);
+    buffer.append(vectors, 2, static_cast<off_t>(prefix_length));
+    EXPECT_EQ(buffer.length(), tail.size());
+    std::string actual;
+    while (!buffer.empty()) {
+        const auto *chunk = buffer.front();
+        actual.append(chunk->value.str, chunk->length);
+        buffer.pop();
+    }
+    EXPECT_EQ(actual, tail);
 }

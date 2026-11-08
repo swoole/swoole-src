@@ -33,16 +33,18 @@ struct BufferChunk {
     Type type;
     uint32_t length = 0;
     uint32_t offset = 0;
+    uint32_t size = 0;
     union {
         char *str;
         void *ptr;
         uint32_t u32;
         uint64_t u64;
     } value{};
-    uint32_t size = 0;
 
     BufferChunk(Type type, uint32_t size);
     ~BufferChunk();
+    BufferChunk(const BufferChunk &) = delete;
+    BufferChunk &operator=(const BufferChunk &) = delete;
 
     void (*destroy)(BufferChunk *chunk) = nullptr;
 };
@@ -56,6 +58,8 @@ class Buffer {
   public:
     explicit Buffer(uint32_t _chunk_size);
     ~Buffer();
+    Buffer(const Buffer &) = delete;
+    Buffer &operator=(const Buffer &) = delete;
 
     BufferChunk *alloc(BufferChunk::Type type, uint32_t size);
 
