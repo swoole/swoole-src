@@ -215,11 +215,16 @@ static bool swoole_pgsql_wait_connect(PGconn *conn, PostgresPollingStatusType (*
 }
 
 PGconn *swoole_pgsql_connectdb(const char *conninfo) {
+    if (swoole_pgsql_blocking || !Coroutine::get_current()) {
+        // libpq's blocking connector can advance to the next host when a connection times out.
+        return PQconnectdb(conninfo);
+    }
+
     PGconn *conn = PQconnectStart(conninfo);
     if (conn == nullptr || PQsocket(conn) < 0) {
         return conn;
     }
-    PQsetnonblocking(conn, !swoole_pgsql_blocking && Coroutine::get_current() ? 1 : 0);
+    PQsetnonblocking(conn, 1);
     swoole_pgsql_wait_connect(conn, PQconnectPoll);
     return conn;
 }
