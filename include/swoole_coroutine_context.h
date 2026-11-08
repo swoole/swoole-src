@@ -19,6 +19,8 @@
 
 #include "swoole.h"
 
+#include <memory>
+
 #ifdef SW_USE_THREAD_CONTEXT
 #include <thread>
 #include <mutex>
@@ -57,6 +59,10 @@ namespace coroutine {
 class Context {
   public:
     Context(size_t stack_size, CoroutineFunc fn, void *private_data);
+    Context(const Context &) = delete;
+    Context &operator=(const Context &) = delete;
+    Context(Context &&) = delete;
+    Context &operator=(Context &&) = delete;
     ~Context();
     bool swap_in();
     bool swap_out();
@@ -65,11 +71,11 @@ class Context {
 #endif
 #ifndef SW_USE_THREAD_CONTEXT
     char *get_stack() const {
-        return stack_;
+        return stack_.get();
     }
 
     size_t get_stack_size() const {
-        return stack_size_;
+        return stack_.get_deleter().size;
     }
 #endif
     bool is_end() const {
@@ -85,11 +91,14 @@ class Context {
 #else
     coroutine_context_t ctx_;
     coroutine_context_t swap_ctx_;
-    char *stack_;
-    uint32_t stack_size_;
-#endif
+    struct StackDeleter {
+        size_t size;
 #ifdef USE_VALGRIND
-    uint32_t valgrind_stack_id;
+        uint32_t valgrind_stack_id = 0;
+#endif
+        void operator()(char *stack) const noexcept;
+    };
+    std::unique_ptr<char, StackDeleter> stack_;
 #endif
     void *private_data_;
     bool end_;

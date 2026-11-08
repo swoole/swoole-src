@@ -36,50 +36,25 @@ void set_protocol(Protocol *protocol) {
     protocol->get_package_length = get_package_length;
 }
 
-// recv variable_header packet twice may cause that the '*data' contain the payload data,
-// but there's no chance to read the next mqtt request ,because MQTT client will recv ACK blocking
-#define SW_MQTT_RECV_LEN_AGAIN 0
-
 ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength *pl) {
-    //-1 cause the arg 'size' contain length_offset(1 byte len)
-    uint32_t recv_variable_header_size = (pl->buf_size - 1);
-    if (recv_variable_header_size < SW_MQTT_MIN_LENGTH_SIZE) {  // recv continue
-        return SW_MQTT_RECV_LEN_AGAIN;
-    }
-
-    uint8_t byte;
-    int mul = 1;
-    ssize_t length = 0;
-    ssize_t variable_header_byte_count = 0;
-    while (true) {
-        variable_header_byte_count++;
-        byte = pl->buf[variable_header_byte_count];
-        length += (byte & 127) * mul;
-        mul *= 128;
-        if ((byte & 128) == 0) {  // done! there is no surplus length byte
-            break;
+    uint32_t remaining_length = 0;
+    // Byte zero is the fixed header. Inspect at most four received Remaining Length bytes.
+    for (uint32_t index = 0; index < SW_MQTT_MAX_LENGTH_SIZE; index++) {
+        const uint32_t offset = index + 1;
+        if (offset >= pl->buf_size) {
+            return 0;
         }
-        if (variable_header_byte_count >= SW_MQTT_MAX_LENGTH_SIZE) {
-            swoole_error_log(SW_LOG_WARNING,
-                             SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                             "bad request, the variable header size is larger than %d",
-                             SW_MQTT_MAX_LENGTH_SIZE);
-            return SW_ERR;
-        }
-        if (variable_header_byte_count >= recv_variable_header_size) {  // length not enough
-            return SW_MQTT_RECV_LEN_AGAIN;
+        const auto byte = static_cast<uint8_t>(pl->buf[offset]);
+        remaining_length |= static_cast<uint32_t>(byte & 0x7f) << (7 * index);
+        if ((byte & 0x80) == 0) {
+            return remaining_length + offset + 1;
         }
     }
-    if (sw_unlikely(length > SW_MQTT_MAX_PAYLOAD_SIZE)) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                         "bad request, the remaining length %zd exceeds the MQTT limit %d",
-                         length,
-                         SW_MQTT_MAX_PAYLOAD_SIZE);
-        return SW_ERR;
-    }
-    // payload_length + variable_header_byte_count + length_offset(1)
-    return length + variable_header_byte_count + 1;
+    swoole_error_log(SW_LOG_WARNING,
+                     SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                     "bad request, the variable header size is larger than %d",
+                     SW_MQTT_MAX_LENGTH_SIZE);
+    return SW_ERR;
 }
 
 }  // namespace mqtt

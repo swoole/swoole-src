@@ -1,4 +1,5 @@
 #include "test_coroutine.h"
+#include "swoole_util.h"
 
 using swoole::Coroutine;
 using swoole::coroutine::Channel;
@@ -6,6 +7,32 @@ using swoole::coroutine::ChannelImpl;
 
 using namespace std;
 using namespace swoole::test;
+
+TEST(coroutine_channel, failed_suspension_removes_waiter_timer_and_cancel_callback) {
+    coroutine::run([](void *) {
+        Channel chan(1);
+        auto *co = Coroutine::get_current();
+        int task = 0;
+        co->set_task(&task);
+        Coroutine::set_on_yield([](void *) { throw std::runtime_error("suspension failed"); });
+        ON_SCOPE_EXIT {
+            Coroutine::set_on_yield(nullptr);
+            co->set_task(nullptr);
+        };
+        const auto timer_count = [] { return swoole_timer_is_available() ? sw_timer()->count() : 0; };
+        const auto initial_timer_count = timer_count();
+        EXPECT_THROW(chan.pop(60), std::runtime_error);
+        EXPECT_EQ(chan.consumer_num(), 0u);
+        EXPECT_EQ(timer_count(), initial_timer_count);
+        EXPECT_FALSE(co->cancel());
+        EXPECT_TRUE(chan.push_data(nullptr));
+        EXPECT_THROW(chan.push(nullptr, 60), std::runtime_error);
+        EXPECT_EQ(chan.producer_num(), 0u);
+        EXPECT_EQ(timer_count(), initial_timer_count);
+        EXPECT_FALSE(co->cancel());
+        EXPECT_TRUE(chan.close());
+    });
+}
 
 TEST(coroutine_channel, direct_push_pop_data_boundaries) {
     for (auto capacity : {1, 2, 3, 4, 8, 16, 17}) {

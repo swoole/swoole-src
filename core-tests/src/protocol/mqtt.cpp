@@ -24,13 +24,22 @@ TEST(mqtt_protocol, remaining_length_boundaries_and_fragments) {
         SCOPED_TRACE(item.second);
         // Supply every prefix, including a fixed header without a length byte. The parser
         // must wait for the final continuation byte without inspecting unreceived bytes.
-        for (size_t size = 1; size < item.first.size(); size++) {
-            PacketLength length{item.first.data(), static_cast<uint32_t>(size)};
+        for (size_t size = 0; size < item.first.size(); size++) {
+            // An exact-size allocation lets sanitizers detect reads beyond a received fragment.
+            auto fragment = std::make_unique<char[]>(size);
+            memcpy(fragment.get(), item.first.data(), size);
+            PacketLength length{fragment.get(), static_cast<uint32_t>(size)};
             EXPECT_EQ(protocol.get_package_length(&protocol, nullptr, &length), 0);
         }
         PacketLength length{item.first.data(), static_cast<uint32_t>(item.first.size())};
         EXPECT_EQ(protocol.get_package_length(&protocol, nullptr, &length), item.second + item.first.size());
     }
+}
+
+TEST(mqtt_protocol, empty_input_does_not_dereference_buffer) {
+    Protocol protocol{};
+    PacketLength length{nullptr, 0};
+    EXPECT_EQ(mqtt::get_package_length(&protocol, nullptr, &length), 0);
 }
 
 TEST(mqtt_protocol, rejects_fifth_remaining_length_byte) {

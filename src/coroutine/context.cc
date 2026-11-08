@@ -34,7 +34,7 @@ namespace swoole {
 namespace coroutine {
 
 Context::Context(size_t stack_size, CoroutineFunc fn, void *private_data)
-    : fn_(std::move(fn)), stack_size_(stack_size), private_data_(private_data) {
+    : fn_(std::move(fn)), stack_(nullptr, StackDeleter{stack_size}), private_data_(private_data) {
     end_ = false;
 
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
@@ -44,37 +44,36 @@ Context::Context(size_t stack_size, CoroutineFunc fn, void *private_data)
     // However, necessary on OpenBSD.
     mapflags |= MAP_STACK;
 #endif
-    stack_ = (char *) ::mmap(0, stack_size_, PROT_READ | PROT_WRITE, mapflags, -1, 0);
+    auto *stack = static_cast<char *>(::mmap(nullptr, stack_size, PROT_READ | PROT_WRITE, mapflags, -1, 0));
 #else
-    stack_ = (char *) sw_malloc(stack_size_);
+    auto *stack = static_cast<char *>(sw_malloc(stack_size));
 #endif
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
-    if (stack_ == MAP_FAILED) {
+    if (stack == MAP_FAILED) {
 #else
-    if (!stack_) {
+    if (!stack) {
 #endif
         swoole_fatal_error(SW_ERROR_MALLOC_FAIL, "failed to malloc stack memory.");
         exit(254);
     }
-    swoole_trace_log(SW_TRACE_COROUTINE, "alloc stack: size=%u, ptr=%p", stack_size_, stack_);
+    stack_.reset(stack);
+    swoole_trace_log(SW_TRACE_COROUTINE, "alloc stack: size=%zu, ptr=%p", stack_size, stack);
 
-    void *sp = (void *) ((char *) stack_ + stack_size_);
+    void *sp = stack + stack_size;
 #ifdef USE_VALGRIND
-    valgrind_stack_id = VALGRIND_STACK_REGISTER(sp, stack_);
+    stack_.get_deleter().valgrind_stack_id = VALGRIND_STACK_REGISTER(sp, stack);
 #endif
 
 #ifdef USE_UCONTEXT
     if (-1 == getcontext(&ctx_)) {
         swoole_throw_error(SW_ERROR_CO_GETCONTEXT_FAILED);
-        sw_free(stack_);
-        return;
     }
-    ctx_.uc_stack.ss_sp = stack_;
+    ctx_.uc_stack.ss_sp = stack;
     ctx_.uc_stack.ss_size = stack_size;
     ctx_.uc_link = nullptr;
-    makecontext(&ctx_, (void (*)(void)) & context_func, 1, this);
+    makecontext(&ctx_, (void (*)(void)) &context_func, 1, this);
 #else
-    ctx_ = swoole_make_fcontext(sp, stack_size_, (void (*)(transfer_t)) & context_func);
+    ctx_ = swoole_make_fcontext(sp, stack_size, (void (*)(transfer_t)) &context_func);
     swap_ctx_ = nullptr;
 #endif
 
@@ -87,34 +86,33 @@ Context::Context(size_t stack_size, CoroutineFunc fn, void *private_data)
 #endif
 
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
-    mprotect(stack_, SwooleG.pagesize, PROT_NONE);
+    mprotect(stack, SwooleG.pagesize, PROT_NONE);
 #endif
 }
 
-Context::~Context() {
-    if (stack_) {
-        swoole_trace_log(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack_);
+void Context::StackDeleter::operator()(char *stack) const noexcept {
+    swoole_trace_log(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack);
 #ifdef USE_VALGRIND
-        VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
+    VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif
 
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
-        ::munmap(stack_, stack_size_);
+    ::munmap(stack, size);
 #else
-        sw_free(stack_);
+    sw_free(stack);
 #endif
-        stack_ = nullptr;
-    }
 }
+
+Context::~Context() = default;
 
 #ifdef SW_CONTEXT_DETECT_STACK_USAGE
 ssize_t Context::get_stack_usage() {
     size_t offset = START_OFFSET;
     size_t retval = START_OFFSET;
 
-    void *sp = (void *) ((char *) stack_ + stack_size_);
+    void *sp = stack_.get() + get_stack_size();
 
-    while (offset < stack_size_) {
+    while (offset < get_stack_size()) {
         if (memcmp((char *) sp - offset + (sizeof(MAGIC_STRING) - 1), SW_STRL(MAGIC_STRING)) != 0) {
             retval = offset * 2;
         }

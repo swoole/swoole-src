@@ -3,6 +3,36 @@
 using namespace swoole;
 using swoole::coroutine::System;
 
+static_assert(!std::is_copy_constructible<swoole::coroutine::Context>::value, "A context exclusively owns its stack");
+static_assert(!std::is_move_constructible<swoole::coroutine::Context>::value, "A context address must remain stable");
+
+#ifndef SW_USE_THREAD_CONTEXT
+TEST(coroutine_context, owns_stack_through_suspend_and_completion) {
+    swoole::coroutine::Context *active_context = nullptr;
+    int stage = 0;
+    int argument = 42;
+    swoole::coroutine::Context context(
+        128 * 1024,
+        [&](void *data) {
+            EXPECT_EQ(data, &argument);
+            stage = 1;
+            EXPECT_TRUE(active_context->swap_out());
+            stage = 2;
+        },
+        &argument);
+    active_context = &context;
+    EXPECT_NE(context.get_stack(), nullptr);
+    EXPECT_EQ(context.get_stack_size(), 128u * 1024);
+    EXPECT_FALSE(context.is_end());
+    EXPECT_TRUE(context.swap_in());
+    EXPECT_EQ(stage, 1);
+    EXPECT_FALSE(context.is_end());
+    EXPECT_TRUE(context.swap_in());
+    EXPECT_EQ(stage, 2);
+    EXPECT_TRUE(context.is_end());
+}
+#endif
+
 TEST(coroutine_base, create) {
     long _cid;
     long cid = Coroutine::create([](void *arg) { *(long *) arg = Coroutine::get_current_cid(); }, &_cid);
@@ -111,9 +141,7 @@ TEST(coroutine_base, expired_origin) {
     long child_cid = 0;
 
     Coroutine::create([&](void *arg) {
-        child_cid = Coroutine::create([](void *arg) {
-            Coroutine::get_current()->yield();
-        });
+        child_cid = Coroutine::create([](void *arg) { Coroutine::get_current()->yield(); });
         child = Coroutine::get_by_cid(child_cid);
     });
 
@@ -134,15 +162,15 @@ TEST(coroutine_base, tree_exit_any_order) {
     std::vector<long> cid(5);
 
     auto build_tree = [&cid]() {
-        cid[0] = Coroutine::create([&cid](void *) {          // A
-            cid[1] = Coroutine::create([&cid](void *) {      // B
-                cid[2] = Coroutine::create([](void *) {      // C
+        cid[0] = Coroutine::create([&cid](void *) {      // A
+            cid[1] = Coroutine::create([&cid](void *) {  // B
+                cid[2] = Coroutine::create([](void *) {  // C
                     Coroutine::get_current()->yield();
                 });
                 Coroutine::get_current()->yield();
             });
-            cid[3] = Coroutine::create([&cid](void *) {      // D
-                cid[4] = Coroutine::create([](void *) {      // E
+            cid[3] = Coroutine::create([&cid](void *) {  // D
+                cid[4] = Coroutine::create([](void *) {  // E
                     Coroutine::get_current()->yield();
                 });
                 Coroutine::get_current()->yield();

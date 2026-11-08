@@ -19,6 +19,12 @@
 namespace swoole {
 namespace coroutine {
 
+ChannelBase::TimeoutMessage::~TimeoutMessage() {
+    if (timer) {
+        swoole_timer_del(timer);
+    }
+}
+
 ChannelBase::~ChannelBase() {
     if (sw_unlikely(!producer_queue.empty())) {
         log_discarded("producers", producer_queue.size());
@@ -56,13 +62,6 @@ void ChannelBase::log_discarded(const char *type, size_t count) {
 
 void ChannelBase::yield(Opcode type) {
     Coroutine *co = Coroutine::get_current_safe();
-    if (type == PRODUCER) {
-        producer_queue.push_back(co);
-        swoole_trace_log(SW_TRACE_CHANNEL, "producer cid=%ld", co->get_cid());
-    } else {
-        consumer_queue.push_back(co);
-        swoole_trace_log(SW_TRACE_CHANNEL, "consumer cid=%ld", co->get_cid());
-    }
     Coroutine::CancelFunc cancel_fn = [this, type](Coroutine *co) {
         if (type == CONSUMER) {
             consumer_remove(co);
@@ -72,7 +71,24 @@ void ChannelBase::yield(Opcode type) {
         co->resume();
         return true;
     };
-    co->yield(&cancel_fn);
+    if (type == PRODUCER) {
+        producer_queue.push_back(co);
+        swoole_trace_log(SW_TRACE_CHANNEL, "producer cid=%ld", co->get_cid());
+    } else {
+        consumer_queue.push_back(co);
+        swoole_trace_log(SW_TRACE_CHANNEL, "consumer cid=%ld", co->get_cid());
+    }
+    try {
+        co->yield(&cancel_fn);
+    } catch (...) {
+        // A failed suspension must not leave a waiter pointing into the unwound stack.
+        if (type == CONSUMER) {
+            consumer_remove(co);
+        } else {
+            producer_remove(co);
+        }
+        throw;
+    }
 }
 
 bool ChannelBase::wait_pop(bool empty, double timeout) {
@@ -82,21 +98,13 @@ bool ChannelBase::wait_pop(bool empty, double timeout) {
         return false;
     }
     if (empty || !consumer_queue.empty()) {
-        TimeoutMessage msg;
-        msg.error = false;
-        msg.timer = nullptr;
+        TimeoutMessage msg(this, CONSUMER, current_co);
         if (timeout > 0) {
-            msg.chan = this;
-            msg.type = CONSUMER;
-            msg.co = current_co;
             msg.timer = swoole_timer_add(timeout, false, timer_callback, &msg);
         }
 
         yield(CONSUMER);
 
-        if (msg.timer) {
-            swoole_timer_del(msg.timer);
-        }
         if (sw_unlikely(current_co->is_canceled())) {
             error_ = ERROR_CANCELED;
             return false;
@@ -116,21 +124,13 @@ bool ChannelBase::wait_push(bool full, double timeout) {
         return false;
     }
     if (full || !producer_queue.empty()) {
-        TimeoutMessage msg;
-        msg.error = false;
-        msg.timer = nullptr;
+        TimeoutMessage msg(this, PRODUCER, current_co);
         if (timeout > 0) {
-            msg.chan = this;
-            msg.type = PRODUCER;
-            msg.co = current_co;
             msg.timer = swoole_timer_add(timeout, false, timer_callback, &msg);
         }
 
         yield(PRODUCER);
 
-        if (msg.timer) {
-            swoole_timer_del(msg.timer);
-        }
         if (sw_unlikely(current_co->is_canceled())) {
             error_ = ERROR_CANCELED;
             return false;

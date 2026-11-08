@@ -44,6 +44,12 @@ class ChannelBase {
     };
 
     struct TimeoutMessage {
+        TimeoutMessage(ChannelBase *channel, Opcode opcode, Coroutine *coroutine)
+            : chan(channel), type(opcode), co(coroutine), error(false), timer(nullptr) {}
+        TimeoutMessage(const TimeoutMessage &) = delete;
+        TimeoutMessage &operator=(const TimeoutMessage &) = delete;
+        ~TimeoutMessage();
+
         ChannelBase *chan;
         Opcode type;
         Coroutine *co;

@@ -16,6 +16,7 @@
 
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_api.h"
+#include "swoole_util.h"
 
 namespace swoole {
 
@@ -119,8 +120,10 @@ void Coroutine::yield() {
 
 void Coroutine::yield(CancelFunc *cancel_fn) {
     set_cancel_fn(cancel_fn);
+    ON_SCOPE_EXIT {
+        set_cancel_fn(nullptr);
+    };
     yield();
-    set_cancel_fn(nullptr);
 }
 
 bool Coroutine::yield_ex(double timeout) {
