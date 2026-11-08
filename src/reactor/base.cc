@@ -18,6 +18,7 @@
 #include "swoole_signal.h"
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
+#include "swoole_util.h"
 
 #include "swoole_api.h"
 
@@ -129,11 +130,18 @@ Reactor::Reactor(int max_event, Type _type) {
     }
 
     set_end_callback(PRIORITY_DEFER_TASK, [](Reactor *reactor) {
-        CallbackManager *cm = reactor->defer_tasks;
+        std::unique_ptr<CallbackManager> cm(std::exchange(reactor->defer_tasks, nullptr));
         if (cm) {
-            reactor->defer_tasks = nullptr;
+            ON_SCOPE_EXIT {
+                if (!cm->empty()) {
+                    if (reactor->defer_tasks) {
+                        reactor->defer_tasks->prepend(*cm);
+                    } else {
+                        reactor->defer_tasks = cm.release();
+                    }
+                }
+            };
             cm->execute();
-            delete cm;
         }
     });
 
@@ -437,10 +445,17 @@ void Reactor::set_exit_condition(const ExitCondition _id, const std::function<bo
 }
 
 void Reactor::defer(const Callback &cb, void *data) {
+    defer(cb, data, nullptr);
+}
+
+void Reactor::defer(const Callback &cb, void *data, CallbackManager::Cleanup discard) {
     if (defer_tasks == nullptr) {
-        defer_tasks = new CallbackManager;
+        auto tasks = std::make_unique<CallbackManager>();
+        tasks->append(cb, data, discard);
+        defer_tasks = tasks.release();
+    } else {
+        defer_tasks->append(cb, data, discard);
     }
-    defer_tasks->append(cb, data);
 }
 
 int Reactor::wait() const {
@@ -450,9 +465,10 @@ int Reactor::wait() const {
         return SW_ERR;
     }
     waiting_ = true;
-    auto rc = impl->wait();
-    waiting_ = false;
-    return rc;
+    ON_SCOPE_EXIT {
+        waiting_ = false;
+    };
+    return impl->wait();
 }
 
 void Reactor::execute_end_callbacks(bool _timed_out) {
@@ -469,12 +485,20 @@ void Reactor::execute_begin_callback() const {
     }
 }
 
+void Reactor::discard_defer_tasks() {
+    while (defer_tasks) {
+        std::unique_ptr<CallbackManager> tasks(std::exchange(defer_tasks, nullptr));
+    }
+}
+
 Reactor::~Reactor() {
     destroyed = true;
     destroy_callbacks.execute();
+    discard_defer_tasks();
     impl.reset();
     if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, this);
     }
+    discard_defer_tasks();
 }
 }  // namespace swoole

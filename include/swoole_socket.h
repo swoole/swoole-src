@@ -381,6 +381,8 @@ struct Socket {
     ssize_t send(const void *_buf, size_t _n, int _flags);
     ssize_t peek(void *_buf, size_t _n, int _flags) const;
     Socket *accept();
+    // Duplicate the descriptor and configuration into an unregistered socket with independent I/O state.
+    // Buffers, timers, TLS, user data and ownership of a bound Unix pathname stay with the original.
     Socket *dup() const;
 
     ssize_t readv(IOVector *io_vector);

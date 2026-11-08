@@ -19,6 +19,7 @@
 #include "swoole_util.h"
 #include "swoole_string.h"
 #include "swoole_timer.h"
+#include "swoole_reactor.h"
 #ifdef _WIN32
 #include "swoole_iocp.h"
 #endif
@@ -375,7 +376,7 @@ ssize_t Socket::recv_sync(void *_data, size_t _len, int flags) {
 }
 
 Socket *Socket::accept() {
-    auto *socket = new Socket();
+    auto socket = std::make_unique<Socket>();
     socket->removed = 1;
     socket->socket_type = socket_type;
     socket->info.len = sizeof(socket->info);
@@ -392,13 +393,12 @@ Socket *Socket::accept() {
     }
 #endif
     if (socket->fd == SW_BAD_SOCKET) {
-        delete socket;
         return nullptr;
     }
     socket->info.type = socket_type;
     socket->nonblock = nonblock;
     socket->cloexec = 1;
-    return socket;
+    return socket.release();
 }
 
 ssize_t Socket::sendto_sync(const Address &sa, const void *_buf, size_t _n, int flags) {
@@ -481,7 +481,7 @@ void Socket::free() {
         if (fd != -1 && !removed) {
             swoole_event_del(this);
         }
-        swoole_event_defer(socket_free_defer, this);
+        sw_reactor()->defer(socket_free_defer, this, socket_free_defer);
     } else {
         socket_free_defer(this);
     }
@@ -606,16 +606,32 @@ bool Socket::uncork() {
 }
 
 Socket *Socket::dup() const {
+    auto copy = std::make_unique<Socket>();
     swSocketFd new_fd = sw_dup(fd);
     if (new_fd == SW_BAD_SOCKET) {
         return nullptr;
     }
-    auto *_socket = new Socket();
-    *_socket = *this;
-    _socket->fd = new_fd;
-    _socket->ssl = nullptr;
-    _socket->ssl_state = 0;
-    return _socket;
+    copy->fd = new_fd;
+    copy->fd_type = fd_type;
+    copy->socket_type = socket_type;
+    copy->removed = 1;
+    copy->nonblock = nonblock;
+    // dup() clears FD_CLOEXEC on POSIX; the new descriptor's metadata must reflect that.
+    copy->cloexec = 0;
+    copy->enable_tcp_nodelay = enable_tcp_nodelay;
+    copy->tcp_nodelay = tcp_nodelay;
+    copy->tcp_nopush = tcp_nopush;
+    copy->listened = listened;
+    copy->direct_send = direct_send;
+    copy->dont_restart = dont_restart;
+    copy->buffer_size = buffer_size;
+    copy->chunk_size = chunk_size;
+    copy->info = info;
+    copy->dns_timeout = dns_timeout;
+    copy->connect_timeout = connect_timeout;
+    copy->read_timeout = read_timeout;
+    copy->write_timeout = write_timeout;
+    return copy.release();
 }
 
 static bool _set_timeout(int fd, int type, double timeout) {

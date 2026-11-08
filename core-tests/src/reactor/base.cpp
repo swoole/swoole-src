@@ -41,6 +41,144 @@ static int reactor_destroy_count;
 static_assert(!std::is_copy_constructible<Reactor>::value, "A reactor must exclusively own its backend");
 static_assert(!std::is_copy_assignable<Reactor>::value, "A reactor must exclusively own its backend");
 
+TEST(reactor, callback_exception_restores_wait_and_pending_fifo) {
+    std::vector<Reactor::Type> types{Reactor::TYPE_POLL};
+#ifdef HAVE_EPOLL
+    types.push_back(Reactor::TYPE_EPOLL);
+#endif
+    for (auto type : types) {
+        Reactor reactor(16, type);
+        ASSERT_TRUE(reactor.ready());
+        reactor.once = true;
+        std::vector<int> calls;
+        reactor.defer([&](void *) {
+            calls.push_back(1);
+            reactor.defer([&](void *) { calls.push_back(4); });
+            throw std::runtime_error("defer callback failed");
+        });
+        reactor.defer([&](void *) { calls.push_back(2); });
+        reactor.defer([&](void *) { calls.push_back(3); });
+        EXPECT_THROW(reactor.wait(), std::runtime_error);
+        EXPECT_FALSE(reactor.is_waiting());
+        EXPECT_EQ(calls, std::vector<int>({1}));
+        ASSERT_NE(reactor.defer_tasks, nullptr);
+        EXPECT_EQ(reactor.wait(), SW_OK);
+        EXPECT_FALSE(reactor.is_waiting());
+        EXPECT_EQ(calls, std::vector<int>({1, 2, 3, 4}));
+        EXPECT_EQ(reactor.defer_tasks, nullptr);
+    }
+}
+
+TEST(reactor, begin_callback_exception_restores_wait_state) {
+    Reactor reactor(16, Reactor::TYPE_POLL);
+    reactor.once = true;
+    reactor.future_task.callback = [](void *) { throw std::runtime_error("begin callback failed"); };
+    EXPECT_THROW(reactor.wait(), std::runtime_error);
+    EXPECT_FALSE(reactor.is_waiting());
+    reactor.future_task.callback = nullptr;
+    reactor.defer([](void *) {});
+    EXPECT_EQ(reactor.wait(), SW_OK);
+}
+
+TEST(reactor, deferred_resources_are_discarded_without_executing_callbacks) {
+    struct Resource {
+        int &destroyed;
+        ~Resource() {
+            destroyed++;
+        }
+    };
+    int destroyed = 0;
+    int called = 0;
+    const auto discard = [](void *data) { delete static_cast<Resource *>(data); };
+    do {
+        Reactor reactor(16, Reactor::TYPE_POLL);
+        reactor.defer(
+            [&](void *data) {
+                called++;
+                discard(data);
+            },
+            new Resource{destroyed},
+            discard);
+        reactor.terminated = true;
+    } while (0);
+    EXPECT_EQ(called, 0);
+    EXPECT_EQ(destroyed, 1);
+    do {
+        Reactor reactor(16, Reactor::TYPE_POLL);
+        reactor.defer(
+            [&](void *data) {
+                called++;
+                discard(data);
+            },
+            new Resource{destroyed},
+            discard);
+        reactor.execute_end_callbacks();
+        EXPECT_EQ(called, 1);
+        EXPECT_EQ(destroyed, 2);
+    } while (0);
+    EXPECT_EQ(destroyed, 2);
+    do {
+        Reactor reactor(16, Reactor::TYPE_POLL);
+        reactor.defer([](void *) { throw std::runtime_error("discard remaining tasks"); });
+        reactor.defer(
+            [&](void *data) {
+                called++;
+                discard(data);
+            },
+            new Resource{destroyed},
+            discard);
+        EXPECT_THROW(reactor.execute_end_callbacks(), std::runtime_error);
+        EXPECT_EQ(destroyed, 2);
+    } while (0);
+    EXPECT_EQ(called, 1);
+    EXPECT_EQ(destroyed, 3);
+}
+
+TEST(reactor, destruction_closes_pending_socket_frees) {
+    UnixSocket sockets(true, SOCK_STREAM);
+    ASSERT_TRUE(sockets.ready());
+    const auto read_fd = sockets.get_socket(false)->get_fd();
+    const auto write_fd = sockets.get_socket(true)->get_fd();
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    sockets.close();
+    EXPECT_TRUE(test::is_valid_fd(read_fd));
+    EXPECT_TRUE(test::is_valid_fd(write_fd));
+    ASSERT_NE(sw_reactor()->defer_tasks, nullptr);
+    EXPECT_EQ(swoole_event_free(), SW_OK);
+    EXPECT_FALSE(test::is_valid_fd(read_fd));
+    EXPECT_FALSE(test::is_valid_fd(write_fd));
+}
+
+TEST(reactor, callback_manager_moves_queued_callables) {
+    struct CallbackWithThrowingCopy {
+        bool &fail_copy;
+        int &calls;
+        CallbackWithThrowingCopy(bool &fail, int &called) : fail_copy(fail), calls(called) {}
+        CallbackWithThrowingCopy(const CallbackWithThrowingCopy &other)
+            : fail_copy(other.fail_copy), calls(other.calls) {
+            if (fail_copy) {
+                throw std::runtime_error("callback copied during execution");
+            }
+        }
+        void operator()(void *) const {
+            calls++;
+        }
+    };
+    bool fail_copy = false;
+    int calls = 0;
+    Callback callback = CallbackWithThrowingCopy(fail_copy, calls);
+    CallbackManager manager;
+    manager.append(callback, nullptr);
+    fail_copy = true;
+    Reactor reactor(16, Reactor::TYPE_POLL);
+    EXPECT_THROW(reactor.defer(callback), std::runtime_error);
+    EXPECT_EQ(reactor.defer_tasks, nullptr);
+    EXPECT_NO_THROW(manager.prepend([&](void *) { calls++; }, nullptr));
+    EXPECT_NO_THROW(manager.execute());
+    EXPECT_EQ(calls, 2);
+    EXPECT_TRUE(manager.empty());
+}
+
 #ifdef HAVE_EPOLL
 static int reactor_failure_destroy_count;
 #endif

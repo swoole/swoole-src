@@ -23,6 +23,7 @@
 #include <map>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 namespace swoole {
 
@@ -52,22 +53,59 @@ class ReactorImpl {
 
 class CallbackManager {
   public:
-    typedef std::list<std::pair<Callback, void *>> TaskList;
-    void append(const Callback &fn, void *private_data) {
-        list_.emplace_back(fn, private_data);
+    using Cleanup = void (*)(void *);
+
+    class Task {
+        Callback callback_;
+        void *data_;
+        Cleanup discard_;
+
+      public:
+        Task(const Callback &callback, void *data, Cleanup discard)
+            : callback_(callback), data_(data), discard_(discard) {}
+        Task(Task &&other) noexcept
+            : callback_(std::move(other.callback_)),
+              data_(std::exchange(other.data_, nullptr)),
+              discard_(std::exchange(other.discard_, nullptr)) {}
+        Task(const Task &) = delete;
+        Task &operator=(const Task &) = delete;
+        ~Task() {
+            if (discard_) {
+                discard_(data_);
+            }
+        }
+        void execute() {
+            // Once execution starts, the callback owns the data and is responsible for its cleanup.
+            discard_ = nullptr;
+            callback_(data_);
+        }
+    };
+
+    using TaskList = std::list<Task>;
+    CallbackManager() = default;
+    CallbackManager(const CallbackManager &) = delete;
+    CallbackManager &operator=(const CallbackManager &) = delete;
+
+    void append(const Callback &fn, void *private_data, Cleanup discard = nullptr) {
+        list_.emplace_back(fn, private_data, discard);
     }
     void prepend(const Callback &fn, void *private_data) {
-        list_.emplace_front(fn, private_data);
-        auto t = list_.back();
+        list_.emplace_front(fn, private_data, nullptr);
+    }
+    void prepend(CallbackManager &callbacks) {
+        list_.splice(list_.begin(), callbacks.list_);
+    }
+    bool empty() const noexcept {
+        return list_.empty();
     }
     void remove(const TaskList::iterator iter) {
         list_.erase(iter);
     }
     void execute() {
         while (!list_.empty()) {
-            std::pair<Callback, void *> task = list_.front();
+            auto task = std::move(list_.front());
             list_.pop_front();
-            task.first(task.second);
+            task.execute();
         }
     }
 
@@ -189,6 +227,7 @@ class Reactor {
     std::map<int, std::function<void(Reactor *)>> end_callbacks;
     std::map<int, std::function<bool(Reactor *, size_t &)>> exit_conditions;
     std::unordered_map<int, network::Socket *> sockets_;
+    void discard_defer_tasks();
 
   public:
     explicit Reactor(int max_event = SW_REACTOR_MAXEVENTS, Type _type = TYPE_AUTO);
@@ -201,6 +240,8 @@ class Reactor {
     }
     bool if_exit();
     void defer(const Callback &cb, void *data = nullptr);
+    // On successful enqueue, discard owns data if the task is dropped before execution; it must not throw.
+    void defer(const Callback &cb, void *data, CallbackManager::Cleanup discard);
     void set_end_callback(EndCallback _id, const std::function<void(Reactor *)> &fn);
     void erase_end_callback(EndCallback _id);
     void set_exit_condition(ExitCondition _id, const std::function<bool(Reactor *, size_t &)> &fn);

@@ -19,11 +19,114 @@
 
 #include "test_core.h"
 #include "swoole_file.h"
+#include "swoole_pipe.h"
+#include "swoole_reactor.h"
+#include "swoole_timer.h"
+#include "swoole_util.h"
 
 using namespace std;
 using namespace swoole;
 
 const char test_data[] = "hello swoole, hello world, php is best";
+
+TEST(socket, dup_preserves_configuration_without_aliasing_owned_state) {
+    UnixSocket sockets(true, SOCK_STREAM);
+    ASSERT_TRUE(sockets.ready());
+    auto *original = sockets.get_socket(false);
+    original->socket_type = SW_SOCK_UNIX_STREAM;
+    original->set_timeout(0.25);
+    ASSERT_TRUE(original->set_fd_option(1, 1));
+    original->buffer_size = 4096;
+    original->chunk_size = 128;
+    original->in_buffer = new Buffer(16);
+    original->in_buffer->append("in", 2);
+    original->out_buffer = new Buffer(16);
+    original->out_buffer->append("out", 3);
+    String received("received");
+    original->recv_buffer = &received;
+    original->object = &received;
+    original->close_wait = 1;
+    original->event_hup = 1;
+    original->total_recv_bytes = 10;
+    original->total_send_bytes = 20;
+    ASSERT_FALSE(swoole_timer_is_available());
+    swoole_timer_create(true);
+    original->recv_timer = swoole_timer_add(60000L, false, [](TIMER_PARAMS) {});
+    original->send_timer = swoole_timer_add(60000L, false, [](TIMER_PARAMS) {});
+    ASSERT_NE(original->recv_timer, nullptr);
+    ASSERT_NE(original->send_timer, nullptr);
+    const auto recv_id = original->recv_timer->id;
+    const auto send_id = original->send_timer->id;
+    ON_SCOPE_EXIT {
+        original->recv_timer = nullptr;
+        original->send_timer = nullptr;
+        swoole_timer_free();
+    };
+    Reactor reactor(16, Reactor::TYPE_POLL);
+    ASSERT_EQ(reactor.add(original, SW_EVENT_READ), SW_OK);
+
+    auto *copy = original->dup();
+    ASSERT_NE(copy, nullptr);
+    EXPECT_NE(copy->fd, original->fd);
+    EXPECT_EQ(copy->fd_type, original->fd_type);
+    EXPECT_EQ(copy->socket_type, original->socket_type);
+    EXPECT_EQ(copy->buffer_size, 4096u);
+    EXPECT_EQ(copy->chunk_size, 128u);
+    EXPECT_EQ(copy->read_timeout, original->read_timeout);
+    EXPECT_EQ(copy->write_timeout, original->write_timeout);
+    EXPECT_EQ(copy->dns_timeout, original->dns_timeout);
+    EXPECT_EQ(copy->connect_timeout, original->connect_timeout);
+    EXPECT_TRUE(copy->nonblock);
+#ifdef FD_CLOEXEC
+    EXPECT_EQ(fcntl(copy->fd, F_GETFD) & FD_CLOEXEC, 0);
+    EXPECT_FALSE(copy->cloexec);
+#endif
+    EXPECT_EQ(copy->in_buffer, nullptr);
+    EXPECT_EQ(copy->out_buffer, nullptr);
+    EXPECT_EQ(copy->recv_buffer, nullptr);
+    EXPECT_EQ(copy->recv_timer, nullptr);
+    EXPECT_EQ(copy->send_timer, nullptr);
+    EXPECT_EQ(copy->object, nullptr);
+    EXPECT_EQ(copy->events, 0);
+    EXPECT_TRUE(copy->removed);
+    EXPECT_FALSE(copy->close_wait);
+    EXPECT_FALSE(copy->event_hup);
+    EXPECT_EQ(copy->total_recv_bytes, 0u);
+    EXPECT_EQ(copy->total_send_bytes, 0u);
+    copy->free();
+    EXPECT_TRUE(reactor.exists(original->fd));
+    EXPECT_NE(sw_timer()->get(recv_id), nullptr);
+    EXPECT_NE(sw_timer()->get(send_id), nullptr);
+    EXPECT_EQ(original->in_buffer->length(), 2u);
+    EXPECT_EQ(original->out_buffer->length(), 3u);
+    EXPECT_EQ(reactor.del(original), SW_OK);
+}
+
+TEST(socket, dup_does_not_own_original_unix_path) {
+    auto temporary = make_tmpfile();
+    ASSERT_TRUE(temporary.ready());
+    const auto path = temporary.get_path();
+    temporary.close();
+    ASSERT_TRUE(File::remove(path));
+    auto *original = make_socket(SW_SOCK_UNIX_STREAM, SW_FD_STREAM, 0);
+    ASSERT_NE(original, nullptr);
+    ASSERT_EQ(original->bind(path, 0), SW_OK);
+    ASSERT_TRUE(File::exists(path));
+    auto *copy = original->dup();
+    ASSERT_NE(copy, nullptr);
+    EXPECT_FALSE(copy->bound);
+    copy->free();
+    EXPECT_TRUE(File::exists(path));
+    original->free();
+    EXPECT_FALSE(File::exists(path));
+}
+
+TEST(socket, dup_invalid_socket_leaves_original_unchanged) {
+    network::Socket original{};
+    original.fd = SW_BAD_SOCKET;
+    EXPECT_EQ(original.dup(), nullptr);
+    EXPECT_EQ(original.fd, SW_BAD_SOCKET);
+}
 
 TEST(socket, connect_sync) {
     network::Address sa;
@@ -774,15 +877,17 @@ TEST(socket, make_server_socket) {
 
     auto bad_addr = "199.199.0.0";
 
+    // Raw socket errors depend on the kernel and capabilities, rather than UID alone.
+    auto native_socket = ::socket(AF_INET, SOCK_RAW, 0);
+    int expected_error = sw_errno();
+    if (native_socket != SW_BAD_SOCKET) {
+        sw_close_socket(native_socket);
+        expected_error = EADDRNOTAVAIL;
+    }
     sock = make_server_socket(SW_SOCK_RAW, bad_addr);
     ASSERT_EQ(sock, nullptr);
-    if (geteuid() == 0) {  // root
-        ASSERT_EQ(errno, EPROTONOSUPPORT);
-        ASSERT_EQ(swoole_get_last_error(), EPROTONOSUPPORT);
-    } else {
-        ASSERT_EQ(errno, ESOCKTNOSUPPORT);
-        ASSERT_EQ(swoole_get_last_error(), ESOCKTNOSUPPORT);
-    }
+    ASSERT_EQ(sw_errno(), expected_error);
+    ASSERT_EQ(swoole_get_last_error(), expected_error);
 
     sock = make_server_socket(SW_SOCK_TCP, bad_addr);
     ASSERT_EQ(sock, nullptr);
