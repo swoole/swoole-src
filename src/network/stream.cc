@@ -94,13 +94,11 @@ Stream::Stream(const char *dst_host, int dst_port, SocketType type) : client(typ
 }
 
 Stream *Stream::create(const char *dst_host, int dst_port, SocketType type) {
-    auto *stream = new Stream(dst_host, dst_port, type);
+    std::unique_ptr<Stream> stream(new Stream(dst_host, dst_port, type));
     if (!stream->connected) {
-        delete stream;
         return nullptr;
-    } else {
-        return stream;
     }
+    return stream.release();
 }
 
 Stream::~Stream() {

@@ -169,23 +169,23 @@ class ThreadPool {
     }
 
     AsyncEvent *dispatch(const AsyncEvent *request) {
-        auto _event_copy = new AsyncEvent(*request);
+        auto event = std::make_unique<AsyncEvent>(*request);
         std::unique_lock<std::mutex> lock(event_mutex);
         if (!running.load(std::memory_order_acquire)) {
-            delete _event_copy;
             return nullptr;
         }
-        _event_copy->task_id = current_task_id++;
-        _event_copy->timestamp = microtime();
-        _event_copy->pipe_socket = SwooleTG.async_threads->write_socket;
+        event->task_id = current_task_id++;
+        event->timestamp = microtime();
+        event->pipe_socket = SwooleTG.async_threads->write_socket;
         // Schedule after the push so the queued task is counted; a task that arrives while every
         // worker is blocked would otherwise never trigger pool growth.
-        queue_.push(_event_copy);
+        queue_.push(event.get());
+        auto *queued_event = event.release();
         schedule();
         lock.unlock();
         _cv.notify_one();
         swoole_debug("push and notify one: %f", microtime());
-        return _event_copy;
+        return queued_event;
     }
 
     size_t get_worker_num() const {

@@ -98,7 +98,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         return nullptr;
     }
 
-    auto *tnode = new TimerNode();
+    auto tnode = std::make_unique<TimerNode>();
     tnode->id = _next_id++;
     tnode->data = data;
     tnode->type = TimerNode::TYPE_KERNEL;
@@ -113,12 +113,15 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         next_msec_ = _msec;
     }
 
-    tnode->heap_node = heap.push(tnode->exec_msec, tnode);
+    const auto remove_heap_node = [this](HeapNode *node) { heap.remove(node); };
+    std::unique_ptr<HeapNode, decltype(remove_heap_node)> heap_node(heap.push(tnode->exec_msec, tnode.get()),
+                                                                    remove_heap_node);
+    tnode->heap_node = heap_node.get();
     if (sw_unlikely(tnode->heap_node == nullptr)) {
-        release_node(tnode);
         return nullptr;
     }
-    map.emplace(tnode->id, tnode);
+    map.emplace(tnode->id, tnode.get());
+    heap_node.release();
     swoole_trace_log(SW_TRACE_TIMER,
                      "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%lu",
                      tnode->id,
@@ -126,7 +129,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
                      _msec,
                      tnode->round,
                      count());
-    return tnode;
+    return tnode.release();
 }
 
 bool Timer::remove(TimerNode *tnode) {

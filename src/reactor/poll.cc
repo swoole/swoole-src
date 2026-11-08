@@ -21,14 +21,14 @@ namespace swoole {
 using network::Socket;
 
 class ReactorPoll final : public ReactorImpl {
-    pollfd *events_;
-    Socket **event_sockets_;
+    std::unique_ptr<pollfd[]> events_;
+    std::unique_ptr<Socket *[]> event_sockets_;
     int max_events_;
     int set_events() const;
 
   public:
     ReactorPoll(Reactor *_reactor, int max_events);
-    ~ReactorPoll() override;
+    ~ReactorPoll() override = default;
     bool ready() override {
         return true;
     };
@@ -42,16 +42,12 @@ ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events) {
     return new ReactorPoll(_reactor, max_events);
 }
 
-ReactorPoll::ReactorPoll(Reactor *_reactor, int max_events) : ReactorImpl(_reactor) {
-    events_ = new pollfd[max_events];
-    event_sockets_ = new Socket *[max_events];
-    max_events_ = max_events;
+ReactorPoll::ReactorPoll(Reactor *_reactor, int max_events)
+    : ReactorImpl(_reactor),
+      events_(new pollfd[max_events]),
+      event_sockets_(new Socket *[max_events]),
+      max_events_(max_events) {
     reactor_->max_event_num = max_events;
-}
-
-ReactorPoll::~ReactorPoll() {
-    delete[] events_;
-    delete[] event_sockets_;
 }
 
 int ReactorPoll::set_events() const {
@@ -160,7 +156,7 @@ int ReactorPoll::wait() {
         }
         const int event_num = set_events();
         int ret;
-        ret = poll(events_, event_num, reactor_->get_timeout_msec());
+        ret = poll(events_.get(), event_num, reactor_->get_timeout_msec());
         if (ret < 0) {
             if (!reactor_->catch_error()) {
                 swoole_sys_warning("[Reactor#%d] poll(nfds=%d, timeout=%d) failed",

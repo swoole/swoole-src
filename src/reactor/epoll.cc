@@ -33,7 +33,7 @@ using network::Socket;
 
 class ReactorEpoll final : public ReactorImpl {
     int epfd_;
-    epoll_event *events_ = nullptr;
+    std::unique_ptr<epoll_event[]> events_;
 
   public:
     ReactorEpoll(Reactor *_reactor, int max_events);
@@ -66,14 +66,14 @@ ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events) {
     return new ReactorEpoll(_reactor, max_events);
 }
 
-ReactorEpoll::ReactorEpoll(Reactor *_reactor, int max_events) : ReactorImpl(_reactor) {
+ReactorEpoll::ReactorEpoll(Reactor *_reactor, int max_events)
+    : ReactorImpl(_reactor), events_(new epoll_event[max_events]) {
     epfd_ = epoll_create(512);
     if (!ReactorEpoll::ready()) {
         swoole_sys_warning("epoll_create() failed");
         return;
     }
 
-    events_ = new epoll_event[max_events];
     reactor_->max_event_num = max_events;
     reactor_->native_handle = epfd_;
 }
@@ -86,7 +86,6 @@ ReactorEpoll::~ReactorEpoll() {
     if (epfd_ >= 0) {
         close(epfd_);
     }
-    delete[] events_;
 }
 
 int ReactorEpoll::add(Socket *socket, int events) {
@@ -187,7 +186,7 @@ int ReactorEpoll::wait() {
             break;
         }
 
-        n = epoll_wait(epfd_, events_, reactor_->max_event_num, reactor_->get_timeout_msec());
+        n = epoll_wait(epfd_, events_.get(), reactor_->max_event_num, reactor_->get_timeout_msec());
         if (n < 0) {
             if (!reactor_->catch_error()) {
                 swoole_sys_warning("[Reactor#%d] epoll_wait(epfd=%d, max_events=%d, timeout=%d) failed",

@@ -35,7 +35,7 @@ using network::Socket;
 class ReactorKqueue : public ReactorImpl {
     int epfd_;
     int event_max_;
-    struct kevent *events_ = nullptr;
+    std::unique_ptr<struct kevent[]> events_;
 
     bool fetch_event(Event *event, void *udata) {
         event->socket = (Socket *) udata;
@@ -57,7 +57,7 @@ class ReactorKqueue : public ReactorImpl {
 
   public:
     ReactorKqueue(Reactor *reactor, int max_events);
-    ~ReactorKqueue();
+    ~ReactorKqueue() override;
     bool ready() override;
     int add(Socket *socket, int events) override;
     int set(Socket *socket, int events) override;
@@ -69,7 +69,8 @@ ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events) {
     return new ReactorKqueue(_reactor, max_events);
 }
 
-ReactorKqueue::ReactorKqueue(Reactor *reactor, int max_events) : ReactorImpl(reactor) {
+ReactorKqueue::ReactorKqueue(Reactor *reactor, int max_events)
+    : ReactorImpl(reactor), event_max_(max_events), events_(new struct kevent[max_events]) {
     epfd_ = kqueue();
     if (epfd_ < 0) {
         swoole_sys_warning("kqueue() failed");
@@ -78,8 +79,6 @@ ReactorKqueue::ReactorKqueue(Reactor *reactor, int max_events) : ReactorImpl(rea
 
     reactor_->max_event_num = max_events;
     reactor_->native_handle = epfd_;
-    event_max_ = max_events;
-    events_ = new struct kevent[max_events];
 }
 
 bool ReactorKqueue::ready() {
@@ -90,7 +89,6 @@ ReactorKqueue::~ReactorKqueue() {
     if (epfd_ >= 0) {
         close(epfd_);
     }
-    delete[] events_;
 }
 
 int ReactorKqueue::add(Socket *socket, int events) {
@@ -167,8 +165,7 @@ int ReactorKqueue::set(Socket *socket, int events) {
     }
 
     if (n > 0 && ::kevent(epfd_, changelist, n, nullptr, 0, nullptr) < 0) {
-        swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, events=%d) failed", fd, events);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, events=%d) failed", fd, events);
         swoole_print_backtrace_on_error();
         return SW_ERR;
     }
@@ -245,7 +242,7 @@ int ReactorKqueue::wait() {
             t_ptr = nullptr;
         }
 
-        n = ::kevent(epfd_, nullptr, 0, events_, event_max_, t_ptr);
+        n = ::kevent(epfd_, nullptr, 0, events_.get(), event_max_, t_ptr);
         if (n < 0) {
             if (!reactor_->catch_error()) {
                 swoole_sys_warning("kevent(epfd=%d) failed ", epfd_);

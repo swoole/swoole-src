@@ -25,9 +25,8 @@ using swoole::ReactorHandler;
 using swoole::network::Socket;
 
 int swoole_event_init(int flags) {
-    auto *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
+    auto reactor = std::make_unique<Reactor>(SW_REACTOR_MAXEVENTS);
     if (!reactor->ready()) {
-        delete reactor;
         return SW_ERR;
     }
 
@@ -35,11 +34,11 @@ int swoole_event_init(int flags) {
         reactor->wait_exit = true;
     }
 
-    swoole::coroutine::Socket::init_reactor(reactor);
-    swoole::coroutine::System::init_reactor(reactor);
-    swoole::network::Client::init_reactor(reactor);
+    swoole::coroutine::Socket::init_reactor(reactor.get());
+    swoole::coroutine::System::init_reactor(reactor.get());
+    swoole::network::Client::init_reactor(reactor.get());
 
-    SwooleTG.reactor = reactor;
+    SwooleTG.reactor = reactor.release();
 
     return SW_OK;
 }

@@ -51,7 +51,7 @@ Socks5Proxy *Socks5Proxy::create(
                          "SOCKS5 username or password is too long, max length is 250 bytes");
         return nullptr;
     }
-    auto socks5_proxy = new Socks5Proxy();
+    auto socks5_proxy = std::make_unique<Socks5Proxy>();
     socks5_proxy->host = host;
     socks5_proxy->port = port;
     socks5_proxy->dns_tunnel = 1;
@@ -60,7 +60,7 @@ Socks5Proxy *Socks5Proxy::create(
         socks5_proxy->username = user;
         socks5_proxy->password = pwd;
     }
-    return socks5_proxy;
+    return socks5_proxy.release();
 }
 
 ssize_t Socks5Proxy::pack_negotiate_request() {

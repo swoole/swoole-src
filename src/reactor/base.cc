@@ -85,26 +85,26 @@ Reactor::Reactor(int max_event, Type _type) {
     switch (type_) {
 #ifdef _WIN32
     case TYPE_IOCP:
-        impl = make_reactor_iocp(this, max_event);
+        impl.reset(make_reactor_iocp(this, max_event));
         break;
 #endif
 #ifdef HAVE_EPOLL
     case TYPE_EPOLL:
-        impl = make_reactor_epoll(this, max_event);
+        impl.reset(make_reactor_epoll(this, max_event));
         break;
 #endif
 #ifdef HAVE_KQUEUE
     case TYPE_KQUEUE:
-        impl = make_reactor_kqueue(this, max_event);
+        impl.reset(make_reactor_kqueue(this, max_event));
         break;
 #endif
 #ifdef _WIN32
     default:
-        impl = make_reactor_iocp(this, max_event);
+        impl.reset(make_reactor_iocp(this, max_event));
         break;
 #else
     default:
-        impl = make_reactor_poll(this, max_event);
+        impl.reset(make_reactor_poll(this, max_event));
         break;
 #endif
     }
@@ -472,7 +472,7 @@ void Reactor::execute_begin_callback() const {
 Reactor::~Reactor() {
     destroyed = true;
     destroy_callbacks.execute();
-    delete impl;
+    impl.reset();
     if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, this);
     }

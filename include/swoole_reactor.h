@@ -21,6 +21,7 @@
 
 #include <list>
 #include <map>
+#include <memory>
 #include <unordered_map>
 
 namespace swoole {
@@ -182,7 +183,7 @@ class Reactor {
     int (*close)(Reactor *reactor, network::Socket *socket) = nullptr;
 
   private:
-    ReactorImpl *impl;
+    std::unique_ptr<ReactorImpl> impl;
     uint64_t round_ = 0;
     mutable bool waiting_ = false;
     std::map<int, std::function<void(Reactor *)>> end_callbacks;

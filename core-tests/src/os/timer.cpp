@@ -22,8 +22,45 @@
 #include "swoole_util.h"
 #include "swoole_timer.h"
 
+#include <stdexcept>
+
 using swoole::Timer;
 using swoole::TimerNode;
+
+TEST(timer, callback_copy_failure_preserves_existing_timers) {
+    struct Callback {
+        bool &fail_copy;
+        explicit Callback(bool &fail) : fail_copy(fail) {}
+        Callback(const Callback &other) : fail_copy(other.fail_copy) {
+            if (fail_copy) {
+                throw std::runtime_error("timer callback copy failed");
+            }
+        }
+        void operator()(Timer *, TimerNode *) const {}
+    };
+
+    bool fail_copy = false;
+    swoole::TimerCallback callback = Callback(fail_copy);
+    Timer timer(true);
+    auto *existing = timer.add(60000, false, nullptr, callback);
+    ASSERT_NE(existing, nullptr);
+    const auto existing_id = existing->id;
+
+    fail_copy = true;
+    EXPECT_THROW(timer.add(1, false, nullptr, callback), std::runtime_error);
+    EXPECT_EQ(timer.count(), 1);
+    EXPECT_EQ(timer.get(existing_id), existing);
+    EXPECT_EQ(timer.get_next_msec(), 60000);
+
+    fail_copy = false;
+    auto *next = timer.add(1, false, nullptr, callback);
+    ASSERT_NE(next, nullptr);
+    EXPECT_TRUE(timer.remove(next));
+    EXPECT_TRUE(timer.remove(existing));
+    timer.select();
+    EXPECT_EQ(timer.count(), 0);
+    EXPECT_EQ(timer.get_next_msec(), -1);
+}
 
 TEST(timer, sys) {
     swoole::test::counter_init();

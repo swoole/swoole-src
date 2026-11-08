@@ -123,20 +123,20 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
             return SW_ERR;
         }
     } else if (_ipc_mode == SW_IPC_UNIXSOCK) {
-        pipes = new std::vector<std::shared_ptr<UnixSocket>>;
+        auto worker_pipes = std::make_unique<std::vector<std::shared_ptr<UnixSocket>>>();
+        worker_pipes->reserve(_worker_num);
         SW_LOOP_N(_worker_num) {
             auto sock = new UnixSocket(true, SOCK_DGRAM);
             if (!sock->ready()) {
                 delete sock;
-                delete pipes;
-                pipes = nullptr;
                 return SW_ERR;
             }
-            pipes->emplace_back(sock);
+            worker_pipes->emplace_back(sock);
             workers[i].pipe_master = sock->get_socket(true);
             workers[i].pipe_worker = sock->get_socket(false);
             workers[i].pipe_object = sock;
         }
+        pipes = worker_pipes.release();
     } else if (_ipc_mode == SW_IPC_SOCKET) {
         use_socket = 1;
         stream_info_ = new StreamInfo();

@@ -906,7 +906,7 @@ ssize_t Socket::sendfile(const File &fp, off_t *offset, size_t length) {
 }
 
 int Socket::sendfile_async(const char *filename, off_t offset, size_t length, bool delete_file) {
-    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset, delete_file));
+    auto task = std::make_unique<SendfileRequest>(filename, offset, delete_file);
 
     if (!check_sendfile_parameters(&task->file, offset, length, &task->end)) {
         return SW_ERR;

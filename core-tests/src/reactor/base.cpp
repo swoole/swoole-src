@@ -25,6 +25,8 @@
 #include "swoole_api.h"
 
 #include <atomic>
+#include <stdexcept>
+#include <type_traits>
 
 #ifdef HAVE_EPOLL
 #include <sys/resource.h>
@@ -35,6 +37,9 @@ using namespace swoole;
 
 static int reactor_create_count;
 static int reactor_destroy_count;
+
+static_assert(!std::is_copy_constructible<Reactor>::value, "A reactor must exclusively own its backend");
+static_assert(!std::is_copy_assignable<Reactor>::value, "A reactor must exclusively own its backend");
 
 #ifdef HAVE_EPOLL
 static int reactor_failure_destroy_count;
@@ -77,6 +82,30 @@ TEST(reactor, create) {
 }
 
 #ifdef HAVE_EPOLL
+TEST(reactor, constructor_exception_releases_backend) {
+    void *previous_hook = SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE];
+    SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE] = nullptr;
+    ON_SCOPE_EXIT {
+        delete static_cast<std::list<Callback> *>(SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE]);
+        SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE] = previous_hook;
+    };
+    swoole_add_hook(
+        SW_GLOBAL_HOOK_ON_REACTOR_CREATE, [](void *) { throw std::runtime_error("reactor hook failed"); }, 1);
+
+    const int available_fd = dup(STDERR_FILENO);
+    ASSERT_GE(available_fd, 0);
+    close(available_fd);
+
+    EXPECT_THROW(Reactor(16, Reactor::TYPE_EPOLL), std::runtime_error);
+
+    // A failed constructor must return its epoll descriptor to the OS.
+    const int next_fd = dup(STDERR_FILENO);
+    EXPECT_EQ(next_fd, available_fd);
+    if (next_fd >= 0) {
+        close(next_fd);
+    }
+}
+
 TEST(reactor, create_failure) {
     ASSERT_EQ(SwooleTG.reactor, nullptr);
 
@@ -561,8 +590,7 @@ TEST(reactor, poll_extra2) {
     });
     ASSERT_EQ(reactor.wait(), SW_OK);
 
-    swoole_signal_set(
-        SIGIO, [](int sig) { DEBUG() << "SIGIO received\n"; }, 0, 0);
+    swoole_signal_set(SIGIO, [](int sig) { DEBUG() << "SIGIO received\n"; }, 0, 0);
 
     reactor.erase_end_callback(Reactor::PRIORITY_DEFER_TASK);
     reactor.set_timeout_msec(1000);

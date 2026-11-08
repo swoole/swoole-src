@@ -100,16 +100,21 @@ bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, s
         return false;
     }
 
-    auto col = new TableColumn(_name, _type, _size);
+    auto col = std::make_unique<TableColumn>(_name, _type, _size);
     if (col->size > std::numeric_limits<size_t>::max() - item_size) {
-        delete col;
         swoole_warning("table row size overflow");
         return false;
     }
     col->index = item_size;
+    const auto inserted = column_map->emplace(_name, col.get());
+    ON_SCOPE_EXIT {
+        if (col) {
+            column_map->erase(inserted.first);
+        }
+    };
+    column_list->push_back(col.get());
     item_size += col->size;
-    column_map->emplace(_name, col);
-    column_list->push_back(col);
+    col.release();
 
     return true;
 }
