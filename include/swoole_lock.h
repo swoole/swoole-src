@@ -30,6 +30,8 @@ namespace swoole {
 
 class Lock {
   public:
+    Lock(const Lock &) = delete;
+    Lock &operator=(const Lock &) = delete;
     enum Type {
         RW_LOCK = 1,
         MUTEX = 3,
@@ -62,6 +64,29 @@ class Lock {
 
 struct MutexImpl;
 
+class LockGuard {
+    Lock &lock_;
+    int error_;
+
+  public:
+    explicit LockGuard(Lock &lock, int operation = LOCK_EX, int timeout_msec = -1)
+        : lock_(lock), error_(lock_.lock(operation, timeout_msec)) {}
+    ~LockGuard() {
+        if (owns_lock()) {
+            lock_.unlock();
+        }
+    }
+    LockGuard(const LockGuard &) = delete;
+    LockGuard &operator=(const LockGuard &) = delete;
+
+    bool owns_lock() const noexcept {
+        return error_ == 0;
+    }
+    int error() const noexcept {
+        return error_;
+    }
+};
+
 class Mutex final : public Lock {
     MutexImpl *impl;
 
@@ -84,10 +109,10 @@ class RWLock final : public Lock {
     int lock(int operation = LOCK_EX, int timeout_msec = -1) override;
     int unlock() override;
     int lock_rd() {
-    	return lock(LOCK_SH);
+        return lock(LOCK_SH);
     }
     int lock_wr() {
-    	return lock(LOCK_EX);
+        return lock(LOCK_EX);
     }
 };
 #endif

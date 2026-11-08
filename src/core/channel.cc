@@ -154,21 +154,21 @@ int Channel::peek(void *out, int buffer_length) const {
         return SW_ERR;
     }
 
-    lock->lock();
+    LockGuard guard(*lock);
+    if (!guard.owns_lock()) {
+        swoole_set_last_error(guard.error());
+        return SW_ERR;
+    }
     if (sw_unlikely(empty())) {
-        lock->unlock();
         return SW_ERR;
     }
     auto *item = reinterpret_cast<ChannelSlice *>(static_cast<char *>(mem) + head);
     if (sw_unlikely(buffer_length < item->length)) {
-        lock->unlock();
         return SW_ERR;
     }
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
     int length = item->length;
-    lock->unlock();
-
     return length;
 }
 
@@ -195,10 +195,12 @@ int Channel::notify() const {
  */
 int Channel::push(const void *in_data, int data_length) {
     assert(flags & SW_CHAN_LOCK);
-    lock->lock();
-    int ret = in(in_data, data_length);
-    lock->unlock();
-    return ret;
+    LockGuard guard(*lock);
+    if (!guard.owns_lock()) {
+        swoole_set_last_error(guard.error());
+        return SW_ERR;
+    }
+    return in(in_data, data_length);
 }
 
 /**
@@ -224,10 +226,12 @@ void Channel::destroy() {
  */
 int Channel::pop(void *out_buf, int buffer_length) {
     assert(flags & SW_CHAN_LOCK);
-    lock->lock();
-    int n = out(out_buf, buffer_length);
-    lock->unlock();
-    return n;
+    LockGuard guard(*lock);
+    if (!guard.owns_lock()) {
+        swoole_set_last_error(guard.error());
+        return SW_ERR;
+    }
+    return out(out_buf, buffer_length);
 }
 
 void Channel::print() const {

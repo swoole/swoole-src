@@ -69,15 +69,17 @@ GlobalMemoryImpl::~GlobalMemoryImpl() {
 }
 
 char *GlobalMemoryImpl::new_page() {
-    auto page = static_cast<char *>(shared ? sw_shm_malloc(pagesize) : sw_malloc(pagesize));
-    if (page == nullptr) {
+    const auto release_page = [this](char *page) { shared ? sw_shm_free(page) : sw_free(page); };
+    std::unique_ptr<char, decltype(release_page)> page(
+        static_cast<char *>(shared ? sw_shm_malloc(pagesize) : sw_malloc(pagesize)), release_page);
+    if (!page) {
         return nullptr;
     }
 
-    pages.push_back(page);
+    pages.push_back(page.get());
     alloc_offset = 0;
 
-    return page;
+    return page.release();
 }
 
 /**

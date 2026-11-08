@@ -41,8 +41,8 @@ bool file_exists(const std::string &filename);
 typedef struct stat FileStatus;
 
 class File {
-    int fd_;
-    int flags_;
+    int fd_ = -1;
+    int flags_ = 0;
     std::string path_;
 
   public:
@@ -58,19 +58,18 @@ class File {
 #endif
     };
 
-    explicit File(const int fd) {
-        fd_ = fd;
-        flags_ = 0;
-    }
+    explicit File(const int fd) noexcept : fd_(fd) {}
 
-    File(int fd, const std::string &path) {
-        fd_ = fd;
+    File(int fd, const std::string &path) : File(fd) {
         path_ = path;
-        flags_ = 0;
     }
 
     File(const std::string &path, int oflags);
     File(const std::string &path, int oflags, int mode);
+    File(const File &) = delete;
+    File &operator=(const File &) = delete;
+    File(File &&other) noexcept;
+    File &operator=(File &&other) noexcept;
     ~File();
 
     bool open(const std::string &path, int oflags, int mode = 0);

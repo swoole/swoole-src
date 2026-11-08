@@ -24,7 +24,8 @@
 
 #include <thread>
 #include <atomic>
-#include <unordered_map>
+#include <algorithm>
+#include <list>
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
@@ -120,18 +121,16 @@ class ThreadPool {
 
         _cv.notify_all();
 
-        std::unordered_map<std::thread::id, std::thread *> shutdown_threads;
+        std::list<std::thread> shutdown_threads;
         {
             std::lock_guard<std::mutex> lock(threads_mutex);
             shutdown_threads.swap(threads);
         }
 
-        for (auto &i : shutdown_threads) {
-            std::thread *_thread = i.second;
-            if (_thread->joinable()) {
-                _thread->join();
+        for (auto &thread : shutdown_threads) {
+            if (thread.joinable()) {
+                thread.join();
             }
-            delete _thread;
         }
 
         return true;
@@ -227,15 +226,16 @@ class ThreadPool {
     }
 
     void release_thread(std::thread::id tid) {
-        std::thread *_thread = nullptr;
+        std::thread thread;
         do {
             std::lock_guard<std::mutex> lock(threads_mutex);
-            auto i = threads.find(tid);
+            auto i = std::find_if(
+                threads.begin(), threads.end(), [tid](const std::thread &worker) { return worker.get_id() == tid; });
             if (i == threads.end()) {
                 swoole_warning("AIO thread#%s is missing", swoole_thread_id_to_str(tid).c_str());
                 return;
             }
-            _thread = i->second;
+            thread = std::move(*i);
             threads.erase(i);
         } while (0);
 
@@ -245,10 +245,9 @@ class ThreadPool {
                          "release idle thread#%s, we have %zu now",
                          swoole_thread_id_to_str(tid).c_str(),
                          get_worker_num());
-        if (_thread->joinable()) {
-            _thread->join();
+        if (thread.joinable()) {
+            thread.join();
         }
-        delete _thread;
     }
 
     static void release_callback(AsyncEvent *event) {
@@ -285,7 +284,7 @@ class ThreadPool {
     std::atomic<size_t> scale_up_count{0};
     std::atomic<size_t> scale_down_count{0};
     size_t current_task_id = 0;
-    std::unordered_map<std::thread::id, std::thread *> threads;
+    std::list<std::thread> threads;
     mutable std::mutex threads_mutex;
     EventQueue queue_;
     std::mutex event_mutex;
@@ -388,15 +387,15 @@ void ThreadPool::create_thread(const bool is_core_worker) {
     };
 
     try {
-        auto *_thread = new std::thread([this, is_core_worker]() { main_func(is_core_worker); });
         std::lock_guard<std::mutex> lock(threads_mutex);
-        threads[_thread->get_id()] = _thread;
+        // Construct the thread in its owning node, so no allocation can fail between starting and storing it.
+        threads.emplace_back([this, is_core_worker]() { main_func(is_core_worker); });
         const size_t thread_count = threads.size();
         created_worker_num.fetch_add(1, std::memory_order_acq_rel);
         if (thread_count > peak_worker_num.load(std::memory_order_relaxed)) {
             peak_worker_num.store(thread_count, std::memory_order_release);
         }
-    } catch (const std::system_error &e) {
+    } catch (const std::exception &) {
         swoole_sys_notice("create aio thread failed, please check your system configuration or adjust aio_worker_num");
     }
 }
@@ -496,27 +495,37 @@ AsyncThreads::AsyncThreads() {
         throw Exception(SW_ERROR_WRONG_OPERATION);
     }
 
-    pipe =
+    std::unique_ptr<SocketPair> new_pipe(
 #ifdef _WIN32
-        new Pipe(false);
+        new Pipe(false));
 #else
-        new UnixSocket(false, SOCK_STREAM);
+        new UnixSocket(false, SOCK_STREAM));
 #endif
-    if (!pipe->ready()) {
-        delete pipe;
-        pipe = nullptr;
+    if (!new_pipe->ready()) {
         swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
         return;
     }
 
-    read_socket = pipe->get_socket(false);
-    write_socket = pipe->get_socket(true);
+    read_socket = new_pipe->get_socket(false);
+    write_socket = new_pipe->get_socket(true);
     read_socket->fd_type = SW_FD_AIO;
     write_socket->fd_type = SW_FD_AIO;
 
+    bool registered = false;
+    ON_SCOPE_EXIT {
+        if (new_pipe) {
+            if (registered) {
+                swoole_event_del(read_socket);
+            }
+            read_socket = nullptr;
+            write_socket = nullptr;
+        }
+    };
     if (swoole_event_add(read_socket, SW_EVENT_READ) < 0) {
-        goto _cleanup_pipe;
+        swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
+        return;
     }
+    registered = true;
 
     sw_reactor()->add_destroy_callback([](void *data) {
         if (!SwooleTG.async_threads) {
@@ -535,45 +544,37 @@ AsyncThreads::AsyncThreads() {
         return true;
     });
 
-    async_thread_lock.lock();
+    std::unique_lock<std::mutex> lock(async_thread_lock);
     if (!async_thread_pool) {
         async_thread_pool = std::make_shared<async::ThreadPool>(
             SwooleG.aio_core_worker_num, SwooleG.aio_worker_num, SwooleG.aio_max_wait_time, SwooleG.aio_max_idle_time);
     }
     if (!async_thread_pool->is_running()) {
         if (!async_thread_pool->start()) {
-            async_thread_lock.unlock();
-            swoole_event_del(read_socket);
-            goto _cleanup_pipe;
+            swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
+            return;
         }
     }
     pool = async_thread_pool;
-    async_thread_lock.unlock();
+    lock.unlock();
 
+    pipe = new_pipe.release();
     SwooleG.aio_default_socket = write_socket;
     SwooleTG.async_threads = this;
-    return;
-
-_cleanup_pipe:
-    pipe->close();
-    read_socket = nullptr;
-    write_socket = nullptr;
-    delete pipe;
-    pipe = nullptr;
-    swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
 }
 
 AsyncThreads::~AsyncThreads() {
     pool.reset();
-    async_thread_lock.lock();
     /**
      * When the reference count is 1, it means that all reactor threads have ended
      * and all aio threads can be terminated.
      */
-    if (async_thread_pool.use_count() == 1) {
-        async_thread_pool->shutdown();
-    }
-    async_thread_lock.unlock();
+    do {
+        std::lock_guard<std::mutex> lock(async_thread_lock);
+        if (async_thread_pool.use_count() == 1) {
+            async_thread_pool->shutdown();
+        }
+    } while (0);
     pipe->close();
     read_socket = nullptr;
     write_socket = nullptr;

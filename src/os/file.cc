@@ -16,6 +16,8 @@
 
 #include "swoole_file.h"
 
+#include <utility>
+
 int swoole_tmpfile(char *filename) {
 #if defined(_WIN32)
     if (_mktemp_s(filename, strlen(filename) + 1) != 0) {
@@ -129,32 +131,42 @@ bool file_exists(const std::string &filename) {
     return sw_access(filename.c_str(), F_OK) == 0;
 }
 
-File::File(const std::string &path, int oflags) {
-    fd_ = -1;
+File::File(const std::string &path, int oflags) : File(-1) {
     open(path, oflags);
 }
 
-File::File(const std::string &path, int oflags, int mode) {
-    fd_ = -1;
+File::File(const std::string &path, int oflags, int mode) : File(-1) {
     open(path, oflags, mode);
 }
 
-bool File::open(const std::string &path, int oflags, int mode) {
-    if (fd_ != -1) {
-        sw_close_file(fd_);
+File::File(File &&other) noexcept
+    : fd_(std::exchange(other.fd_, -1)), flags_(std::exchange(other.flags_, 0)), path_(std::move(other.path_)) {}
+
+File &File::operator=(File &&other) noexcept {
+    if (this != &other) {
+        close();
+        fd_ = std::exchange(other.fd_, -1);
+        flags_ = std::exchange(other.flags_, 0);
+        path_ = std::move(other.path_);
     }
+    return *this;
+}
+
+bool File::open(const std::string &path, int oflags, int mode) {
+    std::string new_path(path);
+    close();
 
 #ifdef _WIN32
-    fd_ = sw_open(path.c_str(), oflags, mode);
+    fd_ = sw_open(new_path.c_str(), oflags, mode);
 #else
     if (oflags & CREATE) {
-        fd_ = ::open(path.c_str(), oflags, mode == 0 ? 0644 : mode);
+        fd_ = ::open(new_path.c_str(), oflags, mode == 0 ? 0644 : mode);
     } else {
-        fd_ = ::open(path.c_str(), oflags);
+        fd_ = ::open(new_path.c_str(), oflags);
     }
 #endif
 
-    path_ = path;
+    path_ = std::move(new_path);
     flags_ = oflags;
     return ready();
 }

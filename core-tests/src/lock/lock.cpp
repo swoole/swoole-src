@@ -23,15 +23,44 @@
 
 #include <thread>
 #include <future>
+#include <stdexcept>
+#include <type_traits>
 
 using swoole::Coroutine;
 using swoole::CoroutineLock;
 using swoole::Lock;
+using swoole::LockGuard;
 using swoole::Mutex;
 using swoole::RWLock;
 using swoole::SpinLock;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
+
+static_assert(!std::is_copy_constructible<Mutex>::value, "Locks exclusively own their implementation");
+static_assert(!std::is_copy_assignable<Mutex>::value, "Locks exclusively own their implementation");
+static_assert(!std::is_copy_constructible<CoroutineLock>::value, "Locks exclusively own their implementation");
+static_assert(!std::is_copy_constructible<LockGuard>::value, "A guard must only unlock once");
+
+TEST(lock, guard_releases_on_exception_and_respects_failed_acquisition) {
+    Mutex lock(false);
+    EXPECT_THROW(
+        {
+            LockGuard guard(lock);
+            ASSERT_TRUE(guard.owns_lock());
+            throw std::runtime_error("leave locked scope");
+        },
+        std::runtime_error);
+    ASSERT_EQ(lock.lock(LOCK_EX | LOCK_NB), 0);
+    do {
+        LockGuard failed(lock, LOCK_EX | LOCK_NB);
+        EXPECT_FALSE(failed.owns_lock());
+        EXPECT_EQ(failed.error(), EBUSY);
+    } while (0);
+    EXPECT_EQ(lock.lock(LOCK_EX | LOCK_NB), EBUSY);
+    EXPECT_EQ(lock.unlock(), 0);
+    EXPECT_EQ(lock.lock(LOCK_EX | LOCK_NB), 0);
+    EXPECT_EQ(lock.unlock(), 0);
+}
 
 static void test_func(Lock &lock) {
     int count = 0;

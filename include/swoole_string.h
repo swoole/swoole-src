@@ -35,6 +35,8 @@ class String {
   private:
     void alloc(size_t _size, const Allocator *_allocator);
     void move(String &&src);
+    static size_t checked_add(size_t left, size_t right);
+    static size_t growth_capacity(size_t current, size_t required);
 
   public:
     size_t length;
@@ -54,7 +56,7 @@ class String {
     }
 
     String(const char *_str, size_t _length) {
-        alloc(_length + 1, nullptr);
+        alloc(checked_add(_length, 1), nullptr);
         memcpy(str, _str, _length);
         str[_length] = '\0';
         length = _length;
@@ -150,7 +152,7 @@ class String {
     }
 
     void extend() {
-        extend(size * 2);
+        extend(checked_add(size, size));
     }
 
     void extend(size_t new_size) {
@@ -159,11 +161,7 @@ class String {
     }
 
     void extend_align(size_t _new_size) {
-        size_t align_size = SW_MEM_ALIGNED_SIZE(size * 2);
-        while (align_size < _new_size) {
-            align_size *= 2;
-        }
-        reserve(align_size);
+        reserve(growth_capacity(size, _new_size));
     }
 
     void reserve(size_t new_size);
@@ -192,7 +190,7 @@ class String {
 
     void set_null_terminated() {
         if (length == size) {
-            extend(length + 1);
+            extend(checked_add(length, 1));
         }
         str[length] = '\0';
     }
@@ -212,15 +210,11 @@ class String {
             return 0;
         }
         // store \0 terminator
-        ++_size;
+        _size = checked_add(_size, 1);
 
-        size_t new_size = (flags & FORMAT_APPEND) ? length + _size : _size;
+        size_t new_size = (flags & FORMAT_APPEND) ? checked_add(length, _size) : _size;
         if (flags & FORMAT_GROW) {
-            size_t align_size = SW_MEM_ALIGNED_SIZE(size * 2);
-            while (align_size < new_size) {
-                align_size *= 2;
-            }
-            new_size = align_size;
+            new_size = growth_capacity(size, new_size);
         }
 
         size_t n;

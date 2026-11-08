@@ -20,6 +20,30 @@
 #include "test_core.h"
 #include "swoole_memory.h"
 
+#include <type_traits>
+
+static_assert(!std::is_copy_constructible<swoole::GlobalMemory>::value, "Pools own their storage");
+static_assert(!std::is_copy_assignable<swoole::GlobalMemory>::value, "Pools own their storage");
+static_assert(!std::is_copy_constructible<swoole::FixedPool>::value, "Pools own their storage");
+static_assert(!std::is_copy_assignable<swoole::FixedPool>::value, "Pools own their storage");
+static_assert(!std::is_copy_constructible<swoole::RingBuffer>::value, "Pools own their storage");
+static_assert(!std::is_copy_assignable<swoole::RingBuffer>::value, "Pools own their storage");
+
+TEST(global_memory, child_allocations_preserve_inherited_storage) {
+    swoole::GlobalMemory pool(4096, true);
+    auto *inherited = static_cast<char *>(pool.alloc(64));
+    ASSERT_NE(inherited, nullptr);
+    memset(inherited, 'p', 64);
+    EXPECT_EQ(swoole::test::spawn_exec_and_wait([&]() {
+                  auto *child = static_cast<char *>(pool.alloc(64));
+                  ASSERT_NE(child, nullptr);
+                  memset(child, 'c', 64);
+                  EXPECT_EQ(std::string(inherited, 64), std::string(64, 'p'));
+              }),
+              0);
+    EXPECT_EQ(std::string(inherited, 64), std::string(64, 'p'));
+}
+
 #include <stdexcept>
 #include <vector>
 

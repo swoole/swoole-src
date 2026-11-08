@@ -29,6 +29,24 @@ static size_t aligned_string_capacity(size_t size) {
     return SW_MEM_ALIGNED_SIZE(size);
 }
 
+size_t String::checked_add(size_t left, size_t right) {
+    if (sw_unlikely(right > SIZE_MAX - left)) {
+        throw std::length_error("string length is too large");
+    }
+    return left + right;
+}
+
+size_t String::growth_capacity(size_t current, size_t required) {
+    size_t capacity = current == 0 ? SW_DEFAULT_ALIGNMENT : current;
+    do {
+        if (capacity > SIZE_MAX / 2) {
+            return aligned_string_capacity(required);
+        }
+        capacity *= 2;
+    } while (capacity < required);
+    return aligned_string_capacity(capacity);
+}
+
 void String::alloc(size_t _size, const Allocator *_allocator) {
     if (_allocator == nullptr) {
         _allocator = sw_std_allocator();
@@ -103,13 +121,15 @@ String &String::operator=(String &&src) noexcept {
 }
 
 void String::append(const String &append_str) {
-    size_t new_size = length + append_str.length;
+    size_t new_size = checked_add(length, append_str.length);
     if (new_size > size) {
         reserve(new_size);
     }
 
-    memcpy(str + length, append_str.str, append_str.length);
-    length += append_str.length;
+    if (append_str.length > 0) {
+        memcpy(str + length, append_str.str, append_str.length);
+    }
+    length = new_size;
 }
 
 void String::write(off_t _offset, const String &write_str) {
@@ -117,26 +137,35 @@ void String::write(off_t _offset, const String &write_str) {
 }
 
 void String::write(off_t _offset, const char *write_str, size_t _length) {
-    size_t new_length = _offset + _length;
+    if (sw_unlikely(_offset < 0)) {
+        throw std::out_of_range("string write offset must not be negative");
+    }
+    if (sw_unlikely(static_cast<uintmax_t>(_offset) > SIZE_MAX)) {
+        throw std::length_error("string write offset is too large");
+    }
+    size_t new_length = checked_add(static_cast<size_t>(_offset), _length);
     if (new_length > size) {
         reserve(new_length);
     }
 
-    memcpy(str + _offset, write_str, _length);
+    if (_length > 0) {
+        memcpy(str + _offset, write_str, _length);
+    }
     if (new_length > length) {
         length = new_length;
     }
 }
 
 void String::grow(size_t incr_value) {
-    length += incr_value;
-    if (sw_unlikely(incr_value > 0 && length >= size)) {
-        reserve(SW_MAX(size * 2, length));
+    const size_t new_length = checked_add(length, incr_value);
+    if (sw_unlikely(incr_value > 0 && new_length >= size)) {
+        reserve(growth_capacity(size, new_length));
     }
+    length = new_length;
 }
 
 String String::substr(size_t _offset, size_t len) const {
-    if (_offset + len > length) {
+    if (_offset > length || len > length - _offset) {
         return {};
     }
     String _substr(len);
@@ -195,36 +224,38 @@ void String::append(int value) {
     char buf[16];
     int s_len = swoole_itoa(buf, value);
 
-    size_t new_size = length + s_len;
-    if (new_size > size) {
-        reserve(new_size);
-    }
-
-    memcpy(str + length, buf, s_len);
-    length += s_len;
+    append(buf, static_cast<size_t>(s_len));
 }
 
 void String::append(const char *append_str, size_t _length) {
-    size_t new_size = length + _length;
+    size_t new_size = checked_add(length, _length);
     if (new_size > size) {
         reserve(new_size);
     }
 
-    memcpy(str + length, append_str, _length);
-    length += _length;
+    if (_length > 0) {
+        memcpy(str + length, append_str, _length);
+    }
+    length = new_size;
 }
 
 bool String::append_random_bytes(size_t _length, bool base64) {
-    size_t new_size = length + _length;
+    size_t new_size = checked_add(length, _length);
     size_t base_encode_size;
 
     if (base64) {
-        base_encode_size = BASE64_ENCODE_OUT_SIZE(_length) + 1;
-        new_size += base_encode_size;
+        const size_t groups = checked_add(_length, 2) / 3;
+        if (sw_unlikely(groups > (SIZE_MAX - 1) / 4)) {
+            throw std::length_error("base64 string length is too large");
+        }
+        base_encode_size = groups * 4 + 1;
+        new_size = checked_add(new_size, base_encode_size);
     }
 
     if (new_size > size) {
-        reserve(swoole_size_align(new_size * 2, swoole_pagesize()));
+        const size_t page_size = swoole_pagesize();
+        const size_t doubled_size = checked_add(new_size, new_size);
+        reserve(checked_add(doubled_size, page_size - 1) / page_size * page_size);
     }
 
     size_t n = swoole_random_bytes(str + length, _length);

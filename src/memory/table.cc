@@ -62,14 +62,19 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
         conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
     }
 
-    auto table = static_cast<Table *>(sw_mem_pool()->alloc(sizeof(Table)));
-    if (table == nullptr) {
+    const auto release_table = [](Table *table) { sw_mem_pool()->free(table); };
+    std::unique_ptr<Table, decltype(release_table)> table(static_cast<Table *>(sw_mem_pool()->alloc(sizeof(Table))),
+                                                          release_table);
+    if (!table) {
         return nullptr;
     }
-    table->mutex = new Mutex(true);
+    auto mutex = std::make_unique<Mutex>(true);
+    auto column_map = std::make_unique<std::unordered_map<std::string, TableColumn *>>();
+    auto column_list = std::make_unique<std::vector<TableColumn *>>();
+    table->mutex = mutex.release();
     table->iterator = nullptr;
-    table->column_map = new std::unordered_map<std::string, TableColumn *>;
-    table->column_list = new std::vector<TableColumn *>;
+    table->column_map = column_map.release();
+    table->column_list = column_list.release();
     table->size = rows_size;
     table->mask = rows_size - 1;
     table->conflict_proportion = conflict_proportion;
@@ -79,7 +84,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
     table->hash_func = swoole_hash_austin;
 #endif
 
-    return table;
+    return table.release();
 }
 
 bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, size_t _size) {
@@ -138,11 +143,14 @@ bool Table::exists(const char *key, size_t keylen) const {
 }
 
 TableIterator::TableIterator(size_t row_size) {
-    current_ = (TableRow *) sw_malloc(row_size);
-    if (!current_) {
+    const auto release_row = [](TableRow *row) { sw_free(row); };
+    std::unique_ptr<TableRow, decltype(release_row)> row(static_cast<TableRow *>(sw_malloc(row_size)), release_row);
+    if (!row) {
         throw std::bad_alloc();
     }
-    mutex_ = new Mutex(true);
+    auto mutex = std::make_unique<Mutex>(true);
+    current_ = row.release();
+    mutex_ = mutex.release();
     row_memory_size_ = row_size;
     reset();
 }
@@ -247,25 +255,29 @@ bool Table::create() {
         return false;
     }
 
-    void *_memory = sw_shm_malloc(_memory_size);
-    if (_memory == nullptr) {
+    std::unique_ptr<void, decltype(&sw_shm_free)> allocation(sw_shm_malloc(_memory_size), sw_shm_free);
+    if (!allocation) {
         return false;
     }
-    memory = _memory;
 
-    rows = static_cast<TableRow **>(_memory);
+    void *_memory = allocation.get();
+    auto new_rows = static_cast<TableRow **>(_memory);
     _memory = static_cast<char *>(_memory) + size * sizeof(TableRow *);
     _memory_size -= size * sizeof(TableRow *);
 
     for (size_t i = 0; i < size; i++) {
-        rows[i] = reinterpret_cast<TableRow *>(static_cast<char *>(_memory) + (_row_memory_size * i));
-        memset(rows[i], 0, sizeof(TableRow));
+        new_rows[i] = reinterpret_cast<TableRow *>(static_cast<char *>(_memory) + (_row_memory_size * i));
+        memset(new_rows[i], 0, sizeof(TableRow));
     }
 
     _memory = static_cast<char *>(_memory) + _row_memory_size * size;
     _memory_size -= _row_memory_size * size;
-    pool = new FixedPool(static_cast<uint32_t>(_row_memory_size), _memory, _memory_size, true);
-    iterator = new TableIterator(_row_memory_size);
+    auto new_pool = std::make_unique<FixedPool>(static_cast<uint32_t>(_row_memory_size), _memory, _memory_size, true);
+    auto new_iterator = std::make_unique<TableIterator>(_row_memory_size);
+    memory = allocation.release();
+    rows = new_rows;
+    pool = new_pool.release();
+    iterator = new_iterator.release();
     memory_size = _total_memory_size;
     created = true;
 

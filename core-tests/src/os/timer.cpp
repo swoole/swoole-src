@@ -27,6 +27,28 @@
 using swoole::Timer;
 using swoole::TimerNode;
 
+TEST(timer, callback_exception_restores_removal_state) {
+    Timer timer(true);
+    auto *node = timer.add(1, false, nullptr, [](Timer *, TimerNode *) { throw std::runtime_error("timer failed"); });
+    ASSERT_NE(node, nullptr);
+    const auto id = node->id;
+    node->exec_msec = 0;
+    timer.update(node);
+    EXPECT_THROW(timer.select(), std::runtime_error);
+    EXPECT_TRUE(timer.remove(node));
+    EXPECT_EQ(timer.get(id), nullptr);
+    EXPECT_EQ(timer.count(), 0);
+
+    bool called = false;
+    auto *next = timer.add(1, false, nullptr, [&](Timer *, TimerNode *) { called = true; });
+    ASSERT_NE(next, nullptr);
+    next->exec_msec = 0;
+    timer.update(next);
+    timer.select();
+    EXPECT_TRUE(called);
+    EXPECT_EQ(timer.count(), 0);
+}
+
 TEST(timer, callback_copy_failure_preserves_existing_timers) {
     struct Callback {
         bool &fail_copy;
@@ -68,8 +90,7 @@ TEST(timer, sys) {
 
     uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
 
-    ASSERT_TRUE(swoole_timer_add(
-        20L, false, [&](TIMER_PARAMS) { counter[0]++; }, nullptr));
+    ASSERT_TRUE(swoole_timer_add(20L, false, [&](TIMER_PARAMS) { counter[0]++; }, nullptr));
 
     swoole_clear_last_error();
     ASSERT_EQ(swoole_timer_add(-1L, false, [&](TIMER_PARAMS) {}), nullptr);
@@ -192,8 +213,7 @@ TEST(timer, async) {
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
-    swoole_timer_after(
-        20, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
+    swoole_timer_after(20, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
 
     swoole_timer_tick(
         100,
@@ -213,23 +233,20 @@ TEST(timer, async) {
 }
 
 TEST(timer, exists) {
-    long timer_id = swoole_timer_tick(
-        100, [&](Timer *, TimerNode *tnode) {}, nullptr);
+    long timer_id = swoole_timer_tick(100, [&](Timer *, TimerNode *tnode) {}, nullptr);
 
     ASSERT_TRUE(swoole_timer_exists(timer_id));
 }
 
 TEST(timer, clear) {
-    long timer_id = swoole_timer_tick(
-        100, [&](Timer *, TimerNode *tnode) {}, nullptr);
+    long timer_id = swoole_timer_tick(100, [&](Timer *, TimerNode *tnode) {}, nullptr);
 
     swoole_timer_clear(timer_id);
     ASSERT_FALSE(swoole_timer_exists(timer_id));
 }
 
 TEST(timer, get) {
-    long timer_id = swoole_timer_tick(
-        100, [&](Timer *, TimerNode *tnode) {}, nullptr);
+    long timer_id = swoole_timer_tick(100, [&](Timer *, TimerNode *tnode) {}, nullptr);
 
     TimerNode *timerNode = swoole_timer_get(timer_id);
     ASSERT_EQ(timerNode->id, timer_id);
@@ -261,12 +278,10 @@ TEST(timer, error) {
     ASSERT_FALSE(swoole_timer_clear(1));
     ASSERT_FALSE(swoole_timer_exists(1));
 
-    long timer_id = swoole_timer_tick(
-        0, [&](Timer *, TimerNode *tnode) {}, nullptr);
+    long timer_id = swoole_timer_tick(0, [&](Timer *, TimerNode *tnode) {}, nullptr);
     ASSERT_EQ(timer_id, SW_ERR);
 
-    timer_id = swoole_timer_after(
-        0, [&](Timer *, TimerNode *tnode) {}, nullptr);
+    timer_id = swoole_timer_after(0, [&](Timer *, TimerNode *tnode) {}, nullptr);
     ASSERT_EQ(timer_id, SW_ERR);
 
     swoole_timer_delay(nullptr, 100);
@@ -313,13 +328,13 @@ TEST(timer, reinit) {
 }
 
 TEST(timer, realtime_add) {
-	timespec ts;
-	ts.tv_sec = 1;
-	ts.tv_nsec = 900L * SW_NUM_MILLION;
+    timespec ts;
+    ts.tv_sec = 1;
+    ts.tv_nsec = 900L * SW_NUM_MILLION;
 
-	swoole::realtime_add(&ts, 1905);
-	ASSERT_EQ(ts.tv_sec, 3);
-	ASSERT_EQ(ts.tv_nsec, 805L * SW_NUM_MILLION);
+    swoole::realtime_add(&ts, 1905);
+    ASSERT_EQ(ts.tv_sec, 3);
+    ASSERT_EQ(ts.tv_nsec, 805L * SW_NUM_MILLION);
 }
 
 TEST(timer, reactor_round) {

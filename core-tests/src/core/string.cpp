@@ -1,8 +1,63 @@
 #include "test_core.h"
 #include "swoole_util.h"
 
+#include <stdexcept>
+
 using namespace std;
 using swoole::String;
+
+TEST(string, invalid_write_preserves_storage_and_content) {
+    String str("kept");
+    const auto storage = str.str;
+    const auto capacity = str.capacity();
+    EXPECT_THROW(str.write(-1, "x", 1), std::out_of_range);
+    EXPECT_THROW(str.write(1, "x", SIZE_MAX), std::length_error);
+    EXPECT_EQ(str.str, storage);
+    EXPECT_EQ(str.capacity(), capacity);
+    EXPECT_EQ(str.to_std_string(), "kept");
+    str.write(4, "!", 1);
+    EXPECT_EQ(str.to_std_string(), "kept!");
+}
+
+TEST(string, length_overflow_is_rejected_before_accessing_input) {
+    String str("kept");
+    EXPECT_THROW(str.append("x", SIZE_MAX), std::length_error);
+    EXPECT_THROW(str.grow(SIZE_MAX), std::length_error);
+    EXPECT_THROW(str.append_random_bytes(SIZE_MAX), std::length_error);
+    EXPECT_THROW(str.append_random_bytes(SIZE_MAX - 4, true), std::length_error);
+    EXPECT_THROW(String("x", SIZE_MAX), std::length_error);
+    EXPECT_EQ(str.to_std_string(), "kept");
+    EXPECT_TRUE(str.substr(SIZE_MAX, 1).empty());
+    EXPECT_TRUE(str.substr(1, SIZE_MAX).empty());
+    EXPECT_EQ(str.substr(1, 3).to_std_string(), "ept");
+}
+
+TEST(string, grow_allocation_failure_preserves_length) {
+    auto allocator = *sw_std_allocator();
+    String str(16, &allocator);
+    str.append("kept", 4);
+    const auto storage = str.str;
+    const auto capacity = str.capacity();
+    allocator.realloc = [](void *, size_t) -> void * { return nullptr; };
+    EXPECT_THROW(str.grow(capacity), std::bad_alloc);
+    EXPECT_EQ(str.str, storage);
+    EXPECT_EQ(str.capacity(), capacity);
+    EXPECT_EQ(str.to_std_string(), "kept");
+}
+
+TEST(string, empty_growth_and_self_append) {
+    String empty;
+    empty.extend_align(32);
+    EXPECT_GE(empty.capacity(), 32);
+    EXPECT_EQ(empty.length, 0);
+    String grown;
+    grown.grow(32);
+    EXPECT_EQ(grown.length, 32);
+    EXPECT_GE(grown.capacity(), grown.length);
+    String str("self");
+    str.append(str);
+    EXPECT_EQ(str.to_std_string(), "selfself");
+}
 
 TEST(string, ltrim) {
     char buf[1024];

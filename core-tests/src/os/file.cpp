@@ -21,8 +21,48 @@
 
 #include "swoole_file.h"
 #include "swoole_pipe.h"
+#include "swoole_util.h"
+
+#include <type_traits>
+#include <utility>
 
 using namespace swoole;
+
+static_assert(!std::is_copy_constructible<File>::value, "File owns its descriptor");
+static_assert(!std::is_copy_assignable<File>::value, "File owns its descriptor");
+static_assert(std::is_nothrow_move_constructible<File>::value, "File ownership can be transferred without throwing");
+static_assert(std::is_nothrow_move_assignable<File>::value, "File ownership can be transferred without throwing");
+
+TEST(file, move_transfers_descriptor_and_releases_destination) {
+    File source = make_tmpfile();
+    File destination = make_tmpfile();
+    ASSERT_TRUE(source.ready());
+    ASSERT_TRUE(destination.ready());
+    const auto source_path = source.get_path();
+    const auto destination_path = destination.get_path();
+    ON_SCOPE_EXIT {
+        File::remove(source_path);
+        File::remove(destination_path);
+    };
+    const int source_fd = source.get_fd();
+    const int destination_fd = destination.get_fd();
+    File moved(std::move(source));
+    EXPECT_FALSE(source.ready());
+    EXPECT_EQ(moved.get_fd(), source_fd);
+    EXPECT_EQ(moved.get_path(), source_path);
+
+    destination = std::move(moved);
+    EXPECT_FALSE(moved.ready());
+    EXPECT_FALSE(test::is_valid_fd(destination_fd));
+    EXPECT_EQ(destination.get_fd(), source_fd);
+    EXPECT_EQ(destination.get_path(), source_path);
+    auto *alias = &destination;
+    destination = std::move(*alias);
+    EXPECT_EQ(destination.get_fd(), source_fd);
+    EXPECT_EQ(destination.write("ok", 2), 2);
+    EXPECT_TRUE(destination.close());
+    EXPECT_FALSE(test::is_valid_fd(source_fd));
+}
 
 TEST(file, read_line) {
     std::string filename = test::get_root_path() + "/tests/include/bootstrap.php";

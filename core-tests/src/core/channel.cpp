@@ -19,11 +19,43 @@
 
 #include "test_core.h"
 #include "swoole_channel.h"
+#include "swoole_util.h"
 
 using namespace std;
 using namespace swoole;
 
 const int N = 10000000;
+
+TEST(channel, failed_lock_does_not_access_queue_or_unlock) {
+    struct FailingLock : Lock {
+        int unlocks = 0;
+        FailingLock() : Lock(MUTEX, false) {}
+        int lock(int, int) override {
+            return EBUSY;
+        }
+        int unlock() override {
+            unlocks++;
+            return 0;
+        }
+    } lock;
+    auto *channel = Channel::make(65536, 16, 0);
+    ASSERT_NE(channel, nullptr);
+    channel->flags |= SW_CHAN_LOCK;
+    channel->lock = &lock;
+    ON_SCOPE_EXIT {
+        channel->flags &= ~SW_CHAN_LOCK;
+        channel->lock = nullptr;
+        channel->destroy();
+    };
+    char data[16]{};
+    EXPECT_EQ(channel->push("x", 1), SW_ERR);
+    EXPECT_EQ(channel->peek(data, sizeof(data)), SW_ERR);
+    EXPECT_EQ(channel->pop(data, sizeof(data)), SW_ERR);
+    EXPECT_ERREQ(EBUSY);
+    EXPECT_EQ(channel->count(), 0);
+    EXPECT_EQ(lock.unlocks, 0);
+    swoole_clear_last_error();
+}
 
 TEST(channel, push) {
     auto *c = Channel::make(128 * 1024, 8192, SW_CHAN_LOCK | SW_CHAN_NOTIFY);

@@ -24,12 +24,14 @@ namespace swoole {
 
 class MemoryPool {
   public:
+    MemoryPool(const MemoryPool &) = delete;
+    MemoryPool &operator=(const MemoryPool &) = delete;
     virtual ~MemoryPool() = default;
     virtual void *alloc(uint32_t size) = 0;
     virtual void free(void *ptr) = 0;
 
   protected:
-    MemoryPool(){};
+    MemoryPool() {};
 };
 
 struct FixedPoolImpl;

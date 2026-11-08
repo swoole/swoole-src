@@ -16,6 +16,7 @@
 
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
+#include "swoole_util.h"
 
 namespace swoole {
 static void noop_user_timer_destructor(TimerNode *) {}
@@ -176,17 +177,21 @@ void Timer::select() {
             break;
         }
 
-        _current_id = tnode->id;
-        if (!tnode->removed) {
-            swoole_trace_log(SW_TRACE_TIMER,
-                             "execute callback [id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu]",
-                             tnode->id,
-                             tnode->exec_msec,
-                             tnode->round,
-                             count() - 1);
-            tnode->callback(this, tnode);
-        }
-        _current_id = -1;
+        do {
+            _current_id = tnode->id;
+            ON_SCOPE_EXIT {
+                _current_id = -1;
+            };
+            if (!tnode->removed) {
+                swoole_trace_log(SW_TRACE_TIMER,
+                                 "execute callback [id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu]",
+                                 tnode->id,
+                                 tnode->exec_msec,
+                                 tnode->round,
+                                 count() - 1);
+                tnode->callback(this, tnode);
+            }
+        } while (0);
 
         // persistent timer
         if (tnode->interval > 0 && !tnode->removed) {
