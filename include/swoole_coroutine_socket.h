@@ -538,7 +538,7 @@ class Socket {
         Socket *socket_;
         double timeout;
         TimeoutType type;
-        double original_timeout[sizeof(timeout_type_list)] = {};
+        double original_timeout[SW_ARRAY_SIZE(timeout_type_list)] = {};
     };
 
     class TimeoutController : public TimeoutSetter {
