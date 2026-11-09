@@ -145,6 +145,10 @@ bool Server::task_pack(EventData *task, const void *_data, size_t _length) {
     }
 
     if (file.write_all(_data, _length) != _length) {
+        const int write_error = errno;
+        file.close();
+        unlink(file.get_path().c_str());
+        errno = write_error;
         swoole_warning("write to tmpfile failed");
         return false;
     }
