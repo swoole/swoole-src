@@ -65,14 +65,14 @@ bool ListenPort::ssl_matches_wildcard_name(const char *subject_name, const char 
     }
 
     /* 1) prefix, if not empty, must match subject */
-    ptrdiff_t prefix_len = wildcard - cert_name;
+    const auto prefix_len = static_cast<size_t>(wildcard - cert_name);
     if (prefix_len && strncasecmp(subject_name, cert_name, prefix_len) != 0) {
         return false;
     }
 
     size_t suffix_len = strlen(wildcard + 1);
     size_t subject_len = strlen(subject_name);
-    if (suffix_len <= subject_len) {
+    if (prefix_len <= subject_len && suffix_len <= subject_len - prefix_len) {
         /* 2) suffix must match
          * 3) no . between prefix and suffix
          **/
