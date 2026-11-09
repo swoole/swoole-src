@@ -1197,19 +1197,27 @@ class Server {
     }
 
     int get_minfd() const {
-        return gs->min_fd;
+        return is_base_mode() ? min_fd_ : gs->min_fd;
     }
 
     int get_maxfd() const {
-        return gs->max_fd;
+        return is_base_mode() ? max_fd_ : gs->max_fd;
     }
 
     void set_maxfd(int maxfd) const {
-        gs->max_fd = maxfd;
+        if (is_base_mode()) {
+            max_fd_ = maxfd;
+        } else {
+            gs->max_fd = maxfd;
+        }
     }
 
     void set_minfd(int minfd) const {
-        gs->min_fd = minfd;
+        if (is_base_mode()) {
+            min_fd_ = minfd;
+        } else {
+            gs->min_fd = minfd;
+        }
     }
 
     pid_t get_master_pid() const {
@@ -1662,6 +1670,9 @@ class Server {
   private:
     enum Mode mode_;
     Connection *connection_list = nullptr;
+    // BASE workers have private connection tables, so their scan bounds must also stay private after fork.
+    mutable int min_fd_ = 0;
+    mutable int max_fd_ = 0;
     Session *session_list = nullptr;
     ServerPortGS *port_gs_list = nullptr;
     /**
