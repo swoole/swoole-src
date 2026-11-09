@@ -312,6 +312,11 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
 }
 
 bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
+    if (task->info.len > sizeof(task->data) ||
+        ((task->info.ext_flags & SW_TASK_TMPFILE) && task->info.len != sizeof(PacketTask))) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_MALFORMED_DATA, "invalid task packet length");
+        return false;
+    }
     if (!(task->info.ext_flags & SW_TASK_TMPFILE)) {
         packet->data = task->data;
         packet->length = task->info.len;
@@ -319,7 +324,11 @@ bool Server::task_unpack(EventData *task, String *buffer, PacketPtr *packet) {
     }
 
     PacketTask _pkg{};
-    memcpy(&_pkg, task->data, sizeof(_pkg) - 1);
+    memcpy(&_pkg, task->data, sizeof(_pkg));
+    if (memchr(_pkg.tmpfile, '\0', sizeof(_pkg.tmpfile)) == nullptr) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_MALFORMED_DATA, "unterminated task tmpfile path");
+        return false;
+    }
 
     File fp(_pkg.tmpfile, O_RDONLY);
     if (!fp.ready()) {
