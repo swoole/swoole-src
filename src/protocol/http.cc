@@ -25,6 +25,8 @@
 
 #include "thirdparty/multipart_parser.h"
 
+#include <limits>
+
 using swoole::http_server::Request;
 using swoole::http_server::StaticHandler;
 using swoole::network::SendfileTask;
@@ -634,8 +636,16 @@ size_t url_decode(char *str, size_t len) {
 char *url_encode(char const *str, size_t len) {
     static uchar hexchars[] = "0123456789ABCDEF";
 
+    if (len > (std::numeric_limits<size_t>::max() - 1) / 3) {
+        errno = EOVERFLOW;
+        return nullptr;
+    }
+
     size_t x, y;
-    char *ret = (char *) sw_malloc(len * 3);
+    char *ret = (char *) sw_malloc(len * 3 + 1);
+    if (ret == nullptr) {
+        return nullptr;
+    }
 
     for (x = 0, y = 0; len--; x++, y++) {
         char c = str[x];
@@ -653,6 +663,12 @@ char *url_encode(char const *str, size_t len) {
     do {
         size_t size = y + 1;
         char *tmp = (char *) sw_malloc(size);
+        if (tmp == nullptr) {
+            const int allocation_error = errno;
+            sw_free(ret);
+            errno = allocation_error;
+            return nullptr;
+        }
         memcpy(tmp, ret, size);
         sw_free(ret);
         ret = tmp;
