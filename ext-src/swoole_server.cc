@@ -3290,8 +3290,8 @@ static PHP_METHOD(swoole_server, stats) {
     add_assoc_long_ex(return_value, ZEND_STRL("pipe_packet_msg_id"), serv->gs->pipe_packet_msg_id);
     add_assoc_long_ex(return_value, ZEND_STRL("concurrency"), serv->get_concurrency());
     add_assoc_long_ex(return_value, ZEND_STRL("session_round"), serv->gs->session_round);
-    add_assoc_long_ex(return_value, ZEND_STRL("min_fd"), serv->gs->min_fd);
-    add_assoc_long_ex(return_value, ZEND_STRL("max_fd"), serv->gs->max_fd);
+    add_assoc_long_ex(return_value, ZEND_STRL("min_fd"), serv->get_minfd());
+    add_assoc_long_ex(return_value, ZEND_STRL("max_fd"), serv->get_maxfd());
 
     if (sw_worker()) {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_request_count"), sw_worker()->request_count);
