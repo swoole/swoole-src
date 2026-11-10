@@ -142,7 +142,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     }
     case SW_SERVER_EVENT_CLOSE:
     case SW_SERVER_EVENT_CLOSE_FORWARD: {
-        factory->end(pipe_buffer->info.fd, Server::CLOSE_ACTIVELY);
+        factory->end(pipe_buffer->info.fd, pipe_buffer->info.ext_flags | Server::CLOSE_ACTIVELY);
         break;
     }
     case SW_SERVER_EVENT_COMMAND_REQUEST: {
@@ -277,7 +277,7 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
     /**
      * Close all connections
      */
-    serv->foreach_connection([serv](Connection *conn) { serv->close(conn->session_id, true); });
+    serv->foreach_connection_on_reactor(reactor, [serv](Connection *conn) { serv->close(conn->session_id, true); });
 
     /**
      * call internal serv hooks
@@ -296,56 +296,19 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
 }
 
 static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
-    int fd = event->fd;
-    auto *serv = (Server *) reactor->ptr;
-    Connection *conn = serv->get_connection(fd);
-    if (conn == nullptr || conn->active == 0) {
-        return SW_ERR;
+    auto *serv = static_cast<Server *>(reactor->ptr);
+    Connection *conn = serv->get_connection(event->fd);
+    if (!conn || !conn->active || conn->socket != event->socket) {
+        return SW_OK;
     }
-    if (event->socket->removed) {
-        return Server::close_connection(reactor, event->socket);
-    }
-    if (reactor->del(event->socket) == 0) {
-        if (conn->close_queued) {
-            return Server::close_connection(reactor, event->socket);
-        } else {
-            /**
-             * peer_closed indicates that the client has closed the connection
-             * and the connection is no longer available.
-             */
-            conn->peer_closed = 1;
-            return serv->notify(conn, SW_SERVER_EVENT_CLOSE) ? SW_OK : SW_ERR;
-        }
-    } else {
-        return SW_ERR;
-    }
+    const auto reason = event->socket->recv_eof ? ConnectionCloseReason::PEER_EOF
+                        : conn->close_errno     ? ConnectionCloseReason::IO_ERROR
+                                                : ConnectionCloseReason::SOCKET_EVENT;
+    return serv->request_close(reactor, conn, reason);
 }
 
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
     auto *reactor = static_cast<Reactor *>(tnode->data);
-    auto *serv = static_cast<Server *>(reactor->ptr);
-    Event notify_ev{};
-    double now = microtime();
-
-    notify_ev.type = SW_FD_SESSION;
-
-    serv->foreach_connection([serv, reactor, now, &notify_ev](Connection *conn) {
-        if (serv->is_healthy_connection(now, conn)) {
-            return;
-        }
-        if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY) {
-            Server::close_connection(reactor, conn->socket);
-            return;
-        }
-        if (serv->disable_notify || conn->close_force) {
-            Server::close_connection(reactor, conn->socket);
-            return;
-        }
-        conn->close_force = 1;
-        notify_ev.fd = conn->fd;
-        notify_ev.socket = conn->socket;
-        notify_ev.reactor_id = conn->reactor_id;
-        ReactorProcess_onClose(reactor, &notify_ev);
-    });
+    static_cast<Server *>(reactor->ptr)->check_idle_connections(reactor);
 }
 }  // namespace swoole

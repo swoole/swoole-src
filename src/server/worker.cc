@@ -75,20 +75,13 @@ void Server::worker_signal_handler(int signo) {
     }
 }
 
-static sw_inline bool Worker_discard_data(const Server *serv, const Connection *conn, const DataHead *info) {
-    if (conn == nullptr) {
-        if (serv->disable_notify && !serv->discard_timeout_request) {
-            return false;
-        }
-        goto _discard_data;
-    } else {
-        if (conn->closed) {
-            goto _discard_data;
-        } else {
-            return false;
-        }
+static sw_inline bool Worker_discard_data(const Server *serv,
+                                          Connection::ReceiveEventStatus status,
+                                          const DataHead *info) {
+    if (status == Connection::ReceiveEventStatus::READY ||
+        (status == Connection::ReceiveEventStatus::STALE && serv->disable_notify && !serv->discard_timeout_request)) {
+        return false;
     }
-_discard_data:
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
                      "[2] ignore data[%u bytes] received from session#%ld",
@@ -119,19 +112,18 @@ void Server::worker_accept_event(DataHead *info) {
     switch (info->type) {
     case SW_SERVER_EVENT_RECV_DATA: {
         Connection *conn = get_connection_verify(info->fd);
+        auto status = Connection::ReceiveEventStatus::STALE;
         if (conn) {
-            if (info->len > 0) {
-                auto packet = get_worker_message_bus()->get_packet();
-                sw_atomic_fetch_sub(&conn->recv_queued_bytes, packet.length);
-                swoole_trace_log(SW_TRACE_SERVER,
-                                 "[Worker] session_id=%ld, len=%lu, qb=%d",
-                                 conn->session_id,
-                                 packet.length,
-                                 conn->recv_queued_bytes);
+            const auto length = info->len > 0 ? get_worker_message_bus()->get_packet().length : 0;
+            // PROCESS updates shared metadata across processes; BASE/THREAD run on the slot's owner reactor.
+            status = is_process_mode() ? conn->prepare_receive_event(info->fd, length, info->time)
+                                       : conn->prepare_receive_event_on_reactor(info->fd, length, info->time);
+            if (length > 0 && status == Connection::ReceiveEventStatus::READY) {
+                swoole_trace_log(
+                    SW_TRACE_SERVER, "[Worker] session_id=%ld, len=%u", info->fd, static_cast<uint32_t>(length));
             }
-            conn->last_dispatch_time = info->time;
         }
-        if (!Worker_discard_data(this, conn, info)) {
+        if (!Worker_discard_data(this, status, info)) {
             Worker_do_task(this, worker, info, onReceive);
         }
         break;
@@ -141,25 +133,31 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_CLOSE: {
-        Connection *conn = get_connection_verify_no_ssl(info->fd);
-        if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
-            delete conn->ssl_client_cert;
-            conn->ssl_client_cert = nullptr;
-        }
-        factory_->end(info->fd, false);
+        factory_->end(info->fd, info->ext_flags);
         break;
     }
     case SW_SERVER_EVENT_CONNECT: {
-        // SSL client certificate
+        auto *conn = get_connection_verify_no_ssl(info->fd);
+        if (!conn) {
+            break;
+        }
+        std::unique_ptr<String> certificate;
         if (info->len > 0) {
-            Connection *conn = get_connection_verify_no_ssl(info->fd);
-            if (conn) {
-                auto packet = get_worker_message_bus()->get_packet();
-                conn->ssl_client_cert = new String(packet.data, packet.length);
+            auto packet = get_worker_message_bus()->get_packet();
+            certificate.reset(new String(packet.data, packet.length));
+        }
+        bool claimed = false;
+        sw_spinlock(&conn->lock);
+        if (conn->active && conn->session_id == info->fd && !conn->is_close_worker_started()) {
+            claimed = !conn->connect_callback_claimed;
+            conn->connect_callback_claimed = true;
+            if (claimed && certificate) {
+                conn->ssl_client_cert = certificate.release();
                 conn->ssl_client_cert_pid = swoole_get_worker_pid();
             }
         }
-        if (onConnect) {
+        sw_spinlock_release(&conn->lock);
+        if (claimed && onConnect) {
             onConnect(this, info);
         }
         break;
@@ -419,10 +417,9 @@ void Server::stop_async_worker(Worker *worker) {
             for (auto ls : ports) {
                 reactor->del(ls->socket);
             }
-            foreach_connection([reactor](Connection *conn) {
-                if (!conn->peer_closed && !conn->socket->removed) {
-                    reactor->remove_read_event(conn->socket);
-                }
+            foreach_connection_on_reactor(reactor, [reactor](Connection *conn) {
+                conn->recv_shutdown = 1;
+                static_cast<Server *>(reactor->ptr)->update_recv_interest(reactor, conn);
             });
             clear_timer();
         }
@@ -454,10 +451,9 @@ void Server::stop_async_worker(Worker *worker) {
              * at this point, there may still be ongoing events for sending data.
              * The connection will be completely closed only when the reactor is destroyed.
              */
-            foreach_connection([reactor](Connection *conn) {
-                if (conn->reactor_id == reactor->id && !conn->peer_closed && !conn->socket->removed) {
-                    reactor->remove_read_event(conn->socket);
-                }
+            foreach_connection_on_reactor(reactor, [reactor](Connection *conn) {
+                conn->recv_shutdown = 1;
+                static_cast<Server *>(reactor->ptr)->update_recv_interest(reactor, conn);
             });
         }
     } else {
@@ -549,14 +545,9 @@ void Server::drain_worker_pipe() {
 void Server::clean_worker_connections(Worker *worker) {
     swoole_trace_log(SW_TRACE_WORKER, "clean connections");
     sw_reactor()->destroyed = true;
-    if (sw_likely(is_base_mode())) {
-        foreach_connection([](Connection *conn) { close_connection(sw_reactor(), conn->socket); });
-    } else if (is_thread_mode()) {
-        foreach_connection([worker](Connection *conn) {
-            if (conn->reactor_id == worker->id) {
-                close_connection(sw_reactor(), conn->socket);
-            }
-        });
+    if (is_base_mode() || is_thread_mode()) {
+        foreach_connection_on_reactor(sw_reactor(),
+                                      [](Connection *conn) { close_connection(sw_reactor(), conn->socket); });
     }
 }
 
@@ -617,11 +608,20 @@ int Server::start_event_worker(Worker *worker) {
 }
 
 /**
- * [Worker/TaskWorker/Master] Send data to ReactorThread
+ * Worker/TaskWorker/Master or a UDP-listener reactor: send a raw datagram to its target reactor.
+ * With an event loop this is asynchronous, including EAGAIN; other callers use the synchronous fallback.
  */
-ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id) const {
+ssize_t Server::send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id) {
     Socket *pipe_sock = get_reactor_pipe_socket(session_id, ev_data->info.reactor_id);
     if (swoole_event_is_available()) {
+        if (ev_data->info.type == SW_SERVER_EVENT_INCOMING) {
+            // The fd can have several producers, but an async output buffer belongs to exactly
+            // one event loop. Reuse the existing per-producer socket registry, without calling
+            // MessageBus::write(): the header and pointer are sent as one unframed datagram.
+            auto &bus = is_master_thread() ? message_bus : get_thread(sw_reactor()->id)->message_bus;
+            bus.init_pipe_socket(pipe_sock);
+            pipe_sock = bus.get_pipe_socket(pipe_sock);
+        }
         return swoole_event_write(pipe_sock, ev_data, sendn);
     } else {
         return pipe_sock->send_sync(ev_data, sendn);

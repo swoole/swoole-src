@@ -966,7 +966,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished) {
 
     Connection *conn = serv->get_connection_verify(session_id);
     // not isEstablished
-    if (!conn || conn->closed || conn->websocket_status < WebSocket::STATUS_ACTIVE) {
+    if (!conn || conn->is_close_requested() || conn->websocket_status < WebSocket::STATUS_ACTIVE) {
         RETURN_FALSE;
     } else {
         RETURN_TRUE;

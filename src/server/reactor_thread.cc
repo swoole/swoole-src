@@ -46,6 +46,7 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
 
     auto conn = static_cast<Connection *>(_socket->object);
     conn->ssl_ready = 1;
+    conn->recv_delayed = serv->enable_delay_receive;
     if (!port->get_ssl_client_cert_file().empty()) {
         if (!_socket->ssl_get_peer_certificate(sw_tg_buffer())) {
             if (port->get_ssl_verify_peer()) {
@@ -89,10 +90,11 @@ static inline ReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, Listen
         serv->notify(static_cast<Connection *>(_socket->object), SW_SERVER_EVENT_CONNECT);
     }
 _delay_receive:
-    if (serv->enable_delay_receive) {
-        if (reactor->del(_socket) < 0) {
-            return SW_ERROR;
-        }
+    if (!conn->active || conn->socket != _socket) {
+        return SW_WAIT;
+    }
+    if (!conn->can_receive()) {
+        return serv->update_recv_interest(reactor, conn) < 0 ? SW_ERROR : SW_WAIT;
     }
 
     return SW_READY;
@@ -133,33 +135,11 @@ _do_recvfrom:
     auto port = static_cast<ListenPort *>(server_sock->object);
 
     if (port->is_dtls()) {
-        dtls::Session *session = serv->accept_dtls_connection(port, &pkt->socket_addr);
-        if (!session) {
+        auto *socket = serv->accept_dtls_socket(port, &pkt->socket_addr, pkt->data, ret);
+        if (!socket) {
             return SW_ERR;
         }
-
-        session->append(pkt->data, ret);
-
-        if (!session->listen()) {
-            return Server::close_connection(reactor, session->socket);
-        }
-
-        auto conn = static_cast<Connection *>(session->socket->object);
-        if (serv->single_thread) {
-            if (serv->connection_incoming(reactor, conn) < 0) {
-                reactor->close(reactor, session->socket);
-                return SW_OK;
-            }
-        } else {
-            DataHead ev{};
-            ev.type = SW_SERVER_EVENT_INCOMING;
-            ev.fd = conn->session_id;
-            ev.reactor_id = conn->reactor_id;
-            if (serv->send_to_reactor_thread(reinterpret_cast<EventData *>(&ev), sizeof(ev), conn->session_id) < 0) {
-                reactor->close(reactor, session->socket);
-                return SW_OK;
-            }
-        }
+        serv->dispatch_connection(reactor, socket, port, port->get_fd());
 
         return SW_OK;
     }
@@ -183,12 +163,56 @@ _do_recvfrom:
 }
 
 /**
- * close connection
+ * Physical retirement, owning reactor only. Workers request CLOSE through Factory::end/finish_close;
+ * they never free reactor sockets or edit readiness directly. The slot lock serializes retirement
+ * with worker metadata/callback access; no PHP callback runs while it is held. Keep terminal fields
+ * after removing the session mapping so cached worker pointers remain recognizable until reuse.
  */
 int Server::close_connection(Reactor *reactor, Socket *socket) {
-    auto serv = static_cast<Server *>(reactor->ptr);
-    auto conn = static_cast<Connection *>(socket->object);
-    ListenPort *port = serv->get_port_by_fd(socket->fd);
+    auto *serv = static_cast<Server *>(reactor->ptr);
+    auto *conn = static_cast<Connection *>(socket->object);
+    if (!conn) {
+        return SW_OK;
+    }
+    sw_spinlock(&conn->lock);
+    if (!conn->active || conn->socket != socket) {
+        sw_spinlock_release(&conn->lock);
+        return SW_OK;
+    }
+    if (!socket->removed && reactor->del(socket) < 0) {
+        sw_spinlock_release(&conn->lock);
+        return SW_ERR;
+    }
+    if (!conn->is_close_requested()) {
+        conn->begin_close(conn->recv_shutdown ? ConnectionCloseReason::WORKER_SHUTDOWN
+                                              : ConnectionCloseReason::SERVER_ERROR);
+        conn->close_abort = true;
+    }
+    ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
+    serv->get_session(conn->session_id)->fd = 0;
+    // Keep terminal facts until next publication. All active/bounds writers take the same
+    // server mutex, so another reactor can scan membership without touching Socket memory.
+    conn->session_released = true;
+    do {
+        std::lock_guard<std::mutex> guard(serv->lock_);
+        conn->active = 0;
+        /**
+         * reset maxfd, for connection_list
+         */
+        int fd = socket->fd;
+
+        if (fd == serv->get_maxfd()) {
+            int find_max_fd = fd - 1;
+            swoole_trace_log(SW_TRACE_SERVER, "set_maxfd=%d|close_fd=%d", find_max_fd, fd);
+            // find the new max_fd
+            for (; !serv->is_valid_connection(serv->get_connection(find_max_fd)) && find_max_fd > serv->get_minfd();
+                 find_max_fd--) {
+                // pass
+            }
+            serv->set_maxfd(find_max_fd);
+        }
+    } while (0);
+    sw_spinlock_release(&conn->lock);
 
     if (conn->timer) {
         swoole_timer_del(conn->timer);
@@ -198,10 +222,6 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     if (conn->websocket_buffer) {
         delete conn->websocket_buffer;
         conn->websocket_buffer = nullptr;
-    }
-
-    if (!socket->removed && reactor->del(socket) < 0) {
-        return SW_ERR;
     }
 
     sw_atomic_long_fetch_add(&serv->gs->close_count, 1);
@@ -218,14 +238,12 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     swoole_trace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
 
     if (socket->ssl) {
-        conn->socket->ssl_quiet_shutdown = conn->peer_closed;
+        conn->socket->ssl_quiet_shutdown = conn->is_close_aborting();
         conn->socket->ssl_close();
     }
 #ifdef SW_SUPPORT_DTLS
     if (socket->dtls) {
-        dtls::Session *session = port->dtls_sessions->find(socket->fd)->second;
-        port->dtls_sessions->erase(socket->fd);
-        delete session;
+        port->remove_dtls_session(socket->fd);
     }
 #endif
 
@@ -244,7 +262,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     }
 
 #ifdef SW_USE_SOCKET_LINGER
-    if (conn->close_force || conn->close_reset) {
+    if (conn->is_close_reset()) {
         struct linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
@@ -254,28 +272,6 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     }
 #endif
 
-    Session *session = serv->get_session(conn->session_id);
-    session->fd = 0;
-    /**
-     * reset maxfd, for connection_list
-     */
-    int fd = socket->fd;
-
-    serv->lock();
-    if (fd == serv->get_maxfd()) {
-        int find_max_fd = fd - 1;
-        swoole_trace_log(SW_TRACE_SERVER, "set_maxfd=%d|close_fd=%d", find_max_fd, fd);
-        // find the new max_fd
-        for (; !serv->is_valid_connection(serv->get_connection(find_max_fd)) && find_max_fd > serv->get_minfd();
-             find_max_fd--) {
-            // pass
-        }
-        serv->set_maxfd(find_max_fd);
-    }
-    serv->unlock();
-
-    conn->active = 0;
-    conn->closed = 1;
     conn->socket = nullptr;
     conn->object = nullptr;
 
@@ -287,43 +283,129 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
  */
 static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     auto *serv = static_cast<Server *>(reactor->ptr);
-    int fd = event->fd;
-    DataHead notify_ev{};
-    Socket *socket = event->socket;
-
-    assert(fd % serv->reactor_num == reactor->id);
-    assert(fd % serv->reactor_num == SwooleTG.id);
-
-    notify_ev.reactor_id = reactor->id;
-    notify_ev.fd = fd;
-    notify_ev.type = SW_SERVER_EVENT_CLOSE;
-
-    swoole_trace_log(SW_TRACE_CLOSE, "client[fd=%d] close the connection", fd);
-
-    Connection *conn = serv->get_connection(fd);
-    if (conn == nullptr || conn->active == 0) {
-        return SW_ERR;
-    } else if (serv->disable_notify) {
-        return Server::close_connection(reactor, socket);
-    } else if (reactor->del(socket) == 0) {
-        if (conn->close_queued) {
-            return Server::close_connection(reactor, socket);
-        } else if (socket->close_notified == 0) {
-            /**
-             * peer_closed indicates that the client has closed the connection
-             * and the connection is no longer available.
-             */
-            conn->peer_closed = 1;
-            socket->close_notified = 1;
-            return serv->factory_->notify(&notify_ev);
-        }
+    Connection *conn = serv->get_connection(event->fd);
+    if (!conn || !conn->active || conn->socket != event->socket) {
         return SW_OK;
+    }
+    const auto reason = event->socket->recv_eof ? ConnectionCloseReason::PEER_EOF
+                        : conn->close_errno     ? ConnectionCloseReason::IO_ERROR
+                                                : ConnectionCloseReason::SOCKET_EVENT;
+    return serv->request_close(reactor, conn, reason);
+}
+
+// Owner-reactor API: derive readiness from independent receive policies, preserving pending WRITE.
+// Socket::removed is a backend registration fact and must never be used as a close/pause reason.
+int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_write) const {
+    Socket *socket = conn->socket;
+    int events = clear_write ? 0 : socket->events & ~SW_EVENT_READ;
+    if (conn->can_receive()) {
+        events |= SW_EVENT_READ;
+    }
+    // Registration follows policy; removed never explains why receiving stopped.
+    if (events == 0) {
+        return socket->removed ? SW_OK : reactor->del(socket);
+    }
+    if (socket->removed) {
+        return reactor->add(socket, events);
+    }
+    return events == socket->events ? SW_OK : reactor->set(socket, events);
+}
+
+// Owner-reactor API for EOF, I/O/protocol errors and timeouts. Publish the first cause, stop I/O,
+// and notify the assigned worker once. PROCESS notification is asynchronous; BASE/THREAD may invoke
+// worker code synchronously, so revalidate the session after any callback and never touch a retired slot.
+int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason, bool reset) const {
+    if (!conn || !conn->active) {
+        return SW_OK;
+    }
+    const SessionId session_id = conn->session_id;
+    Socket *socket = conn->socket;
+    conn->begin_close(reason);
+    conn->close_abort = true;
+    if (reset) {
+        conn->request_reset();
+    }
+    if (conn->timer) {
+        swoole_timer_del(conn->timer);
+        conn->timer = nullptr;
+        conn->recv_throttled = 0;
+    }
+    if (!socket->removed && reactor->del(socket) < 0) {
+        return SW_ERR;
+    }
+    if (disable_notify || (conn->ssl && !conn->ssl_ready) || conn->close_worker_received) {
+        return close_connection(reactor, socket);
+    }
+    conn->close_waiting_worker = 1;
+    if (conn->close_notification_started) {
+        return SW_OK;
+    }
+    conn->close_notification_started = 1;
+    try {
+        if (notify(conn, SW_SERVER_EVENT_CLOSE)) {
+            return SW_OK;
+        }
+    } catch (...) {
+        conn = get_connection_verify_no_ssl(session_id);
+        if (conn && conn->socket == socket) {
+            close_connection(reactor, socket);
+        }
+        throw;
+    }
+    // Failed enqueue cannot produce an acknowledgement. Release instead of stranding an unregistered fd.
+    conn = get_connection_verify_no_ssl(session_id);
+    if (conn && conn->socket == socket) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SESSION_CLOSING,
+                         "close notification failed for session#%ld; releasing transport",
+                         session_id);
+        return close_connection(reactor, socket);
     }
     return SW_ERR;
 }
 
+// Owning reactor only. Force aborts output instead of waiting for the client to drain it.
+// A repeated timeout ends transport I/O while a busy worker still owes onClose. Keep its
+// fd/session reserved until callback dispatch, so the late notification cannot hit a reused slot.
+int Server::request_force_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason) const {
+    if (!conn || !conn->active) {
+        return SW_OK;
+    }
+    if (conn->close_waiting_worker) {
+        const auto session_id = conn->session_id;
+        auto *socket = conn->socket;
+        sw_spinlock(&conn->lock);
+        const bool callback_dispatched =
+            conn->close_callback_state == CloseCallbackState::DISPATCHED || (!onClose && conn->close_worker_started);
+        sw_spinlock_release(&conn->lock);
+        auto *port = get_port_by_server_fd(conn->server_fd);
+        const double grace = max_wait_time + 2.0 * heartbeat_check_interval;
+        const bool deadline_expired = reason == ConnectionCloseReason::IDLE_TIMEOUT && port->heartbeat_idle_time > 0 &&
+                                      microtime() - conn->get_last_recv_time() >= port->heartbeat_idle_time + grace;
+        if (callback_dispatched || deadline_expired) {
+            // A dead/permanently blocked worker must not retain descriptors forever. As with
+            // the original force-close fallback, callback delivery cannot be guaranteed then.
+            return close_connection(reactor, socket);
+        }
+        // shutdown is idempotent; existing close states suffice without another connection flag.
+        socket->shutdown(SHUT_RDWR);
+        auto *output = socket->out_buffer;
+        socket->out_buffer = nullptr;
+        conn->send_queued_bytes = 0;
+        delete output;
+        conn = get_connection_verify_no_ssl(session_id);
+        if (!conn || conn->socket != socket) {
+            return SW_OK;
+        }
+    }
+    return request_close(reactor, conn, reason);
+}
+
 void ReactorThread::shutdown(Reactor *reactor) {
     auto *serv = static_cast<Server *>(reactor->ptr);
+    if (heartbeat_pipe && !heartbeat_pipe->get_socket(true)->removed) {
+        reactor->del(heartbeat_pipe->get_socket(true));
+    }
     // stop listen UDP Port
     if (serv->have_dgram_sock == 1) {
         for (auto ls : serv->ports) {
@@ -344,11 +426,8 @@ void ReactorThread::shutdown(Reactor *reactor) {
     }
 
     reactor->add_destroy_callback([serv, reactor](void *) {
-        serv->foreach_connection([reactor](Connection *conn) {
-            if (conn->reactor_id == reactor->id) {
-                Server::close_connection(reactor, conn->socket);
-            }
-        });
+        serv->foreach_connection_on_reactor(
+            reactor, [reactor](Connection *conn) { Server::close_connection(reactor, conn->socket); });
     });
 
     if (serv->is_thread_mode()) {
@@ -364,19 +443,15 @@ void ReactorThread::shutdown(Reactor *reactor) {
         reactor->remove_read_event(socket);
     }
 
-    serv->foreach_connection([serv, reactor](Connection *conn) {
-        if (conn->fd % serv->reactor_num != reactor->id) {
-            return;
-        }
-        if (!conn->peer_closed && !conn->socket->removed) {
-            reactor->remove_read_event(conn->socket);
-        }
+    serv->foreach_connection_on_reactor(reactor, [serv, reactor](Connection *conn) {
+        conn->recv_shutdown = 1;
+        serv->update_recv_interest(reactor, conn);
     });
 
     reactor->set_wait_exit(true);
 }
 
-int ReactorThread::close_connection(Reactor *reactor, SessionId session_id) {
+int ReactorThread::close_connection(Reactor *reactor, SessionId session_id, ConnectionCloseReason reason) {
     auto *serv = static_cast<Server *>(reactor->ptr);
     Connection *conn = serv->get_connection_verify_no_ssl(session_id);
     if (!conn) {
@@ -387,24 +462,7 @@ int ReactorThread::close_connection(Reactor *reactor, SessionId session_id) {
         return SW_OK;
     }
 
-    if (serv->disable_notify || conn->close_force) {
-        return Server::close_connection(reactor, conn->socket);
-    }
-
-    /**
-     * SSL connections that have not completed the handshake,
-     * do not need to notify the workers, just close
-     */
-    if (conn->ssl && !conn->ssl_ready) {
-        return Server::close_connection(reactor, conn->socket);
-    }
-    conn->close_force = 1;
-    Event _ev = {};
-    _ev.fd = conn->fd;
-    _ev.socket = conn->socket;
-    reactor->trigger_close_event(&_ev);
-
-    return SW_OK;
+    return serv->request_force_close(reactor, conn, reason);
 }
 
 /**
@@ -414,6 +472,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     SendData _send;
     auto *serv = static_cast<Server *>(reactor->ptr);
     ReactorThread *thread = serv->get_thread(reactor->id);
+    size_t heartbeat_closes = 0;
 
     SW_LOOP {
         PipeBuffer *resp = thread->message_bus.get_buffer();
@@ -423,9 +482,19 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         }
         switch (resp->info.type) {
         case SW_SERVER_EVENT_INCOMING: {
-            Connection *conn = serv->get_connection_verify_no_ssl(resp->info.fd);
-            if (conn && serv->connection_incoming(reactor, conn) < 0) {
-                reactor->close(reactor, conn->socket);
+            auto packet = thread->message_bus.get_packet();
+            if (packet.length != sizeof(Socket *)) {
+                swoole_warning("invalid incoming connection handoff");
+                break;
+            }
+            Socket *socket;
+            memcpy(&socket, packet.data, sizeof(socket));
+            const int server_fd = resp->info.server_fd;
+            auto *port = serv->get_port_by_server_fd(server_fd);
+            if (!reactor->wait_exit && !reactor->terminated) {
+                serv->initialize_connection(reactor, IncomingConnection(socket, port, server_fd));
+            } else {
+                serv->abort_connection(reactor, port, socket);
             }
             break;
         }
@@ -455,11 +524,17 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             break;
         }
         case SW_SERVER_EVENT_CLOSE_FORCE: {
-            thread->close_connection(reactor, resp->info.fd);
+            serv->close_idle_connection(reactor, resp->info.fd);
+            // A large expiry wave must yield to normal I/O. Level-triggered readiness
+            // will schedule the remaining requests on the next event-loop iteration.
+            if (++heartbeat_closes >= 64) {
+                thread->message_bus.pop();
+                return SW_OK;
+            }
             break;
         }
         case SW_SERVER_EVENT_CLOSE_FORWARD: {
-            serv->factory_->end(resp->info.fd, Server::CLOSE_ACTIVELY);
+            serv->factory_->end(resp->info.fd, resp->info.ext_flags | Server::CLOSE_ACTIVELY);
             break;
         }
         default: {
@@ -470,8 +545,8 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             // The worker has already reported the file as sent, so the client would wait for a body that never comes.
             if (serv->send_to_connection(&_send) < 0 && _send.info.type == SW_SERVER_EVENT_SEND_FILE) {
                 Connection *conn = serv->get_connection_verify_no_ssl(_send.info.fd);
-                // The worker's close is already pending; closing again would release the session before onClose.
-                if (conn && !conn->peer_closed) {
+                // Repeated errors use the same idempotent close transition, including while waiting for a worker.
+                if (conn) {
                     thread->close_connection(reactor, _send.info.fd);
                 }
             }
@@ -482,13 +557,6 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     }
 
     return SW_OK;
-}
-
-static void ReactorThread_discard_packet(EventData *send_data) {
-    // Only the first packet of a chunked message starts with its SendfileTask.
-    if (!(send_data->info.flags & SW_EVENT_DATA_CHUNK) || (send_data->info.flags & SW_EVENT_DATA_BEGIN)) {
-        Server::discard_sendfile(&send_data->info, send_data->data);
-    }
 }
 
 /**
@@ -504,29 +572,22 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
         const BufferChunk *chunk = buffer->front();
         auto *send_data = reinterpret_cast<EventData *>(chunk->value.str);
 
-        // server actively closed connection, should discard the data
+        // Drop events whose session no longer exists. Live-session close filtering belongs to the worker,
+        // preserving the order of data already queued before its close notification.
         if (Server::is_stream_event(send_data->info.type)) {
             // send_data->info.fd is session_id
             Connection *conn = serv->get_connection_verify(send_data->info.fd);
             if (conn) {
                 conn->last_send_time = microtime();
-                if (conn->closed) {
-                    swoole_error_log(SW_LOG_NOTICE,
-                                     SW_ERROR_SESSION_CLOSED_BY_SERVER,
-                                     "Session#%ld is closed by server",
-                                     send_data->info.fd);
-                _discard:
-                    ReactorThread_discard_packet(send_data);
-                    buffer->pop();
-                    continue;
-                }
             } else if (serv->discard_timeout_request) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
                                  "[1] ignore data[%u bytes] received from session#%ld",
                                  send_data->info.len,
                                  send_data->info.fd);
-                goto _discard;
+                serv->discard_reactor_event(send_data);
+                buffer->pop();
+                continue;
             }
         }
 
@@ -575,15 +636,18 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
      * invalid event
      * The server has been actively closed the connection, the client also initiated off, fd has been reused.
      */
-    if (!conn || conn->server_fd == 0) {
+    if (!conn || !conn->active || conn->socket != event->socket) {
         return SW_OK;
+    }
+    if (!conn->can_receive()) {
+        return serv->update_recv_interest(reactor, conn);
     }
     ListenPort *port = serv->get_port_by_fd(event->fd);
 #ifdef SW_SUPPORT_DTLS
     if (port->is_dtls()) {
         dtls::Buffer *buffer = static_cast<dtls::Buffer *>(sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP));
         buffer->length = event->socket->read(buffer->data, SW_BUFFER_SIZE_UDP);
-        dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
+        dtls::Session *session = port->get_dtls_session(event->fd);
         session->append(buffer);
         if (!session->listened && !session->listen()) {
             serv->abort_connection(reactor, port, event->socket);
@@ -611,7 +675,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
         abort();
     }
 
-    conn->last_recv_time = microtime();
+    conn->set_last_recv_time(microtime());
     long last_recv_bytes = event->socket->total_recv_bytes;
 
     int retval = port->onRead(reactor, port, event);
@@ -621,15 +685,17 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
         sw_atomic_long_fetch_add(&port->gs->total_recv_bytes, socket_recv_bytes);
         sw_atomic_long_fetch_add(&serv->gs->total_recv_bytes, socket_recv_bytes);
     }
-    if (!conn->active) {
+    if (!conn->active || conn->socket != event->socket) {
         return retval;
     }
-    if (serv->is_process_mode() && serv->max_queued_bytes && conn->recv_queued_bytes > serv->max_queued_bytes) {
+    if (!conn->is_close_requested() && !conn->timer && serv->is_process_mode() && serv->max_queued_bytes &&
+        conn->get_recv_queued_bytes() > serv->max_queued_bytes) {
         conn->waiting_time = 1;
         conn->timer =
             swoole_timer_add((long) conn->waiting_time, false, ReactorThread_resume_data_receiving, event->socket);
         if (conn->timer) {
-            reactor->remove_read_event(event->socket);
+            conn->recv_throttled = 1;
+            serv->update_recv_interest(reactor, conn);
         }
     }
     return retval;
@@ -652,22 +718,8 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         return SW_ERR;
     }
 
-    swoole_trace_log(SW_TRACE_REACTOR,
-                     "fd=%d, conn->close_notify=%d, serv->disable_notify=%d, conn->close_force=%d",
-                     fd,
-                     conn->close_notify,
-                     serv->disable_notify,
-                     conn->close_force);
-
-    if (conn->close_notify) {
-        if (socket->ssl && socket->ssl_state != SW_SSL_STATE_READY) {
-            return Server::close_connection(reactor, socket);
-        }
-        serv->notify(conn, SW_SERVER_EVENT_CLOSE);
-        conn->close_notify = 0;
+    if (conn->socket != socket || conn->close_waiting_worker) {
         return SW_OK;
-    } else if (serv->disable_notify && conn->close_force) {
-        return Server::close_connection(reactor, socket);
     }
 
     while (!Buffer::empty(socket->out_buffer)) {
@@ -704,6 +756,9 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         }
     }
 
+    if (!conn->active || conn->socket != socket) {
+        return SW_OK;
+    }
     if (socket->send_timer) {
         if (Buffer::empty(socket->out_buffer)) {
             swoole_timer_del(socket->send_timer);
@@ -714,31 +769,16 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     }
 
     // remove EPOLLOUT event
-    if (!conn->peer_closed && !socket->removed && Buffer::empty(socket->out_buffer)) {
-        reactor->set(socket, SW_EVENT_READ);
+    if (!socket->removed && Buffer::empty(socket->out_buffer)) {
+        // Draining output clears only WRITE. User pause, backpressure, shutdown and close remain independent.
+        return serv->update_recv_interest(reactor, conn, true);
     }
     return SW_OK;
 }
 
 void Server::heartbeat_check(Timer *timer, TimerNode *tnode) {
-    double now = microtime();
-    auto reactor = static_cast<Reactor *>(tnode->data);
-    auto serv = static_cast<Server *>(reactor->ptr);
-    ReactorThread *thread = serv->get_thread(reactor->id);
-
-    serv->foreach_connection([=](Connection *conn) {
-        SessionId session_id = conn->session_id;
-        if (session_id <= 0) {
-            return;
-        }
-        if (conn->reactor_id != reactor->id) {
-            return;
-        }
-        if (serv->is_healthy_connection(now, conn)) {
-            return;
-        }
-        thread->close_connection(reactor, session_id);
-    });
+    auto *reactor = static_cast<Reactor *>(tnode->data);
+    static_cast<Server *>(reactor->ptr)->check_idle_connections(reactor);
 }
 
 /**
@@ -795,8 +835,6 @@ _init_master_thread:
     if (heartbeat_check_interval >= 1) {
         if (single_thread) {
             heartbeat_timer = swoole_timer_add(sec2msec(heartbeat_check_interval), true, heartbeat_check, reactor);
-        } else {
-            start_heartbeat_thread();
         }
     }
 
@@ -849,6 +887,15 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         }
     } else {
         serv->init_pipe_sockets(&message_bus);
+    }
+
+    if (serv->is_process_mode() && !serv->single_thread && serv->heartbeat_check_interval > 0) {
+        auto pipe = std::make_unique<UnixSocket>(false, SOCK_DGRAM);
+        if (!pipe->ready() || !pipe->set_buffer_size(SW_IPC_BUFFER_MAX_SIZE) ||
+            reactor->add(pipe->get_socket(true), SW_EVENT_READ) != SW_OK) {
+            return SW_ERR;
+        }
+        heartbeat_pipe = std::move(pipe);
     }
 
     if (serv->pipe_command) {
@@ -910,7 +957,7 @@ void ReactorThread::drain_pipe_buffers(Server *serv, int timeout_msec) {
         return;
     }
     if (timeout_msec <= 0) {
-        discard_pipe_buffers();
+        discard_pipe_buffers(serv);
         return;
     }
 
@@ -961,21 +1008,13 @@ void ReactorThread::drain_pipe_buffers(Server *serv, int timeout_msec) {
     reactor.wait();
     if (time<std::chrono::milliseconds>(true) >= deadline) {
         // Only the expired wait budget permits dropping still-sendable packets, including owned sendfiles.
-        discard_pipe_buffers();
+        discard_pipe_buffers(serv);
     }
 }
 
-void ReactorThread::discard_pipe_buffers() {
-    // Shutdown cannot wait for peer workers to read: they may already have stopped with full pipes.
-    // Discard queued packets directly, releasing owned sendfiles before the wrappers are destroyed.
-    message_bus.foreach_pipe_socket([](Socket *socket) {
-        while (!Buffer::empty(socket->out_buffer)) {
-            auto *packet = reinterpret_cast<EventData *>(socket->out_buffer->front()->value.str);
-            ReactorThread_discard_packet(packet);
-            socket->out_buffer->pop();
-        }
-        return true;
-    });
+void ReactorThread::discard_pipe_buffers(const Server *serv) {
+    // Drop queued handoffs/sendfiles through the same cleanup as master-produced packets.
+    serv->discard_reactor_output(message_bus);
 }
 
 void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
@@ -1018,21 +1057,22 @@ void Server::reactor_thread_main_loop(Server *serv, int reactor_id) {
 }
 
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) {
-    auto *_socket = static_cast<Socket *>(tnode->data);
-    auto *conn = static_cast<Connection *>(_socket->object);
-
-    if (conn->recv_queued_bytes > sw_server()->max_queued_bytes) {
+    auto *socket = static_cast<Socket *>(tnode->data);
+    auto *conn = static_cast<Connection *>(socket->object);
+    auto *serv = static_cast<Server *>(timer->get_reactor()->ptr);
+    if (!conn || !conn->active || conn->socket != socket || conn->timer != tnode) {
+        return;
+    }
+    conn->timer = nullptr;
+    conn->recv_throttled = 0;
+    if (!conn->is_close_requested() && conn->get_recv_queued_bytes() > serv->max_queued_bytes) {
         if (conn->waiting_time != 1024) {
             conn->waiting_time *= 2;
         }
-        conn->timer = swoole_timer_add((long) conn->waiting_time, false, ReactorThread_resume_data_receiving, _socket);
-        if (conn->timer) {
-            return;
-        }
+        conn->timer = swoole_timer_add((long) conn->waiting_time, false, ReactorThread_resume_data_receiving, socket);
+        conn->recv_throttled = conn->timer != nullptr;
     }
-
-    timer->get_reactor()->add_read_event(_socket);
-    conn->timer = nullptr;
+    serv->update_recv_interest(timer->get_reactor(), conn);
 }
 
 /**
@@ -1050,7 +1090,7 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     task.info.reactor_id = conn->reactor_id;
     task.info.ext_flags = rdata->info.ext_flags;
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
-    task.info.time = conn->last_recv_time;
+    task.info.time = conn->get_last_recv_time();
 
     swoole_trace("dispatch task, size=%u bytes", rdata->info.len);
 
@@ -1058,25 +1098,9 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     task.info.len = rdata->info.len;
     task.data = rdata->data;
 
-    if (rdata->info.len > 0) {
-        sw_atomic_fetch_add(&conn->recv_queued_bytes, rdata->info.len);
-        swoole_trace_log(SW_TRACE_SERVER,
-                         "session_id=%ld, len=%d, qb=%d",
-                         conn->session_id,
-                         rdata->info.len,
-                         conn->recv_queued_bytes);
-    }
-
     if (!serv->factory_->dispatch(&task)) {
-        if (rdata->info.len > 0) {
-            sw_atomic_fetch_sub(&conn->recv_queued_bytes, rdata->info.len);
-        }
         return SW_ERR;
     } else {
-        if (serv->is_process_mode()) {
-            ReactorThread *thread = serv->get_thread(conn->reactor_id);
-            thread->dispatch_count++;
-        }
         sw_atomic_long_fetch_add(&serv->gs->dispatch_count, 1);
         sw_atomic_long_fetch_add(&port->gs->dispatch_count, 1);
         return SW_OK;
@@ -1089,6 +1113,11 @@ void Server::join_heartbeat_thread() {
      */
     if (heartbeat_thread.joinable()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate heartbeat thread");
+        do {
+            std::lock_guard<std::mutex> guard(heartbeat_mutex_);
+            heartbeat_stop_requested_ = true;
+        } while (0);
+        heartbeat_cv_.notify_one();
         heartbeat_thread.join();
     }
 }
@@ -1117,28 +1146,43 @@ void Server::join_reactor_thread() {
 }
 
 void Server::start_heartbeat_thread() {
+    do {
+        std::lock_guard<std::mutex> guard(heartbeat_mutex_);
+        heartbeat_stop_requested_ = false;
+    } while (0);
+
     heartbeat_thread = std::thread([this]() {
         swoole_signal_block_all();
         swoole_set_thread_type(THREAD_HEARTBEAT);
-        swoole_set_thread_type(reactor_num + 1);
+        swoole_set_thread_id(reactor_num + 1);
 
-        while (running) {
-            double now = microtime();
-            foreach_connection([this, now](Connection *conn) {
-                SessionId session_id = conn->session_id;
-                if (session_id <= 0) {
-                    return;
+        std::unique_lock<std::mutex> guard(heartbeat_mutex_);
+        while (!heartbeat_stop_requested_) {
+            guard.unlock();
+            // Do the large scan here, away from every reactor's I/O loop. The scanner releases
+            // the slot lock before this callback: backpressure must never block recv/close/reuse.
+            foreach_idle_connection(microtime(), [this](SessionId session_id, ReactorId owner) {
+                do {
+                    std::lock_guard<std::mutex> guard(heartbeat_mutex_);
+                    if (heartbeat_stop_requested_) {
+                        return false;
+                    }
+                } while (0);
+                DataHead event{};
+                event.type = SW_SERVER_EVENT_CLOSE_FORCE;
+                event.fd = session_id;
+                event.reactor_id = owner;
+                // Only this thread writes the endpoint. send_sync waits without an event loop;
+                // the receiver rechecks session/activity/protect before applying the force close.
+                auto *pipe_socket = get_thread(owner)->heartbeat_pipe->get_socket(false);
+                if (pipe_socket->send_sync(&event, sizeof(event)) < 0) {
+                    swoole_sys_warning("send heartbeat close to reactor#%u failed", static_cast<unsigned>(owner));
                 }
-                if (is_healthy_connection(now, conn)) {
-                    return;
-                }
-                DataHead ev{};
-                ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
-                // convert fd to session_id, in order to verify the connection before the force close connection
-                ev.fd = session_id;
-                get_reactor_pipe_socket(session_id, conn->reactor_id)->send_sync(&ev, sizeof(ev));
+                return true;
             });
-            sleep(heartbeat_check_interval);
+            guard.lock();
+            heartbeat_cv_.wait_for(
+                guard, std::chrono::seconds(heartbeat_check_interval), [this]() { return heartbeat_stop_requested_; });
         }
     });
 }

@@ -132,7 +132,8 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         zval *zserver = &ctx->request.zserver;
         HashTable *ht = Z_ARR_P(zserver);
         swoole_http_server_populate_ip_and_port(serv, ht, conn, session_id, ctx->keepalive);
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->last_recv_time);
+        http_server_add_server_array(
+            ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->get_last_recv_time());
     } while (false);
 
     if (swoole_isset_hook(static_cast<swGlobalHookType>(PHP_SWOOLE_HOOK_BEFORE_REQUEST))) {
@@ -294,7 +295,7 @@ bool HttpContext::is_available() const {
 #ifndef _WIN32
         auto *serv = get_async_server();
         auto *conn = serv->get_connection_by_session_id(fd);
-        if (!conn || conn->closed || conn->peer_closed) {
+        if (!conn || conn->is_close_requested()) {
             return false;
         }
 #endif

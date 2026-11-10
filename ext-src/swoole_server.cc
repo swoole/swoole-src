@@ -1790,6 +1790,22 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     SessionId session_id = info->fd;
 
+    auto *cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onClose);
+    Connection *conn = serv->get_connection_verify_no_ssl(session_id);
+    if (!conn) {
+        return;
+    }
+    if (!conn->is_websocket_active()) {
+        ListenPort *port = serv->get_port_by_server_fd(info->server_fd);
+        if (port && port->open_websocket_protocol &&
+            php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onDisconnect)) {
+            cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onDisconnect);
+        }
+    }
+    // Cancellation resumes user coroutines, which may reset-close and release this session.
+    // Snapshot callback selection first so an already claimed callback is still delivered once.
+    const bool http2_stream = conn->http2_stream;
+
     if (serv->enable_coroutine && serv->send_yield) {
         auto _i_co_list = server_object->property->send_coroutine_map.find(session_id);
         if (_i_co_list != server_object->property->send_coroutine_map.end()) {
@@ -1810,18 +1826,6 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
         }
     }
 
-    auto *cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onClose);
-    Connection *conn = serv->get_connection_by_session_id(session_id);
-    if (!conn) {
-        return;
-    }
-    if (conn->websocket_status != swoole::websocket::STATUS_ACTIVE) {
-        ListenPort *port = serv->get_port_by_server_fd(info->server_fd);
-        if (port && port->open_websocket_protocol &&
-            php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onDisconnect)) {
-            cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onDisconnect);
-        }
-    }
     if (cb) {
         zval *zserv = php_swoole_server_zval_ptr(serv);
         zval args[3];
@@ -1851,8 +1855,8 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
             zval_ptr_dtor(&args[1]);
         }
     }
-    if (conn->http2_stream) {
-        php_swoole_http2_server_onClose(serv, conn->session_id);
+    if (http2_stream) {
+        php_swoole_http2_server_onClose(serv, session_id);
     }
 }
 
@@ -3236,12 +3240,7 @@ static PHP_METHOD(swoole_server, pause) {
     Z_PARAM_LONG(fd)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Connection *conn = serv->get_connection_verify(fd);
-    if (!conn) {
-        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
-        RETURN_FALSE;
-    }
-    RETURN_BOOL(serv->feedback(conn, SW_SERVER_EVENT_PAUSE_RECV));
+    RETURN_BOOL(serv->feedback(fd, SW_SERVER_EVENT_PAUSE_RECV));
 }
 
 static PHP_METHOD(swoole_server, resume) {
@@ -3257,12 +3256,7 @@ static PHP_METHOD(swoole_server, resume) {
     Z_PARAM_LONG(fd)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Connection *conn = serv->get_connection_verify(fd);
-    if (!conn) {
-        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
-        RETURN_FALSE;
-    }
-    RETURN_BOOL(serv->feedback(conn, SW_SERVER_EVENT_RESUME_RECV));
+    RETURN_BOOL(serv->feedback(fd, SW_SERVER_EVENT_RESUME_RECV));
 }
 
 static PHP_METHOD(swoole_server, stats) {
@@ -3838,7 +3832,7 @@ static PHP_METHOD(swoole_server, bind) {
     }
 
     sw_spinlock(&conn->lock);
-    if (conn->uid != 0) {
+    if (!conn->is_current_session(fd) || conn->uid != 0) {
         RETVAL_FALSE;
     } else {
         conn->uid = (uint32_t) uid;
@@ -4004,11 +3998,14 @@ static PHP_METHOD(swoole_server, exists) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Connection *conn = serv->get_connection_verify(session_id);
-    if (!conn || conn->closed || conn->closing) {
+    if (!conn) {
         RETURN_FALSE;
-    } else {
-        RETURN_TRUE;
     }
+    sw_spinlock(&conn->lock);
+    const bool exists =
+        conn->is_current_session(session_id) && (!conn->ssl || conn->ssl_ready) && !conn->is_close_requested();
+    sw_spinlock_release(&conn->lock);
+    RETURN_BOOL(exists);
 }
 
 static PHP_METHOD(swoole_server, protect) {
@@ -4028,12 +4025,17 @@ static PHP_METHOD(swoole_server, protect) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Connection *conn = serv->get_connection_verify(session_id);
-    if (!conn || conn->closed) {
+    if (!conn) {
         RETURN_FALSE;
-    } else {
-        conn->protect = value;
-        RETURN_TRUE;
     }
+    sw_spinlock(&conn->lock);
+    const bool available =
+        conn->is_current_session(session_id) && (!conn->ssl || conn->ssl_ready) && !conn->is_close_requested();
+    if (available) {
+        conn->protect = value;
+    }
+    sw_spinlock_release(&conn->lock);
+    RETURN_BOOL(available);
 }
 
 static PHP_METHOD(swoole_server, getWorkerId) {

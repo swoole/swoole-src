@@ -268,18 +268,12 @@ bool ProcessFactory::dispatch(SendData *task) {
         }
     }
 
+    Connection *conn = nullptr;
     if (Server::is_stream_event(task->info.type)) {
-        Connection *conn = server_->get_connection(fd);
+        conn = server_->get_connection(fd);
         if (conn == nullptr || conn->active == 0) {
             swoole_warning("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
             return false;
-        }
-        // server active close, discard data.
-        if (conn->closed) {
-            // Connection has been closed by server
-            if (!(task->info.type == SW_SERVER_EVENT_CLOSE && conn->close_force)) {
-                return false;
-            }
         }
         // converted fd to session_id
         task->info.fd = conn->session_id;
@@ -288,16 +282,36 @@ bool ProcessFactory::dispatch(SendData *task) {
 
     Worker *worker = server_->get_worker(target_worker_id);
 
-    if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
+    const bool receive_data = task->info.type == SW_SERVER_EVENT_RECV_DATA;
+    if (receive_data) {
         sw_atomic_long_fetch_add(&worker->dispatch_count, 1);
     }
 
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
 
-    MessageBus *mb = &server_->get_thread(swoole_get_thread_id())->message_bus;
+    ReactorThread *thread = server_->get_thread(swoole_get_thread_id());
+    MessageBus *mb = &thread->message_bus;
     Socket *sock = mb->get_pipe_socket(worker->pipe_master);
-    return mb->write(sock, &_task);
+    if (receive_data && task->info.len > 0) {
+        // The worker process can consume this queue concurrently with the reactor producer.
+        conn->add_recv_queued_bytes<Connection::ReceiveQueueMode::SHARED_PROCESS>(task->info.len);
+        swoole_trace_log(SW_TRACE_SERVER,
+                         "session_id=%ld, len=%d, qb=%d",
+                         conn->session_id,
+                         task->info.len,
+                         conn->get_recv_queued_bytes());
+    }
+    if (!mb->write(sock, &_task)) {
+        if (receive_data && task->info.len > 0) {
+            conn->subtract_recv_queued_bytes<Connection::ReceiveQueueMode::SHARED_PROCESS>(task->info.len);
+        }
+        return false;
+    }
+    if (receive_data) {
+        thread->dispatch_count++;
+    }
+    return true;
 }
 
 static bool process_is_supported_send_yield(Server *serv, const Connection *conn) {
@@ -337,7 +351,7 @@ bool ProcessFactory::finish(SendData *resp) {
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
         }
         return false;
-    } else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_SERVER_EVENT_CLOSE) {
+    } else if (conn->is_close_requested() && resp->info.type != SW_SERVER_EVENT_CLOSE) {
         swoole_error_log(SW_LOG_TRACE,
                          SW_ERROR_SESSION_CLOSED,
                          "send %d bytes failed, because session#%ld is closed",
@@ -369,72 +383,25 @@ bool ProcessFactory::finish(SendData *resp) {
 }
 
 bool ProcessFactory::end(SessionId session_id, int flags) {
-    SendData _send{};
-    DataHead info{};
-
-    _send.info.fd = session_id;
-    _send.info.len = 0;
-    _send.info.type = SW_SERVER_EVENT_CLOSE;
-
     Connection *conn = server_->get_connection_verify_no_ssl(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
     }
-    // Reset send buffer, Immediately close the connection.
-    if (flags & Server::CLOSE_RESET) {
-        conn->close_reset = 1;
-    }
-    // Server is initiative to close the connection
+    // Forward application close to the assigned worker before claiming callback/close handling.
     if (flags & Server::CLOSE_ACTIVELY) {
-        conn->close_actively = 1;
-    }
-
-    swoole_trace_log(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
-
-    DataHead ev = {};
-
-    /**
-     * Only close actively needs to determine whether it is in the process of connection binding.
-     * If the worker process is not currently bound to this connection,
-     * MUST forward to the correct worker process
-     */
-    if (conn->close_actively) {
-        Worker *worker;
-        bool hash = server_->is_hash_dispatch_mode();
-        int worker_id = hash ? server_->schedule_worker(conn->fd, nullptr) : conn->fd % server_->worker_num;
-        if (server_->is_worker() && (!hash || worker_id == (int) swoole_get_worker_id())) {
-            goto _close;
+        const bool hash = server_->is_hash_dispatch_mode();
+        const int worker_id = hash ? server_->schedule_worker(conn->fd, nullptr) : conn->fd % server_->worker_num;
+        if (!server_->is_worker() || (hash && worker_id != static_cast<int>(swoole_get_worker_id()))) {
+            DataHead ev{};
+            ev.type = SW_SERVER_EVENT_CLOSE;
+            ev.fd = session_id;
+            ev.reactor_id = conn->reactor_id;
+            ev.ext_flags = flags;
+            return server_->send_to_worker_from_worker(
+                       server_->get_worker(worker_id), &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
         }
-        worker = server_->get_worker(worker_id);
-        ev.type = SW_SERVER_EVENT_CLOSE;
-        ev.fd = session_id;
-        ev.reactor_id = conn->reactor_id;
-        return server_->send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
     }
-
-_close:
-    if (conn->closing) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
-        return false;
-    } else if (!(conn->close_force || conn->close_reset) && conn->closed) {
-        swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
-        return false;
-    }
-
-    if (server_->if_do_close_callback(conn)) {
-        info.fd = session_id;
-        if (conn->close_actively) {
-            info.reactor_id = -1;
-        } else {
-            info.reactor_id = conn->reactor_id;
-        }
-        info.server_fd = conn->server_fd;
-        conn->closing = 1;
-        server_->onClose(server_, &info);
-        conn->closing = 0;
-    }
-    conn->close_errno = 0;
-    return finish(&_send);
+    return server_->finish_close(session_id, flags);
 }
 }  // namespace swoole

@@ -194,10 +194,10 @@ static json get_connection_info(Server *serv, Connection *conn) {
         {"port", conn->info.get_port()},
         {"overflow", conn->overflow},
         {"connect_time", conn->connect_time},
-        {"last_recv_time", conn->last_recv_time},
+        {"last_recv_time", conn->get_last_recv_time()},
         {"last_send_time", conn->last_send_time},
         {"last_dispatch_time", conn->last_dispatch_time},
-        {"recv_queued_bytes", conn->recv_queued_bytes},
+        {"recv_queued_bytes", conn->get_recv_queued_bytes()},
         {"send_queued_bytes", conn->send_queued_bytes},
         {"total_recv_bytes", conn->socket->total_recv_bytes},
         {"total_send_bytes", conn->socket->total_send_bytes},
@@ -301,15 +301,8 @@ static std::string handle_get_memory_info(Server *serv, const std::string &msg) 
 
 static std::string handle_get_connections(Server *serv, const std::string &msg) {
     json list = json::array();
-    serv->foreach_connection([serv, &list](Connection *conn) {
-        if (serv->is_process_mode() && conn->reactor_id != SwooleTG.id) {
-            return;
-        }
-        if (serv->is_base_mode() && sw_worker() && conn->reactor_id != sw_worker()->id) {
-            return;
-        }
-        list.push_back(get_connection_info(serv, conn));
-    });
+    serv->foreach_connection_on_reactor(
+        sw_reactor(), [serv, &list](Connection *conn) { list.push_back(get_connection_info(serv, conn)); });
     json return_value{
         {"data", list},
         {"code", 0},
