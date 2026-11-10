@@ -243,6 +243,8 @@ struct Socket {
     uchar skip_recv : 1;
     uchar recv_wait : 1;
     uchar event_hup : 1;
+    // A positive-length stream receive observed EOF; independent of event registration and close requests.
+    uchar recv_eof : 1;
     /**
      * The default setting is false, meaning that system calls interrupted by signals will be automatically retried. If
      * set to true, the call will not be retried but will immediately return -1, setting errno to EINTR. In this case,

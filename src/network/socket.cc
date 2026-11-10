@@ -248,6 +248,7 @@ ssize_t Socket::writev_sync(const struct iovec *iov, size_t iovcnt) {
 }
 
 swReturnCode Socket::connect_async(const Address &sa) {
+    recv_eof = 0;
     set_nonblock();
     while (true) {
         auto ret = connect(sa);
@@ -969,6 +970,10 @@ ssize_t Socket::recv(void *_buf, size_t _n, int _flags) {
         if (recv_timer) {
             last_received_time = time<std::chrono::milliseconds>(true);
         }
+    }
+
+    if (is_stream() && _n > 0 && total_bytes == 0) {
+        recv_eof = 1;
     }
 
     // The POLLHUP event is triggered, but Socket::recv returns EAGAIN
