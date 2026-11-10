@@ -19,6 +19,10 @@
 #include "swoole_ssl.h"
 #include "swoole_util.h"
 
+#ifdef SW_SUPPORT_DTLS
+#include "swoole_dtls.h"
+#endif
+
 using swoole::SSLContext;
 using swoole::network::Address;
 using swoole::network::Socket;
@@ -68,6 +72,13 @@ void swoole_ssl_init() {
         return;
     }
 
+#ifdef SW_SUPPORT_DTLS
+    if (!swoole::dtls::BIO_methods_init()) {
+        swoole_error("DTLS BIO_METHOD initialization failed");
+        return;
+    }
+#endif
+
     openssl_init = true;
 }
 
@@ -83,6 +94,10 @@ void swoole_ssl_destroy() {
     if (!openssl_init) {
         return;
     }
+    // Global SSL teardown: callers must already have released all SSL/BIO instances.
+#ifdef SW_SUPPORT_DTLS
+    swoole::dtls::BIO_meth_free();
+#endif
     openssl_init = false;
 }
 

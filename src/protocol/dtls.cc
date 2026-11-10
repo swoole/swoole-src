@@ -127,32 +127,41 @@ int BIO_destroy(BIO *b) {
 }
 
 static BIO_METHOD *_bio_methods = nullptr;
-static int dtls_session_index = 0;
 
-BIO_METHOD *BIO_get_methods() {
-    if (_bio_methods) {
-        return _bio_methods;
+// Called once by swoole_ssl_init(), before any DTLS session is created. Build the
+// entire immutable method table before publishing it; session creation only reads it.
+bool BIO_methods_init() {
+    const int index = BIO_get_new_index();
+    if (index < 0) {
+        return false;
     }
-
-    dtls_session_index = BIO_get_new_index();
-    _bio_methods = BIO_meth_new(dtls_session_index | BIO_TYPE_SOURCE_SINK, "swoole_dtls_bio");
-
-    BIO_meth_set_write(_bio_methods, BIO_write);
-    BIO_meth_set_read(_bio_methods, BIO_read);
-    BIO_meth_set_ctrl(_bio_methods, BIO_ctrl);
-    BIO_meth_set_create(_bio_methods, BIO_create);
-    BIO_meth_set_destroy(_bio_methods, BIO_destroy);
+    auto *methods = BIO_meth_new(index | BIO_TYPE_SOURCE_SINK, "swoole_dtls_bio");
+    if (!methods) {
+        return false;
+    }
+    bool success = BIO_meth_set_write(methods, BIO_write) && BIO_meth_set_read(methods, BIO_read) &&
+                   BIO_meth_set_ctrl(methods, BIO_ctrl) && BIO_meth_set_create(methods, BIO_create) &&
+                   BIO_meth_set_destroy(methods, BIO_destroy);
 
 #ifdef OPENSSL_IS_BORINGSSL
-    BIO_meth_set_ctrl(_bio_methods, (long (*)(BIO *, int, long, void *)) BIO_ctrl);
+    success = success && BIO_meth_set_ctrl(methods, (long (*)(BIO *, int, long, void *)) BIO_ctrl);
 #else
 #if OPENSSL_VERSION_NUMBER > 0x1010007fL
-    BIO_meth_set_callback_ctrl(_bio_methods, (long (*)(BIO *, int, BIO_info_cb *)) BIO_callback_ctrl);
+    success = success && BIO_meth_set_callback_ctrl(methods, (long (*)(BIO *, int, BIO_info_cb *)) BIO_callback_ctrl);
 #else
-    BIO_meth_set_callback_ctrl(_bio_methods, (long (*)(BIO *, int, bio_info_cb *)) BIO_callback_ctrl);
+    success = success && BIO_meth_set_callback_ctrl(methods, (long (*)(BIO *, int, bio_info_cb *)) BIO_callback_ctrl);
 #endif
 #endif
 
+    if (!success) {
+        ::BIO_meth_free(methods);
+        return false;
+    }
+    _bio_methods = methods;
+    return true;
+}
+
+BIO_METHOD *BIO_get_methods() {
     return _bio_methods;
 }
 

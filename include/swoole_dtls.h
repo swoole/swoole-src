@@ -31,6 +31,7 @@ int BIO_read(BIO *b, char *data, int dlen);
 long BIO_ctrl(BIO *b, int cmd, long larg, void *pargs);
 int BIO_create(BIO *b);
 int BIO_destroy(BIO *b);
+bool BIO_methods_init();
 BIO_METHOD *BIO_get_methods();
 void BIO_meth_free();
 
