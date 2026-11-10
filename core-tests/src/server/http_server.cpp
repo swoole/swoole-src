@@ -182,7 +182,7 @@ static void test_base_server(function<void(Server *)> fn) {
 
         test::counter_incr(0);
 
-        if (conn->websocket_status == websocket::STATUS_ACTIVE) {
+        if (conn->is_websocket_active()) {
             sw_tg_buffer()->clear();
             uchar flags = 0;
             uchar opcode = 0;
@@ -344,7 +344,7 @@ static Server *test_http_server(Server::DispatchMode dispatch_mode = Server::DIS
         }
 
         if (ctx.url == "/pause") {
-            serv->feedback(conn, SW_SERVER_EVENT_PAUSE_RECV);
+            serv->feedback(session_id, SW_SERVER_EVENT_PAUSE_RECV);
         }
 
         EXPECT_EQ(err, HPE_OK);

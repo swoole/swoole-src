@@ -85,6 +85,11 @@ enum class ConnectionCloseReason : uint32_t {
 // This tracks the native callback dispatch call, not the lifetime of a yielded PHP coroutine.
 enum class CloseCallbackState : uint32_t { NONE, DISPATCHING, DISPATCHED };
 
+// A stable fd-indexed slot, reused by successive session generations. PROCESS shares the slot
+// with workers; THREAD shares it between threads; BASE keeps its table private to each worker.
+// The owner reactor controls Socket lifetime. Other roles copy/claim metadata under the slot
+// lock and validate the expected session. An ordinary predicate never pins the slot or Socket.
+// add_connection() resets only [after active, before lock); the tail is initialized explicitly.
 struct Connection {
     enum class ReceiveEventStatus { STALE, CLOSED, READY };
     enum class ReceiveQueueMode { OWNER_REACTOR, SHARED_PROCESS };
@@ -95,12 +100,18 @@ struct Connection {
      * worker mutations must revalidate the session under the same lock before using ordinary fields.
      */
     uint8_t active;
+    // Immutable within a published session: initialize_connection() created a TLS/DTLS instance.
     uint8_t ssl;
+    // Owner reactor sets readiness after the handshake; worker queries also read it. The
+    // is_ssl_ready() predicate preserves this ordinary access and adds no publication barrier.
     uint8_t ssl_ready;
+    // Owner output feedback consumed by PROCESS send-yield code; this is not a close reason.
     uint8_t overflow;
     SocketType socket_type;
     swSocketFd fd;
     int worker_id;
+    // Immutable generation token while active. Retain the caller's token across callbacks/IPC;
+    // reading a fresh token from a cached Connection pointer could target a replacement session.
     SessionId session_id;
     //--------------------------------------------------------------
     uint8_t high_watermark;
@@ -117,7 +128,8 @@ struct Connection {
     bool close_abort;
     // Owner reactor: notification dispatch has begun, even if the socket was already unregistered.
     uint8_t close_notification_started;
-    // Owner reactor: awaiting the worker's close command.
+    // Owner reactor: notification sent/being sent, but the worker's CLOSE command has not arrived.
+    // Keep the session reserved so its late onClose cannot be redirected to a reused descriptor.
     uint8_t close_waiting_worker;
     // Owner reactor: the worker's close command has arrived; duplicate commands are harmless.
     uint8_t close_worker_received;
@@ -130,15 +142,18 @@ struct Connection {
     // Worker protect(), background heartbeat snapshots and reactor idle checks hold the slot lock.
     uint8_t protect;
     ReactorId reactor_id;
-    /**
-     * upgrade websocket
-     */
+    // Shared protocol state: worker handshake/close code and reactor parsing both access it.
+    // Values are ordered protocol states, not flags. HANDSHAKE_FAILED sorts above ACTIVE;
+    // an ordinal threshold must not be substituted for an exact ACTIVE check.
     uint8_t websocket_status;
+    // Owner transport error snapshot exposed to workers; independent of the first close cause.
     uint16_t close_errno;
     uint16_t waiting_time;
     uint16_t local_port;
     uint16_t local_addr_index;
-    // PROCESS: reactor adds, event worker subtracts with atomic RMW. BASE/THREAD: owner-local arithmetic.
+    // PROCESS has concurrent producer/consumer writes: reactor adds dispatched payload and worker
+    // subtracts consumption, so even an approximate flow-control count needs atomic RMW there.
+    // BASE/THREAD account synchronously on the owner reactor through the compile-time policy.
     sw_atomic_t recv_queued_bytes;
     uint32_t send_queued_bytes;
     /**
@@ -150,10 +165,11 @@ struct Connection {
      * THREAD event worker). A shared Connection pointer does not grant workers ownership of this pointer.
      */
     network::Socket *socket;
-    /**
-     * link anything, for kernel, do not use with application.
-     */
+    // Owner protocol parser's native HTTP/Redis object. In PROCESS this points into master
+    // memory; worker callbacks must use dispatched request data rather than dereference it.
     void *object;
+    // Owner-reactor backpressure timer. Cancel it before retiring the Socket so a delayed retry
+    // cannot re-register input for a closed session or dereference a freed Socket.
     TimerNode *timer;
     /**
      * connect/send/dispatch time
@@ -161,33 +177,44 @@ struct Connection {
     double connect_time;
     double last_send_time;
     double last_dispatch_time;
-    /**
-     * unfinished data frame
-     */
+    // Owner WebSocket fragment assembly. Physical close frees it; dispatching a frame never
+    // transfers ownership of this native buffer to application callbacks or another process.
     String *websocket_buffer;
 
+    // Certificate objects are worker-private. Pair pointer access with ssl_client_cert_pid and
+    // the slot lock; another process must not dereference the pointer even if it is non-null.
     String *ssl_client_cert;
     pid_t ssl_client_cert_pid;
-    /**
-     * socket address
-     */
+    // Peer address copied before publication. Query snapshots do not need Socket ownership;
+    // cross-role callers still validate the session under the slot lock before copying it.
     network::Address info;
+    // Preserved across reuse. Serializes worker generation checks/callback claims with owner
+    // initialization/retirement. Never hold across PHP, cancellation, destructors or IPC.
+    // If the server bounds mutex is also needed, acquire the slot lock first.
     sw_atomic_t lock;
     // Shared atomic: workers and the reactor can race to publish the first close cause. Worker
     // writers hold lock, but reactor writers do not all hold it, so the CAS remains necessary.
     sw_atomic_t close_reason;
-    // Worker callback/command ownership is protected by the slot lock, not separate atomic claims.
+    // Worker sets DISPATCHING before calling onClose and DISPATCHED after its native dispatch
+    // returns. Protected by the slot lock; completion does not wait for a yielded PHP coroutine.
     CloseCallbackState close_callback_state;
     // Outside the reset prefix: heartbeat may sample this even while the slot is inactive.
     // Preserve the old value until the reactor stores the new session's actual receive time.
     double last_recv_time;
     int server_fd;
-    // Owner writes under the slot lock. Other workers read it only under that lock.
+    // Owner retires under the slot lock before freeing transport resources. Preserve this fact
+    // until the next publication so late worker events reject the old generation under that lock.
     bool session_released;
+    // Worker callback/command claims, all under the slot lock. A close claim also suppresses a
+    // late CONNECT event; releasing a failed command claim never releases either callback claim.
     bool connect_callback_claimed;
+    // Worker began close processing; queued receive events must no longer enter application code.
     bool close_worker_started;
+    // Worker owns submission of CLOSE to the reactor. Cleared only when submission needs retry.
     bool close_worker_claimed;
 
+    // Reactor writes; heartbeat and worker queries read. A relaxed scalar snapshot avoids torn
+    // double accesses without publishing any surrounding fields. Use the slot lock for identity.
     double get_last_recv_time() const {
         return sw_atomic_double_load_relaxed(&last_recv_time);
     }
@@ -196,8 +223,28 @@ struct Connection {
         sw_atomic_double_store_relaxed(&last_recv_time, value);
     }
 
+    // Read predicate used by reactor and worker validation. Plain connections require no TLS
+    // handshake, even though ssl_ready remains zero. Negation means TLS exists but is not ready.
+    // This does not perform a handshake, claim ownership, or synchronize the shared ready flag.
+    // Callers still validate the session and close policy separately; readiness is not liveness.
+    bool is_ssl_ready() const {
+        return !ssl || ssl_ready;
+    }
+
+    // Exact protocol-state match. In particular, ACTIVE excludes CLOSING and HANDSHAKE_FAILED.
+    bool is_websocket_status(websocket::Status status) const {
+        return websocket_status == status;
+    }
+
+    // Ordinal comparison for existing protocol-routing/API thresholds. CLOSING and
+    // HANDSHAKE_FAILED both sort after ACTIVE, so this must retain the caller's exact boundary.
+    // It is not a strict "handshake succeeded" predicate and supplies no synchronization.
+    bool is_websocket_status_at_least(websocket::Status status) const {
+        return websocket_status >= status;
+    }
+
     bool is_websocket_active() const {
-        return websocket_status == websocket::STATUS_ACTIVE;
+        return is_websocket_status(websocket::STATUS_ACTIVE);
     }
 
     bool is_close_active() const {
@@ -260,6 +307,8 @@ struct Connection {
         }
     }
 
+    // Scalar queue snapshot, not a liveness/generation check. PROCESS must atomically read the
+    // shared producer/consumer value; cross-role callers separately validate their session.
     uint32_t get_recv_queued_bytes() const {
         return sw_atomic_load_acquire(const_cast<sw_atomic_t *>(&recv_queued_bytes));
     }
@@ -289,7 +338,7 @@ struct Connection {
         if (session_released) {
             return ReceiveEventStatus::CLOSED;
         }
-        if (!active || (ssl && !ssl_ready)) {
+        if (!active || !is_ssl_ready()) {
             return ReceiveEventStatus::STALE;
         }
         if (length > 0) {
@@ -300,6 +349,8 @@ struct Connection {
     }
 
   public:
+    // Reactor or worker may report the first close cause concurrently. Preserve the winner;
+    // later abort/RST escalation is separate owner policy and must not overwrite this cause.
     void begin_close(ConnectionCloseReason reason) {
         sw_atomic_cmp_set(&close_reason, 0, static_cast<uint32_t>(reason));
     }
@@ -308,6 +359,8 @@ struct Connection {
         return close_callback_state == CloseCallbackState::DISPATCHING;
     }
 
+    // Worker after native onClose dispatch. The callback may have reentered close or allowed fd
+    // reuse; update only the generation that originally claimed this callback.
     void finish_close_callback(SessionId expected_session) {
         sw_spinlock(&lock);
         if (is_current_session(expected_session) && close_callback_state == CloseCallbackState::DISPATCHING) {
@@ -316,6 +369,8 @@ struct Connection {
         sw_spinlock_release(&lock);
     }
 
+    // Worker after failed CLOSE submission. Permit a command retry while retaining the facts
+    // that close processing and callback dispatch already started; retries cannot replay onClose.
     void release_close_worker(SessionId expected_session) {
         sw_spinlock(&lock);
         if (is_current_session(expected_session)) {
@@ -324,6 +379,8 @@ struct Connection {
         sw_spinlock_release(&lock);
     }
 
+    // Owner-reactor policy only. Socket::removed says whether it is registered, not why READ
+    // stopped. Application pause, delayed receive, backpressure and shutdown remain independent.
     bool can_receive() const {
         return !is_close_requested() && !recv_paused && !recv_delayed && !recv_throttled && !recv_shutdown;
     }
@@ -359,8 +416,11 @@ struct ClientInfoSnapshot {
 // Transport data for an unpublished socket. Server owns the accept/handoff/adoption lifecycle;
 // all rejected or discarded sockets go through abort_connection(), never a second socket deleter.
 struct IncomingConnection {
+    // Exclusive unpublished transport: successful handoff relinquishes the producer's access.
     network::Socket *socket;
+    // Server-lifetime listener metadata, valid throughout handoff/adoption.
     ListenPort *port;
+    // Listener identity serialized in the small IPC header; not the accepted session id.
     int server_fd;
 
     IncomingConnection(network::Socket *sock, ListenPort *listen_port, int listen_fd)
@@ -1789,7 +1849,7 @@ class Server {
 
     Connection *get_connection_verify(SessionId session_id) const {
         Connection *conn = get_connection_verify_no_ssl(session_id);
-        if (conn && conn->ssl && !conn->ssl_ready) {
+        if (conn && !conn->is_ssl_ready()) {
             return nullptr;
         }
         return conn;
@@ -1805,7 +1865,7 @@ class Server {
     Connection *get_connection_for_iterator(int fd) const {
         Connection *conn = get_connection(fd);
         if (conn && conn->active && !conn->is_close_requested()) {
-            if (conn->ssl && !conn->ssl_ready) {
+            if (!conn->is_ssl_ready()) {
                 return nullptr;
             }
             return conn;
@@ -2024,11 +2084,15 @@ class Server {
     std::string document_root;
 
     std::shared_ptr<std::vector<http_server::RewriteRule>> rewrite_rules;
+    // Coordinates active/bounds publication between reactors in this process. This mutex is not
+    // process-shared; worker generation access uses Connection::lock. Lock order: slot, then bounds.
     mutable std::mutex lock_;
     uint32_t max_connection = 0;
     TimerNode *enable_accept_timer = nullptr;
     std::thread heartbeat_thread;
-    // Used only by the heartbeat thread and its joiner, never by recv/send paths.
+    // The heartbeat producer and master joiner protect the stop flag with this mutex. It never
+    // protects Connection state or participates in recv/send paths. The condition variable wakes
+    // the interval wait during shutdown; it cannot cancel an in-flight synchronous pipe send.
     std::mutex heartbeat_mutex_;
     std::condition_variable heartbeat_cv_;
     bool heartbeat_stop_requested_ = true;

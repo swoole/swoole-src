@@ -85,7 +85,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return php_swoole_server_onReceive(serv, req);
     }
     // websocket client
-    if (conn->websocket_status >= WebSocket::STATUS_HANDSHAKE) {
+    if (conn->is_websocket_status_at_least(WebSocket::STATUS_HANDSHAKE)) {
         return swoole_websocket_onMessage(serv, req);
     }
 
@@ -144,7 +144,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     do {
         zend::Callable *cb = nullptr;
 
-        if (conn->websocket_status == WebSocket::STATUS_CONNECTION) {
+        if (conn->is_websocket_status(WebSocket::STATUS_CONNECTION)) {
             cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onHandshake);
             if (cb == nullptr) {
                 swoole_websocket_onHandshake(serv, port, ctx);

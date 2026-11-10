@@ -1365,7 +1365,7 @@ bool Server::feedback(SessionId session_id, enum ServerEventType event) {
     _send.info.type = event;
     _send.info.fd = session_id;
     sw_spinlock(&conn->lock);
-    if (!conn->is_current_session(session_id) || (conn->ssl && !conn->ssl_ready)) {
+    if (!conn->is_current_session(session_id) || !conn->is_ssl_ready()) {
         sw_spinlock_release(&conn->lock);
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
@@ -2287,6 +2287,8 @@ void Server::foreach_connection_on_reactor(Reactor *reactor, const std::function
 // A relaxed timestamp read filters recently active slots without acquiring their slot lock.
 // Only possible expirations take the slot lock to copy a consistent session/owner/protect snapshot.
 // Never retain Connection/Socket pointers or hold the slot lock across the callback's synchronous IPC.
+// Candidates are advisory: owner close_idle_connection() must recheck them after queueing delay.
+// Returning false from the callback stops a large scan promptly during heartbeat-thread shutdown.
 void Server::foreach_idle_connection(double now, const std::function<bool(SessionId, ReactorId)> &callback) const {
     uint16_t min_idle_time = 0;
     for (auto *port : ports) {
@@ -2399,7 +2401,7 @@ bool Server::get_client_info(SessionId session_id, ClientInfoSnapshot &snapshot)
     ON_SCOPE_EXIT {
         sw_spinlock_release(&conn->lock);
     };
-    if (!conn->is_current_session(session_id) || (conn->ssl && !conn->ssl_ready)) {
+    if (!conn->is_current_session(session_id) || !conn->is_ssl_ready()) {
         return false;
     }
 
@@ -2600,7 +2602,8 @@ const char *Server::get_remote_addr(Connection *conn) {
  * Owning reactor only: BASE worker process, PROCESS master process, or THREAD event-worker thread.
  * The TCP acceptor never calls this in multi-reactor mode; fd % reactor_num fixes the owner.
  * The slot lock is still required: worker processes may hold an old Connection pointer and must
- * finish their guarded access before this generation is reset. It is not a reactor-to-reactor lock.
+ * finish their guarded access before this generation is reset. Background heartbeat candidates
+ * also snapshot generation metadata under this lock, despite there being only one reactor writer.
  * Keep terminal facts and the lock itself intact until initialization is complete; publish active last.
  * This method emits no PHP callbacks and performs no IPC while holding the slot lock.
  */
@@ -2655,6 +2658,9 @@ Connection *Server::add_connection(const ListenPort *ls, Socket *_socket, int se
     };
     // active is published/retired under the server bounds mutex as well as this slot lock.
     // One reset prefix excludes active, the slot lock and the preserved heartbeat/terminal tail.
+    // The background scan samples last_recv_time before taking this lock, even on inactive slots:
+    // retain its old value here and atomically store the actual new timestamp before publication.
+    // Every preserved tail field except the held lock must be explicitly initialized below.
     sw_memset_zero(reinterpret_cast<char *>(connection) + sizeof(connection->active),
                    offsetof(Connection, lock) - sizeof(connection->active));
 

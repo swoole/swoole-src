@@ -4002,8 +4002,7 @@ static PHP_METHOD(swoole_server, exists) {
         RETURN_FALSE;
     }
     sw_spinlock(&conn->lock);
-    const bool exists =
-        conn->is_current_session(session_id) && (!conn->ssl || conn->ssl_ready) && !conn->is_close_requested();
+    const bool exists = conn->is_current_session(session_id) && conn->is_ssl_ready() && !conn->is_close_requested();
     sw_spinlock_release(&conn->lock);
     RETURN_BOOL(exists);
 }
@@ -4029,8 +4028,7 @@ static PHP_METHOD(swoole_server, protect) {
         RETURN_FALSE;
     }
     sw_spinlock(&conn->lock);
-    const bool available =
-        conn->is_current_session(session_id) && (!conn->ssl || conn->ssl_ready) && !conn->is_close_requested();
+    const bool available = conn->is_current_session(session_id) && conn->is_ssl_ready() && !conn->is_close_requested();
     if (available) {
         conn->protect = value;
     }

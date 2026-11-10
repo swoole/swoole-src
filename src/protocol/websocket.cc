@@ -390,7 +390,7 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
             return SW_ERR;
         }
 
-        if (conn->websocket_status != STATUS_CLOSING) {
+        if (!conn->is_websocket_status(STATUS_CLOSING)) {
             // Dispatch the frame with the same format of message frame
             offset = length - ws.payload_length;
             dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, ws.get_flags());

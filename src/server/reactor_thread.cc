@@ -333,7 +333,7 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
     if (!socket->removed && reactor->del(socket) < 0) {
         return SW_ERR;
     }
-    if (disable_notify || (conn->ssl && !conn->ssl_ready) || conn->close_worker_received) {
+    if (disable_notify || !conn->is_ssl_ready() || conn->close_worker_received) {
         return close_connection(reactor, socket);
     }
     conn->close_waiting_worker = 1;
@@ -341,6 +341,8 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
         return SW_OK;
     }
     conn->close_notification_started = 1;
+    // BASE/THREAD notification can enter PHP synchronously, which may close and reuse this slot.
+    // On success return directly; on exception/failure resolve the original session before cleanup.
     try {
         if (notify(conn, SW_SERVER_EVENT_CLOSE)) {
             return SW_OK;
@@ -393,6 +395,8 @@ int Server::request_force_close(Reactor *reactor, Connection *conn, ConnectionCl
         socket->out_buffer = nullptr;
         conn->send_queued_bytes = 0;
         delete output;
+        // Releasing queued native resources may reenter server code. A cached slot alone cannot
+        // identify the original transport after that cleanup; validate both session and Socket.
         conn = get_connection_verify_no_ssl(session_id);
         if (!conn || conn->socket != socket) {
             return SW_OK;
@@ -841,6 +845,10 @@ _init_master_thread:
     return start_master_thread(reactor);
 }
 
+// Runs in the owning execution context: PROCESS reactor thread in master, THREAD event worker,
+// or the master reactor in single_thread mode. Install handlers and private pipe endpoints here,
+// before the startup barrier publishes them to accept/heartbeat producers. A Connection must
+// not be initialized by a producer while this owner is still preparing its event loop.
 int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     reactor->ptr = serv;
     reactor->id = reactor_id;
@@ -1109,7 +1117,10 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
 
 void Server::join_heartbeat_thread() {
     /**
-     * Shutdown heartbeat thread
+     * Master shutdown joins the heartbeat producer before reactor pipe ownership is destroyed.
+     * Notify interrupts the periodic condition-variable wait. An in-flight send_sync() is not
+     * cancelled by this notification; it returns according to the write endpoint's timeout.
+     * Never hold heartbeat_mutex_ across join: the exiting thread must reacquire it.
      */
     if (heartbeat_thread.joinable()) {
         swoole_trace_log(SW_TRACE_SERVER, "terminate heartbeat thread");
@@ -1145,6 +1156,9 @@ void Server::join_reactor_thread() {
     }
 }
 
+// Called by the master after the reactor startup barrier. The spawned thread has no event loop:
+// it scans shared metadata, releases slot locks, then synchronously submits per-session requests.
+// Only reactors may touch connection Sockets or decide whether a queued timeout is still current.
 void Server::start_heartbeat_thread() {
     do {
         std::lock_guard<std::mutex> guard(heartbeat_mutex_);
