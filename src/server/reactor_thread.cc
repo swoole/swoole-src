@@ -464,7 +464,14 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
     // so no more application reads can occur while the session awaits worker cleanup.
     if (!conn->is_close_reset() && (socket->recv_eof || reason == ConnectionCloseReason::PEER_EOF ||
                                     reason == ConnectionCloseReason::IDLE_TIMEOUT)) {
-        socket->shutdown(SHUT_RDWR);
+        // After peer EOF the receive side is already closed. Darwin rejects SHUT_RDWR
+        // with ENOTCONN in that state before shutting down writes, so send FIN with SHUT_WR.
+        const int how = socket->recv_eof || reason == ConnectionCloseReason::PEER_EOF ? SHUT_WR : SHUT_RDWR;
+        if (socket->shutdown(how) < 0 && how == SHUT_RDWR && sw_errno() == ENOTCONN) {
+            // FIN may arrive while reads are paused, before the idle timer observes EOF.
+            // Complete the write shutdown even when Darwin has already closed reception.
+            socket->shutdown(SHUT_WR);
+        }
     }
     // BASE/THREAD notification can enter PHP synchronously, which may close and reuse this slot.
     // Resolve the original session again before cleaning it up.

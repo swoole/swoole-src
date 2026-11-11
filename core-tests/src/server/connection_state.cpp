@@ -251,6 +251,48 @@ TEST_F(ConnectionState, protocol_error_does_not_expose_fin_before_unread_data_re
     EXPECT_EQ(callbacks, 1u);
 }
 
+TEST_F(ConnectionState, peer_eof_sends_fin_before_worker_acknowledgement) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    auto *peer = peers.back();
+    ASSERT_EQ(peer->shutdown(SHUT_WR), 0);
+    ASSERT_EQ(conn->socket->wait_event(1000, SW_EVENT_READ), SW_OK);
+    char byte;
+    ASSERT_EQ(conn->socket->recv(&byte, 1, 0), 0);
+    ASSERT_TRUE(conn->socket->recv_eof);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    EXPECT_TRUE(conn->close_waiting_worker);
+    EXPECT_TRUE(conn->socket->removed);
+    EXPECT_EQ(callbacks, 0u);
+    ASSERT_EQ(peer->wait_event(1000, SW_EVENT_READ), SW_OK);
+    EXPECT_EQ(peer->recv(&byte, 1, MSG_DONTWAIT), 0);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    EXPECT_TRUE(server->finish_close(id, 0));
+    EXPECT_EQ(callbacks, 1u);
+}
+
+TEST_F(ConnectionState, idle_timeout_sends_fin_without_reading_peer_eof) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    auto *peer = peers.back();
+    ASSERT_EQ(peer->shutdown(SHUT_WR), 0);
+    ASSERT_EQ(conn->socket->wait_event(1000, SW_EVENT_READ), SW_OK);
+    // A paused connection can receive FIN without Socket::recv() observing it.
+    ASSERT_FALSE(conn->socket->recv_eof);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::IDLE_TIMEOUT), SW_OK);
+    EXPECT_TRUE(conn->close_waiting_worker);
+    EXPECT_TRUE(conn->socket->removed);
+    EXPECT_EQ(callbacks, 0u);
+    ASSERT_EQ(peer->wait_event(1000, SW_EVENT_READ), SW_OK);
+    char byte;
+    EXPECT_EQ(peer->recv(&byte, 1, MSG_DONTWAIT), 0);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    EXPECT_TRUE(server->finish_close(id, 0));
+    EXPECT_EQ(callbacks, 1u);
+}
+
 TEST_F(ConnectionState, explicit_reset_after_peer_eof_does_not_send_fin_before_acknowledgement) {
     auto *conn = connect();
     ASSERT_NE(conn, nullptr);
