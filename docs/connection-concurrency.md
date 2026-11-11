@@ -211,11 +211,19 @@ callers must validate the session under the slot lock before cross-role access.
 It invokes callbacks without holding the lock and does not pin Socket lifetime.
 
 For a connection requiring worker notification, the first force-close request
-stops reactor polling, calls `shutdown(SHUT_RDWR)`, marks output for cancellation,
+stops reactor polling, marks output for cancellation,
 and notifies the worker once. The fd, session, and pending output remain reserved
 while the worker claims and dispatches onClose. There is no per-connection close
 deadline and `max_wait_time` does not govern this wait. A live worker keeps its
 session even when it is busy or blocked.
+
+Peer EOF and idle expiry use `shutdown(SHUT_RDWR)` to notify the peer immediately,
+unless reset was explicitly requested. Other errors and explicit resets do not
+call `shutdown()` while waiting for the worker: sending FIN at this stage would
+mask the ECONNRESET that normal retirement produces for unread input or an
+explicit reset. Reactor polling is already disabled, so application reads cannot
+resume. Final FIN/RST behavior remains the responsibility of the existing close
+policy.
 
 In PROCESS mode, the owning reactor records
 `session_id -> {worker pid, worker ID}` before sending CLOSE. This private map needs no lock. Normal physical retirement removes

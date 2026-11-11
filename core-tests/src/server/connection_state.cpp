@@ -230,6 +230,52 @@ TEST_F(ConnectionState, repeated_force_preserves_session_and_output_after_shutdo
     EXPECT_EQ(callbacks, 1u);
 }
 
+TEST_F(ConnectionState, protocol_error_does_not_expose_fin_before_unread_data_reset) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    auto *peer = peers.back();
+    ASSERT_EQ(peer->send("unread", 6, 0), 6);
+    ASSERT_EQ(conn->socket->wait_event(1000, SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PROTOCOL_ERROR), SW_OK);
+    EXPECT_TRUE(conn->close_waiting_worker);
+    EXPECT_TRUE(conn->socket->removed);
+    char byte;
+    EXPECT_EQ(::recv(peer->fd, &byte, 1, MSG_DONTWAIT), -1);
+    EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
+    EXPECT_TRUE(server->finish_close(id, 0));
+    reactor->execute_end_callbacks();
+    ASSERT_EQ(peer->wait_event(1000, SW_EVENT_READ), SW_OK);
+    EXPECT_EQ(::recv(peer->fd, &byte, 1, 0), -1);
+    EXPECT_EQ(errno, ECONNRESET);
+    EXPECT_EQ(callbacks, 1u);
+}
+
+TEST_F(ConnectionState, explicit_reset_after_peer_eof_does_not_send_fin_before_acknowledgement) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    auto *peer = peers.back();
+    ASSERT_EQ(::shutdown(peer->fd, SHUT_WR), 0);
+    char byte;
+    ASSERT_EQ(conn->socket->wait_event(1000, SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(conn->socket->recv(&byte, 1, 0), 0);
+    ASSERT_TRUE(conn->socket->recv_eof);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF, true), SW_OK);
+    EXPECT_EQ(::recv(peer->fd, &byte, 1, MSG_DONTWAIT), -1);
+    EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
+    EXPECT_TRUE(server->finish_close(id, 0));
+    reactor->execute_end_callbacks();
+    ASSERT_EQ(peer->wait_event(1000, SW_EVENT_READ), SW_OK);
+    const auto n = ::recv(peer->fd, &byte, 1, 0);
+    EXPECT_LE(n, 0);
+    if (n < 0) {
+        // Builds with TCP linger enabled may reset here; otherwise close produces EOF.
+        EXPECT_EQ(errno, ECONNRESET);
+    }
+    EXPECT_EQ(callbacks, 1u);
+}
+
 TEST_F(ConnectionState, force_does_not_repeat_an_already_dispatched_callback) {
     auto *conn = connect();
     ASSERT_NE(conn, nullptr);

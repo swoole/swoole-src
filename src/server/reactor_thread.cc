@@ -458,8 +458,14 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
         return SW_OK;
     }
     conn->close_notification_started = 1;
-    // Stop transport I/O immediately while reserving the fd/session for worker cleanup.
-    socket->shutdown(SHUT_RDWR);
+    // EOF and idle expiry notify the peer while its worker is busy. Other errors and
+    // explicit resets must not call shutdown(): an early FIN would mask the RST that
+    // close() may send for unread input or an explicit reset. Polling is already disabled,
+    // so no more application reads can occur while the session awaits worker cleanup.
+    if (!conn->is_close_reset() && (socket->recv_eof || reason == ConnectionCloseReason::PEER_EOF ||
+                                    reason == ConnectionCloseReason::IDLE_TIMEOUT)) {
+        socket->shutdown(SHUT_RDWR);
+    }
     // BASE/THREAD notification can enter PHP synchronously, which may close and reuse this slot.
     // Resolve the original session again before cleaning it up.
     bool notified;
