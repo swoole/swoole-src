@@ -2084,22 +2084,6 @@ TEST(server, ssl_client_cert_3) {
     test_ssl_client_cert(Server::MODE_THREAD);
 }
 
-TEST(server, tasking_num_clamps_snapshot_without_resetting_shared_counter) {
-    Server serv;
-    serv.worker_num = serv.task_worker_num = 1;
-    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
-    ASSERT_EQ(serv.create(), SW_OK);
-
-    EXPECT_EQ(serv.get_tasking_num(), 0);
-    sw_atomic_fetch_sub(&serv.gs->tasking_num, 1);
-    EXPECT_EQ(serv.get_tasking_num(), 0);
-    EXPECT_EQ(sw_atomic_load_acquire(&serv.gs->tasking_num), static_cast<uint32_t>(-1));
-    // A reader must not reset the counter: that would lose completions or submissions.
-    sw_atomic_fetch_add(&serv.gs->tasking_num, 2);
-    EXPECT_EQ(serv.get_tasking_num(), 1);
-    EXPECT_EQ(sw_atomic_load_acquire(&serv.gs->tasking_num), 1u);
-}
-
 TEST(server, task_worker) {
     Server serv;
     serv.worker_num = 1;
@@ -2126,8 +2110,6 @@ TEST(server, task_worker) {
         auto pool = serv.get_task_worker_pool();
         pool->running = true;
         pool->main_loop(pool, &pool->workers[0]);
-        EXPECT_EQ(serv.get_tasking_num(), 0);
-        serv.gs->tasking_num--;
         EXPECT_EQ(serv.get_tasking_num(), 0);
         EXPECT_EQ(serv.get_idle_task_worker_num(), serv.task_worker_num);
     });

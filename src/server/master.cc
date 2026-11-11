@@ -2798,9 +2798,7 @@ int Server::get_idle_task_worker_num() const {
 }
 
 int Server::get_tasking_num() const {
-    // Preserve nonnegative statistics without overwriting concurrent task submissions/completions.
-    const int tasking_num = sw_atomic_load_acquire(&gs->tasking_num);
-    return tasking_num < 0 ? 0 : tasking_num;
+    return sw_atomic_load_acquire(&gs->tasking_num);
 }
 
 }  // namespace swoole
