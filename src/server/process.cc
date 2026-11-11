@@ -258,7 +258,9 @@ bool ProcessFactory::dispatch(SendData *task) {
     if (target_worker_id < 0) {
         switch (target_worker_id) {
         case Server::DISPATCH_RESULT_DISCARD_PACKET:
-            return false;
+            // Intentional consumption of this packet. Framed protocols must keep reading
+            // the connection, rather than interpret the discard as a callback failure.
+            return true;
         case Server::DISPATCH_RESULT_CLOSE_CONNECTION:
             // TODO: close connection
             return false;
@@ -310,6 +312,8 @@ bool ProcessFactory::dispatch(SendData *task) {
     }
     if (receive_data) {
         thread->dispatch_count++;
+        sw_atomic_long_fetch_add(&server_->gs->dispatch_count, 1);
+        sw_atomic_long_fetch_add(&server_->get_port_by_server_fd(conn->server_fd)->gs->dispatch_count, 1);
     }
     return true;
 }

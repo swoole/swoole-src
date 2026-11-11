@@ -102,14 +102,18 @@ bool BaseFactory::dispatch(SendData *task) {
 
     auto bus = server_->get_worker_message_bus();
     bus->pass(task);
-    if (task->info.type == SW_SERVER_EVENT_RECV_DATA && task->info.len > 0) {
+    if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
         // BASE/THREAD consume this event synchronously on the same owner reactor.
-        conn->add_recv_queued_bytes<Connection::ReceiveQueueMode::OWNER_REACTOR>(task->info.len);
-        swoole_trace_log(SW_TRACE_SERVER,
-                         "session_id=%ld, len=%d, qb=%d",
-                         conn->session_id,
-                         task->info.len,
-                         conn->get_recv_queued_bytes());
+        if (task->info.len > 0) {
+            conn->add_recv_queued_bytes<Connection::ReceiveQueueMode::OWNER_REACTOR>(task->info.len);
+            swoole_trace_log(SW_TRACE_SERVER,
+                             "session_id=%ld, len=%d, qb=%d",
+                             conn->session_id,
+                             task->info.len,
+                             conn->get_recv_queued_bytes());
+        }
+        sw_atomic_long_fetch_add(&server_->gs->dispatch_count, 1);
+        sw_atomic_long_fetch_add(&server_->get_port_by_server_fd(conn->server_fd)->gs->dispatch_count, 1);
     }
     server_->worker_accept_event(&bus->get_buffer()->info);
 

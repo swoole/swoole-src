@@ -1152,12 +1152,45 @@ TEST_F(ConnectionHandoff, process_factory_accounts_once_and_worker_consumes_once
     EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_OK);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 4u);
     EXPECT_EQ(server->get_thread(0)->dispatch_count, 1u);
+    EXPECT_EQ(server->gs->dispatch_count, 1u);
+    EXPECT_EQ(port->gs->dispatch_count, 1u);
     auto &receiver = server->message_bus;
     ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
     server->worker_accept_event(&receiver.get_buffer()->info);
     receiver.pop();
     EXPECT_EQ(delivered, 1u);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 0u);
+}
+
+TEST_F(ConnectionHandoff, process_factory_discard_keeps_the_session_and_does_not_count_a_dispatch) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    prepare_process_dispatch();
+    const auto id = conn->session_id;
+    server->factory_ = original_factory;
+    ON_SCOPE_EXIT {
+        server->factory_ = factory.get();
+    };
+    server->dispatch_func = [](Server *, Connection *, SendData *) -> int {
+        return Server::DISPATCH_RESULT_DISCARD_PACKET;
+    };
+    RecvData data{};
+    data.info.len = 4;
+    data.data = "data";
+    EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_OK);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    EXPECT_FALSE(conn->is_close_requested());
+    EXPECT_EQ(conn->get_recv_queued_bytes(), 0u);
+    EXPECT_EQ(server->get_thread(0)->dispatch_count, 0u);
+    EXPECT_EQ(server->get_worker(0)->dispatch_count, 0u);
+    EXPECT_EQ(server->gs->dispatch_count, 0u);
+    EXPECT_EQ(port->gs->dispatch_count, 0u);
+    server->dispatch_func = [](Server *, Connection *, SendData *) { return 0; };
+    EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_OK);
+    EXPECT_EQ(conn->get_recv_queued_bytes(), 4u);
+    EXPECT_EQ(server->get_thread(0)->dispatch_count, 1u);
+    EXPECT_EQ(server->gs->dispatch_count, 1u);
+    EXPECT_EQ(port->gs->dispatch_count, 1u);
 }
 
 TEST_F(ConnectionHandoff, process_factory_rolls_back_accounting_when_pipe_write_fails) {

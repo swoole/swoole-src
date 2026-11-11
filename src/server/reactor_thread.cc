@@ -1109,7 +1109,6 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     SendData task;
 
     auto *conn = static_cast<Connection *>(_socket->object);
-    const ListenPort *port = serv->get_port_by_fd(conn->fd);
 
     sw_memset_zero(&task.info, sizeof(task.info));
     task.info.server_fd = conn->server_fd;
@@ -1124,13 +1123,7 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     task.info.len = rdata->info.len;
     task.data = rdata->data;
 
-    if (!serv->factory_->dispatch(&task)) {
-        return SW_ERR;
-    } else {
-        sw_atomic_long_fetch_add(&serv->gs->dispatch_count, 1);
-        sw_atomic_long_fetch_add(&port->gs->dispatch_count, 1);
-        return SW_OK;
-    }
+    return serv->factory_->dispatch(&task) ? SW_OK : SW_ERR;
 }
 
 void Server::join_heartbeat_thread() {
