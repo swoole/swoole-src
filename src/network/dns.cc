@@ -317,10 +317,10 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         return result;
     }
 
-    static SW_THREAD_LOCAL uint16_t dns_request_id = 1;
-    int _request_id = dns_request_id++;
-    if (dns_request_id == 65535) {
-    	dns_request_id = 1;
+    // An unpredictable transaction id makes blind reply injection impractical.
+    int _request_id = swoole_system_random(1, UINT16_MAX);
+    if (_request_id < 1) {
+        _request_id = swoole_rand(1, UINT16_MAX);
     }
 
     header = reinterpret_cast<RecordHeader *>(packet);
@@ -365,7 +365,9 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     if (timeout > 0) {
         _sock.set_timeout(timeout);
     }
-    if (!_sock.sendto(SwooleG.dns_server.host, SwooleG.dns_server.port, (char *) packet, steps)) {
+    // Connecting the UDP socket makes the kernel drop replies from any other source address.
+    if (!_sock.connect(SwooleG.dns_server.host, SwooleG.dns_server.port) ||
+        _sock.send(packet, steps) != static_cast<ssize_t>(steps)) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
@@ -387,7 +389,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     header = reinterpret_cast<RecordHeader *>(packet);
     int request_id = ntohs(header->id);
-    if (sw_unlikely(request_id != _request_id)) {
+    if (sw_unlikely(request_id != _request_id || !header->qr)) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
