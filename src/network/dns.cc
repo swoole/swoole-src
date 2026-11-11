@@ -317,11 +317,15 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         return result;
     }
 
-    // An unpredictable transaction id makes blind reply injection impractical.
-    int _request_id = swoole_system_random(1, UINT16_MAX);
-    if (_request_id < 1) {
-        _request_id = swoole_rand(1, UINT16_MAX);
+    // The counter guarantees distinct ids for 65535 consecutive queries; the random starting point keeps the
+    // first id unpredictable. The connected socket below already restricts who may answer.
+    static SW_THREAD_LOCAL uint16_t dns_request_id = 0;
+    if (dns_request_id == 0) {
+        const int seed = swoole_system_random(1, UINT16_MAX);
+        dns_request_id = static_cast<uint16_t>(seed > 0 ? seed : swoole_rand(1, UINT16_MAX));
     }
+    const uint16_t _request_id = dns_request_id;
+    dns_request_id = dns_request_id == UINT16_MAX ? 1 : dns_request_id + 1;
 
     header = reinterpret_cast<RecordHeader *>(packet);
     header->id = htons(_request_id);
