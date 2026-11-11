@@ -91,12 +91,17 @@ int swoole_event_wait() {
 }
 
 int swoole_event_free() {
-    if (!swoole_event_is_available()) {
+    // A worker stopped by a fatal error marks its reactor unavailable, and it must still be freed.
+    // Only a call made while the reactor is being deleted is refused.
+    static thread_local bool freeing = false;
+    if (!SwooleTG.reactor || freeing) {
         return SW_ERR;
     }
+    freeing = true;
     // Destruction marks the reactor unavailable, but internal cleanup still uses this pointer.
     delete SwooleTG.reactor;
     SwooleTG.reactor = nullptr;
+    freeing = false;
     return SW_OK;
 }
 

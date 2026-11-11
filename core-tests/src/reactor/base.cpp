@@ -55,6 +55,18 @@ TEST(reactor, wrapper_init_preserves_existing_reactor) {
     EXPECT_EQ(swoole_event_free(), SW_OK);
 }
 
+TEST(reactor, wrapper_free_releases_unavailable_reactor) {
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    int destroyed = 0;
+    sw_reactor()->add_destroy_callback([&](void *) { ++destroyed; });
+    // Server::clean_worker_connections() marks the reactor of a worker stopped by a fatal error.
+    sw_reactor()->destroyed = true;
+    EXPECT_FALSE(swoole_event_is_available());
+    EXPECT_EQ(swoole_event_free(), SW_OK);
+    EXPECT_EQ(sw_reactor(), nullptr);
+    EXPECT_EQ(destroyed, 1);
+}
+
 TEST(reactor, wrapper_destruction_rejects_reentry_and_preserves_internal_cleanup) {
     void *previous_hook = SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY];
     SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
