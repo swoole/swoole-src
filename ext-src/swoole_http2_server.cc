@@ -342,12 +342,7 @@ _destroy:
 
 static void http2_server_onStreamReset(const std::shared_ptr<Http2Session> &client, uint32_t stream_id) {
     auto serv = client->default_ctx->get_async_server();
-    Connection *conn = serv->get_connection_by_session_id(client->fd);
-    if (!conn) {
-        return;
-    }
-
-    auto cb = php_swoole_server_get_callback(serv, conn->server_fd, SW_SERVER_CB_onStreamReset);
+    auto cb = php_swoole_server_get_callback(serv, client->server_fd, SW_SERVER_CB_onStreamReset);
     if (!cb) {
         return;
     }
@@ -638,6 +633,24 @@ static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &sessi
     return false;
 }
 
+// A send_yield wait can outlast its stream, so DATA for a stream that is gone is not sent. Other frames still are: a
+// header block has already changed the connection's HPACK state, and control frames sent through a stream's context
+// belong to the connection.
+bool swoole_http2_server_can_resend(HttpContext *ctx, const zend_string *frame) {
+    if (ZSTR_VAL(frame)[3] != SW_HTTP2_TYPE_DATA) {
+        return true;
+    }
+    auto iter = http2_sessions.find(ctx->fd);
+    if (iter != http2_sessions.end()) {
+        auto stream = iter->second->get_stream(ctx->stream_id);
+        if (stream && stream->ctx == ctx) {
+            return true;
+        }
+    }
+    swoole_set_last_error(SW_ERROR_HTTP2_STREAM_NOT_FOUND);
+    return false;
+}
+
 bool Http2Stream::send_body(
     const String *body, bool end_stream, const std::shared_ptr<Http2Session> &session, off_t offset, size_t length) {
     if (!http2_server_check_stream(session, this)) {
@@ -691,8 +704,9 @@ bool Http2Stream::send_body(
 
         http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flags, id);
 
-        // send twice to reduce memory copy
-        if (send_n < swoole_pagesize()) {
+        // The async server queues each frame whole: a send_yield wait that fails or is cancelled must not leave a
+        // header without its payload. The coroutine server sends large frames twice to avoid a copy.
+        if (send_n < swoole_pagesize() || !ctx->is_co_socket()) {
             http_buffer->clear();
             http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
             http_buffer->append(p, send_n);
@@ -1581,6 +1595,8 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     std::shared_ptr<Http2Session> client;
     if (iter == http2_sessions.end()) {
         client = swoole_http2_server_session_new(session_id);
+        // Later frames can't rely on the Connection slot: the reactor may have reused it for another session.
+        client->server_fd = req->info.server_fd;
         client->default_ctx = new HttpContext();
         client->default_ctx->init(serv);
         client->default_ctx->fd = session_id;

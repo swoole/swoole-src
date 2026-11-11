@@ -354,6 +354,7 @@ class Stream {
 class Session {
   public:
     SessionId fd;
+    int server_fd = -1;
     std::unordered_map<uint32_t, std::shared_ptr<Stream>> streams;
 
     nghttp2_hd_inflater *inflater = nullptr;

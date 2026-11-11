@@ -1895,7 +1895,10 @@ void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
     }
 }
 
-bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata) {
+bool php_swoole_server_send_yield(Server *serv,
+                                  SessionId session_id,
+                                  zend_string *sdata,
+                                  const std::function<bool()> &can_resend) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     Coroutine *co = Coroutine::get_current_safe();
     size_t length = ZSTR_LEN(sdata);
@@ -1917,6 +1920,9 @@ bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_strin
         auto iter = std::prev(co_list->end());
         if (!co->yield_ex(serv->send_timeout)) {
             co_list->erase(iter);
+            return false;
+        }
+        if (can_resend && !can_resend()) {
             return false;
         }
         bool rv = serv->send(session_id, ZSTR_VAL(sdata), length);

@@ -48,6 +48,7 @@ bool swoole_http2_server_write(swoole::http::Context *ctx, zend_string *sdata);
 bool swoole_http2_server_send_file(swoole::http::Context *ctx, zend_string *file, off_t offset, size_t length);
 bool swoole_http2_server_ping(swoole::http::Context *ctx);
 bool swoole_http2_server_goaway(swoole::http::Context *ctx, zend_long error_code, zend_string *sdata);
+bool swoole_http2_server_can_resend(swoole::http::Context *ctx, const zend_string *frame);
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
     zval tmp;
