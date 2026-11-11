@@ -175,6 +175,9 @@ void array_add_or_merge(zval *zarray, zend_string *key, zval *new_element) {
 namespace function {
 
 bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine) {
+    // Native code can run a callback while the caller's exception is pending, e.g. onClose when a cancelled send
+    // closes the connection. That exception isn't the callback's, but UnwindExit must still stop the event loop.
+    zend_object *caller_exception = EG(exception);
     bool success;
     if (enable_coroutine) {
         if (retval) {
@@ -186,7 +189,7 @@ bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *ret
         success = sw_zend_call_function_ex(nullptr, fci_cache, argc, argv, retval) == SUCCESS;
     }
     /* we have no chance to return to ZendVM to check the exception  */
-    if (UNEXPECTED(EG(exception))) {
+    if (UNEXPECTED(EG(exception) && (EG(exception) != caller_exception || zend_is_unwind_exit(EG(exception))))) {
         sw_zend_exception_error(EG(exception), E_ERROR);
     }
     return success;
