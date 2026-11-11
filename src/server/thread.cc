@@ -51,7 +51,7 @@ void Server::destroy_thread_factory() const {
     // Normal shutdown releases these queues in their worker threads. Keep an idempotent
     // fallback after all joins for partially initialized slots and abnormal exits.
     SW_LOOP_N(reactor_num) {
-        reactor_threads[i].discard_pipe_buffers();
+        reactor_threads[i].discard_pipe_buffers(this);
     }
     sw_free(connection_list);
     delete[] reactor_threads;
@@ -169,7 +169,7 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
             // Final cleanup belongs to this worker, before it notifies the manager. Reuse the
             // original exit deadline for any late writes; reload keeps the wrappers for its successor.
             reactor_thread->drain_pipe_buffers(server_, server_->get_worker_exit_timeout_msec());
-            reactor_thread->discard_pipe_buffers();
+            reactor_thread->discard_pipe_buffers(server_);
             reactor_thread->message_bus.release_pipe_sockets();
         }
         SwooleTG.message_bus = nullptr;

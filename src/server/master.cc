@@ -36,29 +36,30 @@ using swoole::network::Socket;
 
 namespace swoole {
 
+// Called by the owning reactor when installing its socket timer. The returned callback runs on
+// that same reactor; retain a session id, not a Connection pointer that may belong to a later fd generation.
 TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn) const {
-    return [this, port, conn, reactor](Timer *, TimerNode *) {
-        if (conn->protect) {
+    return [this, port, session_id = conn->session_id, reactor](Timer *, TimerNode *) {
+        Connection *conn = get_connection_verify_no_ssl(session_id);
+        if (!conn) {
             return;
         }
-        long ms = time<std::chrono::milliseconds>(true);
-        swoole_trace_log(SW_TRACE_SERVER,
-                         "timeout_callback, last_received_time=%f, last_sent_time=%f",
-                         conn->socket->last_received_time,
-                         conn->socket->last_sent_time);
-        if (ms - conn->socket->last_received_time < port->max_idle_time &&
-            ms - conn->socket->last_sent_time < port->max_idle_time) {
-            return;
-        }
-        if (disable_notify || conn->closed || conn->close_force) {
-            close_connection(reactor, conn->socket);
-            return;
-        }
-        conn->close_force = 1;
-        Event _ev{};
-        _ev.fd = conn->fd;
-        _ev.socket = conn->socket;
-        reactor->trigger_close_event(&_ev);
+        do {
+            sw_spinlock(&conn->lock);
+            ON_SCOPE_EXIT {
+                sw_spinlock_release(&conn->lock);
+            };
+            if (!conn->is_current_session(session_id) || conn->protect) {
+                return;
+            }
+            long ms = time<std::chrono::milliseconds>(true);
+            if (ms - conn->socket->last_received_time < port->max_idle_time &&
+                ms - conn->socket->last_sent_time < port->max_idle_time) {
+                return;
+            }
+            conn->begin_close(ConnectionCloseReason::IDLE_TIMEOUT);
+        } while (0);
+        request_force_close(reactor, conn, ConnectionCloseReason::IDLE_TIMEOUT);
     };
 }
 
@@ -156,6 +157,8 @@ int Server::accept_command_result(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
+// BASE: worker reactor. PROCESS/THREAD: master acceptor reactor. Only accept and choose an owner here;
+// an unpublished socket may cross threads, while initialized Connection state must stay with its owner.
 int Server::accept_connection(Reactor *reactor, Event *event) {
     auto serv = static_cast<Server *>(reactor->ptr);
     auto listen_host = static_cast<ListenPort *>(event->socket->object);
@@ -177,6 +180,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
             }
         }
 
+        sock->removed = 1;
         swoole_trace("[Master] Accept new connection. maxfd=%d|minfd=%d|reactor_id=%d|conn=%d",
                      serv->get_maxfd(),
                      serv->get_minfd(),
@@ -192,44 +196,155 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
             return SW_OK;
         }
 
-        if (listen_host->ssl) {
-            if (!listen_host->ssl_create(sock)) {
-                serv->abort_connection(reactor, listen_host, sock);
-                return SW_OK;
-            }
-        } else {
-            sock->ssl = nullptr;
-        }
-
-        // add to connection_list
-        Connection *conn = serv->add_connection(listen_host, sock, event->fd);
-        if (conn == nullptr) {
-            serv->abort_connection(reactor, listen_host, sock);
+        // Master acceptor hands off only the unpublished socket. The destination reactor owns
+        // TLS setup, Connection initialization, session publication and the eventual close.
+        if (!serv->dispatch_connection(reactor, sock, listen_host, event->fd)) {
             return SW_OK;
-        }
-        sock->chunk_size = SW_SEND_BUFFER_SIZE;
-
-        if (serv->single_thread) {
-            if (serv->connection_incoming(reactor, conn) < 0) {
-                serv->abort_connection(reactor, listen_host, sock);
-                return SW_OK;
-            }
-        } else {
-            DataHead ev{};
-            ev.type = SW_SERVER_EVENT_INCOMING;
-            ev.fd = conn->session_id;
-            ev.reactor_id = conn->reactor_id;
-            ev.server_fd = event->fd;
-            if (serv->send_to_reactor_thread(reinterpret_cast<EventData *>(&ev), sizeof(ev), conn->session_id) < 0) {
-                serv->abort_connection(reactor, listen_host, sock);
-                return SW_OK;
-            }
         }
     }
 
     return SW_OK;
 }
 
+/**
+ * Called by the master acceptor or the UDP-listener reactor, in the server's master process.
+ * Consumes an unpublished socket; after a queued handoff succeeds the caller must not touch it.
+ * BASE/single-thread servers adopt synchronously. Otherwise fd % reactor_num selects its sole owner.
+ */
+bool Server::dispatch_connection(Reactor *reactor, Socket *socket, ListenPort *port, int server_fd) {
+    socket->removed = 1;
+    const int owner = socket->fd % reactor_num;
+    IncomingConnection incoming(socket, port, server_fd);
+    if (is_base_mode() || single_thread || (!is_master_thread() && reactor->id == owner)) {
+        return initialize_connection(reactor, std::move(incoming));
+    }
+    return handoff_connection(std::move(incoming));
+}
+
+// Master acceptor / UDP-listener reactor only, with a live event loop. One small datagram
+// transfers ownership; send_to_reactor_thread() queues EAGAIN asynchronously on this event loop.
+// No MessageBus framing, packet IDs or fragmentation are needed. After success even reading
+// the socket is forbidden: the receiver may already have closed and freed it.
+bool Server::handoff_connection(IncomingConnection incoming) {
+    assert(swoole_event_is_available());
+    bool sent = false;
+    ON_SCOPE_EXIT {
+        if (!sent) {
+            abort_connection(sw_reactor(), incoming.port, incoming.socket);
+        }
+    };
+    struct {
+        DataHead info{};
+        Socket *pointer;
+    } event;
+    static_assert(offsetof(decltype(event), pointer) == sizeof(DataHead), "handoff payload must follow its header");
+    event.pointer = incoming.socket;
+    event.info.type = SW_SERVER_EVENT_INCOMING;
+    event.info.len = sizeof(event.pointer);
+    event.info.server_fd = incoming.server_fd;
+    event.info.reactor_id = incoming.socket->fd % reactor_num;
+    const auto length = sizeof(DataHead) + sizeof(event.pointer);
+    if (send_to_reactor_thread(reinterpret_cast<EventData *>(&event), length, 0) != static_cast<ssize_t>(length)) {
+        return false;
+    }
+    sent = true;
+    return true;
+}
+
+// Queue/final-shutdown cleanup only. Consumed events transfer ownership to the receiving reactor;
+// this function handles packets that will never be consumed, including unpublished socket pointers.
+void Server::discard_reactor_event(EventData *event) const {
+    if ((event->info.flags & SW_EVENT_DATA_CHUNK) && !(event->info.flags & SW_EVENT_DATA_BEGIN)) {
+        return;
+    }
+    if (event->info.type == SW_SERVER_EVENT_INCOMING && event->info.len >= sizeof(Socket *)) {
+        Socket *pointer;
+        memcpy(&pointer, event->data, sizeof(pointer));
+        abort_connection(sw_reactor(), get_port_by_server_fd(event->info.server_fd), pointer);
+    } else {
+        discard_sendfile(&event->info, event->data);
+    }
+}
+
+void Server::discard_reactor_output(MessageBus &bus) const {
+    bus.foreach_pipe_socket([this](Socket *pipe) {
+        while (!Buffer::empty(pipe->out_buffer)) {
+            auto *event = reinterpret_cast<EventData *>(pipe->out_buffer->front()->value.str);
+            discard_reactor_event(event);
+            pipe->out_buffer->pop();
+        }
+        return true;
+    });
+}
+
+// Master-process shutdown only, after all reactor/worker threads have joined and worker
+// processes have stopped. Drain unread datagrams before their pipes are closed, so kernel-queued
+// handoffs release their sockets too. No consumer runs concurrently and no connection callback fires.
+void Server::discard_incoming_connections() const {
+    std::vector<char> packet(ipc_max_size);
+    for (uint32_t i = 0; i < worker_num; i++) {
+        auto *pipe = get_worker_pipe_master(i);
+        if (!pipe) {
+            continue;
+        }
+        while (true) {
+            ssize_t n = ::recv(pipe->fd, packet.data(), packet.size(), MSG_DONTWAIT);
+            if (n < 0 && errno == EINTR) {
+                continue;
+            }
+            if (n <= 0) {
+                break;
+            }
+            if (n >= static_cast<ssize_t>(sizeof(DataHead))) {
+                auto *event = reinterpret_cast<EventData *>(packet.data());
+                if (event->info.type != SW_SERVER_EVENT_INCOMING ||
+                    n >= static_cast<ssize_t>(sizeof(DataHead) + sizeof(Socket *))) {
+                    discard_reactor_event(event);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Owning reactor only (BASE worker reactor, PROCESS master reactor, or THREAD event-worker reactor).
+ * Consumes the handoff, initializes TCP TLS, and publishes the session before emitting onConnect.
+ * DTLS has already consumed its listener's first packet synchronously before socket handoff.
+ * Before add_connection() the handoff owns the socket; afterwards Connection owns it. Failure
+ * after publication closes through the owner reactor so counters and session retirement stay paired.
+ */
+bool Server::initialize_connection(Reactor *reactor, IncomingConnection incoming) {
+    auto *socket = incoming.socket;
+    auto *port = incoming.port;
+    Connection *conn = nullptr;
+    bool success = false;
+    ON_SCOPE_EXIT {
+        if (!success) {
+            abort_connection(reactor, port, socket);
+        }
+    };
+    assert(is_base_mode() || single_thread || (!is_master_thread() && socket->fd % reactor_num == reactor->id));
+    if (static_cast<uint32_t>(socket->fd) >= max_connection) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", socket->fd);
+        return false;
+    }
+    if (port->ssl && !port->is_dtls() && !port->ssl_create(socket)) {
+        return false;
+    }
+    socket->chunk_size = port->is_dtls() ? SW_SSL_BUFFER_SIZE : SW_SEND_BUFFER_SIZE;
+    conn = add_connection(port, socket, incoming.server_fd);
+    if (!conn) {
+        return false;
+    }
+    success = connection_incoming(reactor, conn) == SW_OK;
+    return success;
+}
+
+/**
+ * Owning reactor only, after session publication. Registers receive interest/timers and emits
+ * CONNECT for plaintext sockets. TLS emits CONNECT only after its handshake completes.
+ * BASE/THREAD callbacks may run synchronously and close the connection; do not dereference it afterwards.
+ */
 int Server::connection_incoming(Reactor *reactor, Connection *conn) const {
     ListenPort *port = get_port_by_server_fd(conn->server_fd);
     if (port->max_idle_time > 0) {
@@ -240,8 +355,9 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) const {
     if (conn->socket->ssl) {
         return reactor->add(conn->socket, SW_EVENT_READ);
     }
-    // delay receive, wait resume command
-    if (!enable_delay_receive) {
+    // Delay is a policy fact, not an inference from missing reactor registration.
+    conn->recv_delayed = enable_delay_receive;
+    if (!conn->recv_delayed) {
         if (reactor->add(conn->socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
@@ -256,15 +372,22 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) const {
 }
 
 #ifdef SW_SUPPORT_DTLS
-dtls::Session *Server::accept_dtls_connection(const ListenPort *port, const Address *sa) {
-    dtls::Session *session = nullptr;
-    Connection *conn = nullptr;
-
+// UDP-listener reactor only, before handoff. The listener's packet pointer is borrowed only
+// for this synchronous call. DTLS consumes it here using its existing receive queue; no packet
+// storage travels in IncomingConnection. After return the caller may transfer the socket once.
+Socket *Server::accept_dtls_socket(const ListenPort *port, const Address *sa, const char *packet, size_t length) {
     Socket *sock = make_socket(port->type, SW_FD_SESSION, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (!sock) {
         return nullptr;
     }
+    bool success = false;
+    ON_SCOPE_EXIT {
+        if (!success) {
+            abort_connection(sw_reactor(), port, sock);
+        }
+    };
 
+    sock->removed = 1;
     sock->set_reuse_addr();
 #ifdef HAVE_KQUEUE
     sock->set_reuse_port();
@@ -281,35 +404,29 @@ dtls::Session *Server::accept_dtls_connection(const ListenPort *port, const Addr
 
     if (sock->bind(port->host, port->port) < 0) {
         swoole_sys_warning("bind() failed");
-        goto _cleanup;
+        return nullptr;
     }
     if (sock->is_inet6()) {
         sock->set_option(IPPROTO_IPV6, IPV6_V6ONLY, 0);
     }
     if (sock->connect(sa) < 0) {
         swoole_sys_warning("connect(%s:%d) failed", sa->get_addr(), sa->get_port());
-        goto _cleanup;
+        return nullptr;
     }
 
     memcpy(&sock->info, sa, sizeof(*sa));
     sock->chunk_size = SW_SSL_BUFFER_SIZE;
-
-    conn = add_connection(port, sock, port->socket->fd);
-    if (conn == nullptr) {
-        goto _cleanup;
+    auto *session = port->create_dtls_session(sock);
+    if (!session) {
+        return nullptr;
+    }
+    session->append(packet, length);
+    if (!session->listen()) {
+        return nullptr;
     }
 
-    session = port->create_dtls_session(sock);
-    if (session) {
-        return session;
-    }
-
-_cleanup:
-    if (conn) {
-        *conn = {};
-    }
-    sock->free();
-    return nullptr;
+    success = true;
+    return sock;
 }
 #endif
 
@@ -469,6 +586,7 @@ int Server::start_master_thread(Reactor *reactor) {
     }
 
     reactor->ptr = this;
+    reactor->add_destroy_callback([this](void *) { discard_reactor_output(message_bus); });
     reactor->set_handler(SW_FD_STREAM_SERVER, SW_EVENT_READ, accept_connection);
 
     if (pipe_command) {
@@ -485,6 +603,11 @@ int Server::start_master_thread(Reactor *reactor) {
 
     if (!single_thread && !is_thread_mode()) {
         reactor_thread_barrier.wait();
+        // The barrier publishes every reactor's heartbeat pipe before the heartbeat thread
+        // reads it. Starting the producer while ReactorThread::init() runs would race publication.
+        if (heartbeat_check_interval >= 1) {
+            start_heartbeat_thread();
+        }
     }
     if (is_process_mode()) {
         gs->manager_barrier.wait();
@@ -1158,6 +1281,14 @@ void Server::destroy() {
         factory_->shutdown();
     }
 
+    if (!is_base_mode() && is_started()) {
+        discard_reactor_output(message_bus);
+        SW_LOOP_N(reactor_num) {
+            get_thread(i)->discard_pipe_buffers(this);
+        }
+        discard_incoming_connections();
+    }
+
     SW_LOOP_N(worker_num) {
         Worker *worker = &workers[i];
         destroy_worker(worker);
@@ -1219,17 +1350,36 @@ void Server::destroy() {
 }
 
 /**
- * worker to master process
+ * Worker-side control API (event/task worker processes, or THREAD workers).
+ * Capture the caller's session id and reactor route under the slot lock, then release it before
+ * IPC or owner-side execution. Never rebuild the target session id from a possibly reused conn.
+ * The owning reactor validates the command again before changing readiness.
  */
-bool Server::feedback(Connection *conn, enum ServerEventType event) {
+bool Server::feedback(SessionId session_id, enum ServerEventType event) {
+    Connection *conn = get_connection_verify(session_id);
+    if (!conn) {
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
+        return false;
+    }
     SendData _send{};
     _send.info.type = event;
-    _send.info.fd = conn->session_id;
+    _send.info.fd = session_id;
+    sw_spinlock(&conn->lock);
+    if (!conn->is_current_session(session_id) || !conn->is_ssl_ready()) {
+        sw_spinlock_release(&conn->lock);
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
+        return false;
+    }
+    if (conn->is_close_requested()) {
+        sw_spinlock_release(&conn->lock);
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSING);
+        return false;
+    }
     _send.info.reactor_id = conn->reactor_id;
+    sw_spinlock_release(&conn->lock);
 
     if (is_process_mode()) {
-        return send_to_reactor_thread(
-                   reinterpret_cast<EventData *>(&_send.info), sizeof(_send.info), conn->session_id) > 0;
+        return send_to_reactor_thread(reinterpret_cast<EventData *>(&_send.info), sizeof(_send.info), session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
     }
@@ -1486,7 +1636,10 @@ void Server::discard_sendfile(DataHead *info, const char *data) {
 }
 
 /**
- * [Master] send to client or append to out_buffer
+ * Owning reactor only: PROCESS master reactor, BASE worker reactor, or THREAD event-worker reactor.
+ * Worker processes submit commands through the factory/IPC instead of touching sockets here.
+ * Revalidate the event's session id before using reactor-owned state. CLOSE consumes worker policy
+ * flags; readiness, output queues and physical socket release remain owned by this one reactor.
  * @return SW_OK or SW_ERR
  */
 int Server::send_to_connection(SendData *_send) const {
@@ -1527,7 +1680,8 @@ int Server::send_to_connection(SendData *_send) const {
         assert(fd % reactor_num == SwooleTG.id);
     }
 
-    if (!is_process_mode() && conn->overflow) {
+    if (!is_process_mode() && conn->overflow &&
+        (_send->info.type == SW_SERVER_EVENT_SEND_DATA || _send->info.type == SW_SERVER_EVENT_SEND_FILE)) {
         /**
          * The peer has already closed the connection, this state is terminal: the output buffer
          * will never be drained again(conn->overflow is only reset by the write event), so the send
@@ -1535,7 +1689,7 @@ int Server::send_to_connection(SendData *_send) const {
          * would re-enqueue itself and never be woken up again, because neither the buffer-empty
          * nor the close event will fire after the peer is gone.
          */
-        if (conn->peer_closed) {
+        if (conn->is_close_aborting()) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
             discard_sendfile(&_send->info, _send->data);
             return SW_ERR;
@@ -1551,43 +1705,41 @@ int Server::send_to_connection(SendData *_send) const {
 
     Socket *_socket = conn->socket;
 
-    /**
-     * Reset send buffer, Immediately close the connection.
-     */
-    if (_send->info.type == SW_SERVER_EVENT_CLOSE && (conn->close_reset || conn->close_force || conn->peer_closed)) {
-        goto _close_fd;
-    }
-    /**
-     * pause recv data
-     */
-    else if (_send->info.type == SW_SERVER_EVENT_PAUSE_RECV) {
-        if (_socket->removed || !(_socket->events & SW_EVENT_READ)) {
+    if (_send->info.type == SW_SERVER_EVENT_CLOSE) {
+        conn->close_worker_received = 1;
+        conn->close_waiting_worker = 0;
+        conn->begin_close(ConnectionCloseReason::APPLICATION);
+        if (_send->info.ext_flags & CLOSE_RESET) {
+            conn->request_reset();
+        }
+        if (_send->info.ext_flags & (CLOSE_ABORT | CLOSE_RESET)) {
+            conn->close_abort = true;
+        }
+        if (conn->is_close_aborting()) {
+            goto _close_fd;
+        }
+        // A graceful close drains its existing output, but never accepts more input.
+        if (update_recv_interest(reactor, conn) < 0) {
+            return SW_ERR;
+        }
+        if (conn->close_queued) {
             return SW_OK;
         }
-        if (_socket->events & SW_EVENT_WRITE) {
-            return reactor->set(conn->socket, SW_EVENT_WRITE);
-        } else {
-            return reactor->del(conn->socket);
+    } else if (_send->info.type == SW_SERVER_EVENT_PAUSE_RECV || _send->info.type == SW_SERVER_EVENT_RESUME_RECV) {
+        if (conn->is_close_requested()) {
+            swoole_set_last_error(SW_ERROR_SESSION_CLOSING);
+            return SW_ERR;
         }
-    }
-    /**
-     * resume recv data
-     */
-    else if (_send->info.type == SW_SERVER_EVENT_RESUME_RECV) {
-        if (!_socket->removed || (_socket->events & SW_EVENT_READ)) {
-            return SW_OK;
+        conn->recv_paused = _send->info.type == SW_SERVER_EVENT_PAUSE_RECV;
+        if (_send->info.type == SW_SERVER_EVENT_RESUME_RECV) {
+            conn->recv_delayed = 0;
         }
-        if (_socket->events & SW_EVENT_WRITE) {
-            return reactor->set(_socket, SW_EVENT_READ | SW_EVENT_WRITE);
-        } else {
-            return reactor->add(_socket, SW_EVENT_READ);
-        }
-    }
-
-    // peer_closed is terminal: the socket only waits for the worker's close, so a direct send must not reach it.
-    if (conn->peer_closed && _send->info.type != SW_SERVER_EVENT_CLOSE) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED_BY_CLIENT, "socket#%d is closed by client", fd);
+        return update_recv_interest(reactor, conn);
+    } else if (conn->is_close_aborting() || conn->close_worker_received) {
+        // Data already queued before a graceful close command may arrive after the close cause was published.
+        // Once that command is consumed, or a transport failure aborts output, no later writes are accepted.
         discard_sendfile(&_send->info, _send->data);
+        swoole_set_last_error(SW_ERROR_SESSION_CLOSING);
         return SW_ERR;
     }
 
@@ -1801,7 +1953,9 @@ void Server::call_hook(HookType type, void *arg) {
 }
 
 /**
- * [Worker]
+ * Control API callable from event/task/user workers and master/manager contexts. The factory
+ * routes this request to the assigned event worker for one callback claim; that worker submits
+ * the final command to the owning reactor. This API never frees a reactor socket directly.
  */
 bool Server::close(SessionId session_id, bool reset) const {
     return factory_->end(session_id, reset ? (CLOSE_ACTIVELY | CLOSE_RESET) : CLOSE_ACTIVELY);
@@ -1934,7 +2088,8 @@ void Server::check_port_type(const ListenPort *ls) {
 }
 
 bool Server::is_healthy_connection(double now, const Connection *conn) const {
-    if (conn->protect || conn->last_recv_time == 0) {
+    const double last_recv_time = conn->get_last_recv_time();
+    if (conn->protect || last_recv_time == 0) {
         return true;
     }
     auto lp = get_port_by_session_id(conn->session_id);
@@ -1944,7 +2099,7 @@ bool Server::is_healthy_connection(double now, const Connection *conn) const {
     if (lp->heartbeat_idle_time == 0) {
         return true;
     }
-    if (conn->last_recv_time > now - lp->heartbeat_idle_time) {
+    if (last_recv_time > now - lp->heartbeat_idle_time) {
         return true;
     }
     return false;
@@ -2083,12 +2238,132 @@ void Server::master_signal_handler(int signo) {
 }
 
 void Server::foreach_connection(const std::function<void(Connection *)> &callback) const {
-    for (int fd = get_minfd(); fd <= get_maxfd(); fd++) {
+    int first, last;
+    do {
+        std::lock_guard<std::mutex> guard(lock_);
+        first = get_minfd();
+        last = get_maxfd();
+    } while (0);
+    for (int fd = first; fd <= last; fd++) {
         Connection *conn = get_connection(fd);
+        bool active;
+        if (!conn) {
+            continue;
+        }
+        sw_spinlock(&conn->lock);
+        active = is_valid_connection(conn);
+        sw_spinlock_release(&conn->lock);
+        // This is a candidate snapshot, not a pin. Cross-role callbacks must validate the
+        // generation under the slot lock; only an owner-reactor callback may dereference Socket.
+        if (active) {
+            callback(conn);
+        }
+    }
+}
+
+// Owner-reactor traversal: choose slots by their fd before reading any mutable Connection fields.
+// Other reactors' sockets, parser objects and close state are never inspected. Only the bounds
+// snapshot takes the server mutex, so recv/send paths acquire no additional lock.
+void Server::foreach_connection_on_reactor(Reactor *reactor, const std::function<void(Connection *)> &callback) const {
+    int first, last;
+    do {
+        std::lock_guard<std::mutex> guard(lock_);
+        first = get_minfd();
+        last = get_maxfd();
+    } while (0);
+    const int step = is_base_mode() ? 1 : reactor_num;
+    if (!is_base_mode()) {
+        first += (reactor->id + step - first % step) % step;
+    }
+    for (int fd = first; fd <= last; fd += step) {
+        auto *conn = get_connection(fd);
         if (is_valid_connection(conn)) {
             callback(conn);
         }
     }
+}
+
+// Background heartbeat thread: the O(maxfd - minfd) traversal never runs on a PROCESS reactor.
+// A relaxed timestamp read filters recently active slots without acquiring their slot lock.
+// Only possible expirations take the slot lock to copy a consistent session/owner/protect snapshot.
+// Never retain Connection/Socket pointers or hold the slot lock across the callback's synchronous IPC.
+// Candidates are advisory: owner close_idle_connection() must recheck them after queueing delay.
+// Returning false from the callback stops a large scan promptly during heartbeat-thread shutdown.
+void Server::foreach_idle_connection(double now, const std::function<bool(SessionId, ReactorId)> &callback) const {
+    uint16_t min_idle_time = 0;
+    for (auto *port : ports) {
+        if (port->heartbeat_idle_time > 0 && (min_idle_time == 0 || port->heartbeat_idle_time < min_idle_time)) {
+            min_idle_time = port->heartbeat_idle_time;
+        }
+    }
+    if (min_idle_time == 0) {
+        return;
+    }
+    int first, last;
+    do {
+        std::lock_guard<std::mutex> guard(lock_);
+        first = get_minfd();
+        last = get_maxfd();
+    } while (0);
+    for (int fd = first; fd <= last; fd++) {
+        auto *conn = get_connection(fd);
+        if (!conn) {
+            continue;
+        }
+        const double last_recv_time = conn->get_last_recv_time();
+        if (last_recv_time == 0 || last_recv_time > now - min_idle_time) {
+            continue;
+        }
+        SessionId session_id = 0;
+        ReactorId owner = 0;
+        do {
+            sw_spinlock(&conn->lock);
+            ON_SCOPE_EXIT {
+                sw_spinlock_release(&conn->lock);
+            };
+            if (conn->active && !is_healthy_connection(now, conn)) {
+                session_id = conn->session_id;
+                owner = conn->reactor_id;
+            }
+        } while (0);
+        if (session_id != 0 && !callback(session_id, owner)) {
+            break;
+        }
+    }
+}
+
+// Owner-reactor timer for BASE/THREAD and single_thread PROCESS only. Multi-reactor PROCESS
+// uses the background traversal and receives per-session close requests, never a full-scan tick.
+void Server::check_idle_connections(Reactor *reactor) const {
+    if (reactor->wait_exit || reactor->terminated) {
+        return;
+    }
+    foreach_connection_on_reactor(
+        reactor, [this, reactor](Connection *conn) { close_idle_connection(reactor, conn->session_id); });
+}
+
+// Owning reactor, O(1) per heartbeat request. Recheck activity/protect after IPC delay, and reject
+// an old generation before touching its transport. Publish expiry while holding protect()'s lock.
+void Server::close_idle_connection(Reactor *reactor, SessionId session_id) const {
+    if (reactor->wait_exit || reactor->terminated) {
+        return;
+    }
+    auto *conn = get_connection_verify_no_ssl(session_id);
+    if (!conn) {
+        return;
+    }
+    do {
+        sw_spinlock(&conn->lock);
+        ON_SCOPE_EXIT {
+            sw_spinlock_release(&conn->lock);
+        };
+        if (!conn->is_current_session(session_id) || conn->reactor_id != reactor->id ||
+            is_healthy_connection(microtime(), conn)) {
+            return;
+        }
+        conn->begin_close(ConnectionCloseReason::IDLE_TIMEOUT);
+    } while (0);
+    request_force_close(reactor, conn, ConnectionCloseReason::IDLE_TIMEOUT);
 }
 
 std::vector<SessionId> Server::heartbeat(bool close_connection) const {
@@ -2096,17 +2371,18 @@ std::vector<SessionId> Server::heartbeat(bool close_connection) const {
     double now = microtime();
 
     foreach_connection([this, now, close_connection, &expired_sessions](Connection *conn) {
-        SessionId session_id = conn->session_id;
-        if (session_id <= 0) {
-            return;
-        }
-        swoole_trace("heartbeat check fd=%d", conn->fd);
-        if (is_healthy_connection(now, conn)) {
+        sw_spinlock(&conn->lock);
+        const SessionId session_id = conn->session_id;
+        if (!conn->is_current_session(session_id) || is_healthy_connection(now, conn)) {
+            sw_spinlock_release(&conn->lock);
             return;
         }
         if (close_connection) {
-            conn->close_force = 1;
-            close(session_id, false);
+            conn->begin_close(ConnectionCloseReason::IDLE_TIMEOUT);
+        }
+        sw_spinlock_release(&conn->lock);
+        if (close_connection) {
+            factory_->end(session_id, CLOSE_ACTIVELY | CLOSE_ABORT);
         }
         expired_sessions.push_back(session_id);
     });
@@ -2114,9 +2390,18 @@ std::vector<SessionId> Server::heartbeat(bool close_connection) const {
     return expired_sessions;
 }
 
+// Read API callable from workers and server-control contexts. The slot lock pins this generation
+// while copying shared metadata/certificates; return a value snapshot, never a lifetime-bearing conn pointer.
 bool Server::get_client_info(SessionId session_id, ClientInfoSnapshot &snapshot) const {
     Connection *conn = get_connection_verify(session_id);
     if (!conn) {
+        return false;
+    }
+    sw_spinlock(&conn->lock);
+    ON_SCOPE_EXIT {
+        sw_spinlock_release(&conn->lock);
+    };
+    if (!conn->is_current_session(session_id) || !conn->is_ssl_ready()) {
         return false;
     }
 
@@ -2129,10 +2414,10 @@ bool Server::get_client_info(SessionId session_id, ClientInfoSnapshot &snapshot)
     snapshot.uid = conn->uid;
     snapshot.websocket_status = conn->websocket_status;
     snapshot.close_errno = conn->close_errno;
-    snapshot.recv_queued_bytes = conn->recv_queued_bytes;
+    snapshot.recv_queued_bytes = conn->get_recv_queued_bytes();
     snapshot.send_queued_bytes = conn->send_queued_bytes;
     snapshot.connect_time = conn->connect_time;
-    snapshot.last_recv_time = conn->last_recv_time;
+    snapshot.last_recv_time = conn->get_last_recv_time();
     snapshot.last_send_time = conn->last_send_time;
     snapshot.last_dispatch_time = conn->last_dispatch_time;
     snapshot.remote_port = conn->info.get_port();
@@ -2193,12 +2478,22 @@ bool Server::get_client_list(SessionId start_session_id, int find_count, std::ve
     return true;
 }
 
+// Accept/handoff failure: the producer still owns an unpublished socket. Initialization or I/O
+// failure after publication: only its owning reactor may call this API. Final shutdown may also
+// discard unpublished handoffs after all consumers have stopped (reactor may then be null).
+// Count unpublished failures here. Published sessions already count as accepts and retire
+// through close_connection(), which balances that accept with exactly one close.
 void Server::abort_connection(Reactor *reactor, const ListenPort *ls, Socket *_socket) const {
-    sw_atomic_long_fetch_add(&gs->abort_count, 1);
-    sw_atomic_long_fetch_add(&ls->gs->abort_count, 1);
     if (_socket->object) {
         reactor->close(reactor, _socket);
     } else {
+        sw_atomic_long_fetch_add(&gs->abort_count, 1);
+        sw_atomic_long_fetch_add(&ls->gs->abort_count, 1);
+#ifdef SW_SUPPORT_DTLS
+        if (_socket->dtls) {
+            ls->remove_dtls_session(_socket->fd);
+        }
+#endif
         _socket->free();
     }
 }
@@ -2305,38 +2600,19 @@ const char *Server::get_remote_addr(Connection *conn) {
 }
 
 /**
- * new connection
+ * Owning reactor only: BASE worker process, PROCESS master process, or THREAD event-worker thread.
+ * The TCP acceptor never calls this in multi-reactor mode; fd % reactor_num fixes the owner.
+ * The slot lock is still required: worker processes may hold an old Connection pointer and must
+ * finish their guarded access before this generation is reset. Background heartbeat candidates
+ * also snapshot generation metadata under this lock, despite there being only one reactor writer.
+ * Keep terminal facts and the lock itself intact until initialization is complete; publish active last.
+ * This method emits no PHP callbacks and performs no IPC while holding the slot lock.
  */
 Connection *Server::add_connection(const ListenPort *ls, Socket *_socket, int server_fd) {
     int fd = _socket->fd;
 
-    Connection *connection = &(connection_list[fd]);
-    ReactorId reactor_id = is_base_mode() ? swoole_get_worker_id() : fd % reactor_num;
-    sw_memset_zero(connection, offsetof(Connection, closed));
-
-    sw_spinlock(&gs->spinlock);
-    SessionId session_id = gs->session_round;
-    // get session id
-    SW_LOOP_N(max_connection) {
-        Session *session = get_session(++session_id);
-        // available slot
-        if (session->fd == 0) {
-            session->fd = fd;
-            session->id = session_id;
-            session->reactor_id = reactor_id;
-            goto _find_available_slot;
-        }
-    }
-    sw_spinlock_release(&gs->spinlock);
-    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "no available session slot, fd=%d", fd);
-    return nullptr;
-
-_find_available_slot:
-    sw_spinlock_release(&gs->spinlock);
-    gs->session_round = session_id;
-    connection->session_id = session_id;
-
-    _socket->object = connection;
+    // Socket setup is owner-local. Do syscalls before locking the shared connection slot.
+    const auto peer_address = _socket->info;
     _socket->removed = 1;
     _socket->buffer_size = ls->socket_buffer_size;
     _socket->write_timeout = _socket->read_timeout = 0;
@@ -2351,51 +2627,85 @@ _find_available_slot:
 
     // socket recv buffer size
     if (ls->kernel_socket_recv_buffer_size > 0) {
-        if (ls->socket->set_option(SOL_SOCKET, SO_RCVBUF, ls->kernel_socket_recv_buffer_size) != 0) {
+        if (_socket->set_option(SOL_SOCKET, SO_RCVBUF, ls->kernel_socket_recv_buffer_size) != 0) {
             swoole_sys_warning("setsockopt(SO_RCVBUF, %d) failed", ls->kernel_socket_recv_buffer_size);
         }
     }
 
     // socket send buffer size
     if (ls->kernel_socket_send_buffer_size > 0) {
-        if (ls->socket->set_option(SOL_SOCKET, SO_SNDBUF, ls->kernel_socket_send_buffer_size) != 0) {
+        if (_socket->set_option(SOL_SOCKET, SO_SNDBUF, ls->kernel_socket_send_buffer_size) != 0) {
             swoole_sys_warning("setsockopt(SO_SNDBUF, %d) failed", ls->kernel_socket_send_buffer_size);
         }
     }
 
+    _socket->get_name();
+    const auto local_port = _socket->info.get_port();
+    const auto local_addr_index = get_local_addr_index(&_socket->info);
+    if (ls->is_dtls()) {
+        // DTLS cookie generation/verification uses Socket::info through BIO_dgram_get_peer().
+        // Keep the peer used by the listener's first packet stable after getsockname/handoff.
+        _socket->info = peer_address;
+    }
+
+    Connection *connection = &(connection_list[fd]);
+    ReactorId reactor_id = is_base_mode() ? swoole_get_worker_id() : fd % reactor_num;
+    auto *reactor = sw_reactor();
+    assert(!reactor || reactor->ptr != this || is_base_mode() || single_thread || reactor_id == reactor->id);
+    // Reserve a session while the connection is still inactive. A full session table
+    // search must not make workers spin on the connection slot.
+    sw_spinlock(&gs->spinlock);
+    SessionId session_id = gs->session_round;
+    // get session id
+    SW_LOOP_N(max_connection) {
+        Session *session = get_session(++session_id);
+        // available slot
+        if (session->fd == 0) {
+            session->fd = fd;
+            session->id = session_id;
+            session->reactor_id = reactor_id;
+            gs->session_round = session_id;
+            goto _find_available_slot;
+        }
+    }
+    sw_spinlock_release(&gs->spinlock);
+    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "no available session slot, fd=%d", fd);
+    return nullptr;
+
+_find_available_slot:
+    sw_spinlock_release(&gs->spinlock);
+    const double connect_time = microtime();
+    // Keep the lock intact across descriptor reuse. The reset also excludes active
+    // and the heartbeat/terminal tail so concurrent readers can still validate the slot.
+    sw_spinlock(&connection->lock);
+    sw_memset_zero(reinterpret_cast<char *>(connection) + sizeof(connection->active),
+                   offsetof(Connection, lock) - sizeof(connection->active));
+    connection->session_id = session_id;
+
+    _socket->object = connection;
+
     connection->fd = fd;
     connection->reactor_id = reactor_id;
     connection->server_fd = server_fd;
-    connection->last_recv_time = connection->connect_time = microtime();
-    connection->active = 1;
-    connection->closed = 0;
+    connection->connect_time = connect_time;
+    connection->set_last_recv_time(connect_time);
     connection->worker_id = -1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
     connection->ssl = _socket->ssl != nullptr;
 
-    memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
-    connection->info.len = _socket->info.len;
+    connection->info = peer_address;
     connection->info.type = connection->socket_type;
-
-    connection->socket->get_name();
-    connection->local_port = connection->socket->info.get_port();
-    connection->local_addr_index = get_local_addr_index(&connection->socket->info);
+    connection->local_port = local_port;
+    connection->local_addr_index = local_addr_index;
 
     if (!ls->ssl) {
         _socket->direct_send = 1;
     }
 
-    lock();
-    if (fd > get_maxfd()) {
-        set_maxfd(fd);
-    } else if (fd < get_minfd()) {
-        set_minfd(fd);
-    }
-    unlock();
-
-    gs->accept_count++;
-    ls->gs->accept_count++;
+    // Different reactor owners publish connections concurrently; these aggregate counters are shared.
+    sw_atomic_long_fetch_add(&gs->accept_count, 1);
+    sw_atomic_long_fetch_add(&ls->gs->accept_count, 1);
     if (is_base_mode()) {
         sw_atomic_fetch_add(&gs->connection_nums[reactor_id], 1);
         sw_atomic_fetch_add(&ls->gs->connection_nums[reactor_id], 1);
@@ -2404,6 +2714,30 @@ _find_available_slot:
         sw_atomic_fetch_add(&ls->gs->connection_num, 1);
     }
 
+    // The slot is still inactive and only its owner can publish it. Release the slot
+    // lock before waiting for the bounds mutex, which can be held by a retiring reactor.
+    sw_spinlock_release(&connection->lock);
+    do {
+        std::lock_guard<std::mutex> guard(lock_);
+        sw_spinlock(&connection->lock);
+        // Preserve the old terminal facts until the new generation is published.
+        sw_atomic_store_release(&connection->close_reason, 0);
+        connection->session_released = false;
+        connection->close_callback_state = CloseCallbackState::NONE;
+        connection->connect_callback_claimed = 0;
+        connection->close_worker_started = 0;
+        connection->close_worker_claimed = 0;
+        sw_atomic_memory_barrier();
+        connection->active = 1;
+        sw_spinlock_release(&connection->lock);
+        // Publish activity before expanding scan bounds. A concurrent retirement must not
+        // shrink maxfd past a new slot whose generation is still being initialized.
+        if (fd > get_maxfd()) {
+            set_maxfd(fd);
+        } else if (fd < get_minfd()) {
+            set_minfd(fd);
+        }
+    } while (0);
     return connection;
 }
 
@@ -2464,12 +2798,7 @@ int Server::get_idle_task_worker_num() const {
 }
 
 int Server::get_tasking_num() const {
-    // TODO Why need to reset ?
-    int tasking_num = gs->tasking_num;
-    if (tasking_num < 0) {
-        tasking_num = gs->tasking_num = 0;
-    }
-    return tasking_num;
+    return sw_atomic_load_acquire(&gs->tasking_num);
 }
 
 }  // namespace swoole

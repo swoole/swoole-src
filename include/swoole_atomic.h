@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <cstring>
+
 typedef volatile int32_t sw_atomic_int32_t;
 typedef volatile uint32_t sw_atomic_uint32_t;
 typedef volatile int64_t sw_atomic_int64_t;
@@ -29,6 +31,20 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 #ifdef _MSC_VER
 
 #include <intrin.h>
+
+// MSVC uses conservative Interlocked operations for the double's 64-bit representation.
+static inline double sw_atomic_double_load_relaxed(const double *value) {
+    auto bits = _InterlockedCompareExchange64(reinterpret_cast<volatile __int64 *>(const_cast<double *>(value)), 0, 0);
+    double result;
+    std::memcpy(&result, &bits, sizeof(result));
+    return result;
+}
+
+static inline void sw_atomic_double_store_relaxed(double *value, double set) {
+    __int64 bits;
+    std::memcpy(&bits, &set, sizeof(bits));
+    _InterlockedExchange64(reinterpret_cast<volatile __int64 *>(value), bits);
+}
 
 // MSVC does not support GCC __sync_* builtins.
 // Use _Interlocked* intrinsics instead.
@@ -87,6 +103,17 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 #define sw_atomic_cpu_pause() _mm_pause()
 
 #else  // GCC/Clang
+
+// Scalar snapshots only: relaxed operations do not publish surrounding data.
+static inline double sw_atomic_double_load_relaxed(const double *value) {
+    double result;
+    __atomic_load(value, &result, __ATOMIC_RELAXED);
+    return result;
+}
+
+static inline void sw_atomic_double_store_relaxed(double *value, double set) {
+    __atomic_store(value, &set, __ATOMIC_RELAXED);
+}
 
 #define sw_atomic_cmp_set(lock, old, set) __sync_bool_compare_and_swap(lock, old, set)
 #define sw_atomic_value_cmp_set(value, expected, set) __sync_val_compare_and_swap(value, expected, set)

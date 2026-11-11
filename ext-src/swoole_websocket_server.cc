@@ -714,7 +714,7 @@ static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, S
     }
 
     Connection *conn = serv->get_connection_by_session_id(fd);
-    if (!conn || conn->websocket_status < WebSocket::STATUS_HANDSHAKE) {
+    if (!conn || !conn->is_websocket_status_at_least(WebSocket::STATUS_HANDSHAKE)) {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_UNCONNECTED);
         php_swoole_fatal_error(
             E_WARNING, "the connected client of connection[%ld] is not a websocket client or closed", fd);
@@ -966,7 +966,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished) {
 
     Connection *conn = serv->get_connection_verify(session_id);
     // not isEstablished
-    if (!conn || conn->closed || conn->websocket_status < WebSocket::STATUS_ACTIVE) {
+    if (!conn || conn->is_close_requested() || !conn->is_websocket_status_at_least(WebSocket::STATUS_ACTIVE)) {
         RETURN_FALSE;
     } else {
         RETURN_TRUE;

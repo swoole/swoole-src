@@ -317,7 +317,8 @@ static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
         swoole_http_server_populate_ip_and_port(serv, ht, conn, client->fd, ctx->keepalive);
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME), (zend_long) time(nullptr));
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_TIME_FLOAT), swoole::microtime());
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->last_recv_time);
+        http_server_add_server_array(
+            ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->get_last_recv_time());
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_PROTOCOL), SW_ZSTR_KNOWN(SW_ZEND_STR_HTTP2));
     } while (false);
 

@@ -1368,7 +1368,7 @@ static void protocol_status_error(Socket *socket, const Connection *conn) {
 
 ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLength *pl) {
     auto *conn = static_cast<Connection *>(socket->object);
-    if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
+    if (conn->is_websocket_status_at_least(websocket::STATUS_HANDSHAKE)) {
         return websocket::get_package_length(protocol, socket, pl);
     } else if (conn->http2_stream) {
         return http2::get_frame_length(protocol, socket, pl);
@@ -1380,7 +1380,7 @@ ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLengt
 
 uint8_t get_package_length_size(Socket *socket) {
     auto *conn = (Connection *) socket->object;
-    if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
+    if (conn->is_websocket_status_at_least(websocket::STATUS_HANDSHAKE)) {
         return SW_WEBSOCKET_FRAME_HEADER_SIZE;
     } else if (conn->http2_stream) {
         return SW_HTTP2_FRAME_HEADER_SIZE;
@@ -1393,7 +1393,7 @@ uint8_t get_package_length_size(Socket *socket) {
 #ifndef _WIN32
 int dispatch_frame(const Protocol *proto, Socket *socket, const RecvData *rdata) {
     auto *conn = (Connection *) socket->object;
-    if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
+    if (conn->is_websocket_status_at_least(websocket::STATUS_HANDSHAKE)) {
         return websocket::dispatch_frame(proto, socket, rdata);
     } else if (conn->http2_stream) {
         return Server::dispatch_task(proto, socket, rdata);

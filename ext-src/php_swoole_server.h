@@ -153,6 +153,7 @@ void php_swoole_server_onConnect(swServer *, swoole::DataHead *);
 int php_swoole_server_onReceive(swServer *, swoole::RecvData *);
 int php_swoole_http_server_onReceive(swServer *, swoole::RecvData *);
 void php_swoole_http_server_onClose(swServer *serv, swoole::DataHead *info);
+void php_swoole_http_server_cleanup_connection(swoole::SessionId session_id);
 void php_swoole_http2_server_onClose(swServer *serv, swoole::SessionId session_id);
 int php_swoole_redis_server_onReceive(swServer *serv, swoole::RecvData *req);
 int php_swoole_server_onPacket(swServer *, swoole::RecvData *);

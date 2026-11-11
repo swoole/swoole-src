@@ -85,7 +85,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return php_swoole_server_onReceive(serv, req);
     }
     // websocket client
-    if (conn->websocket_status >= WebSocket::STATUS_HANDSHAKE) {
+    if (conn->is_websocket_status_at_least(WebSocket::STATUS_HANDSHAKE)) {
         return swoole_websocket_onMessage(serv, req);
     }
 
@@ -132,7 +132,8 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         zval *zserver = &ctx->request.zserver;
         HashTable *ht = Z_ARR_P(zserver);
         swoole_http_server_populate_ip_and_port(serv, ht, conn, session_id, ctx->keepalive);
-        http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->last_recv_time);
+        http_server_add_server_array(
+            ht, SW_ZSTR_KNOWN(SW_ZEND_STR_MASTER_TIME), (zend_long) conn->get_last_recv_time());
     } while (false);
 
     if (swoole_isset_hook(static_cast<swGlobalHookType>(PHP_SWOOLE_HOOK_BEFORE_REQUEST))) {
@@ -143,7 +144,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     do {
         zend::Callable *cb = nullptr;
 
-        if (conn->websocket_status == WebSocket::STATUS_CONNECTION) {
+        if (conn->is_websocket_status(WebSocket::STATUS_CONNECTION)) {
             cb = php_swoole_server_get_callback(serv, server_fd, SW_SERVER_CB_onHandshake);
             if (cb == nullptr) {
                 swoole_websocket_onHandshake(serv, port, ctx);
@@ -173,9 +174,13 @@ _dtor_and_return:
     return SW_OK;
 }
 
+void php_swoole_http_server_cleanup_connection(SessionId session_id) {
+    server_ips.erase(session_id);
+    client_ips.erase(session_id);
+}
+
 void php_swoole_http_server_onClose(Server *serv, DataHead *info) {
-    server_ips.erase(info->fd);
-    client_ips.erase(info->fd);
+    php_swoole_http_server_cleanup_connection(info->fd);
     php_swoole_server_onClose(serv, info);
 }
 
@@ -294,7 +299,7 @@ bool HttpContext::is_available() const {
 #ifndef _WIN32
         auto *serv = get_async_server();
         auto *conn = serv->get_connection_by_session_id(fd);
-        if (!conn || conn->closed || conn->peer_closed) {
+        if (!conn || conn->is_close_requested()) {
             return false;
         }
 #endif

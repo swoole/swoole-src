@@ -898,7 +898,7 @@ _skip_copy:
         auto *serv = get_async_server();
         auto *conn = serv->get_connection_verify(fd);
 
-        if (conn && conn->websocket_status == websocket::STATUS_HANDSHAKE) {
+        if (conn && conn->is_websocket_status(websocket::STATUS_HANDSHAKE)) {
             if (response.status == 101) {
                 conn->websocket_status = websocket::STATUS_ACTIVE;
             } else {

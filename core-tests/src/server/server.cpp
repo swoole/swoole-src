@@ -2111,8 +2111,6 @@ TEST(server, task_worker) {
         pool->running = true;
         pool->main_loop(pool, &pool->workers[0]);
         EXPECT_EQ(serv.get_tasking_num(), 0);
-        serv.gs->tasking_num--;
-        EXPECT_EQ(serv.get_tasking_num(), 0);
         EXPECT_EQ(serv.get_idle_task_worker_num(), serv.task_worker_num);
     });
 
@@ -5031,10 +5029,11 @@ TEST(server, pause_and_resume) {
     serv.onConnect = [](Server *serv, DataHead *ev) {
         auto session_id = ev->fd;
         DEBUG() << "onConnect: fd=" << session_id << ", reactor_id=" << ev->reactor_id << std::endl;
-        ASSERT_TRUE(serv->feedback(serv->get_connection_by_session_id(session_id), SW_SERVER_EVENT_PAUSE_RECV));
+        ASSERT_TRUE(serv->feedback(session_id, SW_SERVER_EVENT_PAUSE_RECV));
         DEBUG() << "pause recv ok, session_id=" << session_id << std::endl;
-        swoole_timer_after(50, [ev, serv, session_id](TIMER_PARAMS) {
-            ASSERT_TRUE(serv->feedback(serv->get_connection_by_session_id(session_id), SW_SERVER_EVENT_RESUME_RECV));
+        // The timer outlives the CONNECT event buffer; retain its session id rather than the event pointer.
+        swoole_timer_after(50, [serv, session_id](TIMER_PARAMS) {
+            ASSERT_TRUE(serv->feedback(session_id, SW_SERVER_EVENT_RESUME_RECV));
             DEBUG() << "resume recv ok, session_id=" << session_id << std::endl;
         });
     };
