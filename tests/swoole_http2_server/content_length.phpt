@@ -92,6 +92,11 @@ $pm->parentFunc = function () use (
         Assert::same((string) $response->data, '');
         Assert::false(isset($response->headers['content-length']));
 
+        // The same applies to the 500 sent for a response the handler leaves unfinished.
+        $response = $fetch('/head-unfinished', 'HEAD');
+        Assert::same($response->statusCode, 500);
+        Assert::false(isset($response->headers['content-length']));
+
         // end($body) preserves the caller's exact wire value; the leading zeroes prove
         // the value was not re-synthesized from the body length.
         $response = $fetch('/end-explicit');
@@ -179,6 +184,10 @@ $pm->childFunc = function () use (
                 break;
             case '/head-empty':
                 $response->end();
+                break;
+            case '/head-unfinished':
+                // After yielding, the request is freed before the response sends the 500.
+                Coroutine::sleep(0.01);
                 break;
             case '/end-explicit':
                 $response->header('content-length', '0000100');
