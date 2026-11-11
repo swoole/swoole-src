@@ -308,6 +308,18 @@ void Table::destroy() {
     sw_mem_pool()->free(this);
 }
 
+static bool holder_is_foreign(pid_t pid) {
+#ifdef _WIN32
+    return false;
+#else
+    if (pid <= 0) {
+        return false;
+    }
+    const pid_t pgid = getpgid(pid);
+    return pgid < 0 ? errno == ESRCH : pgid != getpgrp();
+#endif
+}
+
 void TableRow::lock() {
     sw_atomic_t *lock = &lock_;
     uint32_t i, n;
@@ -346,14 +358,17 @@ void TableRow::lock() {
             t = swoole::time<std::chrono::milliseconds>(true);
         }
         /**
-         * The deadlock time exceeds 2 seconds (SW_TABLE_FORCE_UNLOCK_TIME),
-         * indicating that the lock process has OOM,
-         * and the PID has been reused, forcing the unlock
+         * After SW_TABLE_FORCE_UNLOCK_TIME the holder is only evicted when its pid has been reused by a
+         * process outside our process group. A live holder that is merely slow or stopped must keep the
+         * lock, otherwise two writers would modify the same bucket concurrently.
          */
         else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME) {
-            *lock = 1;
-            swoole_warning("timeout, force unlock");
-            goto _success;
+            if (holder_is_foreign(lock_pid)) {
+                *lock = 1;
+                swoole_warning("lock pid[%d] belongs to another process group, force unlock", lock_pid);
+                goto _success;
+            }
+            t = swoole::time<std::chrono::milliseconds>(true);
         }
         std::this_thread::yield();
     }
