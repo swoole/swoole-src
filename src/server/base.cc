@@ -181,6 +181,7 @@ bool Server::finish_close(SessionId session_id, int flags) const {
     if (claimed) {
         conn->close_worker_claimed = true;
         conn->close_worker_started = true;
+        conn->set_close_worker_pid(swoole_get_worker_pid());
         if (flags & CLOSE_ACTIVELY) {
             conn->close_actively = true;
         }

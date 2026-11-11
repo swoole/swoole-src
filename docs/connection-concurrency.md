@@ -84,6 +84,7 @@ native dispatch call, rather than the lifetime of a yielded PHP coroutine.
 | `lock` | Slot initialization/retirement versus worker generation validation and callback claims | Retain the spinlock |
 | `close_reason` | Worker and reactor may report the first close cause concurrently; some reactor writers do not hold the slot lock | First-cause CAS and acquire loads across roles |
 | `recv_queued_bytes` | PROCESS reactor adds dispatched bytes while the worker subtracts consumed bytes; the worker lock does not cover reactor increments | Atomic RMW in PROCESS; ordinary arithmetic in BASE/THREAD |
+| `close_worker_pid` | Worker publishes the actual CLOSE claimant; owner registration and scans read without the slot lock | Release store / acquire load, only on close paths; GCC/Clang use scalar loads/stores with no RMW |
 | `last_recv_time` | Reactor writes while background heartbeat and worker queries read | Existing double storage with relaxed atomic accessors; GCC/Clang use no lock or CAS/RMW |
 
 `sw_atomic_t` specifies integer storage. Actual atomicity comes from the operations
@@ -212,23 +213,79 @@ It invokes callbacks without holding the lock and does not pin Socket lifetime.
 For a connection requiring worker notification, the first force-close request
 stops reactor polling, calls `shutdown(SHUT_RDWR)`, marks output for cancellation,
 and notifies the worker once. The fd, session, and pending output remain reserved
-while the worker claims and dispatches onClose. After successful notification, the owner queues one
-deadline in its existing timer heap. The grace period is
-`max(1, max_wait_time + 2 * heartbeat_check_interval)` seconds from notification,
-independent of how long the connection was already idle. Repeated close requests
-do not extend it.
+while the worker claims and dispatches onClose. There is no per-connection close
+deadline and `max_wait_time` does not govern this wait. A live worker keeps its
+session even when it is busy or blocked.
 
-The owner physically closes the transport and releases output when the worker's
-CLOSE command arrives and cancels the pending deadline. A force request can also
-retire the session once native onClose dispatch has completed or its queued
-deadline expires. The timer provides the expiry trigger even without heartbeat,
-including when a worker exits while its callback state remains DISPATCHING.
-The timer captures the session ID and validates both generation and timer identity
-before acting on a Socket. Only the owner reactor accesses Socket::close_timer.
+In PROCESS mode, the owning reactor records
+`session_id -> {worker pid, worker ID}` before sending CLOSE. This private map needs no lock. Normal physical retirement removes
+its entry. Worker close processing also publishes `Connection::close_worker_pid`
+with a release store as part of the slot-locked claim. The owner uses an acquire
+load without taking the slot lock. An asynchronous reload can replace `Worker::pid` while an
+old process still executes onClose, or a replacement can consume a queued CLOSE.
+The claimed process identity takes precedence over the original dispatch target.
 
-A worker that does not claim onClose within this full grace period can still miss
-the callback when the deadline reclaims its transport. The finite deadline bounds
-resource retention after a worker crash or permanent stall.
+After waitpid() confirms and reaps a process exit, the manager atomically advances
+`ServerGS::worker_exit_sequence`, including normal exits and detached reload
+workers. Every reactor has its own observed sequence, so one reactor cannot consume
+another's notification. A reactor with waiting sessions uses one periodic timer
+(one second) to wake and compare this sequence even when no sockets are readable.
+Normal registration requests a scan only when the map changes from empty to
+nonempty. Additional ordinary CLOSE notifications do not repeatedly restart a
+full scan of existing waiting sessions. With an unchanged exit sequence and no
+recovery check pending, a timer tick costs one shared atomic load and no map scan
+or PID probes. Two registration exceptions preserve recovery: an unpublished
+(nonpositive) destination PID needs a retry, and a previously claimed CLOSE may
+belong to an exit sequence consumed before this session entered the map. Both use
+the existing pending-check flag. Detecting the latter uses a scalar acquire load
+of close_worker_pid; it does not add a connection-slot lock or any recv/send work.
+Registration performs no PID probe or shared exit-sequence load.
+A nonpositive destination PID never rejects enqueueing CLOSE: the logical worker
+pipe is already valid. It requests a deferred retry until the manager publishes
+a positive PID. The checker never passes zero or a negative PID to kill().
+Removing the last entry leaves the timer available for another CLOSE in the same
+burst. Its next callback removes it if the map is still empty, without loading the
+exit sequence or probing PIDs. This avoids per-connection timer allocation and
+heap insertion/removal when CLOSE is promptly acknowledged. Reactor cleanup still
+cancels the timer immediately. The interval never imposes a deadline on onClose.
+
+On a changed sequence or a necessary recovery check the owner scans only its
+waiting map, resolves each original session, loads the actual callback owner
+atomically without taking the slot lock, and probes each distinct PID once with
+kill(pid, 0). Only ESRCH proves absence;
+EPERM does not authorize retirement. An unclaimed CLOSE stays reserved for a
+replacement worker; the disappearance of its original dispatch target never
+authorizes retirement. Its datagram may remain queued, or the dead worker may
+have consumed it before claiming CLOSE. Once the manager publishes a different
+PID for the same worker ID, the owner resends
+CLOSE through that worker's existing pipe. It bypasses schedule_worker(), preserving
+the original logical destination even with custom or dynamic dispatch. A successful
+resend records the replacement PID, so another check cannot resend to that same
+live process. Original and repeated notifications share the existing slot-locked
+callback claim; they cannot execute onClose twice. An old reload process may
+remain alive while a newer pipe consumer dies before claiming CLOSE. A changed
+destination PID is sufficient for an idempotent resend; old-process death is
+required only for physical retirement of an already claimed CLOSE.
+
+If the manager has reaped the worker but has not published its replacement yet,
+the next timer tick rechecks even without another sequence increment. The same
+pending-check flag covers a failed resend and a replacement that died before
+resend registration. None of these paths imposes a timeout on onClose or retires
+an unclaimed session. Only the confirmed absence of a process that actually
+claimed CLOSE releases the connection through normal close_connection(). The scan
+snapshots its sequence before walking, so another exit during the scan triggers
+the next pass.
+PID probing identifies OS processes by their numeric PID; PID reuse can delay
+reclamation, but does not authorize closing a process that still exists.
+
+A force request can still release a session after native onClose dispatch finishes.
+As before, that completion does not wait for a yielded PHP callback coroutine.
+After a worker crash, unclaimed sessions rely on CLOSE redelivery to a replacement
+worker to deliver onClose; they are never retired merely because the original
+dispatch PID disappeared. Claimed sessions are reclaimed once the actual claiming
+process is confirmed gone. If that process stays alive but remains blocked inside
+native onClose dispatch and never acknowledges CLOSE, the session stays reserved
+until server shutdown. There is no connection-close timeout for this case.
 
 Connections with notifications disabled, an incomplete TLS handshake, or a worker
 CLOSE command already received by the owner can be released directly.

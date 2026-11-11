@@ -415,6 +415,11 @@ void Manager::signal_handler(int signo) {
  */
 pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
     pid_t exited_pid = exit_status.get_pid();
+    if (is_process_mode()) {
+        // waitpid() has reaped this process. Publish even for a normal exit or a detached
+        // reload worker, before callbacks or replacement spawn can overwrite its identity.
+        sw_atomic_fetch_add(&gs->worker_exit_sequence, 1);
+    }
     Worker *exited_worker = get_worker_by_pid(exited_pid);
 
     if (exited_worker == nullptr) {

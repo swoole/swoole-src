@@ -12,9 +12,9 @@ use Swoole\Coroutine;
 use Swoole\Server;
 
 $cancelled = new Atomic();
-$retained = new Atomic();
-$closes = new Atomic();
-$pm = new ProcessManager();
+$retained  = new Atomic();
+$closes    = new Atomic();
+$pm        = new ProcessManager();
 $pm->setWaitTimeout(15);
 $pm->parentFunc = function () use ($pm, $cancelled, $retained, $closes) {
     $client = new Client(SWOOLE_SOCK_TCP);
@@ -35,18 +35,18 @@ $pm->parentFunc = function () use ($pm, $cancelled, $retained, $closes) {
 $pm->childFunc = function () use ($pm, $cancelled, $retained, $closes) {
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
-        'worker_num' => 2,
-        'reactor_num' => 2,
-        'hook_flags' => 0,
-        'send_yield' => true,
-        'send_timeout' => 0,
-        'socket_buffer_size' => 65536,
-        'buffer_high_watermark' => 32768,
+        'worker_num'                     => 2,
+        'reactor_num'                    => 2,
+        'hook_flags'                     => 0,
+        'send_yield'                     => true,
+        'send_timeout'                   => 0,
+        'socket_buffer_size'             => 65536,
+        'buffer_high_watermark'          => 32768,
         'kernel_socket_send_buffer_size' => 65536,
-        'heartbeat_idle_time' => 1,
-        'heartbeat_check_interval' => 1,
-        'max_wait_time' => 3,
-        'log_file' => '/dev/null',
+        'heartbeat_idle_time'            => 1,
+        'heartbeat_check_interval'       => 1,
+        'max_wait_time'                  => 3,
+        'log_file'                       => '/dev/null',
     ]);
     $server->on('workerStart', function (Server $server, int $workerId) use ($pm) {
         if ($workerId === 0) {
@@ -70,7 +70,7 @@ $pm->childFunc = function () use ($pm, $cancelled, $retained, $closes) {
         }
         Swoole\Timer::after(150, function () use ($server, $fd, $pm, $retained) {
             $pm->wakeup();
-            // Block for less than the five-second grace measured from CLOSE notification.
+            // A live worker retains the session regardless of the configured max_wait_time.
             usleep(4200000);
             $retained->set(is_array($server->getClientInfo($fd)) ? 1 : 0);
         });

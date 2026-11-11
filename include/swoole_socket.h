@@ -279,8 +279,6 @@ struct Socket {
 
     TimerNode *recv_timer;
     TimerNode *send_timer;
-    // Server owner reactor: deadline for the worker to acknowledge a CLOSE notification.
-    TimerNode *close_timer = nullptr;
 
     size_t total_recv_bytes;
     size_t total_send_bytes;

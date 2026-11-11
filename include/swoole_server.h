@@ -185,6 +185,10 @@ struct Connection {
     // the slot lock; another process must not dereference the pointer even if it is non-null.
     String *ssl_client_cert;
     pid_t ssl_client_cert_pid;
+    // Worker publishes the process that claimed CLOSE while holding the slot lock. The owner
+    // reads this scalar atomically, without locking every entry in the waiting-close map.
+    // Unlike Worker::pid, this identity does not change during asynchronous worker replacement.
+    sw_atomic_int32_t close_worker_pid;
     // Peer address copied before publication. Query snapshots do not need Socket ownership;
     // cross-role callers still validate the session under the slot lock before copying it.
     network::Address info;
@@ -221,6 +225,14 @@ struct Connection {
 
     void set_last_recv_time(double value) {
         sw_atomic_double_store_relaxed(&last_recv_time, value);
+    }
+
+    pid_t get_close_worker_pid() const {
+        return sw_atomic_load_acquire(const_cast<sw_atomic_int32_t *>(&close_worker_pid));
+    }
+
+    void set_close_worker_pid(pid_t pid) {
+        sw_atomic_store_release(&close_worker_pid, pid);
     }
 
     // Read predicate used by reactor and worker validation. Plain connections require no TLS
@@ -428,12 +440,23 @@ struct IncomingConnection {
 };
 
 struct ReactorThread {
+    struct WaitingClose {
+        pid_t worker_pid;
+        // Keep the original logical destination across reload and custom dispatch decisions.
+        WorkerId worker_id;
+    };
     int id;
     std::thread thread;
     network::Socket *notify_pipe = nullptr;
     uint64_t dispatch_count = 0;
     network::Socket *pipe_command = nullptr;
     TimerNode *heartbeat_timer = nullptr;
+    // PROCESS owner only. Reserve sessions until CLOSE is acknowledged or its worker is gone.
+    // The periodic timer checks new entries and manager exit notifications, never a close deadline.
+    std::unordered_map<SessionId, WaitingClose> waiting_close;
+    TimerNode *waiting_close_timer = nullptr;
+    uint32_t last_worker_exit_sequence = 0;
+    bool waiting_close_check_pending = false;
     // PROCESS: heartbeat sends per-session force-close requests; only the owner reactor reads them.
     // Keep both endpoints alive until the heartbeat and reactor threads have joined.
     std::unique_ptr<SocketPair> heartbeat_pipe;
@@ -446,6 +469,9 @@ struct ReactorThread {
                          ConnectionCloseReason reason = ConnectionCloseReason::SERVER_ERROR);
     void drain_pipe_buffers(Server *serv, int timeout_msec);
     void discard_pipe_buffers(const Server *serv);
+    bool track_waiting_close(Reactor *reactor, const Connection *conn, pid_t worker_pid, WorkerId worker_id);
+    void remove_waiting_close(SessionId session_id);
+    void check_waiting_close(Reactor *reactor);
     void clean();
 };
 
@@ -785,6 +811,9 @@ struct ServerGS {
     SessionId session_round;
     sw_atomic_t start;
     sw_atomic_t shutdown;
+    // Manager publishes after waitpid() confirms an exit, including detached reload workers.
+    // Each reactor remembers its own observed sequence; no shared acknowledgement counter.
+    sw_atomic_t worker_exit_sequence;
 
     int max_fd;
     int min_fd;

@@ -295,6 +295,11 @@ bool ProcessFactory::dispatch(SendData *task) {
     ReactorThread *thread = server_->get_thread(swoole_get_thread_id());
     MessageBus *mb = &thread->message_bus;
     Socket *sock = mb->get_pipe_socket(worker->pipe_master);
+    // Keep worker-exit bookkeeping off the normal receive dispatch path.
+    if (sw_unlikely(task->info.type == SW_SERVER_EVENT_CLOSE) &&
+        sw_unlikely(!thread->track_waiting_close(sw_reactor(), conn, worker->pid, worker->id))) {
+        return false;
+    }
     if (receive_data && task->info.len > 0) {
         // The worker process can consume this queue concurrently with the reactor producer.
         conn->add_recv_queued_bytes<Connection::ReceiveQueueMode::SHARED_PROCESS>(task->info.len);
@@ -304,7 +309,10 @@ bool ProcessFactory::dispatch(SendData *task) {
                          task->info.len,
                          conn->get_recv_queued_bytes());
     }
-    if (!mb->write(sock, &_task)) {
+    if (sw_unlikely(!mb->write(sock, &_task))) {
+        if (task->info.type == SW_SERVER_EVENT_CLOSE) {
+            thread->remove_waiting_close(conn->session_id);
+        }
         if (receive_data && task->info.len > 0) {
             conn->subtract_recv_queued_bytes<Connection::ReceiveQueueMode::SHARED_PROCESS>(task->info.len);
         }

@@ -41,7 +41,8 @@ $pm->childFunc = function () use ($pm, $closes, $retired) {
         'reactor_num' => 1,
         'enable_coroutine' => false,
         'heartbeat_check_interval' => 0,
-        'max_wait_time' => 1,
+        // Connection reclamation must not wait for this reload/shutdown timeout.
+        'max_wait_time' => 30,
         'log_file' => '/dev/null',
     ]);
     $server->on('workerStart', function (Server $server) use ($pm, $retired) {
@@ -52,6 +53,9 @@ $pm->childFunc = function () use ($pm, $closes, $retired) {
     });
     $server->on('receive', function (Server $server, int $fd) {
         Assert::true($server->send($fd, "ready\n"));
+    });
+    $server->on('workerExit', function () {
+        Swoole\Timer::clearAll();
     });
     $server->on('close', function () use ($closes) {
         Assert::same($closes->add(), 1);

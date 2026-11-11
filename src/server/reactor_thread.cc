@@ -162,6 +162,126 @@ _do_recvfrom:
     }
 }
 
+// PROCESS owner reactor only. Register before enqueueing CLOSE so a fast worker acknowledgement
+// cannot overtake registration. Defer all PID probes to the timer: a dead dispatch target must
+// not prevent enqueueing CLOSE, since a replacement worker can consume the same pipe.
+bool ReactorThread::track_waiting_close(Reactor *reactor,
+                                        const Connection *conn,
+                                        pid_t worker_pid,
+                                        WorkerId worker_id) {
+    const SessionId session_id = conn->session_id;
+    // Ordinary additions to a nonempty map do not restart a full scan. Only the first entry
+    // needs an initial check. Exceptions: an unpublished target PID needs a retry, or an
+    // already claimed CLOSE may belong to an exit sequence consumed before registration.
+    if (waiting_close.empty() || sw_unlikely(worker_pid <= 0) || sw_unlikely(conn->get_close_worker_pid() > 0)) {
+        waiting_close_check_pending = true;
+    }
+    waiting_close[session_id] = {worker_pid, worker_id};
+    if (!waiting_close_timer) {
+        // Wake even an otherwise idle reactor, without imposing a lifetime on any session.
+        waiting_close_timer = swoole_timer_add(1000L, true, [this, reactor](Timer *, TimerNode *node) {
+            if (sw_likely(waiting_close.empty())) {
+                // Keep one timer across bursts of promptly acknowledged closes. An idle
+                // tick retires it without a shared-sequence load or any process probes.
+                swoole_timer_del(node);
+                waiting_close_timer = nullptr;
+                return;
+            }
+            check_waiting_close(reactor);
+        });
+        if (sw_unlikely(!waiting_close_timer)) {
+            remove_waiting_close(session_id);
+            swoole_warning("failed to monitor worker exit for session#%ld", session_id);
+            return false;
+        }
+    }
+    return true;
+}
+
+// Owner only, including physical retirement. Leave timer deletion to its next idle callback,
+// so the next CLOSE can reuse it without another heap insertion or allocation.
+void ReactorThread::remove_waiting_close(SessionId session_id) {
+    waiting_close.erase(session_id);
+    if (waiting_close.empty()) {
+        waiting_close_check_pending = false;
+    }
+}
+
+// PROCESS owner reactor only. One atomic load per timer tick; only an actual manager-reaped
+// exit, the first entry or a necessary recovery check triggers a scan. No per-entry slot lock.
+void ReactorThread::check_waiting_close(Reactor *reactor) {
+    auto *serv = static_cast<Server *>(reactor->ptr);
+    const auto sequence = sw_atomic_load_acquire(&serv->gs->worker_exit_sequence);
+    if (sw_likely(sequence == last_worker_exit_sequence && !waiting_close_check_pending)) {
+        return;
+    }
+    // Snapshot before scanning: exits during the scan must trigger another pass next tick.
+    last_worker_exit_sequence = sequence;
+    waiting_close_check_pending = false;
+    std::unordered_map<pid_t, bool> live_processes;
+    const auto process_is_alive = [&live_processes](pid_t pid) {
+        auto process = live_processes.find(pid);
+        if (process == live_processes.end()) {
+            int result;
+            do {
+                result = swoole_kill(pid, 0);
+            } while (sw_unlikely(result < 0 && errno == EINTR));
+            // EPERM does not prove death, including with worker privilege isolation.
+            process = live_processes.emplace(pid, result == 0 || errno != ESRCH).first;
+        }
+        return process->second;
+    };
+    for (auto it = waiting_close.begin(); it != waiting_close.end();) {
+        const auto session_id = it->first;
+        auto &waiting = it->second;
+        auto *conn = serv->get_connection_verify_no_ssl(session_id);
+        ++it;  // close_connection() erases this session from waiting_close.
+        if (sw_unlikely(!conn || !conn->close_waiting_worker)) {
+            remove_waiting_close(session_id);
+            continue;
+        }
+        // A replacement can consume a queued CLOSE. Conversely, a yielding old worker can
+        // still own onClose after Worker::pid changes. The claim identifies its actual process.
+        const pid_t claimed_pid = conn->get_close_worker_pid();
+        if (claimed_pid > 0) {
+            waiting.worker_pid = claimed_pid;
+            if (!process_is_alive(claimed_pid)) {
+                Server::close_connection(reactor, conn->socket);
+            }
+            continue;
+        }
+        // An unclaimed CLOSE may still be queued, or a worker may have read it before
+        // crashing. Preserve the session and resend once to each replacement generation.
+        auto *worker = serv->get_worker(waiting.worker_id);
+        const pid_t replacement_pid = worker->pid;
+        if (replacement_pid <= 0 || replacement_pid == waiting.worker_pid) {
+            if (waiting.worker_pid <= 0 || !process_is_alive(waiting.worker_pid)) {
+                // The manager publishes exit before callbacks and replacement spawn.
+                // Recheck next tick even if no further process exits are reported.
+                waiting_close_check_pending = true;
+            }
+            continue;
+        }
+        // The old reload worker can still be alive when a newer pipe consumer dies before
+        // claiming CLOSE. A changed destination PID is sufficient for an idempotent resend.
+        SendData close{};
+        close.info.type = SW_SERVER_EVENT_CLOSE;
+        close.info.fd = session_id;
+        close.info.reactor_id = conn->reactor_id;
+        close.info.server_fd = conn->server_fd;
+        auto *pipe = message_bus.get_pipe_socket(worker->pipe_master);
+        if (sw_likely(message_bus.write(pipe, &close))) {
+            // Bypass scheduling: preserve the original logical worker even with custom
+            // dispatch. All original/repeated notifications share the same callback claim.
+            waiting.worker_pid = replacement_pid;
+        } else {
+            swoole_trace_log(SW_TRACE_SERVER, "failed to resend CLOSE for session#%ld", session_id);
+        }
+        // Also cover a replacement that exited before this resend was registered.
+        waiting_close_check_pending = true;
+    }
+}
+
 /**
  * Physical retirement, owning reactor only. Workers request CLOSE through Factory::end/finish_close;
  * they never free reactor sockets or edit readiness directly. The slot lock serializes retirement
@@ -209,11 +329,8 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         swoole_timer_del(conn->timer);
         conn->timer = nullptr;
     }
-    if (socket->close_timer) {
-        if (swoole_timer_is_available()) {
-            swoole_timer_del(socket->close_timer);
-        }
-        socket->close_timer = nullptr;
+    if (serv->is_process_mode()) {
+        serv->get_thread(reactor->id)->remove_waiting_close(conn->session_id);
     }
 
     if (conn->websocket_buffer) {
@@ -342,7 +459,7 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
     // Stop transport I/O immediately while reserving the fd/session for worker cleanup.
     socket->shutdown(SHUT_RDWR);
     // BASE/THREAD notification can enter PHP synchronously, which may close and reuse this slot.
-    // Resolve the original session again before scheduling its deadline or cleaning it up.
+    // Resolve the original session again before cleaning it up.
     bool notified;
     try {
         notified = notify(conn, SW_SERVER_EVENT_CLOSE);
@@ -355,25 +472,7 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
     }
     conn = get_connection_verify_no_ssl(session_id);
     if (notified) {
-        if (!conn || conn->socket != socket || !conn->close_waiting_worker) {
-            return SW_OK;
-        }
-        // The grace period starts after successful submission, independent of receive idle
-        // time. Repeated close requests return above without extending this deadline.
-        const int64_t wait_seconds = std::max<int64_t>(1, max_wait_time + 2LL * heartbeat_check_interval);
-        const auto delay = static_cast<long>(std::min<int64_t>(wait_seconds * 1000, INT_MAX));
-        socket->close_timer =
-            swoole_timer_add(delay, false, [this, reactor, session_id, reason](Timer *, TimerNode *node) {
-                auto *conn = get_connection_verify_no_ssl(session_id);
-                if (conn && conn->socket->close_timer == node) {
-                    request_force_close(reactor, conn, reason);
-                }
-            });
-        if (socket->close_timer) {
-            return SW_OK;
-        }
-        swoole_warning("failed to queue close deadline for session#%ld", session_id);
-        return close_connection(reactor, socket);
+        return SW_OK;
     }
     // Failed enqueue cannot produce an acknowledgement. Release instead of stranding an unregistered fd.
     if (conn && conn->socket == socket) {
@@ -387,8 +486,8 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
 }
 
 // Owning reactor only. First stop polling and notify the worker through request_close().
-// Retire after callback dispatch or expiry of the single notification deadline. The timer
-// also invokes this API when heartbeat is disabled or a worker exits while dispatching.
+// Retire after callback dispatch. PROCESS worker death is handled by its owner's waiting map;
+// elapsed time alone must never retire a session while a live worker still owes onClose.
 int Server::request_force_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason) const {
     if (!conn || !conn->active) {
         return SW_OK;
@@ -398,9 +497,7 @@ int Server::request_force_close(Reactor *reactor, Connection *conn, ConnectionCl
         const bool callback_dispatched =
             conn->close_callback_state == CloseCallbackState::DISPATCHED || (!onClose && conn->close_worker_started);
         sw_spinlock_release(&conn->lock);
-        const auto *deadline = conn->socket->close_timer;
-        const bool deadline_expired = deadline && deadline->exec_msec <= sw_timer()->get_relative_msec();
-        return callback_dispatched || deadline_expired ? close_connection(reactor, conn->socket) : SW_OK;
+        return callback_dispatched ? close_connection(reactor, conn->socket) : SW_OK;
     }
     return request_close(reactor, conn, reason);
 }
@@ -970,6 +1067,12 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 void ReactorThread::clean() {
     // Pair with init() in the reactor's execution context. Native output queues have a separate
     // lifetime: reload hands them to the next worker, while final shutdown drains them before release.
+    waiting_close.clear();
+    waiting_close_check_pending = false;
+    if (waiting_close_timer && swoole_timer_is_available()) {
+        swoole_timer_del(waiting_close_timer);
+    }
+    waiting_close_timer = nullptr;
     message_bus.free_buffer();
 }
 

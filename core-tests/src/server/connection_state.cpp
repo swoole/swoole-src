@@ -210,12 +210,8 @@ TEST_F(ConnectionState, repeated_force_preserves_session_and_output_after_shutdo
     conn->send_queued_bytes = 7;
     ASSERT_EQ(server->request_force_close(reactor.get(), conn, ConnectionCloseReason::IDLE_TIMEOUT), SW_OK);
     ASSERT_EQ(factory->notifications, 1u);
-    auto *deadline = socket->close_timer;
-    ASSERT_NE(deadline, nullptr);
-    const auto deadline_id = deadline->id;
     EXPECT_TRUE(conn->is_close_aborting());
     ASSERT_EQ(server->request_force_close(reactor.get(), conn, ConnectionCloseReason::IDLE_TIMEOUT), SW_OK);
-    EXPECT_EQ(socket->close_timer, deadline);
     EXPECT_TRUE(socket->removed);
     ASSERT_NE(socket->out_buffer, nullptr);
     EXPECT_EQ(socket->out_buffer->length(), 7u);
@@ -228,7 +224,6 @@ TEST_F(ConnectionState, repeated_force_preserves_session_and_output_after_shutdo
     EXPECT_EQ(::recv(socket->fd, &byte, 1, MSG_DONTWAIT), 0);
     EXPECT_FALSE(socket->recv_eof);
     EXPECT_TRUE(server->finish_close(id, 0));
-    EXPECT_EQ(swoole_timer_get(deadline_id), nullptr);
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
     EXPECT_EQ(callbacks, 1u);
     EXPECT_FALSE(server->finish_close(id, 0));
@@ -409,31 +404,6 @@ TEST_F(ConnectionState, heartbeat_keeps_the_session_beyond_the_old_close_deadlin
     EXPECT_TRUE(server->finish_close(id, 0));
     EXPECT_EQ(callbacks, 1u);
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
-}
-
-TEST_F(ConnectionState, close_deadline_reclaims_a_worker_stuck_during_callback_dispatch_without_heartbeat) {
-    auto *conn = connect();
-    ASSERT_NE(conn, nullptr);
-    const auto id = conn->session_id;
-    server->heartbeat_check_interval = 0;
-    server->max_wait_time = 1;
-    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
-    auto *deadline = conn->socket->close_timer;
-    ASSERT_NE(deadline, nullptr);
-    const auto deadline_id = deadline->id;
-    // Model a worker that consumed CLOSE and died before returning its acknowledgement.
-    conn->close_worker_started = true;
-    conn->close_worker_claimed = true;
-    conn->close_callback_state = CloseCallbackState::DISPATCHING;
-    EXPECT_EQ(server->request_force_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
-    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
-    swoole_timer_delay(deadline, 0);
-    reactor->execute_end_callbacks();
-    reactor->execute_end_callbacks();
-    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
-    EXPECT_EQ(swoole_timer_get(deadline_id), nullptr);
-    EXPECT_EQ(conn->close_reason, static_cast<sw_atomic_t>(ConnectionCloseReason::PEER_EOF));
-    EXPECT_EQ(factory->notifications, 1u);
 }
 
 TEST_F(ConnectionState, stale_force_command_cannot_close_a_reused_descriptor) {
@@ -1021,6 +991,31 @@ class ConnectionHandoff : public ConnectionState {
   protected:
     uint8_t saved_thread_type = 0;
     uint16_t saved_thread_id = 0;
+    std::vector<pid_t> child_workers;
+
+    pid_t start_worker() {
+        const pid_t pid = ::fork();
+        if (pid == 0) {
+            while (true) {
+                ::pause();
+            }
+        }
+        if (pid > 0) {
+            child_workers.push_back(pid);
+        }
+        return pid;
+    }
+
+    bool stop_worker(pid_t pid) {
+        ::kill(pid, SIGKILL);
+        int status;
+        pid_t result;
+        do {
+            result = ::waitpid(pid, &status, 0);
+        } while (result < 0 && errno == EINTR);
+        child_workers.erase(std::remove(child_workers.begin(), child_workers.end(), pid), child_workers.end());
+        return result == pid;
+    }
 
     Server::Mode server_mode() const override {
         return Server::MODE_PROCESS;
@@ -1055,15 +1050,447 @@ class ConnectionHandoff : public ConnectionState {
     }
 
     void TearDown() override {
+        while (!child_workers.empty()) {
+            stop_worker(child_workers.back());
+        }
         if (server) {
             server->discard_reactor_output(server->message_bus);
             server->discard_incoming_connections();
+            // Production cleans each ReactorThread on its owner before destroying the reactor.
+            server->get_thread(0)->clean();
         }
         ConnectionState::TearDown();
         swoole_set_thread_type(saved_thread_type);
         swoole_set_thread_id(saved_thread_id);
     }
 };
+
+TEST_F(ConnectionHandoff, worker_exit_reclaims_dispatching_close_without_heartbeat) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    auto *thread = server->get_thread(0);
+    const pid_t pid = start_worker();
+    ASSERT_GT(pid, 0);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), conn, pid, 0));
+    conn->close_worker_started = true;
+    conn->close_worker_claimed = true;
+    conn->set_close_worker_pid(pid);
+    conn->close_callback_state = CloseCallbackState::DISPATCHING;
+    const auto timer_id = thread->waiting_close_timer->id;
+    // An unrelated exit and repeated force requests cannot reclaim a live worker's callback.
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->request_force_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    ASSERT_TRUE(stop_worker(pid));
+    // Detached workers also publish normal exits; they no longer appear in the worker pool.
+    server->detached_processes.insert(pid);
+    EXPECT_EQ(server->restart_worker_process(ExitStatus(pid, 0)), SW_ERR);
+    EXPECT_EQ(server->gs->worker_exit_sequence, 2u);
+    auto *timer = thread->waiting_close_timer;
+    ASSERT_NE(timer, nullptr);
+    swoole_timer_delay(timer, 0);
+    reactor->execute_end_callbacks();
+    reactor->execute_end_callbacks();
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_TRUE(thread->waiting_close.empty());
+    ASSERT_EQ(thread->waiting_close_timer, timer);
+    // Reclamation emptied the map during this tick; the next idle tick deletes the timer.
+    swoole_timer_delay(timer, 0);
+    reactor->execute_end_callbacks();
+    reactor->execute_end_callbacks();
+    EXPECT_EQ(thread->waiting_close_timer, nullptr);
+    EXPECT_EQ(swoole_timer_get(timer_id), nullptr);
+    EXPECT_EQ(callbacks, 0u);
+}
+
+TEST_F(ConnectionHandoff, promptly_acknowledged_closes_share_a_timer_until_an_idle_tick) {
+    prepare_process_dispatch();
+    server->get_worker(0)->pid = getpid();
+    auto *thread = server->get_thread(0);
+    TimerNode *monitor = nullptr;
+    int64_t timer_id = 0;
+    for (size_t i = 0; i < 6; i++) {
+        auto *conn = connect();
+        ASSERT_NE(conn, nullptr);
+        const auto id = conn->session_id;
+        server->factory_ = original_factory;
+        const auto result = server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF);
+        server->factory_ = factory.get();
+        ASSERT_EQ(result, SW_OK);
+        ASSERT_EQ(thread->waiting_close.size(), 1u);
+        EXPECT_EQ(thread->waiting_close.at(id).worker_pid, getpid());
+        ASSERT_NE(thread->waiting_close_timer, nullptr);
+        if (i == 0) {
+            monitor = thread->waiting_close_timer;
+            timer_id = monitor->id;
+        }
+        EXPECT_EQ(thread->waiting_close_timer, monitor);
+        EXPECT_EQ(thread->waiting_close_timer->id, timer_id);
+        EXPECT_TRUE(server->finish_close(id, 0));
+        EXPECT_EQ(conn->get_close_worker_pid(), getpid());
+        EXPECT_EQ(callbacks, i + 1);
+        EXPECT_TRUE(thread->waiting_close.empty());
+        EXPECT_FALSE(thread->waiting_close_check_pending);
+        EXPECT_EQ(thread->waiting_close_timer, monitor);
+        EXPECT_EQ(swoole_timer_get(timer_id), monitor);
+    }
+    // An empty-map callback must self-delete without needing an exit sequence change.
+    const auto sequence = thread->last_worker_exit_sequence;
+    swoole_timer_delay(monitor, 0);
+    reactor->execute_end_callbacks();
+    reactor->execute_end_callbacks();
+    EXPECT_EQ(thread->waiting_close_timer, nullptr);
+    EXPECT_EQ(swoole_timer_get(timer_id), nullptr);
+    EXPECT_EQ(thread->last_worker_exit_sequence, sequence);
+    auto *next = connect();
+    ASSERT_NE(next, nullptr);
+    ASSERT_EQ(server->request_close(reactor.get(), next, ConnectionCloseReason::PEER_EOF), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), next, getpid(), 0));
+    ASSERT_NE(thread->waiting_close_timer, nullptr);
+    EXPECT_NE(thread->waiting_close_timer->id, timer_id);
+    EXPECT_TRUE(server->finish_close(next->session_id, 0));
+}
+
+TEST_F(ConnectionHandoff, queued_close_survives_target_exit_until_a_replacement_claims_it) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    const pid_t pid = start_worker();
+    ASSERT_GT(pid, 0);
+    ASSERT_TRUE(stop_worker(pid));
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    auto *thread = server->get_thread(0);
+    thread->check_waiting_close(reactor.get());
+    prepare_process_dispatch();
+    server->get_worker(0)->pid = pid;
+    server->factory_ = original_factory;
+    const auto result = server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF);
+    server->factory_ = factory.get();
+    EXPECT_EQ(result, SW_OK);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    ASSERT_EQ(thread->waiting_close.size(), 1u);
+    EXPECT_EQ(thread->waiting_close.at(id).worker_pid, pid);
+    // The original PID is gone and its exit was already observed before registration.
+    // Neither enqueueing nor the timer may retire an unclaimed CLOSE.
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    EXPECT_EQ(callbacks, 0u);
+    // The replacement consumes the original notification from the surviving worker pipe.
+    server->get_worker(0)->pid = getpid();
+    auto &receiver = server->message_bus;
+    ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
+    EXPECT_EQ(receiver.get_buffer()->info.type, SW_SERVER_EVENT_CLOSE);
+    EXPECT_EQ(receiver.get_buffer()->info.fd, id);
+    server->worker_accept_event(&receiver.get_buffer()->info);
+    receiver.pop();
+    EXPECT_EQ(callbacks, 1u);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_TRUE(thread->waiting_close.empty());
+    EXPECT_NE(thread->waiting_close_timer, nullptr);
+}
+
+TEST_F(ConnectionHandoff, consumed_unclaimed_close_is_resent_after_replacement_publication) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    const pid_t pid = start_worker();
+    ASSERT_GT(pid, 0);
+    prepare_process_dispatch();
+    server->get_worker(0)->pid = pid;
+    server->factory_ = original_factory;
+    const auto result = server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF);
+    server->factory_ = factory.get();
+    ASSERT_EQ(result, SW_OK);
+    auto &receiver = server->message_bus;
+    ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
+    // Simulate death between reading the datagram and claiming CLOSE.
+    receiver.pop();
+    ASSERT_EQ(conn->get_close_worker_pid(), 0);
+    ASSERT_TRUE(stop_worker(pid));
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    auto *thread = server->get_thread(0);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    EXPECT_TRUE(thread->waiting_close_check_pending);
+    // The manager publishes the replacement later, without another exit notification.
+    server->get_worker(0)->pid = getpid();
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(thread->waiting_close.at(id).worker_pid, getpid());
+    EXPECT_EQ(thread->waiting_close.at(id).worker_id, 0);
+    ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
+    DataHead retry = receiver.get_buffer()->info;
+    receiver.pop();
+    EXPECT_EQ(retry.type, SW_SERVER_EVENT_CLOSE);
+    EXPECT_EQ(retry.fd, id);
+    // A second check for the same live replacement cannot queue another resend.
+    thread->check_waiting_close(reactor.get());
+    DataHead probe{};
+    EXPECT_EQ(::recv(server->get_worker_pipe_worker(0)->fd, &probe, sizeof(probe), MSG_DONTWAIT), -1);
+    EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
+    server->worker_accept_event(&retry);
+    EXPECT_EQ(callbacks, 1u);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_TRUE(thread->waiting_close.empty());
+}
+
+TEST_F(ConnectionHandoff, unclaimed_close_is_resent_even_while_the_old_reload_worker_is_alive) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    const pid_t old_pid = start_worker();
+    ASSERT_GT(old_pid, 0);
+    prepare_process_dispatch();
+    server->get_worker(0)->pid = old_pid;
+    server->factory_ = original_factory;
+    const auto result = server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF);
+    server->factory_ = factory.get();
+    ASSERT_EQ(result, SW_OK);
+    auto &receiver = server->message_bus;
+    ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
+    receiver.pop();
+    // A newer pipe consumer has died before claiming CLOSE. Its replacement is ready,
+    // while the original asynchronous-reload process has not exited yet.
+    server->get_worker(0)->pid = getpid();
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    auto *thread = server->get_thread(0);
+    thread->check_waiting_close(reactor.get());
+    ASSERT_EQ(::kill(old_pid, 0), 0);
+    ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
+    server->worker_accept_event(&receiver.get_buffer()->info);
+    receiver.pop();
+    EXPECT_EQ(callbacks, 1u);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_TRUE(thread->waiting_close.empty());
+}
+
+TEST_F(ConnectionHandoff, queued_original_and_resent_close_share_one_callback_claim) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    const pid_t pid = start_worker();
+    ASSERT_GT(pid, 0);
+    prepare_process_dispatch();
+    server->get_worker(0)->pid = pid;
+    server->factory_ = original_factory;
+    const auto result = server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF);
+    server->factory_ = factory.get();
+    ASSERT_EQ(result, SW_OK);
+    ASSERT_TRUE(stop_worker(pid));
+    server->get_worker(0)->pid = getpid();
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    auto *thread = server->get_thread(0);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    factory->defer_close_command = true;
+    auto &receiver = server->message_bus;
+    for (int i = 0; i < 2; i++) {
+        ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
+        EXPECT_EQ(receiver.get_buffer()->info.type, SW_SERVER_EVENT_CLOSE);
+        EXPECT_EQ(receiver.get_buffer()->info.fd, id);
+        server->worker_accept_event(&receiver.get_buffer()->info);
+        receiver.pop();
+        EXPECT_EQ(callbacks, 1u);
+    }
+    EXPECT_EQ(factory->close_commands.load(), 1u);
+    EXPECT_EQ(control(conn, SW_SERVER_EVENT_CLOSE), SW_OK);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_TRUE(thread->waiting_close.empty());
+}
+
+TEST_F(ConnectionHandoff, ordinary_additions_to_a_nonempty_waiting_map_do_not_restart_scanning) {
+    auto *first = connect();
+    ASSERT_NE(first, nullptr);
+    auto *thread = server->get_thread(0);
+    server->get_worker(0)->pid = getpid();
+    ASSERT_EQ(server->request_close(reactor.get(), first, ConnectionCloseReason::PEER_EOF), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), first, getpid(), 0));
+    thread->check_waiting_close(reactor.get());
+    ASSERT_FALSE(thread->waiting_close_check_pending);
+    auto *second = connect();
+    ASSERT_NE(second, nullptr);
+    const auto second_id = second->session_id;
+    ASSERT_EQ(server->request_close(reactor.get(), second, ConnectionCloseReason::PEER_EOF), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), second, getpid(), 0));
+    EXPECT_FALSE(thread->waiting_close_check_pending);
+    // The second worker claims CLOSE and exits after registration. Until the manager
+    // publishes that exit, an unchanged sequence must leave both sessions untouched.
+    const pid_t pid = start_worker();
+    ASSERT_GT(pid, 0);
+    second->close_worker_started = true;
+    second->close_worker_claimed = true;
+    second->set_close_worker_pid(pid);
+    second->close_callback_state = CloseCallbackState::DISPATCHING;
+    ASSERT_TRUE(stop_worker(pid));
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(second_id), second);
+    EXPECT_EQ(thread->waiting_close.size(), 2u);
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(second_id), nullptr);
+    EXPECT_EQ(thread->waiting_close.size(), 1u);
+    EXPECT_TRUE(first->active);
+    EXPECT_TRUE(server->finish_close(first->session_id, 0));
+}
+
+TEST_F(ConnectionHandoff, late_claimed_registration_is_checked_even_when_the_map_is_nonempty) {
+    auto *first = connect();
+    ASSERT_NE(first, nullptr);
+    auto *thread = server->get_thread(0);
+    server->get_worker(0)->pid = getpid();
+    ASSERT_EQ(server->request_close(reactor.get(), first, ConnectionCloseReason::PEER_EOF), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), first, getpid(), 0));
+    thread->check_waiting_close(reactor.get());
+    auto *late = connect();
+    ASSERT_NE(late, nullptr);
+    const auto late_id = late->session_id;
+    const pid_t pid = start_worker();
+    ASSERT_GT(pid, 0);
+    // An active onClose was claimed before the reactor began its own close stage.
+    late->close_worker_started = true;
+    late->close_worker_claimed = true;
+    late->set_close_worker_pid(pid);
+    late->close_callback_state = CloseCallbackState::DISPATCHING;
+    late->begin_close(ConnectionCloseReason::APPLICATION);
+    ASSERT_TRUE(stop_worker(pid));
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    thread->check_waiting_close(reactor.get());
+    ASSERT_EQ(thread->last_worker_exit_sequence, 1u);
+    ASSERT_FALSE(thread->waiting_close_check_pending);
+    ASSERT_EQ(server->request_close(reactor.get(), late, ConnectionCloseReason::PEER_EOF), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), late, getpid(), 0));
+    EXPECT_TRUE(thread->waiting_close_check_pending);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(late_id), nullptr);
+    EXPECT_TRUE(first->active);
+    EXPECT_EQ(thread->waiting_close.size(), 1u);
+    EXPECT_TRUE(server->finish_close(first->session_id, 0));
+}
+
+TEST_F(ConnectionHandoff, unpublished_worker_pid_preserves_close_and_retries_after_publication) {
+    prepare_process_dispatch();
+    auto *thread = server->get_thread(0);
+    for (const pid_t unknown_pid : {0, -1}) {
+        auto *conn = connect();
+        ASSERT_NE(conn, nullptr);
+        const auto id = conn->session_id;
+        server->get_worker(0)->pid = unknown_pid;
+        server->factory_ = original_factory;
+        const auto result = server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF);
+        server->factory_ = factory.get();
+        ASSERT_EQ(result, SW_OK);
+        EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+        EXPECT_EQ(thread->waiting_close.at(id).worker_pid, unknown_pid);
+        auto &receiver = server->message_bus;
+        ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
+        receiver.pop();  // Model the read-before-claim crash window.
+        thread->check_waiting_close(reactor.get());
+        // Nonpositive PIDs must request a retry, never kill(0, 0) or kill(-1, 0).
+        EXPECT_TRUE(thread->waiting_close_check_pending);
+        EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+        server->get_worker(0)->pid = getpid();
+        thread->check_waiting_close(reactor.get());
+        ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
+        server->worker_accept_event(&receiver.get_buffer()->info);
+        receiver.pop();
+        EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+        EXPECT_TRUE(thread->waiting_close.empty());
+    }
+    EXPECT_EQ(callbacks, 2u);
+}
+
+TEST_F(ConnectionHandoff, new_registration_rechecks_a_claimed_worker_with_an_already_observed_exit) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    const pid_t pid = start_worker();
+    ASSERT_GT(pid, 0);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    conn->close_worker_started = true;
+    conn->set_close_worker_pid(pid);
+    conn->close_callback_state = CloseCallbackState::DISPATCHING;
+    ASSERT_TRUE(stop_worker(pid));
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    auto *thread = server->get_thread(0);
+    thread->check_waiting_close(reactor.get());
+    ASSERT_EQ(thread->last_worker_exit_sequence, 1u);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), conn, getpid(), 0));
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_TRUE(thread->waiting_close.empty());
+    EXPECT_NE(thread->waiting_close_timer, nullptr);
+    EXPECT_FALSE(thread->waiting_close_check_pending);
+}
+
+TEST_F(ConnectionHandoff, replacement_claim_preserves_a_live_callback_when_the_original_target_exits) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    const pid_t old_pid = start_worker();
+    ASSERT_GT(old_pid, 0);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    auto *thread = server->get_thread(0);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), conn, old_pid, 0));
+    factory->defer_close_command = true;
+    ASSERT_TRUE(server->finish_close(id, 0));
+    ASSERT_EQ(conn->get_close_worker_pid(), getpid());
+    ASSERT_TRUE(stop_worker(old_pid));
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    EXPECT_EQ(thread->waiting_close.at(id).worker_pid, getpid());
+    EXPECT_EQ(callbacks, 1u);
+    EXPECT_EQ(control(conn, SW_SERVER_EVENT_CLOSE), SW_OK);
+    EXPECT_TRUE(thread->waiting_close.empty());
+}
+
+TEST_F(ConnectionHandoff, old_callback_owner_exit_is_detected_even_when_the_dispatch_target_is_alive) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    const pid_t old_pid = start_worker();
+    ASSERT_GT(old_pid, 0);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    auto *thread = server->get_thread(0);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), conn, getpid(), 0));
+    conn->close_worker_started = true;
+    conn->set_close_worker_pid(old_pid);
+    conn->close_callback_state = CloseCallbackState::DISPATCHING;
+    ASSERT_TRUE(stop_worker(old_pid));
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_TRUE(thread->waiting_close.empty());
+    EXPECT_EQ(callbacks, 0u);
+}
+
+TEST_F(ConnectionHandoff, waiting_close_cleanup_rejects_a_reused_descriptor) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto old_id = conn->session_id;
+    const auto old_fd = conn->fd;
+    auto *thread = server->get_thread(0);
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), conn, getpid(), 0));
+    ASSERT_NE(open_peer(), nullptr);
+    ASSERT_EQ(Server::close_connection(reactor.get(), conn->socket), SW_OK);
+    reactor->execute_end_callbacks();
+    ASSERT_TRUE(thread->waiting_close.empty());
+    auto *replacement = accept_connection();
+    ASSERT_NE(replacement, nullptr);
+    ASSERT_EQ(replacement->fd, old_fd);
+    EXPECT_EQ(replacement->get_close_worker_pid(), 0);
+    // Even a stale entry must resolve its original session, never the replacement fd.
+    thread->waiting_close.emplace(old_id, ReactorThread::WaitingClose{getpid(), 0});
+    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    thread->check_waiting_close(reactor.get());
+    EXPECT_TRUE(thread->waiting_close.empty());
+    EXPECT_TRUE(replacement->active);
+    EXPECT_FALSE(replacement->is_close_requested());
+}
 
 void initialize_handoff_bus(MessageBus &bus) {
     bus.set_buffer_size(SW_IPC_BUFFER_SIZE);
