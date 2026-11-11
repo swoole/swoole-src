@@ -932,6 +932,8 @@ class ThreadFactory : public BaseFactory {
     std::queue<Worker *> queue_;
     bool reload_all_workers = false;
     sw_atomic_t reloading = 0;
+    // User worker threads can't be stopped, so once shutdown begins the manager no longer replaces them.
+    sw_atomic_t shutting_down = 0;
     std::shared_ptr<ThreadReloadTask> reload_task;
     void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
@@ -951,6 +953,9 @@ class ThreadFactory : public BaseFactory {
     void spawn_user_worker(WorkerId i);
     void spawn_manager_thread(WorkerId i);
     void terminate_manager_thread();
+    void begin_shutdown() {
+        sw_atomic_store_release(&shutting_down, 1);
+    }
     void wait();
     bool reload(bool reload_all_workers);
     bool start() override;
