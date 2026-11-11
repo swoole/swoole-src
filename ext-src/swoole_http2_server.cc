@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "swoole_static_handler.h"
+#include "swoole_coroutine_channel.h"
 
 #include "main/php_variables.h"
 
@@ -44,6 +45,43 @@ static SW_THREAD_LOCAL std::unordered_map<SessionId, std::shared_ptr<Http2Sessio
 static bool http2_server_respond(HttpContext *ctx, const String *body);
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler);
 static bool http2_server_send_status_code(HttpContext *ctx, int status_code);
+static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &session, const Http2Stream *stream);
+
+// In the coroutine server each stream's handler runs in its own coroutine. One of them at a time owns the
+// connection's writes, from building a frame (HPACK state, the socket's write buffer) until the frame is sent.
+class Http2WriteLock {
+    std::shared_ptr<Http2Session> session_;
+
+  public:
+    bool lock(const std::shared_ptr<Http2Session> &session) {
+        if (session->write_owner == Coroutine::get_current_cid()) {
+            return true;
+        }
+        if (!session->write_lock->push(nullptr)) {
+            return false;
+        }
+        session->write_owner = Coroutine::get_current_cid();
+        session_ = session;
+        return true;
+    }
+
+    // A stream's frame also needs the stream to still be open after waiting.
+    bool lock(const Http2Stream *stream) {
+        auto iter = http2_sessions.find(stream->ctx->fd);
+        if (iter == http2_sessions.end()) {
+            return false;
+        }
+        auto session = iter->second;
+        return lock(session) && http2_server_check_stream(session, stream);
+    }
+
+    ~Http2WriteLock() {
+        if (session_) {
+            session_->write_owner = 0;
+            session_->write_lock->pop();
+        }
+    }
+};
 
 Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
@@ -593,6 +631,24 @@ static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const
     return rv;
 }
 
+bool swoole_http2_server_coro_send(HttpContext *ctx, const char *data, size_t length) {
+    auto iter = http2_sessions.find(ctx->fd);
+    if (iter == http2_sessions.end()) {
+        return false;
+    }
+    auto session = iter->second;
+    Http2WriteLock lock;
+    if (!lock.lock(session)) {
+        return false;
+    }
+    if (ctx->get_co_socket()->send_all(data, length) != (ssize_t) length) {
+        // Part of a frame may have been sent, so no other stream can write after it
+        ctx->close(ctx);
+        return false;
+    }
+    return true;
+}
+
 bool swoole_http2_server_ping(HttpContext *ctx) {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE] = {};
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
@@ -653,6 +709,10 @@ bool Http2Stream::send_header_block(const String *frame) const {
 }
 
 bool Http2Stream::send_header(const String *body, bool end_stream) const {
+    Http2WriteLock lock;
+    if (ctx->is_co_socket() && !lock.lock(this)) {
+        return false;
+    }
     String *http_buffer = ctx->get_write_buffer();
     ssize_t bytes = http2_server_build_header(ctx, http_buffer, body);
     if (bytes < 0) {
@@ -694,6 +754,10 @@ bool Http2Stream::send_header(const String *body, bool end_stream) const {
 }
 
 bool Http2Stream::send_end_stream_data_frame(const std::shared_ptr<Http2Session> &session) const {
+    Http2WriteLock lock;
+    if (ctx->is_co_socket() && !lock.lock(session)) {
+        return false;
+    }
     if (session->get_stream(id).get() != this) {
         swoole_set_last_error(SW_ERROR_HTTP2_STREAM_NOT_FOUND);
         return false;
@@ -703,7 +767,7 @@ bool Http2Stream::send_end_stream_data_frame(const std::shared_ptr<Http2Session>
     return send_frame(frame_header, sizeof(frame_header), true);
 }
 
-static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &session, Http2Stream *stream) {
+static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &session, const Http2Stream *stream) {
     if (session->get_stream(stream->id).get() == stream) {
         return true;
     }
@@ -783,6 +847,10 @@ bool Http2Stream::send_body(
 #endif
 
     while (l > 0) {
+        Http2WriteLock lock;
+        if (ctx->is_co_socket() && (!lock.lock(session) || !http2_server_check_stream(session, this))) {
+            return false;
+        }
         // The peer may update its frame limit while a flow-control wait yields.
         auto max_frame_size = std::min(session->remote_settings.max_frame_size, max_payload);
         size_t send_n;
@@ -854,6 +922,10 @@ bool Http2Stream::send_body(
 }
 
 bool Http2Stream::send_trailer() const {
+    Http2WriteLock lock;
+    if (ctx->is_co_socket() && !lock.lock(this)) {
+        return false;
+    }
     String *http_buffer = ctx->get_write_buffer();
 
     http_buffer->clear();
