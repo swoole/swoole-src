@@ -103,7 +103,18 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ip
     /**
      * Shared memory is used here
      */
-    workers = static_cast<Worker *>(sw_mem_pool()->alloc(_worker_num * sizeof(Worker)));
+    const size_t workers_size = static_cast<size_t>(_worker_num) * sizeof(Worker);
+    if (workers_size > UINT32_MAX) {
+        swoole_warning("worker_num[%u] is too large", _worker_num);
+        return SW_ERR;
+    }
+    try {
+        workers = static_cast<Worker *>(sw_mem_pool()->alloc(static_cast<uint32_t>(workers_size)));
+    } catch (const std::exception &e) {
+        // The global pool serves small allocations only and reports oversized requests by exception.
+        swoole_warning("worker_num[%u] is too large: %s", _worker_num, e.what());
+        return SW_ERR;
+    }
     if (workers == nullptr) {
         swoole_sys_warning("malloc[1] failed");
         return SW_ERR;
