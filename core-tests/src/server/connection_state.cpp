@@ -1154,6 +1154,42 @@ TEST_F(ConnectionHandoff, promptly_acknowledged_closes_share_a_timer_until_an_id
     EXPECT_TRUE(server->finish_close(next->session_id, 0));
 }
 
+TEST_F(ConnectionHandoff, shutdown_cancels_close_monitor_and_late_close_cannot_restart_it) {
+    auto *waiting = connect();
+    auto *late = connect();
+    ASSERT_NE(waiting, nullptr);
+    ASSERT_NE(late, nullptr);
+    const auto waiting_id = waiting->session_id;
+    auto *thread = server->get_thread(0);
+    prepare_process_dispatch();
+    auto *pipe = thread->message_bus.get_pipe_socket(server->get_worker_pipe_master(0));
+    reactor->set_handler(SW_FD_PIPE, SW_EVENT_READ, [](Reactor *, Event *) -> int { return SW_OK; });
+    ASSERT_EQ(reactor->add(pipe, SW_EVENT_READ), SW_OK);
+    ASSERT_EQ(server->request_close(reactor.get(), waiting, ConnectionCloseReason::PEER_EOF), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), waiting, getpid(), 0));
+    ASSERT_NE(thread->waiting_close_timer, nullptr);
+    const auto timer_id = thread->waiting_close_timer->id;
+    // Run shutdown's connection cleanup while Server is still alive, as production does.
+    ON_SCOPE_EXIT {
+        reactor.reset();
+        SwooleTG.reactor = nullptr;
+    };
+    thread->shutdown(reactor.get());
+    EXPECT_TRUE(reactor->wait_exit);
+    EXPECT_EQ(thread->waiting_close_timer, nullptr);
+    EXPECT_EQ(swoole_timer_get(timer_id), nullptr);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(waiting_id), waiting);
+    EXPECT_EQ(thread->waiting_close.size(), 1u);
+    EXPECT_TRUE(reactor->if_exit());
+    // Output can fail while shutdown drains it. Preserve notification/retirement, but
+    // never create another periodic timer after worker-pipe reads have been removed.
+    ASSERT_EQ(server->request_close(reactor.get(), late, ConnectionCloseReason::IO_ERROR), SW_OK);
+    ASSERT_TRUE(thread->track_waiting_close(reactor.get(), late, getpid(), 0));
+    EXPECT_EQ(thread->waiting_close_timer, nullptr);
+    EXPECT_EQ(thread->waiting_close.size(), 2u);
+    EXPECT_TRUE(reactor->if_exit());
+}
+
 TEST_F(ConnectionHandoff, queued_close_survives_target_exit_until_a_replacement_claims_it) {
     auto *conn = connect();
     ASSERT_NE(conn, nullptr);

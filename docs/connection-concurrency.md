@@ -249,6 +249,13 @@ exit sequence or probing PIDs. This avoids per-connection timer allocation and
 heap insertion/removal when CLOSE is promptly acknowledged. Reactor cleanup still
 cancels the timer immediately. The interval never imposes a deadline on onClose.
 
+PROCESS reactor shutdown cancels this monitor before removing worker-pipe READ
+interest. Otherwise an outstanding CLOSE could keep the reactor alive forever:
+its acknowledgement is no longer consumed, and worker shutdown itself waits for
+the reactors to join. Late output errors may still notify CLOSE while draining,
+but cannot recreate the monitor once wait_exit is set. The reactor destroy
+callback retires the remaining sessions after output drains.
+
 On a changed sequence or a necessary recovery check the owner scans only its
 waiting map, resolves each original session, loads the actual callback owner
 atomically without taking the slot lock, and probes each distinct PID once with

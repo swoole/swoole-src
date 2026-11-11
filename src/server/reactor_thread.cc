@@ -177,7 +177,9 @@ bool ReactorThread::track_waiting_close(Reactor *reactor,
         waiting_close_check_pending = true;
     }
     waiting_close[session_id] = {worker_pid, worker_id};
-    if (!waiting_close_timer) {
+    // Shutdown stops consuming worker replies and retires sessions in the reactor's destroy
+    // callback. A late write error must not restart a monitor that would prevent that exit.
+    if (!waiting_close_timer && !reactor->wait_exit) {
         // Wake even an otherwise idle reactor, without imposing a lifetime on any session.
         waiting_close_timer = swoole_timer_add(1000L, true, [this, reactor](Timer *, TimerNode *node) {
             if (sw_likely(waiting_close.empty())) {
@@ -524,6 +526,13 @@ void ReactorThread::shutdown(Reactor *reactor) {
     if (heartbeat_timer) {
         swoole_timer_del(heartbeat_timer);
         heartbeat_timer = nullptr;
+    }
+    if (waiting_close_timer) {
+        // Worker pipes stop being read below, so pending CLOSE acknowledgements cannot
+        // empty this map. Workers are stopped only after reactor threads have joined.
+        // Cancel the monitor now; the destroy callback retires sessions after output drains.
+        swoole_timer_del(waiting_close_timer);
+        waiting_close_timer = nullptr;
     }
 
     reactor->add_destroy_callback([serv, reactor](void *) {
