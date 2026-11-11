@@ -69,6 +69,8 @@ struct Stream {
     // flow control
     uint32_t remote_window_size;
     uint32_t local_window_size;
+
+    bool header_end_stream;
 };
 
 class Client {
@@ -81,6 +83,7 @@ class Client {
 
     uint32_t stream_id = 0;       // the next send stream id
     uint32_t last_stream_id = 0;  // the last received stream id
+    uint32_t continuation_stream_id = 0;
 
     Http2::Settings local_settings = {};
     Http2::Settings remote_settings = {};
@@ -465,6 +468,7 @@ bool Client::connect() {
     }
 
     stream_id = 1;
+    continuation_stream_id = 0;
     // [init]: we must set default value, server is not always send all the settings
     Http2::init_settings(&remote_settings);
     remote_window_size = remote_settings.init_window_size;
@@ -529,6 +533,15 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
 
     if (_stream_id > last_stream_id) {
         last_stream_id = _stream_id;
+    }
+
+    // A header block's CONTINUATION frames must follow it with no other frames in between
+    if (continuation_stream_id != 0 ? type != SW_HTTP2_TYPE_CONTINUATION || _stream_id != continuation_stream_id
+                                    : type == SW_HTTP2_TYPE_CONTINUATION) {
+        // close() records its own error when it has to wait for another coroutine
+        close();
+        update_error_properties(SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid CONTINUATION frame sequence");
+        return SW_CLOSE;
     }
 
     switch (type) {
@@ -693,21 +706,59 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         swoole_notice("http2 stream#%d belongs to an unknown type or it never registered", _stream_id);
         return SW_CONTINUE;
     }
-    if (type == SW_HTTP2_TYPE_HEADERS) {
+    if (type == SW_HTTP2_TYPE_HEADERS || type == SW_HTTP2_TYPE_CONTINUATION) {
+        if (type == SW_HTTP2_TYPE_HEADERS) {
+            stream->header_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
+            if (flags & SW_HTTP2_FLAG_PADDED) {
+                if (length < 1 || (uint8_t) buf[0] >= length) {
+                    close();
+                    update_error_properties(SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid HEADERS frame padding");
+                    return SW_CLOSE;
+                }
+                length -= 1 + (uint8_t) buf[0];
+                buf++;
+            }
+            if (flags & SW_HTTP2_FLAG_PRIORITY) {
+                if (length < SW_HTTP2_PRIORITY_SIZE) {
+                    close();
+                    update_error_properties(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid HEADERS frame length");
+                    return SW_CLOSE;
+                }
+                buf += SW_HTTP2_PRIORITY_SIZE;
+                length -= SW_HTTP2_PRIORITY_SIZE;
+            }
+        }
         if (parse_header(stream, flags, buf, length) < 0) {
             return SW_ERROR;
         }
+        if (!(flags & SW_HTTP2_FLAG_END_HEADERS)) {
+            continuation_stream_id = _stream_id;
+            return SW_CONTINUE;
+        }
+        continuation_stream_id = 0;
     } else if (type == SW_HTTP2_TYPE_DATA) {
         if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {
             stream->flags |= SW_HTTP2_STREAM_PIPELINE_RESPONSE;
         }
-        if (length > 0) {
+        char *data = buf;
+        ssize_t data_length = length;
+        if (flags & SW_HTTP2_FLAG_PADDED) {
+            if (length < 1 || (uint8_t) buf[0] >= length) {
+                close();
+                update_error_properties(SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid DATA frame padding");
+                return SW_CLOSE;
+            }
+            data_length -= 1 + (uint8_t) buf[0];
+            data++;
+        }
+        if (data_length > 0) {
             if (!stream->buffer) {
                 stream->buffer = make_string(SW_HTTP2_DATA_BUFFER_SIZE);
             }
 #ifdef SW_HAVE_ZLIB
             if (stream->gzip) {
-                if (php_swoole_zlib_decompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR) {
+                if (php_swoole_zlib_decompress(&stream->gzip_stream, stream->gzip_buffer, data, data_length) ==
+                    SW_ERR) {
                     swoole_warning("decompress failed");
                     return SW_ERROR;
                 }
@@ -715,9 +766,11 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
             } else
 #endif
             {
-                stream->buffer->append(buf, length);
+                stream->buffer->append(data, data_length);
             }
-
+        }
+        // The padding counts against the flow-control windows too
+        if (length > 0) {
             // now we control the connection flow only (not stream)
             // our window size is unlimited, so we don't worry about subtraction overflow
             local_window_size -= length;
@@ -737,7 +790,8 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         }
     }
 
-    bool end = (flags & SW_HTTP2_FLAG_END_STREAM) || type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY;
+    bool end = (type == SW_HTTP2_TYPE_CONTINUATION ? stream->header_end_stream : (flags & SW_HTTP2_FLAG_END_STREAM)) ||
+               type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY;
     pipeline_read = ((pipeline_read || (stream->flags & SW_HTTP2_STREAM_USE_PIPELINE_READ)) &&
                      (stream->flags & SW_HTTP2_STREAM_PIPELINE_RESPONSE));
     if (end || pipeline_read) {
@@ -920,13 +974,6 @@ void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcoo
 int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) const {
     zval *zresponse = &stream->zresponse;
 
-    if (flags & SW_HTTP2_FLAG_PRIORITY) {
-        // int stream_deps = ntohl(*(int *) (in));
-        // uint8_t weight = in[4];
-        in += 5;
-        inlen -= 5;
-    }
-
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("headers"), 0);
     zval *zcookies =
@@ -939,7 +986,8 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
     do {
         nghttp2_nv nv;
 
-        ssize_t rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
+        ssize_t rv = nghttp2_hd_inflate_hd(
+            inflater, &nv, &inflate_flags, (uchar *) in, inlen, (flags & SW_HTTP2_FLAG_END_HEADERS) != 0);
         if (rv < 0) {
             nghttp2_error(rv, "nghttp2_hd_inflate_hd failed");
             return SW_ERR;
@@ -948,17 +996,17 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
         in += (size_t) rv;
         inlen -= (size_t) rv;
 
-        swoole_trace_log(SW_TRACE_HTTP2,
-                         "[" SW_ECHO_GREEN "] %.*s[%lu]: %.*s[%lu]",
-                         "HEADER",
-                         (int) nv.namelen,
-                         nv.name,
-                         nv.namelen,
-                         (int) nv.valuelen,
-                         nv.value,
-                         nv.valuelen);
-
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
+            swoole_trace_log(SW_TRACE_HTTP2,
+                             "[" SW_ECHO_GREEN "] %.*s[%lu]: %.*s[%lu]",
+                             "HEADER",
+                             (int) nv.namelen,
+                             nv.name,
+                             nv.namelen,
+                             (int) nv.valuelen,
+                             nv.value,
+                             nv.valuelen);
+
             if (nv.name[0] == ':') {
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status")) {
                     uint16_t status_code = 0;
