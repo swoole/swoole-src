@@ -596,8 +596,10 @@ bool Http2Stream::send_header(const String *body, bool end_stream) const {
         http2::set_frame_header(http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, id);
     }
 
+    // The deflater has already recorded this block, so the peer can't decode later header blocks without it.
     if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
-        ctx->send_header_ = 0;
+        ctx->end_ = 1;
+        ctx->close(ctx);
         return false;
     }
 
@@ -715,7 +717,12 @@ bool Http2Stream::send_trailer() const {
 
     http2::set_frame_header(
         http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
-    return ctx->send(ctx, http_buffer->str, http_buffer->length);
+    // Unlike lost DATA, a lost trailer block breaks the connection's HPACK state even if the stream was reset.
+    if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
+        ctx->close(ctx);
+        return false;
+    }
+    return true;
 }
 
 bool swoole_http2_server_end(HttpContext *ctx, zend_string *sdata) {
