@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: a late CLOSE cancels suspended senders after heartbeat reclaims the session
+swoole_server: heartbeat preserves the session and cancels suspended senders after a worker delay
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -12,28 +12,27 @@ use Swoole\Coroutine;
 use Swoole\Server;
 
 $cancelled = new Atomic();
-$retired = new Atomic();
+$retained = new Atomic();
 $closes = new Atomic();
 $pm = new ProcessManager();
 $pm->setWaitTimeout(15);
-$pm->parentFunc = function () use ($pm, $cancelled, $retired, $closes) {
+$pm->parentFunc = function () use ($pm, $cancelled, $retained, $closes) {
     $client = new Client(SWOOLE_SOCK_TCP);
     $client->set(['socket_buffer_size' => 65536]);
     Assert::true($client->connect('127.0.0.1', $pm->getFreePort()));
     Assert::same($client->send('begin'), 5);
     $pm->wait();
     $deadline = microtime(true) + 12;
-    while ($cancelled->get() === 0 && microtime(true) < $deadline) {
+    while (($cancelled->get() === 0 || $closes->get() === 0) && microtime(true) < $deadline) {
         usleep(10000);
     }
-    Assert::same($retired->get(), 1);
+    Assert::same($retained->get(), 1);
     Assert::greaterThan($cancelled->get(), 0);
-    // Hard-deadline retirement cannot deliver a callback that was never claimed.
-    Assert::same($closes->get(), 0);
+    Assert::same($closes->get(), 1);
     $client->close();
     $pm->kill();
 };
-$pm->childFunc = function () use ($pm, $cancelled, $retired, $closes) {
+$pm->childFunc = function () use ($pm, $cancelled, $retained, $closes) {
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'worker_num' => 2,
@@ -46,7 +45,7 @@ $pm->childFunc = function () use ($pm, $cancelled, $retired, $closes) {
         'kernel_socket_send_buffer_size' => 65536,
         'heartbeat_idle_time' => 1,
         'heartbeat_check_interval' => 1,
-        'max_wait_time' => 1,
+        'max_wait_time' => 3,
         'log_file' => '/dev/null',
     ]);
     $server->on('workerStart', function (Server $server, int $workerId) use ($pm) {
@@ -54,7 +53,7 @@ $pm->childFunc = function () use ($pm, $cancelled, $retired, $closes) {
             $pm->wakeup();
         }
     });
-    $server->on('receive', function (Server $server, int $fd) use ($pm, $cancelled, $retired) {
+    $server->on('receive', function (Server $server, int $fd) use ($pm, $cancelled, $retained) {
         for ($i = 0; $i < 8; $i++) {
             Coroutine::create(function () use ($server, $fd, $cancelled) {
                 $data = str_repeat('x', 16384);
@@ -69,14 +68,17 @@ $pm->childFunc = function () use ($pm, $cancelled, $retired, $closes) {
                 }
             });
         }
-        Swoole\Timer::after(150, function () use ($server, $fd, $pm, $retired) {
+        Swoole\Timer::after(150, function () use ($server, $fd, $pm, $retained) {
             $pm->wakeup();
-            // Keep worker IPC queued beyond the reactor's hard reclamation deadline.
-            usleep(7000000);
-            $retired->set($server->getClientInfo($fd) === false ? 1 : 0);
+            // Block for less than the five-second grace measured from CLOSE notification.
+            usleep(4200000);
+            $retained->set(is_array($server->getClientInfo($fd)) ? 1 : 0);
         });
     });
-    $server->on('close', function () use ($closes) { $closes->add(); });
+    $server->on('close', function (Server $server, int $fd) use ($closes) {
+        Assert::isArray($server->getClientInfo($fd));
+        Assert::same($closes->add(), 1);
+    });
     $server->start();
 };
 $pm->childFirst();

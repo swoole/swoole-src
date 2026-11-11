@@ -209,6 +209,12 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         swoole_timer_del(conn->timer);
         conn->timer = nullptr;
     }
+    if (socket->close_timer) {
+        if (swoole_timer_is_available()) {
+            swoole_timer_del(socket->close_timer);
+        }
+        socket->close_timer = nullptr;
+    }
 
     if (conn->websocket_buffer) {
         delete conn->websocket_buffer;
@@ -333,12 +339,13 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
         return SW_OK;
     }
     conn->close_notification_started = 1;
+    // Stop transport I/O immediately while reserving the fd/session for worker cleanup.
+    socket->shutdown(SHUT_RDWR);
     // BASE/THREAD notification can enter PHP synchronously, which may close and reuse this slot.
-    // On success return directly; on exception/failure resolve the original session before cleanup.
+    // Resolve the original session again before scheduling its deadline or cleaning it up.
+    bool notified;
     try {
-        if (notify(conn, SW_SERVER_EVENT_CLOSE)) {
-            return SW_OK;
-        }
+        notified = notify(conn, SW_SERVER_EVENT_CLOSE);
     } catch (...) {
         conn = get_connection_verify_no_ssl(session_id);
         if (conn && conn->socket == socket) {
@@ -346,8 +353,29 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
         }
         throw;
     }
-    // Failed enqueue cannot produce an acknowledgement. Release instead of stranding an unregistered fd.
     conn = get_connection_verify_no_ssl(session_id);
+    if (notified) {
+        if (!conn || conn->socket != socket || !conn->close_waiting_worker) {
+            return SW_OK;
+        }
+        // The grace period starts after successful submission, independent of receive idle
+        // time. Repeated close requests return above without extending this deadline.
+        const int64_t wait_seconds = std::max<int64_t>(1, max_wait_time + 2LL * heartbeat_check_interval);
+        const auto delay = static_cast<long>(std::min<int64_t>(wait_seconds * 1000, INT_MAX));
+        socket->close_timer =
+            swoole_timer_add(delay, false, [this, reactor, session_id, reason](Timer *, TimerNode *node) {
+                auto *conn = get_connection_verify_no_ssl(session_id);
+                if (conn && conn->socket->close_timer == node) {
+                    request_force_close(reactor, conn, reason);
+                }
+            });
+        if (socket->close_timer) {
+            return SW_OK;
+        }
+        swoole_warning("failed to queue close deadline for session#%ld", session_id);
+        return close_connection(reactor, socket);
+    }
+    // Failed enqueue cannot produce an acknowledgement. Release instead of stranding an unregistered fd.
     if (conn && conn->socket == socket) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_SESSION_CLOSING,
@@ -358,41 +386,21 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
     return SW_ERR;
 }
 
-// Owning reactor only. Force aborts output instead of waiting for the client to drain it.
-// A repeated timeout ends transport I/O while a busy worker still owes onClose. Keep its
-// fd/session reserved until callback dispatch, so the late notification cannot hit a reused slot.
+// Owning reactor only. First stop polling and notify the worker through request_close().
+// Retire after callback dispatch or expiry of the single notification deadline. The timer
+// also invokes this API when heartbeat is disabled or a worker exits while dispatching.
 int Server::request_force_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason) const {
     if (!conn || !conn->active) {
         return SW_OK;
     }
     if (conn->close_waiting_worker) {
-        const auto session_id = conn->session_id;
-        auto *socket = conn->socket;
         sw_spinlock(&conn->lock);
         const bool callback_dispatched =
             conn->close_callback_state == CloseCallbackState::DISPATCHED || (!onClose && conn->close_worker_started);
         sw_spinlock_release(&conn->lock);
-        auto *port = get_port_by_server_fd(conn->server_fd);
-        const double grace = max_wait_time + 2.0 * heartbeat_check_interval;
-        const bool deadline_expired = reason == ConnectionCloseReason::IDLE_TIMEOUT && port->heartbeat_idle_time > 0 &&
-                                      microtime() - conn->get_last_recv_time() >= port->heartbeat_idle_time + grace;
-        if (callback_dispatched || deadline_expired) {
-            // A dead/permanently blocked worker must not retain descriptors forever. As with
-            // the original force-close fallback, callback delivery cannot be guaranteed then.
-            return close_connection(reactor, socket);
-        }
-        // shutdown is idempotent; existing close states suffice without another connection flag.
-        socket->shutdown(SHUT_RDWR);
-        auto *output = socket->out_buffer;
-        socket->out_buffer = nullptr;
-        conn->send_queued_bytes = 0;
-        delete output;
-        // Releasing queued native resources may reenter server code. A cached slot alone cannot
-        // identify the original transport after that cleanup; validate both session and Socket.
-        conn = get_connection_verify_no_ssl(session_id);
-        if (!conn || conn->socket != socket) {
-            return SW_OK;
-        }
+        const auto *deadline = conn->socket->close_timer;
+        const bool deadline_expired = deadline && deadline->exec_msec <= sw_timer()->get_relative_msec();
+        return callback_dispatched || deadline_expired ? close_connection(reactor, conn->socket) : SW_OK;
     }
     return request_close(reactor, conn, reason);
 }

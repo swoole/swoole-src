@@ -200,7 +200,7 @@ TEST_F(ConnectionState, activity_check_does_not_dereference_a_socket) {
     EXPECT_FALSE(Server::is_valid_connection(&candidate));
 }
 
-TEST_F(ConnectionState, repeated_force_ends_io_but_reserves_the_session_for_one_late_callback) {
+TEST_F(ConnectionState, repeated_force_preserves_session_and_output_after_shutdown) {
     auto *conn = connect();
     ASSERT_NE(conn, nullptr);
     const auto id = conn->session_id;
@@ -210,16 +210,26 @@ TEST_F(ConnectionState, repeated_force_ends_io_but_reserves_the_session_for_one_
     conn->send_queued_bytes = 7;
     ASSERT_EQ(server->request_force_close(reactor.get(), conn, ConnectionCloseReason::IDLE_TIMEOUT), SW_OK);
     ASSERT_EQ(factory->notifications, 1u);
+    auto *deadline = socket->close_timer;
+    ASSERT_NE(deadline, nullptr);
+    const auto deadline_id = deadline->id;
     EXPECT_TRUE(conn->is_close_aborting());
     ASSERT_EQ(server->request_force_close(reactor.get(), conn, ConnectionCloseReason::IDLE_TIMEOUT), SW_OK);
-    EXPECT_EQ(socket->out_buffer, nullptr);
-    EXPECT_EQ(conn->send_queued_bytes, 0u);
+    EXPECT_EQ(socket->close_timer, deadline);
+    EXPECT_TRUE(socket->removed);
+    ASSERT_NE(socket->out_buffer, nullptr);
+    EXPECT_EQ(socket->out_buffer->length(), 7u);
+    EXPECT_EQ(conn->send_queued_bytes, 7u);
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
     EXPECT_EQ(factory->notifications, 1u);
     EXPECT_EQ(callbacks, 0u);
     char byte;
     EXPECT_EQ(::recv(peers.back()->fd, &byte, 1, MSG_DONTWAIT), 0);
+    EXPECT_EQ(::recv(socket->fd, &byte, 1, MSG_DONTWAIT), 0);
+    EXPECT_FALSE(socket->recv_eof);
     EXPECT_TRUE(server->finish_close(id, 0));
+    EXPECT_EQ(swoole_timer_get(deadline_id), nullptr);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
     EXPECT_EQ(callbacks, 1u);
     EXPECT_FALSE(server->finish_close(id, 0));
     EXPECT_EQ(callbacks, 1u);
@@ -381,7 +391,7 @@ TEST_F(ConnectionState, background_heartbeat_can_stop_between_close_requests) {
     EXPECT_EQ(factory->notifications, 0u);
 }
 
-TEST_F(ConnectionState, force_deadline_retires_a_session_whose_worker_never_responds) {
+TEST_F(ConnectionState, heartbeat_keeps_the_session_beyond_the_old_close_deadline) {
     auto *conn = connect();
     ASSERT_NE(conn, nullptr);
     const auto id = conn->session_id;
@@ -393,9 +403,37 @@ TEST_F(ConnectionState, force_deadline_retires_a_session_whose_worker_never_resp
     EXPECT_EQ(factory->notifications, 1u);
     EXPECT_TRUE(conn->active);
     server->check_idle_connections(reactor.get());
-    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
-    EXPECT_FALSE(server->finish_close(id, 0));
+    EXPECT_EQ(factory->notifications, 1u);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
     EXPECT_EQ(callbacks, 0u);
+    EXPECT_TRUE(server->finish_close(id, 0));
+    EXPECT_EQ(callbacks, 1u);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+}
+
+TEST_F(ConnectionState, close_deadline_reclaims_a_worker_stuck_during_callback_dispatch_without_heartbeat) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    server->heartbeat_check_interval = 0;
+    server->max_wait_time = 1;
+    ASSERT_EQ(server->request_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    auto *deadline = conn->socket->close_timer;
+    ASSERT_NE(deadline, nullptr);
+    const auto deadline_id = deadline->id;
+    // Model a worker that consumed CLOSE and died before returning its acknowledgement.
+    conn->close_worker_started = true;
+    conn->close_worker_claimed = true;
+    conn->close_callback_state = CloseCallbackState::DISPATCHING;
+    EXPECT_EQ(server->request_force_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
+    swoole_timer_delay(deadline, 0);
+    reactor->execute_end_callbacks();
+    reactor->execute_end_callbacks();
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_EQ(swoole_timer_get(deadline_id), nullptr);
+    EXPECT_EQ(conn->close_reason, static_cast<sw_atomic_t>(ConnectionCloseReason::PEER_EOF));
+    EXPECT_EQ(factory->notifications, 1u);
 }
 
 TEST_F(ConnectionState, stale_force_command_cannot_close_a_reused_descriptor) {

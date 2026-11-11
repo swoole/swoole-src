@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: heartbeat ends transport I/O while a busy worker still owes one onClose
+swoole_server: heartbeat shuts down transport I/O and retains the session for a busy worker's onClose
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -10,9 +10,10 @@ use Swoole\Atomic;
 use Swoole\Server;
 
 $busy = new Atomic();
+$release = new Atomic();
 $closes = new Atomic();
 $pm = new ProcessManager();
-$pm->parentFunc = function () use ($pm, $busy, $closes) {
+$pm->parentFunc = function () use ($pm, $busy, $release, $closes) {
     $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 5);
     stream_set_timeout($client, 10);
     fwrite($client, 'block');
@@ -21,7 +22,8 @@ $pm->parentFunc = function () use ($pm, $busy, $closes) {
     Assert::false(stream_get_meta_data($client)['timed_out']);
     Assert::same($busy->get(), 1);
     Assert::same($closes->get(), 0);
-    $deadline = microtime(true) + 8;
+    $release->set(1);
+    $deadline = microtime(true) + 5;
     while ($closes->get() === 0 && microtime(true) < $deadline) {
         usleep(10000);
     }
@@ -32,7 +34,7 @@ $pm->parentFunc = function () use ($pm, $busy, $closes) {
     fclose($client);
     $pm->kill();
 };
-$pm->childFunc = function () use ($pm, $busy, $closes) {
+$pm->childFunc = function () use ($pm, $busy, $release, $closes) {
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'worker_num' => 1,
@@ -44,10 +46,13 @@ $pm->childFunc = function () use ($pm, $busy, $closes) {
         'log_file' => '/dev/null',
     ]);
     $server->on('workerStart', function () use ($pm) { $pm->wakeup(); });
-    $server->on('receive', function (Server $server, int $fd) use ($busy) {
+    $server->on('receive', function (Server $server, int $fd) use ($busy, $release) {
         $busy->set(1);
         Assert::true($server->send($fd, "ready\n"));
-        usleep(5000000);
+        $deadline = microtime(true) + 10;
+        while ($release->get() === 0 && microtime(true) < $deadline) {
+            usleep(10000);
+        }
         $busy->set(0);
     });
     $server->on('close', function (Server $server, int $fd) use ($closes) {

@@ -210,22 +210,32 @@ callers must validate the session under the slot lock before cross-role access.
 It invokes callbacks without holding the lock and does not pin Socket lifetime.
 
 For a connection requiring worker notification, the first force-close request
-reuses `close_abort`, `close_notification_started`, and `close_waiting_worker` to
-stop readiness, mark output for cancellation, and notify the worker once.
-If that worker is busy and has not completed native onClose
-dispatch, a subsequent force request shuts down transport I/O and releases pending
-output while retaining the fd/session for the late callback. The descriptor cannot
-be reused in that interval.
+stops reactor polling, calls `shutdown(SHUT_RDWR)`, marks output for cancellation,
+and notifies the worker once. The fd, session, and pending output remain reserved
+while the worker claims and dispatches onClose. After successful notification, the owner queues one
+deadline in its existing timer heap. The grace period is
+`max(1, max_wait_time + 2 * heartbeat_check_interval)` seconds from notification,
+independent of how long the connection was already idle. Repeated close requests
+do not extend it.
+
+The owner physically closes the transport and releases output when the worker's
+CLOSE command arrives and cancels the pending deadline. A force request can also
+retire the session once native onClose dispatch has completed or its queued
+deadline expires. The timer provides the expiry trigger even without heartbeat,
+including when a worker exits while its callback state remains DISPATCHING.
+The timer captures the session ID and validates both generation and timer identity
+before acting on a Socket. Only the owner reactor accesses Socket::close_timer.
+
+A worker that does not claim onClose within this full grace period can still miss
+the callback when the deadline reclaims its transport. The finite deadline bounds
+resource retention after a worker crash or permanent stall.
 
 Connections with notifications disabled, an incomplete TLS handshake, or a worker
 CLOSE command already received by the owner can be released directly.
 
-Physical retirement follows completed callback dispatch or an idle duration beyond
-`heartbeat_idle_time + max_wait_time + 2 * heartbeat_check_interval`. The latter is
-a resource-reclamation fallback for a dead or permanently blocked worker; callback
-delivery cannot be guaranteed in that case. Callback claims remain at most once,
-and stale-session commands cannot affect a replacement connection. No additional
-Connection state flag is required for this policy.
+If notification cannot be sent, the owner releases the transport. Callback claims
+remain at most once, and stale-session commands cannot affect a replacement
+connection.
 
 The same server mutex serializes active publication with min/max fd updates and
 active retirement with max fd shrinkage. This prevents one reactor from shrinking
@@ -247,11 +257,10 @@ between the claim and callback entry does not silently skip an already claimed
 callback. Cancelling send-yield coroutines can reenter close. The callback claim
 still prevents a second user callback.
 
-A CLOSE received after hard-deadline retirement uses the internal
+A CLOSE received after the session has already retired uses the internal
 `cleanup_connection` callback, keyed by the old session ID. It cancels suspended
 senders and releases HTTP/HTTP2 state without accessing a replacement connection or
-claiming a new user callback. Hard-deadline reclamation still cannot guarantee
-delivery of a callback that was never claimed before the session was retired.
+claiming a new user callback.
 
 Certificate ownership stays with the allocating worker. Normal CLOSE handling
 releases the certificate, and worker process exit leaves private memory to the

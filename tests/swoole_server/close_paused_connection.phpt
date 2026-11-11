@@ -12,13 +12,15 @@ use Swoole\Server;
 foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
     $closes         = new Atomic(0);
     $pm             = new ProcessManager();
+    $pm->setWaitTimeout(5);
     $pm->parentFunc = function () use ($pm, $closes) {
         $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 5);
         stream_set_timeout($client, 10);
         fwrite($client, 'hello');
-        // onClose runs before the server closes the socket.
+        // Transport EOF can precede worker callback dispatch.
         Assert::same(stream_get_contents($client), '');
         Assert::false(stream_get_meta_data($client)['timed_out']);
+        Assert::true($pm->wait());
         Assert::same($closes->get(), 1);
         $pm->kill();
     };
@@ -36,8 +38,9 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
         $serv->on('receive', function (Server $serv, int $fd) {
             Assert::true($serv->pause($fd));
         });
-        $serv->on('close', function () use ($closes) {
+        $serv->on('close', function () use ($pm, $closes) {
             $closes->add();
+            $pm->wakeup();
         });
         $serv->start();
     };
