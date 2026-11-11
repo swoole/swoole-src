@@ -17,6 +17,7 @@
 #include "php_swoole_http_server.h"
 #include "php_swoole_websocket.h"
 #include "swoole_coroutine_api.h"
+#include "swoole_coroutine_channel.h"
 
 #include <string>
 
@@ -187,6 +188,8 @@ class HttpServer {
         session->handle = http2_server_onRequest;
         session->private_data = this;
         session->is_coro = true;
+        session->write_lock = std::make_unique<coroutine::Channel>(1);
+        ctx->send = swoole_http2_server_coro_send;
 
         while (true) {
             auto buffer = sock->get_read_buffer();
@@ -199,6 +202,8 @@ class HttpServer {
             }
         }
 
+        // Streams still waiting to write fail instead of writing to a finished connection
+        session->write_lock->close();
         swoole_http2_server_session_free(ctx->fd);
 
         ctx->detached = 1;
