@@ -138,9 +138,11 @@ void Manager::init(Server *_server) {
     swoole_signal_set(SIGUSR2, signal_handler);   // reload task workers
     swoole_signal_set(SIGIO, signal_handler);     // read message
     swoole_signal_set(SIGALRM, signal_handler);   // timer
-    swoole_signal_set(SIGWINCH, signal_handler);  // reopen log file
+    // The manager has no reactor. Its wait loop dispatches these callbacks after
+    // the interrupted operation has released any logger/allocator/stdio locks.
+    swoole_signal_set(SIGWINCH, signal_handler, true);  // reopen log file
 #ifdef SIGRTMIN
-    swoole_signal_set(SIGRTMIN, signal_handler);
+    swoole_signal_set(SIGRTMIN, signal_handler, true);
 #endif
 }
 

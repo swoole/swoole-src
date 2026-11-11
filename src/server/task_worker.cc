@@ -399,9 +399,11 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
     swoole_signal_set(SIGUSR1, nullptr);
     swoole_signal_set(SIGUSR2, nullptr);
     swoole_signal_set(SIGTERM, Server::worker_signal_handler);
-    swoole_signal_set(SIGWINCH, Server::worker_signal_handler);
+    // Synchronous workers have no reactor: reopen logs at worker_end_callback(),
+    // never from a signal interrupting Logger::put(), malloc() or stdio.
+    swoole_signal_set(SIGWINCH, Server::worker_signal_handler, true);
 #ifdef SIGRTMIN
-    swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
+    swoole_signal_set(SIGRTMIN, Server::worker_signal_handler, true);
 #endif
 }
 

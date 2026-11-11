@@ -3369,6 +3369,85 @@ TEST(server, reopen_log2) {
     remove(filename.c_str());
 }
 
+#ifdef __GLIBC__
+// Inject signals at fwrite(), while Logger::put() holds its nonrecursive mutex.
+// This makes the old deadlock deterministic instead of depending on signal timing.
+static bool test_log_signal_inside_write() {
+    struct Probe {
+        int signo;
+        bool deferred = false;
+    };
+    for (int signo : {SIGWINCH, SIGRTMIN}) {
+        Probe probe{signo};
+        cookie_io_functions_t io{};
+        io.write = [](void *cookie, const char *, size_t length) -> ssize_t {
+            auto *probe = static_cast<Probe *>(cookie);
+            raise(probe->signo);
+            probe->deferred = SwooleG.signal_dispatch;
+            return length;
+        };
+        FILE *stream = fopencookie(&probe, "w", io);
+        if (!stream) {
+            return false;
+        }
+        setvbuf(stream, nullptr, _IONBF, 0);
+        sw_logger()->set_stream(stream);
+        sw_logger()->set_level(SW_LOG_INFO);
+        sw_logger()->put(SW_LOG_INFO, SW_STRL("signal during log write"));
+        // Dispatch only after Logger::put() released the mutex.
+        swoole_signal_dispatch();
+        sw_logger()->set_stream(stdout);
+        fclose(stream);
+        sw_logger()->set_level(SW_LOG_NONE);
+        if (!probe.deferred) {
+            return false;
+        }
+    }
+    return true;
+}
+
+TEST(server, log_signals_defer_in_manager_and_sync_task_worker) {
+    test::counter_init();
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.reactor_num = serv.task_worker_num = 1;
+    serv.max_wait_time = 1;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    serv.onWorkerStart = [](Server *, Worker *worker) {
+        if (worker->type == SW_TASK_WORKER) {
+            test::counter_set(0, test_log_signal_inside_write() ? 1 : -1);
+        }
+    };
+    serv.onManagerStart = [](Server *) { test::counter_set(1, test_log_signal_inside_write() ? 1 : -1); };
+    serv.onStart = [](Server *serv) {
+        const auto deadline = microtime() + 5;
+        swoole_timer_add(10L, true, [serv, deadline](TIMER_PARAMS) {
+            if (test::counter_get(0) != 0 && test::counter_get(1) != 0) {
+                swoole_timer_del(tnode);
+                serv->shutdown();
+            } else if (microtime() >= deadline) {
+                test::counter_set(2, 1);
+                // A regression must fail promptly and leave no deadlocked descendants.
+                for (uint32_t i = 0; i < serv->get_core_worker_num(); i++) {
+                    if (serv->get_worker(i)->pid > 0) {
+                        kill(serv->get_worker(i)->pid, SIGKILL);
+                    }
+                }
+                kill(serv->get_manager_pid(), SIGKILL);
+                swoole_timer_del(tnode);
+                serv->shutdown();
+            }
+        });
+    };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(test::counter_get(0), 1);
+    EXPECT_EQ(test::counter_get(1), 1);
+    EXPECT_EQ(test::counter_get(2), 0);
+}
+#endif
+
 TEST(server, udp_packet) {
     Server *server = new Server(Server::MODE_PROCESS);
     server->worker_num = 2;
