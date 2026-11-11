@@ -171,48 +171,39 @@ _do_recvfrom:
 int Server::close_connection(Reactor *reactor, Socket *socket) {
     auto *serv = static_cast<Server *>(reactor->ptr);
     auto *conn = static_cast<Connection *>(socket->object);
-    if (!conn) {
-        return SW_OK;
-    }
-    sw_spinlock(&conn->lock);
-    if (!conn->active || conn->socket != socket) {
-        sw_spinlock_release(&conn->lock);
+    // Only the owner reactor changes transport membership and Socket identity.
+    if (!conn || !conn->active || conn->socket != socket) {
         return SW_OK;
     }
     if (!socket->removed && reactor->del(socket) < 0) {
-        sw_spinlock_release(&conn->lock);
         return SW_ERR;
     }
-    if (!conn->is_close_requested()) {
-        conn->begin_close(conn->recv_shutdown ? ConnectionCloseReason::WORKER_SHUTDOWN
-                                              : ConnectionCloseReason::SERVER_ERROR);
-        conn->close_abort = true;
-    }
     ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
-    serv->get_session(conn->session_id)->fd = 0;
-    // Keep terminal facts until next publication. All active/bounds writers take the same
-    // server mutex, so another reactor can scan membership without touching Socket memory.
-    conn->session_released = true;
+    const int fd = socket->fd;
     do {
+        // Serialize the membership change and scan with publication on other reactors.
+        // An owner waiting for a bounds scan must not hold its slot lock.
         std::lock_guard<std::mutex> guard(serv->lock_);
+        sw_spinlock(&conn->lock);
+        if (!conn->is_close_requested()) {
+            conn->begin_close(conn->recv_shutdown ? ConnectionCloseReason::WORKER_SHUTDOWN
+                                                  : ConnectionCloseReason::SERVER_ERROR);
+            conn->close_abort = true;
+        }
+        serv->get_session(conn->session_id)->fd = 0;
+        conn->session_released = true;
         conn->active = 0;
-        /**
-         * reset maxfd, for connection_list
-         */
-        int fd = socket->fd;
+        sw_spinlock_release(&conn->lock);
 
         if (fd == serv->get_maxfd()) {
+            const int min_fd = serv->get_minfd();
             int find_max_fd = fd - 1;
-            swoole_trace_log(SW_TRACE_SERVER, "set_maxfd=%d|close_fd=%d", find_max_fd, fd);
-            // find the new max_fd
-            for (; !serv->is_valid_connection(serv->get_connection(find_max_fd)) && find_max_fd > serv->get_minfd();
-                 find_max_fd--) {
-                // pass
+            while (find_max_fd > min_fd && !serv->is_valid_connection(serv->get_connection(find_max_fd))) {
+                --find_max_fd;
             }
             serv->set_maxfd(find_max_fd);
         }
     } while (0);
-    sw_spinlock_release(&conn->lock);
 
     if (conn->timer) {
         swoole_timer_del(conn->timer);
@@ -311,7 +302,7 @@ int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_
     return events == socket->events ? SW_OK : reactor->set(socket, events);
 }
 
-// Owner-reactor API for EOF, I/O/protocol errors and timeouts. Publish the first cause, stop I/O,
+// Owner-reactor API for EOF, I/O/protocol errors and timeouts. Stop I/O, publish the first cause,
 // and notify the assigned worker once. PROCESS notification is asynchronous; BASE/THREAD may invoke
 // worker code synchronously, so revalidate the session after any callback and never touch a retired slot.
 int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason, bool reset) const {
@@ -320,6 +311,10 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
     }
     const SessionId session_id = conn->session_id;
     Socket *socket = conn->socket;
+    // Detach first. A backend error must not leave a new close state with a cancelled timer.
+    if (!socket->removed && reactor->del(socket) < 0) {
+        return SW_ERR;
+    }
     conn->begin_close(reason);
     conn->close_abort = true;
     if (reset) {
@@ -329,9 +324,6 @@ int Server::request_close(Reactor *reactor, Connection *conn, ConnectionCloseRea
         swoole_timer_del(conn->timer);
         conn->timer = nullptr;
         conn->recv_throttled = 0;
-    }
-    if (!socket->removed && reactor->del(socket) < 0) {
-        return SW_ERR;
     }
     if (disable_notify || !conn->is_ssl_ready() || conn->close_worker_received) {
         return close_connection(reactor, socket);
@@ -649,9 +641,27 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     ListenPort *port = serv->get_port_by_fd(event->fd);
 #ifdef SW_SUPPORT_DTLS
     if (port->is_dtls()) {
-        dtls::Buffer *buffer = static_cast<dtls::Buffer *>(sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP));
-        buffer->length = event->socket->read(buffer->data, SW_BUFFER_SIZE_UDP);
         dtls::Session *session = port->get_dtls_session(event->fd);
+        if (!session) {
+            serv->abort_connection(reactor, port, event->socket);
+            return SW_OK;
+        }
+        dtls::Buffer *buffer = static_cast<dtls::Buffer *>(sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP));
+        if (!buffer) {
+            serv->abort_connection(reactor, port, event->socket);
+            return SW_OK;
+        }
+        const auto length = event->socket->read(buffer->data, SW_BUFFER_SIZE_UDP);
+        if (length <= 0) {
+            const auto error = errno;
+            sw_free(buffer);
+            if (length < 0 && event->socket->catch_read_error(error) == SW_CLOSE) {
+                conn->close_errno = error;
+                return serv->request_close(reactor, conn, ConnectionCloseReason::IO_ERROR);
+            }
+            return SW_OK;
+        }
+        buffer->length = length;
         session->append(buffer);
         if (!session->listened && !session->listen()) {
             serv->abort_connection(reactor, port, event->socket);

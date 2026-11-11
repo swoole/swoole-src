@@ -2481,13 +2481,14 @@ bool Server::get_client_list(SessionId start_session_id, int find_count, std::ve
 // Accept/handoff failure: the producer still owns an unpublished socket. Initialization or I/O
 // failure after publication: only its owning reactor may call this API. Final shutdown may also
 // discard unpublished handoffs after all consumers have stopped (reactor may then be null).
-// Keep abort accounting and socket/session cleanup here, including unpublished DTLS state.
+// Count unpublished failures here. Published sessions already count as accepts and retire
+// through close_connection(), which balances that accept with exactly one close.
 void Server::abort_connection(Reactor *reactor, const ListenPort *ls, Socket *_socket) const {
-    sw_atomic_long_fetch_add(&gs->abort_count, 1);
-    sw_atomic_long_fetch_add(&ls->gs->abort_count, 1);
     if (_socket->object) {
         reactor->close(reactor, _socket);
     } else {
+        sw_atomic_long_fetch_add(&gs->abort_count, 1);
+        sw_atomic_long_fetch_add(&ls->gs->abort_count, 1);
 #ifdef SW_SUPPORT_DTLS
         if (_socket->dtls) {
             ls->remove_dtls_session(_socket->fd);
@@ -2651,19 +2652,8 @@ Connection *Server::add_connection(const ListenPort *ls, Socket *_socket, int se
     ReactorId reactor_id = is_base_mode() ? swoole_get_worker_id() : fd % reactor_num;
     auto *reactor = sw_reactor();
     assert(!reactor || reactor->ptr != this || is_base_mode() || single_thread || reactor_id == reactor->id);
-    // Keep the slot lock intact across descriptor reuse: old worker events may still reference this slot.
-    sw_spinlock(&connection->lock);
-    ON_SCOPE_EXIT {
-        sw_spinlock_release(&connection->lock);
-    };
-    // active is published/retired under the server bounds mutex as well as this slot lock.
-    // One reset prefix excludes active, the slot lock and the preserved heartbeat/terminal tail.
-    // The background scan samples last_recv_time before taking this lock, even on inactive slots:
-    // retain its old value here and atomically store the actual new timestamp before publication.
-    // Every preserved tail field except the held lock must be explicitly initialized below.
-    sw_memset_zero(reinterpret_cast<char *>(connection) + sizeof(connection->active),
-                   offsetof(Connection, lock) - sizeof(connection->active));
-
+    // Reserve a session while the connection is still inactive. A full session table
+    // search must not make workers spin on the connection slot.
     sw_spinlock(&gs->spinlock);
     SessionId session_id = gs->session_round;
     // get session id
@@ -2684,6 +2674,12 @@ Connection *Server::add_connection(const ListenPort *ls, Socket *_socket, int se
 
 _find_available_slot:
     sw_spinlock_release(&gs->spinlock);
+    const double connect_time = microtime();
+    // Keep the lock intact across descriptor reuse. The reset also excludes active
+    // and the heartbeat/terminal tail so concurrent readers can still validate the slot.
+    sw_spinlock(&connection->lock);
+    sw_memset_zero(reinterpret_cast<char *>(connection) + sizeof(connection->active),
+                   offsetof(Connection, lock) - sizeof(connection->active));
     connection->session_id = session_id;
 
     _socket->object = connection;
@@ -2691,8 +2687,8 @@ _find_available_slot:
     connection->fd = fd;
     connection->reactor_id = reactor_id;
     connection->server_fd = server_fd;
-    connection->connect_time = microtime();
-    connection->set_last_recv_time(connection->connect_time);
+    connection->connect_time = connect_time;
+    connection->set_last_recv_time(connect_time);
     connection->worker_id = -1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
@@ -2718,18 +2714,22 @@ _find_available_slot:
         sw_atomic_fetch_add(&ls->gs->connection_num, 1);
     }
 
-    // Retain the old session's terminal facts throughout initialization. Reset them only when publishing
-    // the new generation under the slot lock; cached readers must validate their expected session under that lock.
-    sw_atomic_store_release(&connection->close_reason, 0);
-    connection->session_released = false;
-    connection->close_callback_state = CloseCallbackState::NONE;
-    connection->connect_callback_claimed = 0;
-    connection->close_worker_started = 0;
-    connection->close_worker_claimed = 0;
-    sw_atomic_memory_barrier();
+    // The slot is still inactive and only its owner can publish it. Release the slot
+    // lock before waiting for the bounds mutex, which can be held by a retiring reactor.
+    sw_spinlock_release(&connection->lock);
     do {
         std::lock_guard<std::mutex> guard(lock_);
+        sw_spinlock(&connection->lock);
+        // Preserve the old terminal facts until the new generation is published.
+        sw_atomic_store_release(&connection->close_reason, 0);
+        connection->session_released = false;
+        connection->close_callback_state = CloseCallbackState::NONE;
+        connection->connect_callback_claimed = 0;
+        connection->close_worker_started = 0;
+        connection->close_worker_claimed = 0;
+        sw_atomic_memory_barrier();
         connection->active = 1;
+        sw_spinlock_release(&connection->lock);
         // Publish activity before expanding scan bounds. A concurrent retirement must not
         // shrink maxfd past a new slot whose generation is still being initialized.
         if (fd > get_maxfd()) {

@@ -82,6 +82,10 @@ static sw_inline bool Worker_discard_data(const Server *serv,
         (status == Connection::ReceiveEventStatus::STALE && serv->disable_notify && !serv->discard_timeout_request)) {
         return false;
     }
+    if (status == Connection::ReceiveEventStatus::CLOSED) {
+        swoole_trace_log(SW_TRACE_SERVER, "discard queued data for closing session#%ld", info->fd);
+        return true;
+    }
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
                      "[2] ignore data[%u bytes] received from session#%ld",
@@ -133,7 +137,13 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_CLOSE: {
-        factory_->end(info->fd, info->ext_flags);
+        // end() may run callbacks that reuse the worker's message buffer.
+        const SessionId session_id = info->fd;
+        if (!factory_->end(session_id, info->ext_flags) && !get_connection_verify_no_ssl(session_id) &&
+            cleanup_connection) {
+            // A late CLOSE still cleans up the worker's old session resources.
+            cleanup_connection(this, session_id);
+        }
         break;
     }
     case SW_SERVER_EVENT_CONNECT: {

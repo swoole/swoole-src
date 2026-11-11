@@ -230,9 +230,50 @@ Connection state flag is required for this policy.
 The same server mutex serializes active publication with min/max fd updates and
 active retirement with max fd shrinkage. This prevents one reactor from shrinking
 bounds past a slot that another reactor is still publishing. When both locks are
-needed, the order is slot lock followed by server mutex. The server mutex coordinates
-reactors within one process; cross-process generation validation still requires
-the shared slot lock. The mutex is not a process-shared lock.
+needed, acquire the server mutex before the slot lock. The owner removes reactor
+interest before acquiring either lock. Retirement releases the slot lock before
+scanning for the new max fd under the server mutex. Other workers can inspect the
+retired slot during the scan, and a publisher waiting for the mutex holds no slot
+lock. Cross-process generation validation still requires the shared slot lock.
 
 The added locks cover accept/close, idle checks, and queries. They do not add slot
 locks to the normal recv/send paths.
+
+## Late CLOSE cleanup in the worker
+
+The worker claims onClose and captures its listener/reactor/protocol context in
+one slot-locked operation. PHP dispatch uses that captured context, so retirement
+between the claim and callback entry does not silently skip an already claimed
+callback. Cancelling send-yield coroutines can reenter close. The callback claim
+still prevents a second user callback.
+
+A CLOSE received after hard-deadline retirement uses the internal
+`cleanup_connection` callback, keyed by the old session ID. It cancels suspended
+senders and releases HTTP/HTTP2 state without accessing a replacement connection or
+claiming a new user callback. Hard-deadline reclamation still cannot guarantee
+delivery of a callback that was never claimed before the session was retired.
+
+Certificate ownership stays with the allocating worker. Normal CLOSE handling
+releases the certificate, and worker process exit leaves private memory to the
+operating system. Connection reuse clears the old certificate alias.
+
+A full kernel datagram queue can defer the CLOSE write to the worker's async
+output buffer. A failed submission releases the command claim while preserving
+the callback claim. No background retry is scheduled.
+
+An explicitly paused socket with no pending output is removed from polling.
+EOF and HUP can be observed once receiving resumes. Pending output keeps its
+WRITE interest.
+
+Pause removes every read-side event, including EOF and HUP, on purpose. Keeping
+only EOF/HUP interest would depend on epoll's `EPOLLRDHUP`/`EPOLLHUP`; kqueue, poll
+and iocp have different semantics, so the reactor API exposes no such partial
+interest. A peer that disconnects while its socket is paused is therefore not
+noticed until receiving resumes or the heartbeat reclaims the session. Servers
+that pause connections for long periods must configure `heartbeat_idle_time`
+(or `max_idle_time`); otherwise a dead peer keeps its session until resume.
+The same applies to throttled and delayed receiving.
+
+`abort_count` counts failures before a session is published. A failure after
+publication retires the session and contributes to `close_count`, balancing
+the increment already recorded in `accept_count`.

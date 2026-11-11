@@ -190,7 +190,7 @@ struct Connection {
     network::Address info;
     // Preserved across reuse. Serializes worker generation checks/callback claims with owner
     // initialization/retirement. Never hold across PHP, cancellation, destructors or IPC.
-    // If the server bounds mutex is also needed, acquire the slot lock first.
+    // If the server bounds mutex is also needed, acquire the bounds mutex first.
     sw_atomic_t lock;
     // Shared atomic: workers and the reactor can race to publish the first close cause. Worker
     // writers hold lock, but reactor writers do not all hold it, so the CAS remains necessary.
@@ -1070,6 +1070,13 @@ class Server {
         CLOSE_ABORT = 1u << 3,
     };
 
+    // onClose callback context, captured under the slot lock before the transport can retire.
+    // These bits belong to callback DataHead only, not CLOSE commands sent to a reactor.
+    enum CloseCallbackFlag {
+        CLOSE_CALLBACK_WEBSOCKET = 1u << 0,
+        CLOSE_CALLBACK_HTTP2 = 1u << 1,
+    };
+
     /**
      * reactor thread/process num
      */
@@ -1495,13 +1502,14 @@ class Server {
     std::function<int(Server *, EventData *)> onTask;
     std::function<int(Server *, EventData *)> onFinish;
     /**
-     * for MessageBus
+     * Internal callbacks
      */
+    // Generate packet IDs for MessageBus.
     std::function<uint64_t(void)> msg_id_generator;
-    /**
-     * Hook
-     */
     int (*dispatch_func)(Server *, Connection *, SendData *) = nullptr;
+    // Worker-side resource cleanup for CLOSE events received after session retirement.
+    // Cleanup is idempotent by session ID.
+    std::function<void(Server *, SessionId)> cleanup_connection;
 
     explicit Server(Mode _mode = MODE_BASE);
     ~Server();
@@ -2085,7 +2093,7 @@ class Server {
 
     std::shared_ptr<std::vector<http_server::RewriteRule>> rewrite_rules;
     // Coordinates active/bounds publication between reactors in this process. This mutex is not
-    // process-shared; worker generation access uses Connection::lock. Lock order: slot, then bounds.
+    // process-shared; worker generation access uses Connection::lock. Lock order: bounds, then slot.
     mutable std::mutex lock_;
     uint32_t max_connection = 0;
     TimerNode *enable_accept_timer = nullptr;

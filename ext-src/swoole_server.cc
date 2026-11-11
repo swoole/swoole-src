@@ -84,6 +84,7 @@ static void php_swoole_server_onPipeMessage(Server *serv, EventData *req);
 static void php_swoole_server_onWorkerError(Server *serv, Worker *worker, const ExitStatus &exit_status);
 static void php_swoole_server_onManagerStart(Server *serv);
 static void php_swoole_server_onManagerStop(Server *serv);
+static void php_swoole_server_cleanup_connection(Server *serv, SessionId session_id);
 
 static bool php_swoole_server_task_finish(Server *serv, zval *zdata, EventData *current_task);
 static TaskId php_swoole_server_task_pack(zval *data, EventData *task);
@@ -925,6 +926,7 @@ bool ServerObject::on_before_start() {
         }
     }
 
+    serv->cleanup_connection = php_swoole_server_cleanup_connection;
     serv->message_bus.set_allocator(sw_zend_string_allocator());
 
     if (serv->is_base_mode() || serv->is_thread_mode()) {
@@ -1785,27 +1787,10 @@ void php_swoole_server_onConnect(Server *serv, DataHead *info) {
     }
 }
 
-void php_swoole_server_onClose(Server *serv, DataHead *info) {
-    zval *zserv = php_swoole_server_zval_ptr(serv);
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    SessionId session_id = info->fd;
-
-    auto *cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onClose);
-    Connection *conn = serv->get_connection_verify_no_ssl(session_id);
-    if (!conn) {
-        return;
-    }
-    if (!conn->is_websocket_active()) {
-        ListenPort *port = serv->get_port_by_server_fd(info->server_fd);
-        if (port && port->open_websocket_protocol &&
-            php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onDisconnect)) {
-            cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onDisconnect);
-        }
-    }
-    // Cancellation resumes user coroutines, which may reset-close and release this session.
-    // Snapshot callback selection first so an already claimed callback is still delivered once.
-    const bool http2_stream = conn->http2_stream;
-
+// Worker CLOSE processing only. Detach the list before cancellation resumes user code;
+// session ids isolate these resources from a reused descriptor and duplicate CLOSE events.
+static void php_swoole_server_cancel_senders(Server *serv, SessionId session_id) {
+    auto *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     if (serv->enable_coroutine && serv->send_yield) {
         auto _i_co_list = server_object->property->send_coroutine_map.find(session_id);
         if (_i_co_list != server_object->property->send_coroutine_map.end()) {
@@ -1825,6 +1810,30 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
             delete co_list;
         }
     }
+}
+
+static void php_swoole_server_cleanup_connection(Server *serv, SessionId session_id) {
+    php_swoole_server_cancel_senders(serv, session_id);
+    php_swoole_http_server_cleanup_connection(session_id);
+    php_swoole_http2_server_onClose(serv, session_id);
+}
+
+void php_swoole_server_onClose(Server *serv, DataHead *info) {
+    SessionId session_id = info->fd;
+
+    auto *cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onClose);
+    if (!(info->ext_flags & Server::CLOSE_CALLBACK_WEBSOCKET)) {
+        ListenPort *port = serv->get_port_by_server_fd(info->server_fd);
+        if (port && port->open_websocket_protocol &&
+            php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onDisconnect)) {
+            cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onDisconnect);
+        }
+    }
+    // The core captured callback context with its claim. A force-close may retire the slot
+    // before dispatch reaches PHP; the claimed callback and worker cleanup must still run.
+    const bool http2_stream = info->ext_flags & Server::CLOSE_CALLBACK_HTTP2;
+
+    php_swoole_server_cancel_senders(serv, session_id);
 
     if (cb) {
         zval *zserv = php_swoole_server_zval_ptr(serv);

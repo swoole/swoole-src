@@ -509,6 +509,75 @@ TEST_F(ConnectionState, failed_close_command_can_retry_without_another_callback)
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
 }
 
+TEST_F(ConnectionState, late_close_cleans_worker_resources_without_replaying_the_callback) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    size_t cleanups = 0;
+    server->cleanup_connection = [&](Server *, SessionId session_id) {
+        EXPECT_EQ(session_id, id);
+        cleanups++;
+    };
+    ASSERT_EQ(Server::close_connection(reactor.get(), conn->socket), SW_OK);
+    DataHead event{};
+    event.type = SW_SERVER_EVENT_CLOSE;
+    event.fd = id;
+    server->worker_accept_event(&event);
+    server->worker_accept_event(&event);
+    EXPECT_EQ(cleanups, 2u);
+    EXPECT_EQ(callbacks, 0u);
+}
+
+TEST_F(ConnectionState, close_callback_receives_protocol_context_captured_with_the_claim) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    conn->websocket_status = websocket::STATUS_ACTIVE;
+    conn->http2_stream = true;
+    server->onClose = [&](Server *, DataHead *info) {
+        callbacks++;
+        ASSERT_EQ(Server::close_connection(reactor.get(), conn->socket), SW_OK);
+        EXPECT_EQ(server->get_connection_verify_no_ssl(info->fd), nullptr);
+        EXPECT_TRUE(info->ext_flags & Server::CLOSE_CALLBACK_WEBSOCKET);
+        EXPECT_TRUE(info->ext_flags & Server::CLOSE_CALLBACK_HTTP2);
+    };
+    EXPECT_TRUE(server->finish_close(conn->session_id, Server::CLOSE_ACTIVELY));
+    EXPECT_EQ(callbacks, 1u);
+}
+
+TEST_F(ConnectionState, published_abort_counts_only_as_a_close) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    const auto id = conn->session_id;
+    server->abort_connection(reactor.get(), port, conn->socket);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+    EXPECT_EQ(server->gs->accept_count, 1);
+    EXPECT_EQ(port->gs->accept_count, 1);
+    EXPECT_EQ(server->gs->close_count, 1);
+    EXPECT_EQ(port->gs->close_count, 1);
+    EXPECT_EQ(server->gs->abort_count, 0);
+    EXPECT_EQ(port->gs->abort_count, 0);
+}
+
+#ifdef SW_SUPPORT_DTLS
+TEST_F(ConnectionState, dtls_read_without_a_session_retires_the_connection) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    // Simulate a published transport whose DTLS map entry is missing.
+    port->ssl = true;
+    port->ssl_context = std::make_shared<SSLContext>();
+    port->ssl_context->protocols = SW_SSL_DTLS;
+    port->dtls_sessions = new std::unordered_map<int, dtls::Session *>;
+    const auto id = conn->session_id;
+    Event event{};
+    event.fd = conn->fd;
+    event.socket = conn->socket;
+    auto handler = reactor->get_handler(SW_FD_SESSION, SW_EVENT_READ);
+    ASSERT_NE(handler, nullptr);
+    EXPECT_EQ(handler(reactor.get(), &event), SW_OK);
+    EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
+}
+#endif
+
 TEST_F(ConnectionState, stale_socket_identity_cannot_release_current_session) {
     auto *conn = connect();
     ASSERT_NE(conn, nullptr);
@@ -1201,6 +1270,8 @@ TEST_F(ConnectionHandoff, unread_kernel_handoff_is_reclaimed_during_shutdown) {
     EXPECT_EQ(::fcntl(fd, F_GETFD), -1);
     EXPECT_EQ(errno, EBADF);
     EXPECT_EQ(server->gs->accept_count, 0);
+    EXPECT_EQ(server->gs->close_count, 0);
+    EXPECT_EQ(port->gs->close_count, 0);
     EXPECT_EQ(server->gs->abort_count, 1);
     EXPECT_EQ(port->gs->abort_count, 1);
     EXPECT_EQ(callbacks, 0u);
