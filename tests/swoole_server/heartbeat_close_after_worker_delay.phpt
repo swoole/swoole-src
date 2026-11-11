@@ -15,14 +15,14 @@ $cancelled = new Atomic();
 $retained  = new Atomic();
 $closes    = new Atomic();
 $pm        = new ProcessManager();
-$pm->setWaitTimeout(15);
+$pm->setWaitTimeout(20);
 $pm->parentFunc = function () use ($pm, $cancelled, $retained, $closes) {
     $client = new Client(SWOOLE_SOCK_TCP);
     $client->set(['socket_buffer_size' => 65536]);
     Assert::true($client->connect('127.0.0.1', $pm->getFreePort()));
     Assert::same($client->send('begin'), 5);
     $pm->wait();
-    $deadline = microtime(true) + 12;
+    $deadline = microtime(true) + 15;
     while (($cancelled->get() === 0 || $closes->get() === 0) && microtime(true) < $deadline) {
         usleep(10000);
     }

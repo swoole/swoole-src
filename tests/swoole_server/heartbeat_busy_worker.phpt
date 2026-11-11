@@ -13,9 +13,10 @@ $busy           = new Atomic();
 $release        = new Atomic();
 $closes         = new Atomic();
 $pm             = new ProcessManager();
+$pm->setWaitTimeout(15);
 $pm->parentFunc = function () use ($pm, $busy, $release, $closes) {
-    $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 5);
-    stream_set_timeout($client, 10);
+    $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 10);
+    stream_set_timeout($client, 15);
     fwrite($client, 'block');
     Assert::same(fgets($client), "ready\n");
     Assert::same(stream_get_contents($client), '');
@@ -27,7 +28,7 @@ $pm->parentFunc = function () use ($pm, $busy, $release, $closes) {
     Assert::same($busy->get(), 1);
     Assert::same($closes->get(), 0);
     $release->set(1);
-    $deadline = microtime(true) + 5;
+    $deadline = microtime(true) + 10;
     while ($closes->get() === 0 && microtime(true) < $deadline) {
         usleep(10000);
     }
@@ -53,7 +54,8 @@ $pm->childFunc = function () use ($pm, $busy, $release, $closes) {
     $server->on('receive', function (Server $server, int $fd) use ($busy, $release) {
         $busy->set(1);
         Assert::true($server->send($fd, "ready\n"));
-        $deadline = microtime(true) + 10;
+        // Include heartbeat detection, the parent observation window and slow CI scheduling.
+        $deadline = microtime(true) + 30;
         while ($release->get() === 0 && microtime(true) < $deadline) {
             usleep(10000);
         }

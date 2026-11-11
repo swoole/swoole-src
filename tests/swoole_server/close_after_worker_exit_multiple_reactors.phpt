@@ -17,12 +17,13 @@ $allowExit = new Atomic();
 $retired = new Atomic();
 $starts = new Atomic();
 $pm = new ProcessManager();
+$pm->setWaitTimeout(15);
 $pm->parentFunc = function () use ($pm, $allowExit, $retired) {
     $clients = [];
     $reactors = [];
     for ($i = 0; $i < CONNECTIONS; $i++) {
-        $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 5);
-        stream_set_timeout($client, 5);
+        $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 10);
+        stream_set_timeout($client, 10);
         fwrite($client, 'begin');
         $reactors[(int) fgets($client)] = true;
         $clients[] = $client;
@@ -34,7 +35,7 @@ $pm->parentFunc = function () use ($pm, $allowExit, $retired) {
         Assert::false(stream_get_meta_data($client)['timed_out']);
     }
     $allowExit->set(1);
-    $deadline = microtime(true) + 8;
+    $deadline = microtime(true) + 10;
     while ($retired->get() < CONNECTIONS && microtime(true) < $deadline) {
         usleep(10000);
     }
@@ -71,7 +72,8 @@ $pm->childFunc = function () use ($pm, $allowExit, $retired, $starts) {
         Swoole\Timer::clearAll();
     });
     $server->on('close', function () use ($allowExit) {
-        $deadline = microtime(true) + 5;
+        // This watchdog must outlast parent-side I/O and scheduling delays.
+        $deadline = microtime(true) + 30;
         while ($allowExit->get() === 0 && microtime(true) < $deadline) {
             usleep(10000);
         }

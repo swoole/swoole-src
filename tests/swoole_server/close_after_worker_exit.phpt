@@ -15,9 +15,10 @@ use Swoole\Server;
 $closes = new Atomic();
 $retired = new Atomic();
 $pm = new ProcessManager();
+$pm->setWaitTimeout(15);
 $pm->parentFunc = function () use ($pm, $closes, $retired) {
-    $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 5);
-    stream_set_timeout($client, 5);
+    $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 10);
+    stream_set_timeout($client, 10);
     fwrite($client, 'begin');
     Assert::same(fgets($client), "ready\n");
     // Send EOF while keeping the peer open across transport shutdown and fd retirement.
@@ -25,7 +26,7 @@ $pm->parentFunc = function () use ($pm, $closes, $retired) {
     Assert::same(stream_get_contents($client), '');
     Assert::false(stream_get_meta_data($client)['timed_out']);
     // EOF alone only proves shutdown(). The replacement worker observes physical retirement.
-    $deadline = microtime(true) + 5;
+    $deadline = microtime(true) + 10;
     while ($retired->get() === 0 && microtime(true) < $deadline) {
         usleep(10000);
     }

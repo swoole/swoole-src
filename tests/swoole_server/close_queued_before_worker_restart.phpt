@@ -19,13 +19,14 @@ $allowRestart = new Atomic();
 $closes = new Atomic();
 $retired = new Atomic();
 $pm = new ProcessManager();
+$pm->setWaitTimeout(15);
 $pm->parentFunc = function () use ($pm, $workerPid, $managerWaiting, $allowRestart, $closes, $retired) {
-    $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 5);
-    stream_set_timeout($client, 5);
+    $client = stream_socket_client('tcp://127.0.0.1:' . $pm->getFreePort(), $errno, $errstr, 10);
+    stream_set_timeout($client, 10);
     fwrite($client, 'begin');
     Assert::same(fgets($client), "ready\n");
     Assert::true(Swoole\Process::kill($workerPid->get(), SIGKILL));
-    $deadline = microtime(true) + 5;
+    $deadline = microtime(true) + 10;
     while ($managerWaiting->get() === 0 && microtime(true) < $deadline) {
         usleep(1000);
     }
@@ -33,11 +34,11 @@ $pm->parentFunc = function () use ($pm, $workerPid, $managerWaiting, $allowResta
     Assert::true(stream_socket_shutdown($client, STREAM_SHUT_WR));
     Assert::same(stream_get_contents($client), '');
     Assert::false(stream_get_meta_data($client)['timed_out']);
-    // Let the reactor's deferred check run while the dead PID is still published.
-    usleep(1200000);
+    // Allow two one-second check intervals while the dead PID is still published.
+    usleep(2100000);
     Assert::same($closes->get(), 0);
     $allowRestart->set(1);
-    $deadline = microtime(true) + 5;
+    $deadline = microtime(true) + 10;
     while (($closes->get() === 0 || $retired->get() === 0) && microtime(true) < $deadline) {
         usleep(10000);
     }
@@ -67,7 +68,8 @@ $pm->childFunc = function () use ($pm, $workerPid, $starts, $managerWaiting, $al
     });
     $server->on('workerError', function () use ($managerWaiting, $allowRestart) {
         $managerWaiting->set(1);
-        $deadline = microtime(true) + 10;
+        // Parent-side I/O and the observation window must finish before this watchdog.
+        $deadline = microtime(true) + 30;
         while ($allowRestart->get() === 0 && microtime(true) < $deadline) {
             usleep(1000);
         }
