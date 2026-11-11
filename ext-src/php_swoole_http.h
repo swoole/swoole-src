@@ -348,7 +348,7 @@ class Stream {
     bool send_end_stream_data_frame() const;
     bool send_trailer() const;
 
-    void reset(uint32_t error_code) const;
+    bool reset(uint32_t error_code) const;
 };
 
 class Session {
