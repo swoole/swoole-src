@@ -88,7 +88,12 @@ static int TaskWorker_call_command_handler(const ProcessPool *pool, const Worker
 static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task) {
     int ret = SW_OK;
     auto *serv = static_cast<Server *>(pool->ptr);
+    auto *previous_task = latest_task;
     latest_task = task;
+    ON_SCOPE_EXIT {
+        // A later timer/WorkerStop callback must not borrow a returned stack frame.
+        latest_task = previous_task;
+    };
 
     worker->set_status_to_busy();
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
@@ -202,9 +207,22 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
 bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
     uint64_t notify;
     EventData *task_result = get_task_result();
-    task_result->info = {};
+    Worker *worker = get_worker(swoole_get_worker_id());
     Pipe *pipe = task_notify_pipes.at(swoole_get_worker_id()).get();
     TaskId task_id = get_task_id(_task);
+    do {
+        std::lock_guard<Mutex> lock(*worker->lock);
+        task_result->info = {};
+        task_result->info.type = SW_SERVER_EVENT_TASK;
+        task_result->info.fd = task_id;
+    } while (0);
+    ON_SCOPE_EXIT {
+        std::lock_guard<Mutex> lock(*worker->lock);
+        if (task_result->info.type == SW_SERVER_EVENT_TASK && get_task_id(task_result) == task_id &&
+            !(task_result->info.ext_flags & SW_TASK_WAITALL)) {
+            task_result->info = {};
+        }
+    };
 
     pipe->clean();
     pipe->set_timeout(timeout);
@@ -213,12 +231,25 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
         return false;
     }
 
+    const auto started_at = std::chrono::steady_clock::now();
     SW_LOOP {
-        if (pipe->read(&notify, sizeof(notify)) > 0) {
-            if (get_task_id(task_result) != task_id) {
-                continue;
+        if (timeout > 0) {
+            // Spurious/late notifications share one monotonic wait budget.
+            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - started_at).count();
+            if (elapsed >= timeout) {
+                swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
+                sw_set_errno(EAGAIN);
+                break;
             }
-            return true;
+            pipe->set_timeout(timeout - elapsed);
+        }
+        if (pipe->read(&notify, sizeof(notify)) > 0) {
+            std::lock_guard<Mutex> lock(*worker->lock);
+            if (task_result->info.type == SW_SERVER_EVENT_FINISH && get_task_id(task_result) == task_id) {
+                return true;
+            }
+            // A previous producer may notify after this wait has cleaned the pipe.
+            continue;
         }
         break;
     }
@@ -267,7 +298,6 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
     WorkerId worker_id = swoole_get_worker_id();
     uint64_t notify;
     EventData *task_result = get_task_result();
-    task_result->info = {};
     Pipe *pipe = task_notify_pipes.at(worker_id).get();
     Worker *worker = get_worker(worker_id);
     int dst_worker_id;
@@ -280,14 +310,26 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
 
     std::string file_path = fp.get_path();
     fp.close();
+    TaskId batch_id = -1;
     ON_SCOPE_EXIT {
+        do {
+            std::lock_guard<Mutex> lock(*worker->lock);
+            if (batch_id >= 0 && task_result->info.type == SW_SERVER_EVENT_TASK &&
+                (task_result->info.ext_flags & SW_TASK_WAITALL) &&
+                task_result->info.msg_id == static_cast<uint64_t>(batch_id)) {
+                task_result->info = {};
+            }
+        } while (0);
+        // Invalidate the slot before unlinking: a late producer must not reopen this
+        // batch's file or append its result to the following batch's file.
         unlink(file_path.c_str());
     };
 
     auto finish_count = reinterpret_cast<sw_atomic_t *>(task_result->data);
-
     do {
         std::lock_guard<Mutex> lock(*worker->lock);
+        // Keep the slot inactive until the first task supplies its batch id.
+        task_result->info = {};
         *finish_count = 0;
         swoole_strlcpy(task_result->data + 4, file_path.c_str(), SW_TASK_TMP_PATH_SIZE);
     } while (0);
@@ -305,6 +347,15 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
             n_task--;
             continue;
         }
+        if (batch_id < 0) {
+            batch_id = task_id;
+            std::lock_guard<Mutex> lock(*worker->lock);
+            task_result->info = {};
+            task_result->info.type = SW_SERVER_EVENT_TASK;
+            task_result->info.ext_flags = SW_TASK_WAITALL;
+            task_result->info.msg_id = static_cast<uint64_t>(batch_id);
+        }
+        buf.info.msg_id = static_cast<uint64_t>(batch_id);
         buf.info.ext_flags |= SW_TASK_WAITALL;
         // task() already increments the dispatch counter and rolls it back on failure.
         dst_worker_id = -1;
@@ -340,6 +391,8 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
     std::shared_ptr<String> content;
     do {
         std::lock_guard<Mutex> lock(*worker->lock);
+        // Seal the batch while holding the producer's mutex, before taking a snapshot.
+        task_result->info = {};
         content = file_get_contents(file_path);
     } while (0);
 
@@ -493,6 +546,10 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
     if (current_task == nullptr) {
         current_task = latest_task;
     }
+    if (!current_task) {
+        swoole_warning("Server::finish() requires an active task context");
+        return false;
+    }
     if (current_task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         swoole_warning("Server::task()/Server::finish() is not supported in onPipeMessage callback");
         return false;
@@ -548,6 +605,17 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
         do {
             std::lock_guard<Mutex> lock(*worker->lock);
             if (current_task->info.ext_flags & SW_TASK_WAITALL) {
+                // The result slot is reused by later waits. Only this batch may write
+                // its file/count; timed-out results must not affect its successor.
+                if (result->info.type != SW_SERVER_EVENT_TASK || !(result->info.ext_flags & SW_TASK_WAITALL) ||
+                    result->info.msg_id != current_task->info.msg_id) {
+                    swoole_trace_log(SW_TRACE_SERVER,
+                                     "discard stale task batch result: task_id=%ld, batch_id=%llu, worker_id=%d",
+                                     get_task_id(current_task),
+                                     static_cast<unsigned long long>(current_task->info.msg_id),
+                                     source_worker_id);
+                    return false;
+                }
                 auto *finish_count = reinterpret_cast<sw_atomic_t *>(result->data);
                 char *_tmpfile = result->data + 4;
                 File file(_tmpfile, O_APPEND | O_WRONLY);
@@ -568,6 +636,14 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
                     sw_atomic_fetch_add(finish_count, 1);
                 }
             } else {
+                if (result->info.type != SW_SERVER_EVENT_TASK || (result->info.ext_flags & SW_TASK_WAITALL) ||
+                    get_task_id(result) != get_task_id(current_task)) {
+                    swoole_trace_log(SW_TRACE_SERVER,
+                                     "discard stale task result: task_id=%ld, worker_id=%d",
+                                     get_task_id(current_task),
+                                     source_worker_id);
+                    return false;
+                }
                 if (!TaskWorker_pack(result, data, data_len, get_task_id(current_task))) {
                     swoole_warning("large task pack failed()");
                     return false;

@@ -52,9 +52,11 @@ TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, C
             if (!conn->is_current_session(session_id) || conn->protect) {
                 return;
             }
-            long ms = time<std::chrono::milliseconds>(true);
-            if (ms - conn->socket->last_received_time < port->max_idle_time &&
-                ms - conn->socket->last_sent_time < port->max_idle_time) {
+            const auto now_ms = time<std::chrono::milliseconds>(true);
+            const auto idle_ms = sec2msec(port->max_idle_time);
+            // Receiving or successfully sending data keeps the transport active.
+            if (now_ms - conn->socket->last_received_time < idle_ms ||
+                now_ms - conn->socket->last_sent_time < idle_ms) {
                 return;
             }
             conn->begin_close(ConnectionCloseReason::IDLE_TIMEOUT);
@@ -350,6 +352,7 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) const {
     if (port->max_idle_time > 0) {
         const auto timeout_callback = get_timeout_callback(port, reactor, conn);
         conn->socket->read_timeout = port->max_idle_time;
+        conn->socket->last_received_time = time<std::chrono::milliseconds>(true);
         conn->socket->recv_timer = swoole_timer_add(sec2msec(port->max_idle_time), true, timeout_callback);
     }
     if (conn->socket->ssl) {
@@ -2141,9 +2144,9 @@ int Server::add_systemd_socket() {
         // O_NONBLOCK & O_CLOEXEC
         ls->socket->set_fd_option(1, 1);
 
-        ptr.release();
         check_port_type(ls);
         ports.push_back(ls);
+        ptr.release();
         ls->object_id = ports.size();
         count++;
     }
@@ -2196,8 +2199,8 @@ ListenPort *Server::add_port(SocketType type, const char *host, int port) {
     }
 
     check_port_type(ls);
-    ptr.release();
     ports.push_back(ls);
+    ptr.release();
     ls->object_id = ports.size();
     return ls;
 }

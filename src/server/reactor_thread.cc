@@ -898,7 +898,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
             swoole_timer_del(socket->send_timer);
             socket->send_timer = nullptr;
         } else {
-            swoole_timer_delay(socket->send_timer, port->max_idle_time);
+            swoole_timer_delay(socket->send_timer, sec2msec(port->max_idle_time));
         }
     }
 

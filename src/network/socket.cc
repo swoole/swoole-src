@@ -841,7 +841,7 @@ int Socket::handle_sendfile() {
         sw_set_errno(EIO);
         close_wait = 1;
         return SW_ERR;
-    } else if (send_timer) {
+    } else if (rv > 0 && (send_timer || recv_timer)) {
         last_sent_time = time<std::chrono::milliseconds>(true);
     }
 
@@ -999,7 +999,8 @@ ssize_t Socket::send(const void *_buf, size_t _n, int _flags) {
 
     if (retval > 0) {
         total_send_bytes += retval;
-        if (send_timer) {
+        if (send_timer || recv_timer) {
+            // Server idle tracking also uses the receive timer for send-only traffic.
             last_sent_time = time<std::chrono::milliseconds>(true);
         }
     }

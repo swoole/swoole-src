@@ -47,9 +47,6 @@ ListenPort::~ListenPort() {
         socket->free();
         socket = nullptr;
     }
-#ifdef SW_SUPPORT_DTLS
-    delete dtls_sessions;
-#endif
 }
 
 bool ListenPort::ssl_add_sni_cert(const std::string &name, const std::shared_ptr<SSLContext> &ctx) {
@@ -99,7 +96,8 @@ int ListenPort::ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
 
     auto *port = static_cast<ListenPort *>(SSL_get_ex_data(ssl, swoole_ssl_get_ex_port_index()));
 
-    if (port->sni_contexts.empty()) {
+    // TLS and DTLS must both bind the owning listener before the handshake.
+    if (!port || port->sni_contexts.empty()) {
         return SSL_TLSEXT_ERR_NOACK;
     }
 
@@ -119,29 +117,35 @@ dtls::Session *ListenPort::create_dtls_session(Socket *sock) const {
     if (!session->init()) {
         return nullptr;
     }
+    // Session::init() creates SSL directly. Bind the same listener metadata as
+    // ssl_create() before DTLSv1_listen()/SSL_accept() can invoke SNI callbacks.
+    if (SSL_set_ex_data(sock->ssl, swoole_ssl_get_ex_port_index(), const_cast<ListenPort *>(this)) == 0) {
+        swoole_warning("SSL_set_ex_data() failed");
+        return nullptr;
+    }
     std::lock_guard<std::mutex> guard(dtls_sessions_mutex);
-    dtls_sessions->emplace(sock->get_fd(), session.get());
-    return session.release();
+    const auto inserted = dtls_sessions->emplace(sock->get_fd(), std::move(session));
+    return inserted.second ? inserted.first->second.get() : nullptr;
 }
 
 dtls::Session *ListenPort::get_dtls_session(int fd) const {
     std::lock_guard<std::mutex> guard(dtls_sessions_mutex);
     const auto it = dtls_sessions->find(fd);
-    return it == dtls_sessions->end() ? nullptr : it->second;
+    return it == dtls_sessions->end() ? nullptr : it->second.get();
 }
 
 void ListenPort::remove_dtls_session(int fd) const {
-    dtls::Session *session = nullptr;
+    std::unique_ptr<dtls::Session> session;
     do {
         std::lock_guard<std::mutex> guard(dtls_sessions_mutex);
         const auto it = dtls_sessions->find(fd);
         if (it == dtls_sessions->end()) {
             return;
         }
-        session = it->second;
+        session = std::move(it->second);
         dtls_sessions->erase(it);
     } while (0);
-    delete session;
+    // Destroy SSL receive buffers after releasing the map mutex.
 }
 #endif
 
@@ -157,7 +161,7 @@ bool ListenPort::ssl_context_init() {
     if (is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
         ssl_context->protocols = SW_SSL_DTLS;
-        dtls_sessions = new std::unordered_map<int, dtls::Session *>;
+        dtls_sessions = std::make_unique<DTLSSessionMap>();
 #else
         swoole_warning("DTLS support require openssl-1.1 or later");
         return false;
@@ -829,8 +833,7 @@ void ListenPort::close() {
             ssl_context.reset();
         }
 #ifdef SW_SUPPORT_DTLS
-        delete dtls_sessions;
-        dtls_sessions = nullptr;
+        dtls_sessions.reset();
 #endif
     }
 

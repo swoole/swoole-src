@@ -2250,6 +2250,64 @@ TEST(server, task_id_sequence_survives_repeated_init) {
     EXPECT_GT(second.info.fd, first.info.fd);
 }
 
+TEST(server, task_finish_without_context_is_rejected) {
+    Server serv;
+    serv.task_worker_num = 1;
+    EXPECT_FALSE(serv.finish(SW_STRL("outside task"), 0));
+}
+
+TEST(server, task_sync_spurious_notifications_do_not_extend_timeout) {
+    Server serv;
+    serv.worker_num = serv.task_worker_num = 1;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    serv.get_event_worker_pool()->workers = serv.workers;
+    serv.get_event_worker_pool()->worker_num = serv.worker_num;
+    serv.workers[0].lock = new Mutex(true);
+    const auto saved_worker_id = swoole_get_worker_id();
+    swoole_set_worker_id(0);
+    ON_SCOPE_EXIT {
+        swoole_set_worker_id(saved_worker_id);
+        delete serv.workers[0].lock;
+        serv.workers[0].lock = nullptr;
+    };
+
+    EventData task;
+    ASSERT_TRUE(Server::task_pack(&task, SW_STRL("no result")));
+    auto *task_reader = serv.get_task_worker_pool()->workers[0].pipe_worker;
+    ASSERT_NE(task_reader, nullptr);
+    const auto notify_fd = serv.task_notify_pipes[0]->get_socket(true)->fd;
+    std::atomic<bool> done{false};
+    std::atomic<int> notifications{0};
+    std::thread notifier([&]() {
+        // Wait until dispatch, after task_sync() has cleaned the notification pipe.
+        ASSERT_EQ(task_reader->wait_event(1000, SW_EVENT_READ), SW_OK);
+        EventData queued;
+        ASSERT_GT(task_reader->read(&queued, sizeof(queued)), 0);
+        const auto stop_at = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        const uint64_t flag = 1;
+        while (!done.load() && std::chrono::steady_clock::now() < stop_at) {
+            // Send only wakeups; no matching result is ever published.
+            ASSERT_EQ(::write(notify_fd, &flag, sizeof(flag)), sizeof(flag));
+            notifications++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    });
+    ON_SCOPE_EXIT {
+        done = true;
+        notifier.join();
+    };
+
+    int destination = 0;
+    const auto started_at = std::chrono::steady_clock::now();
+    EXPECT_FALSE(serv.task_sync(&task, &destination, 0.1));
+    const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - started_at).count();
+    done = true;
+    EXPECT_GT(notifications.load(), 0);
+    EXPECT_LT(elapsed, 1.0);  // Wide scheduling margin; the broken loop lasts at least two seconds.
+    EXPECT_ERREQ(SW_ERROR_SOCKET_POLL_TIMEOUT);
+}
+
 TEST(server, task_finish_preserves_id_without_allocating_another) {
     Server serv;
     serv.worker_num = 1;
@@ -2269,7 +2327,14 @@ TEST(server, task_finish_preserves_id_without_allocating_another) {
     request.info.fd = 123;
     request.info.reactor_id = 0;
     const auto before = SwooleG.task_id_counter->load();
+    serv.task_results[0].info = request.info;  // Publish the expected synchronous request.
+    EventData stale = request;
+    stale.info.fd--;
+    EXPECT_FALSE(serv.finish(SW_STRL("stale single"), 0, &stale));
+    stale.info.ext_flags = SW_TASK_WAITALL;
+    EXPECT_FALSE(serv.finish(SW_STRL("stale batch"), 0, &stale));
     ASSERT_TRUE(serv.finish(SW_STRL("reply"), 0, &request));
+    EXPECT_FALSE(serv.finish(SW_STRL("duplicate"), 0, &request));
     EXPECT_EQ(serv.task_results[0].info.fd, request.info.fd);
     EXPECT_EQ(SwooleG.task_id_counter->load(), before);
 
@@ -2284,6 +2349,14 @@ TEST(server, task_finish_preserves_id_without_allocating_another) {
     *reinterpret_cast<sw_atomic_t *>(result->data) = 0;
     swoole_strlcpy(result->data + 4, path.c_str(), SW_TASK_TMP_PATH_SIZE);
     request.info.ext_flags = SW_TASK_WAITALL;
+    request.info.msg_id = 42;
+    result->info = request.info;
+    stale = request;
+    stale.info.msg_id--;
+    EXPECT_FALSE(serv.finish(SW_STRL("previous batch"), 0, &stale));
+    stale.info.ext_flags = 0;
+    EXPECT_FALSE(serv.finish(SW_STRL("previous single"), 0, &stale));
+    EXPECT_EQ(*reinterpret_cast<sw_atomic_t *>(result->data), 0u);
     ASSERT_TRUE(serv.finish(SW_STRL("reply"), 0, &request));
     EXPECT_EQ(SwooleG.task_id_counter->load(), before);
     auto content = file_get_contents(path);

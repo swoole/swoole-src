@@ -620,7 +620,7 @@ TEST_F(ConnectionState, dtls_read_without_a_session_retires_the_connection) {
     port->ssl = true;
     port->ssl_context = std::make_shared<SSLContext>();
     port->ssl_context->protocols = SW_SSL_DTLS;
-    port->dtls_sessions = new std::unordered_map<int, dtls::Session *>;
+    port->dtls_sessions = std::make_unique<ListenPort::DTLSSessionMap>();
     const auto id = conn->session_id;
     Event event{};
     event.fd = conn->fd;

@@ -581,7 +581,8 @@ struct ListenPort {
     std::unordered_map<std::string, std::shared_ptr<SSLContext>> sni_contexts;
 
 #ifdef SW_SUPPORT_DTLS
-    std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
+    using DTLSSessionMap = std::unordered_map<int, std::unique_ptr<dtls::Session>>;
+    std::unique_ptr<DTLSSessionMap> dtls_sessions;
     mutable std::mutex dtls_sessions_mutex;
     dtls::Session *create_dtls_session(network::Socket *sock) const;
     dtls::Session *get_dtls_session(int fd) const;
