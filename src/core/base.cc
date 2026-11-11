@@ -289,7 +289,7 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
         return false;
     }
 #else
-    if (dir.at(0) != '/') {
+    if (dir.empty() || dir[0] != '/') {
         swoole_warning("wrong absolute path '%s'", dir.c_str());
         return false;
     }
@@ -470,25 +470,34 @@ bool swoole_mkdir_recursive(const std::string &dir) {
     char tmp[PATH_MAX];
     size_t len = dir.length();
 
-    // PATH_MAX limit includes string trailing null character
-    if (len + 1 > PATH_MAX) {
+    if (len == 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "mkdir() failed. Path is empty");
+        return false;
+    }
+
+#ifdef _WIN32
+    const bool need_separator = dir[len - 1] != '/' && dir[len - 1] != '\\';
+#else
+    const bool need_separator = dir[len - 1] != '/';
+#endif
+
+    // PATH_MAX limit includes the trailing null character and the separator appended below
+    if (len + (need_separator ? 2 : 1) > PATH_MAX) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_NAME_TOO_LONG,
                          "mkdir() failed. Path exceeds the limit of %d characters",
-                         PATH_MAX - 1);
+                         PATH_MAX - (need_separator ? 2 : 1));
         return false;
     }
     swoole_strlcpy(tmp, dir.c_str(), PATH_MAX);
 
+    if (need_separator) {
 #ifdef _WIN32
-    if (dir[len - 1] != '/' && dir[len - 1] != '\\') {
         strcat(tmp, "\\");
-    }
 #else
-    if (dir[len - 1] != '/') {
         strcat(tmp, "/");
-    }
 #endif
+    }
 
     len = strlen(tmp);
     for (size_t i = 1; i < len; i++) {
@@ -912,7 +921,13 @@ bool swoole_get_env(const char *name, int *value) {
     if (!e) {
         return false;
     }
-    *value = std::stoi(e);
+    char *end = nullptr;
+    errno = 0;
+    const long v = strtol(e, &end, 10);
+    if (end == e || *end != '\0' || errno == ERANGE || v < INT_MIN || v > INT_MAX) {
+        return false;
+    }
+    *value = static_cast<int>(v);
     return true;
 }
 

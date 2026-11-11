@@ -442,10 +442,11 @@ uint64_t swoole_hash_austin(const char *key, size_t keylen) {
     uint64_t h = 0 ^ keylen;
 
     while (keylen >= 4) {
-        uint64_t k = key[0];
-        k |= key[1] << 8;
-        k |= key[2] << 16;
-        k |= key[3] << 24;
+        const auto *bytes = reinterpret_cast<const uint8_t *>(key);
+        uint64_t k = bytes[0];
+        k |= static_cast<uint64_t>(bytes[1]) << 8;
+        k |= static_cast<uint64_t>(bytes[2]) << 16;
+        k |= static_cast<uint64_t>(bytes[3]) << 24;
 
         k *= 0x5bd1e995;
         k ^= k >> 24;
@@ -458,15 +459,16 @@ uint64_t swoole_hash_austin(const char *key, size_t keylen) {
         keylen -= 4;
     }
 
+    const auto *tail = reinterpret_cast<const uint8_t *>(key);
     switch (keylen) {
     case 3:
-        h ^= key[2] << 16;
+        h ^= static_cast<uint64_t>(tail[2]) << 16;
         /* no break */
     case 2:
-        h ^= key[1] << 8;
+        h ^= static_cast<uint64_t>(tail[1]) << 8;
         /* no break */
     case 1:
-        h ^= key[0];
+        h ^= tail[0];
         h *= 0x5bd1e995;
     }
 

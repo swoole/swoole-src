@@ -216,11 +216,29 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
         task_result->info.type = SW_SERVER_EVENT_TASK;
         task_result->info.fd = task_id;
     } while (0);
+    bool handed_off = false;
     ON_SCOPE_EXIT {
-        std::lock_guard<Mutex> lock(*worker->lock);
-        if (task_result->info.type == SW_SERVER_EVENT_TASK && get_task_id(task_result) == task_id &&
-            !(task_result->info.ext_flags & SW_TASK_WAITALL)) {
-            task_result->info = {};
+        std::string abandoned_file;
+        do {
+            std::lock_guard<Mutex> lock(*worker->lock);
+            if (get_task_id(task_result) != task_id || (task_result->info.ext_flags & SW_TASK_WAITALL)) {
+                break;
+            }
+            if (task_result->info.type == SW_SERVER_EVENT_FINISH && !handed_off &&
+                (task_result->info.ext_flags & SW_TASK_TMPFILE) && task_result->info.len == sizeof(PacketTask)) {
+                // The producer published after this wait gave up; nobody will unpack the file.
+                PacketTask pkg{};
+                memcpy(&pkg, task_result->data, sizeof(pkg));
+                pkg.tmpfile[sizeof(pkg.tmpfile) - 1] = '\0';
+                abandoned_file = pkg.tmpfile;
+            }
+            if (task_result->info.type == SW_SERVER_EVENT_TASK ||
+                (task_result->info.type == SW_SERVER_EVENT_FINISH && !handed_off)) {
+                task_result->info = {};
+            }
+        } while (0);
+        if (!abandoned_file.empty()) {
+            unlink(abandoned_file.c_str());
         }
     };
 
@@ -246,6 +264,7 @@ bool Server::task_sync(EventData *_task, int *dst_worker_id, double timeout) {
         if (pipe->read(&notify, sizeof(notify)) > 0) {
             std::lock_guard<Mutex> lock(*worker->lock);
             if (task_result->info.type == SW_SERVER_EVENT_FINISH && get_task_id(task_result) == task_id) {
+                handed_off = true;
                 return true;
             }
             // A previous producer may notify after this wait has cleaned the pipe.
@@ -602,6 +621,15 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
         EventData *result = &(task_results[source_worker_id]);
         Pipe *pipe = task_notify_pipes.at(source_worker_id).get();
 
+        // Large results are written before taking the slot lock, so a waiter that timed out is not delayed by file I/O.
+        EventData packed;
+        bool discard_packed = false;
+        if (!(current_task->info.ext_flags & SW_TASK_WAITALL) &&
+            !TaskWorker_pack(&packed, data, data_len, get_task_id(current_task))) {
+            swoole_warning("large task pack failed()");
+            return false;
+        }
+
         do {
             std::lock_guard<Mutex> lock(*worker->lock);
             if (current_task->info.ext_flags & SW_TASK_WAITALL) {
@@ -642,16 +670,23 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
                                      "discard stale task result: task_id=%ld, worker_id=%d",
                                      get_task_id(current_task),
                                      source_worker_id);
-                    return false;
+                    discard_packed = true;
+                    break;
                 }
-                if (!TaskWorker_pack(result, data, data_len, get_task_id(current_task))) {
-                    swoole_warning("large task pack failed()");
-                    return false;
-                }
-                result->info.ext_flags |= flags;
-                result->info.type = SW_SERVER_EVENT_FINISH;
+                packed.info.ext_flags |= flags;
+                packed.info.type = SW_SERVER_EVENT_FINISH;
+                memcpy(result, &packed, packed.size());
             }
         } while (0);
+
+        if (discard_packed) {
+            if (packed.info.ext_flags & SW_TASK_TMPFILE) {
+                PacketTask pkg{};
+                memcpy(&pkg, packed.data, sizeof(pkg));
+                unlink(pkg.tmpfile);
+            }
+            return false;
+        }
 
         while (true) {
             retval = pipe->write(&flag, sizeof(flag));
