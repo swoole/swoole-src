@@ -607,6 +607,16 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
             ares_process_fd(ctx->channel, ARES_SOCKET_BAD, event->fd);
             return SW_OK;
         });
+        // Without an explicit error handler a Server falls back to its default_error_handler, which only knows
+        // client connections: it fails for a c-ares socket without removing it from epoll, so the level-triggered
+        // EPOLLERR (e.g. ECONNREFUSED from an unreachable resolver) makes epoll_wait() return immediately forever.
+        // Let c-ares consume the socket error instead.
+        swoole_event_set_handler(SW_FD_CARES, SW_EVENT_ERROR, [](Reactor *reactor, Event *event) -> int {
+            auto ctx = static_cast<ResolvContext *>(event->socket->object);
+            swoole_trace_log(SW_TRACE_CARES, "[event callback] error event, fd=%d", event->socket->fd);
+            ares_process_fd(ctx->channel, event->fd, ARES_SOCKET_BAD);
+            return SW_OK;
+        });
         sw_reactor()->add_destroy_callback([](void *_data) { ares_library_cleanup(); }, nullptr);
     }
 
