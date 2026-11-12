@@ -12,7 +12,7 @@ if ($status !== 0) die('skip requires git');
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/lib/src/Assert.php';
+require_once __DIR__ . '/../include/Assert.php';
 
 use SwooleTest\Assert;
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../include/lib/src/Assert.php';
+require_once __DIR__ . '/../../include/Assert.php';
 
 class RemoteObjectTestServer extends Swoole\RemoteObject\Server
 {

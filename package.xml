@@ -936,6 +936,7 @@
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
             <file role="test" name="tests/clean" />
+            <file role="test" name="tests/include/Assert.php" />
             <file role="test" name="tests/include/api/curl_multi.php" />
             <file role="test" name="tests/include/api/exit.php" />
             <file role="test" name="tests/include/api/http_server.php" />
@@ -985,7 +986,6 @@
             <file role="test" name="tests/include/functions.php" />
             <file role="test" name="tests/include/lib/composer.json" />
             <file role="test" name="tests/include/lib/composer.lock" />
-            <file role="test" name="tests/include/lib/src/Assert.php" />
             <file role="test" name="tests/include/lib/src/ChildProcess.php" />
             <file role="test" name="tests/include/lib/src/CoServer.php" />
             <file role="test" name="tests/include/lib/src/CurlManager.php" />
