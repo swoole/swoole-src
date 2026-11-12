@@ -604,6 +604,12 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         return SW_CONTINUE;
     }
     case SW_HTTP2_TYPE_GOAWAY: {
+        if (length < SW_HTTP2_GOAWAY_SIZE) {
+            // close() records its own error when it has to wait for another coroutine
+            close();
+            update_error_properties(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid GOAWAY frame length");
+            return SW_CLOSE;
+        }
         uint32_t server_last_stream_id = ntohl(*(uint32_t *) (buf));
         buf += 4;
         uint32_t value = ntohl(*(uint32_t *) (buf));
