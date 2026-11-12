@@ -374,6 +374,10 @@ void php_swoole_http2_client_coro_minit(int module_number) {
     zend_declare_property_null(swoole_http2_response_ce, ZEND_STRL("set_cookie_headers"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_response_ce, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http2_response_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
+    /* Headers from trailing HEADERS frames, kept separate from the initial response "headers".
+     * NULL when the peer sent no trailing HEADERS frame. Classification is by HTTP/2 receive
+     * phase, independent of any application protocol (gRPC or otherwise). */
+    zend_declare_property_null(swoole_http2_response_ce, ZEND_STRL("trailers"), ZEND_ACC_PUBLIC);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP2_TYPE_DATA", SW_HTTP2_TYPE_DATA);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP2_TYPE_HEADERS", SW_HTTP2_TYPE_HEADERS);
@@ -934,6 +938,16 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
     zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(
         swoole_http2_response_ce, zresponse, ZEND_STRL("set_cookie_headers"), 0);
 
+    /* RFC 7540 sec 8.1: the initial response HEADERS frame carries the :status pseudo-header;
+     * any later HEADERS frame on the same stream is a trailers frame and, per sec 8.1.2, MUST
+     * NOT contain pseudo-headers. Classify by receive phase (a stream flag) plus the presence
+     * of :status -- never by header names. This is a generic HTTP/2 facility, not gRPC-specific.
+     * "headers" keeps receiving every header unchanged; "trailers" is only an additional view
+     * of the trailing frame(s). */
+    bool is_trailers_frame = (stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED) != 0;
+    bool has_status_pseudo_header = false;
+    zval *ztrailers = nullptr;
+
     int inflate_flags = 0;
 
     do {
@@ -960,12 +974,17 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
             if (nv.name[0] == ':') {
+                // Pseudo-headers only appear on the initial/informational response HEADERS
+                // frame, never on a trailers frame. Encountering :status therefore proves this
+                // frame is response headers, so its ordinary headers belong to "headers" only.
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status")) {
                     uint16_t status_code = 0;
                     if (!Http2::parse_status_code((char *) nv.value, nv.valuelen, &status_code)) {
                         return SW_ERR;
                     }
                     zend::object_set(zresponse, ZEND_STRL("statusCode"), status_code);
+                    has_status_pseudo_header = true;
+                    is_trailers_frame = false;
                 }
             } else {
 #ifdef SW_HAVE_ZLIB
@@ -992,6 +1011,16 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                     php_swoole_http_parse_set_cookies((char *) nv.value, nv.valuelen, zcookies, zset_cookie_headers);
                 }
                 add_assoc_stringl_ex(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
+
+                // "headers" still receives every header above (backward compatible). Only a
+                // trailing HEADERS frame additionally feeds the separate "trailers" view.
+                if (is_trailers_frame) {
+                    if (ztrailers == nullptr) {
+                        ztrailers = sw_zend_read_and_convert_property_array(
+                            swoole_http2_response_ce, zresponse, ZEND_STRL("trailers"), 0);
+                    }
+                    add_assoc_stringl_ex(ztrailers, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
+                }
             }
         }
     } while ([=] {
@@ -1001,6 +1030,13 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
         }
         return inlen != 0;
     }());
+
+    // Only a frame carrying :status marks the initial response headers as received. A trailers
+    // frame has no pseudo-headers, so it leaves the flag untouched and is classified correctly
+    // on the next HEADERS frame (if any).
+    if (has_status_pseudo_header) {
+        stream->flags |= SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED;
+    }
 
     return SW_OK;
 }

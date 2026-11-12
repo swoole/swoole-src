@@ -75,6 +75,10 @@ enum swHttp2StreamFlag {
     SW_HTTP2_STREAM_PIPELINE_REQUEST = 1 << 1,
     SW_HTTP2_STREAM_PIPELINE_RESPONSE = 1 << 2,
     SW_HTTP2_STREAM_USE_PIPELINE_READ = 1 << 3,
+    /* An initial response HEADERS frame (one carrying the :status pseudo-header) has been
+     * received; per RFC 7540 sec 8.1, any later HEADERS frame on this stream is a trailers
+     * frame. Used to classify trailing headers by receive phase. */
+    SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED = 1 << 4,
 };
 
 #define SW_HTTP2_FRAME_HEADER_SIZE 9
