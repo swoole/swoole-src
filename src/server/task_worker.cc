@@ -624,6 +624,16 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
         // Large results are written before taking the slot lock, so a waiter that timed out is not delayed by file I/O.
         EventData packed;
         bool discard_packed = false;
+        auto slot_is_current = [&]() {
+            std::lock_guard<Mutex> lock(*worker->lock);
+            return result->info.type == SW_SERVER_EVENT_TASK && !(result->info.ext_flags & SW_TASK_WAITALL) &&
+                   get_task_id(result) == get_task_id(current_task);
+        };
+        // Skip the packing (and the file write for large results) when the waiter has already gone away.
+        if (!(current_task->info.ext_flags & SW_TASK_WAITALL) && data_len >= sizeof(packed.data) &&
+            !slot_is_current()) {
+            return false;
+        }
         if (!(current_task->info.ext_flags & SW_TASK_WAITALL) &&
             !TaskWorker_pack(&packed, data, data_len, get_task_id(current_task))) {
             swoole_warning("large task pack failed()");

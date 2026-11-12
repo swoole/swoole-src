@@ -331,6 +331,9 @@ void Manager::wait(Server *_server) {
         /**
          * Multiply max_wait_time by 2 to prevent conflict with worker
          */
+        // The shutdown waits in a blocking waitpid(). A deferred signal queued before that call would never
+        // interrupt it, so the force-kill alarm is handled synchronously.
+        swoole_signal_set(SIGALRM, signal_handler, false);
         alarm(_server->max_wait_time * 2);
     }
     _server->factory_->kill_event_workers();
