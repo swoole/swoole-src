@@ -872,10 +872,8 @@ int Socket::handle_send() {
 
     ssize_t ret = send(chunk->value.str + chunk->offset, sendn, 0);
     if (ret < 0) {
-        switch (catch_write_error(sw_errno())) {
-        case SW_ERROR:
-            swoole_sys_warning("send to fd[%d] failed", fd);
-            break;
+        const int error = sw_errno();
+        switch (catch_write_error(error)) {
         case SW_CLOSE:
             close_wait = 1;
             return SW_ERR;
@@ -883,9 +881,15 @@ int Socket::handle_send() {
             send_wait = 1;
             return SW_ERR;
         default:
-            break;
+            if (error == EINTR) {
+                return SW_OK;
+            }
+            // The chunk can never be sent; keeping it queued would make the writable callback spin forever.
+            swoole_sys_warning("send to fd[%d] failed", fd);
+            sw_set_errno(error);
+            close_wait = 1;
+            return SW_ERR;
         }
-        return SW_OK;
     }
     // chunk full send
     else if (ret == sendn) {
