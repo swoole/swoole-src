@@ -1206,7 +1206,10 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
         } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-length")) {
             if (!Http2::parse_content_length((char *) nv.value, nv.valuelen, client->max_body_size, nullptr)) {
                 // The rest of the block is still decoded for HPACK; the stream is reset after it.
-                http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE);
+                if (!http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE) &&
+                    http2_server_send_blocked()) {
+                    return SW_ERR;
+                }
                 return SW_OK;
             }
         }
@@ -1494,7 +1497,10 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
 
             // RFC 9113 §8.1: a complete response, then RST_STREAM(NO_ERROR) to stop the upload
             if (buffer->length + length > client->max_body_size) {
-                http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE);
+                if (!http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE) &&
+                    http2_server_send_blocked()) {
+                    return SW_ERR;
+                }
                 if (!http2_server_reject_request(client, stream, SW_HTTP2_ERROR_NO_ERROR)) {
                     return SW_ERR;
                 }
