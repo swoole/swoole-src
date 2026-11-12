@@ -84,6 +84,10 @@ namespace swoole {
 class Server;
 class Coroutine;
 
+namespace coroutine {
+class Channel;
+}  // namespace coroutine
+
 namespace http2 {
 class Stream;
 class Session;
@@ -371,6 +375,8 @@ class Session {
     uint32_t continuation_stream_id = 0;
     bool shutting_down;
     bool is_coro;
+    std::unique_ptr<coroutine::Channel> write_lock;
+    long write_owner = 0;
 
     http::Context *default_ctx = nullptr;
     void *private_data = nullptr;
