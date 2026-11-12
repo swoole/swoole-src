@@ -57,9 +57,18 @@ int CoroutineLock::unlock() {
         return 0;
     }
 
-    *value = 0;
+    if (current_coroutine != static_cast<Coroutine *>(coroutine) || current_coroutine->get_cid() != cid) {
+        return EPERM;
+    }
+
+    if (--recursion_count > 0) {
+        return 0;
+    }
+
+    recursion_count = 0;
     cid = 0;
     coroutine = nullptr;
+    *value = 0;
 
 #ifdef HAVE_IOURING_FUTEX
     return Iouring::futex_wakeup((uint32_t *) value) >= 0 ? 0 : errno;
@@ -76,6 +85,7 @@ int CoroutineLock::lock_impl(bool blocking) {
     }
 
     if (current_coroutine == static_cast<Coroutine *>(coroutine) && current_coroutine->get_cid() == cid) {
+        recursion_count++;
         return 0;
     }
 
@@ -111,6 +121,7 @@ int CoroutineLock::lock_impl(bool blocking) {
 
     cid = current_coroutine->get_cid();
     coroutine = (void *) current_coroutine;
+    recursion_count = 1;
     return result;
 }
 }  // namespace swoole
