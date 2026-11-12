@@ -1915,7 +1915,7 @@ bool php_swoole_server_wait_send_buffer(Server *serv, SessionId session_id) {
     return true;
 }
 
-bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata) {
+bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata, uint16_t ext_flags) {
     size_t length = ZSTR_LEN(sdata);
 
     if (length == 0) {
@@ -1926,7 +1926,7 @@ bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_strin
         if (!php_swoole_server_wait_send_buffer(serv, session_id)) {
             return false;
         }
-        bool rv = serv->send(session_id, ZSTR_VAL(sdata), length);
+        bool rv = serv->send(session_id, ZSTR_VAL(sdata), length, ext_flags);
         if (!rv && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield) {
             continue;
         }
