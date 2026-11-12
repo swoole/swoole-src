@@ -101,8 +101,6 @@ cmake-build-test/
 /core-tests/fuzz/fuzz_results/
 /core-tests/fuzz/bin/
 
-/tools/vendor
-/tools/composer.lock
 /examples/wrapper/CMakeFiles
 /examples/wrapper/CMakeCache.txt
 /examples/wrapper/Makefile

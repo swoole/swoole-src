@@ -3106,9 +3106,7 @@
             <file role="src" name="tools/analysis.php" />
             <file role="src" name="tools/arginfo-check.php" />
             <file role="src" name="tools/bootstrap.php" />
-            <file role="src" name="tools/build-library.php" />
             <file role="src" name="tools/code-generator.php" />
-            <file role="src" name="tools/composer.json" />
             <file role="src" name="tools/constant-generator.php" />
             <file role="src" name="tools/export.php" />
             <file role="src" name="tools/gen-data.php" />

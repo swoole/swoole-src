@@ -4,7 +4,10 @@ swoole_runtime: generated library preserves null-coalescing assignment and all C
 <?php
 if (PHP_OS_FAMILY === 'Windows') die('skip requires Unix symlinks and a C++ compiler');
 if (!function_exists('proc_open') || !function_exists('exec')) die('skip requires process execution');
-if (!is_file(__DIR__ . '/../../tools/vendor/bin/make-library.php')) die('skip requires tools Composer dependencies');
+if (!is_file(__DIR__ . '/../../library/tools/build-library.php')
+    || !is_file(__DIR__ . '/../../library/tools/make-library/bin/make-library.php')) {
+    die('skip requires the Swoole library source checkout');
+}
 exec('command -v c++', $output, $status);
 if ($status !== 0) die('skip requires a C++ compiler');
 exec('command -v git', $output, $status);
@@ -35,12 +38,12 @@ $root = dirname(__DIR__, 2);
 $directory = sys_get_temp_dir() . '/swoole-library-trigraphs-' . bin2hex(random_bytes(8));
 mkdir($directory);
 try {
-    mkdir($directory . '/tools');
     mkdir($directory . '/ext-src');
     mkdir($directory . '/library');
     mkdir($directory . '/library/src');
-    copy($root . '/tools/build-library.php', $directory . '/tools/build-library.php');
-    symlink($root . '/tools/vendor', $directory . '/tools/vendor');
+    mkdir($directory . '/library/tools');
+    copy($root . '/library/tools/build-library.php', $directory . '/library/tools/build-library.php');
+    symlink($root . '/library/tools/make-library', $directory . '/library/tools/make-library');
     library_trigraphs_run(['git', 'init', '-q', '--template=', $directory . '/library']);
     library_trigraphs_run([
         'git', '-C', $directory . '/library', '-c', 'user.name=Library Test',
@@ -74,7 +77,7 @@ TEXT;
 return [$values, $text];
 PHP;
     file_put_contents($directory . '/library/src/fixture.php', $source);
-    library_trigraphs_run([PHP_BINARY, '-n', $directory . '/tools/build-library.php', 'dev']);
+    library_trigraphs_run([PHP_BINARY, '-n', $directory . '/library/tools/build-library.php', 'dev']);
     $header = file_get_contents($directory . '/ext-src/php_swoole_library.h');
     Assert::true((bool) preg_match('/static const char\* swoole_library_source_fixture =\n(.*?);\n\n/s', $header, $matches));
     $cpp = "#include <cstdio>\n#include <cstring>\nstatic const char *source =\n" . $matches[1] . ";\n"
