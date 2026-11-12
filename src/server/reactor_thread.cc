@@ -409,6 +409,28 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     return serv->request_close(reactor, conn, reason);
 }
 
+static void ReactorThread_resume_http_request(Reactor *reactor, Connection *conn) {
+    auto *serv = static_cast<Server *>(reactor->ptr);
+    const SessionId session_id = conn->session_id;
+    reactor->defer([serv, reactor, session_id](void *) {
+        Connection *conn = serv->get_connection_verify(session_id);
+        if (!conn || !conn->http_request_waiting || !conn->can_receive()) {
+            return;
+        }
+        conn->http_request_waiting = 0;
+        Socket *socket = conn->socket;
+        socket->skip_recv = 1;
+
+        Event event{};
+        event.fd = conn->fd;
+        event.reactor_id = reactor->id;
+        event.type = SW_FD_SESSION;
+        event.socket = socket;
+        ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
+        port->onRead(reactor, port, &event);
+    });
+}
+
 // Owner-reactor API: derive readiness from independent receive policies, preserving pending WRITE.
 // Socket::removed is a backend registration fact and must never be used as a close/pause reason.
 int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_write) const {
@@ -443,6 +465,10 @@ int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_
             ev.socket = socket;
             reactor->get_handler(socket->fd_type, SW_EVENT_READ)(reactor, &ev);
         });
+    }
+    // Pipelined requests already in the buffer won't raise another read event.
+    if (rv == SW_OK && (events & SW_EVENT_READ) && conn->http_request_waiting) {
+        ReactorThread_resume_http_request(reactor, conn);
     }
     return rv;
 }
