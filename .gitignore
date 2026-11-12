@@ -123,3 +123,6 @@ cmake-build-test/
 /Testing/
 build.ninja
 /tests/include/tmp/
+
+# local development notes
+/docs/dev/

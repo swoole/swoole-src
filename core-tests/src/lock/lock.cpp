@@ -177,6 +177,8 @@ TEST(lock, coroutine_lock) {
             ASSERT_EQ(lock->lock(), 0);
             ASSERT_EQ(lock->lock(), 0);
             System::sleep(1);
+            // reentrant lock: every lock() needs a matching unlock()
+            ASSERT_EQ(lock->unlock(), 0);
             ASSERT_EQ(lock->unlock(), 0);
         });
 
@@ -222,6 +224,7 @@ TEST(lock, coroutine_lock_rd) {
             ASSERT_EQ(lock->lock(LOCK_SH), 0);
             ASSERT_EQ(lock->lock(LOCK_SH), 0);
             System::sleep(0.3);
+            ASSERT_EQ(lock->unlock(), 0);
             ASSERT_EQ(lock->unlock(), 0);
         });
 
