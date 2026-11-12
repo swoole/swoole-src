@@ -493,9 +493,23 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
 
     String *buffer = request->buffer_;
     auto close_reason = ConnectionCloseReason::SOCKET_EVENT;
+    auto send_continue_response = [serv, conn]() {
+        SendData send_data{};
+        send_data.info.fd = conn->session_id;
+        send_data.info.type = SW_SERVER_EVENT_SEND_DATA;
+        send_data.info.len = sizeof(SW_HTTP_100_CONTINUE_PACKET) - 1;
+        send_data.data = SW_HTTP_100_CONTINUE_PACKET;
+        serv->send_to_connection(&send_data);
+    };
+    ssize_t n;
+
+    if (_socket->skip_recv) {
+        _socket->skip_recv = 0;
+        goto _parse;
+    }
 
 _recv_data:
-    ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
+    n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
         switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
@@ -539,6 +553,12 @@ _recv_data:
     buffer->length += n;
 
 _parse:
+    if (conn->http_request_in_flight || !conn->can_receive()) {
+        conn->http_request_waiting = 1;
+        serv->update_recv_interest(reactor, conn);
+        return SW_OK;
+    }
+    conn->http_request_waiting = 0;
     if (request->method == 0 && request->get_protocol() < 0) {
         if (!request->excepted && buffer->length < SW_HTTP_HEADER_MAX_SIZE) {
             return SW_OK;
@@ -616,7 +636,7 @@ _parse:
                 }
                 request->upload_preprocessed = 1;
                 if (send_continue) {
-                    _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+                    send_continue_response();
                 }
 
                 buffer = request->buffer_;
@@ -657,11 +677,12 @@ _parse:
                 // dynamic request, dispatch to worker
                 dispatch_data.info.len = request->header_length_;
                 dispatch_data.data = buffer->str;
+                conn->http_request_in_flight = 1;
                 if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
                     goto _close_fd;
                 }
             }
-            if (!conn->active || _socket->removed) {
+            if (!conn->active) {
                 return SW_OK;
             }
             if (buffer->length > request->header_length_) {
@@ -702,7 +723,7 @@ _parse:
                 goto _too_large;
             }
             if (buffer->length == request->header_length_ && request->has_expect_header()) {
-                _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+                send_continue_response();
             }
             if (buffer->length == buffer->size) {
                 // The limit check above guarantees that the new size is larger.
@@ -737,7 +758,7 @@ _parse:
         if (buffer->length < request_length) {
             // Expect: 100-continue
             if (buffer->length == request->header_length_ && request->has_expect_header()) {
-                _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+                send_continue_response();
             } else {
                 swoole_trace_log(SW_TRACE_SERVER,
                                  "PostWait: request->content_length=%" PRIu64
@@ -760,6 +781,7 @@ _parse:
     if (request->form_data_) {
         upload_tmpfile_paths = std::move(request->form_data_->upload_tmpfile_paths_);
     }
+    conn->http_request_in_flight = 1;
     if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
         for (const auto &tmpfile : upload_tmpfile_paths) {
             unlink(tmpfile.c_str());
@@ -767,7 +789,7 @@ _parse:
         goto _close_fd;
     }
 
-    if (conn->active && !_socket->removed) {
+    if (conn->active) {
         if (buffer->length > request_length) {
             buffer->reduce(request_length);
             request->clean();

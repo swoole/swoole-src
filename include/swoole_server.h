@@ -117,6 +117,10 @@ struct Connection {
     uint8_t high_watermark;
     uint8_t http_upgrade;
     uint8_t http2_stream;
+    // Owner reactor: a dynamic HTTP/1 request is waiting for its final response output.
+    uint8_t http_request_in_flight;
+    // Owner reactor: pipelined HTTP/1 request bytes are buffered but not parsed yet.
+    uint8_t http_request_waiting;
     uint8_t websocket_compression;
     // Worker, under the slot lock: preserves onClose's reactor_id == -1 convention.
     bool close_actively;
@@ -392,9 +396,11 @@ struct Connection {
     }
 
     // Owner-reactor policy only. Socket::removed says whether it is registered, not why READ
-    // stopped. Application pause, delayed receive, backpressure and shutdown remain independent.
+    // stopped. Application pause, delayed receive, backpressure, shutdown and a pipelined HTTP/1
+    // request held behind an earlier response remain independent.
     bool can_receive() const {
-        return !is_close_requested() && !recv_paused && !recv_delayed && !recv_throttled && !recv_shutdown;
+        return !is_close_requested() && !recv_paused && !recv_delayed && !recv_throttled && !recv_shutdown &&
+               !(http_request_in_flight && http_request_waiting);
     }
 };
 
@@ -992,6 +998,11 @@ enum ServerEventType {
 // and must delete it once the native transfer terminates.
 enum ServerSendfileFlag {
     SW_SERVER_SENDFILE_DELETE = 1u << 0,
+};
+
+// Shares DataHead::ext_flags of send events with ServerSendfileFlag.
+enum ServerSendFlag {
+    SW_SERVER_SEND_MORE_DATA = 1u << 1,
 };
 
 class Server {
@@ -1974,7 +1985,7 @@ class Server {
      * This function is used for sending data to the client in the server.
      * @return true on success, false on failure.
      */
-    bool send(SessionId session_id, const void *data, uint32_t length) const;
+    bool send(SessionId session_id, const void *data, uint32_t length, uint16_t ext_flags = 0) const;
     /**
      * Send file to session.
      * This function is used for sending files in the HTTP server.
