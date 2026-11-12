@@ -230,13 +230,10 @@ int ReactorKqueue::wait() {
             break;
         }
 
-        if (reactor_->timeout_msec > 0) {
-            t.tv_sec = reactor_->timeout_msec / 1000;
-            t.tv_nsec = (reactor_->timeout_msec - t.tv_sec * 1000) * 1000 * 1000;
-            t_ptr = &t;
-        } else if (reactor_->defer_tasks) {
-            t.tv_sec = 0;
-            t.tv_nsec = 0;
+        int timeout_msec = reactor_->get_timeout_msec();
+        if (timeout_msec >= 0) {
+            t.tv_sec = timeout_msec / 1000;
+            t.tv_nsec = (timeout_msec - t.tv_sec * 1000) * 1000 * 1000;
             t_ptr = &t;
         } else {
             t_ptr = nullptr;

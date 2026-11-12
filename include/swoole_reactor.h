@@ -334,7 +334,11 @@ class Reactor {
     }
 
     int get_timeout_msec() const {
-        return defer_tasks == nullptr ? timeout_msec : 0;
+        // Don't block while a caught signal waits for the end callback; only the dispatching reactor has one
+        if (defer_tasks || (SwooleG.signal_dispatch && end_callbacks.count(PRIORITY_SIGNAL_CALLBACK))) {
+            return 0;
+        }
+        return timeout_msec;
     }
 
     void set_timeout_msec(int mesc) {
