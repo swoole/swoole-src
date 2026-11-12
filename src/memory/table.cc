@@ -315,11 +315,6 @@ static bool holder_is_foreign(pid_t pid) {
     if (pid <= 0) {
         return false;
     }
-    // A lock still held by our own process after the timeout was leaked by a thread or coroutine that
-    // can no longer release it: this caller is the only one running here.
-    if (pid == getpid()) {
-        return true;
-    }
     const pid_t pgid = getpgid(pid);
     return pgid < 0 ? errno == ESRCH : pgid != getpgrp();
 #endif
@@ -363,14 +358,14 @@ void TableRow::lock() {
             t = swoole::time<std::chrono::milliseconds>(true);
         }
         /**
-         * After SW_TABLE_FORCE_UNLOCK_TIME the holder is only evicted when it is this process (leaked lock) or its
-         * pid has been reused by a process outside our process group. A live holder that is merely slow or stopped must keep the
+         * After SW_TABLE_FORCE_UNLOCK_TIME the holder is only evicted when its pid has been reused by a
+         * process outside our process group. A live holder that is merely slow or stopped must keep the
          * lock, otherwise two writers would modify the same bucket concurrently.
          */
         else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME) {
             if (holder_is_foreign(lock_pid)) {
                 *lock = 1;
-                swoole_warning("lock pid[%d] is stale, force unlock", lock_pid);
+                swoole_warning("lock pid[%d] belongs to another process group, force unlock", lock_pid);
                 goto _success;
             }
             t = swoole::time<std::chrono::milliseconds>(true);
