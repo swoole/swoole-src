@@ -69,7 +69,6 @@ services:
   golang-h2demo:
     container_name: "golang-h2demo"
     image: "phpswoole/golang-h2demo"
-    platform: linux/amd64
   socks5:
     container_name: "socks5"
     image: "serjs/go-socks5-proxy"

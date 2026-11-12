@@ -40,10 +40,6 @@ check_docker_dependency(){
 create_docker_images(){
   arch=`uname -m`
   if [ "$arch" = "aarch64" ]; then
-      # phpswoole/golang-h2demo only has a linux/amd64 image, run it through qemu user emulation
-      echo "\n 📢 enable amd64 emulation for golang-h2demo"
-      docker run --privileged --rm tonistiigi/binfmt --install amd64 || return 1
-
       echo "\n 📢 create ${PHP_VERSION} aarch64 docker image"
       git clone https://github.com/swoole/php-docker.git
       cd php-docker
