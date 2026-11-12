@@ -67,13 +67,13 @@ Http2Stream::~Stream() {
     ctx->free();
 }
 
-void Http2Stream::reset(uint32_t error_code) const {
+bool Http2Stream::reset(uint32_t error_code) const {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE];
     swoole_trace_log(
         SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, error_code=%u", "RST_STREAM", id, error_code);
     *(uint32_t *) ((char *) frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(error_code);
     set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, SW_HTTP2_RST_STREAM_SIZE, 0, id);
-    ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE);
+    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE);
 }
 
 Http2Session::Session(SessionId _fd) {
@@ -135,13 +135,19 @@ Http2Session::~Session() {
     delete default_ctx;
 }
 
-static void http2_server_send_window_update(HttpContext *ctx, uint32_t stream_id, uint32_t size) {
+// The async server parses outside a coroutine, so a send can't wait for output-buffer space. Close the connection
+// instead of silently losing a control frame.
+static bool http2_server_send_blocked() {
+    return swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD;
+}
+
+static bool http2_server_send_window_update(HttpContext *ctx, uint32_t stream_id, uint32_t size) {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE];
     swoole_trace_log(
         SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, size=%u", "WINDOW_UPDATE", stream_id, size);
     *(uint32_t *) ((char *) frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(size);
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_WINDOW_UPDATE, SW_HTTP2_WINDOW_UPDATE_SIZE, 0, stream_id);
-    ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
+    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
 }
 
 static ssize_t http2_server_deflate_header_block(const std::shared_ptr<Http2Session> &client,
@@ -1052,11 +1058,14 @@ static bool http2_server_valid_trailer(const nghttp2_nv &nv) {
     return true;
 }
 
-static void http2_server_reject_request(const std::shared_ptr<Http2Session> &client,
+static bool http2_server_reject_request(const std::shared_ptr<Http2Session> &client,
                                         const std::shared_ptr<Http2Stream> &stream,
                                         uint32_t error_code) {
-    stream->reset(error_code);
+    if (!stream->reset(error_code) && http2_server_send_blocked()) {
+        return false;
+    }
     client->remove_stream(stream->id);
+    return true;
 }
 
 static void http2_server_complete_request(const std::shared_ptr<Http2Session> &client,
@@ -1351,7 +1360,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         }
         // After receiving the setting frame sent by the client, it is necessary to reply with an ACK,
         // otherwise the client will assume that the server has not applied the setting
-        http2_server_send_setting_ack(client->default_ctx);
+        if (!http2_server_send_setting_ack(client->default_ctx) && http2_server_send_blocked()) {
+            return SW_ERR;
+        }
         break;
     }
     case SW_HTTP2_TYPE_HEADERS:
@@ -1424,7 +1435,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         }
         client->continuation_stream_id = 0;
         if (stream->header_error != SW_HTTP2_ERROR_NO_ERROR) {
-            http2_server_reject_request(client, stream, stream->header_error);
+            if (!http2_server_reject_request(client, stream, stream->header_error)) {
+                return SW_ERR;
+            }
             break;
         }
         if (stream->receive_phase == Http2Stream::ReceivePhase::HEADERS &&
@@ -1447,7 +1460,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         }
 
         if (stream->receive_phase != Http2Stream::ReceivePhase::BODY) {
-            http2_server_reject_request(client, stream, SW_HTTP2_ERROR_STREAM_CLOSED);
+            if (!http2_server_reject_request(client, stream, SW_HTTP2_ERROR_STREAM_CLOSED)) {
+                return SW_ERR;
+            }
             break;
         }
 
@@ -1458,7 +1473,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
 
             // Exceeded the max_body_size, or if the stream has ended, sends RST_STREAM frame, stops receiving data
             if (buffer->length + length > client->max_body_size || ctx->end_) {
-                http2_server_send_rst_stream(ctx, 0);
+                if (!http2_server_send_rst_stream(ctx, 0) && http2_server_send_blocked()) {
+                    return SW_ERR;
+                }
                 client->remove_stream(stream_id);
                 break;
             }
@@ -1470,13 +1487,19 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             stream->local_window_size -= length;
 
             if (client->local_window_size < (client->local_settings.init_window_size / 4)) {
-                http2_server_send_window_update(
-                    ctx, 0, client->local_settings.init_window_size - client->local_window_size);
+                if (!http2_server_send_window_update(
+                        ctx, 0, client->local_settings.init_window_size - client->local_window_size) &&
+                    http2_server_send_blocked()) {
+                    return SW_ERR;
+                }
                 client->local_window_size = client->local_settings.init_window_size;
             }
             if (stream->local_window_size < (client->local_settings.init_window_size / 4)) {
-                http2_server_send_window_update(
-                    ctx, stream_id, client->local_settings.init_window_size - stream->local_window_size);
+                if (!http2_server_send_window_update(
+                        ctx, stream_id, client->local_settings.init_window_size - stream->local_window_size) &&
+                    http2_server_send_blocked()) {
+                    return SW_ERR;
+                }
                 stream->local_window_size = client->local_settings.init_window_size;
             }
         }
@@ -1496,8 +1519,11 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             Http2::set_frame_header(
                 ping_frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, stream_id);
             memcpy(ping_frame + SW_HTTP2_FRAME_HEADER_SIZE, buf, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
-            client->default_ctx->send(
-                client->default_ctx, ping_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+            if (!client->default_ctx->send(
+                    client->default_ctx, ping_frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) &&
+                http2_server_send_blocked()) {
+                return SW_ERR;
+            }
         }
         break;
     }
