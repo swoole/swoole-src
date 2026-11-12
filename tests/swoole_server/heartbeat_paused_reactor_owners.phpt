@@ -29,6 +29,8 @@ $pm->parentFunc = function () use ($pm, $closes) {
         Assert::false(stream_get_meta_data($client)['timed_out']);
         fclose($client);
     }
+    // Heartbeat shutdown can deliver EOF before the workers execute their close callbacks.
+    Assert::true($pm->wait());
     Assert::same($closes->get(), CONNECTIONS);
     usleep(1100000);
     Assert::same($closes->get(), CONNECTIONS);
@@ -53,7 +55,11 @@ $pm->childFunc = function () use ($pm, $closes) {
         Assert::true($server->send($fd, json_encode($server->getClientInfo($fd)) . "\n"));
     });
     $server->on('receive', function () { Assert::true(false, 'connection remains paused'); });
-    $server->on('close', function () use ($closes) { $closes->add(); });
+    $server->on('close', function () use ($pm, $closes) {
+        if ($closes->add() === CONNECTIONS) {
+            $pm->wakeup();
+        }
+    });
     $server->start();
 };
 $pm->childFirst();
