@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build and push the multi-arch (amd64 + arm64) phpswoole/golang-h2demo image.
-# Usage: sudo ./build-push.sh [--no-push]
+# Usage: sudo [https_proxy=<proxy url>] ./build-push.sh [--no-push]
 set -e
 cd "$(dirname "$0")"
 
@@ -18,14 +18,22 @@ if [ "$1" != "--no-push" ] && ! grep -q 'index.docker.io\|"auths"' /root/.docker
     docker login
 fi
 
-docker buildx inspect "$BUILDER" >/dev/null 2>&1 || docker buildx create --name "$BUILDER" \
-    --driver docker-container --driver-opt network=host \
-    ${https_proxy:+--driver-opt env.http_proxy=$https_proxy --driver-opt env.https_proxy=$https_proxy} >/dev/null
+# Optional proxy; sudo drops the environment, so set it after sudo: sudo https_proxy=<proxy url> ./build-push.sh
+PROXY="${https_proxy:-$HTTPS_PROXY}"
+PROXY_OPTS=""
+if [ -n "$PROXY" ]; then
+    PROXY_OPTS="--build-arg http_proxy=$PROXY --build-arg https_proxy=$PROXY --network host --allow network.host"
+fi
+
+docker buildx rm "$BUILDER" >/dev/null 2>&1 || true
+docker buildx create --name "$BUILDER" --driver docker-container --driver-opt network=host \
+    ${PROXY:+--driver-opt env.http_proxy=$PROXY --driver-opt env.https_proxy=$PROXY} \
+    --buildkitd-flags '--allow-insecure-entitlement network.host' >/dev/null
 
 if [ "$1" = "--no-push" ]; then
-    docker buildx build --builder "$BUILDER" --platform linux/amd64,linux/arm64 -t "$IMAGE" \
+    docker buildx build --builder "$BUILDER" $PROXY_OPTS --platform linux/amd64,linux/arm64 -t "$IMAGE" \
         --output type=oci,dest=/tmp/h2demo.oci .
 else
-    docker buildx build --builder "$BUILDER" --platform linux/amd64,linux/arm64 -t "$IMAGE" --push .
+    docker buildx build --builder "$BUILDER" $PROXY_OPTS --platform linux/amd64,linux/arm64 -t "$IMAGE" --push .
     docker buildx imagetools inspect "$IMAGE" | grep -E 'Name:|Platform:'
 fi
