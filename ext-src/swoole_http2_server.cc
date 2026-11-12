@@ -1467,12 +1467,24 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         }
 
         HttpContext *ctx = stream->ctx;
+        const char *data = buf;
+        ssize_t data_length = length;
+        if (flags & SW_HTTP2_FLAG_PADDED) {
+            if (length < 1) {
+                return SW_ERR;
+            }
+            uint8_t padding = (uint8_t) *data++;
+            if (padding > --data_length) {
+                return SW_ERR;
+            }
+            data_length -= padding;
+        }
 
         if (length > 0) {
             auto buffer = ctx->get_http2_data_buffer();
 
             // Exceeded the max_body_size, or if the stream has ended, sends RST_STREAM frame, stops receiving data
-            if (buffer->length + length > client->max_body_size || ctx->end_) {
+            if (buffer->length + data_length > client->max_body_size || ctx->end_) {
                 if (!http2_server_send_rst_stream(ctx, 0) && http2_server_send_blocked()) {
                     return SW_ERR;
                 }
@@ -1480,9 +1492,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                 break;
             }
 
-            buffer->append(buf, length);
+            buffer->append(data, data_length);
 
-            // flow control
+            // flow control (the padding counts too)
             client->local_window_size -= length;
             stream->local_window_size -= length;
 
