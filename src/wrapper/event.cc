@@ -15,6 +15,7 @@
 */
 
 #include "swoole_reactor.h"
+#include "swoole_signal.h"
 #include "swoole_client.h"
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
@@ -44,6 +45,9 @@ int swoole_event_init(int flags) {
     swoole::network::Client::init_reactor(reactor.get());
 
     SwooleTG.reactor = reactor.release();
+#ifndef _WIN32
+    swoole_signal_init_reactor(SwooleTG.reactor);
+#endif
 
     return SW_OK;
 }
