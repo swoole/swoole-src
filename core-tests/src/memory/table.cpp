@@ -607,19 +607,43 @@ TEST(table, lock) {
     auto ptr = table.ptr();
 
     std::string key("php");
-    TableRow *_rowlock = nullptr;
+    int fds[2];
+    ASSERT_EQ(pipe(fds), 0);
 
-    for (int i = 0; i <= 3; i++) {
-        std::thread t([&]() {
-            TableRow *row = ptr->get(key.c_str(), key.length(), &_rowlock);
-            TableColumn *column_name = ptr->get_column("name");
-            char *str = nullptr;
-            TableStringLength len = 0;
-            row->get_value(column_name, &str, &len);
-            ASSERT_STREQ(str, "php");
-        });
-        t.join();
-    }
+    // The child takes the row lock and never releases it.
+    auto child = test::spawn_exec([&]() {
+        TableRow *_rowlock = nullptr;
+        if (ptr->get(key.c_str(), key.length(), &_rowlock) == nullptr) {
+            exit(1);
+        }
+        char ready = 1;
+        if (write(fds[1], &ready, 1) != 1) {
+            exit(2);
+        }
+        while (true) {
+            pause();
+        }
+    });
+    ASSERT_GT(child, 0);
+
+    char ready = 0;
+    ASSERT_EQ(read(fds[0], &ready, 1), 1);
+    close(fds[0]);
+    close(fds[1]);
+
+    // The holder dies while holding the lock, the parent must be able to force it open.
+    ASSERT_EQ(kill(child, SIGKILL), 0);
+    int status = 0;
+    ASSERT_EQ(swoole_waitpid(child, &status, 0), child);
+
+    TableRow *_rowlock = nullptr;
+    TableRow *row = ptr->get(key.c_str(), key.length(), &_rowlock);
+    ASSERT_NE(row, nullptr);
+    TableColumn *column_name = ptr->get_column("name");
+    char *str = nullptr;
+    TableStringLength len = 0;
+    row->get_value(column_name, &str, &len);
+    ASSERT_STREQ(str, "php");
     _rowlock->unlock();
 }
 
