@@ -346,6 +346,22 @@ _destroy:
     zval_ptr_dtor(&ctx->request.zobject);
     zval_ptr_dtor(&ctx->response.zobject);
 }
+
+static void http2_server_onStreamReset(const std::shared_ptr<Http2Session> &client, uint32_t stream_id) {
+    auto serv = client->default_ctx->get_async_server();
+    auto cb = php_swoole_server_get_callback(serv, client->server_fd, SW_SERVER_CB_onStreamReset);
+    if (!cb) {
+        return;
+    }
+
+    zval args[3];
+    args[0] = *php_swoole_server_zval_ptr(serv);
+    ZVAL_LONG(&args[1], client->fd);
+    ZVAL_LONG(&args[2], stream_id);
+    if (UNEXPECTED(!zend::function::call(cb, 3, args, nullptr, serv->is_enable_coroutine()))) {
+        php_swoole_error(E_WARNING, "%s->onStreamReset handler error", ZSTR_VAL(swoole_http_server_ce->name));
+    }
+}
 #endif
 
 static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const String *body) {
@@ -624,6 +640,24 @@ static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &sessi
     return false;
 }
 
+// A send_yield wait can outlast its stream, so DATA for a stream that is gone is not sent. Other frames still are: a
+// header block has already changed the connection's HPACK state, and control frames sent through a stream's context
+// belong to the connection.
+bool swoole_http2_server_can_resend(HttpContext *ctx, const zend_string *frame) {
+    if (ZSTR_VAL(frame)[3] != SW_HTTP2_TYPE_DATA) {
+        return true;
+    }
+    auto iter = http2_sessions.find(ctx->fd);
+    if (iter != http2_sessions.end()) {
+        auto stream = iter->second->get_stream(ctx->stream_id);
+        if (stream && stream->ctx == ctx) {
+            return true;
+        }
+    }
+    swoole_set_last_error(SW_ERROR_HTTP2_STREAM_NOT_FOUND);
+    return false;
+}
+
 bool Http2Stream::send_body(
     const String *body, bool end_stream, const std::shared_ptr<Http2Session> &session, off_t offset, size_t length) {
     if (!http2_server_check_stream(session, this)) {
@@ -677,8 +711,9 @@ bool Http2Stream::send_body(
 
         http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flags, id);
 
-        // send twice to reduce memory copy
-        if (send_n < swoole_pagesize()) {
+        // The async server queues each frame whole: a send_yield wait that fails or is cancelled must not leave a
+        // header without its payload. The coroutine server sends large frames twice to avoid a copy.
+        if (send_n < swoole_pagesize() || !ctx->is_co_socket()) {
             http_buffer->clear();
             http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
             http_buffer->append(p, send_n);
@@ -1546,7 +1581,18 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
     case SW_HTTP2_TYPE_RST_STREAM: {
         value = ntohl(*(int *) (buf));
         swoole_http2_frame_trace_log("error_code=%d", value);
+        bool request_complete = false;
+        if (auto stream = client->get_stream(stream_id)) {
+            // A send suspended on connection backpressure keeps the stream alive after removal.
+            stream->ctx->end_ = 1;
+            request_complete = stream->receive_phase == Http2Stream::ReceivePhase::COMPLETE;
+        }
         client->remove_stream(stream_id);
+#ifndef _WIN32
+        if (request_complete && !client->is_coro) {
+            http2_server_onStreamReset(client, stream_id);
+        }
+#endif
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY: {
@@ -1579,6 +1625,8 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     std::shared_ptr<Http2Session> client;
     if (iter == http2_sessions.end()) {
         client = swoole_http2_server_session_new(session_id);
+        // Later frames can't rely on the Connection slot: the reactor may have reused it for another session.
+        client->server_fd = req->info.server_fd;
         client->default_ctx = new HttpContext();
         client->default_ctx->init(serv);
         client->default_ctx->fd = session_id;

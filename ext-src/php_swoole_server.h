@@ -49,6 +49,7 @@ enum php_swoole_server_port_callback_type {
     SW_SERVER_CB_onClose,                    // stream, worker(event)
     SW_SERVER_CB_onPacket,                   // dgram, worker(event)
     SW_SERVER_CB_onRequest,                  // http, worker(event)
+    SW_SERVER_CB_onStreamReset,              // http2, worker(event)
     SW_SERVER_CB_onHandshake,                // websocket, worker(event)
     SW_SERVER_CB_onBeforeHandshakeResponse,  // websocket, worker(event)
     SW_SERVER_CB_onOpen,                     // websocket, worker(event)
@@ -147,7 +148,10 @@ void php_swoole_server_register_callbacks(swServer *serv);
 zend::Callable *php_swoole_server_get_callback(swServer *serv, int server_fd, int event_type);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 bool php_swoole_server_isset_callback(swServer *serv, swoole::ListenPort *port, int event_type);
-bool php_swoole_server_send_yield(swServer *serv, swoole::SessionId session_id, zend_string *sdata);
+bool php_swoole_server_send_yield(swServer *serv,
+                                  swoole::SessionId session_id,
+                                  zend_string *sdata,
+                                  const std::function<bool()> &can_resend = nullptr);
 void php_swoole_get_recv_data(swServer *serv, zval *zdata, swoole::RecvData *req);
 void php_swoole_server_onConnect(swServer *, swoole::DataHead *);
 int php_swoole_server_onReceive(swServer *, swoole::RecvData *);

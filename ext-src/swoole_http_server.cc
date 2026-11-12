@@ -346,7 +346,11 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     // The protocol parsers run outside a coroutine, so their sends can't wait; they fail instead.
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && swoole_coroutine_is_in()) {
         auto sdata = zend_string_init(data, length, false);
-        auto rv = php_swoole_server_send_yield(serv, ctx->fd, sdata);
+        std::function<bool()> can_resend;
+        if (ctx->http2) {
+            can_resend = [ctx, sdata]() { return swoole_http2_server_can_resend(ctx, sdata); };
+        }
+        auto rv = php_swoole_server_send_yield(serv, ctx->fd, sdata, can_resend);
         zend_string_release(sdata);
         return rv;
     }

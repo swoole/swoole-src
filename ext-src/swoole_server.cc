@@ -1029,6 +1029,11 @@ bool ServerObject::on_before_start() {
         }
     }
 
+    bool has_http2_port = false;
+    for (auto zport : property->ports) {
+        has_http2_port |= php_swoole_server_port_get_and_check_ptr(zport)->open_http2_protocol;
+    }
+
     for (auto zport : property->ports) {
         ListenPort *port = php_swoole_server_port_get_and_check_ptr(zport);
 
@@ -1047,6 +1052,18 @@ bool ServerObject::on_before_start() {
                 "server dispatch mode should be FDMOD(%d) or IPMOD(%d) if open_http2_protocol is true",
                 Server::DISPATCH_FDMOD,
                 Server::DISPATCH_IPMOD);
+        }
+
+        // Other ports fall back to the primary port's callbacks.
+        if (php_swoole_server_get_port_property(port)->callbacks[SW_SERVER_CB_onStreamReset] &&
+            !(port == primary_port ? has_http2_port : port->open_http2_protocol)) {
+            php_swoole_error(E_WARNING,
+                             "port[%s:%d] sets the streamReset callback without open_http2_protocol",
+                             port->get_host(),
+                             port->get_port());
+            if (UNEXPECTED(EG(exception))) {
+                return false;
+            }
         }
 
         if (!port->open_http_protocol) {
@@ -1891,7 +1908,10 @@ void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
     }
 }
 
-bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata) {
+bool php_swoole_server_send_yield(Server *serv,
+                                  SessionId session_id,
+                                  zend_string *sdata,
+                                  const std::function<bool()> &can_resend) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     Coroutine *co = Coroutine::get_current_safe();
     size_t length = ZSTR_LEN(sdata);
@@ -1913,6 +1933,9 @@ bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_strin
         auto iter = std::prev(co_list->end());
         if (!co->yield_ex(serv->send_timeout)) {
             co_list->erase(iter);
+            return false;
+        }
+        if (can_resend && !can_resend()) {
             return false;
         }
         bool rv = serv->send(session_id, ZSTR_VAL(sdata), length);
