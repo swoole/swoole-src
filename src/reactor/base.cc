@@ -492,6 +492,7 @@ void Reactor::discard_defer_tasks() {
 }
 
 Reactor::~Reactor() {
+    destroying_ = true;
     destroyed = true;
     destroy_callbacks.execute();
     discard_defer_tasks();

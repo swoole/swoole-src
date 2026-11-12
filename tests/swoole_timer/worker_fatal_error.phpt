@@ -3,7 +3,10 @@ swoole_timer: a fatal error in a timer callback ends the server worker with exit
 --INI--
 fatal_error_backtraces=0
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_class_not_exist(Swoole\Server::class);
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
