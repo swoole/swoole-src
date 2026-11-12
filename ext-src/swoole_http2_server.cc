@@ -526,7 +526,7 @@ static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const
 }
 
 bool swoole_http2_server_ping(HttpContext *ctx) {
-    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE] = {};
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
     return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
 }
@@ -1488,6 +1488,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
     }
     case SW_HTTP2_TYPE_PING: {
         swoole_http2_frame_trace_log("ping");
+        if (length != SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) {
+            return SW_ERR;
+        }
         if (!(flags & SW_HTTP2_FLAG_ACK)) {
             char ping_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
             Http2::set_frame_header(

@@ -610,11 +610,16 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     }
     case SW_HTTP2_TYPE_PING: {
         swoole_http2_frame_trace_log("ping");
+        if (length != SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) {
+            // close() records its own error when it has to wait for another coroutine
+            close();
+            update_error_properties(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid PING frame length");
+            return SW_CLOSE;
+        }
         if (!(flags & SW_HTTP2_FLAG_ACK)) {
             Http2::set_frame_header(
                 frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_ACK, _stream_id);
-            memcpy(
-                frame + SW_HTTP2_FRAME_HEADER_SIZE, buf + SW_HTTP2_FRAME_HEADER_SIZE, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
+            memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, buf, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
             if (!send(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE)) {
                 return SW_ERROR;
             }
@@ -1130,7 +1135,7 @@ Stream *Client::create_stream(uint32_t _stream_id, uint8_t flags) {
  * called in write channel
  */
 bool Client::send_ping_frame() {
-    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE] = {};
     Http2::set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
     swoole_http2_send_trace_log("[" SW_ECHO_CYAN "]", "PING");
     return send(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
