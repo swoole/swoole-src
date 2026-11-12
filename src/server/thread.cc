@@ -312,7 +312,9 @@ void ThreadFactory::wait() {
                 spawn_task_worker(exited_worker->id);
                 break;
             case SW_USER_WORKER:
-                spawn_user_worker(exited_worker->id);
+                if (!sw_atomic_load_acquire(&shutting_down)) {
+                    spawn_user_worker(exited_worker->id);
+                }
                 break;
             default:
                 abort();

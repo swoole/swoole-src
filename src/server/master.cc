@@ -1151,6 +1151,10 @@ bool Server::shutdown() {
                 SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "failed to shutdown, kill(%d, SIGTERM) failed", pid);
             return false;
         }
+        if (is_thread_mode()) {
+            // The master thread handles the signal later; a user worker that exits before then must not be replaced.
+            dynamic_cast<ThreadFactory *>(factory_)->begin_shutdown();
+        }
     }
 
     return true;
@@ -1226,6 +1230,10 @@ bool Server::signal_handler_shutdown() {
             stop_async_worker(sw_worker());
         }
         return true;
+    }
+    if (is_thread_mode()) {
+        // Before onBeforeShutdown, which may tell user workers to exit
+        dynamic_cast<ThreadFactory *>(factory_)->begin_shutdown();
     }
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
