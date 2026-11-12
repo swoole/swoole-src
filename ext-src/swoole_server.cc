@@ -3471,11 +3471,16 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         RETURN_FALSE;
     }
 
+    std::vector<zval *> list;
+    list.reserve(n_task);
+    zval *ztask;
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask) {
+        list.push_back(ztask);
+    }
+    SW_HASHTABLE_FOREACH_END();
+
     Server::MultiTask mt(n_task);
-    mt.pack = [ztasks](uint16_t i, EventData *buf) {
-        auto *ztask = zend::array_get(ztasks, (zend_ulong) i);
-        return php_swoole_server_task_pack(ztask, buf);
-    };
+    mt.pack = [&list](uint16_t i, EventData *buf) { return php_swoole_server_task_pack(list[i], buf); };
 
     mt.unpack = [return_value](uint16_t i, EventData *result) {
         zval zresult;
