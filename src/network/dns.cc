@@ -588,7 +588,7 @@ struct ResolvContext {
     bool completed;
     Coroutine *co;
     std::shared_ptr<bool> defer_task_cancelled;
-    std::unordered_map<int, network::Socket *> sockets;
+    std::unordered_map<ares_socket_t, network::Socket *> sockets;
     std::vector<std::string> result;
 };
 
@@ -631,7 +631,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     ctx.ares_opts.timeout = timeout * 1000;
     ctx.ares_opts.tries = SwooleG.dns_tries;
     ctx.ares_opts.sock_state_cb_data = &ctx;
-    ctx.ares_opts.sock_state_cb = [](void *arg, int fd, int readable, int writable) {
+    ctx.ares_opts.sock_state_cb = [](void *arg, ares_socket_t fd, int readable, int writable) {
         auto ctx = static_cast<ResolvContext *>(arg);
         int events = 0;
         if (readable) {
