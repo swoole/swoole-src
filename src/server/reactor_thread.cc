@@ -409,6 +409,28 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     return serv->request_close(reactor, conn, reason);
 }
 
+static void ReactorThread_resume_http_request(Reactor *reactor, Connection *conn) {
+    auto *serv = static_cast<Server *>(reactor->ptr);
+    const SessionId session_id = conn->session_id;
+    reactor->defer([serv, reactor, session_id](void *) {
+        Connection *conn = serv->get_connection_verify(session_id);
+        if (!conn || !conn->http_request_waiting || !conn->can_receive()) {
+            return;
+        }
+        conn->http_request_waiting = 0;
+        Socket *socket = conn->socket;
+        socket->skip_recv = 1;
+
+        Event event{};
+        event.fd = conn->fd;
+        event.reactor_id = reactor->id;
+        event.type = SW_FD_SESSION;
+        event.socket = socket;
+        ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
+        port->onRead(reactor, port, &event);
+    });
+}
+
 // Owner-reactor API: derive readiness from independent receive policies, preserving pending WRITE.
 // Socket::removed is a backend registration fact and must never be used as a close/pause reason.
 int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_write) const {
@@ -422,9 +444,17 @@ int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_
         return socket->removed ? SW_OK : reactor->del(socket);
     }
     if (socket->removed) {
-        return reactor->add(socket, events);
+        if (reactor->add(socket, events) < 0) {
+            return SW_ERR;
+        }
+    } else if (events != socket->events && reactor->set(socket, events) < 0) {
+        return SW_ERR;
     }
-    return events == socket->events ? SW_OK : reactor->set(socket, events);
+    // Pipelined requests already in the buffer won't raise another read event.
+    if (conn->http_request_waiting && (events & SW_EVENT_READ)) {
+        ReactorThread_resume_http_request(reactor, conn);
+    }
+    return SW_OK;
 }
 
 // Owner-reactor API for EOF, I/O/protocol errors and timeouts. Stop I/O, publish the first cause,
