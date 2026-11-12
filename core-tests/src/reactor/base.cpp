@@ -55,6 +55,19 @@ TEST(reactor, wrapper_init_preserves_existing_reactor) {
     EXPECT_EQ(swoole_event_free(), SW_OK);
 }
 
+TEST(reactor, wrapper_free_releases_unavailable_reactor) {
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    int destroyed = 0;
+    sw_reactor()->add_destroy_callback([&](void *) { ++destroyed; });
+    // Server::clean_worker_connections() marks the reactor of a worker stopped by a fatal error.
+    sw_reactor()->destroyed = true;
+    EXPECT_FALSE(sw_reactor()->is_destroying());
+    EXPECT_FALSE(swoole_event_is_available());
+    EXPECT_EQ(swoole_event_free(), SW_OK);
+    EXPECT_EQ(sw_reactor(), nullptr);
+    EXPECT_EQ(destroyed, 1);
+}
+
 TEST(reactor, wrapper_destruction_rejects_reentry_and_preserves_internal_cleanup) {
     void *previous_hook = SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY];
     SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY] = nullptr;
@@ -65,6 +78,7 @@ TEST(reactor, wrapper_destruction_rejects_reentry_and_preserves_internal_cleanup
     int calls = 0;
     const auto check_reentry = [&](Reactor *reactor) {
         EXPECT_EQ(sw_reactor(), reactor);
+        EXPECT_TRUE(reactor->is_destroying());
         EXPECT_TRUE(reactor->destroyed);
         EXPECT_FALSE(swoole_event_is_available());
         EXPECT_EQ(swoole_event_free(), SW_ERR);
@@ -93,6 +107,24 @@ TEST(reactor, wrapper_destruction_rejects_reentry_and_preserves_internal_cleanup
     EXPECT_EQ(sw_reactor(), nullptr);
     EXPECT_EQ(calls, 2);
     EXPECT_FALSE(test::is_valid_fd(fd));
+}
+
+TEST(reactor, direct_destruction_rejects_wrapper_reentry) {
+    ASSERT_EQ(swoole_event_init(0), SW_OK);
+    auto *reactor = sw_reactor();
+    int destroyed = 0;
+    reactor->add_destroy_callback([&](void *) {
+        EXPECT_EQ(sw_reactor(), reactor);
+        EXPECT_TRUE(reactor->is_destroying());
+        EXPECT_FALSE(swoole_event_is_available());
+        EXPECT_EQ(swoole_event_free(), SW_ERR);
+        ++destroyed;
+    });
+    // Direct owners keep the thread-local pointer valid for cleanup, then clear it themselves.
+    delete reactor;
+    SwooleTG.reactor = nullptr;
+    EXPECT_EQ(destroyed, 1);
+    EXPECT_EQ(swoole_event_free(), SW_ERR);
 }
 
 TEST(reactor, wrapper_wait_reentry_preserves_running_reactor) {

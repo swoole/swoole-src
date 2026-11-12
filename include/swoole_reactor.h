@@ -224,6 +224,9 @@ class Reactor {
     std::unique_ptr<ReactorImpl> impl;
     uint64_t round_ = 0;
     mutable bool waiting_ = false;
+    // Owner thread only. Worker shutdown may set destroyed before deletion; this flag is set
+    // only at destructor entry, before any cleanup callback can reenter the event wrappers.
+    bool destroying_ = false;
     std::map<int, std::function<void(Reactor *)>> end_callbacks;
     std::map<int, std::function<bool(Reactor *, size_t &)>> exit_conditions;
     std::unordered_map<int, network::Socket *> sockets_;
@@ -237,6 +240,9 @@ class Reactor {
     }
     bool is_waiting() const {
         return waiting_;
+    }
+    bool is_destroying() const {
+        return destroying_;
     }
     bool if_exit();
     void defer(const Callback &cb, void *data = nullptr);
