@@ -129,6 +129,8 @@ _recv_data:
 
         p = buffer->str;
         pe = p + buffer->length;
+        // The buffer is always parsed from the beginning, so the parser state must start over as well.
+        sw_memset_zero(request, sizeof(Request));
 
         do {
             switch (request->state) {
@@ -168,8 +170,7 @@ _recv_data:
                 /* no break */
 
             case STATE_RECEIVE_STRING:
-                if (pe - p < request->n_bytes_total - request->n_bytes_received) {
-                    request->n_bytes_received += pe - p;
+                if (pe - p < request->n_bytes_total + SW_CRLF_LEN) {
                     return SW_OK;
                 } else {
                     p += request->n_bytes_total + SW_CRLF_LEN;
@@ -198,6 +199,8 @@ _recv_data:
                 goto _failed;
             }
         } while (p < pe);
+        // the request is incomplete, wait for more data
+        return SW_OK;
     }
 _failed:
     swoole_warning("redis protocol error");
