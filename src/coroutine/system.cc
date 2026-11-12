@@ -465,9 +465,12 @@ struct EventWaiter {
     Coroutine *co;
     int revents;
     int error_;
+    // shared with the deferred resume task, which may run after this object is destroyed
+    std::shared_ptr<bool> waiting;
 
     EventWaiter(int fd, int events, double timeout) {
         error_ = revents = 0;
+        waiting = std::make_shared<bool>(true);
         socket = swoole::make_socket(fd, SW_FD_CO_EVENT);
         socket->object = this;
         co = Coroutine::get_current_safe();
@@ -480,6 +483,7 @@ struct EventWaiter {
         if (!co->yield_ex(timeout)) {
             error_ = swoole_get_last_error();
         }
+        *waiting = false;
 
         swoole_event_del(socket);
     _done:
@@ -490,7 +494,12 @@ struct EventWaiter {
 
 static inline void event_waiter_callback(Reactor *reactor, EventWaiter *waiter, EventType event) {
     if (waiter->revents == 0) {
-        reactor->defer([waiter](void *data) { waiter->co->resume(); });
+        reactor->defer([co = waiter->co, waiting = waiter->waiting](void *data) {
+            // the timeout may have already resumed the coroutine and finished the wait
+            if (*waiting) {
+                co->resume();
+            }
+        });
     }
     waiter->revents |= event;
 }
