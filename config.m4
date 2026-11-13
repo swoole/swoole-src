@@ -438,7 +438,11 @@ AC_CANONICAL_HOST
 if test "$PHP_SWOOLE" != "no"; then
 
     AC_CHECK_LIB(c, accept4, AC_DEFINE(HAVE_ACCEPT4, 1, [have accept4]))
-    AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
+    dnl signalfd needs the signal blocked on the reactor thread, which a coroutine thread can't do.
+    dnl Thread context uses sigaction so a registration from a coroutine is complete when it returns.
+    if test "$PHP_THREAD_CONTEXT" = "no"; then
+        AC_CHECK_LIB(c, signalfd, AC_DEFINE(HAVE_SIGNALFD, 1, [have signalfd]))
+    fi
     AC_CHECK_LIB(c, eventfd, AC_DEFINE(HAVE_EVENTFD, 1, [have eventfd]))
     AC_CHECK_LIB(c, epoll_create, AC_DEFINE(HAVE_EPOLL, 1, [have epoll]))
     AC_CHECK_LIB(c, sendfile, AC_DEFINE(HAVE_SENDFILE, 1, [have sendfile]))

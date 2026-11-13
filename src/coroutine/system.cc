@@ -287,12 +287,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
     for (auto &signo : signals) {
         /* resgiter signal */
         listeners[signo] = &listener;
-
-#ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, register_signal](void *) { register_signal(signo); }, nullptr);
-#else
         register_signal(signo);
-#endif
     }
 
     // exit condition
@@ -313,11 +308,7 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
         }
         auto handler = previous.handler;
         previous.registered = false;
-#ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler); }, nullptr);
-#else
         swoole_signal_set(signo, handler);
-#endif
         listeners[signo] = nullptr;
     }
 
