@@ -498,14 +498,9 @@ static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const
             headers.add(ZEND_STRL("content-length"), value.c_str(), value.length());
         }
     } else if (body) {
-        // HTTP/2 keeps the method in the request_method server var, not in llhttp's parser.
-        zval *zrequest_method = zend_hash_str_find(Z_ARR(ctx->request.zserver), ZEND_STRL("request_method"));
-        bool is_head = zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING &&
-                       SW_STRCASEEQ(Z_STRVAL_P(zrequest_method), Z_STRLEN_P(zrequest_method), "HEAD");
-
         // Synthesize a length only when the caller did not supply one, and never rewrite a
         // zero-length HEAD representation to an explicit zero.
-        if (body->length > 0 || !is_head) {
+        if (body->length > 0 || ctx->parser.method != HTTP_HEAD) {
             ret = swoole_itoa(intbuf[1], content_length);
             headers.add(ZEND_STRL("content-length"), intbuf[1], ret);
         }
@@ -762,7 +757,12 @@ bool swoole_http2_server_write(HttpContext *ctx, zend_string *sdata) {
 }
 
 static bool http2_server_respond(HttpContext *ctx, const String *body) {
-    auto client = http2_sessions[ctx->fd];
+    auto iter = http2_sessions.find(ctx->fd);
+    // After a fatal error, request shutdown releases the sessions before Zend frees unfinished responses.
+    if (iter == http2_sessions.end()) {
+        return false;
+    }
+    auto client = iter->second;
     auto stream = client->get_stream(ctx->stream_id);
 
     zval *ztrailer = sw_zend_read_property_ex(
@@ -1159,6 +1159,10 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
     if (nv.name[0] == ':') {
         if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "method")) {
             add_assoc_stringl_ex(zserver, ZEND_STRL("request_method"), (char *) nv.value, nv.valuelen);
+            // The response may be ended after the request object and its server array are freed.
+            if (SW_STRCASEEQ((char *) nv.value, nv.valuelen, "HEAD")) {
+                ctx->parser.method = HTTP_HEAD;
+            }
         } else if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "path")) {
             const char *v_str = (const char *) memchr(nv.value, '?', nv.valuelen);
             zend_string *zstr_path;
