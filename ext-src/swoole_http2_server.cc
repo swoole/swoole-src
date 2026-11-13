@@ -73,7 +73,7 @@ Http2Session::Session(SessionId _fd) {
     init_settings(&local_settings);
     // [init]: we must set default value, peer is not always send all the settings
     init_settings(&remote_settings);
-    local_window_size = local_settings.init_window_size;
+    local_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
     remote_window_size = remote_settings.init_window_size;
     last_stream_id = 0;
     shutting_down = false;

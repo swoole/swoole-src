@@ -102,7 +102,6 @@ class Client {
         zobject = &_zobject;
         ZVAL_NULL(&zsocket);
         Http2::init_settings(&local_settings);
-        local_window_size = local_settings.init_window_size;
     }
 
     Stream *get_stream(uint32_t _stream_id) {
@@ -452,6 +451,7 @@ bool Client::connect() {
     // [init]: we must set default value, server is not always send all the settings
     Http2::init_settings(&remote_settings);
     remote_window_size = remote_settings.init_window_size;
+    local_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
 
     int ret = nghttp2_hd_inflate_new2(&inflater, php_nghttp2_mem());
     if (ret != 0) {
