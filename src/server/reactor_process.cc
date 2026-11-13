@@ -79,8 +79,11 @@ int Server::start_reactor_processes() {
     int retval;
     if (is_single_worker()) {
         Worker *worker = &pool->workers[0];
+        // The caller keeps running after start() returns, so it must not keep a worker that destroy() frees.
+        Worker *caller_worker = SwooleWG.worker;
         SwooleWG.worker = worker;
         retval = reactor_process_main_loop(pool, worker);
+        SwooleWG.worker = caller_worker;
     } else {
         retval = start_manager_process();
     }
