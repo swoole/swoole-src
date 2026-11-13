@@ -216,19 +216,28 @@ class Client {
         return true;
     }
 
+    // Part of a frame may already be on the wire, so the connection can't be used again.
+    void send_error() {
+        int code = socket_->errCode;
+        std::string msg = socket_->errMsg;
+        close();
+        // close() resumes coroutines bound to the socket, and they record their own errors.
+        update_error_properties(code, msg.c_str());
+    }
+
     bool send(const char *buf, size_t len, bool flush = true) {
         if (socket_->has_bound(SW_EVENT_WRITE)) {
             send_queue.push(zend_string_init(buf, len, false));
             return true;
         }
         if (sw_unlikely(socket_->send_all(buf, len) != (ssize_t) len)) {
-            io_error();
+            send_error();
             return false;
         }
         while (flush && !send_queue.empty()) {
             zend_string *frame = send_queue.front();
             if (sw_unlikely(socket_->send_all(frame->val, frame->len) != (ssize_t) frame->len)) {
-                io_error();
+                send_error();
                 zend_throw_exception(swoole_http2_client_coro_exception_ce,
                                      "failed to send control frame",
                                      SW_ERROR_HTTP2_SEND_CONTROL_FRAME_FAILED);
@@ -486,13 +495,7 @@ bool Client::connect() {
         return false;
     }
 
-    if (!send(ZEND_STRL(SW_HTTP2_PRI_STRING))) {
-        close();
-        return false;
-    }
-
-    if (!send_setting()) {
-        close();
+    if (!send(ZEND_STRL(SW_HTTP2_PRI_STRING)) || !send_setting()) {
         return false;
     }
 
@@ -566,10 +569,10 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
                 if (value < SW_HTTP2_DEFAULT_MAX_FRAME_SIZE || value > SW_HTTP2_MAX_FRAME_SIZE) {
+                    close();
                     update_error_properties(
                         SW_HTTP2_ERROR_PROTOCOL_ERROR,
                         std_string::format("invalid SETTINGS_MAX_FRAME_SIZE value %u", value).c_str());
-                    close();
                     return SW_CLOSE;
                 }
                 remote_settings.max_frame_size = value;
@@ -655,13 +658,14 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                                      (int) (length - SW_HTTP2_GOAWAY_SIZE),
                                      buf);
 
+        // close() can resume a coroutine waiting to write, which records its own error.
+        close();
         // update goaway error code and error msg
         zend_update_property_long(swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errCode"), value);
         zend_update_property_stringl(
             swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE);
         zend_update_property_long(
             swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("serverLastStreamId"), server_last_stream_id);
-        close();
         return SW_CLOSE;
     }
     case SW_HTTP2_TYPE_RST_STREAM: {
@@ -1317,12 +1321,10 @@ uint32_t Client::send_request(zval *zrequest) {
         swoole_http2_send_trace_log(
             "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", Http2::get_type(SW_HTTP2_TYPE_DATA), _stream_id, len);
 
-        if (!send_data(_stream_id, p, len, flag)) {
+        bool sent = send_data(_stream_id, p, len, flag);
+        smart_str_free(&formstr_s);
+        if (!sent) {
             return 0;
-        }
-
-        if (formstr_s.s) {
-            smart_str_free(&formstr_s);
         }
     }
 
@@ -1443,13 +1445,17 @@ static void http2_client_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool pipeline_r
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    SW_CLIENT_PRESERVE_SOCKET(ZEND_THIS);
+    SW_CLIENT_PRESERVE_SOCKET(&h2c->zsocket);
 
     while (true) {
         if (!h2c->is_available()) {
             RETURN_FALSE;
         }
         if (!h2c->recv_packet(timeout)) {
+            // A close() that had to wait for this read finishes here.
+            if (h2c->socket_->get_socket()->close_wait) {
+                h2c->close();
+            }
             RETURN_FALSE;
         }
         ReturnCode ret = h2c->parse_frame(return_value, pipeline_read);
@@ -1584,6 +1590,7 @@ static PHP_METHOD(swoole_http2_client_coro, ping) {
         RETURN_FALSE;
     }
 
+    SW_CLIENT_PRESERVE_SOCKET(&h2c->zsocket);
     RETURN_BOOL(h2c->send_ping_frame());
 }
 
