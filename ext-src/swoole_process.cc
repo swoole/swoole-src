@@ -639,6 +639,10 @@ void php_swoole_process_signal_clean() {
 }
 
 void php_swoole_process_clean() {
+    // Signal callbacks are shared by all threads and owned by the main thread
+    if (!sw_is_main_thread()) {
+        return;
+    }
     php_swoole_process_signal_clean();
 #ifndef SW_THREAD
     if (swoole_get_worker_type() != SW_USER_WORKER) {
