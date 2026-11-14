@@ -631,10 +631,7 @@ void php_swoole_process_signal_clean() {
     for (auto &signal_fci_cache : signal_fci_caches) {
         const auto fci_cache = signal_fci_cache;
         if (fci_cache) {
-            // The callbacks belong to the main thread; a process forked from another thread can only drop them
-            if (sw_is_main_thread()) {
-                sw_callable_free(fci_cache);
-            }
+            sw_callable_free(fci_cache);
             signal_fci_cache = nullptr;
         }
     }
@@ -642,6 +639,10 @@ void php_swoole_process_signal_clean() {
 }
 
 void php_swoole_process_clean() {
+    // Signal callbacks are shared by all threads and owned by the main thread
+    if (!sw_is_main_thread()) {
+        return;
+    }
     php_swoole_process_signal_clean();
 #ifndef SW_THREAD
     if (swoole_get_worker_type() != SW_USER_WORKER) {
@@ -651,10 +652,6 @@ void php_swoole_process_clean() {
 }
 
 void php_swoole_process_rshutdown() {
-    // Signal callbacks are shared by all threads and owned by the main thread
-    if (!sw_is_main_thread()) {
-        return;
-    }
     php_swoole_process_clean();
 }
 
