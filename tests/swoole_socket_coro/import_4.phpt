@@ -92,7 +92,9 @@ close stream
 stream_set_blocking TypeError: stream_set_blocking(): supplied resource is not a valid stream resource
 
 socket_set_block 1
-socket_get_option 2
+socket_get_option 
+Warning: Swoole\Coroutine\Socket::getOption(): getsockopt(%d, %d, %d), Error: Bad file descriptor[%d] in %s on line %d
+0
 
 
 close socket
