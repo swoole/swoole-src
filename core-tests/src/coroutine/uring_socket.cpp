@@ -441,10 +441,10 @@ TEST(uring_socket, writev_and_readv) {
             ASSERT_EQ(result, length * 3);
         });
 
-        std::vector<std::string> results(iovcnt);
+        std::vector<std::string> results(iovcnt, std::string(length, '\0'));
         std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
         for (int i = 0; i < iovcnt; i++) {
-            iov[i].iov_base = (void *) results[i].c_str();
+            iov[i].iov_base = &results[i][0];
             iov[i].iov_len = length;
         }
         IOVector io_vector((struct iovec *) iov.get(), iovcnt);
@@ -454,9 +454,8 @@ TEST(uring_socket, writev_and_readv) {
         sock.close();
         ASSERT_EQ(result, length * 3);
 
-        for (auto iter = results.begin(); iter != results.end(); iter++) {
-            (*iter)[length] = '\0';
-            ASSERT_STREQ(text.c_str(), (*iter).c_str());
+        for (const auto &value : results) {
+            ASSERT_EQ(value, text);
         }
     });
 }
