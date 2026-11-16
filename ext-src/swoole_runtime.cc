@@ -112,6 +112,19 @@ static php_stream_ops socket_ops {
     socket_set_option,
 };
 
+// mysqlnd recognizes a Unix socket during caching_sha2_password authentication only by the native label
+static php_stream_ops unix_socket_ops {
+    socket_write,
+    socket_read,
+    socket_close,
+    socket_flush,
+    "unix_socket",
+    nullptr, /* seek */
+    socket_cast,
+    socket_stat,
+    socket_set_option,
+};
+
 struct NetStream {
     php_netstream_data_t stream;
     std::shared_ptr<Socket> socket;
@@ -1271,7 +1284,8 @@ static php_stream *socket_create(const char *proto,
     abstract->stream.socket = sock->get_fd();
     abstract->blocking = true;
 
-    stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
+    stream = php_stream_alloc_rel(
+        sock->get_type() == SW_SOCK_UNIX_STREAM ? &unix_socket_ops : &socket_ops, abstract, persistent_id, "r+");
     if (stream == nullptr) {
         delete abstract;
         goto _failed;

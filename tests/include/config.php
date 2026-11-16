@@ -70,7 +70,7 @@ define('UDP_SERVER_PORT', 9003);
 
 /* ============== MySQL ============== */
 define('MYSQL_SERVER_PATH', getenv('MYSQL_SERVER_PATH')
-    ?: (IS_IN_CI ? TRAVIS_DIR_PATH . '/data/run/mysqld/mysqld.sock'
+    ?: (IS_IN_CI ? SOURCE_ROOT_PATH . '/scripts/data/run/mysqld/mysqld.sock'
         : (IS_MAC_OS ? '/tmp/mysql.sock' : '/var/run/mysqld/mysqld.sock')));
 define('MYSQL_SERVER_HOST', getenv('MYSQL_SERVER_HOST') ?: (IS_IN_CI ? 'mysql' : '127.0.0.1'));
 define('MYSQL_SERVER_PORT', (int) (getenv('MYSQL_SERVER_PORT') ?: 3306));
