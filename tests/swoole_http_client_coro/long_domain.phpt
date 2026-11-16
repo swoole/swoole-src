@@ -3,38 +3,73 @@ swoole_http_client_coro: long domain
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_ci('travis network');
-skip_if_offline();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-function http_get(string $url)
-{
-    $url_info = parse_url($url);
-    $domain = $url_info['host'];
-    $cli = new Swoole\Coroutine\Http\Client($domain);
-    $cli->set(['timeout' => 5]);
-    $cli->setHeaders([
-        'Host' => $domain,
-        'User-Agent' => 'Chrome/49.0.2587.3',
-        'Accept' => 'text/html,application/xhtml+xml,application/xml',
-        'Accept-Encoding' => 'gzip'
-    ]);
-    Assert::assert($cli->get('/'));
-    Assert::same($cli->statusCode, 200);
-    Assert::assert(!empty($cli->body));
-}
+$domains = [
+    str_repeat('8', 63) . '.test',
+    'www.' . str_repeat('a', 63) . '.test',
+    implode('.', array_fill(0, 3, str_repeat('b', 63))) . '.test',
+];
+$pm             = new ProcessManager();
+$pm->parentFunc = function () use ($pm, $domains) {
+    Co\run(function () use ($pm, $domains) {
+        $resolver = new class($pm->getFreePort()) extends Swoole\NameResolver {
+            public array $lookups = [];
 
-go(function () {
-    http_get('http://888888888888888888888888888888888888888888888888888888888888888.com');
-});
-go(function () {
-    http_get('http://www.abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijk.com');
-});
-go(function () {
-    http_get('http://www.mamashuojiusuannizhucedeyumingzaichanggoogledounengsousuochulai.cn');
-});
+            public function __construct(private int $port)
+            {
+            }
+
+            public function join(string $name, string $ip, int $port, array $options = []): bool
+            {
+                return true;
+            }
+
+            public function leave(string $name, string $ip, int $port): bool
+            {
+                return true;
+            }
+
+            public function getCluster(string $name): ?Swoole\NameResolver\Cluster
+            {
+                return null;
+            }
+
+            public function lookup(string $name)
+            {
+                $this->lookups[] = $name;
+                return ['host' => '127.0.0.1', 'port' => $this->port];
+            }
+        };
+        Assert::true(swoole_name_resolver_add($resolver));
+        try {
+            foreach ($domains as $domain) {
+                $client = new Co\Http\Client($domain, $pm->getFreePort());
+                $client->set(['timeout' => 2]);
+                $client->setHeaders(['Host' => $domain]);
+                Assert::true($client->get('/'));
+                Assert::same($client->statusCode, 200);
+                Assert::same($client->body, $domain);
+                $client->close();
+            }
+            Assert::same($resolver->lookups, $domains);
+        } finally {
+            swoole_name_resolver_remove($resolver);
+        }
+    });
+    $pm->kill();
+};
+$pm->childFunc = function () use ($pm) {
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server->set(['worker_num' => 1, 'log_file' => '/dev/null']);
+    $server->on('WorkerStart', function () use ($pm) { $pm->wakeup(); });
+    $server->on('Request', function ($request, $response) { $response->end($request->header['host']); });
+    $server->start();
+};
+$pm->childFirst();
+$pm->run();
 ?>
 --EXPECT--

@@ -20,7 +20,7 @@ function socks5_write($socket, string $data): void
     @fwrite($socket, $data);
 }
 
-function socks5_run_proxy(ProcessManager $pm, int $port, bool $fragment = true, bool $truncate = false): void
+function socks5_run_proxy(ProcessManager $pm, int $port, bool $fragment = true, bool $truncate = false, ?callable $onConnected = null): void
 {
     $server = stream_socket_server('tcp://' . TCP_SERVER_HOST . ":{$port}", $errno, $errstr);
     Assert::notSame($server, false, "{$errstr} ({$errno})");
@@ -46,6 +46,7 @@ function socks5_run_proxy(ProcessManager $pm, int $port, bool $fragment = true, 
     Assert::same(unpack('n', socks5_read_exact($socket, 2, 'CONNECT target port'))[1], 80);
 
     $response = "\x05\x00\x00\x01\x7f\x00\x00\x01\x1f\x90";
+    $payload = $onConnected === null ? "SOCKS5 READY\n" : '';
     if ($truncate) {
         socks5_write($socket, $response[0]);
     } elseif ($fragment) {
@@ -53,9 +54,12 @@ function socks5_run_proxy(ProcessManager $pm, int $port, bool $fragment = true, 
             socks5_write($socket, $response[$i]);
             usleep(20000);
         }
-        socks5_write($socket, $response[strlen($response) - 1] . "SOCKS5 READY\n");
+        socks5_write($socket, $response[strlen($response) - 1] . $payload);
     } else {
-        socks5_write($socket, $response . "SOCKS5 READY\n");
+        socks5_write($socket, $response . $payload);
+    }
+    if (!$truncate && $onConnected !== null) {
+        $onConnected($socket);
     }
 
     fclose($socket);

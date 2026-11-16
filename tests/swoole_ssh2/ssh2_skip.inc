@@ -21,6 +21,13 @@ function ssh2t_needs_auth()
     }
 }
 
+function ssh2t_needs_pubkey()
+{
+    skip('TEST_SSH2_USER not set', !TEST_SSH2_USER);
+    skip_if_file_not_exist(TEST_SSH2_PUB_KEY);
+    skip_if_file_not_exist(TEST_SSH2_PRIV_KEY);
+}
+
 function ssh2t_writes_remote()
 {
     if (!TEST_SSH2_TEMPDIR) {

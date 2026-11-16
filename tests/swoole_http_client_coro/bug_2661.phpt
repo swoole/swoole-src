@@ -3,50 +3,38 @@ swoole_http_client_coro: #2611 bound error with dns resolve and cross close
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_ci('travis network');
-skip_if_offline();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-Swoole\Coroutine\Run(function () {
-    $client = new Swoole\Coroutine\Http\Client('www.zhe800.com', 443, true);
-
-    function foo($ch, $client)
-    {
-        mt_srand();
-        $rand = mt_rand(100000, 999999999);
-        $path = "/email_subscribe?email=" . $rand . "@" . substr(md5(microtime(true)), 0, 8) . ".com";
-        $client->get($path);
-        echo "push is " . $path . " " . Co::getCid() . "\n";
-        $client->close();
-        $ch->push($path);
-    }
-
-    function bar($client)
-    {
-        $length = 10;
-        $ch = new Swoole\Coroutine\Channel($length);
-        for ($i = 0; $i < $length; $i++) {
-            go('foo', $ch, $client);
+$pm             = new ProcessManager();
+$pm->parentFunc = function () use ($pm) {
+    Swoole\Coroutine\run(function () use ($pm) {
+        $client = new Swoole\Coroutine\Http\Client('localhost', $pm->getFreePort());
+        for ($i = 0; $i < 2; $i++) {
+            go(function () use ($client) {
+                $client->get('/');
+                $client->close();
+            });
         }
-
-        for ($i = 0; $i < $length; $i++) {
-            go(function ($ch) {
-                $data = $ch->pop(1);
-                echo "pop is " . $data . "\n";
-            }, $ch);
-        }
-    }
-
-    bar($client);
-});
-
+    });
+};
+$pm->childFunc = function () use ($pm) {
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server->set(['worker_num' => 1, 'log_file' => '/dev/null']);
+    $server->on('WorkerStart', function () use ($pm) {
+        $pm->wakeup();
+    });
+    $server->on('Request', function ($request, $response) {
+        Co::sleep(1);
+        $response->end('OK');
+    });
+    $server->start();
+};
+$pm->childFirst();
+$pm->run();
 ?>
 --EXPECTF--
 Fatal error: Uncaught Swoole\Error: Socket#%d has already been bound to another coroutine#%d, reading or writing of the same socket in coroutine#%d at the same time is not allowed in %s:%d
-Stack trace:
-#0 %s(%d): Swoole\Coroutine\Http\Client->get('%s')
-#1 {main}
-  thrown in %s on line %d
+%A

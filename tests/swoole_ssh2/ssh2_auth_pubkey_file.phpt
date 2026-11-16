@@ -4,7 +4,7 @@ ssh2_auth_pubkey_file() - Tests authentication with a key
 <?php
 require_once __DIR__ . '/../include/skipif.inc';
 require_once 'ssh2_skip.inc';
-skip_if_in_ci();
+ssh2t_needs_pubkey();
 ?>
 --FILE--
 <?php require_once 'ssh2_test.inc';
