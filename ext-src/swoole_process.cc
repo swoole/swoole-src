@@ -628,27 +628,33 @@ zend_bool php_swoole_signal_isset_handler(int signo) {
 }
 
 void php_swoole_process_signal_clean() {
+    // Signal callbacks and their listener count belong to the main thread.
+    if (!sw_is_main_thread()) {
+        return;
+    }
     for (auto &signal_fci_cache : signal_fci_caches) {
-        const auto fci_cache = signal_fci_cache;
-        if (fci_cache) {
-            sw_callable_free(fci_cache);
+        if (signal_fci_cache) {
+            sw_callable_free(signal_fci_cache);
             signal_fci_cache = nullptr;
         }
     }
     SwooleG.signal_listener_num = 0;
 }
 
-void php_swoole_process_clean() {
-    php_swoole_process_signal_clean();
-#ifndef SW_THREAD
-    if (swoole_get_worker_type() != SW_USER_WORKER) {
-        swoole_set_worker_type(0);
+void php_swoole_process_signal_after_fork() {
+    if (sw_is_main_thread()) {
+        php_swoole_process_signal_clean();
+    } else {
+        // Only the fork child reaches this hook. Its copy of these pointers belongs to
+        // the parent's main-thread Zend context and must be discarded without freeing it.
+        sw_memset_zero(signal_fci_caches, sizeof(signal_fci_caches));
+        SwooleG.signal_listener_num = 0;
     }
-#endif
 }
 
 void php_swoole_process_rshutdown() {
-    php_swoole_process_clean();
+    php_swoole_process_signal_clean();
+    php_swoole_process_reset_worker_type();
 }
 
 int php_swoole_process_start(Worker *process, zval *zobject) {
@@ -679,7 +685,8 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
         }
     }
 
-    php_swoole_process_clean();
+    php_swoole_process_reset_worker_type();
+
     swoole_set_worker_id(process->id);
     swoole_set_worker_pid(getpid());
     SwooleWG.worker = process;
