@@ -2,6 +2,15 @@
 __DIR__=$(cd "$(dirname "$0")" || exit;pwd)
 
 export ASAN_OPTIONS=detect_leaks=0
+# Some sudo implementations ignore -E. Pass the settings consumed by the tests
+# explicitly so privileged suites still recognize CI and retain their diagnostics.
+test_env=()
+for name in ASAN_OPTIONS DISPLAY_BACKTRACE GITHUB_ACTIONS SSL_CERT_FILE VERBOSE; do
+    if [[ ${!name+x} ]]; then
+        test_env+=("$name=${!name}")
+    fi
+done
+
 sudo sysctl -w kernel.randomize_va_space=0
 
 ipcs -q
@@ -34,7 +43,7 @@ for task in $tasks; do
     if [ "$task" = "log." ]; then
         setsid stdbuf -oL -eL $execute_command --gtest_filter="$task"* >>"${SUITE_LOG}" 2>&1 &
     else
-        setsid sudo -E stdbuf -oL -eL "$execute_command" --gtest_filter="$task"* >>"${SUITE_LOG}" 2>&1 &
+        setsid sudo -E env "${test_env[@]}" stdbuf -oL -eL "$execute_command" --gtest_filter="$task"* >>"${SUITE_LOG}" 2>&1 &
     fi
     pid=$!
 

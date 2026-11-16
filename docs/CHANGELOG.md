@@ -1,5 +1,18 @@
 # Swoole Changelog
 
+## 6.3.0 (unreleased)
+
+### Breaking changes
+
+- Raise the minimum supported PHP version to 8.2; PHP 8.1 is no longer supported in 6.3.
+- `Server::taskCo()` and `Server::taskWaitMulti()` now share the same behavior. Both preserve the original task keys and input iteration order, including associative and sparse arrays. Pass `array_values($tasks)` to retain positional numeric results.
+- Both methods use coroutine waiting inside a coroutine and blocking waiting outside one. `taskCo()` is therefore also available in non-coroutine workers.
+- After at least one task is dispatched, both methods return every input key, with `false` for failed or unfinished tasks, including when the entire batch times out. Timeouts set `SWOOLE_ERROR_TASK_TIMEOUT`. Empty batches, batches with no successfully dispatched tasks, and batch setup/read failures still return `false`.
+
+### Bug fixes
+
+- Fix associative task-array crashes and partial task-dispatch cleanup, building on [#6408](https://github.com/swoole/swoole-src/pull/6408) by @NathanFreeman. Swoole 6.1 and 6.2 receive compatible fixes while retaining their existing result conventions.
+
 ## 2024-12-16 v6.0.0
 # ✨ New Feature:
 - Added multi-threading support, require the ZTS version of PHP. Add `--enable-swoole-thread` option to the configure command to activate it.
