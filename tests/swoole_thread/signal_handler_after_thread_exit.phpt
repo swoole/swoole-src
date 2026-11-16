@@ -23,9 +23,8 @@ if ($arguments === null) {
     Assert::true($thread->join());
     Assert::same($thread->getExitStatus(), 0);
 
-    // The exiting thread runs php_swoole_process_rshutdown(), which has to return
-    // early there, otherwise it empties the table and zeroes the count that the
-    // main thread owns.
+    // The exiting thread runs request shutdown, whose cleanup must leave the
+    // main thread's signal callback table and listener count intact.
     Assert::same(Coroutine::stats()['signal_listener_num'], 1);
     echo "DONE\n";
 } else {

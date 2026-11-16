@@ -483,8 +483,8 @@ int sw_module_number() {
 }
 
 static void sw_after_fork(void *args) {
-    // swoole_fork() has removed the inherited signal handlers
-    php_swoole_process_signal_clean();
+    // swoole_fork() has removed the inherited handlers; reset this child's callback state.
+    php_swoole_process_signal_after_fork();
 #ifdef ZEND_MAX_EXECUTION_TIMERS
     zend_max_execution_timer_init();
 #endif

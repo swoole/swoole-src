@@ -31,7 +31,7 @@ if ($arguments === null) {
 } else {
     Coroutine\run(function () {
         // swoole_proc_open() forks with SW_FORK_EXEC, so the AFTER_FORK hook still
-        // runs php_swoole_process_signal_clean() in that child before execvp().
+        // drops the inherited signal callback pointers in that child before execvp().
         $process = proc_open([PHP_BINARY, '-n', '-r', 'exit(0);'], [
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],

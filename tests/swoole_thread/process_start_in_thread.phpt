@@ -16,8 +16,8 @@ $arguments = Thread::getArguments();
 
 if ($arguments === null) {
     // The listener makes signal_fci_caches[] non-empty, so the child forked by the
-    // thread below reaches the sw_is_main_thread() guard inside
-    // php_swoole_process_signal_clean() with a foreign heap.
+    // thread below must discard the inherited pointers without freeing values
+    // that belong to the parent's main-thread Zend context.
     Process::signal(SIGURG, function () {});
 
     $thread = new Thread(__FILE__, 'child');

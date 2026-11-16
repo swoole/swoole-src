@@ -25,7 +25,7 @@ if ($arguments === null) {
     echo "DONE\n";
 } else {
     // proc_open() forks with SW_FORK_EXEC, and the AFTER_FORK hook still runs
-    // php_swoole_process_signal_clean() in that child before execv().
+    // the child-only signal state reset before execv().
     Assert::same(trim((string) shell_exec('echo hello')), 'hello');
 
 }

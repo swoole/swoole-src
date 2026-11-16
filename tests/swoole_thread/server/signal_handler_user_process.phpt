@@ -35,7 +35,8 @@ $serv->on('start', function () {
     });
     $queue->push('registered', Thread\Queue::NOTIFY_ALL);
 });
-$serv->addProcess(new Process(function () use ($serv) {
+$serv->addProcess(new Process(function () {
+    global $serv;
     [$queue, $atomic] = Thread::getArguments();
     // The first run exits after the handler is registered, so the process ends and starts again
     if ($atomic->add() == 1) {

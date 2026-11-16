@@ -628,38 +628,33 @@ zend_bool php_swoole_signal_isset_handler(int signo) {
 }
 
 void php_swoole_process_signal_clean() {
+    // Signal callbacks and their listener count belong to the main thread.
+    if (!sw_is_main_thread()) {
+        return;
+    }
     for (auto &signal_fci_cache : signal_fci_caches) {
-        const auto fci_cache = signal_fci_cache;
-        if (fci_cache) {
-            /**
-             * Callables are allocated on the main thread's heap; a child process forked from a worker thread
-             * has no ownership of them and must not free them, otherwise it will corrupt the main thread's memory.
-             *
-             * Calling `proc_open` in a worker thread is one such example: during this call,
-             * the worker thread forks a child process.
-             */
-#ifdef SW_THREAD
-            if (tsrm_is_main_thread()) {
-#endif
-                sw_callable_free(fci_cache);
-#ifdef SW_THREAD
-            }
-#endif
-
+        if (signal_fci_cache) {
+            sw_callable_free(signal_fci_cache);
             signal_fci_cache = nullptr;
         }
     }
     SwooleG.signal_listener_num = 0;
 }
 
-void php_swoole_process_rshutdown() {
-#ifdef SW_THREAD
-    if (!tsrm_is_main_thread()) {
-        return;
+void php_swoole_process_signal_after_fork() {
+    if (sw_is_main_thread()) {
+        php_swoole_process_signal_clean();
+    } else {
+        // Only the fork child reaches this hook. Its copy of these pointers belongs to
+        // the parent's main-thread Zend context and must be discarded without freeing it.
+        sw_memset_zero(signal_fci_caches, sizeof(signal_fci_caches));
+        SwooleG.signal_listener_num = 0;
     }
-#endif
+}
 
+void php_swoole_process_rshutdown() {
     php_swoole_process_signal_clean();
+    php_swoole_process_reset_worker_type();
 }
 
 int php_swoole_process_start(Worker *process, zval *zobject) {
@@ -690,9 +685,7 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
         }
     }
 
-#ifndef SW_THREAD
     php_swoole_process_reset_worker_type();
-#endif
 
     swoole_set_worker_id(process->id);
     swoole_set_worker_pid(getpid());
