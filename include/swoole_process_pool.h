@@ -38,6 +38,7 @@ enum swWorkerStatus {
 };
 
 enum swWorkerType {
+    SW_GENERIC_WORKER = 0,
     SW_MASTER = 1,
     SW_WORKER = 2,
     SW_MANAGER = 3,
