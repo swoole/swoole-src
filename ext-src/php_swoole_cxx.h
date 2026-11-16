@@ -720,6 +720,14 @@ static inline void array_add(zval *arg, zval *zvalue) {
     add_next_index_zval(arg, zvalue);
 }
 
+static inline bool array_is_list(zval *arg) {
+    if (sw_unlikely(!arg || !ZVAL_IS_ARRAY(arg))) {
+        return false;
+    }
+
+    return zend_array_is_list(Z_ARRVAL_P(arg));
+}
+
 /**
  * return reference
  */
