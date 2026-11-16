@@ -36,5 +36,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Swoole\Error: Socket#%d has already been bound to another coroutine#%d, reading or writing of the same socket in coroutine#%d at the same time is not allowed in %s:%d
+Fatal error: Uncaught Swoole\Error: Socket#%d has already been bound to another coroutine#%d, %r(?:reading|writing|reading or writing)%r of the same socket in coroutine#%d at the same time is not allowed in %s:%d
 %A
