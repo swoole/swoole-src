@@ -676,8 +676,8 @@ static void sw_after_fork(void *args) {
     refresh_memory_manager();
 #endif
 #ifndef _WIN32
-    // swoole_fork() has removed the inherited signal handlers
-    php_swoole_process_signal_clean();
+    // swoole_fork() has removed the inherited handlers; reset this child's callback state.
+    php_swoole_process_signal_after_fork();
 #endif
 #ifdef ZEND_MAX_EXECUTION_TIMERS
     zend_max_execution_timer_init();
