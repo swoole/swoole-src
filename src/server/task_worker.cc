@@ -412,6 +412,8 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
         std::lock_guard<Mutex> lock(*worker->lock);
         // Seal the batch while holding the producer's mutex, before taking a snapshot.
         task_result->info = {};
+        // Let callers distinguish an empty (timed-out) batch from a failed result-file read.
+        swoole_set_last_error(0);
         content = file_get_contents(file_path);
     } while (0);
 

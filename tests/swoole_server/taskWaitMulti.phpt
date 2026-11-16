@@ -49,11 +49,11 @@ $pm->childFunc = function () use ($pm, $port) {
             $tasks[] = 0;
             $results = $serv->taskWaitMulti($tasks, 0.2);
         }
-        if (count($results) == 4) {
-            $serv->send($fd, 'OK');
-        } else {
-            $serv->send($fd, 'ERR');
+        if ($data !== 'task-01') {
+            $tasks[4] = false;
         }
+        Assert::same($results, $tasks);
+        $serv->send($fd, 'OK');
     });
 
     $serv->on('task', function (Server $serv, $task_id, $worker_id, $data) {

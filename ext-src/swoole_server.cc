@@ -3435,103 +3435,84 @@ static PHP_METHOD(swoole_server, taskwait) {
     }
 }
 
-static PHP_METHOD(swoole_server, taskWaitMulti) {
-    if (swoole_coroutine_is_in()) {
-        return ZEND_MN(swoole_server_taskCo)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+// Keep the values alive across serialization and the synchronous wait without changing the caller's array.
+static zend::Variable php_swoole_server_task_indexed_array(zval *tasks) {
+    zend::Variable indexed_tasks;
+    if (!zend::array_is_list(tasks)) {
+        ZVAL_ARR(indexed_tasks.ptr(), zend_array_to_list(Z_ARRVAL_P(tasks)));
+        return indexed_tasks;
     }
+    indexed_tasks.assign(tasks);
+    return indexed_tasks;
+}
 
-    Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (sw_unlikely(!serv->is_started())) {
-        php_swoole_fatal_error(E_WARNING, "server is not running");
-        RETURN_FALSE;
+// Dispatch and completion keep using ordinal indices. Apply the public keys and input order only
+// after the batch stops receiving results; unfinished tasks are represented by false.
+static void php_swoole_server_task_restore_keys(zval *tasks, zval *result) {
+    const auto count = zend_hash_num_elements(Z_ARRVAL_P(tasks));
+    if (zend::array_is_list(tasks) && zend::array_is_list(result) &&
+        zend_hash_num_elements(Z_ARRVAL_P(result)) == count) {
+        return;
     }
-    if (!serv->is_worker()) {
-        php_swoole_fatal_error(E_WARNING, "taskWaitMulti method can only be used in the worker process");
-        RETURN_FALSE;
+    zend::Variable positional_result;
+    ZVAL_COPY_VALUE(positional_result.ptr(), result);
+    array_init_size(result, count);
+
+    zend_ulong index;
+    zend_string *key;
+    uint32_t position = 0;
+    ZEND_HASH_FOREACH_KEY(Z_ARRVAL_P(tasks), index, key) {
+        auto *value = zend_hash_index_find(Z_ARRVAL_P(positional_result.ptr()), position++);
+        zval missing;
+        if (value == nullptr) {
+            ZVAL_FALSE(&missing);
+            value = &missing;
+        }
+        Z_TRY_ADDREF_P(value);
+        if (key) {
+            zend_hash_update(Z_ARRVAL_P(result), key, value);
+        } else {
+            zend_hash_index_update(Z_ARRVAL_P(result), index, value);
+        }
     }
+    ZEND_HASH_FOREACH_END();
+}
 
-    zval *ztasks;
-    double timeout = SW_TASKWAIT_TIMEOUT;
-
-    ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_ZVAL(ztasks)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    if (php_swoole_server_task_check_param(serv, -1) < 0) {
-        RETURN_FALSE;
-    }
-
-    array_init(return_value);
-
-    int n_task = php_swoole_array_length(ztasks);
-    if (n_task >= SW_MAX_CONCURRENT_TASK) {
-        php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
-        RETURN_FALSE;
-    }
-
-    Server::MultiTask mt(n_task);
-    mt.pack = [ztasks](uint16_t i, EventData *buf) {
-        auto *ztask = zend::array_get(ztasks, (zend_ulong) i);
-        return php_swoole_server_task_pack(ztask, buf);
+// Blocking worker path. A timed-out batch can have an empty result file; that is an
+// unfinished batch, not a dispatch failure. The common caller supplies false for missing results.
+static bool php_swoole_server_task_wait_sync(Server *serv, zval *tasks, zval *return_value, double timeout) {
+    auto indexed_tasks = php_swoole_server_task_indexed_array(tasks);
+    Server::MultiTask mt(php_swoole_array_length(tasks));
+    uint32_t received = 0;
+    mt.pack = [&indexed_tasks](uint16_t i, EventData *buf) {
+        return php_swoole_server_task_pack(zend::array_get(indexed_tasks.ptr(), (zend_ulong) i), buf);
     };
-
-    mt.unpack = [return_value](uint16_t i, EventData *result) {
+    mt.unpack = [return_value, &received](uint16_t i, EventData *result) {
+        received++;
         zval zresult;
         if (php_swoole_server_task_unpack(&zresult, result)) {
             add_index_zval(return_value, i, &zresult);
         }
     };
-
     mt.fail = [return_value](uint16_t i) { add_index_bool(return_value, i, false); };
 
-    if (!serv->task_sync(mt, timeout)) {
-        zval_ptr_dtor(return_value);
-        RETURN_FALSE;
+    if (!serv->task_sync(mt, timeout) && swoole_get_last_error() != SW_ERROR_FILE_EMPTY) {
+        return false;
     }
+    if (received < mt.map.size()) {
+        swoole_set_last_error(SW_ERROR_TASK_TIMEOUT);
+    }
+    return true;
 }
 
-static PHP_METHOD(swoole_server, taskCo) {
-    Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (sw_unlikely(!serv->is_started())) {
-        php_swoole_fatal_error(E_WARNING, "server is not running");
-        RETURN_FALSE;
-    }
-    if (!serv->is_worker()) {
-        php_swoole_fatal_error(E_WARNING, "taskCo method can only be used in the worker process");
-        RETURN_FALSE;
-    }
-
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
-
-    zval *ztasks;
-    double timeout = SW_TASKWAIT_TIMEOUT;
-
-    ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_ZVAL(ztasks)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_DOUBLE(timeout)
-    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-    int dst_worker_id = -1;
-    TaskId task_id;
-    int i = 0;
-    uint32_t n_task = php_swoole_array_length(ztasks);
-    uint32_t dispatched_task_num = 0;
-
-    if (n_task >= SW_MAX_CONCURRENT_TASK) {
-        php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
-        RETURN_FALSE;
-    }
-
-    if (php_swoole_server_task_check_param(serv, dst_worker_id) < 0) {
-        RETURN_FALSE;
-    }
-
+// Coroutine worker path, shared by taskCo() and taskWaitMulti(). All map entries
+// must disappear before this stack-owned TaskCo and its id list go out of scope.
+static bool php_swoole_server_task_wait_coroutine(
+    Server *serv, ServerObject *server_object, zval *tasks, zval *return_value, double timeout) {
+    const uint32_t n_task = php_swoole_array_length(tasks);
     auto *list = static_cast<TaskId *>(ecalloc(n_task, sizeof(TaskId)));
     if (list == nullptr) {
-        RETURN_FALSE;
+        return false;
     }
 
     TaskCo task_co{};
@@ -3540,51 +3521,106 @@ static PHP_METHOD(swoole_server, taskCo) {
     task_co.list = list;
     task_co.count = n_task;
 
-    array_init_size(return_value, n_task);
-
+    int i = 0;
+    uint32_t dispatched_task_num = 0;
     zval *ztask;
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask) {
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(tasks), ztask) {
         EventData buf;
-        task_id = php_swoole_server_task_pack(ztask, &buf);
+        TaskId task_id = php_swoole_server_task_pack(ztask, &buf);
         if (task_id < 0) {
             php_swoole_fatal_error(E_WARNING, "failed to pack task");
-            goto _fail;
-        }
-        buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
-        dst_worker_id = -1;
-        if (!serv->task(&buf, &dst_worker_id)) {
-            task_id = -1;
-        _fail:
             add_index_bool(return_value, i, false);
         } else {
-            server_object->property->task_coroutine_map[task_id] = &task_co;
-            dispatched_task_num++;
+            buf.info.ext_flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
+            int dst_worker_id = -1;
+            if (!serv->task(&buf, &dst_worker_id)) {
+                task_id = -1;
+                add_index_bool(return_value, i, false);
+            } else {
+                server_object->property->task_coroutine_map[task_id] = &task_co;
+                dispatched_task_num++;
+            }
         }
-        list[i] = task_id;
-        i++;
+        list[i++] = task_id;
     }
     SW_HASHTABLE_FOREACH_END();
 
     if (dispatched_task_num == 0) {
         efree(list);
         swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
-        RETURN_FALSE;
+        return false;
     }
 
     if (!task_co.co->yield_ex(timeout)) {
-        bool is_called_in_taskCo = strcasecmp(EX(func)->internal_function.function_name->val, "taskCo") == 0;
+        if (swoole_get_last_error() == SW_ERROR_CO_TIMEDOUT) {
+            swoole_set_last_error(SW_ERROR_TASK_TIMEOUT);
+        }
         for (uint32_t j = 0; j < n_task; j++) {
-            if (!zend_hash_index_exists(Z_ARRVAL_P(return_value), j)) {
-                if (is_called_in_taskCo) {
-                    add_index_bool(return_value, j, false);
-                }
-                if (list[j] >= 0) {
-                    server_object->property->task_coroutine_map.erase(list[j]);
-                }
+            if (list[j] >= 0) {
+                server_object->property->task_coroutine_map.erase(list[j]);
             }
         }
     }
     efree(list);
+    return true;
+}
+
+// Both public methods have one validation and result contract. Only the wait mechanism
+// depends on the calling context; taskCo() also works in non-coroutine workers in 6.3.
+static void php_swoole_server_task_wait_multi(INTERNAL_FUNCTION_PARAMETERS) {
+    Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    if (sw_unlikely(!serv->is_started())) {
+        php_swoole_fatal_error(E_WARNING, "server is not running");
+        RETURN_FALSE;
+    }
+    if (!serv->is_worker()) {
+        php_swoole_fatal_error(
+            E_WARNING, "%s method can only be used in the worker process", ZSTR_VAL(EX(func)->common.function_name));
+        RETURN_FALSE;
+    }
+
+    zval *ztasks;
+    double timeout = SW_TASKWAIT_TIMEOUT;
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_ARRAY(ztasks)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (php_swoole_server_task_check_param(serv, -1) < 0) {
+        RETURN_FALSE;
+    }
+    const uint32_t n_task = php_swoole_array_length(ztasks);
+    if (n_task >= SW_MAX_CONCURRENT_TASK) {
+        php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
+        RETURN_FALSE;
+    }
+    if (n_task == 0) {
+        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
+        RETURN_FALSE;
+    }
+
+    zend::Variable task_array(ztasks);
+    array_init_size(return_value, n_task);
+    swoole_set_last_error(0);
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
+    const bool success =
+        swoole_coroutine_is_in()
+            ? php_swoole_server_task_wait_coroutine(serv, server_object, task_array.ptr(), return_value, timeout)
+            : php_swoole_server_task_wait_sync(serv, task_array.ptr(), return_value, timeout);
+    if (!success) {
+        zval_ptr_dtor(return_value);
+        RETURN_FALSE;
+    }
+    php_swoole_server_task_restore_keys(task_array.ptr(), return_value);
+}
+
+static PHP_METHOD(swoole_server, taskWaitMulti) {
+    php_swoole_server_task_wait_multi(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+}
+
+static PHP_METHOD(swoole_server, taskCo) {
+    php_swoole_server_task_wait_multi(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
 static PHP_METHOD(swoole_server, task) {
