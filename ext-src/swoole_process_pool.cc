@@ -160,7 +160,10 @@ void php_swoole_process_pool_minit(int module_number) {
 static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     auto zobject = static_cast<zval *>(pool->ptr);
     auto pp = process_pool_fetch_object(zobject);
-    php_swoole_process_clean();
+
+#ifndef SW_THREAD
+    php_swoole_process_reset_worker_type();
+#endif
 
     current_pool = pool;
     current_worker = worker;

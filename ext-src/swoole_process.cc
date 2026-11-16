@@ -631,28 +631,35 @@ void php_swoole_process_signal_clean() {
     for (auto &signal_fci_cache : signal_fci_caches) {
         const auto fci_cache = signal_fci_cache;
         if (fci_cache) {
-            sw_callable_free(fci_cache);
+            /**
+             * Callables are allocated on the main thread's heap; a child process forked from a worker thread
+             * has no ownership of them and must not free them, otherwise it will corrupt the main thread's memory.
+             *
+             * Calling `proc_open` in a worker thread is one such example: during this call,
+             * the worker thread forks a child process.
+             */
+#ifdef SW_THREAD
+            if (tsrm_is_main_thread()) {
+#endif
+                sw_callable_free(fci_cache);
+#ifdef SW_THREAD
+            }
+#endif
+
             signal_fci_cache = nullptr;
         }
     }
     SwooleG.signal_listener_num = 0;
 }
 
-void php_swoole_process_clean() {
-    // Signal callbacks are shared by all threads and owned by the main thread
-    if (!sw_is_main_thread()) {
+void php_swoole_process_rshutdown() {
+#ifdef SW_THREAD
+    if (!tsrm_is_main_thread()) {
         return;
     }
-    php_swoole_process_signal_clean();
-#ifndef SW_THREAD
-    if (swoole_get_worker_type() != SW_USER_WORKER) {
-        swoole_set_worker_type(0);
-    }
 #endif
-}
 
-void php_swoole_process_rshutdown() {
-    php_swoole_process_clean();
+    php_swoole_process_signal_clean();
 }
 
 int php_swoole_process_start(Worker *process, zval *zobject) {
@@ -683,7 +690,10 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
         }
     }
 
-    php_swoole_process_clean();
+#ifndef SW_THREAD
+    php_swoole_process_reset_worker_type();
+#endif
+
     swoole_set_worker_id(process->id);
     swoole_set_worker_pid(getpid());
     SwooleWG.worker = process;

@@ -43,7 +43,14 @@ static sw_inline bool php_swoole_msgqueue_key_is_valid(zend_long key) {
     return static_cast<zend_ulong>(key) <= std::numeric_limits<unsigned_key_t>::max();
 }
 
-void php_swoole_process_clean();
+#ifndef SW_THREAD
+static sw_inline void php_swoole_process_reset_worker_type() {
+    if (swoole_get_worker_type() != SW_USER_WORKER) {
+        swoole_set_worker_type(SW_GENERIC_WORKER);
+    }
+}
+#endif
+
 void php_swoole_process_signal_clean();
 int php_swoole_process_start(swoole::Worker *process, zval *zobject);
 swoole::Worker *php_swoole_process_get_worker(const zval *zobject);
