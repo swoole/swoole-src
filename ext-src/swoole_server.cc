@@ -750,7 +750,7 @@ static bool php_swoole_server_task_unpack(zval *zresult, EventData *task_result)
         PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
         if (!unserialized) {
             swoole_warning("unserialize() failed, Error at offset " ZEND_LONG_FMT " of %zd bytes",
-                           (zend_long)((char *) p - packet.data),
+                           (zend_long) ((char *) p - packet.data),
                            l);
             return false;
         }
@@ -1828,7 +1828,7 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
 
     *zserv = *(php_swoole_server_zval_ptr(serv));
     ZVAL_LONG(zfd, conn ? conn->session_id : data->info.fd);
-    ZVAL_LONG(ztype, (zend_long)(data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
+    ZVAL_LONG(ztype, (zend_long) (data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
     if (data && sw_zend_function_max_num_args(cb->ptr()->function_handler) > 3) {
         // TODO: reduce memory copy
         zdata = &args[3];
@@ -3183,6 +3183,36 @@ static PHP_METHOD(swoole_server, taskwait) {
     }
 }
 
+// Keep the values alive across serialization and the synchronous wait without changing the caller's array.
+static zend::Variable php_swoole_server_task_indexed_array(zval *tasks) {
+    zend::Variable indexed_tasks;
+    if (!zend::array_is_list(tasks)) {
+        // Maintenance releases retain numeric-index dispatch for arrays that already have every
+        // index in [0, count). Only arrays that would otherwise produce a null task are reindexed.
+        bool has_all_indices = true;
+        const uint32_t count = zend_hash_num_elements(Z_ARRVAL_P(tasks));
+        for (uint32_t i = 0; i < count; i++) {
+            if (!zend_hash_index_exists(Z_ARRVAL_P(tasks), i)) {
+                has_all_indices = false;
+                break;
+            }
+        }
+        if (!has_all_indices) {
+            // PHP 8.1 has no zend_array_to_list(); copy refcounted values without retaining borrowed pointers.
+            array_init_size(indexed_tasks.ptr(), count);
+            zval *task;
+            SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(tasks), task) {
+                Z_TRY_ADDREF_P(task);
+                add_next_index_zval(indexed_tasks.ptr(), task);
+            }
+            SW_HASHTABLE_FOREACH_END();
+            return indexed_tasks;
+        }
+    }
+    indexed_tasks.assign(tasks);
+    return indexed_tasks;
+}
+
 static PHP_METHOD(swoole_server, taskWaitMulti) {
     if (swoole_coroutine_is_in()) {
         return ZEND_MN(swoole_server_taskCo)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
@@ -3202,7 +3232,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     double timeout = SW_TASKWAIT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_ZVAL(ztasks)
+    Z_PARAM_ARRAY(ztasks)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -3211,17 +3241,24 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         RETURN_FALSE;
     }
 
-    array_init(return_value);
-
     int n_task = php_swoole_array_length(ztasks);
     if (n_task >= SW_MAX_CONCURRENT_TASK) {
         php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
         RETURN_FALSE;
     }
 
+    if (n_task == 0) {
+        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
+        RETURN_FALSE;
+    }
+
+    array_init(return_value);
+
+    zend::Variable task_array(ztasks);
+    auto indexed_tasks = php_swoole_server_task_indexed_array(task_array.ptr());
     Server::MultiTask mt(n_task);
-    mt.pack = [ztasks](uint16_t i, EventData *buf) {
-        auto *ztask = zend::array_get(ztasks, (zend_ulong) i);
+    mt.pack = [&indexed_tasks](uint16_t i, EventData *buf) {
+        auto *ztask = zend::array_get(indexed_tasks.ptr(), (zend_ulong) i);
         return php_swoole_server_task_pack(ztask, buf);
     };
 
@@ -3257,7 +3294,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     double timeout = SW_TASKWAIT_TIMEOUT;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_ZVAL(ztasks)
+    Z_PARAM_ARRAY(ztasks)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -3266,6 +3303,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     TaskId task_id;
     int i = 0;
     uint32_t n_task = php_swoole_array_length(ztasks);
+    uint32_t dispatched_task_num = 0;
 
     if (n_task >= SW_MAX_CONCURRENT_TASK) {
         php_swoole_fatal_error(E_WARNING, "too many concurrent tasks");
@@ -3276,18 +3314,28 @@ static PHP_METHOD(swoole_server, taskCo) {
         RETURN_FALSE;
     }
 
+    if (n_task == 0) {
+        swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
+        RETURN_FALSE;
+    }
+
+    zend::Variable task_array(ztasks);
+
     auto *list = static_cast<TaskId *>(ecalloc(n_task, sizeof(TaskId)));
     if (list == nullptr) {
         RETURN_FALSE;
     }
 
-    TaskCo task_co;
+    TaskCo task_co{};
     task_co.co = Coroutine::get_current_safe();
+    task_co.result = return_value;
+    task_co.list = list;
+    task_co.count = n_task;
 
     array_init_size(return_value, n_task);
 
     zval *ztask;
-    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask) {
+    SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(task_array.ptr()), ztask) {
         EventData buf;
         task_id = php_swoole_server_task_pack(ztask, &buf);
         if (task_id < 0) {
@@ -3300,23 +3348,21 @@ static PHP_METHOD(swoole_server, taskCo) {
             task_id = -1;
         _fail:
             add_index_bool(return_value, i, false);
-            n_task--;
         } else {
             server_object->property->task_coroutine_map[task_id] = &task_co;
+            dispatched_task_num++;
         }
         list[i] = task_id;
         i++;
     }
     SW_HASHTABLE_FOREACH_END();
 
-    if (n_task == 0) {
+    if (dispatched_task_num == 0) {
+        efree(list);
+        zval_ptr_dtor(return_value);
         swoole_set_last_error(SW_ERROR_TASK_DISPATCH_FAIL);
         RETURN_FALSE;
     }
-
-    task_co.result = return_value;
-    task_co.list = list;
-    task_co.count = n_task;
 
     if (!task_co.co->yield_ex(timeout)) {
         bool is_called_in_taskCo = strcasecmp(EX(func)->internal_function.function_name->val, "taskCo") == 0;
@@ -3325,10 +3371,14 @@ static PHP_METHOD(swoole_server, taskCo) {
                 if (is_called_in_taskCo) {
                     add_index_bool(return_value, j, false);
                 }
-                server_object->property->task_coroutine_map.erase(list[j]);
+                if (list[j] >= 0) {
+                    server_object->property->task_coroutine_map.erase(list[j]);
+                }
             }
         }
     }
+
+    efree(list);
 }
 
 static PHP_METHOD(swoole_server, task) {
