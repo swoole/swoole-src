@@ -364,14 +364,17 @@ bool ListenPort::import(int sock) {
         return false;
     }
 
-    int accepting;
-    if (candidate->get_option(SOL_SOCKET, SO_ACCEPTCONN, &accepting) < 0) {
-        swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_ACCEPTCONN) failed", sock);
-        return false;
-    }
-    if (accepting == 0) {
-        swoole_error_log(SW_LOG_WARNING, EINVAL, "the socket[%d] is not a listening socket", sock);
-        return false;
+    // Datagram sockets are bound but never listen(); SO_ACCEPTCONN only validates stream listeners.
+    if (socket_type == SOCK_STREAM) {
+        int accepting;
+        if (candidate->get_option(SOL_SOCKET, SO_ACCEPTCONN, &accepting) < 0) {
+            swoole_sys_warning("getsockopt(%d, SOL_SOCKET, SO_ACCEPTCONN) failed", sock);
+            return false;
+        }
+        if (accepting == 0) {
+            swoole_error_log(SW_LOG_WARNING, EINVAL, "the socket[%d] is not a listening socket", sock);
+            return false;
+        }
     }
 
     const int family = candidate->info.addr.ss.sa_family;
