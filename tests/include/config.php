@@ -37,7 +37,7 @@ define('SOURCE_ROOT_PATH', realpath(__DIR__ . '/../../'));
 define('TESTS_ROOT_PATH', realpath(__DIR__ . '/../'));
 define('TESTS_API_PATH', TESTS_ROOT_PATH . '/include/api');
 define('TESTS_LIB_PATH', TESTS_ROOT_PATH . '/include/lib');
-define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');
+define('SCRIPTS_DIR_PATH', SOURCE_ROOT_PATH . '/scripts');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
 define('TEST_LINK_IMAGE', __DIR__ . '/../../examples/test_link.jpg');
 define('TEST_IMAGE2', __DIR__ . '/../../docs/swoole-logo.svg');
@@ -73,7 +73,7 @@ define('UDP_SERVER_PORT', 9003);
 
 /* ============== MySQL ============== */
 define('MYSQL_SERVER_PATH', getenv('MYSQL_SERVER_PATH')
-    ?: (IS_IN_CI ? SOURCE_ROOT_PATH . '/scripts/data/run/mysqld/mysqld.sock'
+    ?: (IS_IN_CI ? SCRIPTS_DIR_PATH . '/data/run/mysqld/mysqld.sock'
         : (IS_MAC_OS ? '/tmp/mysql.sock' : '/var/run/mysqld/mysqld.sock')));
 define('MYSQL_SERVER_HOST', getenv('MYSQL_SERVER_HOST') ?: (IS_IN_CI ? 'mysql' : '127.0.0.1'));
 define('MYSQL_SERVER_PORT', (int) (getenv('MYSQL_SERVER_PORT') ?: 3306));
@@ -127,7 +127,7 @@ define('SQLITE_DSN', 'sqlite::memory:');
 
 /* ============== Redis ============== */
 define('REDIS_SERVER_PATH', getenv('REDIS_SERVER_PATH')
-    ?: (IS_IN_CI ? TRAVIS_DIR_PATH . '/data/run/redis/redis.sock'
+    ?: (IS_IN_CI ? SCRIPTS_DIR_PATH . '/data/run/redis/redis.sock'
         : (IS_MAC_OS ? '/tmp/redis.sock' : '/var/run/redis/redis-server.sock')));
 define('REDIS_SERVER_HOST', getenv('REDIS_SERVER_HOST') ?: (IS_IN_CI && !IS_MAC_OS ? 'redis' : '127.0.0.1'));
 define('REDIS_SERVER_PORT', (int) (getenv('REDIS_SERVER_PORT') ?: 6379));
@@ -235,8 +235,8 @@ define('MAX_PROCESS_NUM', [2, 4, 6, 8][PRESSURE_LEVEL]);
 define('MAX_PACKET_NUM', [1024, 2048, 4096, 10000][PRESSURE_LEVEL]);
 
 /* ============== FTP ============== */
-define('FTP_HOST', IS_IN_CI ? 'ftp' : '127.0.0.1');
-define('FTP_PORT', 21);
-define('FTP_USER', 'admin');
-define('FTP_PASS', 'admin');
+define('FTP_HOST', getenv('FTP_HOST') ?: (IS_IN_CI ? 'ftp' : '127.0.0.1'));
+define('FTP_PORT', (int) (getenv('FTP_PORT') ?: 21));
+define('FTP_USER', getenv('FTP_USER') ?: 'admin');
+define('FTP_PASS', getenv('FTP_PASS') ?: 'admin');
 define('FTP_TEST_FILE', IS_IN_CI ? 'test.txt' : 'work/test.txt');

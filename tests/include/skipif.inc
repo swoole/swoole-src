@@ -256,6 +256,24 @@ function skip_if_no_database()
     skip("no database", !!getenv('SWOOLE_CI_IN_MACOS'));
 }
 
+function skip_if_no_mysql_unix_socket(): void
+{
+    skip_if_no_database();
+    require_once __DIR__ . '/config.php';
+    skip('no mysql unix socket', !file_exists(MYSQL_SERVER_PATH));
+}
+
+function skip_if_mysql_plugin_not_active(string $plugin): void
+{
+    skip_if_no_database();
+    skip_if_extension_not_exist('pdo_mysql');
+    require_once __DIR__ . '/config.php';
+    $pdo = new PDO('mysql:host=' . MYSQL_SERVER_HOST . ';port=' . MYSQL_SERVER_PORT, MYSQL_SERVER_USER, MYSQL_SERVER_PWD);
+    $statement = $pdo->prepare('SELECT PLUGIN_STATUS FROM information_schema.PLUGINS WHERE PLUGIN_NAME = ?');
+    $statement->execute([$plugin]);
+    skip('require ' . $plugin, $statement->fetchColumn() !== 'ACTIVE');
+}
+
 function skip_if_libpq_version_lower_than(int $major)
 {
     $version = 0;

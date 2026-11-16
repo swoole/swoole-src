@@ -3,12 +3,8 @@ swoole_runtime: pdo full authentication over unix socket
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_no_database();
-require_once __DIR__ . '/../include/config.php';
-skip('no mysql unix socket', !file_exists(MYSQL_SERVER_PATH));
-$pdo = new PDO('mysql:host=' . MYSQL_SERVER_HOST . ';port=' . MYSQL_SERVER_PORT, MYSQL_SERVER_USER, MYSQL_SERVER_PWD);
-$status = $pdo->query("SELECT PLUGIN_STATUS FROM information_schema.PLUGINS WHERE PLUGIN_NAME = 'caching_sha2_password'")->fetchColumn();
-skip('require caching_sha2_password', $status !== 'ACTIVE');
+skip_if_no_mysql_unix_socket();
+skip_if_mysql_plugin_not_active('caching_sha2_password');
 ?>
 --FILE--
 <?php
