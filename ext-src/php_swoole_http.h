@@ -84,6 +84,11 @@ namespace swoole {
 class Server;
 class Coroutine;
 
+namespace coroutine {
+template <typename T>
+class ChannelImpl;
+}
+
 namespace http2 {
 class Stream;
 class Session;
@@ -171,6 +176,7 @@ struct Context {
     uchar parse_files : 1;
     uchar upload_preprocessed : 1;
     uchar http2 : 1;
+    uchar http2_stream_mode : 1;
 
     zval zsocket;
     uint32_t stream_id;
@@ -327,13 +333,19 @@ class Stream {
     // uint8_t priority; // useless now
     uint32_t id;
     // flow control
-    uint32_t remote_window_size;
+    int64_t remote_window_size;
     uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
     ReceivePhase receive_phase = ReceivePhase::HEADERS;
     uint32_t header_count = 0;
     uint32_t header_error = SW_HTTP2_ERROR_NO_ERROR;
     bool header_end_stream = false;
+    bool dispatched = false;
+    bool streaming = false;
+    bool read_closed = false;
+    Coroutine *reader = nullptr;
+
+    void wake_reader();
 
     Stream(const Session *client, uint32_t _id);
     ~Stream();
@@ -373,6 +385,8 @@ class Session {
 
     http::Context *default_ctx = nullptr;
     void *private_data = nullptr;
+    std::unique_ptr<coroutine::ChannelImpl<bool>> write_lock;
+    bool (*send_raw)(http::Context *, const char *, size_t) = nullptr;
 
     void (*handle)(const std::shared_ptr<Session> &, const std::shared_ptr<Stream> &) = nullptr;
 
@@ -381,6 +395,7 @@ class Session {
     std::shared_ptr<Stream> create_stream(uint32_t stream_id);
     std::shared_ptr<Stream> get_stream(uint32_t stream_id);
     bool remove_stream(uint32_t stream_id);
+    void enable_streaming();
 };
 }  // namespace http2
 }  // namespace swoole
@@ -388,6 +403,8 @@ class Session {
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 extern zend_class_entry *swoole_http_cookie_ce;
+
+void swoole_http2_request_recv(swoole::http::Context *ctx, double timeout, zval *return_value);
 
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Cookie *php_swoole_http_get_cooke_safety(const zval *zobject);

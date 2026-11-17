@@ -306,12 +306,14 @@ static PHP_METHOD(swoole_http_request, parse);
 static PHP_METHOD(swoole_http_request, isCompleted);
 static PHP_METHOD(swoole_http_request, getMethod);
 static PHP_METHOD(swoole_http_request, getContent);
+static PHP_METHOD(swoole_http_request, recv);
 SW_EXTERN_C_END
 
 // clang-format off
 const zend_function_entry swoole_http_request_methods[] =
 {
     PHP_ME(swoole_http_request, getContent,                 arginfo_class_Swoole_Http_Request_getContent,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, recv,                       arginfo_class_Swoole_Http_Request_recv,        ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_http_request, rawContent, getContent, arginfo_class_Swoole_Http_Request_getContent,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, getData,                    arginfo_class_Swoole_Http_Request_getData,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, create,                     arginfo_class_Swoole_Http_Request_create,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -321,6 +323,20 @@ const zend_function_entry swoole_http_request_methods[] =
     PHP_FE_END
 };
 // clang-format on
+
+static PHP_METHOD(swoole_http_request, recv) {
+    double timeout = -1;
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END();
+
+    auto ctx = http_request_get_and_check_context(ZEND_THIS);
+    if (!ctx || !ctx->http2 || !ctx->http2_stream_mode) {
+        RETURN_FALSE;
+    }
+    swoole_http2_request_recv(ctx, timeout, return_value);
+}
 
 void php_swoole_http_request_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", nullptr, swoole_http_request_methods);

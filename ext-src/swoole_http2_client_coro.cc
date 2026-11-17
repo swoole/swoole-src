@@ -65,9 +65,10 @@ struct Stream {
     String *gzip_buffer;
 #endif
     zval zresponse;
+    bool header_trailers;
 
     // flow control
-    uint32_t remote_window_size;
+    int64_t remote_window_size;
     uint32_t local_window_size;
 };
 
@@ -81,6 +82,8 @@ class Client {
 
     uint32_t stream_id = 0;       // the next send stream id
     uint32_t last_stream_id = 0;  // the last received stream id
+    uint32_t continuation_stream_id = 0;
+    uint8_t header_flags = 0;
 
     Http2::Settings local_settings = {};
     Http2::Settings remote_settings = {};
@@ -88,6 +91,19 @@ class Client {
     // flow control
     uint32_t remote_window_size = 0;
     uint32_t local_window_size = 0;
+    bool stream_mode = false;
+    std::unordered_map<uint32_t, Coroutine *> writers;
+
+    void wake_writers() {
+        auto pending = writers;
+        for (auto &entry : pending) {
+            auto current = writers.find(entry.first);
+            if (current != writers.end() && current->second == entry.second) {
+                writers.erase(current);
+                entry.second->resume();
+            }
+        }
+    }
 
     std::unordered_map<uint32_t, Stream *> streams;
     std::queue<zend_string *> send_queue;
@@ -143,7 +159,12 @@ class Client {
         return true;
     }
 
-    bool apply_setting(const zval *zset) const {
+    bool apply_setting(const zval *zset) {
+        if (ZVAL_IS_ARRAY(zset)) {
+            if (auto mode = zend_hash_str_find(Z_ARRVAL_P(zset), ZEND_STRL("http2_stream_mode"))) {
+                stream_mode = zval_is_true(mode);
+            }
+        }
         if (socket_ && ZVAL_IS_ARRAY(zset)) {
             return php_swoole_socket_set(socket_, zset);
         }
@@ -170,6 +191,7 @@ class Client {
 
         destroy_stream(i->second);
         streams.erase(i);
+        wake_writers();
 
         return true;
     }
@@ -416,12 +438,14 @@ void php_swoole_http2_client_coro_minit(int module_number) {
 
 void Client::socket_dtor() {
     socket_ = nullptr;
+    continuation_stream_id = 0;
     clean_send_queue();
     auto i = streams.begin();
     while (i != streams.end()) {
         destroy_stream(i->second);
         streams.erase(i++);
     }
+    wake_writers();
     if (inflater) {
         nghttp2_hd_inflate_del(inflater);
         inflater = nullptr;
@@ -534,6 +558,10 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
 
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
 
+    if (continuation_stream_id != 0 && (type != SW_HTTP2_TYPE_CONTINUATION || _stream_id != continuation_stream_id)) {
+        return SW_ERROR;
+    }
+
     if (_stream_id > last_stream_id) {
         last_stream_id = _stream_id;
     }
@@ -564,7 +592,15 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-                remote_window_size = remote_settings.init_window_size = value;
+                if (stream_mode) {
+                    for (auto &entry : streams) {
+                        entry.second->remote_window_size +=
+                            static_cast<int64_t>(value) - remote_settings.init_window_size;
+                    }
+                } else {
+                    remote_window_size = value;
+                }
+                remote_settings.init_window_size = value;
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: init_send_window=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
@@ -607,6 +643,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         if (!send(frame, SW_HTTP2_FRAME_HEADER_SIZE)) {
             return SW_ERROR;
         }
+        wake_writers();
         return SW_CONTINUE;
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE: {
@@ -627,6 +664,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 stream->remote_window_size += value;
             }
         }
+        wake_writers();
         return SW_CONTINUE;
     }
     case SW_HTTP2_TYPE_PING: {
@@ -713,20 +751,53 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         swoole_notice("http2 stream#%d belongs to an unknown type or it never registered", _stream_id);
         return SW_CONTINUE;
     }
-    if (type == SW_HTTP2_TYPE_HEADERS) {
+    if (type == SW_HTTP2_TYPE_HEADERS || type == SW_HTTP2_TYPE_CONTINUATION) {
+        if (type == SW_HTTP2_TYPE_HEADERS) {
+            header_flags = flags;
+            stream->header_trailers = (stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED) != 0;
+            if (flags & SW_HTTP2_FLAG_PADDED) {
+                if (length < 1) {
+                    return SW_ERROR;
+                }
+                uint8_t padding = static_cast<uint8_t>(*buf++);
+                if (padding > --length) {
+                    return SW_ERROR;
+                }
+                length -= padding;
+            }
+        } else if (continuation_stream_id == 0) {
+            return SW_ERROR;
+        }
         if (parse_header(stream, flags, buf, length) < 0) {
             return SW_ERROR;
         }
+        if (!(flags & SW_HTTP2_FLAG_END_HEADERS)) {
+            continuation_stream_id = _stream_id;
+            return SW_CONTINUE;
+        }
+        continuation_stream_id = 0;
+        flags |= header_flags & SW_HTTP2_FLAG_END_STREAM;
     } else if (type == SW_HTTP2_TYPE_DATA) {
+        auto flow_length = length;
+        if (flags & SW_HTTP2_FLAG_PADDED) {
+            if (length < 1) {
+                return SW_ERROR;
+            }
+            uint8_t padding = static_cast<uint8_t>(*buf++);
+            if (padding > --length) {
+                return SW_ERROR;
+            }
+            length -= padding;
+        }
         if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {
             stream->flags |= SW_HTTP2_STREAM_PIPELINE_RESPONSE;
         }
-        if (length > 0) {
+        if (flow_length > 0) {
             if (!stream->buffer) {
                 stream->buffer = make_string(SW_HTTP2_DATA_BUFFER_SIZE);
             }
 #ifdef SW_HAVE_ZLIB
-            if (stream->gzip) {
+            if (stream->gzip && length > 0) {
                 if (php_swoole_zlib_decompress(&stream->gzip_stream, stream->gzip_buffer, buf, length) == SW_ERR) {
                     swoole_warning("decompress failed");
                     return SW_ERROR;
@@ -740,8 +811,8 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
 
             // now we control the connection flow only (not stream)
             // our window size is unlimited, so we don't worry about subtraction overflow
-            local_window_size -= length;
-            stream->local_window_size -= length;
+            local_window_size -= flow_length;
+            stream->local_window_size -= flow_length;
             if (local_window_size < (local_settings.init_window_size / 4)) {
                 if (!send_window_update(0, local_settings.init_window_size - local_window_size)) {
                     return SW_ERROR;
@@ -941,6 +1012,9 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
     zval *zresponse = &stream->zresponse;
 
     if (flags & SW_HTTP2_FLAG_PRIORITY) {
+        if (inlen < 5) {
+            return SW_ERR;
+        }
         // int stream_deps = ntohl(*(int *) (in));
         // uint8_t weight = in[4];
         in += 5;
@@ -960,7 +1034,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
      * of :status -- never by header names. This is a generic HTTP/2 facility, not gRPC-specific.
      * "headers" keeps receiving every header unchanged; "trailers" is only an additional view
      * of the trailing frame(s). */
-    bool is_trailers_frame = (stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED) != 0;
+    bool is_trailers_frame = stream->header_trailers;
     bool has_status_pseudo_header = false;
     zval *ztrailers = nullptr;
 
@@ -969,7 +1043,8 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
     do {
         nghttp2_nv nv;
 
-        ssize_t rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
+        ssize_t rv = nghttp2_hd_inflate_hd(
+            inflater, &nv, &inflate_flags, (uchar *) in, inlen, (flags & SW_HTTP2_FLAG_END_HEADERS) != 0);
         if (rv < 0) {
             nghttp2_error(rv, "nghttp2_hd_inflate_hd failed");
             return SW_ERR;
@@ -1001,6 +1076,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                     zend::object_set(zresponse, ZEND_STRL("statusCode"), status_code);
                     has_status_pseudo_header = true;
                     is_trailers_frame = false;
+                    stream->header_trailers = false;
                 }
             } else {
 #ifdef SW_HAVE_ZLIB
@@ -1218,7 +1294,33 @@ bool Client::send_data(uint32_t _stream_id, const char *p, size_t len, int flag)
         return send(header, SW_HTTP2_FRAME_HEADER_SIZE);
     }
     while (len > 0) {
-        if (len > remote_settings.max_frame_size) {
+        if (stream_mode) {
+            auto stream = get_stream(_stream_id);
+            if (!stream) {
+                update_error_properties(ECANCELED, "HTTP/2 stream closed");
+                return false;
+            }
+            auto credit = std::min<int64_t>(remote_window_size, stream->remote_window_size);
+            if (credit <= 0) {
+                if (writers.count(_stream_id)) {
+                    update_error_properties(EBUSY, "HTTP/2 stream already has a writer");
+                    return false;
+                }
+                auto co = Coroutine::get_current_safe();
+                writers.emplace(_stream_id, co);
+                bool ready = co->yield_ex(timeout);
+                writers.erase(_stream_id);
+                if (!ready) {
+                    update_error_properties(co->is_canceled() ? ECANCELED : ETIMEDOUT, "HTTP/2 write interrupted");
+                    return false;
+                }
+                continue;
+            }
+            send_len = std::min<size_t>(len, std::min<int64_t>(remote_settings.max_frame_size, credit));
+            send_flag = send_len == len ? flag : 0;
+            remote_window_size -= send_len;
+            stream->remote_window_size -= send_len;
+        } else if (len > remote_settings.max_frame_size) {
             send_len = remote_settings.max_frame_size;
             send_flag = 0;
         } else {

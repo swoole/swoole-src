@@ -8,5 +8,6 @@ namespace Swoole\Http {
 		public function isCompleted(): bool {}
 		public function getMethod(): string|false {}
 		public function getContent(): string|false {}
+		public function recv(float $timeout = -1): string|false {}
 	}
 }

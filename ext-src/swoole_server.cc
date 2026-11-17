@@ -2433,6 +2433,9 @@ static PHP_METHOD(swoole_server, set) try {
     if (php_swoole_array_get_value(vht, "http_parse_post", ztmp)) {
         serv->http_parse_post = zval_is_true(ztmp);
     }
+    if (php_swoole_array_get_value(vht, "http2_stream_mode", ztmp)) {
+        serv->http2_stream_mode = zval_is_true(ztmp);
+    }
     // parse multipart/form-data file uploads
     if (php_swoole_array_get_value(vht, "http_parse_files", ztmp)) {
         serv->http_parse_files = zval_is_true(ztmp);

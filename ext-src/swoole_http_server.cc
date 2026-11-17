@@ -248,6 +248,7 @@ HttpContext *swoole_http_context_new(SessionId fd) {
 void HttpContext::init(Server *serv) {
     parse_cookie = serv->http_parse_cookie;
     parse_body = serv->http_parse_post;
+    http2_stream_mode = serv->http2_stream_mode;
     parse_files = serv->http_parse_files;
 #ifdef SW_HAVE_COMPRESSION
     enable_compression = serv->http_compression;
@@ -271,6 +272,7 @@ void HttpContext::bind(Server *serv) {
 void HttpContext::copy(const HttpContext *ctx) {
     parse_cookie = ctx->parse_cookie;
     parse_body = ctx->parse_body;
+    http2_stream_mode = ctx->http2_stream_mode;
     parse_files = ctx->parse_files;
 #ifdef SW_HAVE_COMPRESSION
     enable_compression = ctx->enable_compression;

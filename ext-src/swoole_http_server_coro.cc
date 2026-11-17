@@ -64,6 +64,7 @@ class HttpServer {
     /* options */
     bool parse_cookie;
     bool parse_post;
+    bool http2_stream_mode = false;
     bool parse_files;
 #ifdef SW_HAVE_COMPRESSION
     bool compression;
@@ -149,6 +150,7 @@ class HttpServer {
     HttpContext *create_context(SocketImpl *conn, zval *zconn) const {
         HttpContext *ctx = swoole_http_context_new(conn->get_fd());
         ctx->parse_body = parse_post;
+        ctx->http2_stream_mode = http2_stream_mode;
         ctx->parse_cookie = parse_cookie;
         ctx->parse_files = parse_files;
 #ifdef SW_HAVE_COMPRESSION
@@ -187,6 +189,7 @@ class HttpServer {
         session->handle = http2_server_onRequest;
         session->private_data = this;
         session->is_coro = true;
+        session->enable_streaming();
 
         while (true) {
             auto buffer = sock->get_read_buffer();
@@ -473,6 +476,9 @@ static PHP_METHOD(swoole_http_server_coro, start) try {
     // parse x-www-form-urlencoded form data
     if (php_swoole_array_get_value(vht, "http_parse_post", ztmp)) {
         hs->parse_post = zval_is_true(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "http2_stream_mode", ztmp)) {
+        hs->http2_stream_mode = zval_is_true(ztmp);
     }
     // parse multipart/form-data file uploads
     if (php_swoole_array_get_value(vht, "http_parse_files", ztmp)) {

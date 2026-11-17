@@ -1190,6 +1190,7 @@ class Server {
      * parse x-www-form-urlencoded data
      */
     bool http_parse_post = true;
+    bool http2_stream_mode = false;
     /**
      * parse multipart/form-data files to match $_FILES
      */
