@@ -615,6 +615,12 @@ int Server::start_master_thread(Reactor *reactor) {
     if (is_process_mode()) {
         gs->manager_barrier.wait();
     }
+    if (is_thread_mode()) {
+        // Master thread: signals, listeners and the reactor are ready before any worker can
+        // request shutdown. The manager creates and subsequently owns all worker threads.
+        auto *factory = dynamic_cast<ThreadFactory *>(factory_);
+        factory->spawn_manager_thread(factory->get_manager_thread_id());
+    }
     if (isset_hook(HOOK_MASTER_START)) {
         call_hook(HOOK_MASTER_START, this);
     }
@@ -1123,8 +1129,7 @@ bool Server::shutdown() {
     }
 
     if (is_thread_mode() && is_master_thread()) {
-        // Already on the master thread: run the common shutdown sequence directly, without sending SIGTERM.
-        // The signal handler uses the same sequence; it does not call shutdown() again.
+        // Master callers use the same handler as SIGTERM. Worker threads take the signal path below.
         return signal_handler_shutdown();
     }
 
@@ -1156,8 +1161,8 @@ bool Server::shutdown() {
     return true;
 }
 
-bool Server::signal_handler_reload(bool reload_all_workers) const {
-    const auto rv = reload(reload_all_workers);
+bool Server::signal_handler_reload(bool only_reload_taskworker) const {
+    const auto rv = reload(only_reload_taskworker);
     sw_logger()->reopen();
     return rv;
 }
@@ -1206,9 +1211,6 @@ void Server::stop_master_thread() {
             return true;
         };
         reactor->set_exit_condition(Reactor::EXIT_CONDITION_FORCED_TERMINATION, fn);
-    }
-    if (is_thread_mode()) {
-        stop_worker_threads();
     }
     if (is_process_mode() && single_thread) {
         get_thread(0)->shutdown(reactor);
@@ -2222,7 +2224,7 @@ void Server::master_signal_handler(int signo) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        serv->signal_handler_reload(signo == SIGUSR1);
+        serv->signal_handler_reload(signo == SIGUSR2);
         break;
     case SIGIO:
         serv->signal_handler_read_message();

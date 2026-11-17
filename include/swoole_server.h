@@ -921,7 +921,7 @@ struct ThreadReloadTask {
         return contains(worker_id) && completed_workers.emplace(worker_id).second;
     }
 
-    ThreadReloadTask(Server *_server, bool _reload_all_workers);
+    ThreadReloadTask(Server *_server, bool only_reload_taskworker);
     ~ThreadReloadTask() = default;
 };
 
@@ -930,8 +930,12 @@ class ThreadFactory : public BaseFactory {
     std::mutex lock_;
     std::condition_variable cv_;
     std::queue<Worker *> queue_;
-    bool reload_all_workers = false;
+    // Manager-thread policy, populated only after consuming the corresponding reload command.
+    bool only_reload_taskworker = false;
+    // Cross-thread reservation for one pending/active request; the manager owns reload_task itself.
     sw_atomic_t reloading = 0;
+    // Manager-thread state: replacements remain enabled until it consumes a shutdown command.
+    bool shutting_down = false;
     std::shared_ptr<ThreadReloadTask> reload_task;
     void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
@@ -940,6 +944,7 @@ class ThreadFactory : public BaseFactory {
     void do_reload();
     void finish_reload_worker(Worker *worker);
     void push_to_wait_queue(Worker *worker);
+    void shutdown_workers();
 
   public:
     explicit ThreadFactory(Server *server);
@@ -950,9 +955,8 @@ class ThreadFactory : public BaseFactory {
     void spawn_task_worker(WorkerId i);
     void spawn_user_worker(WorkerId i);
     void spawn_manager_thread(WorkerId i);
-    void terminate_manager_thread();
     void wait();
-    bool reload(bool reload_all_workers);
+    bool reload(bool only_reload_taskworker = false);
     bool start() override;
     bool shutdown() override;
 };
@@ -1557,7 +1561,8 @@ class Server {
 
     int start();
     void destroy();
-    bool reload(bool reload_all_workers) const;
+    // Same convention as PHP: false reloads all workers; true reloads only task workers.
+    bool reload(bool only_reload_taskworker = false) const;
     bool shutdown();
 
     int add_worker(Worker *worker);
@@ -2091,7 +2096,7 @@ class Server {
      */
     bool signal_handler_shutdown();
     bool signal_handler_child_exit() const;
-    bool signal_handler_reload(bool reload_all_workers) const;
+    bool signal_handler_reload(bool only_reload_taskworker) const;
     bool signal_handler_read_message() const;
     bool signal_handler_reopen_logger() const;
 
@@ -2174,8 +2179,7 @@ class Server {
     int start_worker_threads();
     int start_master_thread(Reactor *reactor);
     void start_heartbeat_thread();
-    void stop_worker_threads();
-    bool reload_worker_threads(bool reload_all_workers) const;
+    bool reload_worker_threads(bool only_reload_taskworker) const;
     void join_reactor_thread();
     void stop_master_thread();
     void join_heartbeat_thread();

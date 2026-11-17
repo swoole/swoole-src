@@ -8,10 +8,16 @@
 - `Server::taskCo()` and `Server::taskWaitMulti()` now share the same behavior. Both preserve the original task keys and input iteration order, including associative and sparse arrays. Pass `array_values($tasks)` to retain positional numeric results.
 - Both methods use coroutine waiting inside a coroutine and blocking waiting outside one. `taskCo()` is therefore also available in non-coroutine workers.
 - After at least one task is dispatched, both methods return every input key, with `false` for failed or unfinished tasks, including when the entire batch times out. Timeouts set `SWOOLE_ERROR_TASK_TIMEOUT`. Empty batches, batches with no successfully dispatched tasks, and batch setup/read failures still return `false`.
+- In `SWOOLE_THREAD` mode, `ManagerStop` now runs after all event, task and user workers finish. Publish a shared stop flag and notify user workers from `BeforeShutdown` instead of `ManagerStop`, so replacements created before the manager receives shutdown can also exit.
+- A thread-manager callback calling `reload()` now queues the request instead of immediately entering `BeforeReload`; both reload callbacks run from the manager loop, matching process mode.
+- C++ `Server::reload()` now follows PHP's `only_reload_taskworker = false` convention: `false` reloads all workers and `true` reloads task workers only. Update explicit Boolean arguments in C++ callers; PHP arguments and defaults are unchanged.
 
 ### Bug fixes
 
 - Fix associative task-array crashes and partial task-dispatch cleanup, building on [#6408](https://github.com/swoole/swoole-src/pull/6408) by @NathanFreeman. Swoole 6.1 and 6.2 receive compatible fixes while retaining their existing result conventions.
+- Let the thread manager create, restart and reap all workers. As in process mode, the master notifies the manager after its event loop ends; replacements stop when the manager receives that command. Builds on [#6397](https://github.com/swoole/swoole-src/pull/6397) by @binaryfire.
+- Carry the thread-server reload kind in its queued command instead of a caller-written flag, preventing the manager from starting a reload with stale options.
+- Keep task threads from changing the master's signal backend, so shutdown and signal cleanup remain consistent across server restarts.
 
 ## 2024-12-16 v6.0.0
 # ✨ New Feature:

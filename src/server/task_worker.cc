@@ -494,10 +494,13 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
             swoole_error("[TaskWorker] create reactor failed");
             return;
         }
-        SwooleG.enable_signalfd = 1;
     } else {
-        SwooleG.enable_signalfd = 0;
         SwooleTG.reactor = nullptr;
+    }
+    // Only a task process owns its signal backend. Task threads share this setting with
+    // the master, whose handlers and cleanup must keep using the same backend.
+    if (!serv->is_thread_mode()) {
+        SwooleG.enable_signalfd = serv->task_enable_coroutine;
     }
 
     worker->init();

@@ -662,7 +662,7 @@ TEST(server, thread_manager_timer_does_not_block_queue_producer) {
             swoole_timer_create(true);
             swoole_timer_add(1L, false, [&factory](TIMER_PARAMS) {
                 std::thread producer([&factory]() {
-                    if (!factory.reload(true)) {
+                    if (!factory.reload()) {
                         _exit(2);
                     }
                 });
@@ -863,8 +863,8 @@ TEST(server, reload_thread) {
         swoole_thread_init();
         lock.lock();
         usleep(10000);
-        EXPECT_TRUE(serv.reload(true));
-        EXPECT_FALSE(serv.reload(true));  // reload again should fail
+        EXPECT_TRUE(serv.reload());
+        EXPECT_FALSE(serv.reload());  // reload again should fail
         EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
 
         DEBUG() << "before shutdown, sleep 1s\n";
@@ -898,7 +898,10 @@ TEST(server, reload_thread) {
         DEBUG() << "onAfterReload: master_pid=" << serv->get_manager_pid() << "\n";
     };
 
-    serv.onWorkerStart = [&count](Server *serv, Worker *worker) {
+    const bool enable_signalfd = SwooleG.enable_signalfd;
+    serv.onWorkerStart = [&count, enable_signalfd](Server *serv, Worker *worker) {
+        // Task threads must preserve the master's process-wide signal backend, including on reload.
+        EXPECT_EQ(SwooleG.enable_signalfd, enable_signalfd);
         ++count;
         DEBUG() << "onWorkerStart: id=" << worker->id << "\n";
     };
@@ -968,7 +971,7 @@ TEST(server, reload_thread_2) {
     serv.onManagerStart = [&flags](Server *serv) {
         swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
             flags["reload"] = true;
-            EXPECT_TRUE(serv->reload(true));
+            EXPECT_TRUE(serv->reload(false));
         });
     };
 
@@ -1003,7 +1006,7 @@ TEST(server, reload_thread_3) {
     serv.onReceive = [](Server *serv, RecvData *req) -> int { return SW_OK; };
     serv.onAfterReload = [&flags](Server *serv) {
         flags["onAfterReload"] = true;
-        EXPECT_FALSE(serv->reload(false));
+        EXPECT_FALSE(serv->reload(true));
         EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
         swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
             flags["shutdown"] = true;
@@ -1014,7 +1017,7 @@ TEST(server, reload_thread_3) {
     serv.onManagerStart = [&flags](Server *serv) {
         swoole_timer_after(500, [serv, &flags](auto r1, auto r2) {
             flags["reload"] = true;
-            EXPECT_TRUE(serv->reload(true));
+            EXPECT_TRUE(serv->reload(false));
         });
     };
 
@@ -1157,7 +1160,7 @@ static void test_reload_reaped_worker(bool task_only) {
         swoole_signal_set(
             SIGCHLD,
             [](int) {
-                if (test::counter_incr(10) == 1 && !sw_server()->reload(!test::counter_get(9))) {
+                if (test::counter_incr(10) == 1 && !sw_server()->reload(test::counter_get(9))) {
                     test::counter_incr(26);
                 }
             },
@@ -1259,7 +1262,7 @@ TEST(server, reload_task_during_worker_start) {
                 return;
             }
             swoole_timer_del(tnode);
-            if (!serv->reload(false)) {
+            if (!serv->reload(true)) {
                 test::counter_incr(26);
             }
         });
@@ -1291,7 +1294,7 @@ TEST(server, reload_from_manager_callbacks) {
         while (serv->running && (test::counter_get(0) < 1 || test::counter_get(1) < 1)) {
             usleep(1000);
         }
-        if (!serv->reload(false)) {
+        if (!serv->reload(true)) {
             test::counter_incr(26);
         }
     };
@@ -1300,7 +1303,7 @@ TEST(server, reload_from_manager_callbacks) {
             while (serv->running && test::counter_get(1) < 2) {
                 usleep(1000);
             }
-            if (!serv->reload(true)) {
+            if (!serv->reload(false)) {
                 test::counter_incr(26);
             }
         }
@@ -1338,7 +1341,7 @@ static void test_reload_from_worker_error(bool task_only) {
     };
     serv.onManagerStart = [](Server *) { test::counter_set(8, 1); };
     serv.onWorkerError = [task_only](Server *serv, Worker *, const ExitStatus &status) {
-        if (status.get_code() != 42 || test::counter_incr(27) != 1 || !serv->reload(!task_only)) {
+        if (status.get_code() != 42 || test::counter_incr(27) != 1 || !serv->reload(task_only)) {
             test::counter_incr(26);
         }
     };
@@ -1416,7 +1419,7 @@ TEST(server, reload_workers_sequential) {
                     }
                 }
                 test::counter_set(24, 1);
-                if (!serv->reload(true)) {
+                if (!serv->reload(false)) {
                     test::counter_incr(26);
                 }
                 return;
@@ -1487,7 +1490,7 @@ TEST(server, reload_async_detached_workers) {
                 return;
             }
             swoole_timer_del(tnode);
-            if (!serv->reload(true)) {
+            if (!serv->reload(false)) {
                 test::counter_incr(26);
             }
         });
@@ -2712,7 +2715,7 @@ TEST(server, reload_single_process) {
     serv.onWorkerStart = [](Server *serv, Worker *worker) {
         if (worker->id == 0) {
             swoole_timer_after(50, [serv](TIMER_PARAMS) {
-                ASSERT_FALSE(serv->reload(true));
+                ASSERT_FALSE(serv->reload(false));
                 ASSERT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
                 swoole_timer_after(80, [serv](TIMER_PARAMS) { serv->shutdown(); });
             });
@@ -2742,9 +2745,9 @@ TEST(server, reload_no_task_worker) {
     serv.onWorkerStart = [](Server *serv, Worker *worker) {
         if (worker->id == 0) {
             swoole_timer_after(50, [serv](TIMER_PARAMS) {
-                ASSERT_TRUE(serv->reload(false));
+                ASSERT_TRUE(serv->reload(true));
                 swoole_timer_after(80, [serv](TIMER_PARAMS) {
-                    ASSERT_TRUE(serv->reload(false));
+                    ASSERT_TRUE(serv->reload(true));
                     swoole_timer_after(80, [serv](TIMER_PARAMS) { serv->shutdown(); });
                 });
             });

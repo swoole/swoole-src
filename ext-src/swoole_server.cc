@@ -3331,14 +3331,14 @@ static PHP_METHOD(swoole_server, reload) {
         RETURN_FALSE;
     }
 
-    zend_bool only_reload_task_workers = false;
+    zend_bool only_reload_taskworker = false;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(only_reload_task_workers)
+    Z_PARAM_BOOL(only_reload_taskworker)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(serv->reload(!only_reload_task_workers));
+    RETURN_BOOL(serv->reload(only_reload_taskworker));
 }
 
 static PHP_METHOD(swoole_server, heartbeat) {
