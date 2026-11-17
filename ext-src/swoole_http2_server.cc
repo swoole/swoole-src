@@ -857,10 +857,27 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     if (!tasks.empty()) {
         File fp(handler->get_filename(), O_RDONLY);
         if (!fp.ready()) {
-            return false;
+            ctx->close(ctx);
+            return true;
         }
 
-        char *buf;
+        const auto read_range = [&fp, &body](off_t offset, size_t length) -> bool {
+            body = std::make_shared<String>(length, sw_zend_string_allocator());
+            while (body->length < length) {
+                const auto n = fp.pread(body->str + body->length, length - body->length, offset + body->length);
+                if (n < 0 && errno == EINTR) {
+                    continue;
+                }
+                if (n <= 0) {
+                    // The advertised range can become stale if the file is truncated/replaced.
+                    // Abort the response rather than expose unread bytes or finish with a false Content-Length.
+                    return false;
+                }
+                body->length += n;
+            }
+            return true;
+        };
+
         if (tasks.size() > 1) {
             for (auto i = tasks.begin(); i != tasks.end(); ++i) {
                 body = std::make_shared<String>(i->part_header, strlen(i->part_header));
@@ -869,15 +886,10 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                     break;
                 }
 
-                fp.set_offset(i->offset);
-                buf = (char *) emalloc(i->length);
-                auto n_reads = fp.read(buf, i->length);
-                if (n_reads < 0) {
-                    efree(buf);
-                    return false;
+                if (!read_range(i->offset, i->length)) {
+                    error = true;
+                    break;
                 }
-                body = std::make_shared<String>(buf, i->length);
-                efree(buf);
                 if (!stream->send_body(body.get(), false, client)) {
                     error = true;
                     break;
@@ -892,27 +904,18 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
             }
         } else if (tasks[0].length > 0) {
             auto callback = [&]() -> bool {
-                fp.set_offset(tasks[0].offset);
-                buf = (char *) emalloc(tasks[0].length);
-                auto n_reads = fp.read(buf, tasks[0].length);
-                if (n_reads < 0) {
-                    efree(buf);
-                    return false;
-                }
-                body = std::make_shared<String>(buf, n_reads);
-                efree(buf);
-                return true;
+                return read_range(tasks[0].offset, tasks[0].length);
             };
             if (swoole_coroutine_is_in()) {
                 if (!swoole::coroutine::async(callback)) {
-                    return false;
+                    error = true;
                 }
             } else {
                 if (!callback()) {
-                    return false;
+                    error = true;
                 }
             }
-            if (!stream->send_body(body.get(), end_stream, client)) {
+            if (!error && !stream->send_body(body.get(), end_stream, client)) {
                 error = true;
             }
         }
@@ -1313,6 +1316,10 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             break;
         }
 
+        if (length % (sizeof(uint16_t) + sizeof(uint32_t)) != 0) {
+            return SW_ERR;
+        }
+
         while (length > 0) {
             id = ntohs(*(uint16_t *) (buf));
             value = ntohl(*(uint32_t *) (buf + sizeof(uint16_t)));
@@ -1532,6 +1539,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         break;
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE: {
+        if (length != SW_HTTP2_WINDOW_UPDATE_SIZE) {
+            return SW_ERR;
+        }
         value = ntohl(*(uint32_t *) buf);
         if (stream_id == 0) {
             client->remote_window_size += value;
@@ -1548,12 +1558,18 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         break;
     }
     case SW_HTTP2_TYPE_RST_STREAM: {
+        if (length != SW_HTTP2_RST_STREAM_SIZE) {
+            return SW_ERR;
+        }
         value = ntohl(*(int *) (buf));
         swoole_http2_frame_trace_log("error_code=%d", value);
         client->remove_stream(stream_id);
         break;
     }
     case SW_HTTP2_TYPE_GOAWAY: {
+        if (length < SW_HTTP2_GOAWAY_SIZE) {
+            return SW_ERR;
+        }
         uint32_t server_last_stream_id = ntohl(*(uint32_t *) (buf));
         buf += 4;
         value = ntohl(*(uint32_t *) (buf));

@@ -139,6 +139,12 @@ ReturnCode unpack_setting_data(const char *buf,
     uint16_t id = 0;
     uint32_t value = 0;
 
+    constexpr ssize_t item_size = sizeof(id) + sizeof(value);
+
+    if (length % item_size != 0) {
+        return SW_ERROR;
+    }
+
     while (length > 0) {
         memcpy(&id, buf, sizeof(id));
         memcpy(&value, buf + sizeof(id), sizeof(value));

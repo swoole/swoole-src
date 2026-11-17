@@ -610,6 +610,12 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         return SW_CONTINUE;
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE: {
+        if (length != SW_HTTP2_WINDOW_UPDATE_SIZE) {
+            // close() records its own error when it has to wait for another coroutine
+            close();
+            update_error_properties(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid WINDOW_UPDATE frame length");
+            return SW_CLOSE;
+        }
         uint32_t value = ntohl(*(uint32_t *) buf);
         swoole_trace_log(
             SW_TRACE_HTTP2, "[" SW_ECHO_YELLOW "] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, value);
@@ -669,6 +675,12 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         return SW_CLOSE;
     }
     case SW_HTTP2_TYPE_RST_STREAM: {
+        if (length != SW_HTTP2_RST_STREAM_SIZE) {
+            // close() records its own error when it has to wait for another coroutine
+            close();
+            update_error_properties(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid RST_STREAM frame length");
+            return SW_CLOSE;
+        }
         stream_error = ntohl(*(uint32_t *) (buf));
         swoole_http2_frame_trace_log("error_code=%d", stream_error);
 
