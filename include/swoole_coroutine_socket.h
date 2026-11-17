@@ -64,6 +64,7 @@ class Socket {
     bool shutdown(int how = SHUT_RDWR);
     bool cancel(EventType event);
     bool close();
+    void close_fd();
 
     bool is_connected() const {
         return connected && !is_closed();
