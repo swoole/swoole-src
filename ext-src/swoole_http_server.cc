@@ -179,8 +179,12 @@ _dtor_and_return:
     return SW_OK;
 }
 
+void php_swoole_http_server_cleanup_connection(SessionId session_id) {
+    session_addresses.erase(session_id);
+}
+
 void php_swoole_http_server_onClose(Server *serv, DataHead *info) {
-    session_addresses.erase(info->fd);
+    php_swoole_http_server_cleanup_connection(info->fd);
     php_swoole_server_onClose(serv, info);
 }
 
