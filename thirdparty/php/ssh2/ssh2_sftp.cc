@@ -36,7 +36,7 @@ void php_ssh2_sftp_dtor(zend_resource *rsrc) {
     }
 
     if (php_ssh2_session_is_open(data->session_rsrc)) {
-        libssh2_sftp_shutdown(data->sftp);
+        ssh2_release_call(data->session, [&]() { return libssh2_sftp_shutdown(data->sftp); });
     }
 
     zend_list_delete(data->session_rsrc);
