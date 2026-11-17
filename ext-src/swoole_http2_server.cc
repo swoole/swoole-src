@@ -541,11 +541,16 @@ static bool http2_server_send_setting_ack(HttpContext *ctx) {
 bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, zend_string *sdata) {
     const char *debug_data = sdata ? ZSTR_VAL(sdata) : nullptr;
     size_t debug_data_len = sdata ? ZSTR_LEN(sdata) : 0;
+    auto client = http2_sessions[ctx->fd];
+    // GOAWAY cannot be fragmented; include its fixed fields in the peer's payload limit.
+    if (debug_data_len > client->remote_settings.max_frame_size - SW_HTTP2_GOAWAY_SIZE) {
+        php_swoole_error(E_WARNING, "GOAWAY debug data exceeds the peer's maximum frame size");
+        return false;
+    }
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     char *frame = (char *) ecalloc(1, length);
-    auto client = http2_sessions[ctx->fd];
     uint32_t last_stream_id = client->last_stream_id;
-    Http2::set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, error_code, 0);
+    Http2::set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, SW_HTTP2_FLAG_NONE, 0);
     *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(last_stream_id);
     *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl(error_code);
     if (debug_data_len > 0) {

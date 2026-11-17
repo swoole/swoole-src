@@ -1408,9 +1408,14 @@ bool Client::write_data(uint32_t _stream_id, zval *zdata, bool end) {
  * called in write channel
  */
 bool Client::send_goaway_frame(zend_long error_code, const char *debug_data, size_t debug_data_len) {
+    // Validate before allocating or writing so a rejected call leaves the connection usable.
+    if (debug_data_len > remote_settings.max_frame_size - SW_HTTP2_GOAWAY_SIZE) {
+        php_swoole_error(E_WARNING, "GOAWAY debug data exceeds the peer's maximum frame size");
+        return false;
+    }
     size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
     auto frame = (char *) ecalloc(1, length);
-    Http2::set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, error_code, 0);
+    Http2::set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, SW_HTTP2_FLAG_NONE, 0);
     *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(last_stream_id);
     *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl(error_code);
     if (debug_data_len > 0) {
