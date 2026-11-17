@@ -186,7 +186,7 @@ bool Server::task_pack(EventData *task, const void *data, size_t length) {
 }
 
 bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
-    sw_atomic_fetch_add(&gs->tasking_num, 1);
+    increment_tasking_num();
 
     swResultCode retval;
     if (blocking) {
@@ -196,11 +196,11 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
     }
 
     if (retval == SW_OK) {
-        sw_atomic_long_fetch_add(&gs->task_count, 1);
+        increment_task_count();
         return true;
     }
 
-    sw_atomic_fetch_sub(&gs->tasking_num, 1);
+    decrement_tasking_num();
     return false;
 }
 

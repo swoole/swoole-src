@@ -11,6 +11,7 @@
 - In `SWOOLE_THREAD` mode, `ManagerStop` now runs after all event, task and user workers finish. Publish a shared stop flag and notify user workers from `BeforeShutdown` instead of `ManagerStop`, so replacements created before the manager receives shutdown can also exit.
 - A thread-manager callback calling `reload()` now queues the request instead of immediately entering `BeforeReload`; both reload callbacks run from the manager loop, matching process mode.
 - C++ `Server::reload()` now follows PHP's `only_reload_taskworker = false` convention: `false` reloads all workers and `true` reloads task workers only. Update explicit Boolean arguments in C++ callers; PHP arguments and defaults are unchanged.
+- C++ `Server::gs` is now private. Use the server's typed state, statistics and counter methods instead of accessing its shared-memory layout directly.
 
 ### Bug fixes
 

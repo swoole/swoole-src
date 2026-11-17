@@ -213,7 +213,7 @@ void ReactorThread::remove_waiting_close(SessionId session_id) {
 // exit, the first entry or a necessary recovery check triggers a scan. No per-entry slot lock.
 void ReactorThread::check_waiting_close(Reactor *reactor) {
     auto *serv = static_cast<Server *>(reactor->ptr);
-    const auto sequence = sw_atomic_load_acquire(&serv->gs->worker_exit_sequence);
+    const auto sequence = serv->get_worker_exit_sequence();
     if (sw_likely(sequence == last_worker_exit_sequence && !waiting_close_check_pending)) {
         return;
     }
@@ -824,7 +824,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     long socket_recv_bytes = event->socket->total_recv_bytes - last_recv_bytes;
     if (socket_recv_bytes > 0) {
         sw_atomic_long_fetch_add(&port->gs->total_recv_bytes, socket_recv_bytes);
-        sw_atomic_long_fetch_add(&serv->gs->total_recv_bytes, socket_recv_bytes);
+        serv->add_recv_bytes(socket_recv_bytes);
     }
     if (!conn->active || conn->socket != event->socket) {
         return retval;

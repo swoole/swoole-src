@@ -75,7 +75,7 @@ TEST(redis, server) {
                 ASSERT_FALSE(redis.Select(1));
                 ASSERT_EQ(redis.Role(), "master");
 
-                kill(serv->gs->master_pid, SIGTERM);
+                kill(serv->get_master_pid(), SIGTERM);
             },
             serv);
     };

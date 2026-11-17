@@ -123,7 +123,8 @@ void Manager::init(Server *_server) {
     ProcessPool *task_pool = server_->get_task_worker_pool();
     pool->onWorkerMessage = Server::read_worker_message;
     pool->max_wait_time = server_->max_wait_time;
-    _server->gs->manager_pid = pool->master_pid = task_pool->master_pid = getpid();
+    _server->set_manager_pid(getpid());
+    pool->master_pid = task_pool->master_pid = _server->get_manager_pid();
 
     // System timers are inherited too, even when no reactor exists to release them.
     if (swoole_timer_is_available()) {
@@ -153,7 +154,7 @@ void Manager::wait(Server *_server) {
     if (_server->is_process_mode()) {
         swoole_set_process_death_signal(SIGTERM);
 
-        _server->gs->manager_barrier.wait();
+        _server->wait_manager_barrier();
 
         if (_server->reload_async && swoole_is_root_user() && !_server->user_.empty()) {
             swoole_set_isolation(_server->group_, _server->user_, _server->chroot_);
@@ -375,7 +376,7 @@ void Manager::signal_handler(int signo) {
     // A newly forked worker briefly inherits the manager's signal handlers before
     // swoole_fork() clears them. It must never execute manager-only actions here:
     // reopening the log would broadcast SIGWINCH back to itself indefinitely.
-    if (getpid() != _server->gs->manager_pid) {
+    if (getpid() != _server->get_manager_pid()) {
         // The manager sends SIGTERM to each worker only once, so terminate as the default action would.
         if (signo == SIGTERM) {
             signal(SIGTERM, SIG_DFL);
@@ -423,7 +424,7 @@ pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
     if (is_process_mode()) {
         // waitpid() has reaped this process. Publish even for a normal exit or a detached
         // reload worker, before callbacks or replacement spawn can overwrite its identity.
-        sw_atomic_fetch_add(&gs->worker_exit_sequence, 1);
+        notify_worker_exit();
     }
     Worker *exited_worker = get_worker_by_pid(exited_pid);
 

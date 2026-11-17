@@ -15,10 +15,10 @@ class ServerCommandTest : public testing::Test {
         SwooleWG.worker = &worker;
         ASSERT_TRUE(server.add_command(
             "echo", Server::Command::ALL_PROCESS, [](Server *, const std::string &message) { return message; }));
-        server.gs->start = 1;
+        server.set_started(true);
     }
     void TearDown() override {
-        server.gs->start = 0;
+        server.set_started(false);
         SwooleWG.worker = previous_worker;
     }
 

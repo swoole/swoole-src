@@ -613,7 +613,7 @@ int Server::start_master_thread(Reactor *reactor) {
         }
     }
     if (is_process_mode()) {
-        gs->manager_barrier.wait();
+        wait_manager_barrier();
     }
     if (is_thread_mode()) {
         // Master thread: signals, listeners and the reactor are ready before any worker can

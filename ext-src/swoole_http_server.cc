@@ -374,8 +374,8 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
     auto serv = ctx->get_async_server();
     auto worker = sw_worker();
 
-    swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
-    sw_atomic_add_fetch(&serv->gs->concurrency, 1);
+    swoole_trace("concurrency=%u, max_concurrency=%u", serv->get_concurrency(), serv->get_max_concurrency());
+    serv->increment_concurrency();
     worker->concurrency++;
     if (worker->concurrency > serv->worker_max_concurrency) {
         swoole_trace_log(SW_TRACE_COROUTINE,
@@ -409,8 +409,8 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
 
     auto serv = ctx->get_async_server();
     auto worker = sw_worker();
-    swoole_trace("serv->gs->concurrency=%u, max_concurrency=%u", serv->gs->concurrency, serv->gs->max_concurrency);
-    sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
+    swoole_trace("concurrency=%u, max_concurrency=%u", serv->get_concurrency(), serv->get_max_concurrency());
+    serv->decrement_concurrency();
     worker->concurrency--;
 
     if (!queued_http_contexts.empty()) {

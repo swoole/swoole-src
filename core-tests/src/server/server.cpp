@@ -401,7 +401,7 @@ static void test_base() {
     serv.onStart = [](Server *serv) { ASSERT_EQ(access(serv->pid_file.c_str(), R_OK), 0); };
 
     serv.onBeforeShutdown = [](Server *serv) {
-        beforeReloadPid = serv->gs->master_pid;
+        beforeReloadPid = serv->get_master_pid();
         test::counter_incr(10);
         DEBUG() << "onBeforeShutdown: master_pid=" << beforeReloadPid << "\n";
     };
@@ -498,7 +498,7 @@ static void test_process(bool single_thread = false) {
 
             sleep(2);
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
 
         // command tests
@@ -556,7 +556,7 @@ static void test_process(bool single_thread = false) {
     };
 
     serv.onBeforeShutdown = [](Server *serv) {
-        beforeReloadPid = serv->gs->master_pid;
+        beforeReloadPid = serv->get_master_pid();
         test::counter_incr(10);
         DEBUG() << "onBeforeShutdown: master_pid=" << beforeReloadPid << "\n";
     };
@@ -1652,7 +1652,7 @@ TEST(server, kill_user_workers1) {
     serv.onWorkerStart = [&](Server *serv, Worker *worker) {
         if (worker->id == 1) {
             sleep(1);
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         }
     };
 
@@ -1706,7 +1706,7 @@ TEST(server, ssl) {
 
             EXPECT_EQ(port->ssl, 1);
             ON_SCOPE_EXIT {
-                kill(serv->gs->master_pid, SIGTERM);
+                kill(serv->get_master_pid(), SIGTERM);
             };
 
             network::SyncClient c(SW_SOCK_TCP);
@@ -1799,7 +1799,7 @@ TEST(server, ssl_error) {
             ASSERT_EQ(c.recv(buf, sizeof(buf)), 0);
             c.close();
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
     };
 
@@ -1869,7 +1869,7 @@ TEST(server, ssl_write) {
             ASSERT_MEMEQ(rbuf.str, wbuf.str, rbuf.length);
             c.close();
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
     };
 
@@ -2057,7 +2057,7 @@ static void test_ssl_client_cert(Server::Mode mode) {
             EXPECT_GT(c.recv(buf, sizeof(buf)), 0);
             c.close();
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
     };
 
@@ -2122,8 +2122,8 @@ TEST(server, task_worker) {
         EXPECT_EQ(serv->get_tasking_num(), 1);
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         serv->get_task_worker_pool()->running = 0;
-        serv->gs->task_count++;
-        serv->gs->tasking_num--;
+        serv->increment_task_count();
+        serv->decrement_tasking_num();
         return 0;
     };
 
@@ -2149,12 +2149,12 @@ TEST(server, task_worker) {
     int _dst_worker_id = 0;
 
     ASSERT_TRUE(serv.task(&buf, &_dst_worker_id));
-    ASSERT_EQ(serv.gs->task_count, 1);
+    ASSERT_EQ(serv.get_task_count(), 1);
 
     t1.join();
     serv.get_task_worker_pool()->destroy();
 
-    ASSERT_EQ(serv.gs->task_count, 2);
+    ASSERT_EQ(serv.get_task_count(), 2);
 }
 
 static std::string make_task_result_record(TaskId id, const std::string &payload) {
@@ -2884,7 +2884,7 @@ TEST(server, task_worker3) {
             buf.info.reactor_id = worker->id;
             serv->get_task_worker_pool()->dispatch(&buf, &_dst_worker_id);
             sleep(1);
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         }
     };
 
@@ -2938,10 +2938,9 @@ TEST(server, task_worker4) {
             buf.info.len = strlen(packet);
             memcpy(buf.data, packet, strlen(packet));
             buf.info.reactor_id = worker->id;
-            sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
+            serv->increment_tasking_num();
             serv->get_task_worker_pool()->dispatch(&buf, &_dst_worker_id);
-            sw_atomic_fetch_add(&serv->gs->tasking_num, 0);
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         }
     };
 
@@ -3014,7 +3013,7 @@ TEST(server, task_sync_multi_task) {
                 EXPECT_EQ(tasks[i], results[i]);
             }
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         }
     };
 
@@ -3051,7 +3050,7 @@ TEST(server, task_sync) {
             EXPECT_TRUE(serv->task_sync(&buf, &_dst_worker_id, 0.5));
             auto task_result = serv->get_task_result();
             EXPECT_EQ(string(task_result->data, task_result->info.len), string(packet));
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         }
     };
 
@@ -3428,10 +3427,10 @@ TEST(server, reopen_log) {
         usleep(10000);
         unlink(filename.c_str());
         EXPECT_TRUE(access(filename.c_str(), R_OK) == -1);
-        kill(serv->gs->master_pid, SIGRTMIN);
+        kill(serv->get_master_pid(), SIGRTMIN);
         sleep(2);
         EXPECT_TRUE(access(filename.c_str(), R_OK) != -1);
-        kill(serv->gs->master_pid, SIGTERM);
+        kill(serv->get_master_pid(), SIGTERM);
     };
 
     serv.onReceive = [](Server *server, RecvData *req) -> int { return SW_OK; };
@@ -4675,7 +4674,7 @@ TEST(server, no_idle_worker) {
 
             c.close();
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
     };
 
@@ -4738,7 +4737,7 @@ TEST(server, no_idle_task_worker) {
             sleep(3);
             c.close();
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
     };
 
@@ -4819,7 +4818,7 @@ static void test_conn_overflow(Server::Mode mode, bool send_yield) {
             c.recv(buf, sizeof(buf));
             c.close();
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
     };
 
@@ -4926,7 +4925,7 @@ TEST(server, send_timeout) {
             EXPECT_MEMEQ(rbuf.str, wbuf.str, rbuf.length);
             c.close();
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
     };
 
@@ -5139,7 +5138,7 @@ TEST(server, discard_data) {
 
             sleep(1);
 
-            kill(serv->gs->master_pid, SIGTERM);
+            kill(serv->get_master_pid(), SIGTERM);
         });
     };
 

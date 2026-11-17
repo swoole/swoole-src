@@ -1458,8 +1458,12 @@ class Server {
     int64_t command_current_request_id = 1;
 
     Worker *workers = nullptr;
+
+  private:
+    // Process-shared storage belongs to Server. External callers use the typed operations below.
     ServerGS *gs = nullptr;
 
+  public:
     std::shared_ptr<std::unordered_set<std::string>> locations = nullptr;
     std::shared_ptr<std::vector<std::string>> http_index_files = nullptr;
     std::shared_ptr<std::unordered_set<std::string>> http_compression_types = nullptr;
@@ -1588,6 +1592,91 @@ class Server {
     int get_idle_task_worker_num() const;
     int get_tasking_num() const;
 
+    // Statistics are independent observations, not a transactionally consistent snapshot.
+    // Keep these accessors inline: reading a counter must not add locks or atomic RMW operations.
+    time_t get_start_time() const {
+        return gs->start_time;
+    }
+
+    int64_t get_abort_count() const {
+        return gs->abort_count;
+    }
+
+    int64_t get_accept_count() const {
+        return gs->accept_count;
+    }
+
+    int64_t get_close_count() const {
+        return gs->close_count;
+    }
+
+    int64_t get_dispatch_count() const {
+        return gs->dispatch_count;
+    }
+
+    int64_t get_request_count() const {
+        return gs->request_count;
+    }
+
+    int64_t get_response_count() const {
+        return gs->response_count;
+    }
+
+    int64_t get_total_recv_bytes() const {
+        return gs->total_recv_bytes;
+    }
+
+    int64_t get_total_send_bytes() const {
+        return gs->total_send_bytes;
+    }
+
+    int64_t get_pipe_packet_msg_id() const {
+        return gs->pipe_packet_msg_id;
+    }
+
+    SessionId get_session_round() const {
+        return gs->session_round;
+    }
+
+    int64_t get_task_count() const {
+        return gs->task_count;
+    }
+
+    void increment_dispatch_count() const {
+        sw_atomic_long_fetch_add(&gs->dispatch_count, 1);
+    }
+
+    void increment_request_count() const {
+        sw_atomic_long_fetch_add(&gs->request_count, 1);
+    }
+
+    void add_recv_bytes(int64_t bytes) const {
+        sw_atomic_long_fetch_add(&gs->total_recv_bytes, bytes);
+    }
+
+    void increment_task_count() const {
+        sw_atomic_long_fetch_add(&gs->task_count, 1);
+    }
+
+    // A task is queued before dispatch and leaves the queue when execution starts or dispatch fails.
+    // PHP and native dispatch paths must use the same process-shared atomic counter.
+    void increment_tasking_num() const {
+        sw_atomic_fetch_add(&gs->tasking_num, 1);
+    }
+
+    void decrement_tasking_num() const {
+        sw_atomic_fetch_sub(&gs->tasking_num, 1);
+    }
+
+    uint32_t get_worker_exit_sequence() const {
+        return sw_atomic_load_acquire(&gs->worker_exit_sequence);
+    }
+
+    // PROCESS manager, after waitpid() confirms an exit; owner reactors observe this notification.
+    void notify_worker_exit() const {
+        sw_atomic_fetch_add(&gs->worker_exit_sequence, 1);
+    }
+
     TaskId get_task_id(const EventData *task) const {
         return get_task_worker_pool()->get_task_id(task);
     }
@@ -1634,6 +1723,16 @@ class Server {
 
     pid_t get_manager_pid() const {
         return gs->manager_pid;
+    }
+
+    // Manager initialization only, before publishing its startup barrier to the master.
+    void set_manager_pid(pid_t pid) const {
+        gs->manager_pid = pid;
+    }
+
+    // PROCESS master and manager each arrive once during startup.
+    void wait_manager_barrier() const {
+        gs->manager_barrier.wait();
     }
 
     pid_t get_worker_pid(WorkerId worker_id) const {
@@ -1769,6 +1868,12 @@ class Server {
 
     bool is_started() const {
         return gs->start;
+    }
+
+    // Set only during serialized lifecycle transitions or isolated test setup.
+    // Real startup claims this flag with a CAS in start(); this does not launch or stop workers.
+    void set_started(bool started) const {
+        gs->start = started;
     }
 
     bool is_created() const {
@@ -2039,6 +2144,15 @@ class Server {
 
     uint32_t get_concurrency() const {
         return gs->concurrency;
+    }
+
+    // HTTP request/response hot paths: preserve the existing single atomic update per transition.
+    void increment_concurrency() const {
+        sw_atomic_add_fetch(&gs->concurrency, 1);
+    }
+
+    void decrement_concurrency() const {
+        sw_atomic_sub_fetch(&gs->concurrency, 1);
     }
 
     bool is_unavailable() const {

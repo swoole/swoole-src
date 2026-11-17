@@ -112,7 +112,7 @@ bool BaseFactory::dispatch(SendData *task) {
                              task->info.len,
                              conn->get_recv_queued_bytes());
         }
-        sw_atomic_long_fetch_add(&server_->gs->dispatch_count, 1);
+        server_->increment_dispatch_count();
         sw_atomic_long_fetch_add(&server_->get_port_by_server_fd(conn->server_fd)->gs->dispatch_count, 1);
     }
     server_->worker_accept_event(&bus->get_buffer()->info);

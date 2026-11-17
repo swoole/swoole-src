@@ -1364,7 +1364,7 @@ static sw_inline void php_swoole_create_task_object(zval *ztask, Server *serv, E
 }
 
 static int php_swoole_server_onTask(Server *serv, EventData *req) {
-    sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
+    serv->decrement_tasking_num();
 
     zval *zserv = php_swoole_server_zval_ptr(serv);
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
@@ -1519,8 +1519,8 @@ static void php_swoole_server_onStart(Server *serv) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     auto cb = server_object->get_callback(SW_SERVER_CB_onStart);
 
-    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
-    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
+    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->get_master_pid());
+    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->get_manager_pid());
 
     if (SWOOLE_G(enable_library)) {
         zend::function::call(R"(\Swoole\Server\Helper::onStart)", 1, zserv);
@@ -1536,8 +1536,8 @@ static void php_swoole_server_onManagerStart(Server *serv) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     auto cb = server_object->get_callback(SW_SERVER_CB_onManagerStart);
 
-    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
-    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
+    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->get_master_pid());
+    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->get_manager_pid());
 
     if (SWOOLE_G(enable_library)) {
         zend::function::call(R"(\Swoole\Server\Helper::onManagerStart)", 1, zserv);
@@ -1595,8 +1595,8 @@ static void php_swoole_server_onWorkerStart(Server *serv, Worker *worker) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     auto cb = server_object->get_callback(SW_SERVER_CB_onWorkerStart);
 
-    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
-    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
+    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->get_master_pid());
+    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->get_manager_pid());
     zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("worker_id"), worker->id);
     zend_update_property_bool(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("taskworker"), serv->is_task_worker());
     zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("worker_pid"), getpid());
@@ -1702,8 +1702,8 @@ static void php_swoole_server_onUserWorkerStart(Server *serv, Worker *worker) {
     }
 
     zend_update_property_long(swoole_process_ce, Z_OBJ_P(object), ZEND_STRL("id"), worker->id);
-    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
-    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
+    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->get_master_pid());
+    zend_update_property_long(swoole_server_ce, Z_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->get_manager_pid());
 
 #ifndef _WIN32
     php_swoole_process_start(worker, object);
@@ -3276,23 +3276,23 @@ static PHP_METHOD(swoole_server, stats) {
     }
 
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->gs->start_time);
+    add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->get_start_time());
     add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->get_connection_num());
-    add_assoc_long_ex(return_value, ZEND_STRL("abort_count"), serv->gs->abort_count);
-    add_assoc_long_ex(return_value, ZEND_STRL("accept_count"), serv->gs->accept_count);
-    add_assoc_long_ex(return_value, ZEND_STRL("close_count"), serv->gs->close_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("abort_count"), serv->get_abort_count());
+    add_assoc_long_ex(return_value, ZEND_STRL("accept_count"), serv->get_accept_count());
+    add_assoc_long_ex(return_value, ZEND_STRL("close_count"), serv->get_close_count());
     add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), serv->worker_num);
     add_assoc_long_ex(return_value, ZEND_STRL("task_worker_num"), serv->task_worker_num);
     add_assoc_long_ex(return_value, ZEND_STRL("user_worker_num"), serv->get_user_worker_num());
     add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), serv->get_idle_worker_num());
-    add_assoc_long_ex(return_value, ZEND_STRL("dispatch_count"), serv->gs->dispatch_count);
-    add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->gs->request_count);
-    add_assoc_long_ex(return_value, ZEND_STRL("response_count"), serv->gs->response_count);
-    add_assoc_long_ex(return_value, ZEND_STRL("total_recv_bytes"), serv->gs->total_recv_bytes);
-    add_assoc_long_ex(return_value, ZEND_STRL("total_send_bytes"), serv->gs->total_send_bytes);
-    add_assoc_long_ex(return_value, ZEND_STRL("pipe_packet_msg_id"), serv->gs->pipe_packet_msg_id);
+    add_assoc_long_ex(return_value, ZEND_STRL("dispatch_count"), serv->get_dispatch_count());
+    add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->get_request_count());
+    add_assoc_long_ex(return_value, ZEND_STRL("response_count"), serv->get_response_count());
+    add_assoc_long_ex(return_value, ZEND_STRL("total_recv_bytes"), serv->get_total_recv_bytes());
+    add_assoc_long_ex(return_value, ZEND_STRL("total_send_bytes"), serv->get_total_send_bytes());
+    add_assoc_long_ex(return_value, ZEND_STRL("pipe_packet_msg_id"), serv->get_pipe_packet_msg_id());
     add_assoc_long_ex(return_value, ZEND_STRL("concurrency"), serv->get_concurrency());
-    add_assoc_long_ex(return_value, ZEND_STRL("session_round"), serv->gs->session_round);
+    add_assoc_long_ex(return_value, ZEND_STRL("session_round"), serv->get_session_round());
     add_assoc_long_ex(return_value, ZEND_STRL("min_fd"), serv->get_minfd());
     add_assoc_long_ex(return_value, ZEND_STRL("max_fd"), serv->get_maxfd());
 
@@ -3317,7 +3317,7 @@ static PHP_METHOD(swoole_server, stats) {
     if (serv->task_worker_num > 0) {
         add_assoc_long_ex(return_value, ZEND_STRL("task_idle_worker_num"), serv->get_idle_task_worker_num());
         add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), serv->get_tasking_num());
-        add_assoc_long_ex(return_value, ZEND_STRL("task_count"), serv->gs->task_count);
+        add_assoc_long_ex(return_value, ZEND_STRL("task_count"), serv->get_task_count());
     }
 
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
