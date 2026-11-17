@@ -1321,8 +1321,12 @@ class Server {
     }
 
     ListenPort *get_port(SocketType type, const char *host, int _port) const {
+        // add_port() stores SW_SOCK_SSL in ListenPort::ssl instead of the type
+        const bool ssl = type & SW_SOCK_SSL;
+        type = static_cast<SocketType>(type & (~SW_SOCK_SSL));
         for (auto port : ports) {
-            if (port->port == _port && port->type == type && strcmp(host, port->host.c_str()) == 0) {
+            if (port->port == _port && port->type == type && (port->ssl != 0) == ssl &&
+                strcmp(host, port->host.c_str()) == 0) {
                 return port;
             }
         }
