@@ -160,6 +160,7 @@ jobs:
             'tests\swoole_curl\multi\curl_multi_init_basic.phpt',
             'tests\swoole_http_client_coro\invalid_port.phpt',
             'tests\swoole_http_client_coro\max_retries_negative.phpt',
+            'tests\swoole_http_client_coro\websocket\recv_timeout_keeps_connection.phpt',
             'tests\swoole_http_client_coro\write_func_invalid.phpt',
             'tests\swoole_http2_client_coro\error.phpt',
             'tests\swoole_http2_client_coro\recv_timeout_fragmented_frame.phpt',
