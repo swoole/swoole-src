@@ -644,7 +644,7 @@ ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) 
     size_t total = 0;
 
     while (total < size) {
-        ssize_t readn = size > sizeof(buf) ? sizeof(buf) : size;
+        ssize_t readn = SW_MIN(size - total, sizeof(buf));
         ssize_t n = file.pread(buf, readn, *offset);
         if (n <= 0) {
             swoole_sys_warning("pread() failed");
