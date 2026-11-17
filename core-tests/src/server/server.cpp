@@ -1705,23 +1705,43 @@ TEST(server, ssl) {
             ListenPort *port = serv->get_primary_port();
 
             EXPECT_EQ(port->ssl, 1);
+            ON_SCOPE_EXIT {
+                kill(serv->gs->master_pid, SIGTERM);
+            };
 
             network::SyncClient c(SW_SOCK_TCP);
-            c.connect(TEST_HOST, port->port);
-            c.enable_ssl_encrypt();
-            c.send(packet, strlen(packet));
+            ASSERT_TRUE(c.connect(TEST_HOST, port->port, RECV_TIMEOUT));
+            ASSERT_TRUE(c.enable_ssl_encrypt());
+            ASSERT_EQ(c.send(packet, strlen(packet)), strlen(packet));
             char buf[1024];
             c.recv(buf, sizeof(buf));
             c.close();
 
             // bad SSL connection, send plain text packet to SSL server
             network::SyncClient c2(SW_SOCK_TCP);
-            c2.connect(TEST_HOST, port->port);
-            c2.send(packet, strlen(packet));
-            ASSERT_EQ(c2.recv(buf, sizeof(buf)), 0);
-            c2.close();
+            ASSERT_TRUE(c2.connect(TEST_HOST, port->port, RECV_TIMEOUT));
+            ASSERT_EQ(c2.send(packet, strlen(packet)), strlen(packet));
 
-            kill(serv->gs->master_pid, SIGTERM);
+            // OpenSSL may send a fatal alert before EOF or a TCP reset. Accumulate fragmented reads and
+            // allow at most one 7-byte alert record; application data must never be returned.
+            char response[8];
+            size_t response_length = 0;
+            ssize_t n;
+            do {
+                n = c2.recv(response + response_length, sizeof(response) - response_length);
+                if (n > 0) {
+                    response_length += n;
+                }
+            } while (n > 0 && response_length < sizeof(response));
+            EXPECT_TRUE(n == 0 || (n < 0 && sw_errno() == ECONNRESET));
+            if (response_length > 0) {
+                ASSERT_EQ(response_length, 7);
+                EXPECT_EQ(response[0], '\x15');  // Alert record.
+                EXPECT_EQ(response[1], '\x03');  // TLS record version major.
+                EXPECT_EQ(response[3], '\x00');  // Two-byte alert payload.
+                EXPECT_EQ(response[4], '\x02');
+                EXPECT_EQ(response[5], '\x02');  // Fatal level; the description may vary.
+            }
         });
     };
 
