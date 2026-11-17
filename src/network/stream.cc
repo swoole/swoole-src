@@ -26,6 +26,7 @@ static void Stream_onConnect(Client *cli) {
     auto *stream = static_cast<Stream *>(cli->object);
     if (stream->cancel) {
         cli->close();
+        return;
     }
     *reinterpret_cast<uint32_t *>(stream->buffer->str) = ntohl(stream->buffer->length - 4);
     if (cli->send(stream->buffer->str, stream->buffer->length, 0) < 0) {
@@ -46,11 +47,9 @@ static void Stream_onError(Client *cli) {
                      stream->errCode,
                      swoole_strerror(stream->errCode));
 
-    if (!stream->response) {
-        return;
+    if (stream->response) {
+        stream->response(stream, nullptr, 0);
     }
-
-    stream->response(stream, nullptr, 0);
     delete stream;
 }
 
