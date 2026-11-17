@@ -1515,8 +1515,13 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             break;
         }
         if (stream->receive_phase == Http2Stream::ReceivePhase::HEADERS) {
-            stream->streaming = stream->ctx->http2_stream_mode &&
-                                (client->is_coro || stream->ctx->get_async_server()->is_enable_coroutine());
+            stream->streaming = stream->ctx->http2_stream_mode && client->is_coro;
+#ifndef _WIN32
+            // Event-server workers are not built on Windows.
+            if (stream->ctx->http2_stream_mode && !client->is_coro) {
+                stream->streaming = stream->ctx->get_async_server()->is_enable_coroutine();
+            }
+#endif
         }
         if (!stream->streaming && stream->receive_phase == Http2Stream::ReceivePhase::HEADERS &&
             http2_server_on_headers_complete(stream->ctx) < 0) {
