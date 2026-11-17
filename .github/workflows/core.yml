@@ -69,8 +69,10 @@ jobs:
         run: |
           sudo apt-get install -y lcov
           # lcov recognizes uncalled lambdas sharing an executed declaration line by their demangled names.
-          # Use the same options when capturing and reading the tracefile, preserving consistency checks.
-          lcov_options=(--branch-coverage --demangle-cpp --ignore-errors mismatch)
+          # lcov >= 2.0 (Ubuntu 26) also rejects some gcov 15 branch data as "inconsistent" - e.g. a
+          # hit line with no evaluated branches - and aborts --list. Ignore that class together with
+          # "mismatch", and use the same options when capturing and reading the tracefile.
+          lcov_options=(--branch-coverage --demangle-cpp --ignore-errors mismatch,inconsistent)
           sudo lcov "${lcov_options[@]}" --directory . --capture --exclude '/usr/*' \
             --rc geninfo_unexecuted_blocks=1 --output-file coverage.info
           sudo lcov "${lcov_options[@]}" --list coverage.info
