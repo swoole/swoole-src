@@ -22,6 +22,7 @@ BEGIN_EXTERN_C()
 #include "stubs/php_swoole_ex_arginfo.h"
 END_EXTERN_C()
 
+#include <limits>
 #include <sstream>
 #include <thread>
 
@@ -34,6 +35,32 @@ namespace swoole {
 #ifdef TCP_INFO
 static json get_socket_info(int fd);
 #endif
+
+template <typename T>
+static bool parse_admin_id(const json &params, const char *name, T &result) {
+    const auto field = params.find(name);
+    if (field == params.end() || !field->is_string()) {
+        return false;
+    }
+    const auto &text = field->get_ref<const json::string_t &>();
+    if (text.empty()) {
+        return false;
+    }
+    T value = 0;
+    for (unsigned char c : text) {
+        if (c < '0' || c > '9') {
+            return false;
+        }
+        const T digit = c - '0';
+        // Check before multiplication; neither a numeric prefix nor a narrowed value identifies the requested object.
+        if (value > (std::numeric_limits<T>::max() - digit) / 10) {
+            return false;
+        }
+        value = value * 10 + digit;
+    }
+    result = value;
+    return true;
+}
 
 static std::string handle_get_all_unix_sockets(Server *_server, const std::string &msg) {
     // Command payloads are input, not trusted C++ objects. Reject malformed JSON and wrong
@@ -210,7 +237,8 @@ static json get_connection_info(Server *serv, Connection *conn) {
 
 static std::string handle_get_socket_info(Server *serv, const std::string &msg) {
     auto _result = json::parse(msg, nullptr, false);
-    if (!_result.is_object() || _result.find("fd") == _result.end() || !_result["fd"].is_string()) {
+    int fd;
+    if (!_result.is_object() || !parse_admin_id(_result, "fd", fd)) {
         json return_value{
             {"data", "require parameter fd"},
             {"code", 4003},
@@ -224,8 +252,6 @@ static std::string handle_get_socket_info(Server *serv, const std::string &msg) 
         {"code", 5001},
     };
 #else
-    std::string _fd = _result["fd"];
-    int fd = sw_atoi(_fd.c_str());
     json return_value{
         {"data", get_socket_info(fd)},
         {"code", 0},
@@ -314,7 +340,8 @@ static std::string handle_get_connections(Server *serv, const std::string &msg) 
 
 static std::string handle_get_connection_info(Server *serv, const std::string &msg) {
     auto _result = json::parse(msg, nullptr, false);
-    if (!_result.is_object() || _result.find("session_id") == _result.end() || !_result["session_id"].is_string()) {
+    SessionId session_id;
+    if (!_result.is_object() || !parse_admin_id(_result, "session_id", session_id)) {
         json return_value{
             {"data", "require parameter session_id"},
             {"code", 4003},
@@ -322,8 +349,6 @@ static std::string handle_get_connection_info(Server *serv, const std::string &m
         return return_value.dump();
     }
 
-    std::string _session_id = _result["session_id"];
-    int session_id = sw_atoi(_session_id.c_str());
     Connection *conn = serv->get_connection_verify(session_id);
     if (!conn) {
         json return_value{
