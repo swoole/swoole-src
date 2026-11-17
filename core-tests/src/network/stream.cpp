@@ -18,12 +18,29 @@
 */
 
 #include "test_core.h"
+#include "swoole_file.h"
 #include "swoole_pipe.h"
 #include "swoole_server.h"
 
 using namespace std;
 using namespace swoole;
 using namespace swoole::network;
+
+TEST(stream, create_synchronous_failure_keeps_factory_ownership) {
+    auto file = make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    ASSERT_EQ(unlink(file.get_path().c_str()), 0);
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ON_SCOPE_EXIT {
+        swoole_event_free();
+    };
+
+    // A missing UNIX socket invokes onError inside connect(), before create() can return.
+    for (int i = 0; i < 4; i++) {
+        EXPECT_EQ(Stream::create(file.get_path().c_str(), 0, SW_SOCK_UNIX_STREAM), nullptr);
+    }
+    EXPECT_EQ(sw_reactor()->get_event_num(), 0);
+}
 
 TEST(stream, recv_sync_rejects_truncated_packet) {
     char buffer[2048];
