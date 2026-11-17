@@ -4,6 +4,7 @@ swoole_thread/process_pool: a pool cannot be started from another thread
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_nts();
+skip_if_class_not_exist(Swoole\Process\Pool::class);
 ?>
 --FILE--
 <?php

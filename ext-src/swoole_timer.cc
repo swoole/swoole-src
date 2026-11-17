@@ -190,6 +190,13 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
         RETURN_FALSE;
     }
 
+    // On Win64, zend_long is wider than long; reject overflow before narrowing the interval.
+    if (UNEXPECTED(ms > SW_TIMER_MAX_MS)) {
+        php_swoole_fatal_error(
+            E_WARNING, "Timer must be less than or equal to " ZEND_LONG_FMT, static_cast<zend_long>(SW_TIMER_MAX_MS));
+        goto _failed;
+    }
+
     if (UNEXPECTED(!sw_timer() && !sw_reactor() && timer_if_use_reactor())) {
         php_swoole_check_reactor();
     }
