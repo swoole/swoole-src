@@ -862,9 +862,9 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
         return 0;
     }
 
-    char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
-    sw_snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir.c_str());
-    int tmpfile = swoole_tmpfile(file_path);
+    // Keep the complete directory and template suffix; mkstemp modifies only the final six characters.
+    std::string file_path = ctx->upload_tmp_dir + "/swoole.upfile.XXXXXX";
+    int tmpfile = swoole_tmpfile(&file_path[0]);
     if (tmpfile < 0) {
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         return 0;
@@ -873,16 +873,16 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         close(tmpfile);
-        unlink(file_path);
+        unlink(file_path.c_str());
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
-        swoole_sys_warning("fopen(%s) failed", file_path);
+        swoole_sys_warning("fopen(%s) failed", file_path.c_str());
         return 0;
     }
 
     p->fp = fp;
-    add_assoc_string(z_multipart_header, "tmp_name", file_path);
+    add_assoc_stringl(z_multipart_header, "tmp_name", file_path.data(), file_path.length());
 
-    http_request_add_upload_file(ctx, file_path, strlen(file_path));
+    http_request_add_upload_file(ctx, file_path.data(), file_path.length());
 
     return 0;
 }
