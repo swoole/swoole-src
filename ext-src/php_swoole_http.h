@@ -283,7 +283,6 @@ struct Context {
 
 class Cookie {
     bool encode_;
-    smart_str buffer_ = {};
 
   protected:
     zend_string *name = nullptr;

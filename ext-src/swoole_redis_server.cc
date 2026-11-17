@@ -38,6 +38,25 @@ zend_object_handlers swoole_redis_server_handlers;
 
 static SW_THREAD_LOCAL std::unordered_map<std::string, zend::Callable *> redis_handlers;
 
+static constexpr char REDIS_HANDLER_PREFIX[] = "_handler_";
+static constexpr size_t REDIS_HANDLER_BUFFER_SIZE = SW_REDIS_MAX_COMMAND_SIZE + sizeof(REDIS_HANDLER_PREFIX) - 1;
+
+// The protocol limit applies to the command itself; the internal prefix needs its own space.
+// Share the explicit-length spelling across registration, lookup and wire dispatch.
+static size_t redis_handler_name(char *buffer, const char *command, size_t command_len) {
+    constexpr size_t prefix_len = sizeof(REDIS_HANDLER_PREFIX) - 1;
+    memcpy(buffer, REDIS_HANDLER_PREFIX, prefix_len);
+    memcpy(buffer + prefix_len, command, command_len);
+    const size_t length = prefix_len + command_len;
+    buffer[length] = '\0';
+#if PHP_VERSION_ID >= 80400
+    zend_str_tolower(buffer, length);
+#else
+    php_strtolower(buffer, length);
+#endif
+    return length;
+}
+
 static bool redis_response_format(String *buf, zend_long type, zval *value);
 
 SW_EXTERN_C_BEGIN
@@ -161,13 +180,8 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
         return SW_OK;
     }
 
-    char _command[SW_REDIS_MAX_COMMAND_SIZE];
-    size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%.*s", command_len, command);
-#if PHP_VERSION_ID >= 80400
-    zend_str_tolower(_command, _command_len);
-#else
-    php_strtolower(_command, _command_len);
-#endif
+    char _command[REDIS_HANDLER_BUFFER_SIZE];
+    size_t _command_len = redis_handler_name(_command, command, command_len);
 
     auto i = redis_handlers.find(std::string(_command, _command_len));
     if (i == redis_handlers.end()) {
@@ -222,13 +236,8 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
         RETURN_FALSE;
     }
 
-    char _command[SW_REDIS_MAX_COMMAND_SIZE];
-    size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
-#if PHP_VERSION_ID >= 80400
-    zend_str_tolower(_command, _command_len);
-#else
-    php_strtolower(_command, _command_len);
-#endif
+    char _command[REDIS_HANDLER_BUFFER_SIZE];
+    size_t _command_len = redis_handler_name(_command, command, command_len);
 
     zend_update_property(swoole_redis_server_ce, Z_OBJ_P(ZEND_THIS), _command, _command_len, zcallback);
 
@@ -251,13 +260,12 @@ static PHP_METHOD(swoole_redis_server, getHandler) {
     Z_PARAM_STRING(command, command_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    char _command[SW_REDIS_MAX_COMMAND_SIZE];
-    size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
-#if PHP_VERSION_ID >= 80400
-    zend_str_tolower(_command, _command_len);
-#else
-    php_strtolower(_command, _command_len);
-#endif
+    // Such a command cannot have been registered; do not truncate it into another handler's name.
+    if (command_len == 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE) {
+        RETURN_NULL();
+    }
+    char _command[REDIS_HANDLER_BUFFER_SIZE];
+    size_t _command_len = redis_handler_name(_command, command, command_len);
 
     zval rv;
     zval *handler = zend_read_property(swoole_redis_server_ce, Z_OBJ_P(ZEND_THIS), _command, _command_len, 1, &rv);
