@@ -815,6 +815,7 @@ _found_method:
                 continue;
             }
             if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
+                method = 0;
                 return SW_ERR;
             }
             if (memcmp(p, SW_STRL("HTTP/1.1")) == 0) {
@@ -830,6 +831,9 @@ _found_method:
             break;
         }
     }
+    // the request line is incomplete, parse it again when more data arrives
+    method = 0;
+    return SW_ERR;
 _end:
     p += sizeof("HTTP/1.x") - 1;
     request_line_length_ = buffer_->offset = p - buffer_->str;
