@@ -122,6 +122,12 @@ int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer)
         goto _do_get_length;
     }
 
+    // The HTTP parser uses buffer->offset as a scan position. When a connection switches to this protocol
+    // (WebSocket upgrade, HTTP/2), a stale offset must not be mistaken for the length of a pending packet.
+    if (!socket->recv_wait) {
+        buffer->offset = 0;
+    }
+
 _do_recv:
     if (socket->removed) {
         return SW_OK;
