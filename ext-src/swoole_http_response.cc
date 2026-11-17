@@ -790,6 +790,43 @@ void HttpContext::write(zend_string *sdata, zval *return_value) {
     RETURN_BOOL(send(this, http_buffer->str, http_buffer->length));
 }
 
+#ifdef SW_HAVE_ZLIB
+static bool http_response_offers_websocket_compression(const char *value, size_t length) {
+    size_t offset = 0;
+    while (offset < length) {
+        size_t start = offset;
+        while (offset < length && value[offset] != ';' && value[offset] != ',') {
+            offset++;
+        }
+        size_t end = offset;
+        while (start < end && (value[start] == ' ' || value[start] == '\t')) {
+            start++;
+        }
+        while (end > start && (value[end - 1] == ' ' || value[end - 1] == '\t')) {
+            end--;
+        }
+        if (end - start == sizeof("permessage-deflate") - 1 &&
+            memcmp(value + start, ZEND_STRL("permessage-deflate")) == 0) {
+            return true;
+        }
+
+        // Commas in quoted parameter values do not separate extension offers.
+        bool quoted = false;
+        while (offset < length) {
+            char c = value[offset++];
+            if (quoted && c == '\\' && offset < length) {
+                offset++;
+            } else if (c == '"') {
+                quoted = !quoted;
+            } else if (!quoted && c == ',') {
+                break;
+            }
+        }
+    }
+    return false;
+}
+#endif
+
 void HttpContext::end(zend_string *sdata, zval *return_value) {
     if (http2) {
         RETURN_BOOL(swoole_http2_server_end(this, sdata));
@@ -841,11 +878,10 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
 #endif
             bool accept_websocket_compression = false;
             zval *pData;
-            if (enable_websocket_compression && !Z_ISUNDEF(request.zobject) &&
+            if (enable_websocket_compression && !Z_ISUNDEF(request.zobject) && Z_TYPE(request.zheader) == IS_ARRAY &&
                 ((pData = zend_hash_str_find(Z_ARRVAL(request.zheader), ZEND_STRL("sec-websocket-extensions")))) &&
                 Z_TYPE_P(pData) == IS_STRING) {
-                const std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-                if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
+                if (http_response_offers_websocket_compression(Z_STRVAL_P(pData), Z_STRLEN_P(pData))) {
                     accept_websocket_compression = true;
                     set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
                 }
