@@ -1448,6 +1448,14 @@ ssize_t Socket::recv_packet_with_length_protocol() {
     }
 
 _recv_header:
+    if (sw_unlikely(header_len > read_buffer->size)) {
+        read_buffer->extend(header_len);
+    }
+    if (sw_unlikely(read_buffer->length >= header_len)) {
+        // The header is complete but the length is still unknown; no more data can be requested.
+        set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "get package length failed");
+        return 0;
+    }
     retval = recv(read_buffer->str + read_buffer->length, header_len - read_buffer->length);
     if (retval <= 0) {
         return retval;
