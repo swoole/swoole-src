@@ -538,13 +538,6 @@ static bool http2_server_send_setting_ack(HttpContext *ctx) {
     return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE);
 }
 
-static bool http2_server_send_rst_stream(HttpContext *ctx, int error_code) {
-    char frame[SW_HTTP2_FRAME_HEADER_SIZE + sizeof(uint32_t)];
-    Http2::set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, 0, SW_HTTP2_FLAG_ACK, 0);
-    *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(error_code);
-    return ctx->send(ctx, frame, sizeof(frame));
-}
-
 bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, zend_string *sdata) {
     const char *debug_data = sdata ? ZSTR_VAL(sdata) : nullptr;
     size_t debug_data_len = sdata ? ZSTR_LEN(sdata) : 0;
@@ -1484,10 +1477,10 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
 
             // Exceeded the max_body_size, or if the stream has ended, sends RST_STREAM frame, stops receiving data
             if (buffer->length + length > client->max_body_size || ctx->end_) {
-                if (!http2_server_send_rst_stream(ctx, 0) && http2_server_send_blocked()) {
+                // Reuse the stream reset path, which encodes its ID and the four-byte payload correctly.
+                if (!http2_server_reject_request(client, stream, SW_HTTP2_ERROR_NO_ERROR)) {
                     return SW_ERR;
                 }
-                client->remove_stream(stream_id);
                 break;
             }
 
