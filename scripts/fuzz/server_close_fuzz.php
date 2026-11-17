@@ -327,6 +327,12 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
         });
     });
 
+    // A user timer keeps the reactor alive; without clearing it a reload_async worker only exits
+    // after the forced-termination timeout and the server stalls meanwhile.
+    $server->on('workerExit', function (Server $server, int $wid) {
+        Swoole\Timer::clearAll();
+    });
+
     $server->start();
 }
 
@@ -775,6 +781,11 @@ run(function () use ($duration, $http_port, $tcp_port, &$stat, $server_pid, &$fa
     if (!healthy($http_port + 800)) {
         echo "FAIL: server does not answer after the run\n";
         $failed = true;
+        if (getenv('FUZZ_HOLD')) {
+            // Keep the hung server alive so that its state can be inspected from another shell.
+            file_put_contents(dirname($logfile) . "/HELD", (string) $server_pid);
+            Coroutine::sleep((int) getenv('FUZZ_HOLD'));
+        }
     }
 });
 
@@ -819,5 +830,9 @@ if ($failed) {
     exit(1);
 }
 echo "RESULT: OK\n";
+if (getenv('FUZZ_KEEP_ON_EXIT_TIMEOUT') && stripos($log, 'worker exit timeout') !== false) {
+    echo "NOTE: worker exit timeout seen (workdir kept: $workdir)\n";
+    exit(0);
+}
 array_map('unlink', glob("$workdir/*"));
 @rmdir($workdir);
