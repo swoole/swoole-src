@@ -199,7 +199,13 @@ static int php_ssh2_channel_stream_close(php_stream *stream, int close_handle) {
             efree(abstract->refcount);
         }
         if (php_ssh2_session_is_open(abstract->session_rsrc)) {
-            libssh2_channel_free(abstract->channel);
+            auto session = ssh2_get_session(abstract);
+#ifdef PHP_SSH2_SESSION_TIMEOUT
+            const double timeout = abstract->timeout / 1000.0;
+#else
+            const double timeout = 0;
+#endif
+            ssh2_release_channel(session, abstract->channel, timeout);
         }
 
         zend_list_delete(abstract->session_rsrc);
@@ -671,20 +677,20 @@ static php_stream *php_ssh2_shell_open(LIBSSH2_SESSION *session,
     if (type == PHP_SSH2_TERM_UNIT_CHARS) {
         if (libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, width, height, 0, 0)) {
             php_error_docref(NULL, E_WARNING, "Failed allocating %s pty at %ldx%ld characters", term, width, height);
-            libssh2_channel_free(channel);
+            ssh2_release_channel(session, channel);
             return NULL;
         }
     } else {
         if (libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, 0, 0, width, height)) {
             php_error_docref(NULL, E_WARNING, "Failed allocating %s pty at %ldx%ld pixels", term, width, height);
-            libssh2_channel_free(channel);
+            ssh2_release_channel(session, channel);
             return NULL;
         }
     }
 
     if (libssh2_channel_shell(channel)) {
         php_error_docref(NULL, E_WARNING, "Unable to request shell from remote host");
-        libssh2_channel_free(channel);
+        ssh2_release_channel(session, channel);
         return NULL;
     }
 
@@ -934,13 +940,13 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
             if (libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, width, height, 0, 0)) {
                 php_error_docref(
                     NULL, E_WARNING, "Failed allocating %s pty at %ldx%ld characters", term, width, height);
-                libssh2_channel_free(channel);
+                ssh2_release_channel(session, channel);
                 return NULL;
             }
         } else {
             if (libssh2_channel_request_pty_ex(channel, term, term_len, NULL, 0, 0, 0, width, height)) {
                 php_error_docref(NULL, E_WARNING, "Failed allocating %s pty at %ldx%ld pixels", term, width, height);
-                libssh2_channel_free(channel);
+                ssh2_release_channel(session, channel);
                 return NULL;
             }
         }
@@ -948,7 +954,7 @@ static php_stream *php_ssh2_exec_command(LIBSSH2_SESSION *session,
 
     if (libssh2_channel_exec(channel, command)) {
         php_error_docref(NULL, E_WARNING, "Unable to request command execution on remote host");
-        libssh2_channel_free(channel);
+        ssh2_release_channel(session, channel);
         return NULL;
     }
 
@@ -1224,7 +1230,7 @@ PHP_FUNCTION(ssh2_scp_recv) {
     local_file = php_stream_open_wrapper(local_filename, "wb", REPORT_ERRORS, NULL);
     if (!local_file) {
         php_error_docref(NULL, E_WARNING, "Unable to write to local file");
-        libssh2_channel_free(remote_file);
+        ssh2_release_channel(session, remote_file);
         RETURN_FALSE;
     }
 
@@ -1237,28 +1243,28 @@ PHP_FUNCTION(ssh2_scp_recv) {
         // cannot make progress and would otherwise keep this loop running without yielding.
         if (bytes_read < 0 || (bytes_read == 0 && libssh2_channel_eof(remote_file))) {
             php_error_docref(NULL, E_WARNING, "Error reading from remote file");
-            libssh2_channel_free(remote_file);
+            ssh2_release_channel(session, remote_file);
             php_stream_close(local_file);
             RETURN_FALSE;
         }
         bytes_written = php_stream_write(local_file, buffer, bytes_read);
         if (bytes_written < 0) {
             php_error_docref(NULL, E_WARNING, "Error writing to local file");
-            libssh2_channel_free(remote_file);
+            ssh2_release_channel(session, remote_file);
             php_stream_close(local_file);
             RETURN_FALSE;
         }
         if (bytes_read != bytes_written) {
             php_error_docref(
                 NULL, E_WARNING, "Mismatch in bytes read from remote file and bytes written to local file");
-            libssh2_channel_free(remote_file);
+            ssh2_release_channel(session, remote_file);
             php_stream_close(local_file);
             RETURN_FALSE;
         }
         sb.st_size -= bytes_read;
     }
 
-    libssh2_channel_free(remote_file);
+    ssh2_release_channel(session, remote_file);
     php_stream_close(local_file);
 
     RETURN_TRUE;
@@ -1330,7 +1336,7 @@ PHP_FUNCTION(ssh2_scp_send) {
         if (bytesread <= 0 || bytesread > toread) {
             php_error_docref(NULL, E_WARNING, "Failed copying file 2");
             php_stream_close(local_file);
-            libssh2_channel_free(remote_file);
+            ssh2_release_channel(session, remote_file);
             RETURN_FALSE;
         }
 
@@ -1359,7 +1365,7 @@ PHP_FUNCTION(ssh2_scp_send) {
                 }
 
                 php_stream_close(local_file);
-                libssh2_channel_free(remote_file);
+                ssh2_release_channel(session, remote_file);
                 RETURN_FALSE;
             }
             sent = sent + justsent;
@@ -1369,7 +1375,7 @@ PHP_FUNCTION(ssh2_scp_send) {
 
     libssh2_channel_flush_ex(remote_file, LIBSSH2_CHANNEL_FLUSH_ALL);
     php_stream_close(local_file);
-    libssh2_channel_free(remote_file);
+    ssh2_release_channel(session, remote_file);
     RETURN_TRUE;
 }
 /* }}} */
