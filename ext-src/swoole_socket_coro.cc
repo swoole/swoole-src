@@ -1981,9 +1981,12 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         } /* else continue */
     }
 
-    /* sol_socket options and general case */
+    // Option numbers are local to their protocol level; colliding numbers use the integer fallback.
     switch (optname) {
     case SO_LINGER: {
+        if (level != SOL_SOCKET) {
+            goto default_case;
+        }
         optlen = sizeof(linger_val);
 
         if (_socket->get_option(level, optname, (char *) &linger_val, &optlen) != 0) {
@@ -2002,6 +2005,9 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
     case SO_RCVTIMEO:
     case SO_SNDTIMEO: {
+        if (level != SOL_SOCKET) {
+            goto default_case;
+        }
         double timeout = sock->socket->get_timeout(optname == SO_RCVTIMEO ? SW_TIMEOUT_READ : SW_TIMEOUT_WRITE);
         array_init(return_value);
         int sec = (int) timeout;
@@ -2011,10 +2017,14 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
 #ifdef TCP_INFO
     case TCP_INFO: {
+        if (level != IPPROTO_TCP) {
+            goto default_case;
+        }
         tcp_info info;
         socklen_t len = sizeof(info);
         if (_socket->get_option(SOL_TCP, TCP_INFO, &info, &len) < 0) {
             php_swoole_sys_error(E_WARNING, "getsockopt(%d, SOL_TCP, TCP_INFO)", sock->socket->get_fd());
+            RETURN_FALSE;
         } else {
             array_init(return_value);
             auto info_map = sw_socket_parse_tcp_info(&info);
@@ -2026,6 +2036,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
 #endif
     default: {
+    default_case:
         optlen = sizeof(other_val);
 
         if (_socket->get_option(level, optname, (char *) &other_val, &optlen) != 0) {
@@ -2087,6 +2098,11 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
             res = php_do_setsockopt_ipv6_rfc3542(sock->socket, level, optname, optval);
         }
         HANDLE_SUBCALL(res);
+    }
+
+    // Linger, timeouts and interface names have special representations only at SOL_SOCKET.
+    if (level != SOL_SOCKET) {
+        goto default_case;
     }
 
     switch (optname) {
