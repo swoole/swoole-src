@@ -1936,9 +1936,9 @@ static PHP_METHOD(swoole_socket_coro, getpeername) {
 }
 
 static PHP_METHOD(swoole_socket_coro, getOption) {
-    struct linger linger_val;
+    struct linger linger_val = {};
     socklen_t optlen;
-    int other_val;
+    int other_val = 0;
     zend_long level, optname;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
@@ -1952,7 +1952,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     if (level == IPPROTO_IP) {
         switch (optname) {
         case IP_MULTICAST_IF: {
-            struct in_addr if_addr;
+            struct in_addr if_addr = {};
             unsigned int if_index;
             optlen = sizeof(if_addr);
             if (_socket->get_option(level, optname, &if_addr, &optlen) != 0) {
@@ -2020,7 +2020,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         if (level != IPPROTO_TCP) {
             goto default_case;
         }
-        tcp_info info;
+        tcp_info info = {};
         socklen_t len = sizeof(info);
         if (_socket->get_option(SOL_TCP, TCP_INFO, &info, &len) < 0) {
             php_swoole_sys_error(E_WARNING, "getsockopt(%d, SOL_TCP, TCP_INFO)", sock->socket->get_fd());
@@ -2048,7 +2048,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
             RETURN_FALSE;
         }
         if (optlen == 1) {
-            char _val;
+            unsigned char _val;
             memcpy(&_val, &other_val, optlen);
             RETURN_LONG(_val);
         } else {
