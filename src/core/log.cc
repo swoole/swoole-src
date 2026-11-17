@@ -15,6 +15,7 @@
 */
 
 #include "swoole_process_pool.h"
+#include "swoole_util.h"
 
 #include <cstring>
 #include <fcntl.h>
@@ -177,7 +178,8 @@ bool Logger::set_date_format(const char *format) {
     time_t now_sec;
 
     now_sec = ::time(nullptr);
-    size_t l_data_str = std::strftime(date_str, sizeof(date_str), format, std::localtime(&now_sec));
+    std::tm now_tm = swoole::get_local_tm(now_sec);
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), format, &now_tm);
 
     if (l_data_str == 0) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
@@ -243,7 +245,8 @@ std::string Logger::gen_real_file(const std::string &file) const {
         break;
     }
 
-    size_t l_data_str = std::strftime(date_str, sizeof(date_str), fmt, std::localtime(&now_sec));
+    std::tm now_tm = swoole::get_local_tm(now_sec);
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), fmt, &now_tm);
     std::string real_file = file + "." + std::string(date_str, l_data_str);
 
     return real_file;
@@ -286,7 +289,8 @@ void Logger::put(int level, const char *content, size_t length) {
 
     auto now = std::chrono::system_clock::now();
     auto now_sec = std::chrono::system_clock::to_time_t(now);
-    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), std::localtime(&now_sec));
+    std::tm now_tm = swoole::get_local_tm(now_sec);
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), &now_tm);
 
     if (log_rotation) {
         std::string tmp = gen_real_file(log_file);
