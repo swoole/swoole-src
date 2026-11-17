@@ -365,9 +365,9 @@ void register_admin_server_commands(Server *serv) {
     serv->add_command("get_all_sockets", Server::Command::ALL_PROCESS, handle_get_all_sockets);
     serv->add_command("get_all_commands", Server::Command::ALL_PROCESS, handle_get_all_commands);
     serv->add_command("get_socket_info", Server::Command::ALL_PROCESS, handle_get_socket_info);
-    serv->add_command("get_thread_info", Server::Command::ALL_PROCESS, handle_get_thread_info);
+    // This handler reads owner-reactor state, which does not exist in manager or worker processes.
+    serv->add_command("get_thread_info", Server::Command::REACTOR_THREAD, handle_get_thread_info);
     serv->add_command("get_manager_info", Server::Command::MANAGER, handle_get_manager_info);
-    serv->add_command("get_thread_info", Server::Command::ALL_PROCESS, handle_get_thread_info);
     serv->add_command("get_memory_info", Server::Command::ALL_PROCESS, handle_get_memory_info);
     serv->add_command("get_all_unix_sockets", Server::Command::ALL_PROCESS, handle_get_all_unix_sockets);
     serv->add_command("get_all_ports", Server::Command::MASTER, handle_get_all_ports);
