@@ -1655,6 +1655,19 @@ bool Socket::close() {
     }
 }
 
+void Socket::close_fd() {
+#ifdef SW_USE_OPENSSL
+    ssl_shutdown();
+#endif
+    if (socket->fd == SW_BAD_SOCKET) {
+        return;
+    }
+    if (swoole_event_is_available() && !socket->removed) {
+        swoole_event_del(socket);
+    }
+    socket->close_fd();
+}
+
 /**
  * Warn:
  * the destructor should only be called in following two cases:
@@ -1680,6 +1693,10 @@ Socket::~Socket() {
 #ifdef SW_USE_OPENSSL
     ssl_shutdown();
 #endif
+    // only a closed socket releases its descriptor here, an open one keeps the deferred release in free()
+    if (is_closed() || socket->close_wait) {
+        close_fd();
+    }
     socket->free();
 }
 

@@ -448,14 +448,22 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
     return rv ? bytes : -1;
 }
 
+void Socket::close_fd() {
+    if (fd == SW_BAD_SOCKET) {
+        return;
+    }
+    if (is_local() && bound && get_name() == SW_OK && *get_addr()) {
+        ::unlink(get_addr());
+    }
+    if (::close(fd) != 0) {
+        swoole_sys_warning("close(%d) failed", fd);
+    }
+    fd = SW_BAD_SOCKET;
+}
+
 static void socket_free_defer(void *ptr) {
     auto *sock = static_cast<Socket *>(ptr);
-    if (sock->is_local() && sock->bound && sock->get_name() == SW_OK && *sock->get_addr()) {
-        ::unlink(sock->get_addr());
-    }
-    if (sock->fd != -1 && close(sock->fd) != 0) {
-        swoole_sys_warning("close(%d) failed", sock->fd);
-    }
+    sock->close_fd();
     delete sock;
 }
 
