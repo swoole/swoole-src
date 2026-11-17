@@ -187,8 +187,12 @@ int swoole_coroutine_accept(int sockfd, struct sockaddr *addr, socklen_t *addrle
         return -1;
     }
 
-    *addrlen = conn->get_socket()->info.len;
-    memcpy(addr, &conn->get_socket()->info.addr.ss, *addrlen);
+    // Like accept(2): addr and addrlen are optional, and the address is truncated to the caller's buffer.
+    if (addr != nullptr && addrlen != nullptr) {
+        const socklen_t peer_len = conn->get_socket()->info.len;
+        memcpy(addr, &conn->get_socket()->info.addr.ss, SW_MIN(*addrlen, peer_len));
+        *addrlen = peer_len;
+    }
 
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     socket_map.emplace(conn->get_fd(), std::shared_ptr<SocketImpl>(conn));
