@@ -916,6 +916,9 @@ static PHP_METHOD(swoole_client, recv) {
         String *buffer = cli->buffer;
 
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
+        if (header_len > buffer->size) {
+            buffer->extend(header_len);
+        }
 
         while (true) {
             auto retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
@@ -929,9 +932,12 @@ static PHP_METHOD(swoole_client, recv) {
             };
             buf_len = protocol->get_package_length(protocol, cli->socket, &pl);
             if (buf_len == 0) {
+                // The header is complete but the length is still unknown; no room is left to receive more.
+                if (buffer->length >= header_len) {
+                    buf_len = -1;
+                    break;
+                }
                 continue;
-            } else if (buf_len < 0) {
-                break;
             } else {
                 break;
             }
@@ -941,10 +947,7 @@ static PHP_METHOD(swoole_client, recv) {
         if (buf_len < 0) {
             RETURN_EMPTY_STRING();
         }
-        // empty package
-        else if (buf_len == header_len) {
-            RETURN_STRINGL(buffer->str, header_len);
-        } else if (buf_len > protocol->package_max_length) {
+        else if (buf_len > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                              "Package is too big. package_length=%d",
@@ -959,12 +962,14 @@ static PHP_METHOD(swoole_client, recv) {
             return;
         }
 
+        // The header may be shorter than header_len when package_length_func answers early.
+        const size_t received_len = buffer->length;
         strbuf = zend_string_alloc(buf_len, false);
-        memcpy(strbuf->val, buffer->str, buffer->length);
+        memcpy(strbuf->val, buffer->str, received_len);
         swoole_set_last_error(0);
-        ret = cli->recv(strbuf->val + header_len, buf_len - buffer->length, MSG_WAITALL);
+        ret = cli->recv(strbuf->val + received_len, buf_len - received_len, MSG_WAITALL);
         if (ret > 0) {
-            ret += header_len;
+            ret += received_len;
             if (ret != buf_len) {
                 ret = 0;
             }
