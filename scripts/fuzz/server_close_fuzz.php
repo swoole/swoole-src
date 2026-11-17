@@ -56,7 +56,11 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
     mt_srand($seed);
     $worker_num = mt_rand(1, 4);  // keep the process count small: the fuzzer must not exhaust the host
     $max_request = pick([0, 0, mt_rand(100, 2000)]);
-    $dispatch_mode = $mode === SWOOLE_PROCESS ? pick([1, 2, 4]) : 1;
+    if (getenv('FUZZ_MAX_REQUEST') !== false) {
+        $max_request = (int) getenv('FUZZ_MAX_REQUEST');  // force frequent worker restarts
+    }
+    $h2 = mt_rand(0, 1) === 1;  // HTTP/2 requires dispatch_mode 2 or 4
+    $dispatch_mode = $h2 ? pick([2, 4]) : ($mode === SWOOLE_PROCESS ? pick([1, 2, 4]) : 1);
     $out_size = pick([4096, 64 * 1024, 256 * 1024]);
     $sock_buf = pick([4096, 16 * 1024, 64 * 1024, 256 * 1024]);
     $task_num = pick([0, 0, 1, 2]);
@@ -65,7 +69,7 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
     $ssl_port = $http_port + 400;
     $use_ssl = defined('SWOOLE_SSL');
     echo "settings: worker_num=$worker_num max_request=$max_request dispatch_mode=$dispatch_mode " .
-        "buffer_output_size=$out_size socket_buffer_size=$sock_buf task_worker_num=$task_num delay_receive=" .
+        "http2=" . (int) $h2 . " buffer_output_size=$out_size socket_buffer_size=$sock_buf task_worker_num=$task_num delay_receive=" .
         (int) $delay_receive . "\n";
 
     $server = new Server('127.0.0.1', $http_port, $mode);
@@ -77,6 +81,7 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
         'send_timeout' => mt_rand(1, 3),
         'task_worker_num' => $task_num,
         'enable_delay_receive' => $delay_receive,
+        'open_http2_protocol' => $h2,
         'log_file' => $logfile,
         'log_level' => SWOOLE_LOG_WARNING,
         'open_websocket_close_frame' => true,
@@ -567,9 +572,58 @@ function ssl_client(int $port, array &$stat): void
     $cli->close();
 }
 
+function h2_frame(int $type, int $flags, int $stream, string $payload): string
+{
+    return substr(pack('N', strlen($payload)), 1) . chr($type) . chr($flags) . pack('N', $stream & 0x7fffffff) . $payload;
+}
+
+function h2_lit(string $name, string $value): string
+{
+    return "\x00" . chr(strlen($name)) . $name . chr(strlen($value)) . $value;
+}
+
+function h2_payload(): string
+{
+    $out = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n" . h2_frame(4, 0, 0, pick(['', pack('nN', 4, mt_rand(0, 70000)), pack('nN', 5, mt_rand(0, 1 << 25))]));
+    for ($i = mt_rand(1, 6); $i > 0; $i--) {
+        $sid = mt_rand(0, 3) === 0 ? mt_rand(0, 9) : 2 * mt_rand(0, 20) + 1;
+        switch (mt_rand(0, 9)) {
+        case 0:
+        case 1:
+        case 2:
+            $hdr = "\x82\x86" . h2_lit(':path', pick(['/', '/a', '/x?y=1', '/' . str_repeat('p', mt_rand(1, 3000))])) .
+                h2_lit(':authority', 'x') . (mt_rand(0, 3) === 0 ? h2_lit('cookie', str_repeat('c=d;', mt_rand(1, 300))) : '');
+            if (mt_rand(0, 4) === 0) {
+                $hdr = mutate($hdr);
+            }
+            $out .= h2_frame(1, pick([4, 5, 4, 0x24, 0x2c, 0]), $sid, $hdr);
+            break;
+        case 3:
+        case 4:
+            $out .= h2_frame(0, pick([0, 1, 8, 9]), $sid, random_bytes(mt_rand(0, 20000)));
+            break;
+        case 5:
+            $out .= h2_frame(3, 0, $sid, pack('N', mt_rand(0, 13)));
+            break;
+        case 6:
+            $out .= h2_frame(8, 0, pick([0, $sid]), pack('N', pick([0, 1, 65535, 0x7fffffff, mt_rand(0, 1 << 30)])));
+            break;
+        case 7:
+            $out .= h2_frame(6, pick([0, 1]), 0, random_bytes(pick([8, 8, 7, 9])));
+            break;
+        case 8:
+            $out .= h2_frame(7, 0, 0, pack('NN', mt_rand(0, 9), mt_rand(0, 13)));
+            break;
+        default:
+            $out .= h2_frame(mt_rand(0, 12), mt_rand(0, 255), $sid, random_bytes(mt_rand(0, 40)));
+        }
+    }
+    return $out;
+}
+
 function one_client(int $http_port, int $tcp_port, array &$stat): void
 {
-    $kind = mt_rand(0, 4);
+    $kind = mt_rand(0, 5);
     if ($kind === 4) {
         if (defined('SWOOLE_SSL')) {
             ssl_client($http_port + 400, $stat);
@@ -596,6 +650,9 @@ function one_client(int $http_port, int $tcp_port, array &$stat): void
             $sock->recv(4096, 0.2);
         }
         $payload = ws_payload();
+        break;
+    case 5:
+        $payload = h2_payload();
         break;
     default:
         $payload = tcp_payload();
