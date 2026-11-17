@@ -21,8 +21,9 @@ namespace swoole {
 using network::Socket;
 
 enum ManagerCommand {
-    CMD_RELOAD = 0x1001,
+    CMD_RELOAD_ALL = 0x1001,
     CMD_MANAGER_EXIT = 0x1002,
+    CMD_RELOAD_TASK = 0x1003,
 };
 
 static inline Worker *cmd_ptr(const ManagerCommand cmd) {
@@ -90,10 +91,12 @@ bool ThreadFactory::start() {
 }
 
 bool ThreadFactory::shutdown() {
-    for (const auto &thread : threads_) {
-        if (thread->joinable()) {
-            thread->join();
-        }
+    // Master thread, after its reactor stops: the manager owns every worker's creation and joins.
+    const auto &manager = threads_[get_manager_thread_id()];
+    if (manager->joinable()) {
+        // Match ProcessFactory::shutdown(): notify the manager only after the master reactor ends.
+        push_to_wait_queue(cmd_ptr(CMD_MANAGER_EXIT));
+        manager->join();
     }
     return true;
 }
@@ -227,17 +230,33 @@ void ThreadFactory::spawn_manager_thread(WorkerId i) {
         swoole_timer_create(true);
 
         server_->worker_thread_start(threads_[i], [this]() {
+            // Manager thread, during its PHP request: use the same ownership for initial creation,
+            // replacement and final joins. Keep ManagerStart after spawning, as in process mode.
+            SW_LOOP_N(server_->task_worker_num) {
+                spawn_task_worker(server_->worker_num + i);
+            }
+            SW_LOOP_N(server_->worker_num) {
+                spawn_event_worker(i);
+            }
+            SW_LOOP_N(server_->get_user_worker_num()) {
+                spawn_user_worker(server_->get_core_worker_num() + i);
+            }
             if (server_->onManagerStart) {
                 server_->onManagerStart(server_);
             }
             wait();
+            shutdown_workers();
             if (server_->onManagerStop) {
                 server_->onManagerStop(server_);
             }
         });
 
-        if (server_->running) {
+        if (!shutting_down) {
             swoole_warning("Fatal Error: manager thread exits abnormally");
+            // A PHP bailout can skip wait() and ManagerStop. Wake the master so BeforeShutdown
+            // can release user workers, while their native ownership stays on this manager.
+            swoole_kill(server_->get_master_pid(), SIGTERM);
+            shutdown_workers();
         }
 
         /*
@@ -274,11 +293,13 @@ void ThreadFactory::wait() {
         } while (0);
 
         if (exited_worker) {
-            if (exited_worker == cmd_ptr(CMD_RELOAD)) {
+            if (exited_worker == cmd_ptr(CMD_RELOAD_ALL) || exited_worker == cmd_ptr(CMD_RELOAD_TASK)) {
+                only_reload_taskworker = exited_worker == cmd_ptr(CMD_RELOAD_TASK);
                 do_reload();
                 continue;
             }
             if (exited_worker == cmd_ptr(CMD_MANAGER_EXIT)) {
+                shutting_down = true;
                 break;
             }
 
@@ -324,15 +345,37 @@ void ThreadFactory::wait() {
         if (sw_timer()) {
             sw_timer()->select();
         }
-        if (server_->running && reloading) {
+        // A caller may reserve reloading before its command arrives. Only advance an initialized,
+        // manager-owned task here; the command itself publishes whether this reload includes event workers.
+        if (server_->running && reload_task) {
             do_reload();
         }
     }
 }
 
-ThreadReloadTask::ThreadReloadTask(Server *_server, bool _reload_all_workers) {
+void ThreadFactory::shutdown_workers() {
+    // Manager thread: no more replacements or reload callbacks. Notify every core worker before
+    // waiting for any of them, so cross-thread sends can finish while their destinations still run.
+    shutting_down = true;
+    reload_task.reset();
+    sw_atomic_store_release(&reloading, 0);
+    SW_LOOP_N(server_->get_core_worker_num()) {
+        if (threads_[i]->joinable()) {
+            server_->kill_worker(i);
+        }
+    }
+    // User workers finish cooperatively, normally after BeforeShutdown notifies their PHP callbacks.
+    // All joins complete before ManagerStop, matching the process manager's shutdown sequence.
+    SW_LOOP_N(server_->get_all_worker_num()) {
+        if (threads_[i]->joinable()) {
+            threads_[i]->join();
+        }
+    }
+}
+
+ThreadReloadTask::ThreadReloadTask(Server *_server, bool only_reload_taskworker) {
     server_ = _server;
-    start_worker_id = _reload_all_workers ? 0 : server_->worker_num;
+    start_worker_id = only_reload_taskworker ? server_->worker_num : 0;
     // If only reloading task workers, skip the event workers.
     worker_num = server_->get_core_worker_num() - start_worker_id;
     next_worker_id = start_worker_id;
@@ -340,7 +383,7 @@ ThreadReloadTask::ThreadReloadTask(Server *_server, bool _reload_all_workers) {
 
 void ThreadFactory::do_reload() {
     if (!reload_task) {
-        reload_task = std::make_shared<ThreadReloadTask>(server_, reload_all_workers);
+        reload_task = std::make_shared<ThreadReloadTask>(server_, only_reload_taskworker);
         if (server_->onBeforeReload) {
             server_->onBeforeReload(server_);
         }
@@ -355,7 +398,7 @@ void ThreadFactory::do_reload() {
     }
     if (reload_task->is_completed()) {
         reload_task.reset();
-        reloading = 0;
+        sw_atomic_store_release(&reloading, 0);
         if (server_->onAfterReload) {
             server_->onAfterReload(server_);
         }
@@ -363,24 +406,30 @@ void ThreadFactory::do_reload() {
 }
 
 void ThreadFactory::finish_reload_worker(Worker *worker) {
-    if (!reloading || !reload_task || !reload_task->contains(worker->id)) {
+    if (!reload_task || !reload_task->contains(worker->id)) {
         return;
     }
 
     reload_task->mark_completed(worker->id);
     if (reload_task->is_completed()) {
         reload_task.reset();
-        reloading = 0;
+        sw_atomic_store_release(&reloading, 0);
         if (server_->onAfterReload) {
             server_->onAfterReload(server_);
         }
     }
 }
 
-bool ThreadFactory::reload(bool _reload_all_workers) {
-    auto _what = _reload_all_workers ? "all" : "task";
+bool ThreadFactory::reload(bool only_reload_taskworker) {
+    auto _what = only_reload_taskworker ? "task" : "all";
 
-    if (server_->task_worker_num == 0 && !_reload_all_workers) {
+    // Only the manager reads this state; other callers submit commands without entering its callbacks.
+    if (server_->is_manager() && shutting_down) {
+        swoole_set_last_error(SW_ERROR_OPERATION_NOT_SUPPORT);
+        return false;
+    }
+
+    if (server_->task_worker_num == 0 && only_reload_taskworker) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_OPERATION_NOT_SUPPORT,
                          "Cannot reload %s workers, task workers are not started",
@@ -394,14 +443,10 @@ bool ThreadFactory::reload(bool _reload_all_workers) {
         return false;
     }
 
-    reload_all_workers = _reload_all_workers;
-    if (!server_->is_manager()) {
-        swoole_info("Send a notification to the manager process to prepare for restarting %s worker processes.", _what);
-        push_to_wait_queue(cmd_ptr(CMD_RELOAD));
-    } else {
-        swoole_info("Server is reloading %s workers now", _what);
-        do_reload();
-    }
+    // Worker/master callers notify the manager directly. A manager callback queues the request too,
+    // matching process mode's deferred reload and avoiding nested BeforeReload/AfterReload callbacks.
+    swoole_info("Notify the manager thread to restart %s worker threads.", _what);
+    push_to_wait_queue(cmd_ptr(only_reload_taskworker ? CMD_RELOAD_TASK : CMD_RELOAD_ALL));
 
     return true;
 }
@@ -414,45 +459,11 @@ WorkerId ThreadFactory::get_master_thread_id() const {
     return server_->get_all_worker_num() + 1;
 }
 
-void ThreadFactory::terminate_manager_thread() {
-    swoole_trace_log(SW_TRACE_THREAD, "notify manager thread to exit");
-    push_to_wait_queue(cmd_ptr(CMD_MANAGER_EXIT));
-
-    /**
-     * When terminating the service, the management thread may still be joining other worker threads,
-     * so it is essential to first reclaim the management thread to ensure it has exited.
-     * During the shutdown, the running flag has already been set to false,
-     * which means the management thread might not have reclaimed all worker threads and may have exited prematurely.
-     * At this point, it is necessary to loop through and reclaim the remaining worker threads.
-     */
-    auto manager_thread_id = get_manager_thread_id();
-    threads_[manager_thread_id]->join();
-
-    swoole_trace_log(SW_TRACE_THREAD, "manager thread is exited");
-}
-
 int Server::start_worker_threads() {
     auto *_factory = dynamic_cast<ThreadFactory *>(factory_);
 
-    if (task_worker_num > 0) {
-        SW_LOOP_N(task_worker_num) {
-            _factory->spawn_task_worker(worker_num + i);
-        }
-    }
-
-    SW_LOOP_N(worker_num) {
-        _factory->spawn_event_worker(i);
-    }
-
-    if (!user_worker_list.empty()) {
-        for (size_t i = 0; i < user_worker_list.size(); i++) {
-            _factory->spawn_user_worker(task_worker_num + worker_num + i);
-        }
-    }
-
-    auto manager_thread_id = _factory->get_manager_thread_id();
-    _factory->spawn_manager_thread(manager_thread_id);
-
+    // Master thread: prepare the acceptor first. start_master_thread() creates only the manager;
+    // all event/task/user thread creation belongs to that manager.
     if (swoole_event_init(0) < 0) {
         return SW_ERR;
     }
@@ -475,18 +486,9 @@ int Server::start_worker_threads() {
     return start_master_thread(reactor);
 }
 
-void Server::stop_worker_threads() {
+bool Server::reload_worker_threads(bool only_reload_taskworker) const {
     auto *_factory = dynamic_cast<ThreadFactory *>(factory_);
-    _factory->terminate_manager_thread();
-
-    SW_LOOP_N(get_core_worker_num()) {
-        kill_worker(i);
-    }
-}
-
-bool Server::reload_worker_threads(bool reload_all_workers) const {
-    auto *_factory = dynamic_cast<ThreadFactory *>(factory_);
-    return _factory->reload(reload_all_workers);
+    return _factory->reload(only_reload_taskworker);
 }
 
 }  // namespace swoole
