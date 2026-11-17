@@ -100,13 +100,13 @@ void php_swoole_redis_server_rshutdown() {
 
 int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     auto fd = req->info.fd;
-    Connection *conn = serv->get_connection_by_session_id(fd);
-    if (!conn) {
+    Connection *conn = serv->get_connection_verify_no_ssl(fd);
+    ListenPort *port = conn ? serv->get_port_by_server_fd(conn->server_fd) : nullptr;
+    if (!port) {
         swoole_warning("connection[%ld] is closed", fd);
         return SW_ERR;
     }
 
-    ListenPort *port = serv->get_port_by_fd(conn->fd);
     // other server port
     if (!port->open_redis_protocol) {
         return php_swoole_server_onReceive(serv, req);

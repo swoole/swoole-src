@@ -553,12 +553,14 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
         }
 #ifndef _WIN32
         auto *serv = ctx->get_async_server();
-        Connection *conn = serv->get_connection_by_session_id(ctx->fd);
-        if (!conn) {
+        // The unverified lookup may return a recycled or already cleared slot (server_fd == 0) when the connection
+        // is closed concurrently, so verify the session and tolerate a missing port.
+        Connection *conn = serv->get_connection_verify_no_ssl(ctx->fd);
+        ListenPort *port = conn ? serv->get_port_by_server_fd(conn->server_fd) : nullptr;
+        if (!port) {
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
             return -1;
         }
-        ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port->open_websocket_protocol) {
             conn->websocket_status = swoole::websocket::STATUS_CONNECTION;
         }
