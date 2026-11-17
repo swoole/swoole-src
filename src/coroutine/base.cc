@@ -289,14 +289,16 @@ void Coroutine::set_on_close(const SwapCallback func) {
     on_close = func;
 }
 
+static void cannot_resume_after_bailout() {
+    // Expect that never here.
+    swoole_error("have been bailout, can not resume any coroutine");
+}
+
 void Coroutine::bailout(const BailoutCallback &func) {
     Coroutine *co = current;
     if (!co) {
         // marks that it can no longer resume any coroutine
-        static BailoutCallback fn = []() {
-            // expect that never here
-            swoole_error("have been bailout, can not resume any coroutine");
-        };
+        static BailoutCallback fn = cannot_resume_after_bailout;
         on_bailout = fn;
         return;
     }
