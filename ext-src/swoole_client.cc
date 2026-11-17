@@ -102,8 +102,8 @@ static PHP_METHOD(swoole_client, getSocket);
 #endif
 SW_EXTERN_C_END
 
-static uint32_t client_poll_add(const zval *sock_array, uint32_t index, pollfd *fds, int maxevents, int event);
-static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, int n_event, int revent);
+static uint32_t client_poll_add(const zval *sock_array, uint32_t index, pollfd *fds, int event);
+static int client_poll_wait(zval *sock_array, const pollfd *fds, uint32_t nfds, int n_event, int revent);
 
 Client *php_swoole_client_get_cli_safe(const zval *zobject) {
     Client *cli = php_swoole_client_get_cli(zobject);
@@ -1211,18 +1211,23 @@ PHP_FUNCTION(swoole_client_select) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
 
-    int maxevents = SW_MAX(SW_MAX(php_swoole_array_length_safe(r_array), php_swoole_array_length_safe(w_array)),
-                           php_swoole_array_length_safe(e_array));
+    // The three arrays are merged into one pollfd list, so the upper bound is the sum of their lengths.
+    size_t maxevents = (size_t) php_swoole_array_length_safe(r_array) + php_swoole_array_length_safe(w_array) +
+                       php_swoole_array_length_safe(e_array);
+    if (maxevents == 0) {
+        php_swoole_fatal_error(E_WARNING, "no resource arrays were passed to select");
+        RETURN_FALSE;
+    }
     auto *fds = static_cast<struct pollfd *>(ecalloc(maxevents, sizeof(struct pollfd)));
 
     if (r_array != nullptr && php_swoole_array_length(r_array) > 0) {
-        index = client_poll_add(r_array, index, fds, maxevents, POLLIN);
+        index = client_poll_add(r_array, index, fds, POLLIN);
     }
     if (w_array != nullptr && php_swoole_array_length(w_array) > 0) {
-        index = client_poll_add(w_array, index, fds, maxevents, POLLOUT);
+        index = client_poll_add(w_array, index, fds, POLLOUT);
     }
     if (e_array != nullptr && php_swoole_array_length(e_array) > 0) {
-        index = client_poll_add(e_array, index, fds, maxevents, POLLHUP);
+        index = client_poll_add(e_array, index, fds, POLLHUP);
     }
     if (index == 0) {
         efree(fds);
@@ -1231,7 +1236,7 @@ PHP_FUNCTION(swoole_client_select) {
     }
 
     do {
-        retval = poll(fds, maxevents, (int) (timeout * 1000));
+        retval = poll(fds, index, (int) (timeout * 1000));
     } while (retval < 0 && errno == EINTR);
 
     if (retval == -1) {
@@ -1241,20 +1246,20 @@ PHP_FUNCTION(swoole_client_select) {
     }
 
     if (r_array != nullptr && php_swoole_array_length(r_array) > 0) {
-        client_poll_wait(r_array, fds, maxevents, retval, POLLIN);
+        client_poll_wait(r_array, fds, index, retval, POLLIN);
     }
     if (w_array != nullptr && php_swoole_array_length(w_array) > 0) {
-        client_poll_wait(w_array, fds, maxevents, retval, POLLOUT);
+        client_poll_wait(w_array, fds, index, retval, POLLOUT);
     }
     if (e_array != nullptr && php_swoole_array_length(e_array) > 0) {
-        client_poll_wait(e_array, fds, maxevents, retval, POLLHUP);
+        client_poll_wait(e_array, fds, index, retval, POLLHUP);
     }
     efree(fds);
     RETURN_LONG(retval);
 }
 
-static inline int client_poll_get(const pollfd *fds, int maxevents, swSocketFd fd) {
-    for (int i = 0; i < maxevents; i++) {
+static inline int client_poll_get(const pollfd *fds, uint32_t nfds, swSocketFd fd) {
+    for (uint32_t i = 0; i < nfds; i++) {
         if (fds[i].fd == fd) {
             return i;
         }
@@ -1262,7 +1267,7 @@ static inline int client_poll_get(const pollfd *fds, int maxevents, swSocketFd f
     return -1;
 }
 
-static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, int n_event, int revent) {
+static int client_poll_wait(zval *sock_array, const pollfd *fds, uint32_t nfds, int n_event, int revent) {
     zval *element = nullptr;
 
     ulong_t num = 0;
@@ -1281,7 +1286,7 @@ static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, 
         if (sock < 0) {
             continue;
         }
-        int poll_key = client_poll_get(fds, maxevents, (swSocketFd) sock);
+        int poll_key = client_poll_get(fds, nfds, (swSocketFd) sock);
         if (poll_key == -1) {
             php_swoole_fatal_error(E_WARNING, "bad fd[%d]", sock);
             continue;
@@ -1306,22 +1311,19 @@ static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, 
     return num;
 }
 
-static uint32_t client_poll_add(const zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event) {
+static uint32_t client_poll_add(const zval *sock_array, uint32_t index, struct pollfd *fds, int event) {
     zval *element = nullptr;
     if (!ZVAL_IS_ARRAY(sock_array)) {
         return 0;
     }
-
-    int key = -1;
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
     int sock = php_swoole_convert_to_fd(element);
     if (sock < 0) {
         continue;
     }
-    if (event != POLLIN) {
-        key = client_poll_get(fds, maxevents, sock);
-    }
+    // Merge duplicates, so index never exceeds the sum of the array lengths.
+    int key = client_poll_get(fds, index, sock);
     if (key < 0) {
         fds[index].fd = (swSocketFd) sock;
         fds[index].events = event;
