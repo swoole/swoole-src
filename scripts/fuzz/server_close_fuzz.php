@@ -54,13 +54,19 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
 {
     // Settings are derived from the seed so a failing configuration can be replayed.
     mt_srand($seed);
-    $worker_num = mt_rand(1, 4);
+    $worker_num = mt_rand(1, 4);  // keep the process count small: the fuzzer must not exhaust the host
     $max_request = pick([0, 0, mt_rand(100, 2000)]);
     $dispatch_mode = $mode === SWOOLE_PROCESS ? pick([1, 2, 4]) : 1;
     $out_size = pick([4096, 64 * 1024, 256 * 1024]);
     $sock_buf = pick([4096, 16 * 1024, 64 * 1024, 256 * 1024]);
+    $task_num = pick([0, 0, 1, 2]);
+    // dispatch_mode 1/3 in process mode has no onConnect, so a delayed connection could never be confirmed
+    $delay_receive = mt_rand(0, 3) === 0 && !($mode === SWOOLE_PROCESS && in_array($dispatch_mode, [1, 3], true));
+    $ssl_port = $http_port + 400;
+    $use_ssl = defined('SWOOLE_SSL');
     echo "settings: worker_num=$worker_num max_request=$max_request dispatch_mode=$dispatch_mode " .
-        "buffer_output_size=$out_size socket_buffer_size=$sock_buf\n";
+        "buffer_output_size=$out_size socket_buffer_size=$sock_buf task_worker_num=$task_num delay_receive=" .
+        (int) $delay_receive . "\n";
 
     $server = new Server('127.0.0.1', $http_port, $mode);
     $server->set([
@@ -69,6 +75,8 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
         'dispatch_mode' => $dispatch_mode,
         'reload_async' => (bool) mt_rand(0, 1),
         'send_timeout' => mt_rand(1, 3),
+        'task_worker_num' => $task_num,
+        'enable_delay_receive' => $delay_receive,
         'log_file' => $logfile,
         'log_level' => SWOOLE_LOG_WARNING,
         'open_websocket_close_frame' => true,
@@ -94,8 +102,32 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
         'open_websocket_protocol' => false,
     ]);
 
-    $chaos = function (Server $server, int $fd, string $payload) use ($bigfile) {
-        switch (mt_rand(0, 9)) {
+    $server->listen('127.0.0.1', $http_port + 800, SWOOLE_SOCK_TCP);  // health probe port, always confirmed
+
+    if ($use_ssl) {
+        $ssl = $server->listen('127.0.0.1', $ssl_port, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+        $ssl->set([
+            'ssl_cert_file' => __DIR__ . '/../../examples/ssl/ssl.crt',
+            'ssl_key_file' => __DIR__ . '/../../examples/ssl/ssl.key',
+            'open_http_protocol' => true,
+            'open_websocket_protocol' => true,
+        ]);
+    }
+
+    $chaos = function (Server $server, int $fd, string $payload) use ($bigfile, $task_num, $worker_num) {
+        switch (mt_rand(0, 12)) {
+        case 10:
+            if ($task_num > 0) {
+                $server->task(['fd' => $fd, 'op' => mt_rand(0, 3)]);
+            }
+            break;
+        case 11:
+            $server->sendMessage(json_encode(['fd' => $fd, 'op' => mt_rand(0, 2)]), mt_rand(0, $worker_num - 1));
+            break;
+        case 12:
+            $server->close($fd);
+            $server->close($fd);
+            break;
         case 0:
             $server->close($fd);
             break;
@@ -210,11 +242,78 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
         $chaos($server, $fd, pack('N', 4) . 'pong');
     });
 
+    $server->on('task', function (Server $server, int $task_id, int $src_worker_id, $data) {
+        usleep(mt_rand(0, 3000));
+        switch ($data['op']) {
+        case 0:
+            $server->close($data['fd'], (bool) mt_rand(0, 1));
+            break;
+        case 1:
+            $server->send($data['fd'], 'from-task');
+            break;
+        case 2:
+            $server->send($data['fd'], 'from-task');
+            $server->close($data['fd']);
+            break;
+        default:
+            $server->exist($data['fd']);
+        }
+        $server->finish('done');
+    });
+    $server->on('finish', function () {
+    });
+    $server->on('pipeMessage', function (Server $server, int $src_worker_id, $message) {
+        $m = json_decode($message, true);
+        if (!$m) {
+            return;
+        }
+        if ($m['op'] === 0) {
+            $server->close($m['fd']);
+        } elseif ($m['op'] === 1) {
+            $server->send($m['fd'], 'from-pipe');
+        } else {
+            $server->getClientInfo($m['fd']);
+        }
+    });
+    if ($delay_receive) {
+        $server->on('connect', function (Server $server, int $fd) use ($http_port) {
+            $info = $server->getClientInfo($fd);
+            if ($info && $info['server_port'] === $http_port + 800) {
+                $server->confirm($fd);
+                return;
+            }
+            switch (mt_rand(0, 4)) {
+            case 0:
+                $server->confirm($fd);
+                break;
+            case 1:
+                Swoole\Timer::after(mt_rand(1, 20), function () use ($server, $fd) {
+                    $server->confirm($fd);
+                });
+                break;
+            case 2:
+                Swoole\Timer::after(mt_rand(1, 20), function () use ($server, $fd) {
+                    $server->close($fd);
+                    $server->confirm($fd);
+                });
+                break;
+            case 3:
+                $server->close($fd);
+                break;
+            default:  // never confirmed; the client or the heartbeat has to end it
+            }
+        });
+    }
+
     $server->on('workerStart', function (Server $server, int $wid) use ($pidfile) {
         file_put_contents($pidfile, getmypid() . "\n", FILE_APPEND);
         mt_srand(crc32("worker$wid") ^ (int) (microtime(true) * 1000));
         // Server-side random closes of live connections, racing with client activity.
         Swoole\Timer::tick(mt_rand(5, 20), function () use ($server) {
+            if (mt_rand(0, 20) === 0) {
+                $server->stats();
+                $server->getClientList(0, 20);
+            }
             foreach ($server->connections as $fd) {
                 if (mt_rand(0, 40) === 0) {
                     $server->close($fd, (bool) mt_rand(0, 1));
@@ -224,6 +323,31 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
     });
 
     $server->start();
+}
+
+// Resident memory (MB), process and thread count of the server and all its descendants.
+function tree_usage(int $root): array
+{
+    $parent = [];
+    foreach (glob('/proc/[0-9]*', GLOB_ONLYDIR) as $dir) {
+        $stat = @file_get_contents("$dir/stat");
+        if ($stat !== false && preg_match('/^(\d+) \(.*\) \S (\d+)/s', $stat, $m)) {
+            $parent[(int) $m[1]] = (int) $m[2];
+        }
+    }
+    $rss = $procs = $threads = 0;
+    foreach ($parent as $pid => $ppid) {
+        for ($p = $pid, $i = 0; $p > 1 && $i < 32; $p = $parent[$p] ?? 0, $i++) {
+            if ($p === $root) {
+                $statm = @file_get_contents("/proc/$pid/statm");
+                $rss += $statm ? (int) explode(' ', $statm)[1] * 4 / 1024 : 0;
+                $procs++;
+                $threads += count(@scandir("/proc/$pid/task") ?: []) - 2;
+                break;
+            }
+        }
+    }
+    return [(int) $rss, $procs, $threads];
 }
 
 function ws_frame(int $opcode, string $payload, bool $mask = true, bool $fin = true): string
@@ -399,9 +523,59 @@ function finish(Socket $sock): void
     }
 }
 
+// TLS clients: complete or abort the handshake at random points and drop the connection abruptly.
+function ssl_client(int $port, array &$stat): void
+{
+    switch (mt_rand(0, 3)) {
+    case 0:  // garbage instead of a ClientHello
+        $sock = new Socket(AF_INET, SOCK_STREAM, 0);
+        if (!$sock->connect('127.0.0.1', $port, 1)) {
+            $stat['connect_fail']++;
+            return;
+        }
+        $stat['connected']++;
+        send_fragmented($sock, pick(["\x16\x03\x01\x00\x10", "\x16\x03\x03\xff\xff", '', "GET / HTTP/1.1\r\n\r\n"]) . random_bytes(mt_rand(0, 300)));
+        finish($sock);
+        return;
+    case 1:  // connect and leave without a handshake
+        $sock = new Socket(AF_INET, SOCK_STREAM, 0);
+        if (!$sock->connect('127.0.0.1', $port, 1)) {
+            $stat['connect_fail']++;
+            return;
+        }
+        $stat['connected']++;
+        finish($sock);
+        return;
+    }
+    $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL);
+    $cli->set(['ssl_verify_peer' => false, 'timeout' => 1]);
+    if (!$cli->connect('127.0.0.1', $port, 1)) {
+        $stat['connect_fail']++;
+        return;
+    }
+    $stat['connected']++;
+    if (mt_rand(0, 1)) {
+        $cli->send(http_payload('/ssl'));
+    } else {
+        $cli->send(ws_handshake());
+        $cli->recv(0.2);
+        $cli->send(ws_payload());
+    }
+    if (mt_rand(0, 1)) {
+        $cli->recv(0.02);
+    }
+    $cli->close();
+}
+
 function one_client(int $http_port, int $tcp_port, array &$stat): void
 {
-    $kind = mt_rand(0, 3);
+    $kind = mt_rand(0, 4);
+    if ($kind === 4) {
+        if (defined('SWOOLE_SSL')) {
+            ssl_client($http_port + 400, $stat);
+        }
+        return;
+    }
     $sock = new Socket(AF_INET, SOCK_STREAM, 0);
     if (!$sock->connect('127.0.0.1', $kind === 3 ? $tcp_port : $http_port, 1)) {
         $stat['connect_fail']++;
@@ -471,7 +645,7 @@ run(function () use ($duration, $http_port, $tcp_port, &$stat, $server_pid, &$fa
     $end = microtime(true) + $duration;
     $concurrency = 32;
     $running = 0;
-    $last_health = microtime(true);
+    $last_health = $last_usage = microtime(true);
     while (microtime(true) < $end) {
         while ($running < $concurrency) {
             $running++;
@@ -499,6 +673,17 @@ run(function () use ($duration, $http_port, $tcp_port, &$stat, $server_pid, &$fa
                 $stat['kill_worker']++;
             }
         }
+        // Safety net so a runaway server cannot exhaust the machine.
+        if (microtime(true) - $last_usage > 1) {
+            $last_usage = microtime(true);
+            [$rss, $procs, $threads] = tree_usage($server_pid);
+            if ($rss > 3072 || $procs > 24 || $threads > 400) {
+                echo "FAIL: resource limit exceeded (rss={$rss}MB procs=$procs threads=$threads)\n";
+                Process::kill($server_pid, SIGKILL);
+                $failed = true;
+                return;
+            }
+        }
         if (microtime(true) - $last_health > 2) {
             $last_health = microtime(true);
             if ($stat['connected'] === 0 && $stat['connect_fail'] > 500) {
@@ -518,7 +703,7 @@ run(function () use ($duration, $http_port, $tcp_port, &$stat, $server_pid, &$fa
                 $failed = true;
                 return;
             }
-            if (!healthy($http_port)) {
+            if (!healthy($http_port + 800)) {
                 $stat['health_fail']++;
                 echo "WARN: health probe failed\n";
             }
@@ -527,10 +712,10 @@ run(function () use ($duration, $http_port, $tcp_port, &$stat, $server_pid, &$fa
     while ($running > 0) {
         Coroutine::sleep(0.05);
     }
-    for ($i = 0; $i < 5 && !healthy($http_port); $i++) {
+    for ($i = 0; $i < 5 && !healthy($http_port + 800); $i++) {
         Coroutine::sleep(0.5);
     }
-    if (!healthy($http_port)) {
+    if (!healthy($http_port + 800)) {
         echo "FAIL: server does not answer after the run\n";
         $failed = true;
     }
