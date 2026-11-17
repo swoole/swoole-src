@@ -192,8 +192,9 @@ _read_from_pipe:
         swoole_warning("receive pipeline data error, pipe_fd=%d, reactor_id=%d", sock->get_fd(), info->reactor_id);
         return SW_ERR;
     }
-    if (recv_n < 0 && sock->catch_read_error(errno) == SW_WAIT) {
-        return SW_OK;
+    if (recv_n < 0) {
+        // A failed read must not be treated as the arrival of the chunk that was peeked.
+        return sock->catch_read_error(errno) == SW_WAIT ? SW_OK : SW_ERR;
     }
     if (recv_n > 0) {
         packet_buffer->length += (recv_n - sizeof(buffer_->info));
