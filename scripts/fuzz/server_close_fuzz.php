@@ -2,7 +2,7 @@
 /**
  * Randomized close/timing fuzzer for Swoole\WebSocket\Server (HTTP + WebSocket + length-protocol TCP).
  *
- * Usage: php -d extension=modules/swoole.so scripts/fuzz/server_close_fuzz.php [seconds=30] [seed=random] [mode=process|base]
+ * Usage: php -d extension=modules/swoole.so scripts/fuzz/server_close_fuzz.php [seconds=30] [seed=random] [mode=process|base|thread]
  *
  * The server handlers randomly close/send/push/sendfile/pause at arbitrary times, while the clients send valid,
  * truncated, mutated and fragmented payloads and drop connections in several ways (FIN, RST, half-close,
@@ -17,18 +17,27 @@ use Swoole\WebSocket\Server;
 
 use function Swoole\Coroutine\run;
 
+// In thread mode every worker thread re-executes this script, so rebuild the server from the environment.
+if (class_exists(Swoole\Thread::class) && Swoole\Thread::getArguments() !== null) {
+    $cfg = json_decode(getenv('SWOOLE_CLOSE_FUZZ'), true);
+    server_main($cfg['http_port'], $cfg['tcp_port'], SWOOLE_THREAD, $cfg['logfile'], $cfg['bigfile'], $cfg['seed'], $cfg['pidfile']);
+    return;
+}
+
 $duration = (int) ($argv[1] ?? 30);
 $seed = isset($argv[2]) && $argv[2] !== 'random' ? (int) $argv[2] : random_int(1, PHP_INT_MAX >> 1);
-$mode = ($argv[3] ?? 'process') === 'base' ? SWOOLE_BASE : SWOOLE_PROCESS;
+$mode_name = $argv[3] ?? 'process';
+$mode = ['base' => SWOOLE_BASE, 'thread' => SWOOLE_THREAD][$mode_name] ?? SWOOLE_PROCESS;
 $workdir = sys_get_temp_dir() . '/swoole_close_fuzz_' . getmypid();
 @mkdir($workdir);
 $logfile = "$workdir/server.log";
 $bigfile = "$workdir/big.bin";
+$pidfile = "$workdir/worker.pids";
 file_put_contents($bigfile, random_bytes(1 << 20));
 $http_port = 19600 + getmypid() % 200;
 $tcp_port = $http_port + 200;
 
-echo "seed=$seed duration={$duration}s mode=", $mode === SWOOLE_BASE ? 'base' : 'process',
+echo "seed=$seed duration={$duration}s mode=", $mode_name,
     " ports=$http_port,$tcp_port log=$logfile\n";
 
 function pick(array $items)
@@ -41,20 +50,37 @@ function pick_close_code(): int
     return pick([1000, 1001, 1002, 1003, 1007, 1008, 1009, 1011, 4000]);
 }
 
-function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, string $bigfile): void
+function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, string $bigfile, int $seed, string $pidfile): void
 {
+    // Settings are derived from the seed so a failing configuration can be replayed.
+    mt_srand($seed);
+    $worker_num = mt_rand(1, 4);
+    $max_request = pick([0, 0, mt_rand(100, 2000)]);
+    $dispatch_mode = $mode === SWOOLE_PROCESS ? pick([1, 2, 4]) : 1;
+    $out_size = pick([4096, 64 * 1024, 256 * 1024]);
+    $sock_buf = pick([4096, 16 * 1024, 64 * 1024, 256 * 1024]);
+    echo "settings: worker_num=$worker_num max_request=$max_request dispatch_mode=$dispatch_mode " .
+        "buffer_output_size=$out_size socket_buffer_size=$sock_buf\n";
+
     $server = new Server('127.0.0.1', $http_port, $mode);
     $server->set([
-        'worker_num' => 2,
+        'worker_num' => $worker_num,
+        'max_request' => $max_request,
+        'dispatch_mode' => $dispatch_mode,
+        'reload_async' => (bool) mt_rand(0, 1),
+        'send_timeout' => mt_rand(1, 3),
         'log_file' => $logfile,
         'log_level' => SWOOLE_LOG_WARNING,
         'open_websocket_close_frame' => true,
         'heartbeat_idle_time' => 6,
         'heartbeat_check_interval' => 2,
-        'buffer_output_size' => 256 * 1024,
-        'socket_buffer_size' => 64 * 1024,
-        'send_yield' => true,
+        'buffer_output_size' => $out_size,
+        'socket_buffer_size' => $sock_buf,
+        'send_yield' => in_array($dispatch_mode, [2, 4], true) && $mode === SWOOLE_PROCESS,
         'enable_coroutine' => true,
+        'init_arguments' => function () {
+            return [1];
+        },
     ]);
 
     $tcp = $server->listen('127.0.0.1', $tcp_port, SWOOLE_SOCK_TCP);
@@ -184,7 +210,8 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
         $chaos($server, $fd, pack('N', 4) . 'pong');
     });
 
-    $server->on('workerStart', function (Server $server, int $wid) {
+    $server->on('workerStart', function (Server $server, int $wid) use ($pidfile) {
+        file_put_contents($pidfile, getmypid() . "\n", FILE_APPEND);
         mt_srand(crc32("worker$wid") ^ (int) (microtime(true) * 1000));
         // Server-side random closes of live connections, racing with client activity.
         Swoole\Timer::tick(mt_rand(5, 20), function () use ($server) {
@@ -419,8 +446,9 @@ function healthy(int $port): bool
     return $ok;
 }
 
-$server_process = new Process(function () use ($http_port, $tcp_port, $mode, $logfile, $bigfile) {
-    server_main($http_port, $tcp_port, $mode, $logfile, $bigfile);
+putenv('SWOOLE_CLOSE_FUZZ=' . json_encode(compact('http_port', 'tcp_port', 'logfile', 'bigfile', 'seed', 'pidfile')));
+$server_process = new Process(function () use ($http_port, $tcp_port, $mode, $logfile, $bigfile, $seed, $pidfile) {
+    server_main($http_port, $tcp_port, $mode, $logfile, $bigfile, $seed, $pidfile);
 }, false, 0, false);
 $server_process->start();
 $server_pid = $server_process->pid;
@@ -436,10 +464,10 @@ while (microtime(true) < $deadline) {
 }
 
 mt_srand($seed);
-$stat = ['connected' => 0, 'connect_fail' => 0, 'health_fail' => 0, 'exceptions' => 0];
+$stat = ['connected' => 0, 'connect_fail' => 0, 'health_fail' => 0, 'exceptions' => 0, 'reload' => 0, 'kill_worker' => 0];
 $failed = false;
 
-run(function () use ($duration, $http_port, $tcp_port, &$stat, $server_pid, &$failed) {
+run(function () use ($duration, $http_port, $tcp_port, &$stat, $server_pid, &$failed, $pidfile, $mode_name, $logfile) {
     $end = microtime(true) + $duration;
     $concurrency = 32;
     $running = 0;
@@ -458,8 +486,33 @@ run(function () use ($duration, $http_port, $tcp_port, &$stat, $server_pid, &$fa
             });
         }
         Coroutine::sleep(0.002);
+        // Occasionally reload the server or SIGKILL a worker while connections are in flight.
+        $dice = mt_rand(0, 4000);
+        if ($dice === 0) {
+            Process::kill($server_pid, SIGUSR1);
+            $stat['reload']++;
+        } elseif ($dice === 1 && $mode_name !== 'thread') {
+            $pids = array_filter(array_map('intval', @file($pidfile) ?: []));
+            $victim = $pids ? pick(array_slice($pids, -4)) : 0;
+            if ($victim > 1 && $victim !== $server_pid && Process::kill($victim, 0)) {
+                Process::kill($victim, SIGKILL);
+                $stat['kill_worker']++;
+            }
+        }
         if (microtime(true) - $last_health > 2) {
             $last_health = microtime(true);
+            if ($stat['connected'] === 0 && $stat['connect_fail'] > 500) {
+                echo "FAIL: server never accepted a connection\n";
+                $failed = true;
+                return;
+            }
+            clearstatcache(true, $logfile);
+            // A spinning event loop floods the log (and the disk) within seconds.
+            if (@filesize($logfile) > 256 << 20) {
+                echo "FAIL: server log exceeds 256MB (event loop spinning?)\n";
+                $failed = true;
+                return;
+            }
             if (!Process::kill($server_pid, 0)) {
                 echo "FAIL: server master is gone\n";
                 $failed = true;
@@ -505,7 +558,12 @@ if (!$status) {
 }
 
 $log = @file_get_contents($logfile) ?: '';
-foreach (['abnormal exit', 'Segmentation', 'SIGSEGV', 'Aborted', 'AddressSanitizer', 'Assertion', 'double free', 'corrupt'] as $marker) {
+// Workers deliberately SIGKILLed by the driver are expected to be reported.
+if (preg_match('/abnormal exit, status=\d+, signal=(?!9\b)\d+/', $log)) {
+    echo "FAIL: log contains 'abnormal exit'\n";
+    $failed = true;
+}
+foreach (['Segmentation', 'SIGSEGV', 'Aborted', 'AddressSanitizer', 'Assertion', 'double free', 'corrupt'] as $marker) {
     if (stripos($log, $marker) !== false) {
         echo "FAIL: log contains '$marker'\n";
         $failed = true;
