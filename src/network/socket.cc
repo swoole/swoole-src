@@ -450,20 +450,28 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
     return rv ? bytes : -1;
 }
 
+void Socket::close_fd() {
+    if (fd == SW_BAD_SOCKET) {
+        return;
+    }
+    // Resolve the bound UNIX path before invalidating the descriptor.
+    if (is_local() && bound && get_name() == SW_OK && *get_addr()) {
+        ::unlink(get_addr());
+    }
+#ifdef _WIN32
+    int result = Iocp::close(fd);
+#else
+    int result = sw_close_socket(fd);
+#endif
+    if (result != 0) {
+        swoole_sys_warning("close(%d) failed", (int) fd);
+    }
+    fd = SW_BAD_SOCKET;
+}
+
 static void socket_free_defer(void *ptr) {
     auto *sock = static_cast<Socket *>(ptr);
-    if (sock->is_local() && sock->bound && sock->get_name() == SW_OK && *sock->get_addr()) {
-        ::unlink(sock->get_addr());
-    }
-    if (sock->fd != SW_BAD_SOCKET &&
-#ifdef _WIN32
-        Iocp::close(sock->fd) != 0
-#else
-        close(sock->fd) != 0
-#endif
-    ) {
-        swoole_sys_warning("close(%d) failed", sock->fd);
-    }
+    sock->close_fd();
     delete sock;
 }
 

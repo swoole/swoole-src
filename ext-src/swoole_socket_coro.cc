@@ -1903,7 +1903,10 @@ static PHP_METHOD(swoole_socket_coro, close) {
         ZVAL_UNDEF(&sock->zstream);
         sock->socket->move_fd();
     } else {
-        sock->socket->close();
+        // Cancellation resumes bound coroutines synchronously; finish closing after they have left.
+        if (!sock->socket->close() && !sock->socket->is_closed() && !sock->socket->has_bound()) {
+            sock->socket->close();
+        }
     }
     RETURN_TRUE;
 }

@@ -1697,15 +1697,8 @@ bool Socket::close() {
             swoole_event_del(socket);
         }
         // Close only this descriptor. shutdown() would affect all duplicated owners.
-        swSocketFd fd = move_fd();
-#ifdef _WIN32
-        int result = Iocp::close(fd);
-#else
-        int result = sw_close_socket(fd);
-#endif
-        if (result != 0) {
-            swoole_sys_warning("close(%d) failed", (int) fd);
-        }
+        sock_fd = SW_BAD_SOCKET;
+        socket->close_fd();
         if (dtor_ != nullptr) {
             auto dtor = dtor_;
             dtor_ = nullptr;
@@ -1739,6 +1732,13 @@ Socket::~Socket() {
     /* {{{ release socket resources */
     if (socket->ssl) {
         ssl_close();
+    }
+    // A hooked fclose() may only cancel pending I/O; release its fd when the last operation returns.
+    if (socket->close_wait) {
+        if (swoole_event_is_available() && !socket->removed) {
+            swoole_event_del(socket);
+        }
+        socket->close_fd();
     }
     socket->free();
 }
