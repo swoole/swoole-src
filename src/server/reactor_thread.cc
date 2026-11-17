@@ -745,11 +745,6 @@ void Server::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_SESSION, SW_EVENT_WRITE, ReactorThread_onWrite);
     // Read
     reactor->set_handler(SW_FD_SESSION, SW_EVENT_READ, ReactorThread_onRead);
-
-    // listen the all tcp port
-    for (auto port : ports) {
-        port->init_protocol();
-    }
 }
 
 static int ReactorThread_onRead(Reactor *reactor, Event *event) {

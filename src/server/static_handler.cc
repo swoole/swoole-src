@@ -117,23 +117,23 @@ bool StaticHandler::is_modified_range(const std::string &date_range) const {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
     time_t file_mtime = get_file_mtime();
-    tm *tm_file_mtime = gmtime(&file_mtime);
-    return date_format && mktime(&tm3) != mktime(tm_file_mtime);
+    tm tm_file_mtime = get_utc_tm(file_mtime);
+    return date_format && mktime(&tm3) != mktime(&tm_file_mtime);
 }
 
 std::string StaticHandler::get_date() {
     char date_[64];
     time_t now = ::time(nullptr);
-    tm *tm1 = gmtime(&now);
-    strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
+    tm tm1 = get_utc_tm(now);
+    strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", &tm1);
     return date_;
 }
 
 std::string StaticHandler::get_date_last_modified() const {
     char date_last_modified[64];
     time_t file_mtime = get_file_mtime();
-    tm *tm2 = gmtime(&file_mtime);
-    strftime(date_last_modified, sizeof(date_last_modified), "%a, %d %b %Y %H:%M:%S %Z", tm2);
+    tm tm2 = get_utc_tm(file_mtime);
+    strftime(date_last_modified, sizeof(date_last_modified), "%a, %d %b %Y %H:%M:%S %Z", &tm2);
     return date_last_modified;
 }
 
