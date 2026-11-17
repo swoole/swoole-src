@@ -30,11 +30,16 @@ fi
 echo 'swoole_ssh2_truncated_scp_user:swoole_ssh2_truncated_scp_pass' | chpasswd
 install -m 0555 ./truncated_scp_server.sh /usr/local/bin/swoole-truncated-scp-server
 mkdir -p /etc/ssh/sshd_config.d
-printf '%s\n' 'AcceptEnv SWOOLE_TEST_*' 'PasswordAuthentication yes' > /etc/ssh/sshd_config.d/swoole-tests.conf
+printf '%s\n' 'AcceptEnv SWOOLE_TEST_*' 'PasswordAuthentication yes' 'AllowTcpForwarding yes' \
+    > /etc/ssh/sshd_config.d/swoole-tests.conf
 printf '%s\n' 'Match User swoole_ssh2_truncated_scp_user' \
     '    ForceCommand /usr/local/bin/swoole-truncated-scp-server' >> /etc/ssh/sshd_config.d/swoole-tests.conf
 mkdir -p /run/sshd
 sshd -t || { echo 'sshd configuration is invalid'; exit 1; }
+sshd -T -C user=swoole_ssh2_test_user,host=localhost,addr=127.0.0.1 | grep -qx 'allowtcpforwarding yes' || {
+    echo 'SSH forwarding is disabled for the SSH2 test user'
+    exit 1
+}
 service ssh start
 
 # MariaDB ODBC Connector

@@ -4,6 +4,7 @@ swoole_thread: shell_exec works while the main thread holds a signal listener
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_nts();
+skip_if_class_not_exist(Swoole\Process::class);
 ?>
 --FILE--
 <?php

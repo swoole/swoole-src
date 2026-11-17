@@ -642,6 +642,14 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
     char *colon;
     char *host = nullptr;
 
+    // Match PHP's native transport parser before C string consumers can truncate the address.
+    if (UNEXPECTED(memchr(str, '\0', str_len))) {
+        if (get_err) {
+            *err = ZSTR_INIT_LITERAL("The hostname must not contain null bytes", 0);
+        }
+        return nullptr;
+    }
+
     if (*(str) == '[' && str_len > 1) {
         /* IPV6 notation to specify raw address with port (i.e. [fe80::1]:80) */
         char *p = (char *) memchr(str + 1, ']', str_len - 2);

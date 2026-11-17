@@ -39,6 +39,11 @@ static void Stream_onConnect(Client *cli) {
 
 static void Stream_onError(Client *cli) {
     auto *stream = static_cast<Stream *>(cli->object);
+    // connect() may invoke this callback before the Stream constructor returns.
+    // Leave synchronous failures to create(); its unique_ptr must not receive a deleted object.
+    if (!stream->connected) {
+        return;
+    }
     stream->errCode = swoole_get_last_error();
 
     swoole_error_log(SW_LOG_WARNING,

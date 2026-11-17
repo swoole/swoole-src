@@ -4,7 +4,8 @@ swoole_thread: proc_open works in another thread while the main thread holds a s
 <?php
 require __DIR__ . '/../include/skipif.inc';
 skip_if_nts();
-if (!function_exists('proc_open')) exit('skip proc_open() is not available');
+skip_if_class_not_exist(Swoole\Process::class);
+skip_if_function_not_exist('proc_open');
 ?>
 --FILE--
 <?php
