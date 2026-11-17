@@ -36,8 +36,10 @@ static json get_socket_info(int fd);
 #endif
 
 static std::string handle_get_all_unix_sockets(Server *_server, const std::string &msg) {
-    auto _result = json::parse(msg);
-    if (!_result.is_object() || _result.find("type") == _result.end()) {
+    // Command payloads are input, not trusted C++ objects. Reject malformed JSON and wrong
+    // field types before conversion so json exceptions cannot escape the reactor/manager loop.
+    auto _result = json::parse(msg, nullptr, false);
+    if (!_result.is_object() || _result.find("type") == _result.end() || !_result["type"].is_string()) {
         json return_value{
             {"data", "require parameter type"},
             {"code", 4003},
@@ -207,8 +209,8 @@ static json get_connection_info(Server *serv, Connection *conn) {
 }
 
 static std::string handle_get_socket_info(Server *serv, const std::string &msg) {
-    auto _result = json::parse(msg);
-    if (!_result.is_object() || _result.find("fd") == _result.end()) {
+    auto _result = json::parse(msg, nullptr, false);
+    if (!_result.is_object() || _result.find("fd") == _result.end() || !_result["fd"].is_string()) {
         json return_value{
             {"data", "require parameter fd"},
             {"code", 4003},
@@ -311,8 +313,8 @@ static std::string handle_get_connections(Server *serv, const std::string &msg) 
 }
 
 static std::string handle_get_connection_info(Server *serv, const std::string &msg) {
-    auto _result = json::parse(msg);
-    if (!_result.is_object() || _result.find("session_id") == _result.end()) {
+    auto _result = json::parse(msg, nullptr, false);
+    if (!_result.is_object() || _result.find("session_id") == _result.end() || !_result["session_id"].is_string()) {
         json return_value{
             {"data", "require parameter session_id"},
             {"code", 4003},

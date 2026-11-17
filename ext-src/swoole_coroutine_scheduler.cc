@@ -109,18 +109,25 @@ void php_swoole_coroutine_scheduler_minit(int module_number) {
 static zend::Callable *exit_condition_fci_cache = nullptr;
 
 static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &event_num) {
-    zval retval;
-
     SW_ASSERT(exit_condition_fci_cache);
-    ZVAL_NULL(&retval);
-    int success = sw_zend_call_function_ex(nullptr, exit_condition_fci_cache->ptr(), 0, nullptr, &retval);
-    if (UNEXPECTED(success != SUCCESS)) {
-        php_swoole_fatal_error(E_ERROR, "Coroutine can_exit callback handler error");
-    }
+    bool can_exit;
+    do {
+        // The explicit return value belongs to this caller, including refcounted non-bool results.
+        zend::Variable retval;
+        int success = sw_zend_call_function_ex(nullptr, exit_condition_fci_cache->ptr(), 0, nullptr, retval.ptr());
+        if (UNEXPECTED(success != SUCCESS)) {
+            php_swoole_fatal_error(E_ERROR, "Coroutine can_exit callback handler error");
+        }
+        if (UNEXPECTED(EG(exception))) {
+            sw_zend_exception_error(EG(exception), E_ERROR);
+        }
+        can_exit = Z_TYPE(retval.value) != IS_FALSE;
+    } while (0);
+    // Destroying a returned object may itself execute PHP and throw.
     if (UNEXPECTED(EG(exception))) {
         sw_zend_exception_error(EG(exception), E_ERROR);
     }
-    return Z_TYPE_P(&retval) != IS_FALSE;
+    return can_exit;
 }
 
 void php_swoole_coroutine_scheduler_rshutdown() {
