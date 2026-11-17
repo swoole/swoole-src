@@ -132,6 +132,13 @@ _do_recv:
         recv_size = buffer->offset - buffer->length;
     } else {
         recv_size = package_length_offset + _package_length_size;
+        if (sw_unlikely(buffer->size < recv_size)) {
+            buffer->extend(recv_size);
+        }
+        // A partially received header must not make the read run past the end of the buffer.
+        if (sw_unlikely(buffer->length + recv_size > buffer->size)) {
+            recv_size = buffer->size - buffer->length;
+        }
     }
 
     recv_n = socket->recv(buffer->str + buffer->length, recv_size, 0);
