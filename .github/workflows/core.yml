@@ -66,10 +66,14 @@ jobs:
 
       - name: run coverage
         shell: bash
-        run: sudo apt-get install lcov &&
-          sudo lcov --directory . --capture --branch-coverage --rc geninfo_unexecuted_blocks=1 --ignore-errors mismatch --output-file coverage.info &&
-          sudo lcov --remove coverage.info '/usr/*' --output-file coverage.info &&
-          sudo lcov --list coverage.info
+        run: |
+          sudo apt-get install -y lcov
+          # lcov recognizes uncalled lambdas sharing an executed declaration line by their demangled names.
+          # Use the same options when capturing and reading the tracefile, preserving consistency checks.
+          lcov_options=(--branch-coverage --demangle-cpp --ignore-errors mismatch)
+          sudo lcov "${lcov_options[@]}" --directory . --capture --exclude '/usr/*' \
+            --rc geninfo_unexecuted_blocks=1 --output-file coverage.info
+          sudo lcov "${lcov_options[@]}" --list coverage.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
