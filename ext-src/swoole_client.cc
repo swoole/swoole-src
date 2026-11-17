@@ -916,7 +916,7 @@ static PHP_METHOD(swoole_client, recv) {
         String *buffer = cli->buffer;
 
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
-        if (header_len > buffer->size) {
+        if (sw_unlikely(header_len > buffer->size)) {
             buffer->extend(header_len);
         }
 
