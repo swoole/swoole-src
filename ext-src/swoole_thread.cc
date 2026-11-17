@@ -241,6 +241,16 @@ static PHP_METHOD(swoole_thread, __construct) {
     }
 
     zend_string *file = zend_string_init(script_file, l_script_file, true);
+    bool transferred = false;
+    ON_SCOPE_EXIT {
+        // A successful start transfers both resources to the new thread.
+        if (!transferred) {
+            zend_string_release(file);
+            if (argv) {
+                argv->del_ref();
+            }
+        }
+    };
 
     if (argc > 0) {
         argv = new ZendArray();
@@ -256,6 +266,7 @@ static PHP_METHOD(swoole_thread, __construct) {
         return;
     }
 
+    transferred = true;
     pt->constructed = true;
     zend::object_set(ZEND_THIS, ZEND_STRL("id"), (zend_long) pt->thread->get_id());
 }
@@ -601,6 +612,9 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
 #endif
     zend_file_handle file_handle{};
     zval global_argc, global_argv;
+    // Script execution may longjmp out of zend_first_try after the arguments were released.
+    // Keep this cleanup marker volatile so its value remains defined after a PHP bailout.
+    ZendArray *volatile pending_argv = argv;
 
     PG(expose_php) = false;
     PG(auto_globals_jit) = true;
@@ -638,6 +652,7 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
         if (argv) {
             argv->to_array(&thread_argv);
             argv->del_ref();
+            pending_argv = nullptr;
         }
         thread_register_stdio_file_handles(true);
         php_execute_script(&file_handle);
@@ -651,6 +666,9 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
     thread_unregister_stdio_file_handles();
 
 _startup_error:
+    if (pending_argv) {
+        pending_argv->del_ref();
+    }
     zend_string_release(file);
     thread->exit(EG(exit_status));
     swoole_thread_clean(false);
