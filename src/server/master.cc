@@ -881,6 +881,10 @@ int Server::start() {
         size_t n = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, "%d", getpid());
         file_put_contents(pid_file, sw_tg_buffer()->str, n);
     }
+    // Ports are shared by all reactor threads, so initialize their protocol once before any of them starts.
+    for (auto port : ports) {
+        port->init_protocol();
+    }
     int ret;
     if (is_base_mode()) {
         ret = start_reactor_processes();
