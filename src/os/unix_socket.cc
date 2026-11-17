@@ -24,7 +24,13 @@ UnixSocket::UnixSocket(bool blocking, int _protocol) : SocketPair(blocking), pro
         return;
     }
     init_socket(socks[1], socks[0]);
-    set_buffer_size(network::Socket::default_buffer_size);
+    size_t size = network::Socket::default_buffer_size;
+    // A datagram larger than the send buffer fails with EMSGSIZE forever, so the buffer must hold the largest IPC
+    // datagram (SW_IPC_BUFFER_MAX_SIZE) plus kernel per-skb overhead, regardless of `socket_buffer_size`.
+    if (protocol_ == SOCK_DGRAM) {
+        size = SW_MAX(size, static_cast<size_t>(SW_IPC_BUFFER_MAX_SIZE) * 2);
+    }
+    set_buffer_size(size);
 }
 
 bool UnixSocket::set_buffer_size(size_t _size) const {
