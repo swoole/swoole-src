@@ -300,6 +300,11 @@ static PHP_METHOD(swoole_coroutine_scheduler, parallel) {
     Z_PARAM_VARIADIC('*', fci.params, fci.param_count)
     ZEND_PARSE_PARAMETERS_END_EX(return);
 
+    if (count <= 0) {
+        zend_argument_value_error(1, "must be greater than 0");
+        RETURN_THROWS();
+    }
+
     auto *task = static_cast<SchedulerTask *>(ecalloc(1, sizeof(SchedulerTask)));
     task->fci = fci;
     task->fci_cache = fci_cache;
@@ -325,20 +330,37 @@ static PHP_METHOD(swoole_coroutine_scheduler, start) {
     }
 
     s->started = true;
+    ON_SCOPE_EXIT {
+        s->started = false;
+    };
+    bool success = true;
 
     while (!s->list->empty()) {
         SchedulerTask *task = s->list->front();
-        s->list->pop();
-        for (zend_long i = 0; i < task->count; i++) {
-            PHPCoroutine::create(&task->fci_cache, task->fci.param_count, task->fci.params, &task->fci.function_name);
+        while (task->count > 0) {
+            if (PHPCoroutine::create(
+                    &task->fci_cache, task->fci.param_count, task->fci.params, &task->fci.function_name) < 0) {
+                success = false;
+                break;
+            }
+            // Keep only the unstarted repetitions queued, including their callback and arguments.
+            task->count--;
         }
+        if (!success) {
+            break;
+        }
+        s->list->pop();
         sw_zend_fci_cache_discard(&task->fci_cache);
         sw_zend_fci_params_discard(&task->fci);
         efree(task);
     }
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
     php_swoole_event_wait();
-    delete s->list;
-    s->list = nullptr;
-    s->started = false;
-    RETURN_TRUE;
+    if (s->list->empty()) {
+        delete s->list;
+        s->list = nullptr;
+    }
+    RETURN_BOOL(success);
 }
