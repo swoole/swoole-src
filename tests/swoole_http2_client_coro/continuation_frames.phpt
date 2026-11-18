@@ -33,6 +33,13 @@ function http2_send(Socket $peer, string $frames): void
     Assert::same($peer->sendAll($frames), strlen($frames));
 }
 
+// A header block split into HEADERS and CONTINUATION frames, the first one carrying $flags
+function http2_split_block(int $streamId, int $flags, string $first, string $rest): string
+{
+    return http2_test_frame(SWOOLE_HTTP2_TYPE_HEADERS, $flags, $streamId, $first)
+        . http2_test_frame(SWOOLE_HTTP2_TYPE_CONTINUATION, END_HEADERS, $streamId, $rest);
+}
+
 Swoole\Coroutine\run(function () {
     [$client, $peer] = http2_connect();
 
@@ -48,6 +55,7 @@ Swoole\Coroutine\run(function () {
     Assert::same($response->streamId, 1);
     Assert::same($response->statusCode, 200);
     Assert::same($response->headers, ['x-a' => 'b']);
+    Assert::same($response->trailers, null);
 
     // The next block refers to the dynamic table entry
     Assert::same($client->send(new Request()), 3);
@@ -70,7 +78,43 @@ Swoole\Coroutine\run(function () {
     Assert::true($response->pipeline);
     $response = $client->read(1);
     Assert::same($response->headers, ['x-t' => 't']);
+    Assert::same($response->trailers, ['x-t' => 't']);
     Assert::false($response->pipeline);
+
+    // Continued initial headers stay out of the trailers, which are only the trailing block
+    Assert::same($client->send(new Request()), 7);
+    http2_send(
+        $peer,
+        http2_split_block(7, 0, "\x88\x00\x01f", "\x01y")
+            . http2_test_frame(SWOOLE_HTTP2_TYPE_DATA, 0, 7, 'body')
+            . http2_split_block(7, END_STREAM, "\x00\x01t", "\x01z")
+    );
+    $response = $client->recv(1);
+    Assert::same($response->data, 'body');
+    Assert::same($response->headers, ['f' => 'y', 't' => 'z']);
+    Assert::same($response->trailers, ['t' => 'z']);
+
+    // An informational response and the final response, both continued
+    Assert::same($client->send(new Request()), 9);
+    http2_send(
+        $peer,
+        http2_split_block(9, 0, "\x08\x03103\x00\x01l", "\x01x")
+            . http2_split_block(9, 0, "\x88\x00\x01f", "\x01y")
+            . http2_test_frame(SWOOLE_HTTP2_TYPE_DATA, END_STREAM, 9, 'body')
+    );
+    $response = $client->recv(1);
+    Assert::same($response->statusCode, 200);
+    Assert::same($response->headers, ['l' => 'x', 'f' => 'y']);
+    Assert::same($response->trailers, null);
+
+    // An initial header block larger than one frame; 0x7f 0xa1 0x9b 0x01 encodes the value length 20000
+    $value = str_repeat('v', 20000);
+    $block = "\x88\x00\x05x-big\x7f\xa1\x9b\x01" . $value;
+    Assert::same($client->send(new Request()), 11);
+    http2_send($peer, http2_split_block(11, END_STREAM, substr($block, 0, 16384), substr($block, 16384)));
+    $response = $client->recv(1);
+    Assert::true($response->headers === ['x-big' => $value]);
+    Assert::same($response->trailers, null);
 
     $client->close();
     $peer->close();
