@@ -216,88 +216,107 @@ static ssize_t http2_server_build_trailer(const HttpContext *ctx, String *buffer
 #ifndef _WIN32
 static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     zval *zserver = &ctx->request.zserver;
-    zval *zrequest_uri = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_uri"));
-    if (zrequest_uri && Z_TYPE_P(zrequest_uri) == IS_STRING) {
-        StaticHandler handler(serv, Z_STRVAL_P(zrequest_uri), Z_STRLEN_P(zrequest_uri));
-        if (!handler.try_serve()) {
-            return false;
-        }
-
-        if (handler.status_code == SW_HTTP_NOT_FOUND) {
-            String body(SW_STRL(SW_HTTP_PAGE_404));
-            ctx->response.status = SW_HTTP_NOT_FOUND;
-            http2_server_respond(ctx, &body);
-            return true;
-        }
-
-        /**
-         * if http_index_files is enabled, need to search the index file first.
-         * if the index file is found, set filename to index filename.
-         */
-        if (!handler.try_serve_index_file()) {
-            return false;
-        }
-
-        /**
-         * the index file was not found in the current directory,
-         * if http_autoindex is enabled, should show the list of files in the current directory.
-         */
-        if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
-            String body(PATH_MAX);
-            body.length = handler.make_index_page(&body);
-            http2_server_respond(ctx, &body);
-            return true;
-        }
-
-        auto date_str = handler.get_date();
-        auto date_str_last_modified = handler.get_date_last_modified();
-
-        zval *zheader = &ctx->request.zheader;
-        ctx->set_header(ZEND_STRL("Last-Modified"), date_str_last_modified, false);
-
-        zval *zdate_if_modified_since = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-modified-since"));
-        if (zdate_if_modified_since) {
-            std::string date_if_modified_since(Z_STRVAL_P(zdate_if_modified_since),
-                                               Z_STRLEN_P(zdate_if_modified_since));
-            if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since)) {
-                ctx->response.status = SW_HTTP_NOT_MODIFIED;
-                return true;
-            }
-        }
-
-        zval *zrange = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("range"));
-        zval *zif_range = zend_hash_str_find(Z_ARR_P(zheader), ZEND_STRL("if-range"));
-        handler.parse_range(zrange ? Z_STRVAL_P(zrange) : nullptr, zif_range ? Z_STRVAL_P(zif_range) : nullptr);
-        ctx->response.status = handler.status_code;
-        auto tasks = handler.get_tasks();
-        if (1 == tasks.size()) {
-            if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
-                std::stringstream content_range;
-                content_range << "bytes " << tasks[0].offset << "-" << (tasks[0].length + tasks[0].offset - 1) << "/"
-                              << handler.get_filesize() << "\r\n";
-                auto content_range_str = content_range.str();
-                ctx->set_header(ZEND_STRL("Content-Range"), content_range_str, false);
-            } else {
-                ctx->set_header(ZEND_STRL("Accept-Ranges"), SW_STRL("bytes"), false);
-            }
-        }
-
-        ctx->onAfterResponse = nullptr;
-        ctx->onBeforeRequest = nullptr;
-
-        // request_method
-        zval *zrequest_method = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_method"));
-        if (zrequest_method && Z_TYPE_P(zrequest_method) == IS_STRING &&
-            SW_STRCASEEQ(Z_STRVAL_P(zrequest_method), Z_STRLEN_P(zrequest_method), "HEAD")) {
-            String empty_body;
-            http2_server_respond(ctx, &empty_body);
-            return true;
-        } else {
-            return http2_server_send_range_file(ctx, &handler);
-        }
+    zval *method = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_method"));
+    if (!method || Z_TYPE_P(method) != IS_STRING) {
+        return false;
     }
-
-    return false;
+    const bool head = SW_STRCASEEQ(Z_STRVAL_P(method), Z_STRLEN_P(method), "HEAD");
+    if (!head && !SW_STRCASEEQ(Z_STRVAL_P(method), Z_STRLEN_P(method), "GET")) {
+        return false;
+    }
+    zval *uri = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_uri"));
+    if (!uri || Z_TYPE_P(uri) != IS_STRING) {
+        return false;
+    }
+    StaticHandler handler(serv,
+                          ctx->request.path ? ZSTR_VAL(ctx->request.path) : Z_STRVAL_P(uri),
+                          ctx->request.path ? ZSTR_LEN(ctx->request.path) : Z_STRLEN_P(uri));
+    if (!handler.try_serve()) {
+        return false;
+    }
+    const auto redirect = handler.status_code == SW_HTTP_OK ? handler.get_directory_redirect() : std::string{};
+    if (handler.status_code == SW_HTTP_OK && (!handler.try_serve_index_file() || !handler.open_file())) {
+        return false;
+    }
+    ctx->onAfterResponse = nullptr;
+    ctx->onBeforeRequest = nullptr;
+#ifdef SW_HAVE_COMPRESSION
+    // Static lengths describe the selected file/listing, including HEAD responses.
+    ctx->accept_compression = 0;
+#endif
+    const auto respond = [&](int status, String &body) {
+        ctx->response.status = status;
+        if (status != SW_HTTP_NOT_MODIFIED) {
+            ctx->set_header(ZEND_STRL("Content-Length"), std::to_string(body.length), false);
+        }
+        String empty;
+        return http2_server_respond(ctx, head ? &empty : &body);
+    };
+    if (handler.status_code == SW_HTTP_NOT_FOUND || handler.status_code == SW_HTTP_BAD_REQUEST) {
+        String body;
+        if (handler.status_code == SW_HTTP_NOT_FOUND) {
+            body.append(SW_STRL(SW_HTTP_PAGE_404));
+        }
+        ctx->set_header(ZEND_STRL("Content-Type"), SW_STRL("text/html"), false);
+        respond(handler.status_code, body);
+        return true;
+    }
+    if (!redirect.empty()) {
+        ctx->set_header(ZEND_STRL("Location"), redirect, false);
+        String empty;
+        respond(SW_HTTP_MOVED_PERMANENTLY, empty);
+        return true;
+    }
+    ctx->set_header(ZEND_STRL("Last-Modified"), handler.get_date_last_modified(), false);
+    ctx->set_header(ZEND_STRL("ETag"), handler.get_etag(), false);
+    const auto header = [&](const char *name, size_t length) -> const char * {
+        zval *value = zend_hash_str_find(Z_ARR_P(&ctx->request.zheader), name, length);
+        return value && Z_TYPE_P(value) == IS_STRING ? Z_STRVAL_P(value) : "";
+    };
+    const int condition = handler.evaluate_preconditions(header(ZEND_STRL("if-match")),
+                                                         header(ZEND_STRL("if-unmodified-since")),
+                                                         header(ZEND_STRL("if-none-match")),
+                                                         header(ZEND_STRL("if-modified-since")));
+    if (condition != SW_HTTP_OK) {
+        String empty;
+        respond(condition, empty);
+        return true;
+    }
+    if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
+        String body(1024);
+        handler.make_index_page(&body);
+        ctx->set_header(ZEND_STRL("Content-Type"), SW_STRL("text/html"), false);
+        respond(SW_HTTP_OK, body);
+        return true;
+    }
+    handler.parse_range(header(ZEND_STRL("range")), header(ZEND_STRL("if-range")));
+    ctx->response.status = handler.status_code;
+    const auto &tasks = handler.get_tasks();
+    if (handler.status_code == SW_HTTP_RANGE_NOT_SATISFIABLE) {
+        ctx->set_header(ZEND_STRL("Content-Range"), "bytes */" + std::to_string(handler.get_filesize()), false);
+        String empty;
+        respond(handler.status_code, empty);
+        return true;
+    }
+    if (handler.status_code == SW_HTTP_PARTIAL_CONTENT && tasks.size() == 1) {
+        const auto &part = tasks.front();
+        const std::string value = "bytes " + std::to_string(part.offset) + "-" +
+                                  std::to_string(part.offset + part.length - 1) + "/" +
+                                  std::to_string(handler.get_filesize());
+        ctx->set_header(ZEND_STRL("Content-Range"), value, false);
+    } else if (handler.status_code == SW_HTTP_OK) {
+        ctx->set_header(ZEND_STRL("Accept-Ranges"), SW_STRL("bytes"), false);
+    }
+    if (head) {
+        ctx->set_header(ZEND_STRL("Content-Length"), std::to_string(handler.get_content_length()), false);
+        ctx->set_header(ZEND_STRL("Content-Type"), handler.get_content_type(), false);
+        String empty;
+        http2_server_respond(ctx, &empty);
+    } else {
+        http2_server_send_range_file(ctx, &handler);
+    }
+    // Once a static response is selected, a send failure must not dispatch PHP.
+    return true;
 }
 
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &client,
@@ -851,18 +870,18 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     /* headers has already been sent, retries are no longer allowed (even if send body failed) */
     ctx->end_ = 1;
 
-    auto tasks = handler->get_tasks();
+    const auto &tasks = handler->get_tasks();
     if (!tasks.empty()) {
-        File fp(handler->get_filename(), O_RDONLY);
-        if (!fp.ready()) {
+        const auto &file = handler->get_file();
+        if (!file || !file->ready()) {
             ctx->close(ctx);
             return true;
         }
 
-        const auto read_range = [&fp, &body](off_t offset, size_t length) -> bool {
+        const auto read_range = [&file, &body](off_t offset, size_t length) -> bool {
             body = std::make_shared<String>(length, sw_zend_string_allocator());
             while (body->length < length) {
-                const auto n = fp.pread(body->str + body->length, length - body->length, offset + body->length);
+                const auto n = file->pread(body->str + body->length, length - body->length, offset + body->length);
                 if (n < 0 && errno == EINTR) {
                     continue;
                 }
@@ -901,9 +920,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                 }
             }
         } else if (tasks[0].length > 0) {
-            auto callback = [&]() -> bool {
-                return read_range(tasks[0].offset, tasks[0].length);
-            };
+            auto callback = [&]() -> bool { return read_range(tasks[0].offset, tasks[0].length); };
             if (swoole_coroutine_is_in()) {
                 if (!swoole::coroutine::async(callback)) {
                     error = true;

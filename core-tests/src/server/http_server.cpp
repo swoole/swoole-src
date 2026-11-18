@@ -607,19 +607,33 @@ TEST(http_server, static_files_autoindex_escape) {
     });
 }
 
-static void request_with_header(const char *date_format, httplib::Client *cli) {
-    char temp[128] = {0};
-    time_t raw_time = time(NULL) + 7 * 24 * 60 * 60;
-    tm *time_info = gmtime(&raw_time);
-
-    strftime(temp, sizeof(temp), date_format, time_info);
+static void request_with_header(const char *date_format, time_t modified_time, httplib::Client *cli) {
+    SCOPED_TRACE(date_format);
+    tm time_info = {};
+    ASSERT_NE(gmtime_r(&modified_time, &time_info), nullptr);
+    char temp[128];
+    ASSERT_GT(strftime(temp, sizeof(temp), date_format, &time_info), 0u);
     httplib::Headers headers = {{"If-Modified-Since", temp}};
     auto resp = cli->Get("/", headers);
-    EXPECT_EQ(resp, nullptr);
+    ASSERT_NE(resp, nullptr);
+    EXPECT_EQ(resp->status, SW_HTTP_NOT_MODIFIED);
+    EXPECT_TRUE(resp->body.empty());
 }
 
 TEST(http_server, not_modify) {
-    test_base_server([](Server *serv) {
+    File index_file(test::get_root_path() + "/README.md", O_RDONLY);
+    ASSERT_TRUE(index_file.ready());
+    FileStatus index_stat = {};
+    ASSERT_TRUE(index_file.stat(&index_stat));
+    auto index_content = index_file.read_content();
+    ASSERT_NE(index_content, nullptr);
+    const auto modified_time = index_stat.st_mtime;
+    const auto expected_index = index_content->to_std_string();
+
+    test_base_server([modified_time, expected_index](Server *serv) {
+        ON_SCOPE_EXIT {
+            kill(getpid(), SIGTERM);
+        };
         serv->http_autoindex = true;
         serv->add_static_handler_location("");
 
@@ -627,17 +641,17 @@ TEST(http_server, not_modify) {
         auto port = serv->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
 
-        serv->add_static_handler_index_files("swoole-logo.svg");
+        serv->add_static_handler_index_files("README.md");
         auto resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
+        ASSERT_NE(resp, nullptr);
+        EXPECT_EQ(resp->status, SW_HTTP_OK);
+        EXPECT_EQ(resp->body, expected_index);
 
-        // 304 not modified
-        cli.set_read_timeout(0, 100);
-        request_with_header(SW_HTTP_RFC1123_DATE_GMT, &cli);
-        request_with_header(SW_HTTP_RFC1123_DATE_UTC, &cli);
-        request_with_header(SW_HTTP_RFC850_DATE, &cli);
-        request_with_header(SW_HTTP_ASCTIME_DATE, &cli);
-        kill(getpid(), SIGTERM);
+        // An unchanged index file produces a complete, bodyless 304 response.
+        request_with_header(SW_HTTP_RFC1123_DATE_GMT, modified_time, &cli);
+        request_with_header(SW_HTTP_RFC1123_DATE_UTC, modified_time, &cli);
+        request_with_header(SW_HTTP_RFC850_DATE, modified_time, &cli);
+        request_with_header(SW_HTTP_ASCTIME_DATE, modified_time, &cli);
     });
 }
 

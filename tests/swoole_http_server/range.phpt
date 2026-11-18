@@ -91,8 +91,8 @@ BIN
             Assert::same(bin2hex($response['body']), bin2hex(substr($data2, 0, 16)));
 
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15', 'If-Range' => 'test']]);
-            Assert::same($response['statusCode'], 206);
-            Assert::same(bin2hex($response['body']), bin2hex(substr($data2, 0, 16)));
+            Assert::same($response['statusCode'], 200);
+            Assert::same(bin2hex($response['body']), bin2hex($data2));
 
             $lastModifiedTime = strtotime($lastModified);
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15', 'If-Range' => date(DATE_RFC7231, $lastModifiedTime - 1)]]);

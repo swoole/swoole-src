@@ -2069,7 +2069,8 @@ class Server {
     static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
     static void discard_sendfile(DataHead *info, const char *data);
 
-    int send_to_connection(SendData *) const;
+    // Optional opened file is local to the owning reactor, never serialized through IPC.
+    int send_to_connection(SendData *, const std::shared_ptr<File> *file = nullptr) const;
     int request_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason, bool reset = false) const;
     int request_force_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason) const;
     bool finish_close(SessionId session_id, int flags) const;

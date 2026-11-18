@@ -55,6 +55,10 @@ class File {
         APPEND = O_APPEND,
 #ifdef _WIN32
         BINARY = _O_BINARY,
+        NONBLOCK = 0,
+#else
+        BINARY = 0,
+        NONBLOCK = O_NONBLOCK,
 #endif
     };
 
