@@ -22,6 +22,9 @@ $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     run(function () use ($pm) {
         $httpClient = new Client(HTTP_SERVER_HOST, $pm->getFreePort(), false);
+        // A raw response doesn't mark where it ends, so this port must not hold the next request behind it.
+        Assert::assert($httpClient->get('/raw'));
+        Assert::same($httpClient->getBody(), GREETER);
         $httpClient->setMethod("POST");
         $httpClient->setData("HELLO");
         $ok = $httpClient->execute("/rawcookie?hello=world&value=1");
@@ -46,6 +49,10 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('receive', function (Server $serv, $fd, $reactor_id, $data) {
+        if (str_starts_with($data, 'GET /raw ')) {
+            $serv->send($fd, "HTTP/1.1 200 OK\r\nContent-Length: " . strlen(GREETER) . "\r\n\r\n" . GREETER);
+            return;
+        }
         $req = Request::create();
         Assert::eq($req->parse($data), strlen($data));
         

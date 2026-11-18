@@ -10,8 +10,13 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     Co\run(function () use ($pm) {
         $client = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+        Assert::true($client->get('/fd'));
+        $fd = $client->getBody();
         Assert::true($client->get('/'));
         Assert::eq($client->getBody(), 'timeout');
+        // The replacement response ends the request, so the same connection serves the next one.
+        Assert::true($client->get('/fd'));
+        Assert::same($client->getBody(), $fd);
         $pm->kill();
     });
     echo "DONE\n";
@@ -49,6 +54,10 @@ $pm->childFunc = function () use ($pm) {
     });
 
     $http->on('Request', function ($request, $response) use ($http, $timerTable) {
+        if ($request->server['request_uri'] === '/fd') {
+            $response->end((string) $request->fd);
+            return;
+        }
         $timerTable->set($http->getWorkerId(), [
             'worker_pid' => $http->getWorkerPid(),
             'time' => time(),
