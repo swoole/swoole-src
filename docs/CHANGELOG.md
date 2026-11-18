@@ -15,6 +15,7 @@
 
 ### Bug fixes
 
+- Wait for pending Windows IOCP cancellation completions in `Swoole\Coroutine\Socket::close()` before releasing the descriptor, including listening sockets and TLS operations.
 - Fix associative task-array crashes and partial task-dispatch cleanup, building on [#6408](https://github.com/swoole/swoole-src/pull/6408) by @NathanFreeman. Swoole 6.1 and 6.2 receive compatible fixes while retaining their existing result conventions.
 - Let the thread manager create, restart and reap all workers. As in process mode, the master notifies the manager after its event loop ends; replacements stop when the manager receives that command. Builds on [#6397](https://github.com/swoole/swoole-src/pull/6397) by @binaryfire.
 - Carry the thread-server reload kind in its queued command instead of a caller-written flag, preventing the manager from starting a reload with stale options.
