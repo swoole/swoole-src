@@ -30,19 +30,22 @@ function fill_connection($response): void
     (new Channel(1))->pop();
 }
 
-$cases = [
-    // The response headers' writer is cancelled while it waits.
-    'header' => [
-        function (ProcessManager $pm, $client) {
-            fwrite($client, http2_test_request_headers(3, '/'));
-            Assert::true($pm->wait());
-            read_until_closed($client);
-        },
-        function (Swoole\Http\Server $server, ProcessManager $pm) {
-            $go = new Channel(1);
-            $server->on('Request', function ($request, $response) use ($pm, $go) {
+// The response headers' writer is cancelled while it waits. Without enable_coroutine the handler runs in a coroutine
+// it creates, and onClose runs in that coroutine while the cancellation is pending.
+$header = fn (bool $enableCoroutine) => [
+    function (ProcessManager $pm, $client) {
+        fwrite($client, http2_test_request_headers(3, '/'));
+        Assert::true($pm->wait());
+        read_until_closed($client);
+    },
+    function (Swoole\Http\Server $server, ProcessManager $pm) use ($enableCoroutine) {
+        // send_yield follows enable_coroutine unless set in the same call
+        $server->set(['enable_coroutine' => $enableCoroutine, 'send_yield' => true]);
+        $go = new Channel(1);
+        $server->on('Request', function ($request, $response) use ($pm, $go, $enableCoroutine) {
+            $handler = function () use ($request, $response, $pm, $go) {
                 if ($request->streamId === 1) {
-                    Swoole\Event::defer(fn () => $go->push(true));
+                    Swoole\Event::defer(fn () => Coroutine::create(fn () => $go->push(true)));
                     fill_connection($response);
                     return;
                 }
@@ -57,9 +60,15 @@ $cases = [
                 }
                 Assert::false($response->isWritable());
                 $pm->wakeup();
-            });
-        },
-    ],
+            };
+            $enableCoroutine ? $handler() : Coroutine::create($handler);
+        });
+    },
+];
+
+$cases = [
+    'header' => $header(true),
+    'header without enable_coroutine' => $header(false),
     // The trailer times out after the client resets its stream.
     'trailer' => [
         function (ProcessManager $pm, $client) {
@@ -98,7 +107,14 @@ foreach ($cases as $name => [$parent, $child]) {
     $pm->setWaitTimeout(5);
     $pm->parentFunc = function () use ($pm, $parent) {
         // The client doesn't read until stream 3's send has failed, so stream 1 fills the buffers.
-        $client = http2_test_open_request($pm->getFreePort(), '/', 0x7FFFFFFF);
+        $client = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}", $errno, $errstr, 2);
+        Assert::notEmpty($client);
+        stream_set_timeout($client, 2);
+        $request = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+            . http2_test_frame(SWOOLE_HTTP2_TYPE_SETTINGS, 0, 0, pack('nN', 4, 0x7FFFFFFF))
+            . http2_test_frame(SWOOLE_HTTP2_TYPE_WINDOW_UPDATE, 0, 0, pack('N', 0x7FFF0000))
+            . http2_test_request_headers(1, '/');
+        Assert::same(fwrite($client, $request), strlen($request));
         try {
             $parent($pm, $client);
         } finally {
@@ -130,6 +146,9 @@ foreach ($cases as $name => [$parent, $child]) {
 ?>
 --EXPECT--
 header
+closed
+cancelled
+header without enable_coroutine
 closed
 cancelled
 trailer
