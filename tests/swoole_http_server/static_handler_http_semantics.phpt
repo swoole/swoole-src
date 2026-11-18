@@ -49,6 +49,7 @@ foreach ([SWOOLE_BASE => 'Asia/Shanghai', SWOOLE_PROCESS => 'America/New_York'] 
                 $response = $fetch('/asset.txt');
                 Assert::same($response['statusCode'], 200);
                 Assert::same($response['body'], '0123456789');
+                Assert::true(str_ends_with($response['headers']['date'], ' GMT'));
                 $etag = $response['headers']['etag'];
                 $date = $response['headers']['last-modified'];
                 Assert::same($date, gmdate(DATE_RFC7231, 1730000000));

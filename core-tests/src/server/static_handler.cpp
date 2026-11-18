@@ -193,12 +193,17 @@ TEST(static_handler, range_boundaries_and_cost_limits) {
 }
 
 TEST(static_handler, http_dates_are_utc_and_strict) {
+    const auto date = StaticHandler::get_date();
+    ASSERT_EQ(date.length(), 29u);
+    EXPECT_EQ(date.substr(25), " GMT");
+
     Server serv;
     StaticHandler handler(&serv, SW_STRL("/asset.txt"));
     handler.file_stat.st_mtime = 1730000000;
     // timezone_ deliberately differs from the HTTP date's UTC timezone.
     for (long timezone : {0L, 28800L, -18000L}) {
         serv.timezone_ = timezone;
+        EXPECT_EQ(handler.get_date_last_modified(), "Sun, 27 Oct 2024 03:33:20 GMT");
         EXPECT_TRUE(handler.is_modified("Sun, 27 Oct 2024 03:33:20 GMT"));
         EXPECT_FALSE(handler.is_modified("Sun, 27 Oct 2024 02:33:20 GMT"));
         EXPECT_FALSE(handler.is_modified("Sun, 31 Feb 2024 03:33:20 GMT"));
