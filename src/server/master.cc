@@ -1651,7 +1651,7 @@ void Server::discard_sendfile(DataHead *info, const char *data) {
  * flags; readiness, output queues and physical socket release remain owned by this one reactor.
  * @return SW_OK or SW_ERR
  */
-int Server::send_to_connection(SendData *_send) const {
+int Server::send_to_connection(SendData *_send, const std::shared_ptr<File> *file) const {
     const SessionId session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
@@ -1801,7 +1801,9 @@ int Server::send_to_connection(SendData *_send) const {
         // the event so a synchronous base/thread caller does not delete the file again.
         const bool delete_file = _send->info.ext_flags & SW_SERVER_SENDFILE_DELETE;
         _send->info.ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
-        if (conn->socket->sendfile_async(task->filename, task->offset, task->length, delete_file) < 0) {
+        const int result = file ? conn->socket->sendfile_async(*file, task->offset, task->length)
+                                : conn->socket->sendfile_async(task->filename, task->offset, task->length, delete_file);
+        if (result < 0) {
             return SW_ERR;
         }
     } else {

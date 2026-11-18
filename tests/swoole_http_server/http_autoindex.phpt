@@ -20,12 +20,12 @@ $pm->parentFunc = function () use ($pm) {
         foreach ($files as $f) {
             Assert::contains($data, basename($f));
         }
-        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir1");
+        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir1/");
         $files = scan_dir(DOCUMENT_ROOT.'/dir1');
         foreach ($files as $f) {
             Assert::contains($data, basename($f));
         }
-        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir2");
+        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir2/");
         $files = scan_dir(DOCUMENT_ROOT.'/dir2');
         foreach ($files as $f) {
             Assert::contains($data, basename($f));

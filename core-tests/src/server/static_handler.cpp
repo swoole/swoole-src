@@ -138,3 +138,121 @@ TEST(static_handler, set_filename_accepts_path_with_room_for_null) {
     unlink(index_file.c_str());
     rmdir(dir);
 }
+
+TEST(static_handler, range_errors_discard_complete_and_partial_plans) {
+    Server serv;
+    StaticHandler handler(&serv, SW_STRL("/asset.txt"));
+    handler.file_stat.st_size = 10;
+    for (const char *range : {"bytes=word",
+                              "bytes=0-1,word",
+                              "bytes=0-1,4-5,word",
+                              "bytes=0-1,",
+                              "bytes=0-1,999999999999999999999999999999999999-",
+                              "bytes=10-20",
+                              "bytes=8-2"}) {
+        SCOPED_TRACE(range);
+        handler.parse_range("bytes=0-1,4-5", nullptr);
+        ASSERT_EQ(handler.status_code, SW_HTTP_PARTIAL_CONTENT);
+        handler.parse_range(range, nullptr);
+        EXPECT_EQ(handler.status_code, SW_HTTP_RANGE_NOT_SATISFIABLE);
+        EXPECT_TRUE(handler.get_tasks().empty());
+        EXPECT_EQ(handler.get_content_length(), 0);
+        EXPECT_TRUE(handler.get_end_part().empty());
+    }
+}
+
+TEST(static_handler, range_boundaries_and_cost_limits) {
+    Server serv;
+    StaticHandler handler(&serv, SW_STRL("/asset.txt"));
+    handler.file_stat.st_size = 100;
+    handler.parse_range("bytes=0-0,-1", nullptr);
+    ASSERT_EQ(handler.status_code, SW_HTTP_PARTIAL_CONTENT);
+    ASSERT_EQ(handler.get_tasks().size(), 2);
+    EXPECT_EQ(handler.get_tasks()[0].offset, 0);
+    EXPECT_EQ(handler.get_tasks()[1].offset, 99);
+    size_t length = handler.get_end_part().length();
+    for (const auto &part : handler.get_tasks()) {
+        length += strlen(part.part_header) + part.length;
+    }
+    EXPECT_EQ(handler.get_content_length(), length);
+    handler.parse_range("bytes=0-99,0-99", nullptr);
+    EXPECT_EQ(handler.status_code, SW_HTTP_OK);
+    EXPECT_EQ(handler.get_content_length(), 100);
+    std::string ranges = "bytes=0-0";
+    for (int i = 0; i < 16; ++i) {
+        ranges += ",0-0";
+    }
+    handler.parse_range(ranges.c_str(), nullptr);
+    EXPECT_EQ(handler.status_code, SW_HTTP_OK);
+    handler.parse_range("bytes=-0", nullptr);
+    EXPECT_EQ(handler.status_code, SW_HTTP_RANGE_NOT_SATISFIABLE);
+    handler.file_stat.st_size = 0;
+    handler.parse_range("bytes=0-0", nullptr);
+    EXPECT_EQ(handler.status_code, SW_HTTP_OK);
+    EXPECT_EQ(handler.get_content_length(), 0);
+}
+
+TEST(static_handler, http_dates_are_utc_and_strict) {
+    Server serv;
+    StaticHandler handler(&serv, SW_STRL("/asset.txt"));
+    handler.file_stat.st_mtime = 1730000000;
+    // timezone_ deliberately differs from the HTTP date's UTC timezone.
+    for (long timezone : {0L, 28800L, -18000L}) {
+        serv.timezone_ = timezone;
+        EXPECT_TRUE(handler.is_modified("Sun, 27 Oct 2024 03:33:20 GMT"));
+        EXPECT_FALSE(handler.is_modified("Sun, 27 Oct 2024 02:33:20 GMT"));
+        EXPECT_FALSE(handler.is_modified("Sun, 31 Feb 2024 03:33:20 GMT"));
+        EXPECT_FALSE(handler.is_modified("Sun, 27 Oct 2024 03:33:20 GMT trailing"));
+        EXPECT_FALSE(handler.is_modified_range("Sun, 27 Oct 2024 03:33:20 GMT"));
+        EXPECT_TRUE(handler.is_modified_range("invalid"));
+    }
+}
+
+TEST(static_handler, preconditions_and_if_range_share_validators) {
+    Server serv;
+    StaticHandler handler(&serv, SW_STRL("/asset.txt"));
+    handler.file_stat.st_mtime = 1730000000;
+    handler.file_stat.st_size = 10;
+    const auto tag = handler.get_etag();
+    EXPECT_EQ(handler.evaluate_preconditions("*", "", "", ""), SW_HTTP_OK);
+    EXPECT_EQ(handler.evaluate_preconditions(tag, "invalid", "", ""), SW_HTTP_OK);
+    EXPECT_EQ(handler.evaluate_preconditions("W/" + tag, "", "", ""), SW_HTTP_PRECONDITION_FAILED);
+    EXPECT_EQ(handler.evaluate_preconditions("\"other\"", "", "*", ""), SW_HTTP_PRECONDITION_FAILED);
+    EXPECT_EQ(handler.evaluate_preconditions("", "", "W/" + tag, ""), SW_HTTP_NOT_MODIFIED);
+    EXPECT_EQ(handler.evaluate_preconditions("", "", "\"other\", " + tag, ""), SW_HTTP_NOT_MODIFIED);
+    EXPECT_EQ(handler.evaluate_preconditions("", "", "\"other\"", "Sun, 27 Oct 2024 03:33:20 GMT"), SW_HTTP_OK);
+    EXPECT_EQ(handler.evaluate_preconditions("", "Sun, 27 Oct 2024 02:33:20 GMT", "", ""), SW_HTTP_PRECONDITION_FAILED);
+    EXPECT_FALSE(handler.is_modified_range(tag));
+    EXPECT_TRUE(handler.is_modified_range("W/" + tag));
+    EXPECT_TRUE(handler.is_modified_range("\"other\""));
+    EXPECT_EQ(handler.evaluate_preconditions("", "", "   ", ""), SW_HTTP_OK);
+}
+
+TEST(static_handler, queued_ranges_keep_the_opened_file_after_rename) {
+    char path[] = "/tmp/swoole-static-snapshot-XXXXXX";
+    const int fd = mkstemp(path);
+    ASSERT_GE(fd, 0);
+    ASSERT_EQ(write(fd, "original", 8), 8);
+    close(fd);
+    Server serv;
+    StaticHandler handler(&serv, SW_STRL("/asset.txt"));
+    strcpy(handler.filename, path);
+    handler.l_filename = strlen(path);
+    ASSERT_TRUE(handler.open_file());
+    const std::string moved = std::string(path) + ".old";
+    ASSERT_EQ(rename(path, moved.c_str()), 0);
+    ASSERT_TRUE(file_put_contents(path, "replacement", 11));
+    auto *socket = make_socket(SW_SOCK_TCP, SW_FD_STREAM, 0);
+    ASSERT_NE(socket, nullptr);
+    ASSERT_EQ(socket->sendfile_async(handler.get_file(), 0, 2), SW_OK);
+    ASSERT_EQ(socket->sendfile_async(handler.get_file(), 2, 6), SW_OK);
+    auto *first = static_cast<network::SendfileRequest *>(socket->out_buffer->front()->value.ptr);
+    EXPECT_EQ(first->get_file().get_fd(), handler.get_file()->get_fd());
+    handler.file.reset();
+    char bytes[8];
+    ASSERT_EQ(first->get_file().pread(bytes, sizeof(bytes), 0), 8);
+    EXPECT_EQ(std::string(bytes, sizeof(bytes)), "original");
+    socket->free();
+    unlink(path);
+    unlink(moved.c_str());
+}

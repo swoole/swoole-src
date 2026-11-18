@@ -22,7 +22,6 @@
 #include <algorithm>
 #include <memory>
 #include <cctype>
-#include <sstream>
 #include <regex>
 
 namespace swoole {
@@ -75,50 +74,147 @@ static std::string percent_encode_path_segment(const std::string &value) {
     return encoded;
 }
 
-bool StaticHandler::is_modified(const std::string &date_if_modified_since) const {
-    char date_tmp[64];
-    if (date_if_modified_since.empty() || date_if_modified_since.length() > sizeof(date_tmp) - 1) {
+static bool parse_http_date(const std::string &value, time_t &result) {
+    if (value.empty() || value.length() > 63 || value.find('\0') != std::string::npos) {
         return false;
     }
-
-    struct tm tm3 {};
-    memcpy(date_tmp, date_if_modified_since.c_str(), date_if_modified_since.length());
-    date_tmp[date_if_modified_since.length()] = 0;
-
-    const char *date_format = nullptr;
-
-    if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_GMT, &tm3) != nullptr) {
-        date_format = SW_HTTP_RFC1123_DATE_GMT;
-    } else if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_UTC, &tm3) != nullptr) {
-        date_format = SW_HTTP_RFC1123_DATE_UTC;
-    } else if (strptime(date_tmp, SW_HTTP_RFC850_DATE, &tm3) != nullptr) {
-        date_format = SW_HTTP_RFC850_DATE;
-    } else if (strptime(date_tmp, SW_HTTP_ASCTIME_DATE, &tm3) != nullptr) {
-        date_format = SW_HTTP_ASCTIME_DATE;
+    static const char *formats[] = {
+        SW_HTTP_RFC1123_DATE_GMT, SW_HTTP_RFC1123_DATE_UTC, SW_HTTP_RFC850_DATE, SW_HTTP_ASCTIME_DATE};
+    for (const auto *format : formats) {
+        tm parsed{};
+        const char *end = strptime(value.c_str(), format, &parsed);
+        if (!end || *end) {
+            continue;
+        }
+        result = make_utc_time(parsed);
+        const tm check = get_utc_tm(result);
+        // Reject dates normalized by the calendar conversion (for example February 31).
+        if (check.tm_year == parsed.tm_year && check.tm_mon == parsed.tm_mon && check.tm_mday == parsed.tm_mday &&
+            check.tm_hour == parsed.tm_hour && check.tm_min == parsed.tm_min && check.tm_sec == parsed.tm_sec) {
+            return true;
+        }
     }
-    return date_format && mktime(&tm3) - (time_t) serv->timezone_ >= get_file_mtime();
+    return false;
+}
+
+static bool match_etag(const std::string &value, const std::string &etag, bool weak) {
+    size_t pos = 0;
+    while (pos < value.length()) {
+        while (pos < value.length() && (value[pos] == ' ' || value[pos] == '\t')) {
+            ++pos;
+        }
+        if (pos == value.length()) {
+            return false;
+        }
+        if (value[pos] == '*') {
+            ++pos;
+            while (pos < value.length() && (value[pos] == ' ' || value[pos] == '\t')) {
+                ++pos;
+            }
+            return pos == value.length();
+        }
+        const bool weak_tag = value.compare(pos, 2, "W/") == 0;
+        if (weak_tag) {
+            pos += 2;
+        }
+        if (pos >= value.length() || value[pos] != '"') {
+            return false;
+        }
+        const size_t start = pos++;
+        const size_t end = value.find('"', pos);
+        if (end == std::string::npos) {
+            return false;
+        }
+        pos = end + 1;
+        const bool matches = (!weak_tag || weak) && value.compare(start, pos - start, etag) == 0;
+        while (pos < value.length() && (value[pos] == ' ' || value[pos] == '\t')) {
+            ++pos;
+        }
+        if (pos < value.length() && value[pos] != ',') {
+            return false;
+        }
+        if (matches) {
+            return true;
+        }
+        if (pos < value.length()) {
+            ++pos;
+        }
+    }
+    return false;
+}
+
+std::string StaticHandler::get_etag() const {
+    // Metadata-based validator, like common static servers; no file-content hash
+    // or per-request reads are needed. Nanoseconds distinguish subsecond updates.
+    long nanoseconds = 0;
+#ifdef __MACH__
+    nanoseconds = file_stat.st_mtimespec.tv_nsec;
+#elif !defined(_WIN32)
+    nanoseconds = file_stat.st_mtim.tv_nsec;
+#endif
+    char value[96];
+    const int length = snprintf(value,
+                                sizeof(value),
+                                "\"%llx-%llx-%lx\"",
+                                static_cast<unsigned long long>(get_file_mtime()),
+                                static_cast<unsigned long long>(get_filesize()),
+                                static_cast<unsigned long>(nanoseconds));
+    return {value, static_cast<size_t>(length)};
+}
+
+int StaticHandler::evaluate_preconditions(const std::string &if_match,
+                                          const std::string &if_unmodified_since,
+                                          const std::string &if_none_match,
+                                          const std::string &if_modified_since) const {
+    // RFC 9110 section 13.2.2: entity tags take precedence over date validators.
+    time_t date;
+    if (!if_match.empty()) {
+        if (!match_etag(if_match, get_etag(), false)) {
+            return SW_HTTP_PRECONDITION_FAILED;
+        }
+    } else if (parse_http_date(if_unmodified_since, date) && get_file_mtime() > date) {
+        return SW_HTTP_PRECONDITION_FAILED;
+    }
+    if (!if_none_match.empty()) {
+        if (match_etag(if_none_match, get_etag(), true)) {
+            return SW_HTTP_NOT_MODIFIED;
+        }
+    } else if (is_modified(if_modified_since)) {
+        return SW_HTTP_NOT_MODIFIED;
+    }
+    return SW_HTTP_OK;
+}
+
+std::string StaticHandler::get_directory_redirect() const {
+    if (!is_dir() || request_url != original_url) {
+        return {};
+    }
+    const auto query = original_url.find_first_of("?#");
+    const auto path = original_url.substr(0, query);
+    if (path.empty() || path.back() == '/') {
+        return {};
+    }
+    // A relative Location must not become a network-path reference (//host/).
+    const auto first = path.find_first_not_of('/');
+    std::string location = "/" + path.substr(first == std::string::npos ? path.length() : first) + "/";
+    if (query != std::string::npos) {
+        location += original_url.substr(query);
+    }
+    return location;
+}
+
+bool StaticHandler::is_modified(const std::string &date_if_modified_since) const {
+    time_t date;
+    return parse_http_date(date_if_modified_since, date) && date >= get_file_mtime();
 }
 
 bool StaticHandler::is_modified_range(const std::string &date_range) const {
-    if (date_range.empty()) {
-        return false;
+    if (!date_range.empty() && date_range.front() == '"') {
+        return date_range != get_etag();
     }
-
-    tm tm3{};
-    const char *date_format = nullptr;
-
-    if (strptime(date_range.c_str(), SW_HTTP_RFC1123_DATE_GMT, &tm3) != nullptr) {
-        date_format = SW_HTTP_RFC1123_DATE_GMT;
-    } else if (strptime(date_range.c_str(), SW_HTTP_RFC1123_DATE_UTC, &tm3) != nullptr) {
-        date_format = SW_HTTP_RFC1123_DATE_UTC;
-    } else if (strptime(date_range.c_str(), SW_HTTP_RFC850_DATE, &tm3) != nullptr) {
-        date_format = SW_HTTP_RFC850_DATE;
-    } else if (strptime(date_range.c_str(), SW_HTTP_ASCTIME_DATE, &tm3) != nullptr) {
-        date_format = SW_HTTP_ASCTIME_DATE;
-    }
-    time_t file_mtime = get_file_mtime();
-    tm tm_file_mtime = get_utc_tm(file_mtime);
-    return date_format && mktime(&tm3) != mktime(&tm_file_mtime);
+    time_t date;
+    // If-Range requires a strong entity tag or an exactly matching HTTP-date.
+    return !parse_http_date(date_range, date) || date != get_file_mtime();
 }
 
 std::string StaticHandler::get_date() {
@@ -171,34 +267,54 @@ bool StaticHandler::try_serve() {
     const std::string &document_root = serv->get_document_root();
     const size_t l_document_root = document_root.length();
 
-    memcpy(p, document_root.c_str(), l_document_root);
-    p += l_document_root;
-
     if (!serv->locations->empty()) {
-        for (const auto &i : *serv->locations) {
-            if (swoole_str_istarts_with(url, url_length, i.c_str(), i.size())) {
+        for (const auto &location : *serv->locations) {
+            if (swoole_str_istarts_with(url, url_length, location.c_str(), location.size())) {
                 last = true;
+                break;
             }
         }
         if (!last) {
             return false;
         }
     }
-
-    if (l_document_root + n >= PATH_MAX) {
+    if (l_document_root >= PATH_MAX || n >= PATH_MAX - l_document_root) {
         return catch_error();
     }
-
-    memcpy(p, url, n);
-    p += n;
-    *p = '\0';
-    if (!dir_path.empty()) {
-        dir_path.clear();
+    memcpy(p, document_root.c_str(), l_document_root);
+    p += l_document_root;
+    const auto hex = [](unsigned char c) -> int {
+        if (c >= '0' && c <= '9') {
+            return c - '0';
+        }
+        if (c >= 'a' && c <= 'f') {
+            return c - 'a' + 10;
+        }
+        if (c >= 'A' && c <= 'F') {
+            return c - 'A' + 10;
+        }
+        return -1;
+    };
+    // URI paths are not form data: '+' is literal, and only the URL is decoded.
+    for (size_t i = 0; i < n; ++i) {
+        unsigned char c = url[i];
+        if (c == '%') {
+            if (i + 2 >= n || hex(url[i + 1]) < 0 || hex(url[i + 2]) < 0) {
+                status_code = SW_HTTP_BAD_REQUEST;
+                return true;
+            }
+            c = (hex(url[i + 1]) << 4) | hex(url[i + 2]);
+            i += 2;
+        }
+        if (c == 0) {
+            status_code = SW_HTTP_BAD_REQUEST;
+            return true;
+        }
+        *p++ = c;
     }
-    dir_path = std::string(url, n);
-
-    l_filename = url_decode(filename, p - filename);
-    filename[l_filename] = '\0';
+    *p = '\0';
+    dir_path.assign(url, n);
+    l_filename = p - filename;
 
     // The file does not exist
     if (lstat(filename, &file_stat) < 0) {
@@ -244,25 +360,37 @@ bool StaticHandler::try_serve() {
 
 bool StaticHandler::try_serve_index_file() {
     if (serv->http_index_files && !serv->http_index_files->empty() && is_dir()) {
-        if (!get_dir_files()) {
-            return false;
+        // Index lookup is proportional to the configured candidates, not directory size.
+        for (const auto &candidate : *serv->http_index_files) {
+            if (set_filename(candidate)) {
+                index_file = candidate;
+                return true;
+            }
         }
-        index_file = intersection(*serv->http_index_files, dir_files);
-
-        if (has_index_file() && !set_filename(index_file)) {
-            return false;
-        }
-        if (!has_index_file() && !is_enabled_auto_index()) {
-            return false;
-        }
+        return is_enabled_auto_index();
     }
+    return true;
+}
+
+bool StaticHandler::open_file() {
+    if (is_dir()) {
+        return true;
+    }
+    auto opened = std::make_shared<File>(filename, File::READ | File::BINARY | File::NONBLOCK);
+    struct stat opened_stat;
+    if (!opened->ready() || !opened->stat(&opened_stat) || !S_ISREG(opened_stat.st_mode)) {
+        return false;
+    }
+    // Validators and send tasks use this descriptor's metadata, not a later path lookup.
+    file_stat = opened_stat;
+    file = std::move(opened);
     return true;
 }
 
 size_t StaticHandler::make_index_page(String *buffer) {
     get_dir_files();
 
-    if (dir_path.back() != '/') {
+    if (dir_path.empty() || dir_path.back() != '/') {
         dir_path.append("/");
     }
     const std::string escaped_dir_path = html_escape(dir_path);
@@ -317,187 +445,180 @@ bool StaticHandler::get_dir_files() {
     return true;
 }
 
-bool StaticHandler::set_filename(const std::string &_filename) {
-    char *p = filename + l_filename;
-    const size_t separator_len = (*p == '/') ? 0 : 1;
-    if (l_filename + separator_len + _filename.length() >= PATH_MAX) {
+bool StaticHandler::set_filename(const std::string &name) {
+    const size_t separator = l_filename && filename[l_filename - 1] == '/' ? 0 : 1;
+    if (l_filename + separator + name.length() >= PATH_MAX) {
         return false;
     }
-
-    if (separator_len) {
-        *p = '/';
-        p += 1;
+    std::string candidate(filename, l_filename);
+    if (separator) {
+        candidate += '/';
     }
-
-    memcpy(p, _filename.c_str(), _filename.length());
-    p += _filename.length();
-    *p = 0;
-
-    if (lstat(filename, &file_stat) < 0) {
+    candidate += name;
+    struct stat candidate_stat;
+    if (::stat(candidate.c_str(), &candidate_stat) < 0 || !S_ISREG(candidate_stat.st_mode)) {
         return false;
     }
-
-    if (!is_file()) {
-        return false;
-    }
-
+    // Failed candidates leave the directory intact for the next candidate/autoindex.
+    memcpy(filename, candidate.c_str(), candidate.length() + 1);
+    l_filename = candidate.length();
+    file_stat = candidate_stat;
     return true;
 }
 
 void StaticHandler::parse_range(const char *range, const char *if_range) {
-    task_t _task{};
-    _task.length = 0;
-    // range
-    if (range && '\0' != *range) {
-        const char *p = range;
-        // bytes=
-        if (!SW_STR_ISTARTS_WITH(p, strlen(range), "bytes=")) {
-            _task.offset = 0;
-            _task.length = content_length = get_filesize();
-            tasks.push_back(_task);
+    // Publish a plan only after the complete header has been validated. A malformed
+    // later range must never leave executable tasks or multipart lengths behind.
+    tasks.clear();
+    end_part.clear();
+    content_length = 0;
+    status_code = SW_HTTP_OK;
+    const size_t file_size = get_filesize();
+    const auto full_response = [&]() {
+        task_t task{};
+        task.length = content_length = file_size;
+        tasks.clear();
+        tasks.push_back(task);
+        status_code = SW_HTTP_OK;
+    };
+    if (!range || !*range || !SW_STR_ISTARTS_WITH(range, strlen(range), "bytes=") || file_size == 0) {
+        full_response();
+        return;
+    }
+
+    if (if_range && *if_range && is_modified_range(if_range)) {
+        full_response();
+        return;
+    }
+
+    static constexpr size_t max_ranges = 16;
+    size_t range_count = 0;
+    size_t selected_bytes = 0;
+    bool excessive = false;
+    std::vector<task_t> ranges;
+    const char *p = range + 6;
+    const auto skip_space = [&]() {
+        while (*p == ' ' || *p == '\t') {
+            ++p;
+        }
+    };
+    const auto number = [&](size_t &value) {
+        if (*p < '0' || *p > '9') {
+            return false;
+        }
+        value = 0;
+        do {
+            const size_t digit = *p++ - '0';
+            if (value > (SIZE_MAX - digit) / 10) {
+                return false;
+            }
+            value = value * 10 + digit;
+        } while (*p >= '0' && *p <= '9');
+        return true;
+    };
+    for (;;) {
+        skip_space();
+        size_t start = 0, end = 0;
+        if (*p == '-') {
+            ++p;
+            if (!number(end)) {
+                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                return;
+            }
+            start = end < file_size ? file_size - end : 0;
+            end = file_size;
+        } else {
+            if (!number(start)) {
+                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                return;
+            }
+            skip_space();
+            if (*p != '-') {
+                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                return;
+            }
+            ++p;
+            skip_space();
+            if (*p == ',' || *p == '\0') {
+                end = file_size;
+            } else if (!number(end) || start > end) {
+                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                return;
+            } else {
+                end = end >= file_size ? file_size : end + 1;
+            }
+        }
+        skip_space();
+        if (*p != ',' && *p != '\0') {
+            status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
             return;
         }
-        p += 6;
-        size_t start, end, size = 0, cutoff = SIZE_MAX / 10, cutlim = SIZE_MAX % 10, suffix,
-                           _content_length = get_filesize();
-        content_length = 0;
-        for (;;) {
-            start = 0;
-            end = 0;
-            suffix = 0;
-
-            while (*p == ' ') {
-                p++;
-            }
-
-            if (*p != '-') {
-                if (*p < '0' || *p > '9') {
-                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                    return;
-                }
-
-                while (*p >= '0' && *p <= '9') {
-                    if (start >= cutoff && (start > cutoff || (size_t) (*p - '0') > cutlim)) {
-                        status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                        return;
-                    }
-
-                    start = start * 10 + (*p++ - '0');
-                }
-
-                while (*p == ' ') {
-                    p++;
-                }
-
-                if (*p++ != '-') {
-                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                    return;
-                }
-
-                while (*p == ' ') {
-                    p++;
-                }
-
-                if (*p == ',' || *p == '\0') {
-                    end = _content_length;
-                    goto found;
-                }
-
+        if (++range_count > max_ranges) {
+            excessive = true;
+        }
+        if (start < end) {
+            if (end - start > file_size - selected_bytes) {
+                excessive = true;
             } else {
-                suffix = 1;
-                p++;
+                selected_bytes += end - start;
             }
-
-            if (*p < '0' || *p > '9') {
-                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                return;
-            }
-
-            while (*p >= '0' && *p <= '9') {
-                if (end >= cutoff && (end > cutoff || (size_t) (*p - '0') > cutlim)) {
-                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                    return;
-                }
-
-                end = end * 10 + (*p++ - '0');
-            }
-
-            while (*p == ' ') {
-                p++;
-            }
-
-            if (*p != ',' && *p != '\0' && *p != '\r') {
-                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                return;
-            }
-
-            if (suffix) {
-                start = (end < _content_length) ? _content_length - end : 0;
-                end = _content_length - 1;
-            }
-
-            if (end >= _content_length) {
-                end = _content_length;
-
-            } else {
-                end++;
-            }
-
-        found:
-            if (start < end) {
-                if (size > SIZE_MAX - (end - start)) {
-                    status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
-                    return;
-                }
-                size += end - start;
-                _task.offset = start;
-                _task.length = end - start;
-                content_length += sw_snprintf(_task.part_header,
-                                              sizeof(_task.part_header),
-                                              "%s--%s\r\n"
-                                              "Content-Type: %s\r\n"
-                                              "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
-                                              tasks.empty() ? "" : "\r\n",
-                                              get_boundary().c_str(),
-                                              get_mimetype().c_str(),
-                                              (size_t) _task.offset,
-                                              end - 1,
-                                              get_filesize()) +
-                                  _task.length;
-                tasks.push_back(_task);
-            } else if (start == 0) {
-                break;
-            }
-
-            if (*p++ != ',' || '\r' == *p || '\0' == *p) {
-                break;
+            task_t task{};
+            task.offset = start;
+            task.length = end - start;
+            if (!excessive) {
+                ranges.push_back(task);
             }
         }
+        if (!*p) {
+            break;
+        }
+        ++p;
     }
-    if (_task.length > 0) {
-        if (1 == tasks.size()) {
-            content_length = _task.length;
-        } else {
-            end_part = std::string("\r\n--") + get_boundary() + "--\r\n";
-            content_length += end_part.size();
-        }
-        status_code = SW_HTTP_PARTIAL_CONTENT;
+    if (excessive) {
+        full_response();
+        return;
+    }
+    if (ranges.empty()) {
+        status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+        return;
+    }
+
+    size_t length = 0;
+    if (ranges.size() == 1) {
+        length = ranges.front().length;
     } else {
-        _task.offset = 0;
-        _task.length = content_length = get_filesize();
-        tasks.push_back(_task);
-    }
-    // if-range
-    if (if_range) {
-        if (is_modified_range(if_range)) {
-            tasks.clear();
-            _task.offset = 0;
-            _task.length = content_length = get_filesize();
-            tasks.push_back(_task);
-            status_code = SW_HTTP_OK;
+        for (auto &task : ranges) {
+            const int n = snprintf(task.part_header,
+                                   sizeof(task.part_header),
+                                   "%s--%s\r\nContent-Type: %s\r\n"
+                                   "Content-Range: bytes %zu-%zu/%zu\r\n\r\n",
+                                   &task == &ranges.front() ? "" : "\r\n",
+                                   get_boundary().c_str(),
+                                   get_mimetype().c_str(),
+                                   static_cast<size_t>(task.offset),
+                                   static_cast<size_t>(task.offset) + task.length - 1,
+                                   file_size);
+            if (n < 0 || static_cast<size_t>(n) >= sizeof(task.part_header) ||
+                task.length > SIZE_MAX - static_cast<size_t>(n) ||
+                length > SIZE_MAX - task.length - static_cast<size_t>(n)) {
+                status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+                return;
+            }
+            length += task.length + n;
         }
+        const std::string terminator = "\r\n--" + get_boundary() + "--\r\n";
+        if (length > SIZE_MAX - terminator.length()) {
+            status_code = SW_HTTP_RANGE_NOT_SATISFIABLE;
+            return;
+        }
+        end_part = terminator;
+        length += end_part.length();
     }
+    tasks = std::move(ranges);
+    content_length = length;
+    status_code = SW_HTTP_PARTIAL_CONTENT;
 }
+
 }  // namespace http_server
 
 void Server::add_rewrite_rule(const std::string &pattern, const std::string &replacement) {
@@ -540,184 +661,135 @@ void Server::add_static_handler_index_files(const std::string &file) {
 }
 
 bool Server::select_static_handler(const http_server::Request *request, const Connection *conn) {
-    const char *url = request->buffer_->str + request->url_offset_;
-    size_t url_length = request->url_length_;
-
-    http_server::StaticHandler handler(this, url, url_length);
+    // Static responses run on the owning reactor. Other methods retain application
+    // handling, including OPTIONS/CORS, rather than bypassing PHP with file content.
+    if (request->method != SW_HTTP_GET && request->method != SW_HTTP_HEAD) {
+        return false;
+    }
+    http_server::StaticHandler handler(this, request->buffer_->str + request->url_offset_, request->url_length_);
     if (!handler.try_serve()) {
         return false;
     }
-
-    char header_buffer[1024];
-    // Value-initialize so ext_flags is zero: static SEND_FILE events never opt into deletion.
-    SendData response{};
-    response.info.fd = conn->session_id;
-    response.info.type = SW_SERVER_EVENT_SEND_DATA;
-
-    if (handler.status_code == SW_HTTP_NOT_FOUND) {
-        response.info.len = sw_snprintf(header_buffer,
-                                        sizeof(header_buffer),
-                                        "HTTP/1.1 %s\r\n"
-                                        "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
-                                        "Content-Length: %zu\r\n"
-                                        "\r\n%s",
-                                        http_server::get_status_message(SW_HTTP_NOT_FOUND),
-                                        sizeof(SW_HTTP_PAGE_404) - 1,
-                                        SW_HTTP_PAGE_404);
-        response.data = header_buffer;
-        send_to_connection(&response);
-
-        return true;
-    }
-
-    auto date_str = handler.get_date();
-    auto date_str_last_modified = handler.get_date_last_modified();
-
-    std::string date_if_modified_since = request->get_header("If-Modified-Since");
-    if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since)) {
-        response.info.len = sw_snprintf(header_buffer,
-                                        sizeof(header_buffer),
-                                        "HTTP/1.1 304 Not Modified\r\n"
-                                        "Connection: %s\r\n"
-                                        "Date: %s\r\n"
-                                        "Last-Modified: %s\r\n"
-                                        "Server: %s\r\n\r\n",
-                                        request->keep_alive ? "keep-alive" : "close",
-                                        date_str.c_str(),
-                                        date_str_last_modified.c_str(),
-                                        SW_HTTP_SERVER_SOFTWARE);
-        response.data = header_buffer;
-        send_to_connection(&response);
-
-        return true;
-    }
-
-    /**
-     * if http_index_files is enabled, need to search the index file first.
-     * if the index file is found, set filename to index filename.
-     */
-    if (!handler.try_serve_index_file()) {
+    const auto redirect = handler.status_code == SW_HTTP_OK ? handler.get_directory_redirect() : std::string{};
+    if (handler.status_code == SW_HTTP_OK && (!handler.try_serve_index_file() || !handler.open_file())) {
         return false;
     }
 
-    /**
-     * the index file was not found in the current directory,
-     * if http_autoindex is enabled, should show the list of files in the current directory.
-     */
-    if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
-        sw_tg_buffer()->clear();
-        size_t body_length = handler.make_index_page(sw_tg_buffer());
-
-        response.info.len = sw_snprintf(header_buffer,
-                                        sizeof(header_buffer),
-                                        "HTTP/1.1 200 OK\r\n"
-                                        "Connection: %s\r\n"
-                                        "Content-Length: %ld\r\n"
-                                        "Content-Type: text/html\r\n"
-                                        "Date: %s\r\n"
-                                        "Last-Modified: %s\r\n"
-                                        "Server: %s\r\n\r\n",
-                                        request->keep_alive ? "keep-alive" : "close",
-                                        static_cast<long>(body_length),
-                                        date_str.c_str(),
-                                        date_str_last_modified.c_str(),
-                                        SW_HTTP_SERVER_SOFTWARE);
-        response.data = header_buffer;
-        send_to_connection(&response);
-
-        response.info.len = body_length;
-        response.data = sw_tg_buffer()->str;
-        send_to_connection(&response);
+    const bool head = request->method == SW_HTTP_HEAD;
+    SendData response{};
+    response.info.fd = conn->session_id;
+    bool failed = false;
+    const auto send = [&](const char *data, size_t length) {
+        if (failed || length == 0) {
+            return;
+        }
+        response.info.type = SW_SERVER_EVENT_SEND_DATA;
+        response.info.len = length;
+        response.data = data;
+        failed = send_to_connection(&response) < 0;
+    };
+    const auto complete = [&]() {
+        // All static branches honor connection policy, including 304/404/autoindex.
+        // A partial response cannot safely be reused after a send failure.
+        if (failed || !request->keep_alive) {
+            response.info.type = SW_SERVER_EVENT_CLOSE;
+            response.info.ext_flags = failed ? CLOSE_RESET : 0;
+            response.info.len = 0;
+            response.data = nullptr;
+            send_to_connection(&response);
+        }
         return true;
+    };
+    const auto send_header = [&](int status, size_t length, const std::string &type, const std::string &extra) {
+        String header(1024);
+        header.append_format("HTTP/1.1 %s\r\nConnection: %s\r\nDate: %s\r\nServer: %s\r\n",
+                             http_server::get_status_message(status),
+                             request->keep_alive ? "keep-alive" : "close",
+                             handler.get_date().c_str(),
+                             SW_HTTP_SERVER_SOFTWARE);
+        if (status != SW_HTTP_NOT_MODIFIED) {
+            header.append_format("Content-Length: %zu\r\nContent-Type: %s\r\n", length, type.c_str());
+        }
+        if (status != SW_HTTP_NOT_FOUND && status != SW_HTTP_BAD_REQUEST) {
+            header.append_format("Last-Modified: %s\r\n", handler.get_date_last_modified().c_str());
+        }
+        if (status == SW_HTTP_OK || status == SW_HTTP_PARTIAL_CONTENT || status == SW_HTTP_NOT_MODIFIED ||
+            status == SW_HTTP_PRECONDITION_FAILED || status == SW_HTTP_RANGE_NOT_SATISFIABLE) {
+            header.append_format("ETag: %s\r\n", handler.get_etag().c_str());
+        }
+        header.append(extra);
+        header.append(SW_STRL("\r\n"));
+        send(header.str, header.length);
+    };
+
+    if (handler.status_code == SW_HTTP_NOT_FOUND || handler.status_code == SW_HTTP_BAD_REQUEST) {
+        const bool not_found = handler.status_code == SW_HTTP_NOT_FOUND;
+        send_header(handler.status_code, not_found ? sizeof(SW_HTTP_PAGE_404) - 1 : 0, "text/html", "");
+        if (!head && not_found) {
+            send(SW_STRL(SW_HTTP_PAGE_404));
+        }
+        return complete();
+    }
+    if (!redirect.empty()) {
+        send_header(SW_HTTP_MOVED_PERMANENTLY, 0, "text/html", "Location: " + redirect + "\r\n");
+        return complete();
+    }
+    const int condition = handler.evaluate_preconditions(request->get_header("If-Match"),
+                                                         request->get_header("If-Unmodified-Since"),
+                                                         request->get_header("If-None-Match"),
+                                                         request->get_header("If-Modified-Since"));
+    if (condition != SW_HTTP_OK) {
+        send_header(condition, 0, "text/html", "");
+        return complete();
+    }
+    if (!handler.has_index_file() && handler.is_enabled_auto_index() && handler.is_dir()) {
+        String body(1024);
+        handler.make_index_page(&body);
+        send_header(SW_HTTP_OK, body.length, "text/html", "");
+        if (!head) {
+            send(body.str, body.length);
+        }
+        return complete();
     }
 
     handler.parse_range(request->get_header("Range").c_str(), request->get_header("If-Range").c_str());
-    auto tasks = handler.get_tasks();
-
-    std::stringstream header_stream;
-    if (1 == tasks.size()) {
-        if (SW_HTTP_PARTIAL_CONTENT == handler.status_code) {
-            header_stream << "Content-Range: bytes " << tasks[0].offset << "-"
-                          << (tasks[0].length + tasks[0].offset - 1) << "/" << handler.get_filesize() << "\r\n";
-        } else {
-            header_stream << "Accept-Ranges: bytes\r\n";
-        }
+    const auto &tasks = handler.get_tasks();
+    std::string extra;
+    if (handler.status_code == SW_HTTP_RANGE_NOT_SATISFIABLE) {
+        extra = "Content-Range: bytes */" + std::to_string(handler.get_filesize()) + "\r\n";
+    } else if (handler.status_code == SW_HTTP_PARTIAL_CONTENT && tasks.size() == 1) {
+        extra = "Content-Range: bytes " + std::to_string(tasks[0].offset) + "-" +
+                std::to_string(tasks[0].offset + tasks[0].length - 1) + "/" + std::to_string(handler.get_filesize()) +
+                "\r\n";
+    } else if (handler.status_code == SW_HTTP_OK) {
+        extra = "Accept-Ranges: bytes\r\n";
     }
-
-    response.info.len = sw_snprintf(
-        header_buffer,
-        sizeof(header_buffer),
-        "HTTP/1.1 %s\r\n"
-        "Connection: %s\r\n"
-        "Content-Length: %ld\r\n"
-        "Content-Type: %s\r\n"
-        "%s"
-        "Date: %s\r\n"
-        "Last-Modified: %s\r\n"
-        "Server: %s\r\n\r\n",
-        http_server::get_status_message(handler.status_code),
-        request->keep_alive ? "keep-alive" : "close",
-        SW_HTTP_HEAD == request->method ? 0 : handler.get_content_length(),
-        SW_HTTP_HEAD == request->method ? handler.get_mimetype().c_str() : handler.get_content_type().c_str(),
-        header_stream.str().c_str(),
-        date_str.c_str(),
-        date_str_last_modified.c_str(),
-        SW_HTTP_SERVER_SOFTWARE);
-
-    response.data = header_buffer;
-
-    // Use tcp_nopush to improve sending efficiency
-    conn->socket->cork();
-
-    // Send HTTP header
-    send_to_connection(&response);
-
-    // Send HTTP body
-    if (SW_HTTP_HEAD != request->method) {
-        if (!tasks.empty()) {
-            size_t task_size = sizeof(network::SendfileTask) + strlen(handler.get_filename()) + 1;
-            String task_buffer(task_size);
-            auto *task = reinterpret_cast<network::SendfileTask *>(task_buffer.str);
-            strcpy(task->filename, handler.get_filename());
+    // Socket::handle_sendfile owns cork/uncork for large transfers. Pre-corking
+    // here prevents it from claiming that state and can leave small/HEAD replies corked.
+    send_header(handler.status_code, handler.get_content_length(), handler.get_content_type(), extra);
+    if (!head && !failed && !tasks.empty()) {
+        // The explicit opened-file argument stays inside this reactor call; no
+        // filename or smart pointer is copied into a process/worker IPC packet.
+        network::SendfileTask task{};
+        for (const auto &part : tasks) {
             if (tasks.size() > 1) {
-                for (const auto &i : tasks) {
-                    response.info.type = SW_SERVER_EVENT_SEND_DATA;
-                    response.info.len = strlen(i.part_header);
-                    response.data = i.part_header;
-                    send_to_connection(&response);
-
-                    task->offset = i.offset;
-                    task->length = i.length;
-                    response.info.type = SW_SERVER_EVENT_SEND_FILE;
-                    response.info.len = task_size;
-                    response.data = reinterpret_cast<char *>(task);
-                    send_to_connection(&response);
-                }
-
-                response.info.type = SW_SERVER_EVENT_SEND_DATA;
-                response.info.len = handler.get_end_part().length();
-                response.data = handler.get_end_part().c_str();
-                send_to_connection(&response);
-            } else if (tasks[0].length > 0) {
-                task->offset = tasks[0].offset;
-                task->length = tasks[0].length;
-                response.info.type = SW_SERVER_EVENT_SEND_FILE;
-                response.info.len = task_size;
-                response.data = reinterpret_cast<char *>(task);
-                send_to_connection(&response);
+                send(part.part_header, strlen(part.part_header));
             }
+            if (failed || part.length == 0) {
+                break;
+            }
+            task.offset = part.offset;
+            task.length = part.length;
+            response.info.type = SW_SERVER_EVENT_SEND_FILE;
+            response.info.len = sizeof(task);
+            response.data = reinterpret_cast<char *>(&task);
+            failed = send_to_connection(&response, &handler.get_file()) < 0;
+        }
+        if (tasks.size() > 1) {
+            send(handler.get_end_part().c_str(), handler.get_end_part().length());
         }
     }
-
-    // Close the connection if keepalive is not used
-    if (!request->keep_alive) {
-        response.info.type = SW_SERVER_EVENT_CLOSE;
-        response.info.len = 0;
-        response.data = nullptr;
-        send_to_connection(&response);
-    }
-
-    return true;
+    return complete();
 }
 
 bool Server::apply_rewrite_rules(http_server::StaticHandler *handler) {
