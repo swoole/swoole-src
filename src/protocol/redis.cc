@@ -37,17 +37,30 @@ struct Request {
     int offset;
 };
 
-const char *get_number(const char *p, int *_ret) {
-    char *endptr;
-    p++;
-    int ret = strtol(p, &endptr, 10);
-    if (strncmp(SW_CRLF, endptr, SW_CRLF_LEN) == 0) {
-        p += (endptr - p) + SW_CRLF_LEN;
-        *_ret = ret;
-        return p;
-    } else {
+const char *get_number(const char *p, const char *pe, int *_ret) {
+    // p points at the type byte ('*', '$' or ':'); the number must be followed by CRLF inside [p, pe).
+    const char *q = p + 1;
+    bool negative = false;
+    if (q < pe && *q == '-') {
+        negative = true;
+        q++;
+    }
+    if (q >= pe || *q < '0' || *q > '9') {
         return nullptr;
     }
+    int64_t value = 0;
+    while (q < pe && *q >= '0' && *q <= '9') {
+        value = value * 10 + (*q - '0');
+        if (value > INT32_MAX) {
+            return nullptr;
+        }
+        q++;
+    }
+    if (pe - q < SW_CRLF_LEN || memcmp(q, SW_CRLF, SW_CRLF_LEN) != 0) {
+        return nullptr;
+    }
+    *_ret = static_cast<int>(negative ? -value : value);
+    return q + SW_CRLF_LEN;
 }
 
 int recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
@@ -121,7 +134,7 @@ _recv_data:
             switch (request->state) {
             case STATE_RECEIVE_TOTAL_LINE:
                 if (*p == '*') {
-                    if ((p = get_number(p, &ret)) == nullptr) {
+                    if ((p = get_number(p, pe, &ret)) == nullptr || ret < 0) {
                         goto _failed;
                     }
                     request->n_lines_total = ret;
@@ -132,7 +145,7 @@ _recv_data:
 
             case STATE_RECEIVE_LENGTH:
                 if (*p == '$') {
-                    if ((p = get_number(p, &ret)) == nullptr) {
+                    if ((p = get_number(p, pe, &ret)) == nullptr) {
                         goto _failed;
                     }
                     if (ret < 0) {
@@ -147,7 +160,7 @@ _recv_data:
                 }
                 // integer
                 else if (*p == ':') {
-                    if ((p = get_number(p, &ret)) == nullptr) {
+                    if ((p = get_number(p, pe, &ret)) == nullptr) {
                         goto _failed;
                     }
                     break;
@@ -226,22 +239,28 @@ std::vector<std::string> parse(const char *data, size_t len) {
 
     const char *p = data;
     const char *pe = p + len;
+    const char *q;
     int ret;
     int length = 0;
 
     std::vector<std::string> result;
+    if (len == 0) {
+        return result;
+    }
     do {
         switch (state) {
         case STATE_RECEIVE_TOTAL_LINE:
-            if (*p == '*' && ((p = get_number(p, &ret)))) {
+            if (*p == '*' && ((q = get_number(p, pe, &ret)))) {
+                p = q;
                 state = STATE_RECEIVE_LENGTH;
                 break;
             }
             /* no break */
 
         case STATE_RECEIVE_LENGTH:
-            if (*p == '$' && ((p = get_number(p, &ret)))) {
-                if (ret == -1) {
+            if (*p == '$' && ((q = get_number(p, pe, &ret)))) {
+                p = q;
+                if (ret < 0) {
                     break;
                 }
                 length = ret;
@@ -249,13 +268,17 @@ std::vector<std::string> parse(const char *data, size_t len) {
                 break;
             }
             // integer
-            else if (*p == ':' && ((p = get_number(p, &ret)))) {
+            else if (*p == ':' && ((q = get_number(p, pe, &ret)))) {
+                p = q;
                 result.push_back(std::to_string(ret));
                 break;
             }
             /* no break */
 
         case STATE_RECEIVE_STRING:
+            if (pe - p < static_cast<ptrdiff_t>(length) + SW_CRLF_LEN) {
+                return result;
+            }
             result.emplace_back(p, length);
             p += length + SW_CRLF_LEN;
             state = STATE_RECEIVE_LENGTH;
