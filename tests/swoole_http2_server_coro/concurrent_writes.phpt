@@ -8,9 +8,18 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine;
 use Swoole\Coroutine\Http2\Client;
+use Swoole\Event;
 
-// More than the connection can hold, so this response keeps writing until the client reads
-const BODY_SIZE = 32 * 1024 * 1024;
+const CHUNK_SIZE = 64 * 1024;
+
+function connect(ProcessManager $pm): Client
+{
+    $cli = new Client('127.0.0.1', $pm->getFreePort());
+    // Small buffers, so /big waits for the client to read
+    $cli->set(['socket_buffer_size' => 4096]);
+    Assert::true($cli->connect());
+    return $cli;
+}
 
 function send_request(Client $cli, string $path): void
 {
@@ -19,22 +28,12 @@ function send_request(Client $cli, string $path): void
     Assert::greaterThan($cli->send($request), 0);
 }
 
-function cancel_soon(): void
-{
-    $cid = Coroutine::getCid();
-    Coroutine::create(function () use ($cid) {
-        Coroutine::sleep(0.1);
-        Coroutine::cancel($cid);
-    });
-}
-
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    Coroutine::set(['http2_init_window_size' => BODY_SIZE]);
+    Coroutine::set(['http2_init_window_size' => 0x7fffffff]);
     go(function () use ($pm) {
         // While /big writes, the other responses and the PING ACK wait their turn
-        $cli = new Client('127.0.0.1', $pm->getFreePort());
-        Assert::true($cli->connect());
+        $cli = connect($pm);
         send_request($cli, '/big');
         for ($id = 0; $id < 3; $id++) {
             send_request($cli, "/small?id={$id}");
@@ -43,13 +42,13 @@ $pm->parentFunc = function () use ($pm) {
         // Its handler leaves the response to the destructor in the receive loop, which queues it behind /big
         send_request($cli, '/noend');
         Assert::true($cli->ping());
-        Coroutine::sleep(0.5);
+        $pm->wait();
         $responses = [];
         for ($n = 6; $n--;) {
             $response = $cli->recv(5);
             $responses[$response->streamId] = $response;
         }
-        Assert::true($responses[1]->data === str_repeat('A', BODY_SIZE));
+        Assert::true($responses[1]->data !== '' && strspn($responses[1]->data, 'A') === strlen($responses[1]->data));
         for ($id = 0; $id < 3; $id++) {
             $response = $responses[3 + $id * 2];
             Assert::same($response->headers['x-id'], "{$id}");
@@ -63,17 +62,15 @@ $pm->parentFunc = function () use ($pm) {
         $cli->close();
 
         // The peer goes away while one response writes and two wait
-        $cli = new Client('127.0.0.1', $pm->getFreePort());
-        Assert::true($cli->connect());
+        $cli = connect($pm);
         send_request($cli, '/big?case=close');
         send_request($cli, '/small?case=close&id=0');
         send_request($cli, '/small?case=close&id=1');
-        Coroutine::sleep(0.1);
+        $pm->wait();
         $cli->close();
 
         // The writing response is canceled partway through a frame while another waits
-        $partial = new Client('127.0.0.1', $pm->getFreePort());
-        Assert::true($partial->connect());
+        $partial = connect($pm);
         send_request($partial, '/big?case=cancel');
         send_request($partial, '/small?case=cancel&id=0');
 
@@ -90,25 +87,44 @@ $pm->childFunc = function () use ($pm) {
     Coroutine\run(function () use ($pm) {
         Coroutine::create(function () use ($pm) {
             $results = new Coroutine\Channel(6);
+            $bigCid = 0;
             $http = new Swoole\Coroutine\Http\Server('127.0.0.1', $pm->getFreePort());
             $http->set(['open_http2_protocol' => true]);
-            $http->handle('/', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($results) {
+            $http->handle('/', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm, $results, &$bigCid) {
                 $path = $request->server['request_uri'];
                 $case = $request->get['case'] ?? null;
+                // Deferred callbacks run once the handler's end() has started waiting for /big
                 switch ($path) {
                     case '/big':
-                        if ($case === 'cancel') {
-                            cancel_soon();
-                        }
-                        $ok = $response->end(str_repeat('A', BODY_SIZE));
+                        $bigCid = Coroutine::getCid();
+                        // Write until a write has to wait for the client: the callback runs once this coroutine yields
+                        $waited = false;
+                        Event::defer(function () use (&$waited) {
+                            $waited = true;
+                        });
+                        do {
+                            $ok = $response->write(str_repeat('A', CHUNK_SIZE));
+                        } while ($ok && !$waited);
+                        $ok = $ok && $response->end();
                         break;
                     case '/small':
+                        if ($case === 'cancel') {
+                            $cid = $bigCid;
+                            Event::defer(fn () => Coroutine::cancel($cid));
+                        } elseif ($case === 'close' && $request->get['id'] === '1') {
+                            Event::defer(fn () => $pm->wakeup());
+                        }
                         $response->header('x-id', $request->get['id']);
                         $response->trailer('x-trailer', $request->get['id']);
                         $ok = $response->end("small {$request->get['id']}");
                         break;
                     case '/cancel':
-                        cancel_soon();
+                        $cid = Coroutine::getCid();
+                        Event::defer(function () use ($pm, $cid) {
+                            Coroutine::cancel($cid);
+                            // The retried end() is waiting again
+                            $pm->wakeup();
+                        });
                         $response->header('x-cancel', 'value');
                         $ok = $response->end();
                         $response->end();
