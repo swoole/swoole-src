@@ -40,10 +40,12 @@ $pm->parentFunc = function () use ($pm) {
             send_request($cli, "/small?id={$id}");
         }
         send_request($cli, '/cancel?case=wait');
+        // Its handler leaves the response to the destructor in the receive loop, which queues it behind /big
+        send_request($cli, '/noend');
         Assert::true($cli->ping());
         Coroutine::sleep(0.5);
         $responses = [];
-        for ($n = 5; $n--;) {
+        for ($n = 6; $n--;) {
             $response = $cli->recv(5);
             $responses[$response->streamId] = $response;
         }
@@ -56,6 +58,8 @@ $pm->parentFunc = function () use ($pm) {
         }
         // The canceled end() encoded nothing, so the retried headers still decode
         Assert::same($responses[9]->headers['x-cancel'], 'value');
+        Assert::same($responses[11]->statusCode, 500);
+        Assert::same($responses[11]->headers['server'], 'swoole-http-server');
         $cli->close();
 
         // The peer goes away while one response writes and two wait
