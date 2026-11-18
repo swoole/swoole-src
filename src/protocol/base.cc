@@ -70,10 +70,15 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
         return SW_CONTINUE;
     }
 
+    size_t delivered_end = 0;
+    bool delivery_failed = false;
     ssize_t n = buffer->split(package_eof, package_eof_len, [&](const char *data, size_t length) -> int {
         rdata.info.len = length;
         rdata.data = data;
+        // The buffer may be released by onPackage() if it closes the connection synchronously.
+        delivered_end = data + length - buffer->str;
         if (onPackage(this, socket, &rdata) < 0) {
+            delivery_failed = true;
             return false;
         }
         if (socket->removed) {
@@ -82,7 +87,23 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
         return true;
     });
 
-    if (socket->removed || n < 0) {
+    if (delivery_failed) {
+        return SW_CLOSE;
+    }
+    if (socket->removed) {
+        // onPackage() paused receiving: drop the delivered packets so that a resumed read does not deliver them again.
+        if (socket->recv_buffer != buffer) {
+            return SW_CLOSE;
+        }
+        if (delivered_end < buffer->length) {
+            buffer->reduce(delivered_end);
+            buffer->offset = 0;
+        } else {
+            buffer->clear();
+        }
+        return SW_OK;
+    }
+    if (n < 0) {
         return SW_CLOSE;
     } else if (n == 0) {
         return SW_CONTINUE;
@@ -309,6 +330,10 @@ _recv_data:
                 return SW_ERR;
             }
             if (socket->removed) {
+                // Paused or closed by onPackage(); the packet was delivered, do not deliver it again on resume.
+                if (socket->recv_buffer == buffer) {
+                    buffer->clear();
+                }
                 return SW_OK;
             }
             buffer->clear();
