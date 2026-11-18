@@ -1821,6 +1821,44 @@ static void php_swoole_server_cleanup_connection(Server *serv, SessionId session
     php_swoole_http2_server_onClose(serv, session_id);
 }
 
+// A send that fails because its coroutine was cancelled can close the connection while the CanceledException is
+// pending, and zend_call_function() doesn't run a callback then. Set the exception aside around a synchronous onClose,
+// as PHP does around a destructor, so the handler still receives it.
+static bool php_swoole_server_call_close_callback(zend::Callable *cb,
+                                                  uint32_t argc,
+                                                  zval *args,
+                                                  bool enable_coroutine) {
+    zend_object *exception = EG(exception);
+    if (enable_coroutine || !exception || !instanceof_function(exception->ce, zend_ce_throwable)) {
+        return zend::function::call(cb, argc, args, nullptr, enable_coroutine);
+    }
+
+    zend_execute_data *execute_data = EG(current_execute_data);
+    const zend_op *opline_before_exception = nullptr;
+    if (execute_data) {
+        if (execute_data->func && ZEND_USER_CODE(execute_data->func->common.type)) {
+            zend_rethrow_exception(execute_data);
+        }
+        execute_data->opline = EG(opline_before_exception);
+        opline_before_exception = EG(opline_before_exception);
+    }
+    EG(exception) = nullptr;
+
+    bool success = zend::function::call(cb, argc, args, nullptr, false);
+
+    if (execute_data) {
+        execute_data->opline = EG(exception_op);
+        EG(opline_before_exception) = opline_before_exception;
+    }
+    // call() has reported an exception from the callback. Only UnwindExit stays, and it replaces the pending one.
+    if (EG(exception)) {
+        OBJ_RELEASE(exception);
+    } else {
+        EG(exception) = exception;
+    }
+    return success;
+}
+
 void php_swoole_server_onClose(Server *serv, DataHead *info) {
     SessionId session_id = info->fd;
 
@@ -1859,7 +1897,7 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
             argc = 3;
         }
 
-        if (UNEXPECTED(!zend::function::call(cb, argc, args, nullptr, serv->enable_coroutine))) {
+        if (UNEXPECTED(!php_swoole_server_call_close_callback(cb, argc, args, serv->enable_coroutine))) {
             php_swoole_error(E_WARNING, "%s->onClose handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
 
