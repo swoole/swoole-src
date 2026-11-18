@@ -51,7 +51,7 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     int64_t body_length = swoole_unpack(protocol->package_length_type, pl->buf + length_offset);
     // Length error
     // Protocol length is not legitimate, out of bounds or exceed the allocated length
-    if (body_length < 0) {
+    if (body_length < 0 || body_length > INT64_MAX - static_cast<int64_t>(protocol->package_body_offset)) {
         return SW_ERR;
     }
     swoole_debug("length=%ld", protocol->package_body_offset + body_length);
