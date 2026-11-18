@@ -964,10 +964,9 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
     bool has_status_pseudo_header = false;
     zval *ztrailers = nullptr;
 
-    int inflate_flags = 0;
-
-    do {
+    for (;;) {
         nghttp2_nv nv;
+        int inflate_flags = 0;
 
         ssize_t rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0) {
@@ -978,17 +977,17 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
         in += (size_t) rv;
         inlen -= (size_t) rv;
 
-        swoole_trace_log(SW_TRACE_HTTP2,
-                         "[" SW_ECHO_GREEN "] %.*s[%lu]: %.*s[%lu]",
-                         "HEADER",
-                         (int) nv.namelen,
-                         nv.name,
-                         nv.namelen,
-                         (int) nv.valuelen,
-                         nv.value,
-                         nv.valuelen);
-
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
+            swoole_trace_log(SW_TRACE_HTTP2,
+                             "[" SW_ECHO_GREEN "] %.*s[%lu]: %.*s[%lu]",
+                             "HEADER",
+                             (int) nv.namelen,
+                             nv.name,
+                             nv.namelen,
+                             (int) nv.valuelen,
+                             nv.value,
+                             nv.valuelen);
+
             if (nv.name[0] == ':') {
                 // Pseudo-headers only appear on the initial/informational response HEADERS
                 // frame, never on a trailers frame. Encountering :status therefore proves this
@@ -1039,13 +1038,16 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                 }
             }
         }
-    } while ([=] {
         if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL) {
             nghttp2_hd_inflate_end_headers(inflater);
-            return false;
+            break;
         }
-        return inlen != 0;
-    }());
+
+        // Emitting the last field can consume all input before the inflater signals FINAL.
+        if ((inflate_flags & NGHTTP2_HD_INFLATE_EMIT) == 0 && inlen == 0) {
+            break;
+        }
+    }
 
     // Only a frame carrying :status marks the initial response headers as received. A trailers
     // frame has no pseudo-headers, so it leaves the flag untouched and is classified correctly
