@@ -664,9 +664,19 @@ bool Http2Stream::send_body(
     int flags = end_stream ? SW_HTTP2_FLAG_END_STREAM : SW_HTTP2_FLAG_NONE;
     String *http_buffer = ctx->get_write_buffer();
 
+    // A process mode worker can't send more than output_buffer_size at once, and each frame is sent whole. A limit
+    // too small for any payload is left to fail the send with the server's own error.
+    uint32_t max_payload = UINT32_MAX;
+    if (!ctx->is_co_socket()) {
+        auto serv = ctx->get_async_server();
+        if (serv->is_process_mode() && serv->output_buffer_size > SW_HTTP2_FRAME_HEADER_SIZE) {
+            max_payload = serv->output_buffer_size - SW_HTTP2_FRAME_HEADER_SIZE;
+        }
+    }
+
     while (l > 0) {
         // The peer may update its frame limit while a flow-control wait yields.
-        auto max_frame_size = session->remote_settings.max_frame_size;
+        auto max_frame_size = SW_MIN(session->remote_settings.max_frame_size, max_payload);
         size_t send_n;
         int _send_flags;
         if (l > max_frame_size) {
