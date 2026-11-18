@@ -177,7 +177,10 @@ ssize_t IocpSocket::iocp_recv(void *_buf, size_t _n) {
     ssize_t retval = Iocp::recv(socket->get_fd(), _buf, _n, 0, socket->read_timeout);
     // An outer recv_packet() timer resumes the coroutine and cancels pending I/O.
     // Preserve that timeout instead of replacing it with the cancellation error.
-    if (retval < 0 && errno == ECANCELED && errCode == ETIMEDOUT) {
+    // Under concurrent write, a successful send may clear errCode to 0 before the
+    // cancel completion is observed — still treat as ETIMEDOUT (swoole#6417 race).
+    // Real close() sets CLOSE_WAIT first; leave ECANCELED alone in that case.
+    if (retval < 0 && errno == ECANCELED && (errCode == ETIMEDOUT || errCode == 0)) {
         set_err(ETIMEDOUT);
     }
     return retval;

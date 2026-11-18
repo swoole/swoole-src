@@ -1474,10 +1474,12 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
             if (sw_unlikely(!continue_frame_buffer)) {
                 swoole_warning("A continuation frame cannot stand alone and MUST be preceded by an initial frame whose "
                                "opcode indicates either text or binary data.");
+                swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
                 RETURN_NULL();
             }
 
             if (sw_unlikely(continue_frame_buffer->length + frame.payload_length > max_frame_size)) {
+                continue_frame_buffer.reset();
                 swoole_set_last_error(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
                 RETURN_NULL();
             }
@@ -1519,6 +1521,9 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
             if (sw_unlikely(continue_frame_buffer)) {
                 swoole_warning("All fragments of a message, except for the initial frame, must use the continuation "
                                "frame opcode(0).");
+                // Drop poisoned fragment state; otherwise every later data frame keeps failing with errCode=0.
+                continue_frame_buffer.reset();
+                swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
                 RETURN_NULL();
             }
             if (frame.header.FIN) {
