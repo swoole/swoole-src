@@ -506,7 +506,8 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
     };
     ssize_t n;
 
-    if (_socket->skip_recv) {
+    // While a request is in flight, pipelined bytes are still read if they fit, so a client close is seen.
+    if (_socket->skip_recv && (!conn->http_request_in_flight || buffer->length == buffer->size)) {
         _socket->skip_recv = 0;
         goto _parse;
     }
@@ -558,9 +559,12 @@ _recv_data:
 _parse:
     if (conn->http_request_in_flight || !conn->can_receive()) {
         // update_recv_interest() parses the buffered bytes again once receiving is allowed.
-        conn->http_request_waiting = 1;
         _socket->skip_recv = 1;
-        serv->update_recv_interest(reactor, conn);
+        // A full buffer stops reading until the pipelined requests are parsed.
+        if (conn->http_request_in_flight && !conn->http_request_waiting && buffer->length == buffer->size) {
+            conn->http_request_waiting = 1;
+            serv->update_recv_interest(reactor, conn);
+        }
         return SW_OK;
     }
     conn->http_request_waiting = 0;
@@ -682,9 +686,13 @@ _parse:
                 // dynamic request, dispatch to worker
                 dispatch_data.info.len = request->header_length_;
                 dispatch_data.data = buffer->str;
-                conn->http_request_in_flight = 1;
-                if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
+                conn->http_request_in_flight = conn->http_request_ordered;
+                const int result = http_server::dispatch_request(serv, protocol, _socket, &dispatch_data);
+                if (result < 0) {
                     goto _close_fd;
+                }
+                if (result == SW_CONTINUE) {
+                    conn->http_request_in_flight = 0;
                 }
             }
             if (!conn->active) {
@@ -786,12 +794,19 @@ _parse:
     if (request->form_data_) {
         upload_tmpfile_paths = std::move(request->form_data_->upload_tmpfile_paths_);
     }
-    conn->http_request_in_flight = 1;
-    if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
+    conn->http_request_in_flight = conn->http_request_ordered;
+    const int result = http_server::dispatch_request(serv, protocol, _socket, &dispatch_data);
+    // A discarded request reaches no worker, so nothing else removes its uploaded files.
+    if (result < 0 || result == SW_CONTINUE) {
         for (const auto &tmpfile : upload_tmpfile_paths) {
             unlink(tmpfile.c_str());
         }
+    }
+    if (result < 0) {
         goto _close_fd;
+    }
+    if (result == SW_CONTINUE) {
+        conn->http_request_in_flight = 0;
     }
 
     if (conn->active) {

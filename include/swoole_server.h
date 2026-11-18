@@ -117,9 +117,11 @@ struct Connection {
     uint8_t high_watermark;
     uint8_t http_upgrade;
     uint8_t http2_stream;
+    // Owner reactor: copied from the port; a detached response hands ordering to the application.
+    uint8_t http_request_ordered;
     // Owner reactor: a dynamic HTTP/1 request is waiting for its final response output.
     uint8_t http_request_in_flight;
-    // Owner reactor: pipelined HTTP/1 request bytes are buffered but not parsed yet.
+    // Owner reactor: pipelined HTTP/1 requests fill the receive buffer, so receiving is off until they're parsed.
     uint8_t http_request_waiting;
     uint8_t websocket_compression;
     // Worker, under the slot lock: preserves onClose's reactor_id == -1 convention.
@@ -550,6 +552,10 @@ struct ListenPort {
      */
     bool open_websocket_protocol = false;
     /**
+     * HTTP/1 responses on this port mark their final output, so a pipelined request can wait for it
+     */
+    bool ordered_http_responses = false;
+    /**
      * Relevant settings of websocket server
      */
     WebSocketSettings websocket_settings = {};
@@ -871,7 +877,8 @@ class Factory {
     virtual ~Factory() = default;
     virtual bool start() = 0;
     virtual bool shutdown() = 0;
-    virtual bool dispatch(SendData *) = 0;
+    // SW_OK, SW_CONTINUE when dispatch_func discarded the packet, or SW_ERR.
+    virtual int dispatch(SendData *) = 0;
     virtual bool finish(SendData *) = 0;
     virtual bool notify(DataHead *) = 0;
     virtual bool end(SessionId session_id, int flags) = 0;
@@ -883,7 +890,7 @@ class BaseFactory : public Factory {
     ~BaseFactory() override;
     bool start() override;
     bool shutdown() override;
-    bool dispatch(SendData *) override;
+    int dispatch(SendData *) override;
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
     bool end(SessionId session_id, int flags) override;
@@ -897,7 +904,7 @@ class ProcessFactory : public Factory {
     ~ProcessFactory() override;
     bool start() override;
     bool shutdown() override;
-    bool dispatch(SendData *) override;
+    int dispatch(SendData *) override;
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
     bool end(SessionId session_id, int flags) override;
@@ -996,6 +1003,8 @@ enum ServerEventType {
     SW_SERVER_EVENT_COMMAND_REQUEST,
     SW_SERVER_EVENT_COMMAND_RESPONSE,
     SW_SERVER_EVENT_SHUTDOWN_SIGNAL,
+    // Response::detach(): the application takes over the connection's response order.
+    SW_SERVER_EVENT_HTTP_DETACH,
 };
 
 // Carried in DataHead::ext_flags of a SW_SERVER_EVENT_SEND_FILE event: the event owns the file
@@ -1006,7 +1015,7 @@ enum ServerSendfileFlag {
 
 // Shares DataHead::ext_flags of send events with ServerSendfileFlag.
 enum ServerSendFlag {
-    SW_SERVER_SEND_MORE_DATA = 1u << 1,
+    SW_SERVER_SEND_RESPONSE_END = 1u << 1,
 };
 
 class Server {
@@ -1986,6 +1995,7 @@ class Server {
         case SW_SERVER_EVENT_CLOSE:
         case SW_SERVER_EVENT_PAUSE_RECV:
         case SW_SERVER_EVENT_RESUME_RECV:
+        case SW_SERVER_EVENT_HTTP_DETACH:
         case SW_SERVER_EVENT_BUFFER_FULL:
         case SW_SERVER_EVENT_BUFFER_EMPTY:
             return true;
@@ -2116,8 +2126,13 @@ class Server {
      * It will read the file from disk and send it to the client.
      */
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) const;
-    bool sendfile(
-        SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length, bool &delete_file) const;
+    bool sendfile(SessionId session_id,
+                  const char *file,
+                  uint32_t l_file,
+                  off_t offset,
+                  size_t length,
+                  bool &delete_file,
+                  uint16_t ext_flags = 0) const;
     bool sendwait(SessionId session_id, const void *data, uint32_t length) const;
     bool close(SessionId session_id, bool reset = false) const;
 

@@ -1745,6 +1745,10 @@ int Server::send_to_connection(SendData *_send, const std::shared_ptr<File> *fil
             conn->recv_delayed = 0;
         }
         return update_recv_interest(reactor, conn);
+    } else if (_send->info.type == SW_SERVER_EVENT_HTTP_DETACH) {
+        conn->http_request_ordered = 0;
+        conn->http_request_in_flight = 0;
+        return conn->socket->skip_recv ? update_recv_interest(reactor, conn) : SW_OK;
     } else if (conn->is_close_aborting() || conn->close_worker_received) {
         // Data already queued before a graceful close command may arrive after the close cause was published.
         // Once that command is consumed, or a transport failure aborts output, no later writes are accepted.
@@ -1848,9 +1852,10 @@ int Server::send_to_connection(SendData *_send, const std::shared_ptr<File> *fil
 
 _send_complete:
     if (sw_unlikely(conn->http_request_in_flight && _send->info.type != SW_SERVER_EVENT_CLOSE &&
-                    !(_send->info.ext_flags & SW_SERVER_SEND_MORE_DATA))) {
+                    (_send->info.ext_flags & SW_SERVER_SEND_RESPONSE_END))) {
         conn->http_request_in_flight = 0;
-        if (conn->http_request_waiting) {
+        // Parses the pipelined bytes already buffered.
+        if (conn->socket->skip_recv) {
             update_recv_interest(reactor, conn);
         }
     }
@@ -1878,8 +1883,13 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
     return sendfile(session_id, file, l_file, offset, length, delete_file);
 }
 
-bool Server::sendfile(
-    SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length, bool &delete_file) const {
+bool Server::sendfile(SessionId session_id,
+                      const char *file,
+                      uint32_t l_file,
+                      off_t offset,
+                      size_t length,
+                      bool &delete_file,
+                      uint16_t ext_flags) const {
     if (sw_unlikely(session_id <= 0)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld]", session_id);
         return false;
@@ -1937,7 +1947,7 @@ bool Server::sendfile(
     send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
     send_data.info.len = sizeof(SendfileTask) + l_file + 1;
     // Validation has passed, so ownership of the file moves into the SEND_FILE event.
-    send_data.info.ext_flags = delete_file ? SW_SERVER_SENDFILE_DELETE : 0;
+    send_data.info.ext_flags = ext_flags | (delete_file ? SW_SERVER_SENDFILE_DELETE : 0);
     send_data.data = _buffer;
     delete_file = false;
 
@@ -2712,6 +2722,7 @@ _find_available_slot:
     connection->set_last_recv_time(connect_time);
     connection->worker_id = -1;
     connection->socket_type = ls->type;
+    connection->http_request_ordered = ls->ordered_http_responses;
     connection->socket = _socket;
     connection->ssl = _socket->ssl != nullptr;
 
