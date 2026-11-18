@@ -71,6 +71,7 @@ struct Stream {
     uint32_t local_window_size;
 
     bool header_end_stream;
+    bool header_trailers;
 };
 
 class Client {
@@ -729,6 +730,8 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     if (type == SW_HTTP2_TYPE_HEADERS || type == SW_HTTP2_TYPE_CONTINUATION) {
         if (type == SW_HTTP2_TYPE_HEADERS) {
             stream->header_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
+            // CONTINUATION frames carry the rest of this field section, so they keep its classification
+            stream->header_trailers = stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED;
             if (flags & SW_HTTP2_FLAG_PADDED) {
                 if (length < 1 || (uint8_t) buf[0] >= length) {
                     close();
@@ -1007,7 +1010,6 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
      * of :status -- never by header names. This is a generic HTTP/2 facility, not gRPC-specific.
      * "headers" keeps receiving every header unchanged; "trailers" is only an additional view
      * of the trailing frame(s). */
-    bool is_trailers_frame = (stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED) != 0;
     bool has_status_pseudo_header = false;
     zval *ztrailers = nullptr;
 
@@ -1048,7 +1050,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                     }
                     zend::object_set(zresponse, ZEND_STRL("statusCode"), status_code);
                     has_status_pseudo_header = true;
-                    is_trailers_frame = false;
+                    stream->header_trailers = false;
                 }
             } else {
 #ifdef SW_HAVE_ZLIB
@@ -1078,7 +1080,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
 
                 // "headers" still receives every header above (backward compatible). Only a
                 // trailing HEADERS frame additionally feeds the separate "trailers" view.
-                if (is_trailers_frame) {
+                if (stream->header_trailers) {
                     if (ztrailers == nullptr) {
                         ztrailers = sw_zend_read_and_convert_property_array(
                             swoole_http2_response_ce, zresponse, ZEND_STRL("trailers"), 0);
