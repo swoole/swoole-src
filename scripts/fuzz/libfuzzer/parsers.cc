@@ -11,6 +11,7 @@
 #include "swoole_mqtt.h"
 #include "swoole_redis.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -123,6 +124,55 @@ void fuzz_redis_number(const uint8_t *d, size_t n) {
     redis::get_number(in.p, in.p + in.n, &ret);
     redis::parse(in.p, in.n);
 }
+
+// Replays the incremental request parsing of the HTTP server (port.cc) with the input delivered in fragments.
+void fuzz_http_request(const uint8_t *d, size_t n) {
+    if (n < 2) {
+        return;
+    }
+    const size_t step = 1 + d[0] % 64;
+    d++;
+    n--;
+    String buffer(n);
+    http_server::Request request;
+    request.buffer_ = &buffer;
+    for (size_t fed = 0; fed < n;) {
+        size_t m = std::min(step, n - fed);
+        buffer.append(reinterpret_cast<const char *>(d) + fed, m);
+        fed += m;
+
+        if (request.method == 0 && request.get_protocol() < 0) {
+            if (request.excepted) {
+                break;
+            }
+            continue;
+        }
+        if (request.method >= SW_HTTP_PRI) {
+            break;
+        }
+        if (request.header_length_ == 0 && request.get_header_length() < 0) {
+            continue;
+        }
+        if (!request.header_parsed) {
+            request.parse_header_info();
+            if (request.excepted) {
+                break;
+            }
+        }
+        if (request.chunked && request.get_chunked_body_length() < 0 && (request.excepted || request.too_large)) {
+            break;
+        }
+        request.has_expect_header();
+        request.get_header("content-type");
+    }
+    request.buffer_ = nullptr;
+}
+
+void fuzz_http2_settings(const uint8_t *d, size_t n) {
+    Exact in(d, n);
+    http2::unpack_setting_data(
+        in.p, static_cast<ssize_t>(n), [](uint16_t, uint32_t) { return SW_SUCCESS; });
+}
 }  // namespace
 
 extern "C" int LLVMFuzzerInitialize(int *, char ***) {
@@ -136,7 +186,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     const uint8_t *d = data + 1;
     size_t n = size - 1;
-    switch (data[0] % 7) {
+    switch (data[0] % 8) {
     case 0:
         fuzz_websocket(d, n);
         break;
@@ -155,7 +205,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     case 5:
         fuzz_redis_number(d, n);
         break;
+    case 6:
+        fuzz_http_request(d, n);
+        break;
     default:
+        fuzz_http2_settings(d, n);
         break;
     }
     return 0;
