@@ -643,7 +643,7 @@ static bool http2_server_send_queued(Http2Session *session) {
     }
     auto *sock = session->default_ctx->get_co_socket();
 #if defined(SW_USE_IOCP_SOCKET) || defined(SW_USE_URING_SOCKET)
-    // These sockets encrypt into a buffer that only send_all() drains
+    // Sending their TLS output means draining an encryption buffer, which can suspend, so the writer does it
     bool try_send = !sock->ssl_is_enable();
 #else
     bool try_send = true;
