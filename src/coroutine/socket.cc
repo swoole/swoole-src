@@ -1434,7 +1434,6 @@ ssize_t Socket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t *_soc
 ssize_t Socket::recv_packet_with_length_protocol() {
     ssize_t packet_len = SW_BUFFER_SIZE_STD;
     ssize_t retval;
-    PacketLength pl;
     uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
 
     if (read_buffer->length > 0) {
@@ -1464,20 +1463,13 @@ _recv_header:
     }
 
 _get_length:
-    pl.header_len = 0;
-    pl.buf = read_buffer->str;
-    pl.buf_size = (uint32_t) read_buffer->length;
-    packet_len = protocol.get_package_length(&protocol, socket, &pl);
-    swoole_trace_log(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
-    if (packet_len < 0) {
+    switch (protocol.resolve_package_length(socket, read_buffer->str, read_buffer->length, &packet_len, &header_len)) {
+    case PackageLengthStatus::MALFORMED:
         set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "get package length failed");
         return 0;
-    } else if (packet_len == 0) {
-        if (pl.header_len != 0) {
-            header_len = pl.header_len;
-        }
+    case PackageLengthStatus::NEED_MORE:
         goto _recv_header;
-    } else if (packet_len > protocol.package_max_length) {
+    case PackageLengthStatus::TOO_LARGE:
         read_buffer->clear();
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
@@ -1487,7 +1479,10 @@ _get_length:
                          packet_len);
         set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, sw_error);
         return -1;
+    case PackageLengthStatus::OK:
+        break;
     }
+    swoole_trace_log(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
 
     if ((size_t) packet_len <= read_buffer->length) {
         read_buffer->offset = packet_len;
@@ -1542,9 +1537,9 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
         }
 
     _find_eof:
-        eof = swoole_strnpos(read_buffer->str, read_buffer->length, protocol.package_eof, protocol.package_eof_len);
+        eof = protocol.find_eof_end(read_buffer->str, read_buffer->length);
         if (eof >= 0) {
-            return (read_buffer->offset = eof + protocol.package_eof_len);
+            return (read_buffer->offset = eof);
         }
         if (read_buffer->length == protocol.package_max_length) {
             read_buffer->clear();
@@ -1552,11 +1547,7 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
             return -1;
         }
         if (read_buffer->length == read_buffer->size && read_buffer->size < protocol.package_max_length) {
-            size_t new_size = read_buffer->size * 2;
-            if (new_size > protocol.package_max_length) {
-                new_size = protocol.package_max_length;
-            }
-            read_buffer->extend(new_size);
+            read_buffer->extend(protocol.next_eof_buffer_size(read_buffer->size));
         }
     }
     assert(0);
