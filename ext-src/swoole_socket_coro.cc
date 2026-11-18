@@ -1903,9 +1903,17 @@ static PHP_METHOD(swoole_socket_coro, close) {
         ZVAL_UNDEF(&sock->zstream);
         sock->socket->move_fd();
     } else {
-        // Cancellation resumes bound coroutines synchronously; finish closing after they have left.
-        if (!sock->socket->close() && !sock->socket->is_closed() && !sock->socket->has_bound()) {
-            sock->socket->close();
+        if (!sock->socket->close() && !sock->socket->is_closed()) {
+            // IOCP cancellation completes asynchronously. Keep this PHP receiver
+            // alive until the pending native I/O has drained, then release its fd.
+            // POSIX readiness backends have already unbound their coroutines here.
+            if (!sock->socket->wait_for_pending_io()) {
+                socket_coro_sync_properties(ZEND_THIS, sock);
+                RETURN_FALSE;
+            }
+            if (!sock->socket->is_closed()) {
+                sock->socket->close();
+            }
         }
     }
     RETURN_TRUE;

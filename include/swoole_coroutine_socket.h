@@ -64,6 +64,11 @@ class Socket {
     bool shutdown(int how = SHUT_RDWR);
     virtual bool cancel(EventType event);
     bool close();
+    // PHP close() retains the socket object while a completion backend drains
+    // cancelled operations. Readiness backends finish cancellation synchronously.
+    bool wait_for_pending_io() {
+        return !has_bound();
+    }
 
     bool is_connected() const {
         return connected && !is_closed();
