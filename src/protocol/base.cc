@@ -98,6 +98,7 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
         if (delivered_end < buffer->length) {
             buffer->reduce(delivered_end);
             buffer->offset = 0;
+            socket->skip_recv = 1;
         } else {
             buffer->clear();
         }
@@ -284,6 +285,15 @@ int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) co
     bool recv_again = false;
     size_t buf_size;
     RecvData rdata{};
+
+    // Packets left in the buffer by a paused connection are parsed without waiting for new data.
+    if (socket->skip_recv) {
+        socket->skip_recv = 0;
+        if (split_by_eof && buffer->length >= package_eof_len) {
+            return recv_split_by_eof(socket, buffer) == SW_CLOSE ? SW_ERR : SW_OK;
+        }
+        return SW_OK;
+    }
 
 _recv_data:
     buf_size = buffer->size - buffer->length;

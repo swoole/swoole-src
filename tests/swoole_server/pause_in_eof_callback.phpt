@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: pausing in onReceive with the EOF protocol must neither redeliver the packet nor close the connection
+swoole_server: pausing in onReceive with the EOF protocol must neither redeliver nor drop packets
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc'; ?>
@@ -10,13 +10,19 @@ require __DIR__ . '/../include/bootstrap.php';
 foreach ([false, true] as $split) {
     $pm = new SwooleTest\ProcessManager;
     $pm->parentFunc = function (int $pid) use ($pm, $split) {
-        Swoole\Coroutine\run(function () use ($pm) {
+        Swoole\Coroutine\run(function () use ($pm, $split) {
             $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
             Assert::true($cli->connect('127.0.0.1', $pm->getFreePort(), 1));
             foreach (['a', 'b', 'c'] as $item) {
                 $cli->send("$item\r\n");
                 Assert::same($cli->recv(2), "$item\r\n");
                 Co::sleep(0.2);
+            }
+            if ($split) {
+                // The second packet stays in the buffer while the connection is paused and must not wait for new data.
+                $cli->send("x\r\ny\r\n");
+                Assert::same($cli->recv(2), "x\r\n");
+                Assert::same($cli->recv(2), "y\r\n");
             }
             $cli->close();
         });
