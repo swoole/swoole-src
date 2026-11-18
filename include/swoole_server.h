@@ -2025,8 +2025,13 @@ class Server {
         return nullptr;
     }
 
+    /**
+     * The fd slot may already belong to a newer connection, so the session id must match.
+     * Unlike get_connection_verify(), a connection that is closing but not yet cleaned is still returned.
+     */
     Connection *get_connection_by_session_id(SessionId session_id) const {
-        return get_connection(get_connection_fd(session_id));
+        Connection *conn = get_connection(get_connection_fd(session_id));
+        return sw_likely(conn->session_id == session_id) ? conn : nullptr;
     }
 
     Session *get_session(SessionId session_id) const {
