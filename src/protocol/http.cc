@@ -903,7 +903,7 @@ void Request::parse_header_info() {
                 if (SW_STR_ISTARTS_WITH(p, pe - p, "multipart/form-data")) {
                     form_data_ = new FormData();
                     form_data_->multipart_boundary_buf = p + (sizeof("multipart/form-data") - 1);
-                    form_data_->multipart_boundary_len = swoole::rtrim(
+                    form_data_->multipart_boundary_len = rtrim_ows(
                         form_data_->multipart_boundary_buf, strchr(p, '\r') - form_data_->multipart_boundary_buf);
                 }
             }
@@ -1317,7 +1317,7 @@ std::string Request::get_header(const char *name) const {
             break;
         case 2:
             if (SW_STR_ISTARTS_WITH(p, pe - p, "\r\n")) {
-                return {buffer, swoole::rtrim(buffer, static_cast<size_t>(p - buffer))};
+                return {buffer, rtrim_ows(buffer, static_cast<size_t>(p - buffer))};
             }
             break;
         default:

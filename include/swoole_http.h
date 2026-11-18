@@ -232,6 +232,14 @@ bool parse_multipart_boundary(
     const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
 bool parse_cookie(const char *at, size_t length, const ParseCookieCallback &cb);
 
+// RFC 9110 section 5.6.3: optional whitespace is only SP and HTAB
+static inline size_t rtrim_ows(const char *str, size_t len) {
+    while (len > 0 && (str[len - 1] == ' ' || str[len - 1] == '\t')) {
+        len--;
+    }
+    return len;
+}
+
 ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 uint8_t get_package_length_size(network::Socket *conn);
 int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvData *rdata);
