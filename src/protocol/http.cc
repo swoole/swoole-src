@@ -886,14 +886,11 @@ void Request::parse_header_info() {
                     while (p < value_end && *p != ',') {
                         p++;
                     }
-                    char *coding_end = p;
-                    while (coding_end > coding && coding_end[-1] == ' ') {
-                        coding_end--;
-                    }
+                    const size_t coding_length = rtrim_ows(coding, p - coding);
                     if (chunked_seen) {
                         after_chunked = true;
                     }
-                    if (SW_STRCASEEQ(coding, coding_end - coding, "chunked")) {
+                    if (SW_STRCASEEQ(coding, coding_length, "chunked")) {
                         chunked_seen = true;
                     }
                     if (p == value_end) {
