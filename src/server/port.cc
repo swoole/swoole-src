@@ -557,7 +557,9 @@ _recv_data:
 
 _parse:
     if (conn->http_request_in_flight || !conn->can_receive()) {
+        // update_recv_interest() parses the buffered bytes again once receiving is allowed.
         conn->http_request_waiting = 1;
+        _socket->skip_recv = 1;
         serv->update_recv_interest(reactor, conn);
         return SW_OK;
     }
