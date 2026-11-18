@@ -102,6 +102,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
+    ctx->dispatched = 1;
     ctx->onBeforeRequest = swoole_http_server_onBeforeRequest;
     ctx->upload_preprocessed = (req->info.ext_flags & swoole::http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED) != 0;
 
@@ -360,7 +361,8 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
 
 static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file) {
     auto *serv = ctx->get_async_server();
-    return serv->sendfile(ctx->fd, file->val, file->len, offset, length, delete_file);
+    return serv->sendfile(
+        ctx->fd, file->val, file->len, offset, length, delete_file, swoole::SW_SERVER_SEND_RESPONSE_END);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {

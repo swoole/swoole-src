@@ -166,6 +166,8 @@ struct Context {
     uchar websocket_compression : 1;
     uchar upgrade : 1;
     uchar detached : 1;
+    // The async server's context for a received HTTP/1 request.
+    uchar dispatched : 1;
     uchar parse_cookie : 1;
     uchar parse_body : 1;
     uchar parse_files : 1;

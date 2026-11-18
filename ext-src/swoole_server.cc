@@ -1065,6 +1065,11 @@ bool ServerObject::on_before_start() {
                        !isset_callback(port, SW_SERVER_CB_onReceive)) {
                 return php_swoole_throw_setting_exception("require onRequest callback");
             }
+            // php_swoole_http_server_onReceive() answers these requests through HttpContext, which marks the final
+            // output of each response.
+            port->ordered_http_responses =
+                isset_callback(port, SW_SERVER_CB_onRequest) ||
+                (port->open_websocket_protocol && isset_callback(port, SW_SERVER_CB_onMessage));
             if (!is_http_server() && isset_callback(port, SW_SERVER_CB_onRequest)) {
                 php_swoole_error(
                     E_WARNING,
