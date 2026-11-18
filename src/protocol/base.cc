@@ -142,6 +142,11 @@ _do_recv:
         return SW_OK;
     }
     if (buffer->offset > 0) {
+        // Defensive: a pending packet that is already complete must never reach the read below, where the unsigned
+        // size computation would wrap around and overflow the buffer.
+        if (sw_unlikely(buffer->length >= (size_t) buffer->offset)) {
+            return SW_ERR;
+        }
         recv_size = buffer->offset - buffer->length;
     } else {
         recv_size = package_length_offset + _package_length_size;
@@ -172,6 +177,17 @@ _do_recv:
                     return SW_ERR;
                 }
                 if (socket->removed) {
+                    // onPackage() paused or closed the connection. The packet was delivered, so a resumed read must
+                    // not see it as pending. The buffer is gone if the connection was closed synchronously.
+                    if (socket->recv_buffer == buffer) {
+                        socket->recv_wait = 0;
+                        if (buffer->length > (size_t) buffer->offset) {
+                            buffer->reduce(buffer->offset);
+                            socket->skip_recv = 1;
+                        } else {
+                            buffer->clear();
+                        }
+                    }
                     return SW_OK;
                 }
                 socket->recv_wait = 0;
