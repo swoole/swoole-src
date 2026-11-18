@@ -11,6 +11,8 @@
 #include "swoole_mqtt.h"
 #include "swoole_redis.h"
 
+#include <nghttp2/nghttp2.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -173,6 +175,131 @@ void fuzz_http2_settings(const uint8_t *d, size_t n) {
     http2::unpack_setting_data(
         in.p, static_cast<ssize_t>(n), [](uint16_t, uint32_t) { return SW_SUCCESS; });
 }
+
+// Mirrors the inflate loop in swoole_http2_client_coro.cc / swoole_http2_server.cc, plus a deflate round-trip.
+void fuzz_hpack(const uint8_t *d, size_t n) {
+    if (n < 2) {
+        return;
+    }
+    nghttp2_hd_inflater *inflater = nullptr;
+    if (nghttp2_hd_inflate_new(&inflater) != 0) {
+        return;
+    }
+    uint32_t table_size = 256u << (d[0] % 8);
+    if (d[0] & 0x80) {
+        nghttp2_hd_inflate_change_table_size(inflater, table_size);
+    }
+    size_t chunk = d[1] % 64 + 1;
+    d += 2;
+    n -= 2;
+    while (n > 0) {
+        size_t len = std::min(chunk, n);
+        const uint8_t *in = d;
+        size_t inlen = len;
+        bool final = len == n;
+        bool failed = false;
+        for (;;) {
+            nghttp2_nv nv;
+            int flags = 0;
+            ssize_t rv = nghttp2_hd_inflate_hd(inflater, &nv, &flags, const_cast<uint8_t *>(in), inlen, final);
+            if (rv < 0) {
+                failed = true;
+                break;
+            }
+            in += rv;
+            inlen -= rv;
+            if (flags & NGHTTP2_HD_INFLATE_EMIT) {
+                volatile uint8_t sink = 0;
+                for (size_t i = 0; i < nv.namelen; i++) {
+                    sink = sink + nv.name[i];
+                }
+                for (size_t i = 0; i < nv.valuelen; i++) {
+                    sink = sink + nv.value[i];
+                }
+            }
+            if (flags & NGHTTP2_HD_INFLATE_FINAL) {
+                nghttp2_hd_inflate_end_headers(inflater);
+                break;
+            }
+            if ((flags & NGHTTP2_HD_INFLATE_EMIT) == 0 && inlen == 0) {
+                break;
+            }
+        }
+        if (failed) {
+            break;
+        }
+        d += len;
+        n -= len;
+    }
+    nghttp2_hd_inflate_del(inflater);
+}
+
+void fuzz_hpack_roundtrip(const uint8_t *d, size_t n) {
+    // Input is split into name/value pairs by 0x00 / 0x01 delimiters.
+    std::vector<nghttp2_nv> nva;
+    std::vector<std::vector<uint8_t>> store;
+    size_t i = 0;
+    while (i < n && nva.size() < 32) {
+        size_t j = i;
+        while (j < n && d[j] != 0) {
+            j++;
+        }
+        store.emplace_back(d + i, d + j);
+        i = j + 1;
+    }
+    for (size_t k = 0; k + 1 < store.size(); k += 2) {
+        // Empty vectors may return a null data(), which nghttp2 passes to memcmp().
+        static uint8_t empty = 0;
+        nghttp2_nv nv;
+        nv.name = store[k].empty() ? &empty : store[k].data();
+        nv.namelen = store[k].size();
+        nv.value = store[k + 1].empty() ? &empty : store[k + 1].data();
+        nv.valuelen = store[k + 1].size();
+        nv.flags = d[0] & NGHTTP2_NV_FLAG_NO_INDEX;
+        nva.push_back(nv);
+    }
+    if (nva.empty()) {
+        return;
+    }
+    nghttp2_hd_deflater *deflater = nullptr;
+    nghttp2_hd_inflater *inflater = nullptr;
+    if (nghttp2_hd_deflate_new(&deflater, 4096) != 0) {
+        return;
+    }
+    if (nghttp2_hd_inflate_new(&inflater) != 0) {
+        nghttp2_hd_deflate_del(deflater);
+        return;
+    }
+    size_t bound = nghttp2_hd_deflate_bound(deflater, nva.data(), nva.size());
+    std::vector<uint8_t> buf(bound);
+    ssize_t len = nghttp2_hd_deflate_hd(deflater, buf.data(), buf.size(), nva.data(), nva.size());
+    if (len > 0) {
+        const uint8_t *in = buf.data();
+        size_t inlen = len;
+        size_t emitted = 0;
+        for (;;) {
+            nghttp2_nv nv;
+            int flags = 0;
+            ssize_t rv = nghttp2_hd_inflate_hd(inflater, &nv, &flags, const_cast<uint8_t *>(in), inlen, 1);
+            if (rv < 0) {
+                // Oversized header fields may legitimately be rejected by the inflater.
+                break;
+            }
+            in += rv;
+            inlen -= rv;
+            if (flags & NGHTTP2_HD_INFLATE_EMIT) {
+                emitted++;
+            }
+            if (flags & NGHTTP2_HD_INFLATE_FINAL) {
+                nghttp2_hd_inflate_end_headers(inflater);
+                break;
+            }
+        }
+        (void) emitted;
+    }
+    nghttp2_hd_inflate_del(inflater);
+    nghttp2_hd_deflate_del(deflater);
+}
 }  // namespace
 
 extern "C" int LLVMFuzzerInitialize(int *, char ***) {
@@ -186,7 +313,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     const uint8_t *d = data + 1;
     size_t n = size - 1;
-    switch (data[0] % 8) {
+    switch (data[0] % 10) {
     case 0:
         fuzz_websocket(d, n);
         break;
@@ -208,8 +335,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     case 6:
         fuzz_http_request(d, n);
         break;
-    default:
+    case 7:
         fuzz_http2_settings(d, n);
+        break;
+    case 8:
+        fuzz_hpack(d, n);
+        break;
+    default:
+        fuzz_hpack_roundtrip(d, n);
         break;
     }
     return 0;

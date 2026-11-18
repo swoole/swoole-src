@@ -10,6 +10,11 @@ mkdir -p "$BUILD" && cd "$BUILD"
 [ -f Makefile ] || CC=clang-14 CXX=clang++-14 cmake "$SRC" -DCMAKE_BUILD_TYPE=Debug -Denable_thread=1 \
     -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_CXX_FLAGS="$FLAGS"
 make -j"$(nproc)" lib-swoole
+# The bundled nghttp2 (HPACK) lives in thirdparty/ and is only compiled into the extension, so build it here.
+mkdir -p nghttp2_obj
+for f in "$SRC"/thirdparty/nghttp2/nghttp2_{hd,rcbuf,helper,buf,mem,hd_huffman,hd_huffman_data}.c; do
+    clang-14 $FLAGS -I"$SRC/thirdparty" -I"$SRC/thirdparty/nghttp2" -c "$f" -o "nghttp2_obj/$(basename "$f" .c).o"
+done
 clang++-14 -std=c++14 $FLAGS -fsanitize=fuzzer -I"$SRC" -I"$SRC/include" -I"$SRC/thirdparty" \
-    "$SRC/scripts/fuzz/libfuzzer/parsers.cc" -L"$SRC/lib" -lswoole -Wl,-rpath,"$SRC/lib" -lssl -lcrypto -lpthread \
+    "$SRC/scripts/fuzz/libfuzzer/parsers.cc" nghttp2_obj/*.o -L"$SRC/lib" -lswoole -Wl,-rpath,"$SRC/lib" -lssl -lcrypto -lpthread \
     -o "$BUILD/parsers_fuzz"
