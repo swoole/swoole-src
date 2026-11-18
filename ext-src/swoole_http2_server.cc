@@ -49,19 +49,42 @@ static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &sessi
 
 // In the coroutine server each stream's handler runs in its own coroutine. One of them at a time owns the
 // connection's writes, from building a frame (HPACK state, the socket's write buffer) until the frame is sent.
+// The receive loop doesn't wait for the owner: a client may not read until its upload has been read. It queues
+// complete frames instead, which the owner sends in encoding order: before its next frame and before releasing.
 class Http2WriteLock {
     std::shared_ptr<Http2Session> session_;
+    HttpContext *ctx_ = nullptr;
+    bool owned_ = false;
+    bool queued_ = false;
+    String buffer_;
+
+    bool send(const char *data, size_t length) {
+        if (ctx_->get_co_socket()->send_all(data, length) == (ssize_t) length) {
+            return true;
+        }
+        // Part of a frame may have been sent, so nothing can follow it
+        session_->queued_frames.clear();
+        ctx_->close(ctx_);
+        return false;
+    }
 
   public:
-    bool lock(const std::shared_ptr<Http2Session> &session) {
-        if (session->write_owner == Coroutine::get_current_cid()) {
+    bool lock(HttpContext *ctx, const std::shared_ptr<Http2Session> &session) {
+        long cid = Coroutine::get_current_cid();
+        session_ = session;
+        ctx_ = ctx;
+        if (session->write_owner == cid) {
+            return true;
+        }
+        if (session->write_owner != 0 && cid == session->reader_cid) {
+            queued_ = true;
             return true;
         }
         if (!session->write_lock->push(nullptr)) {
             return false;
         }
-        session->write_owner = Coroutine::get_current_cid();
-        session_ = session;
+        session->write_owner = cid;
+        owned_ = true;
         return true;
     }
 
@@ -72,11 +95,44 @@ class Http2WriteLock {
             return false;
         }
         auto session = iter->second;
-        return lock(session) && http2_server_check_stream(session, stream);
+        return lock(stream->ctx, session) && http2_server_check_stream(session, stream);
+    }
+
+    // The owner's unsent bytes may still be in the socket's write buffer.
+    String *get_write_buffer(HttpContext *ctx) {
+        return queued_ ? &buffer_ : ctx->get_write_buffer();
+    }
+
+    // Called before the first send of a frame: the queued frames were encoded first. Frames queued while they are
+    // sent were encoded after this frame, so they wait for the next frame or the release.
+    bool flush() {
+        if (!owned_ || session_->queued_frames.empty()) {
+            return true;
+        }
+        std::string frames;
+        frames.swap(session_->queued_frames);
+        return send(frames.data(), frames.length());
+    }
+
+    bool write(const char *data, size_t length) {
+        if (!queued_) {
+            return flush() && send(data, length);
+        }
+        if (session_->queued_frames.length() + length > SW_HTTP2_MAX_QUEUED_FRAMES_SIZE) {
+            // The client keeps sending without reading the replies
+            session_->queued_frames.clear();
+            ctx_->close(ctx_);
+            return false;
+        }
+        session_->queued_frames.append(data, length);
+        return true;
     }
 
     ~Http2WriteLock() {
-        if (session_) {
+        if (owned_) {
+            while (!session_->queued_frames.empty()) {
+                flush();
+            }
             session_->write_owner = 0;
             session_->write_lock->pop();
         }
@@ -636,17 +692,8 @@ bool swoole_http2_server_coro_send(HttpContext *ctx, const char *data, size_t le
     if (iter == http2_sessions.end()) {
         return false;
     }
-    auto session = iter->second;
     Http2WriteLock lock;
-    if (!lock.lock(session)) {
-        return false;
-    }
-    if (ctx->get_co_socket()->send_all(data, length) != (ssize_t) length) {
-        // Part of a frame may have been sent, so no other stream can write after it
-        ctx->close(ctx);
-        return false;
-    }
-    return true;
+    return lock.lock(ctx, iter->second) && lock.write(data, length);
 }
 
 bool swoole_http2_server_ping(HttpContext *ctx) {
@@ -713,7 +760,7 @@ bool Http2Stream::send_header(const String *body, bool end_stream) const {
     if (ctx->is_co_socket() && !lock.lock(this)) {
         return false;
     }
-    String *http_buffer = ctx->get_write_buffer();
+    String *http_buffer = lock.get_write_buffer(ctx);
     ssize_t bytes = http2_server_build_header(ctx, http_buffer, body);
     if (bytes < 0) {
         auto session = http2_sessions.find(ctx->fd);
@@ -745,7 +792,7 @@ bool Http2Stream::send_header(const String *body, bool end_stream) const {
         http2::set_frame_header(http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, id);
     }
 
-    if (!send_header_block(http_buffer)) {
+    if (!lock.flush() || !send_header_block(http_buffer)) {
         ctx->send_header_ = 0;
         return false;
     }
@@ -755,7 +802,7 @@ bool Http2Stream::send_header(const String *body, bool end_stream) const {
 
 bool Http2Stream::send_end_stream_data_frame(const std::shared_ptr<Http2Session> &session) const {
     Http2WriteLock lock;
-    if (ctx->is_co_socket() && !lock.lock(session)) {
+    if (ctx->is_co_socket() && !lock.lock(ctx, session)) {
         return false;
     }
     if (session->get_stream(id).get() != this) {
@@ -764,7 +811,7 @@ bool Http2Stream::send_end_stream_data_frame(const std::shared_ptr<Http2Session>
     }
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, 0, SW_HTTP2_FLAG_END_STREAM, id);
-    return send_frame(frame_header, sizeof(frame_header), true);
+    return lock.flush() && send_frame(frame_header, sizeof(frame_header), true);
 }
 
 static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &session, const Http2Stream *stream) {
@@ -832,7 +879,6 @@ bool Http2Stream::send_body(
     size_t l = length == 0 ? body->length : length;
 
     int flags = end_stream ? SW_HTTP2_FLAG_END_STREAM : SW_HTTP2_FLAG_NONE;
-    String *http_buffer = ctx->get_write_buffer();
     const bool co_socket = ctx->is_co_socket();
     uint32_t max_payload = UINT32_MAX;
 #ifndef _WIN32
@@ -848,7 +894,7 @@ bool Http2Stream::send_body(
 
     while (l > 0) {
         Http2WriteLock lock;
-        if (ctx->is_co_socket() && (!lock.lock(session) || !http2_server_check_stream(session, this))) {
+        if (ctx->is_co_socket() && (!lock.lock(ctx, session) || !http2_server_check_stream(session, this))) {
             return false;
         }
         // The peer may update its frame limit while a flow-control wait yields.
@@ -889,10 +935,14 @@ bool Http2Stream::send_body(
         }
 
         http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flags, id);
+        if (!lock.flush()) {
+            return false;
+        }
 
         // An async send may wait for buffer space. Submit each complete frame so
         // cancellation cannot leave its header in the connection without its payload.
         if (!co_socket || send_n < swoole_pagesize()) {
+            String *http_buffer = lock.get_write_buffer(ctx);
             http_buffer->clear();
             http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
             http_buffer->append(p, send_n);
@@ -926,7 +976,7 @@ bool Http2Stream::send_trailer() const {
     if (ctx->is_co_socket() && !lock.lock(this)) {
         return false;
     }
-    String *http_buffer = ctx->get_write_buffer();
+    String *http_buffer = lock.get_write_buffer(ctx);
 
     http_buffer->clear();
     ssize_t bytes = http2_server_build_trailer(ctx, http_buffer);
@@ -939,7 +989,7 @@ bool Http2Stream::send_trailer() const {
 
     http2::set_frame_header(
         http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
-    return send_header_block(http_buffer);
+    return lock.flush() && send_header_block(http_buffer);
 }
 
 bool swoole_http2_server_end(HttpContext *ctx, zend_string *sdata) {

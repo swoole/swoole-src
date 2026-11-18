@@ -383,6 +383,8 @@ class Session {
     bool is_coro;
     std::unique_ptr<coroutine::Channel> write_lock;
     long write_owner = 0;
+    long reader_cid = 0;
+    std::string queued_frames;
 
     http::Context *default_ctx = nullptr;
     void *private_data = nullptr;

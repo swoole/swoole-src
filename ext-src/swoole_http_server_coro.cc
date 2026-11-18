@@ -189,6 +189,7 @@ class HttpServer {
         session->private_data = this;
         session->is_coro = true;
         session->write_lock = std::make_unique<coroutine::Channel>(1);
+        session->reader_cid = Coroutine::get_current_cid();
         ctx->send = swoole_http2_server_coro_send;
 
         while (true) {
