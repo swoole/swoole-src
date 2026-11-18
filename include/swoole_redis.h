@@ -46,7 +46,11 @@ enum ReplyType {
     REPLY_MAP,
 };
 
-const char *get_number(const char *p, int *_ret);
+/**
+ * Parse "<type><number>\r\n" at p without reading past pe.
+ * @return the position after the CRLF, or nullptr if the line is malformed, incomplete or out of int range.
+ */
+const char *get_number(const char *p, const char *pe, int *_ret);
 int recv_packet(Protocol *protocol, Connection *conn, String *buffer);
 std::vector<std::string> parse(const char *data, size_t len);
 void format_nil(String *buf);
