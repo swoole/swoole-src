@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro/websocket: receive multiple frames over TLS
+swoole_http_client_coro/websocket: exchange multi-record frames over TLS
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -18,18 +18,19 @@ use Swoole\WebSocket\Frame;
 Assert::setThrowException(true);
 
 Coroutine\run(function () {
+    $upload = str_repeat('C', 64 * 1024 + 1);
     $messages = ['welcome', str_repeat('A', 16 * 1024 + 1), str_repeat('B', 64 * 1024 + 1)];
     $server = new Server('127.0.0.1', 0, true);
     $server->set([
         'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
         'ssl_key_file' => SSL_FILE_DIR . '/server.key',
     ]);
-    $server->handle('/websocket', function ($request, $response) use ($messages) {
+    $server->handle('/websocket', function ($request, $response) use ($messages, $upload) {
         Assert::true($response->upgrade());
         try {
             $frame = $response->recv(2);
             Assert::isInstanceOf($frame, Frame::class);
-            Assert::same($frame->data, 'start');
+            Assert::same($frame->data, $upload);
             foreach ($messages as $message) {
                 Assert::true($response->push($message));
             }
@@ -45,7 +46,7 @@ Coroutine\run(function () {
         Assert::true($client->upgrade('/websocket'));
         Assert::same($client->getStatusCode(), 101);
         // The receive below suspends before the writer packs a frame for the same TLS socket.
-        Event::defer(fn () => Coroutine::create(fn () => Assert::true($client->push('start'))));
+        Event::defer(fn () => Coroutine::create(fn () => Assert::true($client->push($upload))));
         // Back-to-back frames include payloads spanning multiple TLS records.
         foreach ($messages as $message) {
             $frame = $client->recv(2);
@@ -55,7 +56,7 @@ Coroutine\run(function () {
         }
         $closed = $client->recv(2);
         if ($closed === false) {
-            // The IOCP TLS receive path reports transport EOF as SSL reset.
+            // The IOCP and io_uring TLS paths report transport EOF as SSL reset.
             Assert::same($client->errCode, SWOOLE_ERROR_SSL_RESET);
         } else {
             Assert::same($closed, '');
