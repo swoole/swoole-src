@@ -651,7 +651,12 @@ bool Http2Stream::send_header_block(const String *frame) const {
         return false;
     }
 #endif
-    return ctx->send(ctx, frame->str, frame->length);
+    if (!ctx->send(ctx, frame->str, frame->length)) {
+        ctx->end_ = 1;
+        ctx->close(ctx);
+        return false;
+    }
+    return true;
 }
 
 bool Http2Stream::send_header(const String *body, bool end_stream) const {
