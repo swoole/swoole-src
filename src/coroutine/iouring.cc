@@ -577,10 +577,15 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
         return 0;
     }
 
-    INIT_EVENT(IORING_OP_SPLICE);
-    event.set_timeout(timeout);
-
 #ifndef MSG_SPLICE_PAGES
+    const auto splice = [timeout](int source, off_t source_offset, int destination, size_t length) {
+        // Each splice has independent submission and completion state.
+        INIT_EVENT(IORING_OP_SPLICE);
+        event.set_timeout(timeout);
+        io_uring_prep_splice(&event.data, source, source_offset, destination, -1, length, 0);
+        return execute(&event);
+    };
+
     int pipe_fds[2];
     if (pipe(pipe_fds) < 0) {
         return -1;
@@ -599,11 +604,8 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
         size_t remaining = size - total_sent;
         size_t to_send = std::min(remaining, (size_t) pipe_size);
 
-        event.data = {};
-        io_uring_prep_splice(
-            &event.data, in_fd, offset ? (current_offset + total_sent) : -1, pipe_fds[1], -1, to_send, 0);
-
-        ssize_t ret1 = execute(&event);
+        ssize_t ret1 =
+            splice(in_fd, offset ? current_offset + static_cast<off_t>(total_sent) : -1, pipe_fds[1], to_send);
         if (ret1 <= 0) {
             if (total_sent > 0) {
                 break;
@@ -615,10 +617,7 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
             return -1;
         }
 
-        event.data = {};
-        io_uring_prep_splice(&event.data, pipe_fds[0], -1, out_fd, -1, ret1, 0);
-
-        ssize_t ret2 = execute(&event);
+        ssize_t ret2 = splice(pipe_fds[0], -1, out_fd, ret1);
         if (ret2 <= 0) {
             if (total_sent > 0) {
                 break;
@@ -647,6 +646,8 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
     return total_sent;
 
 #else
+    INIT_EVENT(IORING_OP_SENDMSG);
+    event.set_timeout(timeout);
     struct msghdr msg = {0};
     struct iovec iov = {0};
 
