@@ -144,7 +144,6 @@ std::shared_ptr<Http2Stream> Http2Session::take_stream(uint32_t stream_id) {
     streams.erase(iter);
     stream->read_closed = true;
     stream->ctx->end_ = true;
-    stream->wake_reader();
     return stream;
 }
 
@@ -156,6 +155,7 @@ void Http2Stream::resume_flow_control_waiter() const {
 
 bool Http2Session::remove_stream(uint32_t stream_id) {
     if (auto stream = take_stream(stream_id)) {
+        stream->wake_reader();
         stream->resume_flow_control_waiter();
         return true;
     }
@@ -1852,6 +1852,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                     php_swoole_coroutine_throw_exception(stream->request_cid, true, nullptr, reason.ptr(), wake);
                 }
             }
+            stream->wake_reader();
             stream->resume_flow_control_waiter();
         }
         break;
