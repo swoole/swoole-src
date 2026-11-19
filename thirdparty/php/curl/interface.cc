@@ -418,7 +418,17 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
         return fwrite(data, size, nmemb, t->fp);
     case PHP_CURL_RETURN:
         if (length > 0) {
+#ifdef ZEND_HAS_OOM
+            if (!smart_str_fappendl_ex(&t->buf, data, (int) length, /* persistent */ false, /* fallible */ true)) {
+#ifdef CURL_WRITEFUNC_ERROR
+                return CURL_WRITEFUNC_ERROR;
+#else
+                return 0;
+#endif
+            }
+#else
             smart_str_appendl(&t->buf, data, (int) length);
+#endif
         }
         break;
     case PHP_CURL_USER: {
