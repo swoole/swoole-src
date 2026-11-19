@@ -1521,10 +1521,10 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
             if (sw_unlikely(continue_frame_buffer)) {
                 swoole_warning("All fragments of a message, except for the initial frame, must use the continuation "
                                "frame opcode(0).");
-                // Drop poisoned fragment state; otherwise every later data frame keeps failing with errCode=0.
+                // Drop incomplete fragment state and treat the current frame as a new message start.
+                // Returning NULL here used to surface SW_ERROR_PROTOCOL_ERROR and tear down otherwise
+                // healthy long-lived clients after a single desync (common under Windows IOCP + SSL).
                 continue_frame_buffer.reset();
-                swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
-                RETURN_NULL();
             }
             if (frame.header.FIN) {
                 if (frame.compressed()) {
