@@ -153,10 +153,15 @@ Iouring::Iouring(Reactor *_reactor) {
     });
 
     reactor->set_end_callback(Reactor::PRIORITY_IOURING_SUBMIT, [](Reactor *reactor) {
-        if (!SwooleTG.iouring) {
+        auto *iouring = SwooleTG.iouring;
+        if (sw_unlikely(!iouring)) {
             return;
         }
-        SwooleTG.iouring->submit(true);
+        iouring->submit(true);
+        if (!iouring->waiting_tasks.empty()) {
+            iouring->dispatch_waiting();
+            iouring->submit(true);
+        }
     });
 
     reactor->iouring_interrupt_handler = [this](Reactor *reactor) { wakeup(); };
@@ -198,8 +203,6 @@ void Iouring::resume(IouringEvent *event) {
 }
 
 bool Iouring::wakeup() {
-    IouringEvent *waiting_task = nullptr;
-
     while (true) {
         auto count = io_uring_peek_batch_cqe(&ring, cqes, SW_IOURING_QUEUE_SIZE);
         if (count == 0) {
@@ -234,14 +237,7 @@ bool Iouring::wakeup() {
          * by the operating system. This can achieve a relatively good balance. If the submission is made after resuming
          * the coroutine, the kernel may become idle.
          */
-        SW_LOOP_N(ready_count) {
-            if (get_sq_space_left() == 0 || is_empty_waiting_tasks()) {
-                break;
-            }
-            waiting_task = waiting_tasks.front();
-            waiting_tasks.pop_front();
-            dispatch(waiting_task);
-        }
+        dispatch_waiting();
 
         SW_LOOP_N(ready_count) {
             resume(ready_events[i]);
@@ -377,8 +373,20 @@ Iouring *Iouring::get_instance() {
 
 ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();
-    iouring->dispatch(event);
+    TimerNode *queue_timeout = nullptr;
+    if (sw_unlikely(!iouring->waiting_tasks.empty() || !iouring->dispatch(event))) {
+        iouring->waiting_tasks.push_back(event);
+        if (event->has_timeout) {
+            // Count userspace queue time even if no CQE arrives to free a slot.
+            const double seconds = event->timeout.tv_sec + event->timeout.tv_nsec / double(SW_NUM_BILLION);
+            queue_timeout = swoole_timer_add(
+                seconds, false, [event](Timer *, TimerNode *) { event->coroutine->resume(); }, nullptr);
+        }
+    }
     iouring->yield(event);
+    if (queue_timeout) {
+        swoole_timer_del(queue_timeout);
+    }
 
     if (sw_unlikely(!event->completed)) {
         if (!event->submitted) {
@@ -411,11 +419,14 @@ ssize_t Iouring::execute(IouringEvent *event) {
     return event->result;
 }
 
-void Iouring::dispatch(IouringEvent *event) {
+bool Iouring::dispatch(IouringEvent *event) {
+    // Reserve both SQEs before publishing a request with a linked timeout.
+    if (event->has_timeout && sw_unlikely(get_sq_space_left() < 2)) {
+        return false;
+    }
     io_uring_sqe *sqe = alloc_sqe();
     if (sw_unlikely(!sqe)) {
-        waiting_tasks.push_back(event);
-        return;
+        return false;
     }
     event->submitted = true;
 
@@ -429,17 +440,23 @@ void Iouring::dispatch(IouringEvent *event) {
 
     if (event->has_timeout) {
         auto timeout_sqe = alloc_sqe();
-        if (sw_likely(timeout_sqe)) {
-            memset(timeout_sqe, 0, sizeof(*timeout_sqe));
-            io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(&event->timeout), 0);
-            io_uring_sqe_set_data(timeout_sqe, reinterpret_cast<void *>(TIMEOUT_EVENT));
-            sqe->flags |= IOSQE_IO_LINK;
-        } else {
-            swoole_warning("timeout setting failed, the iouring queue[%d] is full", ring.ring_fd);
-        }
+        SW_ASSERT(timeout_sqe);
+        io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(&event->timeout), 0);
+        io_uring_sqe_set_data(timeout_sqe, reinterpret_cast<void *>(TIMEOUT_EVENT));
+        sqe->flags |= IOSQE_IO_LINK;
     }
 
     submit(false);
+    return true;
+}
+
+void Iouring::dispatch_waiting() {
+    for (uint32_t available = get_sq_space_left(); available > 0 && !waiting_tasks.empty(); --available) {
+        if (!dispatch(waiting_tasks.front())) {
+            break;
+        }
+        waiting_tasks.pop_front();
+    }
 }
 
 #define INIT_EVENT(op)                                                                                                 \

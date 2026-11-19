@@ -52,7 +52,8 @@ class Iouring {
     void yield(IouringEvent *event);
     void resume(IouringEvent *event);
     bool cancel(IouringEvent *prev_event);
-    void dispatch(IouringEvent *event);
+    bool dispatch(IouringEvent *event);
+    void dispatch_waiting();
     void submit(bool immediately);
     bool wakeup();
 
