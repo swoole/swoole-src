@@ -313,6 +313,10 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return false;
     }
+    if (sw_unlikely(offset < 0)) {
+        set_err(EINVAL);
+        return false;
+    }
 
     File file(filename, O_RDONLY);
     if (!file.ready()) {
@@ -320,16 +324,17 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
         return false;
     }
 
+    FileStatus file_stat;
+    if (!file.stat(&file_stat)) {
+        set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
+        return false;
+    }
+    if (sw_unlikely(offset >= file_stat.st_size)) {
+        set_err(EINVAL);
+        return false;
+    }
     if (length == 0) {
-        FileStatus file_stat;
-        if (!file.stat(&file_stat)) {
-            set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
-            return false;
-        }
-        length = file_stat.st_size;
-    } else {
-        // total length of the file
-        length = offset + length;
+        length = static_cast<size_t>(file_stat.st_size - offset);
     }
 
     ssize_t retval;
@@ -342,7 +347,8 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
     }
     write_co = nullptr;
 
-    return retval == (ssize_t) length;
+    check_return_value(retval);
+    return retval >= 0 && static_cast<size_t>(retval) == length;
 }
 
 ssize_t UringSocket::readv(network::IOVector *io_vector) {

@@ -557,6 +557,41 @@ TEST(uring_socket, sendfile) {
     });
 }
 
+TEST(uring_socket, sendfile_range) {
+    coroutine::run([](void *) {
+        auto file = swoole::make_tmpfile();
+        ASSERT_TRUE(file.ready());
+        ON_SCOPE_EXIT {
+            File::remove(file.get_path());
+        };
+        ASSERT_EQ(file.write("0123456789"), 10);
+
+        const size_t lengths[] = {3, 0};
+        const off_t offsets[] = {2, 7};
+        const char *expected[] = {"234", "789"};
+        SW_LOOP_N(SW_ARRAY_SIZE(lengths)) {
+            int pair[2];
+            ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+            UringSocket writer(pair[0], SW_SOCK_UNIX_STREAM);
+            UringSocket reader(pair[1], SW_SOCK_UNIX_STREAM);
+            reader.set_timeout(1, SW_TIMEOUT_READ);
+
+            EXPECT_FALSE(writer.sendfile(file.get_path().c_str(), 10, 0));
+            EXPECT_EQ(writer.errCode, EINVAL);
+            EXPECT_FALSE(writer.sendfile(file.get_path().c_str(), 11, 2));
+            EXPECT_EQ(writer.errCode, EINVAL);
+            ASSERT_TRUE(writer.sendfile(file.get_path().c_str(), offsets[i], lengths[i]));
+            EXPECT_EQ(writer.errCode, 0);
+            ASSERT_TRUE(writer.close());
+
+            char data[20];
+            const ssize_t received = reader.recv_all(data, sizeof(data));
+            ASSERT_GE(received, 0);
+            EXPECT_EQ(std::string(data, received), expected[i]);
+        }
+    });
+}
+
 TEST(uring_socket, send_and_recv_all) {
     coroutine::run([&](void *arg) {
         int pairs[2];
