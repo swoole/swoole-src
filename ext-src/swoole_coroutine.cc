@@ -327,6 +327,8 @@ PHPContext *PHPCoroutine::create_context(const Args *args) {
     ctx->on_resume = nullptr;
     ctx->on_close = nullptr;
     ctx->enable_scheduler = true;
+    ctx->callback_running = false;
+    ctx->http2_header_send_pending = false;
 
     if (UNEXPECTED(SWOOLE_G(enable_fiber_mock))) {
         fiber_context_init(ctx);
@@ -837,7 +839,9 @@ void PHPCoroutine::main_func(void *_args) {
             EG(active_fiber) = ctx->active_fiber;
         }
 
+        ctx->callback_running = true;
         zend_call_function(&ctx->fci, &ctx->fci_cache);
+        ctx->callback_running = false;
 
         // Handle the callback exception and decide whether legacy coroutine bailout is required.
         bailout_required = handle_exception();
@@ -873,6 +877,7 @@ void PHPCoroutine::main_func(void *_args) {
     }
     zend_catch {
         // zend_bailout is executed in the c function
+        ctx->callback_running = false;
         handle_exception();
         bailout_required = true;
     }
@@ -1449,11 +1454,12 @@ static PHP_METHOD(swoole_coroutine, join) {
     RETURN_TRUE;
 }
 
-static bool php_swoole_coroutine_throw_exception(long cid,
-                                                 bool throw_exception,
-                                                 zend_class_entry *ce,
-                                                 zval *reason = nullptr) {
+bool php_swoole_coroutine_throw_exception(
+    long cid, bool throw_exception, zend_class_entry *ce, zval *reason, bool wake) {
     if (throw_exception) {
+        if (!ce) {
+            ce = swoole_coroutine_canceled_exception_ce;
+        }
         auto *task = PHPCoroutine::get_context_by_cid(cid);
         // The coroutine does not exist or is not a PHP coroutine, and cannot be canceled or throw an exception
         if (!task || !task->co) {
@@ -1511,9 +1517,10 @@ static bool php_swoole_coroutine_throw_exception(long cid,
             task->execute_data->opline = EG(exception_op);
         }
 
-        // Ignore the result of Co::cancel(). Even if the coroutine is in an irrevocable state,
-        // it will directly throw an exception and terminate the coroutine
-        task->co->cancel();
+        if (wake) {
+            // The exception stays pending if the current wait cannot be interrupted.
+            task->co->cancel();
+        }
         return true;
     } else {
         Coroutine *co = swoole_coroutine_get(cid);

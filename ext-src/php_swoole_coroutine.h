@@ -77,6 +77,10 @@ struct PHPContext {
         unsigned level;
     } unserialize;
     bool enable_scheduler;
+    // The primary PHP callback is executing, before its coroutine defers run.
+    bool callback_running;
+    // The coroutine is waiting to send an already encoded HTTP/2 header block.
+    bool http2_header_send_pending;
     int error_reporting;
     Coroutine *co;
     zend_fcall_info fci;
@@ -316,6 +320,11 @@ class PHPCoroutine {
     }
 };
 }  // namespace swoole
+
+// A null exception class selects CanceledException. With wake=false, a suspended coroutine sees the
+// exception after it resumes through its current operation.
+bool php_swoole_coroutine_throw_exception(
+    long cid, bool throw_exception, zend_class_entry *ce, zval *reason = nullptr, bool wake = true);
 
 /**
  * for gdb
