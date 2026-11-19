@@ -820,21 +820,21 @@ void PHPCoroutine::main_func(void *_args) {
         }
 
         if (UNEXPECTED(ctx->fiber_context)) {
-            zend_execute_data *tmp = nullptr;
+            const auto *origin_ctx = get_origin_context(ctx);
+            auto *execute_data = EG(current_execute_data);
             zend_execute_data call = {};
 
             if (ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION) {
-                tmp = EG(current_execute_data);
-                EG(current_execute_data) = &call;
-                EG(current_execute_data)->opline = ctx->fci_cache.function_handler->op_array.opcodes;
                 call.func = ctx->fci_cache.function_handler;
+                call.opline = call.func->op_array.opcodes;
+                EG(current_execute_data) = &call;
+            } else {
+                // Internal entries have no op_array. Keep the caller's frames visible to Fiber observers.
+                EG(current_execute_data) = origin_ctx->execute_data;
             }
 
-            fiber_context_switch_try_notify(get_origin_context(ctx), ctx);
-
-            if (tmp) {
-                EG(current_execute_data) = tmp;
-            }
+            fiber_context_switch_try_notify(origin_ctx, ctx);
+            EG(current_execute_data) = execute_data;
             EG(current_fiber_context) = ctx->current_fiber_context;
             EG(active_fiber) = ctx->active_fiber;
         }
