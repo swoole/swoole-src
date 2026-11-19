@@ -54,6 +54,7 @@ class Iouring {
     bool cancel(IouringEvent *prev_event);
     bool dispatch(IouringEvent *event);
     void dispatch_waiting();
+    void remove_waiting(IouringEvent *event);
     void submit(bool immediately);
     bool wakeup();
 

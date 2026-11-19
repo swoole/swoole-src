@@ -302,6 +302,35 @@ TEST(uring_socket, recv_packet_drains_io_after_outer_timeout) {
     });
 }
 
+TEST(uring_socket, distinguishes_active_cancel_from_timeout) {
+    coroutine::run([](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        UringSocket reader(pair[0], SW_SOCK_UNIX_STREAM);
+        UringSocket writer(pair[1], SW_SOCK_UNIX_STREAM);
+        char data;
+
+        reader.set_timeout(0.01, SW_TIMEOUT_READ);
+        ASSERT_EQ(reader.recv(&data, 1), -1);
+        ASSERT_EQ(reader.errCode, ETIMEDOUT);
+
+        reader.set_timeout(2, SW_TIMEOUT_READ);
+        const auto cid = Coroutine::get_current_cid();
+        Coroutine::create([cid](void *) {
+            System::sleep(0.01);
+            auto *co = Coroutine::get_by_cid(cid);
+            ASSERT_NE(co, nullptr);
+            EXPECT_TRUE(co->cancel());
+        });
+        ASSERT_EQ(reader.recv(&data, 1), -1);
+        EXPECT_EQ(reader.errCode, ECANCELED);
+
+        ASSERT_EQ(writer.send("x", 1), 1);
+        ASSERT_EQ(reader.recv(&data, 1), 1);
+        EXPECT_EQ(data, 'x');
+    });
+}
+
 TEST(uring_socket, length_3) {
     const int port = __LINE__ + TEST_PORT;
     coroutine::run({[](void *arg) {

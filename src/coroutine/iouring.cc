@@ -62,6 +62,9 @@ struct IouringEvent {
     bool has_timeout = false;
     bool submitted = false;
     bool completed = false;
+    bool request_done = false;
+    bool cancel_pending = false;
+    bool cancel_succeeded = false;
 
     void set_timeout(double seconds) {
         if (seconds > 0) {
@@ -192,6 +195,10 @@ bool Iouring::ready() const {
 
 void Iouring::yield(IouringEvent *event) {
     ++task_num;
+    if (event->data.opcode == IORING_OP_ASYNC_CANCEL) {
+        event->coroutine->yield();
+        return;
+    }
     Coroutine::CancelFunc cancel_fn = [event, this](Coroutine *) { return cancel(event); };
     event->coroutine->yield(&cancel_fn);
 }
@@ -213,7 +220,7 @@ bool Iouring::wakeup() {
         SW_LOOP_N(count) {
             auto cqe = cqes[i];
             auto event = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
-            // The user data for the timeout request is -1, this event should be ignored.
+            // Linked timeout CQEs have their own sentinel and do not resume a coroutine.
             if (event == reinterpret_cast<void *>(TIMEOUT_EVENT)) {
                 swoole_trace(
                     "timeout, cqe.flags=%d, ceq.res=%d, error=`%s`", cqe->flags, cqe->res, strerror(-cqe->res));
@@ -221,6 +228,7 @@ bool Iouring::wakeup() {
             }
 
             event->result = cqe->res;
+            event->request_done = true;
             ready_events[ready_count++] = event;
 
             swoole_trace("opcode=%s, cqe.flags=%d, ceq.res=%d, error=`%s`",
@@ -388,12 +396,10 @@ ssize_t Iouring::execute(IouringEvent *event) {
         swoole_timer_del(queue_timeout);
     }
 
+    bool outer_timeout = false;
     if (sw_unlikely(!event->completed)) {
         if (!event->submitted) {
-            auto &waiting = iouring->waiting_tasks;
-            auto task = std::find(waiting.begin(), waiting.end(), event);
-            SW_ASSERT(task != waiting.end());
-            waiting.erase(task);
+            iouring->remove_waiting(event);
             --iouring->task_num;
             errno = ETIMEDOUT;
             return -1;
@@ -402,18 +408,19 @@ ssize_t Iouring::execute(IouringEvent *event) {
         // A socket timer can wake the coroutine before its CQE. Keep the
         // request and its caller's buffers alive until the kernel completes it.
         // The original CQE can also wake us while waiting for the cancel CQE.
-        if (event->data.opcode != IORING_OP_ASYNC_CANCEL) {
+        if (!event->request_done && !event->cancel_pending && event->data.opcode != IORING_OP_ASYNC_CANCEL) {
+            outer_timeout = true;
             iouring->cancel(event);
         }
-        while (!event->completed) {
-            event->coroutine->yield();
-        }
+    }
+    while (sw_unlikely(!event->completed || event->cancel_pending)) {
+        event->coroutine->yield();
     }
 
     if (event->result < 0) {
-        // A linked timeout is reported as ECANCELED by io_uring.
         const int error = static_cast<int>(-event->result);
-        errno = error == ECANCELED ? ETIMEDOUT : error;
+        const bool timed_out = outer_timeout || (event->has_timeout && !event->cancel_succeeded);
+        errno = error == ECANCELED && timed_out ? ETIMEDOUT : error;
         return -1;
     }
     return event->result;
@@ -459,6 +466,12 @@ void Iouring::dispatch_waiting() {
     }
 }
 
+void Iouring::remove_waiting(IouringEvent *event) {
+    auto task = std::find(waiting_tasks.begin(), waiting_tasks.end(), event);
+    SW_ASSERT(task != waiting_tasks.end());
+    waiting_tasks.erase(task);
+}
+
 #define INIT_EVENT(op)                                                                                                 \
     IouringEvent event{};                                                                                              \
     event.coroutine = Coroutine::get_current_safe();
@@ -470,9 +483,28 @@ int Iouring::open(const char *pathname, int flags, mode_t mode) {
 }
 
 bool Iouring::cancel(IouringEvent *prev_event) {
+    if (prev_event->request_done || prev_event->cancel_pending) {
+        return false;
+    }
+    if (!prev_event->submitted) {
+        remove_waiting(prev_event);
+        prev_event->result = -ECANCELED;
+        prev_event->cancel_succeeded = true;
+        resume(prev_event);
+        return true;
+    }
+
     INIT_EVENT(IORING_OP_ASYNC_CANCEL);
-    io_uring_prep_cancel(&event.data, (void *) prev_event, 0);
-    return static_cast<int>(execute(&event)) == 0;
+    prev_event->cancel_pending = true;
+    io_uring_prep_cancel(&event.data, prev_event, 0);
+    const bool canceled = execute(&event) == 0;
+    // A pending cancellation still identifies the target by its address.
+    prev_event->cancel_succeeded = canceled;
+    prev_event->cancel_pending = false;
+    if (prev_event->completed && prev_event->coroutine != Coroutine::get_current()) {
+        prev_event->coroutine->resume();
+    }
+    return canceled;
 }
 
 int Iouring::socket(int domain, int type, int protocol, int flags) {
