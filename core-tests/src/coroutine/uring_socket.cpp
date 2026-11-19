@@ -282,6 +282,26 @@ static void socket_set_length_protocol_1(UringSocket &sock) {
     sock.open_length_check = true;
 }
 
+TEST(uring_socket, recv_packet_drains_io_after_outer_timeout) {
+    coroutine::run([](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        UringSocket reader(pair[0], SW_SOCK_UNIX_STREAM);
+        UringSocket writer(pair[1], SW_SOCK_UNIX_STREAM);
+        reader.set_timeout(2, SW_TIMEOUT_READ);
+        socket_set_length_protocol_1(reader);
+
+        // The packet timer fires while the underlying receive is still pending.
+        ASSERT_EQ(reader.recv_packet(0.01), -1);
+        EXPECT_EQ(reader.errCode, ETIMEDOUT);
+
+        const std::string packet("\0\x04test", 6);
+        ASSERT_EQ(writer.send_all(packet.data(), packet.size()), packet.size());
+        ASSERT_EQ(reader.recv_packet(1), packet.size());
+        EXPECT_EQ(std::string(reader.get_read_buffer()->str, packet.size()), packet);
+    });
+}
+
 TEST(uring_socket, length_3) {
     const int port = __LINE__ + TEST_PORT;
     coroutine::run({[](void *arg) {

@@ -21,6 +21,8 @@
 #ifdef SW_USE_IOURING
 #include <liburing.h>
 
+#include <deque>
+
 enum swIouringFlag {
     SW_IOURING_DEFAULT = 0,
     SW_IOURING_SQPOLL = IORING_SETUP_SQPOLL,
@@ -38,7 +40,7 @@ class Iouring {
     uint32_t task_num = 0;
     uint32_t entries = SW_IOURING_QUEUE_SIZE;
     io_uring ring;
-    std::queue<IouringEvent *> waiting_tasks;
+    std::deque<IouringEvent *> waiting_tasks;
     network::Socket *ring_socket = nullptr;
     Reactor *reactor = nullptr;
 

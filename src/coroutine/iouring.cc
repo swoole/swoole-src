@@ -33,6 +33,7 @@
 #error "The version of liburing required must be greater than or equal to 2.8."
 #endif
 
+#include <algorithm>
 #include <cmath>
 
 #define DOUBLE_TO_TIMESPEC(seconds, ts)                                                                                \
@@ -64,6 +65,8 @@ struct IouringEvent {
     ssize_t result;
     IouringTimeout timeout;
     int flags;
+    bool submitted = false;
+    bool completed = false;
 
     void set_timeout(double seconds) {
         if (seconds > 0) {
@@ -195,6 +198,7 @@ void Iouring::yield(IouringEvent *event) {
 
 void Iouring::resume(IouringEvent *event) {
     --task_num;
+    event->completed = true;
     event->coroutine->resume();
 }
 
@@ -240,22 +244,11 @@ bool Iouring::wakeup() {
                 break;
             }
             waiting_task = waiting_tasks.front();
-            waiting_tasks.pop();
+            waiting_tasks.pop_front();
             dispatch(waiting_task);
         }
 
         SW_LOOP_N(ready_count) {
-            auto event = ready_events[i];
-            if (event->result < 0) {
-                errno = -(event->result);
-                /**
-                 * After a timeout, iouring will set errno to `ECANCELED`, but in the async implementation,
-                 * the errno after a timeout is `ETIMEDOUT`.
-                 * To maintain compatibility, numerical conversion is necessary.
-                 */
-                errno = errno == ECANCELED ? ETIMEDOUT : errno;
-                event->result = -1;
-            }
             resume(ready_events[i]);
         }
     }
@@ -391,15 +384,45 @@ ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();
     iouring->dispatch(event);
     iouring->yield(event);
+
+    if (sw_unlikely(!event->completed)) {
+        if (!event->submitted) {
+            auto &waiting = iouring->waiting_tasks;
+            auto task = std::find(waiting.begin(), waiting.end(), event);
+            SW_ASSERT(task != waiting.end());
+            waiting.erase(task);
+            --iouring->task_num;
+            errno = ETIMEDOUT;
+            return -1;
+        }
+
+        // A socket timer can wake the coroutine before its CQE. Keep the
+        // request and its caller's buffers alive until the kernel completes it.
+        // The original CQE can also wake us while waiting for the cancel CQE.
+        if (event->data.opcode != IORING_OP_ASYNC_CANCEL) {
+            iouring->cancel(event);
+        }
+        while (!event->completed) {
+            event->coroutine->yield();
+        }
+    }
+
+    if (event->result < 0) {
+        // A linked timeout is reported as ECANCELED by io_uring.
+        const int error = static_cast<int>(-event->result);
+        errno = error == ECANCELED ? ETIMEDOUT : error;
+        return -1;
+    }
     return event->result;
 }
 
 void Iouring::dispatch(IouringEvent *event) {
     io_uring_sqe *sqe = alloc_sqe();
     if (sw_unlikely(!sqe)) {
-        waiting_tasks.push(event);
+        waiting_tasks.push_back(event);
         return;
     }
+    event->submitted = true;
 
     swoole_trace("opcode=%s, timeout[tv_sec=%ld, tv_nsec=%ld]",
                  get_opcode_name((io_uring_op) event->data.opcode),
