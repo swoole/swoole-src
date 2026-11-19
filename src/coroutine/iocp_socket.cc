@@ -469,7 +469,10 @@ ssize_t IocpSocket::writev_all(network::IOVector *io_vector) {
 }
 
 bool IocpSocket::ssl_bio_write() {
-    auto buf = get_write_buffer();
+    // Must NOT use get_write_buffer(): Http Client / protocol pack plaintext into that
+    // buffer, and ssl_send() may pass the same pointer to SSL_write(). Reusing it for
+    // TLS ciphertext clobbers in-flight application data and desyncs WebSocket framing.
+    char buf[SW_BUFFER_SIZE_BIG];
 
     while (true) {
         size_t pending = BIO_ctrl_pending(wbio);
@@ -477,7 +480,7 @@ bool IocpSocket::ssl_bio_write() {
             break;
         }
 
-        int nread = BIO_read(wbio, buf->str, buf->size);
+        int nread = BIO_read(wbio, buf, sizeof(buf));
         if (nread <= 0) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -491,7 +494,7 @@ bool IocpSocket::ssl_bio_write() {
                 set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
                 return false;
             }
-            ssize_t n = iocp_send(buf->str + written, nread - written);
+            ssize_t n = iocp_send(buf + written, nread - written);
             if (n > 0) {
                 written += n;
             } else if (n == 0) {
@@ -516,10 +519,13 @@ bool IocpSocket::ssl_bio_read() {
         set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
         return false;
     }
-    auto buf = get_read_buffer();
-    ssize_t rv = iocp_recv(buf->str, buf->size);
+    // Must NOT use get_read_buffer(): recv_packet() keeps partial WS/HTTP payloads there.
+    // Fetching TLS ciphertext into the same buffer destroys already-assembled protocol data
+    // and produces bogus opcodes / RSV bits / inflate errors under SSL.
+    char buf[SW_BUFFER_SIZE_BIG];
+    ssize_t rv = iocp_recv(buf, sizeof(buf));
     if (rv > 0) {
-        int written = BIO_write(rbio, buf->str, rv);
+        int written = BIO_write(rbio, buf, static_cast<int>(rv));
         if (written != rv) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
