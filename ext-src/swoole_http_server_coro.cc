@@ -505,7 +505,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         if (conn) {
             zval zsocket;
             php_swoole_init_socket_object(&zsocket, conn);
-            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, zcallback.ptr());
+            long cid = PHPCoroutine::create(&fci_cache, 1, &zsocket, nullptr);
             zval_dtor(&zsocket);
             if (cid < 0) {
                 goto _wait_1s;

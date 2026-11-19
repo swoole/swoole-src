@@ -783,14 +783,22 @@ void PHPCoroutine::main_func(void *_args) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, ctx);
         }
 
-        if (UNEXPECTED(ctx->fiber_context && ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION)) {
-            zend_execute_data *tmp = EG(current_execute_data);
+        if (UNEXPECTED(ctx->fiber_context)) {
+            const auto *origin_ctx = get_origin_context(ctx);
+            auto *execute_data = EG(current_execute_data);
             zend_execute_data call = {};
-            EG(current_execute_data) = &call;
-            EG(current_execute_data)->opline = ctx->fci_cache.function_handler->op_array.opcodes;
-            call.func = ctx->fci_cache.function_handler;
-            fiber_context_switch_try_notify(get_origin_context(ctx), ctx);
-            EG(current_execute_data) = tmp;
+
+            if (ctx->fci_cache.function_handler->type == ZEND_USER_FUNCTION) {
+                call.func = ctx->fci_cache.function_handler;
+                call.opline = call.func->op_array.opcodes;
+                EG(current_execute_data) = &call;
+            } else {
+                // Internal entries have no op_array. Keep the caller's frames visible to Fiber observers.
+                EG(current_execute_data) = origin_ctx->execute_data;
+            }
+
+            fiber_context_switch_try_notify(origin_ctx, ctx);
+            EG(current_execute_data) = execute_data;
         }
 
         zend_call_function(&ctx->fci, &ctx->fci_cache);
