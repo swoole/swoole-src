@@ -54,23 +54,18 @@ using swoole::Coroutine;
 using swoole::coroutine::System;
 
 namespace swoole {
-//-------------------------------------------------------------------------------
-enum IouringEventFlag {
-    SW_URING_TIMEOUT = 1U << 0,
-};
-
 struct IouringEvent {
     Coroutine *coroutine;
     io_uring_sqe data;
     ssize_t result;
     IouringTimeout timeout;
-    int flags;
+    bool has_timeout = false;
     bool submitted = false;
     bool completed = false;
 
     void set_timeout(double seconds) {
         if (seconds > 0) {
-            flags |= SW_URING_TIMEOUT;
+            has_timeout = true;
             DOUBLE_TO_TIMESPEC(seconds, &timeout);
         }
     }
@@ -432,7 +427,7 @@ void Iouring::dispatch(IouringEvent *event) {
     memcpy(sqe, &event->data, sizeof(event->data));
     io_uring_sqe_set_data(sqe, (void *) event);
 
-    if (event->flags & SW_URING_TIMEOUT) {
+    if (event->has_timeout) {
         auto timeout_sqe = alloc_sqe();
         if (sw_likely(timeout_sqe)) {
             memset(timeout_sqe, 0, sizeof(*timeout_sqe));
