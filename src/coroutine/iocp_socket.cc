@@ -175,13 +175,9 @@ ssize_t IocpSocket::iocp_send(const void *_buf, size_t _n) {
 
 ssize_t IocpSocket::iocp_recv(void *_buf, size_t _n) {
     ssize_t retval = Iocp::recv(socket->get_fd(), _buf, _n, 0, socket->read_timeout);
-    // An outer recv_packet() timer resumes the coroutine and cancels pending I/O.
-    // Preserve that timeout instead of replacing it with the cancellation error.
-    // Under concurrent write, a successful send may clear errCode to 0 before the
-    // cancel completion is observed — still treat as ETIMEDOUT (swoole#6417 race).
-    // Real close() sets CLOSE_WAIT first; leave ECANCELED alone in that case.
-    if (retval < 0 && errno == ECANCELED && (errCode == ETIMEDOUT || errCode == 0)) {
-        set_err(ETIMEDOUT);
+    if (retval < 0) {
+        // The completion carries this read's error, even after a concurrent write updates errCode.
+        set_err(errno);
     }
     return retval;
 }
@@ -469,10 +465,11 @@ ssize_t IocpSocket::writev_all(network::IOVector *io_vector) {
 }
 
 bool IocpSocket::ssl_bio_write() {
-    // Must NOT use get_write_buffer(): Http Client / protocol pack plaintext into that
-    // buffer, and ssl_send() may pass the same pointer to SSL_write(). Reusing it for
-    // TLS ciphertext clobbers in-flight application data and desyncs WebSocket framing.
-    char buf[SW_BUFFER_SIZE_BIG];
+    if (BIO_ctrl_pending(wbio) == 0) {
+        return true;
+    }
+    // The SSL caller can still reference the protocol's plaintext write buffer.
+    String ciphertext(SW_BUFFER_SIZE_BIG);
 
     while (true) {
         size_t pending = BIO_ctrl_pending(wbio);
@@ -480,7 +477,7 @@ bool IocpSocket::ssl_bio_write() {
             break;
         }
 
-        int nread = BIO_read(wbio, buf, sizeof(buf));
+        int nread = BIO_read(wbio, ciphertext.str, ciphertext.size);
         if (nread <= 0) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -494,7 +491,7 @@ bool IocpSocket::ssl_bio_write() {
                 set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
                 return false;
             }
-            ssize_t n = iocp_send(buf + written, nread - written);
+            ssize_t n = iocp_send(ciphertext.str + written, nread - written);
             if (n > 0) {
                 written += n;
             } else if (n == 0) {
@@ -514,18 +511,20 @@ bool IocpSocket::ssl_bio_write() {
 }
 
 bool IocpSocket::ssl_bio_read() {
-    // A completed ClientHello write must not start a new read during close().
-    if (sw_unlikely(socket->close_wait)) {
-        set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
-        return false;
-    }
-    // Must NOT use get_read_buffer(): recv_packet() keeps partial WS/HTTP payloads there.
-    // Fetching TLS ciphertext into the same buffer destroys already-assembled protocol data
-    // and produces bogus opcodes / RSV bits / inflate errors under SSL.
-    char buf[SW_BUFFER_SIZE_BIG];
-    ssize_t rv = iocp_recv(buf, sizeof(buf));
+    // Keep TLS records separate from the partial plaintext packet in the read buffer.
+    String ciphertext(SW_BUFFER_SIZE_BIG);
+    ssize_t rv;
+    do {
+        // A completed ClientHello write must not start a new read during close().
+        if (sw_unlikely(socket->close_wait)) {
+            set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+            return false;
+        }
+        rv = iocp_recv(ciphertext.str, ciphertext.size);
+    } while (rv < 0 && errno == EINTR);
+
     if (rv > 0) {
-        int written = BIO_write(rbio, buf, static_cast<int>(rv));
+        int written = BIO_write(rbio, ciphertext.str, static_cast<int>(rv));
         if (written != rv) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -533,14 +532,8 @@ bool IocpSocket::ssl_bio_read() {
         return true;
     } else if (rv == 0) {
         set_err(SW_ERROR_SSL_RESET);
-        return false;
-    } else {
-        if (errno == EINTR) {
-            return ssl_bio_read();
-        }
-        set_err(errno);
-        return false;
     }
+    return false;
 }
 
 bool IocpSocket::ssl_bio_prepare() {

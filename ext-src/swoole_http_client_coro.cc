@@ -1722,16 +1722,12 @@ void Client::recv_websocket_frame(zval *return_value, double timeout) {
     if (sw_unlikely(ZVAL_IS_FALSE(return_value))) {
         php_swoole_socket_set_error_properties(zobject, socket);
         zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
-        // Windows IOCP: timed recv cancels the pending WSARecv; under concurrent push the
-        // cancellation errno (ECANCELED/105) can win the race against ETIMEDOUT. Closing here
-        // kills long-lived WS clients (swoole#6417). Treat cancel like timeout for close().
-        if (socket->errCode != ETIMEDOUT && socket->errCode != ECANCELED) {
+        if (socket->errCode != ETIMEDOUT) {
             close();
         }
         return;
     }
     if (sw_unlikely(ZVAL_IS_NULL(return_value))) {
-        // Null may be protocol/ordering issues, not necessarily a dead connection.
         ZVAL_FALSE(return_value);
     }
 }

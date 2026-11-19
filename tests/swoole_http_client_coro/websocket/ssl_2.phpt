@@ -12,6 +12,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Coroutine;
 use Swoole\Coroutine\Http\Client;
 use Swoole\Coroutine\Http\Server;
+use Swoole\Event;
 use Swoole\WebSocket\Frame;
 
 Assert::setThrowException(true);
@@ -43,7 +44,8 @@ Coroutine\run(function () {
     try {
         Assert::true($client->upgrade('/websocket'));
         Assert::same($client->getStatusCode(), 101);
-        Assert::true($client->push('start'));
+        // The receive below suspends before the writer packs a frame for the same TLS socket.
+        Event::defer(fn () => Coroutine::create(fn () => Assert::true($client->push('start'))));
         // Back-to-back frames include payloads spanning multiple TLS records.
         foreach ($messages as $message) {
             $frame = $client->recv(2);
@@ -51,7 +53,13 @@ Coroutine\run(function () {
             Assert::same($frame->opcode, SWOOLE_WEBSOCKET_OPCODE_TEXT);
             Assert::same($frame->data, $message);
         }
-        Assert::same($client->recv(2), '');
+        $closed = $client->recv(2);
+        if ($closed === false) {
+            // The IOCP TLS receive path reports transport EOF as SSL reset.
+            Assert::same($client->errCode, SWOOLE_ERROR_SSL_RESET);
+        } else {
+            Assert::same($closed, '');
+        }
         Assert::false($client->recv(2));
     } finally {
         $client->close();

@@ -37,10 +37,10 @@ void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
     socket->set_err(ETIMEDOUT);
     if (sw_likely(tnode == socket->read_timer)) {
         socket->read_timer = nullptr;
-        socket->read_co->resume();
+        socket->read_co->resume_on_timeout();
     } else if (tnode == socket->write_timer) {
         socket->write_timer = nullptr;
-        socket->write_co->resume();
+        socket->write_co->resume_on_timeout();
     } else {
         abort();
     }
