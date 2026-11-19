@@ -26,6 +26,7 @@
 
 ### Improvements
 
+- Add the opt-in `http2_cancel_on_stream_reset` server option. A peer HTTP/2 reset interrupts the active request coroutine with `Swoole\Coroutine\CanceledException`. Its reason is an associative array with `session_id`, `stream_id`, the HTTP/2 error `code`, and a `message` of `HTTP2 Stream Reset`. Catch the exception in the PHP request handler. An uncaught exception is fatal and terminates the worker process. A reset received while the request is queued skips its callback.
 - Add static-file ETag validators and conditional request handling, including strong If-Range matching and precondition precedence, consistently across HTTP/1 and HTTP/2.
 - Retain an opened static file through response completion and share it across ranges. Find configured index files directly instead of enumerating the directory.
 

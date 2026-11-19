@@ -64,7 +64,9 @@ static void http_server_process_request(const Server *serv, zend::Callable *cb, 
     zval args[2];
     args[0] = ctx->request.zobject;
     args[1] = ctx->response.zobject;
-    if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
+    const bool success = ctx->http2 ? swoole_http2_server_call_request(ctx, cb, args)
+                                    : zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine());
+    if (UNEXPECTED(!success)) {
         php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
@@ -403,8 +405,10 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
         while (!queued_http_contexts.empty()) {
             HttpContext *_ctx = queued_http_contexts.front();
             queued_http_contexts.pop();
-            _ctx->send(_ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
-            _ctx->close(_ctx);
+            if (!_ctx->http2 || !_ctx->end_) {
+                _ctx->send(_ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+                _ctx->close(_ctx);
+            }
             http_context_discard(_ctx);
         }
         return;

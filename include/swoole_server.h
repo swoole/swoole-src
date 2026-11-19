@@ -1183,6 +1183,10 @@ class Server {
      */
     bool discard_timeout_request = false;
     /**
+     * Cancel the HTTP/2 request coroutine when the peer resets its stream.
+     */
+    bool http2_cancel_on_stream_reset = false;
+    /**
      * parse cookie header
      */
     bool http_parse_cookie = true;
