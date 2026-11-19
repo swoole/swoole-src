@@ -78,6 +78,26 @@ run(function () {
     Assert::isInstanceOf($connection, Socket::class);
     Assert::false($connection->recv(7, 0.001));
     Assert::same($connection->errCode, $timeoutError);
+
+    $connection->setProtocol([
+        'open_length_check' => true,
+        'package_length_type' => 'N',
+        'package_length_offset' => 0,
+        'package_body_offset' => 4,
+        'package_max_length' => 1024,
+    ]);
+    Assert::false($connection->recvPacket(0.001));
+    Assert::same($connection->errCode, $timeoutError);
+
+    $recvDone = new Channel(1);
+    $recvCid = go(function () use ($connection, $recvDone) {
+        Assert::false($connection->recvPacket(-1));
+        $recvDone->push($connection->errCode);
+    });
+    // A previous receive timeout must not change the reason for a new canceled read.
+    Assert::true(Coroutine::cancel($recvCid));
+    Assert::same($recvDone->pop(1), $cancellationError);
+
     $send->push(true);
     Assert::same($connection->recvAll(7, 1), 'payload');
     $connection->close();

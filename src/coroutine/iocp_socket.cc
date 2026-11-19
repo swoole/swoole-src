@@ -175,10 +175,9 @@ ssize_t IocpSocket::iocp_send(const void *_buf, size_t _n) {
 
 ssize_t IocpSocket::iocp_recv(void *_buf, size_t _n) {
     ssize_t retval = Iocp::recv(socket->get_fd(), _buf, _n, 0, socket->read_timeout);
-    // An outer recv_packet() timer resumes the coroutine and cancels pending I/O.
-    // Preserve that timeout instead of replacing it with the cancellation error.
-    if (retval < 0 && errno == ECANCELED && errCode == ETIMEDOUT) {
-        set_err(ETIMEDOUT);
+    if (retval < 0) {
+        // The completion carries this read's error, even after a concurrent write updates errCode.
+        set_err(errno);
     }
     return retval;
 }
@@ -466,7 +465,11 @@ ssize_t IocpSocket::writev_all(network::IOVector *io_vector) {
 }
 
 bool IocpSocket::ssl_bio_write() {
-    auto buf = get_write_buffer();
+    if (BIO_ctrl_pending(wbio) == 0) {
+        return true;
+    }
+    // The SSL caller can still reference the protocol's plaintext write buffer.
+    String ciphertext(SW_BUFFER_SIZE_BIG);
 
     while (true) {
         size_t pending = BIO_ctrl_pending(wbio);
@@ -474,7 +477,7 @@ bool IocpSocket::ssl_bio_write() {
             break;
         }
 
-        int nread = BIO_read(wbio, buf->str, buf->size);
+        int nread = BIO_read(wbio, ciphertext.str, ciphertext.size);
         if (nread <= 0) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -488,7 +491,7 @@ bool IocpSocket::ssl_bio_write() {
                 set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
                 return false;
             }
-            ssize_t n = iocp_send(buf->str + written, nread - written);
+            ssize_t n = iocp_send(ciphertext.str + written, nread - written);
             if (n > 0) {
                 written += n;
             } else if (n == 0) {
@@ -508,15 +511,20 @@ bool IocpSocket::ssl_bio_write() {
 }
 
 bool IocpSocket::ssl_bio_read() {
-    // A completed ClientHello write must not start a new read during close().
-    if (sw_unlikely(socket->close_wait)) {
-        set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
-        return false;
-    }
-    auto buf = get_read_buffer();
-    ssize_t rv = iocp_recv(buf->str, buf->size);
+    // Keep TLS records separate from the partial plaintext packet in the read buffer.
+    String ciphertext(SW_BUFFER_SIZE_BIG);
+    ssize_t rv;
+    do {
+        // A completed ClientHello write must not start a new read during close().
+        if (sw_unlikely(socket->close_wait)) {
+            set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+            return false;
+        }
+        rv = iocp_recv(ciphertext.str, ciphertext.size);
+    } while (rv < 0 && errno == EINTR);
+
     if (rv > 0) {
-        int written = BIO_write(rbio, buf->str, rv);
+        int written = BIO_write(rbio, ciphertext.str, static_cast<int>(rv));
         if (written != rv) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -524,14 +532,8 @@ bool IocpSocket::ssl_bio_read() {
         return true;
     } else if (rv == 0) {
         set_err(SW_ERROR_SSL_RESET);
-        return false;
-    } else {
-        if (errno == EINTR) {
-            return ssl_bio_read();
-        }
-        set_err(errno);
-        return false;
     }
+    return false;
 }
 
 bool IocpSocket::ssl_bio_prepare() {

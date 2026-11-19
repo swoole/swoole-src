@@ -426,7 +426,11 @@ ssize_t UringSocket::writev_all(network::IOVector *io_vector) {
 }
 
 bool UringSocket::ssl_bio_write() {
-    auto buf = get_write_buffer();
+    if (BIO_ctrl_pending(wbio) == 0) {
+        return true;
+    }
+    // The SSL caller can still reference the protocol's plaintext write buffer.
+    String ciphertext(SW_BUFFER_SIZE_BIG);
 
     while (true) {
         size_t pending = BIO_ctrl_pending(wbio);
@@ -434,7 +438,7 @@ bool UringSocket::ssl_bio_write() {
             break;
         }
 
-        int nread = BIO_read(wbio, buf->str, buf->size);
+        int nread = BIO_read(wbio, ciphertext.str, ciphertext.size);
         if (nread <= 0) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -442,7 +446,7 @@ bool UringSocket::ssl_bio_write() {
 
         ssize_t written = 0;
         while (written < nread) {
-            ssize_t n = uring_send(buf->str + written, nread - written);
+            ssize_t n = uring_send(ciphertext.str + written, nread - written);
             if (n > 0) {
                 written += n;
             } else if (n == 0) {
@@ -462,10 +466,15 @@ bool UringSocket::ssl_bio_write() {
 }
 
 bool UringSocket::ssl_bio_read() {
-    auto buf = get_read_buffer();
-    ssize_t rv = uring_recv(buf->str, buf->size);
+    // Keep TLS records separate from the partial plaintext packet in the read buffer.
+    String ciphertext(SW_BUFFER_SIZE_BIG);
+    ssize_t rv;
+    do {
+        rv = uring_recv(ciphertext.str, ciphertext.size);
+    } while (rv < 0 && errno == EINTR);
+
     if (rv > 0) {
-        int written = BIO_write(rbio, buf->str, rv);
+        int written = BIO_write(rbio, ciphertext.str, static_cast<int>(rv));
         if (written != rv) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -475,9 +484,6 @@ bool UringSocket::ssl_bio_read() {
         set_err(SW_ERROR_SSL_RESET);
         return false;
     } else {
-        if (errno == EINTR) {
-            return ssl_bio_read();
-        }
         set_err(errno);
         return false;
     }

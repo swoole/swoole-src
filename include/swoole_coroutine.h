@@ -75,6 +75,10 @@ class Coroutine {
     typedef std::function<bool(swoole::Coroutine *)> CancelFunc;
 
     void resume();
+    void resume_on_timeout() {
+        resume_code_ = RC_TIMEDOUT;
+        resume();
+    }
     void yield();
     void yield(CancelFunc *cancel_fn);
     bool cancel();
