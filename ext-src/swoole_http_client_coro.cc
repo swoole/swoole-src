@@ -1731,16 +1731,7 @@ void Client::recv_websocket_frame(zval *return_value, double timeout) {
         return;
     }
     if (sw_unlikely(ZVAL_IS_NULL(return_value))) {
-        // Protocol errors previously returned false with errCode=0. Set a real code, but do NOT
-        // close() here: a concurrent push may hold write_co; close() would cancel it and overwrite
-        // errCode with SW_ERROR_CO_SOCKET_CLOSE_WAIT (Windows IOCP). App tears down on PROTOCOL_ERROR.
-        int err = swoole_get_last_error();
-        if (err == 0) {
-            err = SW_ERROR_PROTOCOL_ERROR;
-            swoole_set_last_error(err);
-        }
-        php_swoole_socket_set_error_properties(zobject, err);
-        zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
+        // Null may be protocol/ordering issues, not necessarily a dead connection.
         ZVAL_FALSE(return_value);
     }
 }
