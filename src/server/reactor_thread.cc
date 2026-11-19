@@ -421,10 +421,30 @@ int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_
     if (events == 0) {
         return socket->removed ? SW_OK : reactor->del(socket);
     }
+    int rv;
     if (socket->removed) {
-        return reactor->add(socket, events);
+        rv = reactor->add(socket, events);
+    } else {
+        rv = events == socket->events ? SW_OK : reactor->set(socket, events);
     }
-    return events == socket->events ? SW_OK : reactor->set(socket, events);
+    // A protocol parser that was paused from onPackage() left complete packets in the receive buffer. Nothing
+    // else would wake the connection up if the peer sends no more data, so resume parsing on the next loop.
+    if (rv == SW_OK && (events & SW_EVENT_READ) && socket->skip_recv) {
+        const SessionId session_id = conn->session_id;
+        reactor->defer([this, reactor, session_id, socket](void *) {
+            auto *c = get_connection_verify_no_ssl(session_id);
+            if (!c || c->socket != socket || !socket->skip_recv || socket->removed || !c->can_receive()) {
+                return;
+            }
+            Event ev{};
+            ev.fd = socket->fd;
+            ev.reactor_id = reactor->id;
+            ev.type = socket->fd_type;
+            ev.socket = socket;
+            reactor->get_handler(socket->fd_type, SW_EVENT_READ)(reactor, &ev);
+        });
+    }
+    return rv;
 }
 
 // Owner-reactor API for EOF, I/O/protocol errors and timeouts. Stop I/O, publish the first cause,

@@ -33,6 +33,7 @@
 #error "The version of liburing required must be greater than or equal to 2.8."
 #endif
 
+#include <algorithm>
 #include <cmath>
 
 #define DOUBLE_TO_TIMESPEC(seconds, ts)                                                                                \
@@ -53,21 +54,21 @@ using swoole::Coroutine;
 using swoole::coroutine::System;
 
 namespace swoole {
-//-------------------------------------------------------------------------------
-enum IouringEventFlag {
-    SW_URING_TIMEOUT = 1U << 0,
-};
-
 struct IouringEvent {
     Coroutine *coroutine;
     io_uring_sqe data;
     ssize_t result;
     IouringTimeout timeout;
-    int flags;
+    bool has_timeout = false;
+    bool submitted = false;
+    bool completed = false;
+    bool request_done = false;
+    bool cancel_pending = false;
+    bool cancel_succeeded = false;
 
     void set_timeout(double seconds) {
         if (seconds > 0) {
-            flags |= SW_URING_TIMEOUT;
+            has_timeout = true;
             DOUBLE_TO_TIMESPEC(seconds, &timeout);
         }
     }
@@ -155,10 +156,15 @@ Iouring::Iouring(Reactor *_reactor) {
     });
 
     reactor->set_end_callback(Reactor::PRIORITY_IOURING_SUBMIT, [](Reactor *reactor) {
-        if (!SwooleTG.iouring) {
+        auto *iouring = SwooleTG.iouring;
+        if (sw_unlikely(!iouring)) {
             return;
         }
-        SwooleTG.iouring->submit(true);
+        iouring->submit(true);
+        if (!iouring->waiting_tasks.empty()) {
+            iouring->dispatch_waiting();
+            iouring->submit(true);
+        }
     });
 
     reactor->iouring_interrupt_handler = [this](Reactor *reactor) { wakeup(); };
@@ -189,18 +195,21 @@ bool Iouring::ready() const {
 
 void Iouring::yield(IouringEvent *event) {
     ++task_num;
+    if (event->data.opcode == IORING_OP_ASYNC_CANCEL) {
+        event->coroutine->yield();
+        return;
+    }
     Coroutine::CancelFunc cancel_fn = [event, this](Coroutine *) { return cancel(event); };
     event->coroutine->yield(&cancel_fn);
 }
 
 void Iouring::resume(IouringEvent *event) {
     --task_num;
+    event->completed = true;
     event->coroutine->resume();
 }
 
 bool Iouring::wakeup() {
-    IouringEvent *waiting_task = nullptr;
-
     while (true) {
         auto count = io_uring_peek_batch_cqe(&ring, cqes, SW_IOURING_QUEUE_SIZE);
         if (count == 0) {
@@ -211,7 +220,7 @@ bool Iouring::wakeup() {
         SW_LOOP_N(count) {
             auto cqe = cqes[i];
             auto event = static_cast<IouringEvent *>(io_uring_cqe_get_data(cqe));
-            // The user data for the timeout request is -1, this event should be ignored.
+            // Linked timeout CQEs have their own sentinel and do not resume a coroutine.
             if (event == reinterpret_cast<void *>(TIMEOUT_EVENT)) {
                 swoole_trace(
                     "timeout, cqe.flags=%d, ceq.res=%d, error=`%s`", cqe->flags, cqe->res, strerror(-cqe->res));
@@ -219,6 +228,7 @@ bool Iouring::wakeup() {
             }
 
             event->result = cqe->res;
+            event->request_done = true;
             ready_events[ready_count++] = event;
 
             swoole_trace("opcode=%s, cqe.flags=%d, ceq.res=%d, error=`%s`",
@@ -235,27 +245,9 @@ bool Iouring::wakeup() {
          * by the operating system. This can achieve a relatively good balance. If the submission is made after resuming
          * the coroutine, the kernel may become idle.
          */
-        SW_LOOP_N(ready_count) {
-            if (get_sq_space_left() == 0 || is_empty_waiting_tasks()) {
-                break;
-            }
-            waiting_task = waiting_tasks.front();
-            waiting_tasks.pop();
-            dispatch(waiting_task);
-        }
+        dispatch_waiting();
 
         SW_LOOP_N(ready_count) {
-            auto event = ready_events[i];
-            if (event->result < 0) {
-                errno = -(event->result);
-                /**
-                 * After a timeout, iouring will set errno to `ECANCELED`, but in the async implementation,
-                 * the errno after a timeout is `ETIMEDOUT`.
-                 * To maintain compatibility, numerical conversion is necessary.
-                 */
-                errno = errno == ECANCELED ? ETIMEDOUT : errno;
-                event->result = -1;
-            }
             resume(ready_events[i]);
         }
     }
@@ -389,17 +381,61 @@ Iouring *Iouring::get_instance() {
 
 ssize_t Iouring::execute(IouringEvent *event) {
     auto iouring = get_instance();
-    iouring->dispatch(event);
+    TimerNode *queue_timeout = nullptr;
+    if (sw_unlikely(!iouring->waiting_tasks.empty() || !iouring->dispatch(event))) {
+        iouring->waiting_tasks.push_back(event);
+        if (event->has_timeout) {
+            // Count userspace queue time even if no CQE arrives to free a slot.
+            const double seconds = event->timeout.tv_sec + event->timeout.tv_nsec / double(SW_NUM_BILLION);
+            queue_timeout = swoole_timer_add(
+                seconds, false, [event](Timer *, TimerNode *) { event->coroutine->resume(); }, nullptr);
+        }
+    }
     iouring->yield(event);
+    if (queue_timeout) {
+        swoole_timer_del(queue_timeout);
+    }
+
+    bool outer_timeout = false;
+    if (sw_unlikely(!event->completed)) {
+        if (!event->submitted) {
+            iouring->remove_waiting(event);
+            --iouring->task_num;
+            errno = ETIMEDOUT;
+            return -1;
+        }
+
+        // A socket timer can wake the coroutine before its CQE. Keep the
+        // request and its caller's buffers alive until the kernel completes it.
+        // The original CQE can also wake us while waiting for the cancel CQE.
+        if (!event->request_done && !event->cancel_pending && event->data.opcode != IORING_OP_ASYNC_CANCEL) {
+            outer_timeout = true;
+            iouring->cancel(event);
+        }
+    }
+    while (sw_unlikely(!event->completed || event->cancel_pending)) {
+        event->coroutine->yield();
+    }
+
+    if (event->result < 0) {
+        const int error = static_cast<int>(-event->result);
+        const bool timed_out = outer_timeout || (event->has_timeout && !event->cancel_succeeded);
+        errno = error == ECANCELED && timed_out ? ETIMEDOUT : error;
+        return -1;
+    }
     return event->result;
 }
 
-void Iouring::dispatch(IouringEvent *event) {
+bool Iouring::dispatch(IouringEvent *event) {
+    // Reserve both SQEs before publishing a request with a linked timeout.
+    if (event->has_timeout && sw_unlikely(get_sq_space_left() < 2)) {
+        return false;
+    }
     io_uring_sqe *sqe = alloc_sqe();
     if (sw_unlikely(!sqe)) {
-        waiting_tasks.push(event);
-        return;
+        return false;
     }
+    event->submitted = true;
 
     swoole_trace("opcode=%s, timeout[tv_sec=%ld, tv_nsec=%ld]",
                  get_opcode_name((io_uring_op) event->data.opcode),
@@ -409,19 +445,31 @@ void Iouring::dispatch(IouringEvent *event) {
     memcpy(sqe, &event->data, sizeof(event->data));
     io_uring_sqe_set_data(sqe, (void *) event);
 
-    if (event->flags & SW_URING_TIMEOUT) {
+    if (event->has_timeout) {
         auto timeout_sqe = alloc_sqe();
-        if (sw_likely(timeout_sqe)) {
-            memset(timeout_sqe, 0, sizeof(*timeout_sqe));
-            io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(&event->timeout), 0);
-            io_uring_sqe_set_data(timeout_sqe, reinterpret_cast<void *>(TIMEOUT_EVENT));
-            sqe->flags |= IOSQE_IO_LINK;
-        } else {
-            swoole_warning("timeout setting failed, the iouring queue[%d] is full", ring.ring_fd);
-        }
+        SW_ASSERT(timeout_sqe);
+        io_uring_prep_link_timeout(timeout_sqe, reinterpret_cast<__kernel_timespec *>(&event->timeout), 0);
+        io_uring_sqe_set_data(timeout_sqe, reinterpret_cast<void *>(TIMEOUT_EVENT));
+        sqe->flags |= IOSQE_IO_LINK;
     }
 
     submit(false);
+    return true;
+}
+
+void Iouring::dispatch_waiting() {
+    for (uint32_t available = get_sq_space_left(); available > 0 && !waiting_tasks.empty(); --available) {
+        if (!dispatch(waiting_tasks.front())) {
+            break;
+        }
+        waiting_tasks.pop_front();
+    }
+}
+
+void Iouring::remove_waiting(IouringEvent *event) {
+    auto task = std::find(waiting_tasks.begin(), waiting_tasks.end(), event);
+    SW_ASSERT(task != waiting_tasks.end());
+    waiting_tasks.erase(task);
 }
 
 #define INIT_EVENT(op)                                                                                                 \
@@ -435,9 +483,28 @@ int Iouring::open(const char *pathname, int flags, mode_t mode) {
 }
 
 bool Iouring::cancel(IouringEvent *prev_event) {
+    if (prev_event->request_done || prev_event->cancel_pending) {
+        return false;
+    }
+    if (!prev_event->submitted) {
+        remove_waiting(prev_event);
+        prev_event->result = -ECANCELED;
+        prev_event->cancel_succeeded = true;
+        resume(prev_event);
+        return true;
+    }
+
     INIT_EVENT(IORING_OP_ASYNC_CANCEL);
-    io_uring_prep_cancel(&event.data, (void *) prev_event, 0);
-    return static_cast<int>(execute(&event)) == 0;
+    prev_event->cancel_pending = true;
+    io_uring_prep_cancel(&event.data, prev_event, 0);
+    const bool canceled = execute(&event) == 0;
+    // A pending cancellation still identifies the target by its address.
+    prev_event->cancel_succeeded = canceled;
+    prev_event->cancel_pending = false;
+    if (prev_event->completed && prev_event->coroutine != Coroutine::get_current()) {
+        prev_event->coroutine->resume();
+    }
+    return canceled;
 }
 
 int Iouring::socket(int domain, int type, int protocol, int flags) {
@@ -532,12 +599,23 @@ ssize_t Iouring::sendto(
 }
 
 ssize_t Iouring::recvfrom(int fd, void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen, double timeout) {
-    auto rv = recv(fd, _buf, _n, MSG_PEEK, timeout);
-    if (rv > 0) {
-        return ::recvfrom(fd, _buf, _n, MSG_DONTWAIT, _addr, _socklen);
-    } else {
-        return rv;
+    if (sw_unlikely(_addr && !_socklen)) {
+        errno = EFAULT;
+        return -1;
     }
+
+    iovec iov = {_buf, _n};
+    msghdr message{};
+    message.msg_iov = &iov;
+    message.msg_iovlen = 1;
+    message.msg_name = _addr;
+    message.msg_namelen = _addr ? *_socklen : 0;
+
+    const ssize_t received = recvmsg(fd, &message, 0, timeout);
+    if (received >= 0 && _addr) {
+        *_socklen = message.msg_namelen;
+    }
+    return received;
 }
 
 ssize_t Iouring::readv(int fd, const struct iovec *iovec, int count, double timeout) {
@@ -559,10 +637,15 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
         return 0;
     }
 
-    INIT_EVENT(IORING_OP_SPLICE);
-    event.set_timeout(timeout);
-
 #ifndef MSG_SPLICE_PAGES
+    const auto splice = [timeout](int source, off_t source_offset, int destination, size_t length) {
+        // Each splice has independent submission and completion state.
+        INIT_EVENT(IORING_OP_SPLICE);
+        event.set_timeout(timeout);
+        io_uring_prep_splice(&event.data, source, source_offset, destination, -1, length, 0);
+        return execute(&event);
+    };
+
     int pipe_fds[2];
     if (pipe(pipe_fds) < 0) {
         return -1;
@@ -581,11 +664,8 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
         size_t remaining = size - total_sent;
         size_t to_send = std::min(remaining, (size_t) pipe_size);
 
-        event.data = {};
-        io_uring_prep_splice(
-            &event.data, in_fd, offset ? (current_offset + total_sent) : -1, pipe_fds[1], -1, to_send, 0);
-
-        ssize_t ret1 = execute(&event);
+        ssize_t ret1 =
+            splice(in_fd, offset ? current_offset + static_cast<off_t>(total_sent) : -1, pipe_fds[1], to_send);
         if (ret1 <= 0) {
             if (total_sent > 0) {
                 break;
@@ -597,10 +677,7 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
             return -1;
         }
 
-        event.data = {};
-        io_uring_prep_splice(&event.data, pipe_fds[0], -1, out_fd, -1, ret1, 0);
-
-        ssize_t ret2 = execute(&event);
+        ssize_t ret2 = splice(pipe_fds[0], -1, out_fd, ret1);
         if (ret2 <= 0) {
             if (total_sent > 0) {
                 break;
@@ -629,6 +706,8 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
     return total_sent;
 
 #else
+    INIT_EVENT(IORING_OP_SENDMSG);
+    event.set_timeout(timeout);
     struct msghdr msg = {0};
     struct iovec iov = {0};
 

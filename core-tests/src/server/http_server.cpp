@@ -607,19 +607,33 @@ TEST(http_server, static_files_autoindex_escape) {
     });
 }
 
-static void request_with_header(const char *date_format, httplib::Client *cli) {
-    char temp[128] = {0};
-    time_t raw_time = time(NULL) + 7 * 24 * 60 * 60;
-    tm *time_info = gmtime(&raw_time);
-
-    strftime(temp, sizeof(temp), date_format, time_info);
+static void request_with_header(const char *date_format, time_t modified_time, httplib::Client *cli) {
+    SCOPED_TRACE(date_format);
+    tm time_info = {};
+    ASSERT_NE(gmtime_r(&modified_time, &time_info), nullptr);
+    char temp[128];
+    ASSERT_GT(strftime(temp, sizeof(temp), date_format, &time_info), 0u);
     httplib::Headers headers = {{"If-Modified-Since", temp}};
     auto resp = cli->Get("/", headers);
-    EXPECT_EQ(resp, nullptr);
+    ASSERT_NE(resp, nullptr);
+    EXPECT_EQ(resp->status, SW_HTTP_NOT_MODIFIED);
+    EXPECT_TRUE(resp->body.empty());
 }
 
 TEST(http_server, not_modify) {
-    test_base_server([](Server *serv) {
+    File index_file(test::get_root_path() + "/README.md", O_RDONLY);
+    ASSERT_TRUE(index_file.ready());
+    FileStatus index_stat = {};
+    ASSERT_TRUE(index_file.stat(&index_stat));
+    auto index_content = index_file.read_content();
+    ASSERT_NE(index_content, nullptr);
+    const auto modified_time = index_stat.st_mtime;
+    const auto expected_index = index_content->to_std_string();
+
+    test_base_server([modified_time, expected_index](Server *serv) {
+        ON_SCOPE_EXIT {
+            kill(getpid(), SIGTERM);
+        };
         serv->http_autoindex = true;
         serv->add_static_handler_location("");
 
@@ -627,17 +641,17 @@ TEST(http_server, not_modify) {
         auto port = serv->get_primary_port();
         httplib::Client cli(TEST_HOST, port->port);
 
-        serv->add_static_handler_index_files("swoole-logo.svg");
+        serv->add_static_handler_index_files("README.md");
         auto resp = cli.Get("/");
-        EXPECT_EQ(resp->status, 200);
+        ASSERT_NE(resp, nullptr);
+        EXPECT_EQ(resp->status, SW_HTTP_OK);
+        EXPECT_EQ(resp->body, expected_index);
 
-        // 304 not modified
-        cli.set_read_timeout(0, 100);
-        request_with_header(SW_HTTP_RFC1123_DATE_GMT, &cli);
-        request_with_header(SW_HTTP_RFC1123_DATE_UTC, &cli);
-        request_with_header(SW_HTTP_RFC850_DATE, &cli);
-        request_with_header(SW_HTTP_ASCTIME_DATE, &cli);
-        kill(getpid(), SIGTERM);
+        // An unchanged index file produces a complete, bodyless 304 response.
+        request_with_header(SW_HTTP_RFC1123_DATE_GMT, modified_time, &cli);
+        request_with_header(SW_HTTP_RFC1123_DATE_UTC, modified_time, &cli);
+        request_with_header(SW_HTTP_RFC850_DATE, modified_time, &cli);
+        request_with_header(SW_HTTP_ASCTIME_DATE, modified_time, &cli);
     });
 }
 
@@ -1067,8 +1081,10 @@ TEST(http_server, upload_preprocessed_file) {
     std::thread t;
     std::string probe_file = std::string(TEST_TMP_FILE) + ".upload_marker." + std::to_string(getpid());
     std::string upload_content(80 * 1024, 'A');
-    auto server = http_server::listen(
-        ":0", [&probe_file, &upload_content](Context &ctx) { check_single_upload(ctx, probe_file, upload_content); });
+    auto server = http_server::listen(":0", [&probe_file, &upload_content](Context &ctx) {
+        EXPECT_EQ(ctx.headers["X-Whitespace"], "alpha \t beta");
+        check_single_upload(ctx, probe_file, upload_content);
+    });
     server->worker_num = 1;
     server->get_primary_port()->set_package_max_length(64 * 1024);
     server->upload_max_filesize = 1024 * 1024;
@@ -1083,7 +1099,10 @@ TEST(http_server, upload_preprocessed_file) {
 
             std::string boundary = "------------------------d3f990cdce762596";
             std::string body = make_multipart_upload_body(boundary, upload_content, probe_file, false);
-            std::string request = make_multipart_upload_request(boundary, body);
+            std::string request = "POST /upload HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n"
+                                  "Content-Type: multipart/form-data; boundary=" +
+                                  boundary + " \t\r\nX-Whitespace: \talpha \t beta \t \r\nContent-Length: " +
+                                  std::to_string(body.length()) + "\r\n\r\n" + body;
             SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, server->get_primary_port()->port);
             c.send(request.c_str(), request.length());
@@ -1985,6 +2004,13 @@ TEST(http_server, has_expect_header) {
                         "Content-Length: 1000000\r\n"
                         "Expect: 100-continue\r\n\r\n");
     ASSERT_TRUE(req.has_expect_header());
+
+    req.buffer_->clear();
+    req.buffer_->append("POST /submit HTTP/1.1\r\n"
+                        "Host: www.example.com\r\n"
+                        "Content-Length: 1000000\r\n"
+                        "Expect:\t100-continue\r\n\r\n");
+    ASSERT_TRUE(req.has_expect_header());
 }
 
 TEST(http_server, duplicate_content_type) {
@@ -2012,6 +2038,23 @@ TEST(http_server, duplicate_content_type) {
         delete request.buffer_;
         request.buffer_ = nullptr;
     } while (0);
+}
+
+TEST(http_server, header_value_whitespace) {
+    swoole::http_server::Request request;
+    request.buffer_ = new String("POST / HTTP/1.1\r\n"
+                                 "Host: localhost\r\n"
+                                 "Connection:\tkeep-alive\r\n"
+                                 "Content-Type:\tmultipart/form-data; boundary=test\r\n"
+                                 "\r\n");
+
+    ASSERT_EQ(request.get_protocol(), SW_OK);
+    ASSERT_EQ(request.get_header_length(), SW_OK);
+    request.parse_header_info();
+    EXPECT_TRUE(request.keep_alive);
+    EXPECT_NE(request.form_data_, nullptr);
+    delete request.buffer_;
+    request.buffer_ = nullptr;
 }
 
 TEST(http_server, invalid_multipart_boundary) {

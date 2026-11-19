@@ -866,8 +866,8 @@ void Request::parse_header_info() {
             } else if (SW_STR_ISTARTS_WITH(p, pe - p, "Connection:")) {
                 // strlen("Connection:")
                 p += (sizeof("Connection:") - 1);
-                // skip spaces
-                while (*p == ' ') {
+                // skip OWS
+                while (*p == ' ' || *p == '\t') {
                     p++;
                 }
                 if (SW_STR_ISTARTS_WITH(p, pe - p, "keep-alive")) {
@@ -886,14 +886,11 @@ void Request::parse_header_info() {
                     while (p < value_end && *p != ',') {
                         p++;
                     }
-                    char *coding_end = p;
-                    while (coding_end > coding && coding_end[-1] == ' ') {
-                        coding_end--;
-                    }
+                    const size_t coding_length = rtrim_ows(coding, p - coding);
                     if (chunked_seen) {
                         after_chunked = true;
                     }
-                    if (SW_STRCASEEQ(coding, coding_end - coding, "chunked")) {
+                    if (SW_STRCASEEQ(coding, coding_length, "chunked")) {
                         chunked_seen = true;
                     }
                     if (p == value_end) {
@@ -906,13 +903,14 @@ void Request::parse_header_info() {
                 delete form_data_;
                 form_data_ = nullptr;
                 p += (sizeof("Content-Type:") - 1);
-                while (*p == ' ') {
+                while (*p == ' ' || *p == '\t') {
                     p++;
                 }
                 if (SW_STR_ISTARTS_WITH(p, pe - p, "multipart/form-data")) {
                     form_data_ = new FormData();
                     form_data_->multipart_boundary_buf = p + (sizeof("multipart/form-data") - 1);
-                    form_data_->multipart_boundary_len = strchr(p, '\r') - form_data_->multipart_boundary_buf;
+                    form_data_->multipart_boundary_len = rtrim_ows(
+                        form_data_->multipart_boundary_buf, strchr(p, '\r') - form_data_->multipart_boundary_buf);
                 }
             }
         }
@@ -1021,8 +1019,11 @@ bool Request::has_expect_header() const {
     for (char *p = buf; p < pe; p++) {
         if (*p == '\r' && (size_t) (pe - p) > sizeof("\r\nExpect")) {
             p += 2;
-            if (SW_STR_ISTARTS_WITH(p, pe - p, "Expect: ")) {
-                p += sizeof("Expect: ") - 1;
+            if (SW_STR_ISTARTS_WITH(p, pe - p, "Expect:")) {
+                p += sizeof("Expect:") - 1;
+                while (p < pe && (*p == ' ' || *p == '\t')) {
+                    p++;
+                }
                 if (SW_STR_ISTARTS_WITH(p, pe - p, "100-continue")) {
                     return true;
                 } else {
@@ -1284,7 +1285,7 @@ std::string Request::get_header(const char *name) const {
     char *p = buffer_->str + url_offset_ + url_length_ + 10;
     char *pe = buffer_->str + header_length_;
 
-    char *buffer = nullptr;
+    const char *buffer = nullptr;
     char *colon = nullptr;
 
     int state = 0;
@@ -1322,7 +1323,7 @@ std::string Request::get_header(const char *name) const {
             break;
         case 2:
             if (SW_STR_ISTARTS_WITH(p, pe - p, "\r\n")) {
-                return {buffer, static_cast<size_t>(p - buffer)};
+                return {buffer, rtrim_ows(buffer, static_cast<size_t>(p - buffer))};
             }
             break;
         default:

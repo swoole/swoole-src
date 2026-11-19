@@ -38,6 +38,7 @@ bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
 int swoole_http2_server_parse(const std::shared_ptr<swoole::http2::Session> &client, const char *buf);
 int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);
+bool swoole_http2_server_call_request(swoole::http::Context *ctx, zend::Callable *cb, zval *args);
 
 std::shared_ptr<swoole::http2::Session> swoole_http2_server_session_new(swoole::SessionId fd);
 void swoole_http2_server_session_free(swoole::SessionId fd);

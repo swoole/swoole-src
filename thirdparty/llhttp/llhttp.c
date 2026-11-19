@@ -2758,6 +2758,8 @@ static llparse_state_t llhttp__internal__run(
         case 13: {
           goto s_n_llhttp__internal__n_invoke_update_header_state_8;
         }
+        // Optional whitespace after the final transfer coding includes HTAB.
+        case '\t':
         case ' ': {
           p++;
           goto s_n_llhttp__internal__n_header_value_te_chunked_last;

@@ -871,9 +871,8 @@ static PHP_METHOD(swoole_client, recv) {
             }
 
         _find_eof:
-            eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
+            eof = protocol->find_eof_end(buffer->str, buffer->length);
             if (eof >= 0) {
-                eof += protocol->package_eof_len;
 
                 if ((ssize_t) buffer->length > eof) {
                     cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, sw_zend_string_allocator());
@@ -896,11 +895,7 @@ static PHP_METHOD(swoole_client, recv) {
                     RETURN_FALSE;
                 } else if (buffer->length == buffer->size) {
                     if (buffer->size < protocol->package_max_length) {
-                        uint32_t new_size = buffer->size * 2;
-                        if (new_size > protocol->package_max_length) {
-                            new_size = protocol->package_max_length;
-                        }
-                        buffer->extend(new_size);
+                        buffer->extend(protocol->next_eof_buffer_size(buffer->size));
                     }
                 }
             }
@@ -922,25 +917,33 @@ static PHP_METHOD(swoole_client, recv) {
 
         while (true) {
             auto retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
-            if (retval <= 0) {
-                break;
+            if (retval < 0) {
+                php_swoole_sys_error(E_WARNING, "recv() failed");
+                zend_update_property_long(
+                    swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+                buffer->clear();
+                RETURN_FALSE;
+            } else if (retval == 0) {
+                buffer->clear();
+                RETURN_EMPTY_STRING();
             }
             buffer->length += retval;
-            PacketLength pl{
-                buffer->str,
-                (uint32_t) buffer->length,
-            };
-            buf_len = protocol->get_package_length(protocol, cli->socket, &pl);
-            if (buf_len == 0) {
+            ssize_t package_length = 0;
+            auto status = protocol->resolve_package_length(
+                cli->socket, buffer->str, buffer->length, &package_length, nullptr);
+            buf_len = package_length;
+            if (status == swoole::PackageLengthStatus::NEED_MORE) {
                 // The header is complete but the length is still unknown; no room is left to receive more.
                 if (buffer->length >= header_len) {
                     buf_len = -1;
                     break;
                 }
                 continue;
-            } else {
-                break;
             }
+            if (status == swoole::PackageLengthStatus::MALFORMED) {
+                buf_len = -1;
+            }
+            break;
         }
 
         // error package

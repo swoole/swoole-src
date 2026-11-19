@@ -18,9 +18,9 @@ $pm->parentFunc = function () use ($pm) {
 
         $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
         Assert::same($data, $index_content);
-        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir1");
+        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir1/");
         Assert::same($data, 'dynamic request');
-        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir2");
+        $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/dir2/");
         Assert::assert($data, $dir2_index_txt_content);
 
         $pm->kill();

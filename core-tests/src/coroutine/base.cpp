@@ -367,6 +367,21 @@ TEST(coroutine_base, timeout) {
     });
 }
 
+TEST(coroutine_base, outer_timeout_removes_wait_timer) {
+    coroutine::run([](void *) {
+        auto *co = Coroutine::get_current_safe();
+        auto *outer = swoole_timer_add(
+            0.005, false, [co](Timer *, TimerNode *) { co->resume_on_timeout(); }, nullptr);
+        ASSERT_NE(outer, nullptr);
+        const auto timer_count = sw_timer()->count();
+
+        ASSERT_FALSE(co->yield_ex(1));
+        EXPECT_TRUE(co->is_timedout());
+        EXPECT_EQ(swoole_get_last_error(), SW_ERROR_CO_TIMEDOUT);
+        EXPECT_EQ(sw_timer()->count(), timer_count);
+    });
+}
+
 TEST(coroutine_base, gdb) {
     Coroutine::create([](void *) {
         Coroutine *current = Coroutine::get_current();

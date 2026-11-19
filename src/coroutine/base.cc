@@ -128,10 +128,7 @@ void Coroutine::yield(CancelFunc *cancel_fn) {
 
 bool Coroutine::yield_ex(double timeout) {
     TimerNode *timer = nullptr;
-    TimerCallback timer_callback = [this](Timer *timer, TimerNode *tnode) {
-        resume_code_ = RC_TIMEDOUT;
-        resume();
-    };
+    TimerCallback timer_callback = [this](Timer *timer, TimerNode *tnode) { resume_on_timeout(); };
 
     if (timeout > 0) {
         timer = swoole_timer_add(timeout, false, timer_callback, nullptr);
@@ -144,12 +141,13 @@ bool Coroutine::yield_ex(double timeout) {
 
     yield(&cancel_fn);
 
+    // A surrounding operation may time out before this wait's own timer fires.
+    if (timer) {
+        swoole_timer_del(timer);
+    }
     if (is_timedout()) {
         swoole_set_last_error(SW_ERROR_CO_TIMEDOUT);
         return false;
-    }
-    if (timer) {
-        swoole_timer_del(timer);
     }
     if (is_canceled()) {
         swoole_set_last_error(SW_ERROR_CO_CANCELED);

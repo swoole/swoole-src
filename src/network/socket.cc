@@ -24,6 +24,7 @@
 #include "swoole_iocp.h"
 #endif
 
+#include <limits>
 #include <utility>
 #include <memory>
 
@@ -814,7 +815,7 @@ int Socket::handle_sendfile() {
 
     size_t sendn = get_sendfile_chunk_size(task->begin, task->end);
     // A zero-length request has nothing to send, and FreeBSD's sendfile() would read to the end of the file.
-    ssize_t rv = sendn == 0 ? 0 : sendfile(task->file, &task->begin, sendn);
+    ssize_t rv = sendn == 0 ? 0 : sendfile(task->get_file(), &task->begin, sendn);
 
     swoole_trace("rv=%ld|begin=%ld|sendn=%lu|end=%lu", rv, (long) task->begin, sendn, task->end);
 
@@ -949,6 +950,22 @@ int Socket::sendfile_async(const char *filename, off_t offset, size_t length, bo
     chunk->value.ptr = task.release();
     chunk->destroy = Socket_sendfile_destructor;
 
+    return SW_OK;
+}
+
+int Socket::sendfile_async(const std::shared_ptr<File> &file, off_t offset, size_t length) {
+    if (!file || !file->ready() || offset < 0 || length == 0 ||
+        length > static_cast<uint64_t>(std::numeric_limits<off_t>::max() - offset)) {
+        errno = EINVAL;
+        return SW_ERR;
+    }
+    auto task = std::make_unique<SendfileRequest>(file, offset, length);
+    if (!out_buffer) {
+        out_buffer = new Buffer(SW_SEND_BUFFER_SIZE);
+    }
+    auto *chunk = out_buffer->alloc(BufferChunk::TYPE_SENDFILE, 0);
+    chunk->value.ptr = task.release();
+    chunk->destroy = Socket_sendfile_destructor;
     return SW_OK;
 }
 

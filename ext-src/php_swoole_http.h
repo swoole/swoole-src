@@ -346,6 +346,8 @@ class Stream {
     Coroutine *reader = nullptr;
 
     void wake_reader();
+    // CID of the opted-in Request coroutine, recorded when it yields to its worker.
+    long request_cid = 0;
 
     Stream(const Session *client, uint32_t _id);
     ~Stream();
@@ -356,10 +358,15 @@ class Stream {
                    const std::shared_ptr<Session> &session,
                    off_t offset = 0,
                    size_t length = 0);
-    bool send_end_stream_data_frame() const;
+    bool send_end_stream_data_frame(const std::shared_ptr<Session> &session) const;
     bool send_trailer() const;
 
     bool reset(uint32_t error_code) const;
+    void resume_flow_control_waiter() const;
+
+  private:
+    bool send_header_block(const String *frame) const;
+    bool send_frame(const char *frame, size_t length, bool data_frame) const;
 };
 
 class Session {
@@ -394,6 +401,7 @@ class Session {
     ~Session();
     std::shared_ptr<Stream> create_stream(uint32_t stream_id);
     std::shared_ptr<Stream> get_stream(uint32_t stream_id);
+    std::shared_ptr<Stream> take_stream(uint32_t stream_id);
     bool remove_stream(uint32_t stream_id);
     void enable_streaming();
 };

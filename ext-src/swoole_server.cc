@@ -1048,6 +1048,9 @@ bool ServerObject::on_before_start() {
                 Server::DISPATCH_FDMOD,
                 Server::DISPATCH_IPMOD);
         }
+        if (port->open_http2_protocol && serv->http2_cancel_on_stream_reset && !serv->enable_coroutine) {
+            return php_swoole_throw_setting_exception("'http2_cancel_on_stream_reset' requires 'enable_coroutine'");
+        }
 
         if (!port->open_http_protocol) {
             port->open_http_protocol = port->open_websocket_protocol || port->open_http2_protocol;
@@ -1891,9 +1894,28 @@ void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
     }
 }
 
-bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata) {
+bool php_swoole_server_wait_send_buffer(Server *serv, SessionId session_id) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     Coroutine *co = Coroutine::get_current_safe();
+    auto &senders = server_object->property->send_coroutine_map;
+    auto iter = senders.find(session_id);
+    std::list<Coroutine *> *co_list;
+    if (iter == senders.end()) {
+        co_list = new std::list<Coroutine *>;
+        senders.emplace(session_id, co_list);
+    } else {
+        co_list = iter->second;
+    }
+    co_list->push_back(co);
+    auto sender = std::prev(co_list->end());
+    if (!co->yield_ex(serv->send_timeout)) {
+        co_list->erase(sender);
+        return false;
+    }
+    return true;
+}
+
+bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata) {
     size_t length = ZSTR_LEN(sdata);
 
     if (length == 0) {
@@ -1901,18 +1923,7 @@ bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_strin
     }
 
     SW_LOOP {
-        auto coroutine_iterator = server_object->property->send_coroutine_map.find(session_id);
-        std::list<Coroutine *> *co_list;
-        if (coroutine_iterator == server_object->property->send_coroutine_map.end()) {
-            co_list = new std::list<Coroutine *>;
-            server_object->property->send_coroutine_map[session_id] = co_list;
-        } else {
-            co_list = coroutine_iterator->second;
-        }
-        co_list->push_back(co);
-        auto iter = std::prev(co_list->end());
-        if (!co->yield_ex(serv->send_timeout)) {
-            co_list->erase(iter);
+        if (!php_swoole_server_wait_send_buffer(serv, session_id)) {
             return false;
         }
         bool rv = serv->send(session_id, ZSTR_VAL(sdata), length);
@@ -2425,6 +2436,9 @@ static PHP_METHOD(swoole_server, set) try {
         }
     }
 #endif
+    if (php_swoole_array_get_value(vht, "http2_cancel_on_stream_reset", ztmp)) {
+        serv->http2_cancel_on_stream_reset = zval_is_true(ztmp);
+    }
     // parse cookie header
     if (php_swoole_array_get_value(vht, "http_parse_cookie", ztmp)) {
         serv->http_parse_cookie = zval_is_true(ztmp);

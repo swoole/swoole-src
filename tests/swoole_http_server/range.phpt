@@ -24,6 +24,11 @@ $pm->parentFunc = function () use ($pm) {
             $lastModified = $response['headers']['last-modified'] ?? null;
             Assert::notNull($lastModified);
             Assert::null($response['headers']['accept-ranges'] ?? null);
+            if (!$http2) {
+                $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['headers' => ['Range' => "bytes=0-15\t "]]);
+                Assert::same($response['statusCode'], 206);
+                Assert::same('bytes 0-15/218787', $response['headers']['content-range']);
+            }
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-']]);
             Assert::same($response['statusCode'], 206);
             Assert::same('bytes 0-218786/218787', $response['headers']['content-range']);
@@ -91,8 +96,8 @@ BIN
             Assert::same(bin2hex($response['body']), bin2hex(substr($data2, 0, 16)));
 
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15', 'If-Range' => 'test']]);
-            Assert::same($response['statusCode'], 206);
-            Assert::same(bin2hex($response['body']), bin2hex(substr($data2, 0, 16)));
+            Assert::same($response['statusCode'], 200);
+            Assert::same(bin2hex($response['body']), bin2hex($data2));
 
             $lastModifiedTime = strtotime($lastModified);
             $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/test.jpg", ['http2' => $http2, 'headers' => ['Range' => 'bytes=0-15', 'If-Range' => date(DATE_RFC7231, $lastModifiedTime - 1)]]);

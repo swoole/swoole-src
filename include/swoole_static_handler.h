@@ -51,7 +51,8 @@ class StaticHandler {
 
     size_t l_filename = 0;
     char filename[PATH_MAX];
-    struct stat file_stat;
+    struct stat file_stat{};
+    std::shared_ptr<File> file;
     bool last = false;
     std::string content_type;
     std::string boundary;
@@ -71,6 +72,17 @@ class StaticHandler {
      */
     bool try_serve();
     bool try_serve_index_file();
+    bool open_file();
+    std::string get_directory_redirect() const;
+    std::string get_etag() const;
+    int evaluate_preconditions(const std::string &if_match,
+                               const std::string &if_unmodified_since,
+                               const std::string &if_none_match,
+                               const std::string &if_modified_since) const;
+
+    const std::shared_ptr<File> &get_file() const {
+        return file;
+    }
 
     bool is_modified(const std::string &date_if_modified_since) const;
     bool is_modified_range(const std::string &date_range) const;
