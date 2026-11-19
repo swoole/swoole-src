@@ -344,14 +344,14 @@ class Stream {
     Stream(const Session *client, uint32_t _id);
     ~Stream();
 
-    bool send_header(const String *body, bool end_stream) const;
+    bool send_header(const String *body, bool end_stream, const std::shared_ptr<Session> &session) const;
     bool send_body(const String *body,
                    bool end_stream,
                    const std::shared_ptr<Session> &session,
                    off_t offset = 0,
                    size_t length = 0);
     bool send_end_stream_data_frame(const std::shared_ptr<Session> &session) const;
-    bool send_trailer() const;
+    bool send_trailer(const std::shared_ptr<Session> &session) const;
 
     bool reset(uint32_t error_code) const;
     void resume_flow_control_waiter() const;
