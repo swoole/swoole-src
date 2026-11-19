@@ -393,21 +393,22 @@ static void test_sendto_recvfrom(enum swSocketType sock_type) {
         size_t client_length = client_text.length();
 
         const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
-        const char *local = "localhost";
 
         int port = swoole::test::get_random_port();
 
         UringSocket sock_server(sock_type);
         UringSocket sock_client(sock_type);
-        sock_server.bind(ip, port);
-        sock_client.bind(ip, port + 1);
+        ASSERT_TRUE(sock_server.bind(ip, port));
+        ASSERT_TRUE(sock_client.bind(ip, port + 1));
+        sock_server.set_timeout(1, SW_TIMEOUT_READ);
+        sock_client.set_timeout(1, SW_TIMEOUT_READ);
 
         ON_SCOPE_EXIT {
             sock_server.close();
             sock_client.close();
         };
 
-        sock_server.sendto(ip, port + 1, (const void *) server_text.c_str(), server_length);
+        ASSERT_EQ(sock_server.sendto(ip, port + 1, server_text.data(), server_length), server_length);
 
         char data_from_server[128] = {};
         struct sockaddr_in serveraddr;
@@ -420,13 +421,13 @@ static void test_sendto_recvfrom(enum swSocketType sock_type) {
         // receive data from server
         ssize_t result =
             sock_client.recvfrom(data_from_server, server_length, (struct sockaddr *) &serveraddr, &addr_length);
-        data_from_server[result] = '\0';
         ASSERT_EQ(result, server_length);
+        data_from_server[result] = '\0';
         ASSERT_STREQ(data_from_server, server_text.c_str());
 
         // receive data from client
         char data_from_client[128] = {};
-        sock_client.sendto(local, port, (const void *) client_text.c_str(), client_length);
+        ASSERT_EQ(sock_client.sendto(ip, port, client_text.data(), client_length), client_length);
         result = sock_server.recvfrom(data_from_client, client_length);
         data_from_client[client_length] = '\0';
         ASSERT_EQ(result, client_length);
@@ -437,6 +438,28 @@ static void test_sendto_recvfrom(enum swSocketType sock_type) {
 TEST(uring_socket, sendto_recvfrom_udp) {
     test_sendto_recvfrom(SW_SOCK_UDP);
     test_sendto_recvfrom(SW_SOCK_UDP6);
+}
+
+TEST(uring_socket, recvfrom_consumes_empty_datagram) {
+    coroutine::run([](void *) {
+        UringSocket sender(SW_SOCK_UDP);
+        UringSocket receiver(SW_SOCK_UDP);
+        ASSERT_TRUE(sender.bind("127.0.0.1", 0));
+        ASSERT_TRUE(receiver.bind("127.0.0.1", 0));
+        receiver.set_timeout(1, SW_TIMEOUT_READ);
+        ASSERT_EQ(sender.sendto("127.0.0.1", receiver.get_port(), "", 0), 0);
+        ASSERT_EQ(sender.sendto("127.0.0.1", receiver.get_port(), "x", 1), 1);
+
+        char data;
+        sockaddr_in peer{};
+        socklen_t peer_length = sizeof(peer);
+        ASSERT_EQ(receiver.recvfrom(&data, 1, reinterpret_cast<sockaddr *>(&peer), &peer_length), 0);
+        EXPECT_EQ(peer_length, sizeof(peer));
+        EXPECT_EQ(ntohs(peer.sin_port), sender.get_port());
+
+        ASSERT_EQ(receiver.recvfrom(&data, 1), 1);
+        EXPECT_EQ(data, 'x');
+    });
 }
 
 TEST(uring_socket, writev_and_readv) {

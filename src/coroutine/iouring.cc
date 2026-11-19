@@ -550,12 +550,23 @@ ssize_t Iouring::sendto(
 }
 
 ssize_t Iouring::recvfrom(int fd, void *_buf, size_t _n, sockaddr *_addr, socklen_t *_socklen, double timeout) {
-    auto rv = recv(fd, _buf, _n, MSG_PEEK, timeout);
-    if (rv > 0) {
-        return ::recvfrom(fd, _buf, _n, MSG_DONTWAIT, _addr, _socklen);
-    } else {
-        return rv;
+    if (sw_unlikely(_addr && !_socklen)) {
+        errno = EFAULT;
+        return -1;
     }
+
+    iovec iov = {_buf, _n};
+    msghdr message{};
+    message.msg_iov = &iov;
+    message.msg_iovlen = 1;
+    message.msg_name = _addr;
+    message.msg_namelen = _addr ? *_socklen : 0;
+
+    const ssize_t received = recvmsg(fd, &message, 0, timeout);
+    if (received >= 0 && _addr) {
+        *_socklen = message.msg_namelen;
+    }
+    return received;
 }
 
 ssize_t Iouring::readv(int fd, const struct iovec *iovec, int count, double timeout) {
