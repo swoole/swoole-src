@@ -672,6 +672,10 @@ static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, s
     php_curl *ch = (php_curl *) clientp;
     int rval = CURLKHMATCH_MISMATCH; /* cancel connection in case of an exception */
 
+    if (!ZEND_FCC_INITIALIZED(ch->handlers.sshhostkey)) {
+        return rval;
+    }
+
 #if PHP_CURL_DEBUG
     fprintf(stderr, "curl_ssh_hostkeyfunction() called\n");
     fprintf(stderr, "clientp = %x, keytype = %d, key = %s, keylen = %zu\n", clientp, keytype, key, keylen);
@@ -1027,8 +1031,11 @@ static void php_curl_copy_fcc_with_option(php_curl *ch,
                                           zend_fcall_info_cache *source_fcc) {
     if (ZEND_FCC_INITIALIZED(*source_fcc)) {
         zend_fcc_dup(target_fcc, source_fcc);
-        curl_easy_setopt(ch->cp, (CURLoption) option, (void *) ch);
     }
+
+    /* The callback data (i.e. pointer to the curl handle) stays even if a user callback
+     * is reset to NULL. Ensure the data pointer always points to the new handle. */
+    curl_easy_setopt(ch->cp, (CURLoption) option, (void *) ch);
 }
 
 void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
@@ -1071,7 +1078,6 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
     curl_easy_setopt(ch->cp, CURLOPT_FILE, (void *) ch);
     curl_easy_setopt(ch->cp, CURLOPT_INFILE, (void *) ch);
     curl_easy_setopt(ch->cp, CURLOPT_WRITEHEADER, (void *) ch);
-    curl_easy_setopt(ch->cp, CURLOPT_DEBUGDATA, (void *) ch);
 
     php_curl_copy_fcc_with_option(ch, CURLOPT_PROGRESSDATA, &ch->handlers.progress, &source->handlers.progress);
     php_curl_copy_fcc_with_option(ch, CURLOPT_XFERINFODATA, &ch->handlers.xferinfo, &source->handlers.xferinfo);
