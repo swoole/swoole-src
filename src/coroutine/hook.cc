@@ -282,6 +282,7 @@ int swoole_coroutine_socket_unwrap(int fd) {
 }
 
 uint8_t swoole_coroutine_socket_exists(int fd) {
+    std::unique_lock<std::mutex> _lock(socket_map_lock);
     return socket_map.find((swSocketFd)fd) != socket_map.end();
 }
 
@@ -457,12 +458,10 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
         pollfd poll_ev{};
         poll_ev.fd = sockfd;
         poll_ev.events = translate_events_to_poll(event);
-        return poll(&poll_ev, 1, (int) (timeout * 1000)) == 1 ? SW_OK : SW_ERR;
+        return poll(&poll_ev, 1, static_cast<int>(timeout * 1000)) == 1 ? SW_OK : SW_ERR;
     }
-    double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? SW_TIMEOUT_READ : SW_TIMEOUT_WRITE);
-    socket->set_timeout(timeout);
-    bool retval = socket->poll(static_cast<EventType>(event));
-    socket->set_timeout(ori_timeout);
+
+    bool retval = socket->poll(static_cast<EventType>(event), timeout);
     return retval ? SW_OK : SW_ERR;
 }
 
@@ -513,12 +512,11 @@ int swoole_coroutine_close(int sockfd) {
 
     auto socket = get_socket((swSocketFd)sockfd);
     if (socket != nullptr) {
-        if (socket->close()) {
+        {
             std::unique_lock<std::mutex> _lock(socket_map_lock);
             socket_map.erase((swSocketFd)sockfd);
-            return 0;
         }
-        return -1;
+        return socket->close() ? 0 : -1;
     }
 
 #ifdef SW_USE_IOCP_FILE
