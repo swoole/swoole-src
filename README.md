@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="docs/swoole-logo.svg" width="200" height="120" alt="Swoole logo">
+  <img src="docs/swoole-logo.svg" title="Swoole" width="200" height="120" alt="Swoole logo">
 </p>
-
-<h1 align="center">Swoole</h1>
 
 <p align="center">An event-driven networking engine and coroutine runtime for PHP</p>
 
