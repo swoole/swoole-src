@@ -32,7 +32,10 @@ int swoole_tmpfile(char *filename) {
         return SW_ERR;
     }
 #elif defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
-    int tmp_fd = mkostemp(filename, O_WRONLY | O_CREAT);
+    // mkostemp already creates the file and opens it RDWR.
+    // Only pass cloexec-compatible flags: Android Bionic rejects
+    // O_WRONLY|O_CREAT with EINVAL (breaks HTTP multipart uploads).
+    int tmp_fd = mkostemp(filename, O_CLOEXEC);
 #else
     int tmp_fd = mkstemp(filename);
 #endif
