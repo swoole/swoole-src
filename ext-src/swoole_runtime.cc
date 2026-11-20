@@ -932,6 +932,60 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, SocketImpl *sslso
     return true;
 }
 
+static bool socket_ssl_fingerprint_cmp(X509 *cert, const char *method, const char *expected) {
+    const EVP_MD *md = EVP_get_digestbyname(method);
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int len = 0;
+    if (cert == nullptr || md == nullptr || !X509_digest(cert, md, digest, &len)) {
+        return false;
+    }
+    char hex[EVP_MAX_MD_SIZE * 2 + 1];
+    for (unsigned int i = 0; i < len; i++) {
+        snprintf(hex + i * 2, 3, "%02x", digest[i]);
+    }
+    return strcasecmp(expected, hex) == 0;
+}
+
+// Same forms as ext/openssl: a md5 or sha1 string, or [algo => fingerprint, ...]
+static bool socket_ssl_fingerprint_match(X509 *cert, zval *val) {
+    if (Z_TYPE_P(val) == IS_STRING) {
+        const char *method = Z_STRLEN_P(val) == 32 ? "md5" : (Z_STRLEN_P(val) == 40 ? "sha1" : nullptr);
+        return method && socket_ssl_fingerprint_cmp(cert, method, Z_STRVAL_P(val));
+    }
+    if (Z_TYPE_P(val) != IS_ARRAY || zend_hash_num_elements(Z_ARRVAL_P(val)) == 0) {
+        return false;
+    }
+    zend_string *key;
+    zval *current;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(val), key, current) {
+        if (key == nullptr || Z_TYPE_P(current) != IS_STRING ||
+            !socket_ssl_fingerprint_cmp(cert, ZSTR_VAL(key), Z_STRVAL_P(current))) {
+            return false;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return true;
+}
+
+static bool socket_ssl_check_fingerprint(SocketImpl *sock, php_stream_context *context) {
+    zval *val = context ? php_stream_context_get_option(context, "ssl", "peer_fingerprint") : nullptr;
+    if (val == nullptr) {
+        return true;
+    }
+    X509 *cert = sock->get_socket()->ssl_get_peer_certificate();
+    ON_SCOPE_EXIT {
+        if (cert) {
+            X509_free(cert);
+        }
+    };
+    if (!socket_ssl_fingerprint_match(cert, val)) {
+        php_error_docref(nullptr, E_WARNING, "peer_fingerprint match failure");
+        sock->set_err(SW_ERROR_SSL_VERIFY_FAILED);
+        return false;
+    }
+    return true;
+}
+
 static int socket_enable_crypto(php_stream *stream,
                                 SocketImpl *sock,
                                 php_stream_xport_crypto_param *cparam STREAMS_DC) {
@@ -946,6 +1000,11 @@ static int socket_enable_crypto(php_stream *stream,
         }
     } else if (!cparam->inputs.activate && sock->ssl_is_available() && sock->get_ssl()) {
         sock->ssl_close();
+        return -1;
+    }
+
+    // the handshake of a tls:// stream is already done by connect()
+    if (cparam->inputs.activate && sock->ssl_is_available() && !socket_ssl_check_fingerprint(sock, context)) {
         return -1;
     }
 
