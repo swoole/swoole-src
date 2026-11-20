@@ -207,7 +207,7 @@ class HttpServer {
                 break;
             }
             if (swoole_http2_server_parse(session, buffer->str) == SW_ERR) {
-                // A final reply such as GOAWAY may still be queued
+                // Try to send frames queued before the parse error
                 http2_server_send_queued(session.get());
                 break;
             }
