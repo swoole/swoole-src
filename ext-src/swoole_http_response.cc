@@ -1493,7 +1493,7 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
 
                 if (complete_flags & WebSocket::FLAG_RSV1) {
                     if (sw_unlikely(!FrameObject::uncompress(
-                            &zpayload, continue_frame_buffer->str, continue_frame_buffer->length))) {
+                            &zpayload, continue_frame_buffer->str, continue_frame_buffer->length, max_frame_size))) {
                         continue_frame_buffer.reset();
                         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
                         RETURN_NULL();
@@ -1523,7 +1523,7 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
             }
             if (frame.header.FIN) {
                 if (frame.compressed()) {
-                    if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length))) {
+                    if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length, max_frame_size))) {
                         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
                         RETURN_NULL();
                     }
