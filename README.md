@@ -163,7 +163,7 @@ Check `./configure --help` and [`config.m4`](config.m4) for the options and depe
 ## Documentation and development
 
 - [Official documentation](https://wiki.swoole.com/) covers APIs, configuration, and usage.
-- [Examples](examples/) show servers, clients, coroutines, and protocols.
+- [Examples](examples/README.md) — a guided index of server, client, coroutine, and protocol samples.
 - [Testing guide](docs/TESTS.md) explains PHP PHPT and C++ GoogleTest workflows.
 - [Supported versions](docs/SUPPORTED.md) and [changelog](docs/CHANGELOG.md) help with branch selection and upgrades.
 - [Repository guidelines](AGENTS.md) describe the source layout, style, tests, and contribution process.

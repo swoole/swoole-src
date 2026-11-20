@@ -1,4 +1,10 @@
 <?php
+// This example writes a temporary file; remove it on exit to keep the tree clean.
+register_shutdown_function(function () {
+    foreach (glob(__DIR__ . '/httpdata') as $file) {
+        @unlink($file);
+    }
+});
 function dump($var)
 {
     return highlight_string("<?php\n\$array = " . var_export($var, true) . ";", true);
@@ -33,8 +39,8 @@ $http->set([
     //'user' => 'www-data',
     //'group' => 'www-data',
 //'daemonize' => true,
-//    'ssl_cert_file' => $key_dir.'/ssl.crt',
-//    'ssl_key_file' => $key_dir.'/ssl.key',
+//    'ssl_cert_file' => SSL_CERT_DIR . 'server.crt',
+//    'ssl_key_file' => SSL_CERT_DIR . 'server.key',
 //    'enable_static_handler' => true,
 //    'document_root' => '/home/htf/workspace/php/www.swoole.com/web/'
 ]);

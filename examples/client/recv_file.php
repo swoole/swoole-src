@@ -1,4 +1,10 @@
 <?php
+// This example writes a temporary file; remove it on exit to keep the tree clean.
+register_shutdown_function(function () {
+    foreach (glob(__DIR__ . '/recv_file_*.jpg') as $file) {
+        @unlink($file);
+    }
+});
 if (empty($argv[1])) {
     $server_ip = '127.0.0.1';
 } else {

@@ -1,8 +1,9 @@
 <?php
+require __DIR__ . '/certs.php';
 $client = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $client->set(array(
-    "ssl_key_file" => __DIR__ . '/ssl.key',
-    "ssl_cert_file" => __DIR__ . '/ssl.crt',
+    "ssl_key_file" => SSL_CERT_DIR . 'server.key',
+    "ssl_cert_file" => SSL_CERT_DIR . 'server.crt',
     'ssl_passphrase' => '5524001',
 ));
 if (!$client->connect('127.0.0.1', 9501, -1))

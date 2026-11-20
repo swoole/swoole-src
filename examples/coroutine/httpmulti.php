@@ -17,7 +17,7 @@ class Server
         $this->server->set([
             'worker_num' => 1,
             'daemonize' => true,
-            'log_file' => '/data/markyuan/swoole.log',
+            'log_file' => sys_get_temp_dir() . '/swoole_example.log',
         ]);
         $this->server->on('Request', ['Server', 'onRequest']);
         $this->server->start();

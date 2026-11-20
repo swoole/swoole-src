@@ -1,4 +1,10 @@
 <?php
+// This example writes a temporary file; remove it on exit to keep the tree clean.
+register_shutdown_function(function () {
+    foreach (glob(__DIR__ . '/*.log') as $file) {
+        @unlink($file);
+    }
+});
 
 class DebugServer
 {

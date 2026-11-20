@@ -21,7 +21,7 @@ $serv->set(array(
 	'worker_num' => 1,
 	'reactor_num' => 1,
 	//'daemonize' => true,
-	//'log_file' => '/tmp/swoole.log'
+	//'log_file' => sys_get_temp_dir() . '/swoole_example.log'
 ));
 
 $serv->on('workerStart', function($serv, $worker_id) {

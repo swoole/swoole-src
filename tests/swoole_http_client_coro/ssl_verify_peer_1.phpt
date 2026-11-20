@@ -18,7 +18,6 @@ $pm = new SwooleTest\ProcessManager;
 
 Co::set(['log_level' => SWOOLE_LOG_WARNING]);
 
-define('SSL_DIR', realpath(__DIR__.'/../../examples/ssl'));
 
 $pm->parentFunc = function ($pid) use ($pm) {
     go(function () use ($pm) {
@@ -64,8 +63,8 @@ $pm->childFunc = function () use ($pm) {
     $server = new Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $server->set([
         'log_file' => '/dev/null',
-        'ssl_cert_file' => SSL_DIR . '/ssl.crt',
-        'ssl_key_file' => SSL_DIR . '/ssl.key',
+        'ssl_cert_file' => SSL_FILE_DIR . 'ca.crt',
+        'ssl_key_file' => SSL_FILE_DIR . 'ca.key',
     ]);
     $server->on("workerStart", function ($serv) use ($pm) {
         $pm->wakeup();

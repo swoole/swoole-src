@@ -192,6 +192,12 @@ add_executable(co ${TEST_SRC_LIST})
 add_dependencies(co lib-swoole)
 target_link_libraries(co swoole)
 
+# repeat
+set(TEST_SRC_LIST examples/cpp/repeat.cc)
+add_executable(repeat ${TEST_SRC_LIST})
+add_dependencies(repeat lib-swoole)
+target_link_libraries(repeat swoole)
+
 # ext-swoole
 file(GLOB ext_cxx_files ext-src/*.cc)
 set(ext_src_list  ${ext_cxx_files}

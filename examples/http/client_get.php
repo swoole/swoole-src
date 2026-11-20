@@ -1,0 +1,13 @@
+<?php
+// A coroutine HTTP GET. Start examples/http/hello.php first, then run this.
+// Run: php examples/http/client_get.php
+use Swoole\Coroutine\Http\Client;
+use function Swoole\Coroutine\run;
+
+run(function () {
+    $client = new Client('127.0.0.1', 9501);
+    $client->get('/');
+    echo 'status: ', $client->statusCode, PHP_EOL;
+    echo 'body: ', $client->body, PHP_EOL;
+    $client->close();
+});

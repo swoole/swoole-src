@@ -123,8 +123,8 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
     if ($use_ssl) {
         $ssl = $server->listen('127.0.0.1', $ssl_port, SWOOLE_SOCK_TCP | SWOOLE_SSL);
         $ssl->set([
-            'ssl_cert_file' => __DIR__ . '/../../examples/ssl/ssl.crt',
-            'ssl_key_file' => __DIR__ . '/../../examples/ssl/ssl.key',
+            'ssl_cert_file' => __DIR__ . '/../../tests/include/ssl_certs/server.crt',
+            'ssl_key_file' => __DIR__ . '/../../tests/include/ssl_certs/server.key',
             'open_http_protocol' => true,
             'open_websocket_protocol' => true,
         ]);

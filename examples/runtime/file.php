@@ -1,7 +1,13 @@
 <?php
+// This example writes a temporary file; remove it on exit to keep the tree clean.
+register_shutdown_function(function () {
+    foreach (glob(__DIR__ . '/data.txt') as $file) {
+        @unlink($file);
+    }
+});
 Swoole\Runtime::enableCoroutine();
 Co\run(function() {
-	$fp = fopen('data.txt', 'w+');
+	$fp = fopen(__DIR__ . '/data.txt', 'w+');
 	echo "open\n";
 	fwrite($fp, str_repeat('A', 1024));
 	fwrite($fp, str_repeat('B', 1024));

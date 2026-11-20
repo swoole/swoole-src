@@ -408,10 +408,12 @@
             <file role="src" name="docs/swoole-logo.svg" />
             <file role="doc" name="docs/windows-iocp-curl.md" />
             <file role="doc" name="docs/windows-native-support.md" />
+            <file role="doc" name="examples/README.md" />
             <file role="doc" name="examples/atomic/long.php" />
             <file role="doc" name="examples/atomic/test.php" />
             <file role="doc" name="examples/atomic/wait.php" />
             <file role="doc" name="examples/client/c10k.php" />
+            <file role="doc" name="examples/client/coro_echo.php" />
             <file role="doc" name="examples/client/get_socket.php" />
             <file role="doc" name="examples/client/long_tcp.php" />
             <file role="doc" name="examples/client/recv_1m.php" />
@@ -422,6 +424,7 @@
             <file role="doc" name="examples/client/test.txt" />
             <file role="doc" name="examples/client/udp_sync.php" />
             <file role="doc" name="examples/coroutine/backtrace.php" />
+            <file role="doc" name="examples/coroutine/barrier.php" />
             <file role="doc" name="examples/coroutine/before_server_start.php" />
             <file role="doc" name="examples/coroutine/behavior/do-while.php" />
             <file role="doc" name="examples/coroutine/behavior/for.php" />
@@ -433,13 +436,14 @@
             <file role="doc" name="examples/coroutine/behavior/while2.php" />
             <file role="doc" name="examples/coroutine/cancel_throw.php" />
             <file role="doc" name="examples/coroutine/channel/test.php" />
+            <file role="doc" name="examples/coroutine/channel_basic.php" />
+            <file role="doc" name="examples/coroutine/channel_timeout.php" />
             <file role="doc" name="examples/coroutine/client_send_yield.php" />
             <file role="doc" name="examples/coroutine/client_send_yield_server.php" />
             <file role="doc" name="examples/coroutine/coro_array_map.php" />
             <file role="doc" name="examples/coroutine/coro_call_user.php" />
             <file role="doc" name="examples/coroutine/coro_channel.php" />
             <file role="doc" name="examples/coroutine/coro_destruct.php" />
-            <file role="doc" name="examples/coroutine/coro_destuct.php" />
             <file role="doc" name="examples/coroutine/coro_empty.php" />
             <file role="doc" name="examples/coroutine/coro_gethost.php" />
             <file role="doc" name="examples/coroutine/coro_include.php" />
@@ -454,7 +458,6 @@
             <file role="doc" name="examples/coroutine/csp.php" />
             <file role="doc" name="examples/coroutine/deadlock.php" />
             <file role="doc" name="examples/coroutine/defer.php" />
-            <file role="doc" name="examples/coroutine/defer_client.php" />
             <file role="doc" name="examples/coroutine/enable_coroutine.php" />
             <file role="doc" name="examples/coroutine/exception/empty.php" />
             <file role="doc" name="examples/coroutine/exec.php" />
@@ -464,6 +467,7 @@
             <file role="doc" name="examples/coroutine/fread.php" />
             <file role="doc" name="examples/coroutine/fwrite.php" />
             <file role="doc" name="examples/coroutine/gethostbyname.php" />
+            <file role="doc" name="examples/coroutine/hello.php" />
             <file role="doc" name="examples/coroutine/http/server.php" />
             <file role="doc" name="examples/coroutine/http/write_func.php" />
             <file role="doc" name="examples/coroutine/http2_client.php" />
@@ -471,33 +475,13 @@
             <file role="doc" name="examples/coroutine/http_client.php" />
             <file role="doc" name="examples/coroutine/http_download.php" />
             <file role="doc" name="examples/coroutine/http_server.php" />
+            <file role="doc" name="examples/coroutine/http_server_hello.php" />
             <file role="doc" name="examples/coroutine/httpmulti.php" />
+            <file role="doc" name="examples/coroutine/iouring.php" />
             <file role="doc" name="examples/coroutine/join.php" />
             <file role="doc" name="examples/coroutine/library/base.php" />
             <file role="doc" name="examples/coroutine/list_coroutines.php" />
-            <file role="doc" name="examples/coroutine/mysql_chan.php" />
-            <file role="doc" name="examples/coroutine/mysql_escape.php" />
-            <file role="doc" name="examples/coroutine/mysql_execute_empty.php" />
-            <file role="doc" name="examples/coroutine/mysql_prepare.php" />
-            <file role="doc" name="examples/coroutine/mysql_prepare_2.php" />
-            <file role="doc" name="examples/coroutine/mysql_procedure_exec.php" />
-            <file role="doc" name="examples/coroutine/mysql_query.php" />
-            <file role="doc" name="examples/coroutine/mysql_unixsocket.php" />
-            <file role="doc" name="examples/coroutine/pdo/pdo_persistent.phpt" />
             <file role="doc" name="examples/coroutine/proc_open.php" />
-            <file role="doc" name="examples/coroutine/reconnect_test.php" />
-            <file role="doc" name="examples/coroutine/redis/auth.php" />
-            <file role="doc" name="examples/coroutine/redis/defer.php" />
-            <file role="doc" name="examples/coroutine/redis/eval.php" />
-            <file role="doc" name="examples/coroutine/redis/get.php" />
-            <file role="doc" name="examples/coroutine/redis/multi.php" />
-            <file role="doc" name="examples/coroutine/redis/pipeline.php" />
-            <file role="doc" name="examples/coroutine/redis/pub.php" />
-            <file role="doc" name="examples/coroutine/redis/request.php" />
-            <file role="doc" name="examples/coroutine/redis/serialize.php" />
-            <file role="doc" name="examples/coroutine/redis/sub.php" />
-            <file role="doc" name="examples/coroutine/redis_pool.php" />
-            <file role="doc" name="examples/coroutine/redis_subscribe.php" />
             <file role="doc" name="examples/coroutine/scheduler.php" />
             <file role="doc" name="examples/coroutine/select/1.php" />
             <file role="doc" name="examples/coroutine/select/2.php" />
@@ -515,11 +499,18 @@
             <file role="doc" name="examples/coroutine/server/tcp.php" />
             <file role="doc" name="examples/coroutine/sleep.php" />
             <file role="doc" name="examples/coroutine/socket/accept.php" />
+            <file role="doc" name="examples/coroutine/socket/client.php" />
             <file role="doc" name="examples/coroutine/socket/sendto.php" />
+            <file role="doc" name="examples/coroutine/socket/server.php" />
+            <file role="doc" name="examples/coroutine/socket/tcp_echo.php" />
+            <file role="doc" name="examples/coroutine/socket/udp.php" />
             <file role="doc" name="examples/coroutine/stack.php" />
             <file role="doc" name="examples/coroutine/stack/1.php" />
             <file role="doc" name="examples/coroutine/stack/2.php" />
             <file role="doc" name="examples/coroutine/statvfs.php" />
+            <file role="doc" name="examples/coroutine/system_dns_lookup.php" />
+            <file role="doc" name="examples/coroutine/system_exec.php" />
+            <file role="doc" name="examples/coroutine/system_file_io.php" />
             <file role="doc" name="examples/coroutine/task_co.php" />
             <file role="doc" name="examples/coroutine/tcp_backend_serv.php" />
             <file role="doc" name="examples/coroutine/tcp_echo.php" />
@@ -527,7 +518,6 @@
             <file role="doc" name="examples/coroutine/timer_test.php" />
             <file role="doc" name="examples/coroutine/udp_client.php" />
             <file role="doc" name="examples/coroutine/udp_tcp_timeout.php" />
-            <file role="doc" name="examples/coroutine/user_coroutine.php" />
             <file role="doc" name="examples/coroutine/util/resume001.php" />
             <file role="doc" name="examples/coroutine/util/resume002.php" />
             <file role="doc" name="examples/coroutine/util/resume003.php" />
@@ -542,6 +532,7 @@
             <file role="doc" name="examples/curl/hook.php" />
             <file role="doc" name="examples/curl/multi.php" />
             <file role="doc" name="examples/curl/server.php" />
+            <file role="doc" name="examples/curl/single_request.php" />
             <file role="doc" name="examples/dtls/client.php" />
             <file role="doc" name="examples/dtls/server.php" />
             <file role="doc" name="examples/eof/client.php" />
@@ -554,11 +545,15 @@
             <file role="doc" name="examples/event/test.php" />
             <file role="doc" name="examples/http/UPPER.TXT" />
             <file role="doc" name="examples/http/client.php" />
+            <file role="doc" name="examples/http/client_get.php" />
+            <file role="doc" name="examples/http/client_post.php" />
+            <file role="doc" name="examples/http/cookie.php" />
             <file role="doc" name="examples/http/curl.php" />
             <file role="doc" name="examples/http/detach.php" />
             <file role="doc" name="examples/http/download.php" />
             <file role="doc" name="examples/http/empty.txt" />
             <file role="doc" name="examples/http/event-stream.php" />
+            <file role="doc" name="examples/http/hello.php" />
             <file role="doc" name="examples/http/moc.moc" />
             <file role="doc" name="examples/http/no-compression.php" />
             <file role="doc" name="examples/http/post.data" />
@@ -568,7 +563,9 @@
             <file role="doc" name="examples/http/static_handler.php" />
             <file role="doc" name="examples/http/test.txt" />
             <file role="doc" name="examples/http/url_rewrite.php" />
+            <file role="doc" name="examples/http2/client_get.php" />
             <file role="doc" name="examples/http2/server.php" />
+            <file role="doc" name="examples/http2/server_basic.php" />
             <file role="doc" name="examples/http2/streaming.php" />
             <file role="doc" name="examples/http2/test.html" />
             <file role="doc" name="examples/ipv6/tcp_client.php" />
@@ -579,6 +576,7 @@
             <file role="doc" name="examples/length/config.php" />
             <file role="doc" name="examples/length/func.php" />
             <file role="doc" name="examples/length/server.php" />
+            <file role="doc" name="examples/lock/basic.php" />
             <file role="doc" name="examples/lock/lock.php" />
             <file role="doc" name="examples/misc/get_local_ip.php" />
             <file role="doc" name="examples/misc/get_local_mac.php" />
@@ -597,16 +595,15 @@
             <file role="doc" name="examples/php/stream_client.php" />
             <file role="doc" name="examples/php/stream_server.php" />
             <file role="doc" name="examples/php/tick.php" />
-            <file role="doc" name="examples/postgresql/postgresql_coro.php" />
             <file role="doc" name="examples/process/alarm.php" />
             <file role="doc" name="examples/process/async_master.php" />
+            <file role="doc" name="examples/process/basic.php" />
             <file role="doc" name="examples/process/client.php" />
             <file role="doc" name="examples/process/client3.php" />
             <file role="doc" name="examples/process/close.php" />
             <file role="doc" name="examples/process/daemon.php" />
             <file role="doc" name="examples/process/echo.py" />
             <file role="doc" name="examples/process/exec.php" />
-            <file role="doc" name="examples/process/func_timeout.php" />
             <file role="doc" name="examples/process/msg_pop.php" />
             <file role="doc" name="examples/process/msg_push.php" />
             <file role="doc" name="examples/process/msgqueue.php" />
@@ -620,19 +617,21 @@
             <file role="doc" name="examples/process/stdin_stdout.php" />
             <file role="doc" name="examples/process/test.php" />
             <file role="doc" name="examples/process/worker.php" />
+            <file role="doc" name="examples/process_pool/basic.php" />
             <file role="doc" name="examples/process_pool/detach.php" />
             <file role="doc" name="examples/process_pool/send.php" />
             <file role="doc" name="examples/runtime/coroutine.php" />
             <file role="doc" name="examples/runtime/curl.php" />
             <file role="doc" name="examples/runtime/file.php" />
             <file role="doc" name="examples/runtime/gethostbyname.php" />
+            <file role="doc" name="examples/runtime/hook_flags.php" />
             <file role="doc" name="examples/runtime/include.php" />
             <file role="doc" name="examples/runtime/mkdir.php" />
             <file role="doc" name="examples/runtime/mongodb.php" />
             <file role="doc" name="examples/runtime/oci.php" />
             <file role="doc" name="examples/runtime/odbc.php" />
+            <file role="doc" name="examples/runtime/pdo_hook.php" />
             <file role="doc" name="examples/runtime/read.php" />
-            <file role="doc" name="examples/runtime/rename.phpt" />
             <file role="doc" name="examples/runtime/select.php" />
             <file role="doc" name="examples/runtime/sleep.php" />
             <file role="doc" name="examples/runtime/sqlite.php" />
@@ -640,7 +639,7 @@
             <file role="doc" name="examples/runtime/stream.php" />
             <file role="doc" name="examples/runtime/sync.php" />
             <file role="doc" name="examples/runtime/time_sleep_until.php" />
-            <file role="doc" name="examples/runtime/unlink.phpt" />
+            <file role="doc" name="examples/runtime/unlink.php" />
             <file role="doc" name="examples/server/db_pool.php" />
             <file role="doc" name="examples/server/dispatch_func.php" />
             <file role="doc" name="examples/server/dispatch_stream.php" />
@@ -660,58 +659,44 @@
             <file role="doc" name="examples/server/multi_instance.php" />
             <file role="doc" name="examples/server/multi_port.php" />
             <file role="doc" name="examples/server/pipe_message.php" />
+            <file role="doc" name="examples/server/port.php" />
             <file role="doc" name="examples/server/proxy_sync.php" />
             <file role="doc" name="examples/server/redis_pool.php" />
+            <file role="doc" name="examples/server/redis_server.php" />
             <file role="doc" name="examples/server/reload_aysnc.php" />
             <file role="doc" name="examples/server/reload_force.php" />
             <file role="doc" name="examples/server/reload_force2.php" />
             <file role="doc" name="examples/server/send_1m.php" />
             <file role="doc" name="examples/server/sendfile.php" />
             <file role="doc" name="examples/server/single.php" />
+            <file role="doc" name="examples/server/stats.php" />
             <file role="doc" name="examples/server/tcp_client.php" />
             <file role="doc" name="examples/server/tcp_server.php" />
             <file role="doc" name="examples/server/trace.php" />
             <file role="doc" name="examples/server/uid_dispatch.php" />
             <file role="doc" name="examples/server/unix_stream.php" />
             <file role="doc" name="examples/server/zmq.php" />
-            <file role="doc" name="examples/socket_coro/client.php" />
-            <file role="doc" name="examples/socket_coro/server.php" />
-            <file role="doc" name="examples/socket_coro/udp.php" />
-            <file role="doc" name="examples/ssl/ca/ca-cert.pem" />
-            <file role="doc" name="examples/ssl/ca/ca-key.pem" />
-            <file role="doc" name="examples/ssl/ca/ca-req.csr" />
-            <file role="doc" name="examples/ssl/ca/client-cert.pem" />
-            <file role="doc" name="examples/ssl/ca/client-key.pem" />
-            <file role="doc" name="examples/ssl/ca/client-req.csr" />
-            <file role="doc" name="examples/ssl/ca/client.crt" />
-            <file role="doc" name="examples/ssl/ca/client.key" />
-            <file role="doc" name="examples/ssl/ca/server-cert.pem" />
-            <file role="doc" name="examples/ssl/ca/server-key.pem" />
-            <file role="doc" name="examples/ssl/ca/server-req.csr" />
+            <file role="doc" name="examples/ssl/certs.php" />
             <file role="doc" name="examples/ssl/client.c" />
             <file role="doc" name="examples/ssl/client.php" />
+            <file role="doc" name="examples/ssl/client_basic.php" />
             <file role="doc" name="examples/ssl/co_client.php" />
             <file role="doc" name="examples/ssl/gen_cert.md" />
             <file role="doc" name="examples/ssl/http_client.php" />
             <file role="doc" name="examples/ssl/passphrase.php" />
             <file role="doc" name="examples/ssl/server.php" />
-            <file role="doc" name="examples/ssl/ssl.crt" />
-            <file role="doc" name="examples/ssl/ssl.csr" />
-            <file role="doc" name="examples/ssl/ssl.key" />
-            <file role="doc" name="examples/ssl/ssl_passwd/ssl.crt" />
-            <file role="doc" name="examples/ssl/ssl_passwd/ssl.csr" />
-            <file role="doc" name="examples/ssl/ssl_passwd/ssl.key" />
             <file role="doc" name="examples/ssl/stream_client.php" />
-            <file role="doc" name="examples/ssl/swoole.log" />
             <file role="doc" name="examples/ssl/webserver.php" />
             <file role="doc" name="examples/ssl/websocket_client.html" />
             <file role="doc" name="examples/ssl/websocket_server.php" />
             <file role="doc" name="examples/table/deadlock.php" />
+            <file role="doc" name="examples/table/incr_decr.php" />
             <file role="doc" name="examples/table/iterator.php" />
             <file role="doc" name="examples/table/server.php" />
             <file role="doc" name="examples/table/set.php" />
             <file role="doc" name="examples/table/simulation.php" />
             <file role="doc" name="examples/table/usage.php" />
+            <file role="doc" name="examples/task/basic.php" />
             <file role="doc" name="examples/task/http.php" />
             <file role="doc" name="examples/task/msg_push.php" />
             <file role="doc" name="examples/task/shared_client.php" />
@@ -726,15 +711,18 @@
             <file role="doc" name="examples/thread/argv.php" />
             <file role="doc" name="examples/thread/array.php" />
             <file role="doc" name="examples/thread/atomic.php" />
+            <file role="doc" name="examples/thread/barrier.php" />
             <file role="doc" name="examples/thread/benchmark.php" />
             <file role="doc" name="examples/thread/co.php" />
             <file role="doc" name="examples/thread/exit.php" />
+            <file role="doc" name="examples/thread/hello.php" />
             <file role="doc" name="examples/thread/hook.php" />
             <file role="doc" name="examples/thread/lock.php" />
             <file role="doc" name="examples/thread/map.php" />
             <file role="doc" name="examples/thread/mt.php" />
             <file role="doc" name="examples/thread/nested_map.php" />
             <file role="doc" name="examples/thread/pipe.php" />
+            <file role="doc" name="examples/thread/queue.php" />
             <file role="doc" name="examples/thread/run_test.php" />
             <file role="doc" name="examples/thread/server.php" />
             <file role="doc" name="examples/thread/signal.php" />
@@ -743,9 +731,11 @@
             <file role="doc" name="examples/thread/thread_pool.php" />
             <file role="doc" name="examples/thread/thread_server.php" />
             <file role="doc" name="examples/timer/after.php" />
+            <file role="doc" name="examples/timer/after_basic.php" />
             <file role="doc" name="examples/timer/clear.php" />
-            <file role="doc" name="examples/timer/enable_coroutine.php" />
+            <file role="doc" name="examples/timer/clear_basic.php" />
             <file role="doc" name="examples/timer/tick.php" />
+            <file role="doc" name="examples/timer/tick_basic.php" />
             <file role="doc" name="examples/tracer/blocking.php" />
             <file role="doc" name="examples/tracer/cli.php" />
             <file role="doc" name="examples/tracer/co.php" />
@@ -759,8 +749,10 @@
             <file role="doc" name="examples/unixsock/dgram_server.php" />
             <file role="doc" name="examples/unixsock/stream_client.php" />
             <file role="doc" name="examples/unixsock/stream_server.php" />
+            <file role="doc" name="examples/websocket/broadcast.php" />
             <file role="doc" name="examples/websocket/client.html" />
             <file role="doc" name="examples/websocket/client.php" />
+            <file role="doc" name="examples/websocket/client_basic.php" />
             <file role="doc" name="examples/websocket/server.php" />
             <file role="doc" name="examples/www/dir1/file1.txt" />
             <file role="doc" name="examples/www/dir1/file2.txt" />

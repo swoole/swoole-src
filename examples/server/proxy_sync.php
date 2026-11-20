@@ -14,7 +14,7 @@ class ProxyServer
             'max_conn' => 10000,
             'dispatch_mode' => 2,
             //'open_tcp_keepalive' => 1,
-            //'log_file' => '/tmp/swoole.log', //swoole error log
+            //'log_file' => sys_get_temp_dir() . '/swoole_example.log', //swoole error log
         ));
         $serv->on('WorkerStart', array($this, 'onStart'));
         $serv->on('Connect', array($this, 'onConnect'));

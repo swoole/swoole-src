@@ -1,10 +1,10 @@
 <?php
-$ssl_dir = realpath('../../tests/ssl');
+require __DIR__ . '/certs.php';
 $serv = new Swoole\WebSocket\Server("0.0.0.0", 9502, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //$serv = new Swoole\WebSocket\Server("0.0.0.0", 9502, SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $serv->set([
-    'ssl_cert_file' => $ssl_dir . '/ssl.crt',
-    'ssl_key_file' => $ssl_dir . '/ssl.key',
+    'ssl_cert_file' => SSL_CERT_DIR . 'server.crt',
+    'ssl_key_file' => SSL_CERT_DIR . 'server.key',
     'worker_num' => 1,
 ]);
 
