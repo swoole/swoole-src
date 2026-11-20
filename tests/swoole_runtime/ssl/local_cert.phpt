@@ -40,6 +40,8 @@ go(function () use ($ready) {
     $context = stream_context_create();
     stream_context_set_option($context, 'ssl', 'local_cert', SSL_FILE_DIR . '/client.crt');
     stream_context_set_option($context, 'ssl', 'local_pk', SSL_FILE_DIR . '/client.key');
+    stream_context_set_option($context, 'ssl', 'verify_peer', false);
+    stream_context_set_option($context, 'ssl', 'verify_peer_name', false);
 
     $fp = stream_socket_client("ssl://127.0.0.1:8000", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $context);
     if (!$fp) {

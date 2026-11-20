@@ -1293,6 +1293,14 @@ bool Socket::ssl_check_host(const char *tls_host_name, bool strict) const {
     const bool is_ip = Address::verify_ip(AF_INET, tls_host_name) || Address::verify_ip(AF_INET6, tls_host_name);
     if ((strict && is_ip ? X509_check_ip_asc(cert, tls_host_name, 0)
                          : X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr)) != 1) {
+        // Like ext/openssl, accept a subject CN equal to the address when the certificate has no subjectAltName.
+        if (strict && is_ip && X509_get_ext_by_NID(cert, NID_subject_alt_name, -1) < 0) {
+            char cn[256];
+            int len = X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName, cn, sizeof(cn));
+            if (len > 0 && (size_t) len == strlen(tls_host_name) && strcasecmp(cn, tls_host_name) == 0) {
+                goto _found;
+            }
+        }
         swoole_warning("X509_check_host(): no match");
         goto _failed;
     }

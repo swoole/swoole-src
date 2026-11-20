@@ -36,7 +36,8 @@ go(function () use ($ready) {
 
 go(function () use ($ready) {
     $port = $ready->pop();
-    $fp = stream_socket_client("ssl://127.0.0.1:{$port}", $errno, $errstr, 30);
+    $context = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]);
+    $fp = stream_socket_client("ssl://127.0.0.1:{$port}", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, $context);
     if (!$fp) {
         echo "$errstr ($errno)<br />\n";
     } else {
