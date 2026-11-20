@@ -84,6 +84,10 @@ namespace swoole {
 class Server;
 class Coroutine;
 
+namespace coroutine {
+class Channel;
+}  // namespace coroutine
+
 namespace http2 {
 class Stream;
 class Session;
@@ -340,14 +344,14 @@ class Stream {
     Stream(const Session *client, uint32_t _id);
     ~Stream();
 
-    bool send_header(const String *body, bool end_stream) const;
+    bool send_header(const String *body, bool end_stream, const std::shared_ptr<Session> &session) const;
     bool send_body(const String *body,
                    bool end_stream,
                    const std::shared_ptr<Session> &session,
                    off_t offset = 0,
                    size_t length = 0);
     bool send_end_stream_data_frame(const std::shared_ptr<Session> &session) const;
-    bool send_trailer() const;
+    bool send_trailer(const std::shared_ptr<Session> &session) const;
 
     bool reset(uint32_t error_code) const;
     void resume_flow_control_waiter() const;
@@ -377,6 +381,10 @@ class Session {
     uint32_t continuation_stream_id = 0;
     bool shutting_down;
     bool is_coro;
+    std::unique_ptr<coroutine::Channel> write_lock;
+    long write_owner = 0;
+    long reader_cid = 0;
+    std::string queued_frames;
 
     http::Context *default_ctx = nullptr;
     void *private_data = nullptr;
