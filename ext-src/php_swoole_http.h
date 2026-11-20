@@ -223,6 +223,7 @@ struct Context {
     void bind(Server *server);
     void bind(zval *zsock);
     void copy(const Context *ctx);
+    void free_multipart_state();
     bool init_multipart_parser(const char *boundary_str, int boundary_len);
     bool get_multipart_boundary(
         const char *at, size_t length, size_t offset, char **out_boundary_str, int *out_boundary_len);
