@@ -218,6 +218,27 @@ TEST(file, tmp_file) {
     SwooleG.task_tmpfile = ori_tmp_dir;
 }
 
+TEST(file, tmp_file_cloexec) {
+#if defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
+    auto file = make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    ON_SCOPE_EXIT {
+        File::remove(file.get_path());
+    };
+
+    const int fd = file.get_fd();
+    const int status_flags = fcntl(fd, F_GETFL);
+    ASSERT_NE(status_flags, -1);
+    EXPECT_EQ(status_flags & O_ACCMODE, O_RDWR);
+
+    const int descriptor_flags = fcntl(fd, F_GETFD);
+    ASSERT_NE(descriptor_flags, -1);
+    EXPECT_EQ(descriptor_flags & FD_CLOEXEC, FD_CLOEXEC);
+#else
+    GTEST_SKIP() << "requires the mkostemp temporary file path";
+#endif
+}
+
 TEST(file, empty_file) {
     auto fname = "/tmp/swoole_empty_file.txt";
     File fp(fname, File::WRITE | File::CREATE);
