@@ -19,8 +19,10 @@
 #include "swoole.h"
 
 #include <csignal>
+#include <vector>
 
 namespace swoole {
+class Reactor;
 typedef void (*SignalHandler)(int);
 
 struct Signal {
@@ -28,6 +30,33 @@ struct Signal {
     uint16_t signo;
     bool activated;
 };
+
+#ifndef _WIN32
+/**
+ * Handles the given signals with `handler` through sigaction until destroyed, then restores each signal's previous
+ * registration, action, signalfd membership and blocked state. A forked child leaving the scope keeps its own state.
+ */
+class SignalGuard {
+  public:
+    SignalGuard(const std::vector<int> &signal_numbers, SignalHandler handler);
+    ~SignalGuard();
+
+    SignalGuard(const SignalGuard &) = delete;
+    SignalGuard &operator=(const SignalGuard &) = delete;
+
+  private:
+    struct SavedSignal {
+        int signo;
+        Signal signal;
+        struct sigaction action;
+        struct sigaction origin_action;
+        bool blocked;
+        bool signalfd;
+    };
+    std::vector<SavedSignal> saved_signals;
+    pid_t pid;
+};
+#endif
 }  // namespace swoole
 
 typedef swoole::SignalHandler swSignalHandler;
@@ -53,6 +82,7 @@ SW_API swSignalHandler swoole_signal_get_handler(int signo);
 SW_API uint32_t swoole_signal_get_listener_num();
 
 SW_API void swoole_signal_clear();
+void swoole_signal_init_reactor(swoole::Reactor *reactor);
 // Returns true only when this call saves and changes the mask; that caller must restore it with unblock_all().
 #ifndef _WIN32
 SW_API bool swoole_signal_block_all();
