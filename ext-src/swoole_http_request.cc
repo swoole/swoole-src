@@ -377,7 +377,37 @@ static int http_request_parse_on_header_value(llhttp_t *parser, const char *at, 
     return result;
 }
 
+void HttpContext::free_multipart_state() {
+    if (mt_parser) {
+        if (mt_parser->fp) {
+            fclose(mt_parser->fp);
+            mt_parser->fp = nullptr;
+        }
+        multipart_parser_free(mt_parser);
+        mt_parser = nullptr;
+    }
+    delete form_data_buffer;
+    form_data_buffer = nullptr;
+    if (current_form_data_name) {
+        efree(current_form_data_name);
+        current_form_data_name = nullptr;
+        current_form_data_name_len = 0;
+    }
+    if (current_input_name) {
+        efree(current_input_name);
+        current_input_name = nullptr;
+        current_input_name_len = 0;
+    }
+    if (current_multipart_header) {
+        zval_ptr_dtor(current_multipart_header);
+        efree(current_multipart_header);
+        current_multipart_header = nullptr;
+    }
+}
+
 bool HttpContext::init_multipart_parser(const char *boundary_str, int boundary_len) {
+    // A repeated Content-Type header must not leak the state of the previous parser
+    free_multipart_state();
     mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!mt_parser) {
         php_swoole_fatal_error(E_WARNING, "multipart_parser_init() failed");
@@ -634,19 +664,25 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             return ret;
         }
 
+        if (ctx->current_form_data_name || ctx->current_input_name) {
+            swoole_warning("duplicate multipart Content-Disposition");
+            return -1;
+        }
+
         zval tmp_array;
         array_init(&tmp_array);
         swoole_http_parse_cookie(&tmp_array, at + offset, length - offset);
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name")))) {
+            zval_ptr_dtor(&tmp_array);
             return ret;
         }
 
         if (Z_STRLEN_P(zform_name) >= SW_HTTP_FORM_KEYLEN) {
             swoole_warning("form_name[%s] is too large", Z_STRVAL_P(zform_name));
-            ret = -1;
-            return ret;
+            zval_ptr_dtor(&tmp_array);
+            return -1;
         }
 
         swoole_strlcpy(value_buf, Z_STRVAL_P(zform_name), sizeof(value_buf));
@@ -663,8 +699,8 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         else {
             if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN) {
                 swoole_warning("filename[%s] is too large", Z_STRVAL_P(zfilename));
-                ret = -1;
-                return ret;
+                zval_ptr_dtor(&tmp_array);
+                return -1;
             }
             ctx->current_input_name = estrndup(tmp, value_len);
             ctx->current_input_name_len = value_len;
@@ -953,14 +989,8 @@ static int http_request_message_complete(llhttp_t *parser) {
             swoole_http_init_and_read_property(
                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, SW_ZSTR_KNOWN(SW_ZEND_STR_POST)));
     }
-    if (ctx->mt_parser) {
-        multipart_parser_free(ctx->mt_parser);
-        ctx->mt_parser = nullptr;
-    }
-    if (ctx->form_data_buffer) {
-        delete ctx->form_data_buffer;
-        ctx->form_data_buffer = nullptr;
-    }
+    // an unterminated part may still own its file and field state
+    ctx->free_multipart_state();
 
     ctx->completed = 1;
 
