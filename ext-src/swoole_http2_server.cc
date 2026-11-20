@@ -1273,7 +1273,7 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
     auto ctx = stream->ctx;
     zval *zheader = &ctx->request.zheader;
     zval *zserver = &ctx->request.zserver;
-    if (stream->header_error != SW_HTTP2_ERROR_NO_ERROR) {
+    if (stream->header_error != SW_HTTP2_ERROR_NO_ERROR || ctx->end_) {
         return SW_OK;
     }
     if (++stream->header_count > max_headers) {
@@ -1368,9 +1368,12 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
             return SW_OK;
         } else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-length")) {
             if (!Http2::parse_content_length((char *) nv.value, nv.valuelen, client->max_body_size, nullptr)) {
-                http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE);
-                swoole_http2_server_goaway(ctx, SW_HTTP2_ERROR_NO_ERROR, nullptr);
-                return SW_ERR;
+                // The rest of the block is still decoded for HPACK; the stream is reset after it. The 413's header
+                // block is already encoded, so if it isn't sent the connection's HPACK state is out of sync.
+                if (!http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE)) {
+                    return SW_ERR;
+                }
+                return SW_OK;
             }
         }
 #ifdef SW_HAVE_COMPRESSION
@@ -1417,9 +1420,15 @@ static int http2_server_parse_header(const std::shared_ptr<Http2Session> &client
         in += proclen;
         inlen -= proclen;
 
-        if ((inflate_flags & NGHTTP2_HD_INFLATE_EMIT) &&
-            http2_server_parse_field(client, stream, nv, max_headers) < 0) {
-            return SW_ERR;
+        if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
+            if (!stream) {
+                // Trailers can't carry pseudo-headers, so this is a new request on a closed stream.
+                if (nv.namelen > 0 && nv.name[0] == ':') {
+                    return SW_ERR;
+                }
+            } else if (http2_server_parse_field(client, stream, nv, max_headers) < 0) {
+                return SW_ERR;
+            }
         }
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL) {
@@ -1532,10 +1541,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             if (stream_id == 0 || !(stream_id & 1)) {
                 return SW_ERR;
             }
-            if (!stream) {
-                if (stream_id <= client->last_stream_id) {
-                    return SW_ERR;
-                }
+            if (!stream && stream_id > client->last_stream_id) {
                 bool refused = client->streams.size() >= client->local_settings.max_concurrent_streams;
                 stream = client->create_stream(stream_id);
                 if (!stream) {
@@ -1551,6 +1557,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                     // Decode even refused streams to preserve the connection's HPACK state.
                     stream->header_error = SW_HTTP2_ERROR_REFUSED_STREAM;
                 }
+            } else if (!stream) {
+                // RFC 9113 §5.1: a block on a closed stream, such as trailers sent before the client received our
+                // RST_STREAM, is decoded to keep HPACK state and then discarded.
             } else if (stream->receive_phase == Http2Stream::ReceivePhase::BODY) {
                 stream->receive_phase = Http2Stream::ReceivePhase::TRAILERS;
                 swoole_http_init_and_read_property(swoole_http_request_ce,
@@ -1563,8 +1572,10 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             } else {
                 stream->header_error = SW_HTTP2_ERROR_STREAM_CLOSED;
             }
-            stream->header_count = 0;
-            stream->header_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
+            if (stream) {
+                stream->header_count = 0;
+                stream->header_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
+            }
             if (flags & SW_HTTP2_FLAG_PADDED) {
                 if (length < 1) {
                     return SW_ERR;
@@ -1582,7 +1593,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                 buf += SW_HTTP2_PRIORITY_SIZE;
                 length -= SW_HTTP2_PRIORITY_SIZE;
             }
-        } else if (!stream || client->continuation_stream_id == 0) {
+        } else if (client->continuation_stream_id == 0) {
             return SW_ERR;
         }
 
@@ -1594,7 +1605,11 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             break;
         }
         client->continuation_stream_id = 0;
-        if (stream->header_error != SW_HTTP2_ERROR_NO_ERROR) {
+        if (!stream) {
+            break;
+        }
+        // The response has already ended when the content-length is over the limit.
+        if (stream->header_error != SW_HTTP2_ERROR_NO_ERROR || stream->ctx->end_) {
             if (!http2_server_reject_request(client, stream, stream->header_error)) {
                 return SW_ERR;
             }
@@ -1614,9 +1629,25 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
     case SW_HTTP2_TYPE_DATA: {
         swoole_http2_frame_trace_log("data");
         auto stream = client->get_stream(stream_id);
-        if (!stream) {
+        if (!stream && (!(stream_id & 1) || stream_id > client->last_stream_id)) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found", stream_id);
             return SW_ERR;
+        }
+
+        // Discarded DATA still counts against the connection window (RFC 9113 §6.9).
+        client->local_window_size -= length;
+        if (client->local_window_size < (client->local_settings.init_window_size / 4)) {
+            if (!http2_server_send_window_update(
+                    client->default_ctx, 0, client->local_settings.init_window_size - client->local_window_size) &&
+                http2_server_send_blocked()) {
+                return SW_ERR;
+            }
+            client->local_window_size = client->local_settings.init_window_size;
+        }
+
+        // RFC 9113 §5.1: the client may have sent DATA before it received our RST_STREAM.
+        if (!stream) {
+            break;
         }
 
         if (stream->receive_phase != Http2Stream::ReceivePhase::BODY) {
@@ -1631,9 +1662,12 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         if (length > 0) {
             auto buffer = ctx->get_http2_data_buffer();
 
-            // Exceeded the max_body_size, or if the stream has ended, sends RST_STREAM frame, stops receiving data
-            if (buffer->length + length > client->max_body_size || ctx->end_) {
-                // Reuse the stream reset path, which encodes its ID and the four-byte payload correctly.
+            // RFC 9113 §8.1: a complete response, then RST_STREAM(NO_ERROR) to stop the upload. A 413 that isn't sent
+            // leaves the connection's HPACK state out of sync.
+            if (buffer->length + length > client->max_body_size) {
+                if (!http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE)) {
+                    return SW_ERR;
+                }
                 if (!http2_server_reject_request(client, stream, SW_HTTP2_ERROR_NO_ERROR)) {
                     return SW_ERR;
                 }
@@ -1643,17 +1677,8 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             buffer->append(buf, length);
 
             // flow control
-            client->local_window_size -= length;
             stream->local_window_size -= length;
 
-            if (client->local_window_size < (client->local_settings.init_window_size / 4)) {
-                if (!http2_server_send_window_update(
-                        ctx, 0, client->local_settings.init_window_size - client->local_window_size) &&
-                    http2_server_send_blocked()) {
-                    return SW_ERR;
-                }
-                client->local_window_size = client->local_settings.init_window_size;
-            }
             if (stream->local_window_size < (client->local_settings.init_window_size / 4)) {
                 if (!http2_server_send_window_update(
                         ctx, stream_id, client->local_settings.init_window_size - stream->local_window_size) &&
