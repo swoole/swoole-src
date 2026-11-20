@@ -212,6 +212,10 @@ _do_recv:
             // TODO: support dynamic calculation of header buffer length (recv_size)
             pl.header_len = 0;
             package_length = get_package_length(this, socket, &pl);
+            // package_length_func closed the connection synchronously: the buffer is already released
+            if (socket->removed && socket->recv_buffer != buffer) {
+                return SW_OK;
+            }
             // invalid package, close connection.
             if (package_length < 0) {
                 proto_error(socket,
