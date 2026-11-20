@@ -418,7 +418,17 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
         return fwrite(data, size, nmemb, t->fp);
     case PHP_CURL_RETURN:
         if (length > 0) {
+#ifdef ZEND_HAS_OOM
+            if (!smart_str_fappendl_ex(&t->buf, data, (int) length, /* persistent */ false, /* fallible */ true)) {
+#ifdef CURL_WRITEFUNC_ERROR
+                return CURL_WRITEFUNC_ERROR;
+#else
+                return 0;
+#endif
+            }
+#else
             smart_str_appendl(&t->buf, data, (int) length);
+#endif
         }
         break;
     case PHP_CURL_USER: {
@@ -1041,6 +1051,10 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
         Z_ADDREF(source->handlers.write_header->stream);
     }
     ch->handlers.write_header->stream = source->handlers.write_header->stream;
+    if (!Z_ISUNDEF(source->handlers.std_err)) {
+        Z_ADDREF(source->handlers.std_err);
+    }
+    ch->handlers.std_err = source->handlers.std_err;
 
     ch->handlers.write->fp = source->handlers.write->fp;
     ch->handlers.write_header->fp = source->handlers.write_header->fp;
