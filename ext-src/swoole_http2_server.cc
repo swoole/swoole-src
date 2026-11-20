@@ -640,18 +640,16 @@ bool Http2Stream::send_header_block(const String *frame) const {
         }
         // Encoding has already changed the connection's HPACK state.
         ctx->end_ = 1;
-        auto *serv = ctx->get_async_server();
-        const auto session_id = ctx->fd;
-        if (UNEXPECTED(EG(exception))) {
-            // BASE can run onClose inline. Deliver the pending exception to the request first.
-            swoole_event_defer([serv, session_id](void *) { serv->close(session_id, true); }, nullptr);
-        } else {
-            serv->close(session_id, true);
-        }
+        ctx->get_async_server()->close(ctx->fd, true);
         return false;
     }
 #endif
-    return ctx->send(ctx, frame->str, frame->length);
+    if (!ctx->send(ctx, frame->str, frame->length)) {
+        ctx->end_ = 1;
+        ctx->close(ctx);
+        return false;
+    }
+    return true;
 }
 
 bool Http2Stream::send_header(const String *body, bool end_stream) const {

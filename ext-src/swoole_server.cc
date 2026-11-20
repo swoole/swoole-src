@@ -1821,7 +1821,7 @@ static void php_swoole_server_cleanup_connection(Server *serv, SessionId session
     php_swoole_http2_server_onClose(serv, session_id);
 }
 
-void php_swoole_server_onClose(Server *serv, DataHead *info) {
+static void php_swoole_server_dispatch_close(Server *serv, DataHead *info) {
     SessionId session_id = info->fd;
 
     auto *cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onClose);
@@ -1872,20 +1872,45 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
     }
 }
 
-void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
-    zval *zserv = php_swoole_server_zval_ptr(serv);
-    auto cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onBufferFull);
-
-    if (cb) {
-        zval args[2];
-
-        args[0] = *zserv;
-        ZVAL_LONG(&args[1], info->fd);
-
-        if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, false))) {
-            php_swoole_error(E_WARNING, "%s->onBufferFull handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
-        }
+void php_swoole_server_onClose(Server *serv, DataHead *info) {
+    if (!(info->ext_flags & Server::CLOSE_CALLBACK_ACTIVELY)) {
+        php_swoole_server_dispatch_close(serv, info);
+        return;
     }
+    // Close can originate inside a PHP callback with an exception still pending.
+    // Capture the claimed event, since the connection slot may be retired before dispatch.
+    swoole_event_defer([serv, event = *info](void *) mutable { php_swoole_server_dispatch_close(serv, &event); },
+                       nullptr);
+}
+
+static void php_swoole_server_defer_buffer_event(Server *serv, DataHead *info, int event_type) {
+    if (!php_swoole_server_get_callback(serv, info->server_fd, event_type)) {
+        return;
+    }
+    swoole_event_defer(
+        [serv, event = *info, event_type](void *) {
+            zval *zserv = php_swoole_server_zval_ptr(serv);
+            auto cb = php_swoole_server_get_callback(serv, event.server_fd, event_type);
+            if (!cb) {
+                return;
+            }
+            zval args[2];
+
+            args[0] = *zserv;
+            ZVAL_LONG(&args[1], event.fd);
+
+            if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, false))) {
+                php_swoole_error(E_WARNING,
+                                 "%s->%s handler error",
+                                 SW_Z_OBJCE_NAME_VAL_P(zserv),
+                                 event_type == SW_SERVER_CB_onBufferFull ? "onBufferFull" : "onBufferEmpty");
+            }
+        },
+        nullptr);
+}
+
+void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
+    php_swoole_server_defer_buffer_event(serv, info, SW_SERVER_CB_onBufferFull);
 }
 
 void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
@@ -1978,6 +2003,9 @@ void php_swoole_server_onBufferEmpty(Server *serv, DataHead *info) {
     zval *zserv = php_swoole_server_zval_ptr(serv);
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
 
+    // Queue before resuming senders, which may generate another full or close event.
+    php_swoole_server_defer_buffer_event(serv, info, SW_SERVER_CB_onBufferEmpty);
+
     if (serv->send_yield) {
         auto _i_co_list = server_object->property->send_coroutine_map.find(info->fd);
         if (_i_co_list != server_object->property->send_coroutine_map.end()) {
@@ -1989,18 +2017,6 @@ void php_swoole_server_onBufferEmpty(Server *serv, DataHead *info) {
                 co->resume();
             }
             delete co_list;
-        }
-    }
-
-    auto cb = php_swoole_server_get_callback(serv, info->server_fd, SW_SERVER_CB_onBufferEmpty);
-    if (cb) {
-        zval args[2];
-
-        args[0] = *zserv;
-        ZVAL_LONG(&args[1], info->fd);
-
-        if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, false))) {
-            php_swoole_error(E_WARNING, "%s->onBufferEmpty handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
 }

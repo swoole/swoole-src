@@ -192,7 +192,8 @@ bool Server::finish_close(SessionId session_id, int flags) const {
         info.reactor_id = conn->is_close_active() ? -1 : conn->reactor_id;
         info.server_fd = conn->server_fd;
         info.ext_flags = (conn->is_websocket_active() ? CLOSE_CALLBACK_WEBSOCKET : 0) |
-                         (conn->http2_stream ? CLOSE_CALLBACK_HTTP2 : 0);
+                         (conn->http2_stream ? CLOSE_CALLBACK_HTTP2 : 0) |
+                         (conn->is_close_active() ? CLOSE_CALLBACK_ACTIVELY : 0);
         if (conn->ssl_client_cert && conn->ssl_client_cert_pid == swoole_get_worker_pid()) {
             certificate = conn->ssl_client_cert;
             conn->ssl_client_cert = nullptr;

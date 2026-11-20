@@ -1109,6 +1109,7 @@ class Server {
     enum CloseCallbackFlag {
         CLOSE_CALLBACK_WEBSOCKET = 1u << 0,
         CLOSE_CALLBACK_HTTP2 = 1u << 1,
+        CLOSE_CALLBACK_ACTIVELY = 1u << 2,
     };
 
     /**
