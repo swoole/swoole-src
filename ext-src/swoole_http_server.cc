@@ -102,6 +102,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
+    ctx->dispatched = 1;
     ctx->onBeforeRequest = swoole_http_server_onBeforeRequest;
     ctx->upload_preprocessed = (req->info.ext_flags & swoole::http_server::SW_HTTP_EXT_FLAG_UPLOAD_PREPROCESSED) != 0;
 
@@ -347,11 +348,11 @@ void HttpContext::free() {
 #ifndef _WIN32
 bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     auto *serv = ctx->get_async_server();
-    bool retval = serv->send(ctx->fd, data, length);
+    bool retval = serv->send(ctx->fd, data, length, ctx->send_ext_flags);
     // The protocol parsers run outside a coroutine, so their sends can't wait; they fail instead.
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && swoole_coroutine_is_in()) {
         auto sdata = zend_string_init(data, length, false);
-        auto rv = php_swoole_server_send_yield(serv, ctx->fd, sdata);
+        auto rv = php_swoole_server_send_yield(serv, ctx->fd, sdata, ctx->send_ext_flags);
         zend_string_release(sdata);
         return rv;
     }
@@ -360,7 +361,8 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
 
 static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file) {
     auto *serv = ctx->get_async_server();
-    return serv->sendfile(ctx->fd, file->val, file->len, offset, length, delete_file);
+    return serv->sendfile(
+        ctx->fd, file->val, file->len, offset, length, delete_file, swoole::SW_SERVER_SEND_RESPONSE_END);
 }
 
 static bool http_context_disconnect(HttpContext *ctx) {

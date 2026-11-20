@@ -1065,6 +1065,11 @@ bool ServerObject::on_before_start() {
                        !isset_callback(port, SW_SERVER_CB_onReceive)) {
                 return php_swoole_throw_setting_exception("require onRequest callback");
             }
+            // php_swoole_http_server_onReceive() answers these requests through HttpContext, which marks the final
+            // output of each response.
+            port->ordered_http_responses =
+                isset_callback(port, SW_SERVER_CB_onRequest) ||
+                (port->open_websocket_protocol && isset_callback(port, SW_SERVER_CB_onMessage));
             if (!is_http_server() && isset_callback(port, SW_SERVER_CB_onRequest)) {
                 php_swoole_error(
                     E_WARNING,
@@ -1915,7 +1920,7 @@ bool php_swoole_server_wait_send_buffer(Server *serv, SessionId session_id) {
     return true;
 }
 
-bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata) {
+bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_string *sdata, uint16_t ext_flags) {
     size_t length = ZSTR_LEN(sdata);
 
     if (length == 0) {
@@ -1926,7 +1931,7 @@ bool php_swoole_server_send_yield(Server *serv, SessionId session_id, zend_strin
         if (!php_swoole_server_wait_send_buffer(serv, session_id)) {
             return false;
         }
-        bool rv = serv->send(session_id, ZSTR_VAL(sdata), length);
+        bool rv = serv->send(session_id, ZSTR_VAL(sdata), length, ext_flags);
         if (!rv && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield) {
             continue;
         }

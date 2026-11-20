@@ -26,8 +26,8 @@ class CloseFactory : public Factory {
     bool shutdown() override {
         return true;
     }
-    bool dispatch(SendData *) override {
-        return true;
+    int dispatch(SendData *) override {
+        return SW_OK;
     }
     bool notify(DataHead *) override {
         notifications++;
@@ -1040,7 +1040,7 @@ TEST_F(ConnectionState, base_factory_does_not_count_control_event_payloads) {
     event.info.type = SW_SERVER_EVENT_BUFFER_FULL;
     event.info.len = 4;
     event.data = "data";
-    EXPECT_TRUE(original_factory->dispatch(&event));
+    EXPECT_EQ(original_factory->dispatch(&event), SW_OK);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 17u);
 }
 
@@ -1728,7 +1728,7 @@ TEST_F(ConnectionHandoff, process_factory_discard_keeps_the_session_and_does_not
     RecvData data{};
     data.info.len = 4;
     data.data = "data";
-    EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_OK);
+    EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_CONTINUE);
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
     EXPECT_FALSE(conn->is_close_requested());
     EXPECT_EQ(conn->get_recv_queued_bytes(), 0u);
@@ -1736,6 +1736,10 @@ TEST_F(ConnectionHandoff, process_factory_discard_keeps_the_session_and_does_not
     EXPECT_EQ(server->get_worker(0)->dispatch_count, 0u);
     EXPECT_EQ(server->get_dispatch_count(), 0u);
     EXPECT_EQ(port->gs->dispatch_count, 0u);
+    server->dispatch_func = [](Server *, Connection *, SendData *) -> int {
+        return Server::DISPATCH_RESULT_CLOSE_CONNECTION;
+    };
+    EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_ERR);
     server->dispatch_func = [](Server *, Connection *, SendData *) { return 0; };
     EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_OK);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 4u);
@@ -1775,7 +1779,7 @@ TEST_F(ConnectionHandoff, process_factory_does_not_count_connect_certificate_pay
     event.info.type = SW_SERVER_EVENT_CONNECT;
     event.info.len = 4;
     event.data = "cert";
-    ASSERT_TRUE(original_factory->dispatch(&event));
+    ASSERT_EQ(original_factory->dispatch(&event), SW_OK);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 17u);
     EXPECT_EQ(server->get_thread(0)->dispatch_count, 0u);
     ASSERT_GT(server->message_bus.read(server->get_worker_pipe_worker(0)), 0);

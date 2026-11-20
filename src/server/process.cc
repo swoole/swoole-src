@@ -244,13 +244,13 @@ bool ProcessFactory::notify(DataHead *ev) {
     SendData task;
     task.info = *ev;
     task.data = nullptr;
-    return dispatch(&task);
+    return dispatch(&task) != SW_ERR;
 }
 
 /**
  * [ReactorThread] dispatch request to worker
  */
-bool ProcessFactory::dispatch(SendData *task) {
+int ProcessFactory::dispatch(SendData *task) {
     // the task->info.fd is real fd, not session_id, it will be converted to session after dispatch
     int fd = static_cast<int>(task->info.fd);
 
@@ -260,13 +260,13 @@ bool ProcessFactory::dispatch(SendData *task) {
         case Server::DISPATCH_RESULT_DISCARD_PACKET:
             // Intentional consumption of this packet. Framed protocols must keep reading
             // the connection, rather than interpret the discard as a callback failure.
-            return true;
+            return SW_CONTINUE;
         case Server::DISPATCH_RESULT_CLOSE_CONNECTION:
             // TODO: close connection
-            return false;
+            return SW_ERR;
         default:
             swoole_warning("invalid target worker id[%d]", target_worker_id);
-            return false;
+            return SW_ERR;
         }
     }
 
@@ -275,7 +275,7 @@ bool ProcessFactory::dispatch(SendData *task) {
         conn = server_->get_connection(fd);
         if (conn == nullptr || conn->active == 0) {
             swoole_warning("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
-            return false;
+            return SW_ERR;
         }
         // converted fd to session_id
         task->info.fd = conn->session_id;
@@ -298,7 +298,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     // Keep worker-exit bookkeeping off the normal receive dispatch path.
     if (sw_unlikely(task->info.type == SW_SERVER_EVENT_CLOSE) &&
         sw_unlikely(!thread->track_waiting_close(sw_reactor(), conn, worker->pid, worker->id))) {
-        return false;
+        return SW_ERR;
     }
     if (receive_data && task->info.len > 0) {
         // The worker process can consume this queue concurrently with the reactor producer.
@@ -316,14 +316,14 @@ bool ProcessFactory::dispatch(SendData *task) {
         if (receive_data && task->info.len > 0) {
             conn->subtract_recv_queued_bytes<Connection::ReceiveQueueMode::SHARED_PROCESS>(task->info.len);
         }
-        return false;
+        return SW_ERR;
     }
     if (receive_data) {
         thread->dispatch_count++;
         server_->increment_dispatch_count();
         sw_atomic_long_fetch_add(&server_->get_port_by_server_fd(conn->server_fd)->gs->dispatch_count, 1);
     }
-    return true;
+    return SW_OK;
 }
 
 static bool process_is_supported_send_yield(Server *serv, const Connection *conn) {

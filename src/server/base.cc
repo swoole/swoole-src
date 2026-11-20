@@ -73,19 +73,19 @@ bool BaseFactory::shutdown() {
     return true;
 }
 
-bool BaseFactory::dispatch(SendData *task) {
+int BaseFactory::dispatch(SendData *task) {
     Connection *conn = nullptr;
 
     if (Server::is_stream_event(task->info.type)) {
         conn = server_->get_connection(task->info.fd);
         if (conn == nullptr || conn->active == 0) {
             swoole_warning("dispatch[type=%d] failed, socket#%ld is not active", task->info.type, task->info.fd);
-            return false;
+            return SW_ERR;
         }
         // server active close, discard data.
         if (conn->is_close_requested()) {
             swoole_warning("dispatch[type=%d] failed, socket#%ld is closed by server", task->info.type, task->info.fd);
-            return false;
+            return SW_ERR;
         }
         // converted fd to session_id
         task->info.fd = conn->session_id;
@@ -117,7 +117,7 @@ bool BaseFactory::dispatch(SendData *task) {
     }
     server_->worker_accept_event(&bus->get_buffer()->info);
 
-    return true;
+    return SW_OK;
 }
 
 /**

@@ -166,11 +166,14 @@ struct Context {
     uchar websocket_compression : 1;
     uchar upgrade : 1;
     uchar detached : 1;
+    // The async server's context for a received HTTP/1 request.
+    uchar dispatched : 1;
     uchar parse_cookie : 1;
     uchar parse_body : 1;
     uchar parse_files : 1;
     uchar upload_preprocessed : 1;
     uchar http2 : 1;
+    uint16_t send_ext_flags;
 
     zval zsocket;
     uint32_t stream_id;
@@ -230,6 +233,13 @@ struct Context {
     HTTP_API void end(zend_string *sdata, zval *return_value);
     HTTP_API void write(zend_string *sdata, zval *return_value);
     HTTP_API bool send_file(zend_string *file, off_t offset, size_t length, bool delete_file);
+
+    bool send_with_flags(const char *data, size_t length, uint16_t ext_flags) {
+        send_ext_flags = ext_flags;
+        bool retval = send(this, data, length);
+        send_ext_flags = 0;
+        return retval;
+    }
 
     String *get_write_buffer();
 

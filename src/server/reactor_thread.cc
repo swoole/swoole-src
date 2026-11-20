@@ -155,7 +155,7 @@ _do_recvfrom:
     task.info.len = sizeof(*pkt) + ret;
     task.data = reinterpret_cast<char *>(pkt);
 
-    if (!serv->factory_->dispatch(&task)) {
+    if (serv->factory_->dispatch(&task) == SW_ERR) {
         return SW_ERR;
     } else {
         goto _do_recvfrom;
@@ -1263,7 +1263,7 @@ int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData
     task.info.len = rdata->info.len;
     task.data = rdata->data;
 
-    return serv->factory_->dispatch(&task) ? SW_OK : SW_ERR;
+    return serv->factory_->dispatch(&task);
 }
 
 void Server::join_heartbeat_thread() {

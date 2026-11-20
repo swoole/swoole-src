@@ -696,7 +696,7 @@ void HttpContext::send_trailer(zval *return_value) {
     if (http_buffer->length == 0) {
         return;
     }
-    if (!send(this, http_buffer->str, http_buffer->length)) {
+    if (!send_with_flags(http_buffer->str, http_buffer->length, SW_SERVER_SEND_RESPONSE_END)) {
         end_ = 1;
         close(this);
         RETURN_FALSE;
@@ -729,7 +729,7 @@ bool HttpContext::send_file(zend_string *file, off_t offset, size_t length, bool
 
         build_header(http_buffer, nullptr, length);
 
-        if (!send(this, http_buffer->str, http_buffer->length)) {
+        if (!send_with_flags(http_buffer->str, http_buffer->length, length > 0 ? 0 : SW_SERVER_SEND_RESPONSE_END)) {
             send_header_ = 0;
             return false;
         }
@@ -850,7 +850,7 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
                 RETURN_FALSE;
             }
         } else {
-            if (!send(this, ZEND_STRL("0\r\n\r\n"))) {
+            if (!send_with_flags(ZEND_STRL("0\r\n\r\n"), SW_SERVER_SEND_RESPONSE_END)) {
                 RETURN_FALSE;
             }
         }
@@ -910,7 +910,7 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
                     send_header_ = 0;
                     RETURN_FALSE;
                 }
-                if (!send(this, data, length)) {
+                if (!send_with_flags(data, length, SW_SERVER_SEND_RESPONSE_END)) {
                     end_ = 1;
                     close(this);
                     RETURN_FALSE;
@@ -921,7 +921,7 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
             }
         }
 
-        if (!send(this, http_buffer->str, http_buffer->length)) {
+        if (!send_with_flags(http_buffer->str, http_buffer->length, SW_SERVER_SEND_RESPONSE_END)) {
             end_ = 1;
             close(this);
             RETURN_FALSE;
@@ -1585,6 +1585,12 @@ static PHP_METHOD(swoole_http_response, detach) {
     if (!ctx) {
         RETURN_FALSE;
     }
+#ifndef _WIN32
+    // The application now decides when the response ends, so the connection stops holding pipelined requests.
+    if (ctx->dispatched && !ctx->get_async_server()->feedback(ctx->fd, swoole::SW_SERVER_EVENT_HTTP_DETACH)) {
+        RETURN_FALSE;
+    }
+#endif
     ctx->detached = 1;
     RETURN_TRUE;
 }
@@ -1677,6 +1683,8 @@ static PHP_METHOD(swoole_http_response, create) {
             RETURN_FALSE;
         }
     } else {
+        // Only the request's own transport and session hold its place in the connection's order.
+        ctx->dispatched = ctx->dispatched && serv && ctx->fd == fd;
         if (serv) {
 #ifndef _WIN32
             ctx->bind(serv);
