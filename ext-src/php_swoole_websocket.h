@@ -42,7 +42,7 @@ void construct_frame(zval *zframe, zend_long opcode, zval *zpayload, uint8_t fla
 
 #ifdef SW_HAVE_ZLIB
 bool message_compress(String *buffer, const char *data, size_t length, int level);
-bool message_uncompress(String *buffer, const char *in, size_t in_len);
+bool message_uncompress(String *buffer, const char *in, size_t in_len, size_t max_length = 0);
 #endif
 
 struct FrameObject {
@@ -56,7 +56,7 @@ struct FrameObject {
         return (data && ZVAL_IS_STRING(data)) ? Z_STRLEN_P(data) : 0;
     }
     bool pack(String *buffer);
-    static bool uncompress(zval *zpayload, const char *data, size_t length);
+    static bool uncompress(zval *zpayload, const char *data, size_t length, size_t max_length = 0);
 };
 }  // namespace websocket
 }  // namespace swoole
