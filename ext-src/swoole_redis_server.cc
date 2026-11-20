@@ -153,6 +153,8 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
 
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE) {
         php_swoole_error(E_WARNING, "command [%.8s...](length=%d) is too long", command, command_len);
+        zval_ptr_dtor(&zdata);
+        zval_ptr_dtor(&zparams);
         serv->close(fd, false);
         return SW_OK;
     }
@@ -169,6 +171,8 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     if (i == redis_handlers.end()) {
         char err_msg[256];
         length = sw_snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%.*s'\r\n", command_len, command);
+        zval_ptr_dtor(&zdata);
+        zval_ptr_dtor(&zparams);
         return serv->send(fd, err_msg, length) ? SW_OK : SW_ERR;
     }
 
