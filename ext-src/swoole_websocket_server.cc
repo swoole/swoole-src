@@ -112,13 +112,13 @@ void WebSocket::construct_frame(zval *zframe, zend_long opcode, zval *zpayload, 
     zend_update_property_bool(swoole_websocket_frame_ce, SW_Z8_OBJ_P(zframe), ZEND_STRL("finish"), flags & FLAG_FIN);
 }
 
-bool FrameObject::uncompress(zval *zpayload, const char *data, size_t length) {
+bool FrameObject::uncompress(zval *zpayload, const char *data, size_t length, size_t max_length) {
 #ifndef SW_HAVE_ZLIB
     swoole_warning("The compressed websocket data frame is received, the `zlib` supports is required");
     return false;
 #else
     String zlib_buffer(length + SW_WEBSOCKET_DEFAULT_PAYLOAD_SIZE, sw_zend_string_allocator());
-    if (sw_likely(WebSocket::message_uncompress(&zlib_buffer, data, length))) {
+    if (sw_likely(WebSocket::message_uncompress(&zlib_buffer, data, length, max_length))) {
         zend::assign_zend_string_by_val(zpayload, zlib_buffer.str, zlib_buffer.length);
         zlib_buffer.release();
         return true;
@@ -348,7 +348,7 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
 }
 
 #ifdef SW_HAVE_ZLIB
-bool WebSocket::message_uncompress(String *buffer, const char *in, size_t in_len) {
+bool WebSocket::message_uncompress(String *buffer, const char *in, size_t in_len, size_t max_length) {
     z_stream zstream;
     int status;
     bool ret = false;
@@ -373,6 +373,12 @@ bool WebSocket::message_uncompress(String *buffer, const char *in, size_t in_len
         status = inflate(&zstream, Z_SYNC_FLUSH);
         if (status >= 0) {
             buffer->length = zstream.total_out;
+            if (max_length > 0 && buffer->length > max_length) {
+                inflateEnd(&zstream);
+                swoole_set_last_error(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+                swoole_warning("uncompressed websocket message exceeds the limit(%zu)", max_length);
+                return false;
+            }
         }
         if (status == Z_STREAM_END || (status == Z_OK && zstream.avail_in == 0)) {
             ret = true;
@@ -500,7 +506,7 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
     // See https://datatracker.ietf.org/doc/html/rfc7692
     if (flags & WebSocket::FLAG_RSV1) {
         zval zpayload;
-        auto rs = FrameObject::uncompress(&zpayload, Z_STRVAL(zdata), Z_STRLEN(zdata));
+        auto rs = FrameObject::uncompress(&zpayload, Z_STRVAL(zdata), Z_STRLEN(zdata), port->protocol.package_max_length);
         zval_ptr_dtor(&zdata);
         if (!rs) {
             return SW_OK;
