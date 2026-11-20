@@ -440,6 +440,39 @@ TEST(coroutine_hook, timeout) {
     });
 }
 
+TEST(coroutine_hook, wait_event_preserves_timeouts) {
+    coroutine::run([](void *) {
+        const int fd = swoole_coroutine_socket(AF_INET, SOCK_DGRAM, 0);
+        ASSERT_GE(fd, 0);
+        auto socket = swoole_coroutine_get_socket_object(fd);
+        ASSERT_NE(socket, nullptr);
+        socket->set_timeout(2.0, SW_TIMEOUT_DNS);
+        socket->set_timeout(3.0, SW_TIMEOUT_CONNECT);
+        socket->set_timeout(4.0, SW_TIMEOUT_READ);
+        socket->set_timeout(5.0, SW_TIMEOUT_WRITE);
+
+        EXPECT_EQ(swoole_coroutine_socket_wait_event(fd, SW_EVENT_WRITE, 1.0), SW_OK);
+        EXPECT_DOUBLE_EQ(socket->get_timeout(SW_TIMEOUT_DNS), 2.0);
+        EXPECT_DOUBLE_EQ(socket->get_timeout(SW_TIMEOUT_CONNECT), 3.0);
+        EXPECT_DOUBLE_EQ(socket->get_timeout(SW_TIMEOUT_READ), 4.0);
+        EXPECT_DOUBLE_EQ(socket->get_timeout(SW_TIMEOUT_WRITE), 5.0);
+        EXPECT_EQ(swoole_coroutine_close(fd), 0);
+    });
+}
+
+TEST(coroutine_hook, socket_close_unregisters_before_callback) {
+    coroutine::run([](void *) {
+        const int fd = swoole_coroutine_socket(AF_INET, SOCK_DGRAM, 0);
+        ASSERT_GE(fd, 0);
+        auto socket = swoole_coroutine_get_socket_object(fd);
+        ASSERT_NE(socket, nullptr);
+        socket->set_dtor([fd](CoSocket *) { EXPECT_FALSE(swoole_coroutine_socket_exists(fd)); });
+
+        EXPECT_EQ(swoole_coroutine_close(fd), 0);
+        EXPECT_FALSE(swoole_coroutine_socket_exists(fd));
+    });
+}
+
 TEST(coroutine_hook, sendmsg_and_recvmsg) {
     coroutine::run([&](void *arg) {
         int pairs[2];

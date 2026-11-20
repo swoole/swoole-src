@@ -1680,6 +1680,10 @@ bool Socket::cancel(const EventType event) {
  * and release when all references are 0
  */
 bool Socket::close() {
+    return close(nullptr);
+}
+
+bool Socket::close(void (*before_release)(Socket *)) {
     if (is_closed()) {
         set_err(EBADF);
         return false;
@@ -1696,6 +1700,9 @@ bool Socket::close() {
         }
         if (!socket->removed) {
             swoole_event_del(socket);
+        }
+        if (before_release) {
+            before_release(this);
         }
         // Close only this descriptor. shutdown() would affect all duplicated owners.
         sock_fd = SW_BAD_SOCKET;
