@@ -647,7 +647,7 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
     };
 
     int pipe_fds[2];
-    if (pipe(pipe_fds) < 0) {
+    if (pipe2(pipe_fds, O_CLOEXEC) < 0) {
         return -1;
     }
 
@@ -671,8 +671,8 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
                 break;
             }
             int saved_errno = errno;
-            close(pipe_fds[0]);
-            close(pipe_fds[1]);
+            ::close(pipe_fds[0]);
+            ::close(pipe_fds[1]);
             errno = saved_errno;
             return -1;
         }
@@ -683,8 +683,8 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
                 break;
             }
             int saved_errno = errno;
-            close(pipe_fds[0]);
-            close(pipe_fds[1]);
+            ::close(pipe_fds[0]);
+            ::close(pipe_fds[1]);
             errno = saved_errno;
             return -1;
         }
@@ -696,8 +696,8 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
         }
     }
 
-    close(pipe_fds[0]);
-    close(pipe_fds[1]);
+    ::close(pipe_fds[0]);
+    ::close(pipe_fds[1]);
 
     if (total_sent > 0 && offset) {
         *offset += total_sent;

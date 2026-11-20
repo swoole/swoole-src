@@ -1332,12 +1332,22 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
         return false;
     }
 
+    if (sw_unlikely(offset < 0)) {
+        set_err(EINVAL);
+        return false;
+    }
+
+    FileStatus file_stat;
+    if (!file.stat(&file_stat)) {
+        set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
+        return false;
+    }
+    // An empty file or an offset at/after the end leaves nothing to send, which is a caller error.
+    if (sw_unlikely(offset >= file_stat.st_size)) {
+        set_err(EINVAL);
+        return false;
+    }
     if (length == 0) {
-        FileStatus file_stat;
-        if (!file.stat(&file_stat)) {
-            set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
-            return false;
-        }
         length = file_stat.st_size;
     } else {
         // total length of the file
