@@ -111,14 +111,14 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     do {
         switch (state) {
         case Redis::STATE_RECEIVE_TOTAL_LINE:
-            if (*p == '*' && (p = Redis::get_number(p, &ret))) {
+            if (*p == '*' && (p = Redis::get_number(p, pe, &ret))) {
                 state = Redis::STATE_RECEIVE_LENGTH;
                 break;
             }
             /* no break */
 
         case Redis::STATE_RECEIVE_LENGTH:
-            if (*p == '$' && (p = Redis::get_number(p, &ret))) {
+            if (*p == '$' && (p = Redis::get_number(p, pe, &ret))) {
                 if (ret == -1) {
                     add_next_index_null(&zparams);
                     break;
@@ -128,7 +128,7 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
                 break;
             }
             // integer
-            else if (*p == ':' && (p = Redis::get_number(p, &ret))) {
+            else if (*p == ':' && (p = Redis::get_number(p, pe, &ret))) {
                 add_next_index_long(&zparams, ret);
                 break;
             }
