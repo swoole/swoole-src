@@ -229,31 +229,38 @@ _do_recv:
         } else {
         _do_get_length:
             // TODO: support dynamic calculation of header buffer length (recv_size)
-            switch (resolve_package_length(socket, buffer->str, buffer->length, &package_length)) {
-            case PackageLengthStatus::MALFORMED:
-                // invalid package, close connection.
-                proto_error(socket,
-                            SW_ERROR_PACKAGE_MALFORMED_DATA,
-                            "received %zu bytes of malformed data, remote_addr=",
-                            buffer->length);
-                return SW_ERR;
-            case PackageLengthStatus::NEED_MORE:
-                if (buffer->length == recv_size) {
-                    swoole_error_log(SW_LOG_WARNING,
-                                     SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
-                                     "bad request, no length found in %zu bytes, remote_addr=",
-                                     buffer->length);
-                    return SW_ERR;
+            {
+                auto status = resolve_package_length(socket, buffer->str, buffer->length, &package_length);
+                // package_length_func closed the connection synchronously: the buffer is already released
+                if (socket->removed && socket->recv_buffer != buffer) {
+                    return SW_OK;
                 }
-                return SW_OK;
-            case PackageLengthStatus::TOO_LARGE:
-                proto_error(socket,
-                            SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                            "the received packet length %ld is too large, remote_addr=",
-                            package_length);
-                return SW_ERR;
-            case PackageLengthStatus::OK:
-                break;
+                switch (status) {
+                case PackageLengthStatus::MALFORMED:
+                    // invalid package, close connection.
+                    proto_error(socket,
+                                SW_ERROR_PACKAGE_MALFORMED_DATA,
+                                "received %zu bytes of malformed data, remote_addr=",
+                                buffer->length);
+                    return SW_ERR;
+                case PackageLengthStatus::NEED_MORE:
+                    if (buffer->length == recv_size) {
+                        swoole_error_log(SW_LOG_WARNING,
+                                         SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
+                                         "bad request, no length found in %zu bytes, remote_addr=",
+                                         buffer->length);
+                        return SW_ERR;
+                    }
+                    return SW_OK;
+                case PackageLengthStatus::TOO_LARGE:
+                    proto_error(socket,
+                                SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                                "the received packet length %ld is too large, remote_addr=",
+                                package_length);
+                    return SW_ERR;
+                case PackageLengthStatus::OK:
+                    break;
+                }
             }
             // get length success
             if (buffer->size < (size_t) package_length) {
