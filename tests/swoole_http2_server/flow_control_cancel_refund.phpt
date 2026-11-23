@@ -40,6 +40,15 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
     $pm->childFunc = function () use ($pm, $mode) {
         http2_flow_server($pm, $mode, function ($request, $response, $server) use ($pm) {
             if ($request->server['request_uri'] === '/blocked') {
+                Assert::true($response->write('A'));
+                // Fill transport queues without spending HTTP/2 credit. The filler only yields when
+                // Server::send() waits for output space; stop it there before reserving the next DATA frame.
+                $filler = Swoole\Coroutine::create(function () use ($server, $request) {
+                    $extension = http2_test_frame(15, 0, 0, str_repeat('P', 16384));
+                    for ($i = 0; $i < 4096 && $server->send($request->fd, $extension); ++$i) {
+                    }
+                });
+                Assert::true(Swoole\Coroutine::cancel($filler));
                 Swoole\Event::defer(fn () => $pm->wakeup());
                 try {
                     $response->write(str_repeat('A', 2 * CREDIT));
