@@ -1333,6 +1333,10 @@ static int http2_server_parse_field(const std::shared_ptr<Http2Session> &client,
             } else {
                 zstr_path = zend_string_init((char *) nv.value, nv.valuelen, false);
             }
+            // A repeated :path must not leak the previous value.
+            if (ctx->request.path) {
+                zend_string_release(ctx->request.path);
+            }
             ctx->request.path =
                 v_str ? zend_string_init((char *) nv.value, nv.valuelen, false) : zend_string_copy(zstr_path);
             add_assoc_str_ex(zserver, ZEND_STRL("request_uri"), zstr_path);
