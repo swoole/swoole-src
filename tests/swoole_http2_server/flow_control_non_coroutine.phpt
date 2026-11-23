@@ -24,6 +24,31 @@ class FlowHeaderThrows
     }
 }
 
+class DeleteFlowFile
+{
+    public function __construct(private string $file)
+    {
+    }
+
+    public function __toString(): string
+    {
+        unlink($this->file);
+        return 'deleted';
+    }
+}
+
+class RetryFlowHeader
+{
+    public static int $calls = 0;
+
+    public function __toString(): string
+    {
+        ++self::$calls;
+        Assert::same(Swoole\Coroutine::getCid(), -1);
+        return 'retry';
+    }
+}
+
 foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
     foreach (defined('SWOOLE_SSL') ? [false, true] : [false] as $tls) {
         $file = tempnam(sys_get_temp_dir(), 'swoole-http2-sync-');
@@ -55,6 +80,14 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
                 $peer->update(5, 2);
                 $peer->bytes(5, 2);
                 Assert::same($peer->bodies[5], 'OK');
+                $peer->settings(2);
+                $peer->update(0, 2);
+                $peer->request(7, '/retry-file');
+                $peer->bytes(7, 2);
+                while (!isset($peer->ended[7])) {
+                    $peer->read();
+                }
+                Assert::same($peer->bodies[7], 'OK');
                 $peer->close();
 
                 $peer = new Http2FlowPeer($pm->getFreePort(), 0, $tls);
@@ -102,6 +135,17 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
                             $response->header = [];
                             Assert::true($response->end('OK'));
                         }
+                        break;
+                    case '/retry-file':
+                        $failedFile = tempnam(sys_get_temp_dir(), 'swoole-http2-open-');
+                        file_put_contents($failedFile, 'file');
+                        $response->header('x-value', new DeleteFlowFile($failedFile));
+                        Assert::false($response->sendfile($failedFile));
+                        Assert::true($response->isWritable());
+                        $response->header('x-value', new RetryFlowHeader());
+                        Assert::true($response->write('OK'));
+                        Assert::same(RetryFlowHeader::$calls, 1);
+                        Assert::true($response->end());
                         break;
                     case '/blocked':
                         Assert::true($response->end(str_repeat('B', 70000)));

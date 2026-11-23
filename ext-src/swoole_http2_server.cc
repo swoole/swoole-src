@@ -1301,10 +1301,13 @@ static bool http2_server_schedule_response(
     // coroutine pins the response and arguments until transmission or timeout finishes.
     ctx->http2_send_result = true;
     if (swoole::PHPCoroutine::create(&fci, argc, argv, nullptr) < 0) {
+        ctx->http2_header_snapshot.reset();
         return false;
     }
     if (ctx->http2_send_result) {
         ctx->end_ = true;
+    } else {
+        ctx->http2_header_snapshot.reset();
     }
     return ctx->http2_send_result;
 }
