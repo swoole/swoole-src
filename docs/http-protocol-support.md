@@ -11,6 +11,12 @@ previously released versions.
 
 ## Multipart form-data uploads
 
+The coroutine HTTP client can combine `setData(array)` fields with `addFile()`
+and `addData()` upload parts in one request. See
+[Coroutine HTTP client request bodies](http-client-request-body.md) for format
+selection, replacement and append rules, and the handling of raw strings with
+pending upload parts.
+
 ### Reserved part header
 
 `Swoole-Upload-File` is reserved for Swoole's internal upload processing. Clients
