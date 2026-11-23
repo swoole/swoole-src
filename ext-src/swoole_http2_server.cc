@@ -1276,7 +1276,7 @@ static bool http2_server_schedule_response(
     auto snapshot = std::make_shared<swoole::http::Http2HeaderSnapshot>();
     zval *headers = file_response
                         ? sw_zend_read_and_convert_property_array(
-                              swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0)
+                              swoole_http_response_ce, &ctx->response.zobject, ZEND_STRL("header"), 0)
                         : sw_zend_read_property_ex(
                               swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     zval *trailers = sw_zend_read_property_ex(
