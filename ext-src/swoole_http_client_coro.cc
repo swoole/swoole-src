@@ -1665,13 +1665,14 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
                  * from memory
                  */
                 if (zcontent) {
-                    // Preserve the HTTP header buffer for getHeaderOut() and transfer statistics.
-                    String part_buffer(n + Z_STRLEN_P(zcontent) + 2);
-                    part_buffer.append(header_buf.str, n);
-                    part_buffer.append(Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
-                    part_buffer.append("\r\n", 2);
-
-                    if (socket->send_all(part_buffer.str, part_buffer.length) != (ssize_t) part_buffer.length) {
+                    iovec iov[3] = {{header_buf.str, (size_t) n}};
+                    size_t count = 1;
+                    if (Z_STRLEN_P(zcontent) > 0) {
+                        iov[count++] = {Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent)};
+                    }
+                    iov[count++] = {const_cast<char *>("\r\n"), 2};
+                    network::IOVector part(iov, count);
+                    if (socket->writev_all(&part) != (ssize_t) part.length()) {
                         goto _send_fail;
                     }
                 }
@@ -2536,8 +2537,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile) {
 
 static PHP_METHOD(swoole_http_client_coro, addData) {
     Client *phc = http_client_coro_get_client(ZEND_THIS);
-    char *data;
-    size_t l_data;
+    zend_string *data;
     char *name;
     size_t l_name;
     char *type = nullptr;
@@ -2546,7 +2546,7 @@ static PHP_METHOD(swoole_http_client_coro, addData) {
     size_t l_filename = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
-    Z_PARAM_STRING(data, l_data)
+    Z_PARAM_STR(data)
     Z_PARAM_STRING(name, l_name)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING(type, l_type)
@@ -2570,11 +2570,11 @@ static PHP_METHOD(swoole_http_client_coro, addData) {
     SEPARATE_ARRAY(zupload_files);
     zval zupload_file;
     array_init(&zupload_file);
-    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("content"), data, l_data);
+    add_assoc_str_ex(&zupload_file, ZEND_STRL("content"), zend_string_copy(data));
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("name"), name, l_name);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("filename"), filename, l_filename);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(&zupload_file, "size", l_data);
+    add_assoc_long(&zupload_file, "size", ZSTR_LEN(data));
 
     RETURN_BOOL(add_next_index_zval(zupload_files, &zupload_file) == SUCCESS);
 }

@@ -302,7 +302,12 @@ registration order, and finally the closing boundary. Field and file data are
 combined into one HTTP request during sending; the whole multipart body does
 not have to be concatenated into one PHP string.
 
-Disk file parts use the socket's `sendfile()` path. In-memory parts use the
-supplied PHP string and a write buffer. For a large local file uploaded as
-multipart, `addFile()` avoids first loading the entire file into a PHP string;
-`addData()` does not provide that memory saving.
+Disk file parts use the socket's `sendfile()` path. `addData()` retains the
+supplied PHP string and sends the part header, content and separator with
+vectored writes, without copying the complete content into another buffer.
+The original string stays alive during blocked writes and uses PHP's normal
+copy-on-write behavior if the caller changes its variable.
+
+For a large local file uploaded as multipart, `addFile()` avoids first loading
+the entire file into a PHP string. `addData()` still requires the content to
+exist as a string, even though it no longer creates additional full-size copies.
