@@ -105,20 +105,31 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
 
     int state = Redis::STATE_RECEIVE_TOTAL_LINE;
     int add_param = 0;
-    const char *command = nullptr;
+    const char *command = "";
     int command_len = 0;
 
-    do {
+    while (p < pe) {
+        const char *q;
         switch (state) {
         case Redis::STATE_RECEIVE_TOTAL_LINE:
-            if (*p == '*' && (p = Redis::get_number(p, pe, &ret))) {
+            if (*p == '*') {
+                if ((q = Redis::get_number(p, pe, &ret)) == nullptr) {
+                    serv->close(fd, false);
+                    return SW_OK;
+                }
+                p = q;
                 state = Redis::STATE_RECEIVE_LENGTH;
                 break;
             }
             /* no break */
 
         case Redis::STATE_RECEIVE_LENGTH:
-            if (*p == '$' && (p = Redis::get_number(p, pe, &ret))) {
+            if (*p == '$') {
+                if ((q = Redis::get_number(p, pe, &ret)) == nullptr || ret < -1) {
+                    serv->close(fd, false);
+                    return SW_OK;
+                }
+                p = q;
                 if (ret == -1) {
                     add_next_index_null(&zparams);
                     break;
@@ -128,13 +139,23 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
                 break;
             }
             // integer
-            else if (*p == ':' && (p = Redis::get_number(p, pe, &ret))) {
+            else if (*p == ':') {
+                if ((q = Redis::get_number(p, pe, &ret)) == nullptr) {
+                    serv->close(fd, false);
+                    return SW_OK;
+                }
+                p = q;
                 add_next_index_long(&zparams, ret);
                 break;
             }
             /* no break */
 
         case Redis::STATE_RECEIVE_STRING:
+            // The announced length must fit in the packet, including the trailing CRLF.
+            if (pe - p < (ptrdiff_t) length + SW_CRLF_LEN) {
+                serv->close(fd, false);
+                return SW_OK;
+            }
             if (add_param == 0) {
                 command = p;
                 command_len = length;
@@ -149,7 +170,7 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
         default:
             break;
         }
-    } while (p < pe);
+    }
 
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE) {
         php_swoole_error(E_WARNING, "command [%.8s...](length=%d) is too long", command, command_len);
