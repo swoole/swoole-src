@@ -81,6 +81,22 @@ static constexpr llhttp_settings_t http_parser_settings =
 };
 // clang-format on
 
+#ifdef SW_HAVE_COMPRESSION
+// Append each enabled coding with a separator, then exclude the final separator and NUL.
+static constexpr char http_client_accept_encoding[] =
+#ifdef SW_HAVE_ZLIB
+    "gzip, deflate, "
+#endif
+#ifdef SW_HAVE_BROTLI
+    "br, "
+#endif
+#ifdef SW_HAVE_ZSTD
+    "zstd, "
+#endif
+    ;
+static constexpr size_t http_client_accept_encoding_length = sizeof(http_client_accept_encoding) - sizeof(", ");
+#endif
+
 static zend_class_entry *swoole_http_client_coro_ce;
 static zend_object_handlers swoole_http_client_coro_handlers;
 
@@ -1461,24 +1477,8 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
     }
 #ifdef SW_HAVE_COMPRESSION
     if (http_compression && !(header_flag & HTTP_HEADER_ACCEPT_ENCODING)) {
-        add_headers(buffer,
-                    ZEND_STRL("Accept-Encoding"),
-#if defined(SW_HAVE_ZLIB) && defined(SW_HAVE_BROTLI)
-                    ZEND_STRL("gzip, deflate, br")
-#else
-#ifdef SW_HAVE_ZLIB
-                    ZEND_STRL("gzip, deflate")
-#else
-#ifdef SW_HAVE_BROTLI
-                    ZEND_STRL("br")
-#else
-#ifdef SW_HAVE_ZSTD
-                    ZEND_STRL("zstd")
-#endif
-#endif
-#endif
-#endif
-        );
+        add_headers(
+            buffer, ZEND_STRL("Accept-Encoding"), http_client_accept_encoding, http_client_accept_encoding_length);
     }
 #endif
 

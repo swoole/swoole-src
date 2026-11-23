@@ -258,6 +258,9 @@ an unsupported coding with `415 Unsupported Media Type`. See
 
 The client's `http_compression` option advertises acceptable response codings
 through `Accept-Encoding`; it does not compress request bodies. The
+automatic value lists all response codings compiled into the extension. A
+caller-supplied `Accept-Encoding` value takes precedence, including when
+automatic compression negotiation is disabled. The
 `body_decompression` option controls response decoding. To send compressed
 JSON, for example:
 

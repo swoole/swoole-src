@@ -14,6 +14,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', 1234);
         $cli->set([
             'timeout' => 30,
+            'http_compression' => false,
             'http_proxy_host' => '127.0.0.1',
             'http_proxy_port' => $pm->getFreePort(),
         ]);
@@ -52,4 +53,3 @@ $pm->run();
 GET http://127.0.0.1:1234/ HTTP/1.1
 Host: 127.0.0.1:1234
 Connection: keep-alive
-Accept-Encoding: gzip, deflate, br
