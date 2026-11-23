@@ -18,6 +18,10 @@ function connect(ProcessManager $pm): Client
     // Small buffers, so /big waits for the client to read
     $cli->set(['socket_buffer_size' => 4096]);
     Assert::true($cli->connect());
+    // Complete the SETTINGS exchange before testing socket capacity. The client advertises large connection
+    // and stream windows, so this test must wait on socket capacity rather than HTTP/2 flow control.
+    send_request($cli, '/health');
+    Assert::same($cli->recv(5)->data, 'OK');
     return $cli;
 }
 
@@ -48,17 +52,17 @@ $pm->parentFunc = function () use ($pm) {
             $response = $cli->recv(5);
             $responses[$response->streamId] = $response;
         }
-        Assert::true($responses[1]->data !== '' && strspn($responses[1]->data, 'A') === strlen($responses[1]->data));
+        Assert::true($responses[3]->data !== '' && strspn($responses[3]->data, 'A') === strlen($responses[3]->data));
         for ($id = 0; $id < 3; $id++) {
-            $response = $responses[3 + $id * 2];
+            $response = $responses[5 + $id * 2];
             Assert::same($response->headers['x-id'], "{$id}");
             Assert::same($response->headers['x-trailer'], "{$id}");
             Assert::same($response->data, "small {$id}");
         }
         // The canceled end() encoded nothing, so the retried headers still decode
-        Assert::same($responses[9]->headers['x-cancel'], 'value');
-        Assert::same($responses[11]->statusCode, 500);
-        Assert::same($responses[11]->headers['server'], 'swoole-http-server');
+        Assert::same($responses[11]->headers['x-cancel'], 'value');
+        Assert::same($responses[13]->statusCode, 500);
+        Assert::same($responses[13]->headers['server'], 'swoole-http-server');
         $cli->close();
 
         // The peer goes away while one response writes and two wait
@@ -95,6 +99,9 @@ $pm->childFunc = function () use ($pm) {
                 $case = $request->get['case'] ?? null;
                 // Deferred callbacks run once the handler's end() has started waiting for /big
                 switch ($path) {
+                    case '/health':
+                        $response->end('OK');
+                        return;
                     case '/big':
                         $bigCid = Coroutine::getCid();
                         // Write until a write has to wait for the client: the callback runs once this coroutine yields

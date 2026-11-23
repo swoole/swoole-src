@@ -137,6 +137,7 @@ SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
+static PHP_METHOD(swoole_http_response, sendStaticFile);
 static PHP_METHOD(swoole_http_response, redirect);
 static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
@@ -189,6 +190,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, recv,       arginfo_class_Swoole_Http_Response_recv,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, close,      arginfo_class_Swoole_Http_Response_close,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, disconnect, arginfo_class_Swoole_Http_Response_disconnect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, sendStaticFile, arginfo_class_Swoole_Http_Response_sendStaticFile, ZEND_ACC_PRIVATE)
     PHP_FE_END
 };
 // clang-format on
@@ -997,6 +999,19 @@ bool HttpContext::set_header(const char *k, size_t klen, zval *zvalue, bool form
     return true;
 }
 
+static PHP_METHOD(swoole_http_response, sendStaticFile) {
+    zval *request;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_OBJECT_OF_CLASS(request, swoole_http_request_ce)
+    ZEND_PARSE_PARAMETERS_END();
+    auto *ctx = http_response_get_and_check_context(ZEND_THIS);
+#ifndef _WIN32
+    if (ctx && ctx->http2 && !ctx->is_co_socket()) {
+        swoole_http2_server_send_static_file(ctx);
+    }
+#endif
+}
+
 static PHP_METHOD(swoole_http_response, sendfile) {
     HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
@@ -1533,7 +1548,8 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
             }
             if (frame.header.FIN) {
                 if (frame.compressed()) {
-                    if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length, max_frame_size))) {
+                    if (sw_unlikely(
+                            !FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length, max_frame_size))) {
                         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
                         RETURN_NULL();
                     }

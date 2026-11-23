@@ -56,7 +56,7 @@ function http2_test_request_headers(int $streamId, string $path): string
     return http2_test_frame(1, 5, $streamId, $headers);
 }
 
-function http2_test_open_request(int $port, string $path, int $windowSize = 1)
+function http2_test_open_request(int $port, string $path, int $windowSize = 1, int $connectionWindow = 65535)
 {
     $client = stream_socket_client("tcp://127.0.0.1:{$port}", $errno, $errstr, 2);
     if ($client === false) {
@@ -65,8 +65,9 @@ function http2_test_open_request(int $port, string $path, int $windowSize = 1)
     stream_set_timeout($client, 2);
 
     $settings = http2_test_frame(4, 0, 0, pack('nN', 4, $windowSize));
+    $connection = $connectionWindow > 65535 ? http2_test_frame(8, 0, 0, pack('N', $connectionWindow - 65535)) : '';
     $request = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-        . $settings
+        . $settings . $connection
         . http2_test_request_headers(1, $path);
     Assert::same(fwrite($client, $request), strlen($request));
     return $client;

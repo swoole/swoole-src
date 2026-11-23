@@ -178,6 +178,8 @@ struct Context {
 
     zval zsocket;
     uint32_t stream_id;
+    // One deadline covers HTTP/2 write-lock, flow-control and socket waits.
+    double http2_write_deadline = 0;
     String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION
@@ -331,9 +333,8 @@ class Stream {
     // uint8_t priority; // useless now
     uint32_t id;
     // flow control
-    uint32_t remote_window_size;
+    int64_t remote_window_size;
     uint32_t local_window_size;
-    Coroutine *waiting_coroutine = nullptr;
     ReceivePhase receive_phase = ReceivePhase::HEADERS;
     uint32_t header_count = 0;
     uint32_t header_error = SW_HTTP2_ERROR_NO_ERROR;
@@ -354,14 +355,13 @@ class Stream {
     bool send_trailer(const std::shared_ptr<Session> &session) const;
 
     bool reset(uint32_t error_code) const;
-    void resume_flow_control_waiter() const;
 
   private:
     bool send_header_block(const String *frame) const;
     bool send_frame(const char *frame, size_t length, bool data_frame) const;
 };
 
-class Session {
+class Session : public std::enable_shared_from_this<Session> {
   public:
     SessionId fd;
     std::unordered_map<uint32_t, std::shared_ptr<Stream>> streams;
@@ -373,7 +373,7 @@ class Session {
     Settings remote_settings = {};
 
     // flow control
-    uint32_t remote_window_size;
+    int64_t remote_window_size;
     uint32_t local_window_size;
 
     uint32_t max_body_size;
@@ -385,6 +385,14 @@ class Session {
     long write_owner = 0;
     long reader_cid = 0;
     std::string queued_frames;
+    bool queued_partial = false;
+    bool terminating = false;
+    bool flow_control_wakeup_scheduled = false;
+    struct FlowControlWaiter {
+        uint32_t stream_id;
+        std::shared_ptr<coroutine::Channel> channel;
+    };
+    std::unordered_map<long, FlowControlWaiter> flow_control_waiters;
 
     http::Context *default_ctx = nullptr;
     void *private_data = nullptr;
@@ -397,6 +405,7 @@ class Session {
     std::shared_ptr<Stream> get_stream(uint32_t stream_id);
     std::shared_ptr<Stream> take_stream(uint32_t stream_id);
     bool remove_stream(uint32_t stream_id);
+    void notify_flow_control_waiters();
 };
 }  // namespace http2
 }  // namespace swoole

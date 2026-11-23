@@ -46,6 +46,112 @@ static bool http2_server_respond(HttpContext *ctx, const String *body);
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler);
 static bool http2_server_send_status_code(HttpContext *ctx, int status_code);
 
+static double http2_server_now() {
+    return swoole::time<std::chrono::microseconds>(true) / 1000000.0;
+}
+
+static double http2_server_send_timeout(HttpContext *ctx) {
+    double timeout;
+    if (ctx->is_co_socket()) {
+        timeout = ctx->get_co_socket()->get_timeout(SW_TIMEOUT_WRITE);
+    } else {
+#ifndef _WIN32
+        timeout = ctx->get_async_server()->send_timeout;
+#else
+        timeout = 0;
+#endif
+    }
+    // A stalled peer must not retain a connection indefinitely, even with an unlimited socket timeout.
+    return timeout > 0 ? timeout : SW_SOCKET_DEFAULT_WRITE_TIMEOUT;
+}
+
+class Http2WriteDeadline {
+    HttpContext *ctx_;
+    double previous_;
+
+  public:
+    explicit Http2WriteDeadline(HttpContext *ctx) : ctx_(ctx), previous_(ctx->http2_write_deadline) {
+        if (previous_ == 0) {
+            ctx->http2_write_deadline = http2_server_now() + http2_server_send_timeout(ctx);
+        }
+    }
+    ~Http2WriteDeadline() {
+        ctx_->http2_write_deadline = previous_;
+    }
+};
+
+// Connection errors and local timeouts share a bounded, best-effort GOAWAY path. Never insert GOAWAY into a
+// partially transmitted frame. The response object (or the reader) pins the coroutine socket during cleanup.
+static void http2_server_abort(const std::shared_ptr<Http2Session> &session, uint32_t error, const char *reason) {
+    if (session->terminating || !session->default_ctx) {
+        return;
+    }
+    session->terminating = true;
+    HttpContext *ctx = session->default_ctx;
+    char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + 64];
+    size_t reason_length = std::min(strlen(reason), size_t(64));
+    Http2::set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + reason_length, 0, 0);
+    uint32_t last_stream = htonl(session->last_stream_id);
+    uint32_t code = htonl(error);
+    memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, &last_stream, sizeof(last_stream));
+    memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + 4, &code, sizeof(code));
+    memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + 8, reason, reason_length);
+    if (ctx->is_co_socket()) {
+        auto *socket = ctx->get_co_socket();
+        if (session->write_owner == 0 && !session->queued_partial) {
+            session->write_owner = Coroutine::get_current_cid();
+            session->queued_frames.clear();
+            SocketImpl::TimeoutSetter timeout(socket, 0.1, SW_TIMEOUT_WRITE);
+            socket->send_all(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + reason_length);
+        }
+        socket->close();
+    } else {
+#ifndef _WIN32
+        // Bypass HttpContext::send(): its send-yield fallback could wait again while aborting a timed-out send.
+        auto *server = ctx->get_async_server();
+        const auto fd = ctx->fd;
+        if (server->send(fd, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + reason_length) &&
+            server->close(fd)) {
+            // TLS and process-mode output may still be queued after send() succeeds. Give the graceful close a
+            // bounded chance to drain, then abort by session ID so a recycled socket cannot be closed by this timer.
+            if (swoole_timer_after(100, [server, fd](swoole::Timer *, swoole::TimerNode *) {
+                    auto *conn = server->get_connection_by_session_id(fd);
+                    if (conn && conn->active) {
+                        server->close(fd, true);
+                    }
+                }) < 0) {
+                server->close(fd, true);
+            }
+        } else {
+            server->close(fd, true);
+        }
+#endif
+    }
+    session->notify_flow_control_waiters();
+}
+
+static bool http2_server_write_timed_out(const std::shared_ptr<Http2Session> &session) {
+    http2_server_abort(session, SW_HTTP2_ERROR_NO_ERROR, "flow control or write timeout");
+    swoole_set_last_error(SW_ERROR_CO_TIMEDOUT);
+    return false;
+}
+
+static bool http2_server_wait_send_buffer(HttpContext *ctx, const std::shared_ptr<Http2Session> &session) {
+#ifndef _WIN32
+    double remaining = ctx->http2_write_deadline - http2_server_now();
+    if (remaining <= 0) {
+        return http2_server_write_timed_out(session);
+    }
+    if (php_swoole_server_wait_send_buffer(ctx->get_async_server(), ctx->fd, remaining)) {
+        return true;
+    }
+    if (swoole_get_last_error() == SW_ERROR_CO_TIMEDOUT) {
+        return http2_server_write_timed_out(session);
+    }
+#endif
+    return false;
+}
+
 // In the coroutine server each stream's handler runs in its own coroutine. One of them at a time owns the
 // connection's writes, from building a frame (HPACK state, the socket's write buffer) until the frame is sent.
 // The receive loop never waits to write: a client may not read until its upload has been read. It queues its frames
@@ -56,14 +162,22 @@ class Http2WriteLock {
     SocketImpl *socket_ = nullptr;
     bool owned_ = false;
     bool queued_ = false;
+    double deadline_ = 0;
     String buffer_;
 
     void close() {
+        session_->terminating = true;
         session_->queued_frames.clear();
         socket_->close();
+        session_->notify_flow_control_waiters();
     }
 
     bool send(const char *data, size_t length) {
+        double remaining = deadline_ - http2_server_now();
+        if (remaining <= 0) {
+            return http2_server_write_timed_out(session_);
+        }
+        SocketImpl::TimeoutSetter timeout(socket_, remaining, SW_TIMEOUT_WRITE);
         if (socket_->send_all(data, length) == (ssize_t) length) {
             return true;
         }
@@ -84,10 +198,16 @@ class Http2WriteLock {
     }
 
   public:
-    bool lock(SocketImpl *socket, const std::shared_ptr<Http2Session> &session) {
+    bool lock(SocketImpl *socket, const std::shared_ptr<Http2Session> &session, double deadline = 0) {
         long cid = Coroutine::get_current_cid();
         session_ = session;
         socket_ = socket;
+        double timeout = socket->get_timeout(SW_TIMEOUT_WRITE);
+        deadline_ =
+            deadline > 0 ? deadline : http2_server_now() + (timeout > 0 ? timeout : SW_SOCKET_DEFAULT_WRITE_TIMEOUT);
+        if (session->terminating) {
+            return false;
+        }
         if (session->write_owner == cid) {
             return true;
         }
@@ -95,7 +215,14 @@ class Http2WriteLock {
             queued_ = true;
             return true;
         }
-        if (!session->write_lock->push(nullptr)) {
+        double remaining = deadline_ - http2_server_now();
+        if (remaining <= 0) {
+            return http2_server_write_timed_out(session_);
+        }
+        if (!session->write_lock->push(nullptr, remaining)) {
+            if (session->write_lock->get_error() == swoole::coroutine::Channel::ERROR_TIMEOUT) {
+                return http2_server_write_timed_out(session_);
+            }
             return false;
         }
         session->write_owner = cid;
@@ -116,7 +243,11 @@ class Http2WriteLock {
         }
         std::string frames;
         frames.swap(session_->queued_frames);
-        return send(frames.data(), frames.length());
+        bool sent = send(frames.data(), frames.length());
+        if (sent) {
+            session_->queued_partial = false;
+        }
+        return sent;
     }
 
     bool write(const char *data, size_t length) {
@@ -172,7 +303,8 @@ Http2Session::Session(SessionId _fd) {
     // [init]: we must set default value, peer is not always send all the settings
     init_settings(&remote_settings);
     local_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
-    remote_window_size = remote_settings.init_window_size;
+    remote_settings.init_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
+    remote_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
     last_stream_id = 0;
     shutting_down = false;
     is_coro = false;
@@ -200,15 +332,34 @@ std::shared_ptr<Http2Stream> Http2Session::take_stream(uint32_t stream_id) {
     return stream;
 }
 
-void Http2Stream::resume_flow_control_waiter() const {
-    if (waiting_coroutine) {
-        waiting_coroutine->resume();
+void Http2Session::notify_flow_control_waiters() {
+    if (flow_control_waiters.empty() || flow_control_wakeup_scheduled) {
+        return;
     }
+    flow_control_wakeup_scheduled = true;
+    auto session = shared_from_this();
+    sw_reactor()->defer([session](void *) {
+        session->flow_control_wakeup_scheduled = false;
+        std::vector<std::shared_ptr<swoole::coroutine::Channel>> ready;
+        for (const auto &entry : session->flow_control_waiters) {
+            auto stream = session->get_stream(entry.second.stream_id);
+            if (session->terminating || !stream ||
+                (session->remote_window_size > 0 && stream->remote_window_size > 0)) {
+                ready.push_back(entry.second.channel);
+            }
+        }
+        // Snapshot before resuming PHP: a resumed sender can remove streams or register another wait.
+        for (const auto &channel : ready) {
+            if (channel->is_empty() && !channel->is_closed()) {
+                channel->push_data(channel.get());
+            }
+        }
+    });
 }
 
 bool Http2Session::remove_stream(uint32_t stream_id) {
     if (auto stream = take_stream(stream_id)) {
-        stream->resume_flow_control_waiter();
+        notify_flow_control_waiters();
         return true;
     }
     return false;
@@ -344,6 +495,20 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     if (handler.status_code == SW_HTTP_OK && (!handler.try_serve_index_file() || !handler.open_file())) {
         return false;
     }
+    if (!swoole_coroutine_is_in() && serv->is_enable_coroutine()) {
+        // Static responses bypass the PHP request callback. Give them a PHP coroutine as well, so a depleted
+        // connection window can suspend this response without blocking frame parsing.
+        zend_fcall_info_cache fci{};
+        fci.function_handler = static_cast<zend_function *>(
+            zend_hash_str_find_ptr(&swoole_http_response_ce->function_table, ZEND_STRL("sendstaticfile")));
+        fci.object = Z_OBJ(ctx->response.zobject);
+        fci.called_scope = swoole_http_response_ce;
+        if (swoole::PHPCoroutine::create(&fci, 1, &ctx->request.zobject, nullptr) < 0) {
+            ctx->end_ = true;
+            ctx->close(ctx);
+        }
+        return true;
+    }
     ctx->onAfterResponse = nullptr;
     ctx->onBeforeRequest = nullptr;
 #ifdef SW_HAVE_COMPRESSION
@@ -423,6 +588,16 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     }
     // Once a static response is selected, a send failure must not dispatch PHP.
     return true;
+}
+
+void swoole_http2_server_send_static_file(HttpContext *ctx) {
+    Http2WriteDeadline deadline(ctx);
+    auto iter = http2_sessions.find(ctx->fd);
+    if (iter == http2_sessions.end() || !iter->second->get_stream(ctx->stream_id)) {
+        ctx->end_ = true;
+        return;
+    }
+    http2_server_is_static_file(ctx->get_async_server(), ctx);
 }
 
 bool swoole_http2_server_call_request(HttpContext *ctx, zend::Callable *cb, zval *args) {
@@ -688,7 +863,7 @@ bool swoole_http2_server_coro_send(HttpContext *ctx, const char *data, size_t le
         return false;
     }
     Http2WriteLock lock;
-    return lock.lock(ctx->get_co_socket(), iter->second) && lock.write(data, length);
+    return lock.lock(ctx->get_co_socket(), iter->second, ctx->http2_write_deadline) && lock.write(data, length);
 }
 
 void swoole_http2_server_coro_write_queued(SocketImpl *socket) {
@@ -742,8 +917,8 @@ bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, zend_str
 
 bool Http2Stream::send_header_block(const String *frame) const {
 #ifndef _WIN32
-    // The first send may wait before create() has returned the request CID.
-    if (!ctx->is_co_socket() && ctx->get_async_server()->http2_cancel_on_stream_reset) {
+    // Preserve encoded header order and the operation's deadline on every async send-yield path.
+    if (!ctx->is_co_socket()) {
         if (send_frame(frame->str, frame->length, false)) {
             return true;
         }
@@ -763,7 +938,8 @@ bool Http2Stream::send_header_block(const String *frame) const {
 
 bool Http2Stream::send_header(const String *body, bool end_stream, const std::shared_ptr<Http2Session> &session) const {
     Http2WriteLock lock;
-    if (ctx->is_co_socket() && (!lock.lock(ctx->get_co_socket(), session) || !lock.flush())) {
+    if (ctx->is_co_socket() &&
+        (!lock.lock(ctx->get_co_socket(), session, ctx->http2_write_deadline) || !lock.flush())) {
         return false;
     }
     String *http_buffer = lock.get_write_buffer(ctx);
@@ -807,7 +983,8 @@ bool Http2Stream::send_header(const String *body, bool end_stream, const std::sh
 
 bool Http2Stream::send_end_stream_data_frame(const std::shared_ptr<Http2Session> &session) const {
     Http2WriteLock lock;
-    if (ctx->is_co_socket() && (!lock.lock(ctx->get_co_socket(), session) || !lock.flush())) {
+    if (ctx->is_co_socket() &&
+        (!lock.lock(ctx->get_co_socket(), session, ctx->http2_write_deadline) || !lock.flush())) {
         return false;
     }
     if (session->get_stream(id).get() != this) {
@@ -853,7 +1030,7 @@ bool Http2Stream::send_frame(const char *frame, size_t length, bool data_frame) 
             }
         };
         SW_LOOP {
-            if (!php_swoole_server_wait_send_buffer(serv, ctx->fd)) {
+            if (!http2_server_wait_send_buffer(ctx, session)) {
                 break;
             }
             if (data_frame && session->get_stream(id).get() != this) {
@@ -871,6 +1048,45 @@ bool Http2Stream::send_frame(const char *frame, size_t length, bool data_frame) 
     }
 #endif
     return ctx->send(ctx, frame, length);
+}
+
+static bool http2_server_wait_for_window(const std::shared_ptr<Http2Session> &session,
+                                         const std::shared_ptr<Http2Stream> &stream) {
+    if (!stream) {
+        return false;
+    }
+    auto *ctx = stream->ctx;
+    while (true) {
+        if (session->terminating || !http2_server_check_stream(session, stream.get())) {
+            return false;
+        }
+        if (session->remote_window_size > 0 && stream->remote_window_size > 0) {
+            return true;
+        }
+        if (!swoole_coroutine_is_in()) {
+            swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
+            return false;
+        }
+        const long cid = Coroutine::get_current_cid();
+        auto channel = std::make_shared<swoole::coroutine::Channel>(1);
+        session->flow_control_waiters.emplace(cid, Http2Session::FlowControlWaiter{stream->id, channel});
+        ON_SCOPE_EXIT {
+            session->flow_control_waiters.erase(cid);
+        };
+        // Registration and the predicate check do not yield. Notifications are retained by the channel, and
+        // cancellation (including a throwing cancellation) removes the registration on every exit path.
+        double remaining = ctx->http2_write_deadline - http2_server_now();
+        if (remaining <= 0) {
+            return http2_server_write_timed_out(session);
+        }
+        if (!channel->pop(remaining)) {
+            if (channel->get_error() == swoole::coroutine::Channel::ERROR_TIMEOUT) {
+                return http2_server_write_timed_out(session);
+            }
+            swoole_set_last_error(SW_ERROR_CO_CANCELED);
+            return false;
+        }
+    }
 }
 
 bool Http2Stream::send_body(
@@ -898,47 +1114,41 @@ bool Http2Stream::send_body(
 #endif
 
     while (l > 0) {
-        Http2WriteLock lock;
-        if (ctx->is_co_socket() &&
-            (!lock.lock(ctx->get_co_socket(), session) || !lock.flush() || !http2_server_check_stream(session, this))) {
+        if (!http2_server_wait_for_window(session, session->get_stream(id))) {
             return false;
         }
-        // The peer may update its frame limit while a flow-control wait yields.
-        auto max_frame_size = std::min(session->remote_settings.max_frame_size, max_payload);
-        size_t send_n;
-        int _send_flags;
-        if (l > max_frame_size) {
-            send_n = max_frame_size;
-            _send_flags = 0;
-        } else {
-            send_n = l;
-            _send_flags = flags;
+        Http2WriteLock lock;
+        if (co_socket && (!lock.lock(ctx->get_co_socket(), session, ctx->http2_write_deadline) || !lock.flush() ||
+                          !http2_server_check_stream(session, this))) {
+            return false;
         }
-
-        if (send_n > remote_window_size) {
-            // The coroutine server receives HTTP2 frames serially and cannot be suspended,
-            // therefore it does not support flow control
-            // TODO: The coroutine http server also needs to support HTTP2 flow control
-            if (co_socket || !swoole_coroutine_is_in()) {
-                swoole_warning("The data sent exceeded remote_window_size");
-            } else {
-                if (remote_window_size == 0) {
-                    if (!http2_server_check_stream(session, this)) {
-                        return false;
-                    }
-                    waiting_coroutine = Coroutine::get_current();
-                    waiting_coroutine->yield();
-                    waiting_coroutine = nullptr;
-                    if (!http2_server_check_stream(session, this)) {
-                        return false;
-                    }
-                    continue;
+        // Waiting for the lock or flushing queued frames can consume the available connection credit.
+        if (session->remote_window_size <= 0 || remote_window_size <= 0) {
+            continue;
+        }
+        auto max_frame_size = std::min(session->remote_settings.max_frame_size, max_payload);
+        size_t send_n =
+            std::min({l, size_t(max_frame_size), size_t(session->remote_window_size), size_t(remote_window_size)});
+        int _send_flags = send_n == l ? flags : SW_HTTP2_FLAG_NONE;
+        // Reserve both windows before socket I/O can yield. SETTINGS may reduce a stream window while the frame
+        // is in flight; signed accounting preserves that debt rather than wrapping to a large allowance.
+        remote_window_size -= send_n;
+        session->remote_window_size -= send_n;
+        bool frame_sent = false;
+        ON_SCOPE_EXIT {
+            // Async sends enqueue complete frames atomically. A reset/cancellation before acceptance must return
+            // the reserved connection credit; otherwise unrelated streams eventually stall on a phantom debt.
+            if (!co_socket && !frame_sent) {
+                remote_window_size += send_n;
+                session->remote_window_size += send_n;
+                if (remote_window_size > INT32_MAX || session->remote_window_size > INT32_MAX) {
+                    http2_server_abort(
+                        session, SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "window overflow after canceled send");
                 } else {
-                    send_n = remote_window_size;
-                    _send_flags = 0;
+                    session->notify_flow_control_waiters();
                 }
             }
-        }
+        };
 
         http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flags, id);
 
@@ -961,14 +1171,12 @@ bool Http2Stream::send_body(
             }
         }
 
+        frame_sent = true;
         swoole_trace_log(
             SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, flags=%d, send_n=%lu", "DATA", id, flags, send_n);
 
         l -= send_n;
         p += send_n;
-
-        remote_window_size -= send_n;
-        session->remote_window_size -= send_n;
     }
 
     return true;
@@ -976,7 +1184,8 @@ bool Http2Stream::send_body(
 
 bool Http2Stream::send_trailer(const std::shared_ptr<Http2Session> &session) const {
     Http2WriteLock lock;
-    if (ctx->is_co_socket() && (!lock.lock(ctx->get_co_socket(), session) || !lock.flush())) {
+    if (ctx->is_co_socket() &&
+        (!lock.lock(ctx->get_co_socket(), session, ctx->http2_write_deadline) || !lock.flush())) {
         return false;
     }
     String *http_buffer = lock.get_write_buffer(ctx);
@@ -996,6 +1205,7 @@ bool Http2Stream::send_trailer(const std::shared_ptr<Http2Session> &session) con
 }
 
 bool swoole_http2_server_end(HttpContext *ctx, zend_string *sdata) {
+    Http2WriteDeadline deadline(ctx);
     String http_body = {};
     if (sdata) {
         http_body.length = ZSTR_LEN(sdata);
@@ -1008,6 +1218,7 @@ bool swoole_http2_server_end(HttpContext *ctx, zend_string *sdata) {
 }
 
 bool swoole_http2_server_write(HttpContext *ctx, zend_string *sdata) {
+    Http2WriteDeadline deadline(ctx);
     String chunk = {};
     chunk.length = ZSTR_LEN(sdata);
     chunk.str = ZSTR_VAL(sdata);
@@ -1107,6 +1318,7 @@ static bool http2_server_send_status_code(HttpContext *ctx, int status_code) {
 }
 
 static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handler) {
+    Http2WriteDeadline deadline(ctx);
     auto client = http2_sessions[ctx->fd];
     auto stream = client->get_stream(ctx->stream_id);
 
@@ -1144,7 +1356,8 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
         }
 
         const auto read_range = [&file, &body](off_t offset, size_t length) -> bool {
-            body = std::make_shared<String>(length, sw_zend_string_allocator());
+            // This callback can run on an AIO thread, which must not allocate from Zend's request heap.
+            body = std::make_shared<String>(length);
             while (body->length < length) {
                 const auto n = file->pread(body->str + body->length, length - body->length, offset + body->length);
                 if (n < 0 && errno == EINTR) {
@@ -1185,16 +1398,16 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
                 }
             }
         } else if (tasks[0].length > 0) {
-            auto callback = [&]() -> bool { return read_range(tasks[0].offset, tasks[0].length); };
+            bool read_ok = false;
+            auto callback = [&]() { read_ok = read_range(tasks[0].offset, tasks[0].length); };
             if (swoole_coroutine_is_in()) {
                 if (!swoole::coroutine::async(callback)) {
                     error = true;
                 }
             } else {
-                if (!callback()) {
-                    error = true;
-                }
+                callback();
             }
+            error = error || !read_ok;
             if (!error && !stream->send_body(body.get(), end_stream, client)) {
                 error = true;
             }
@@ -1217,6 +1430,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 }
 
 bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
+    Http2WriteDeadline deadline(ctx);
     auto client = http2_sessions[ctx->fd];
     auto stream = client->get_stream(ctx->stream_id);
 
@@ -1638,7 +1852,24 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-                client->remote_window_size = client->remote_settings.init_window_size = value;
+                if (value > INT32_MAX) {
+                    http2_server_abort(client, SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "invalid initial window");
+                    return SW_ERR;
+                }
+                {
+                    int64_t delta = int64_t(value) - client->remote_settings.init_window_size;
+                    for (const auto &entry : client->streams) {
+                        if (entry.second->remote_window_size + delta > INT32_MAX) {
+                            http2_server_abort(client, SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "stream window overflow");
+                            return SW_ERR;
+                        }
+                    }
+                    for (const auto &entry : client->streams) {
+                        entry.second->remote_window_size += delta;
+                    }
+                    client->remote_settings.init_window_size = value;
+                    client->notify_flow_control_waiters();
+                }
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: init_window_size=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
@@ -1769,15 +2000,20 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             return SW_ERR;
         }
 
-        // Discarded DATA still counts against the connection window (RFC 9113 §6.9).
+        // Count the complete DATA payload, including padding, even when this stream has already been reset.
+        if (length > client->local_window_size) {
+            http2_server_abort(client, SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "connection receive window exceeded");
+            return SW_ERR;
+        }
         client->local_window_size -= length;
-        if (client->local_window_size < (client->local_settings.init_window_size / 4)) {
-            if (!http2_server_send_window_update(
-                    client->default_ctx, 0, client->local_settings.init_window_size - client->local_window_size) &&
-                http2_server_send_blocked()) {
+        const uint32_t connection_target =
+            std::max(client->local_settings.init_window_size, uint32_t(SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE));
+        if (client->local_window_size <= connection_target / 2) {
+            uint32_t increment = connection_target - client->local_window_size;
+            if (!http2_server_send_window_update(client->default_ctx, 0, increment)) {
                 return SW_ERR;
             }
-            client->local_window_size = client->local_settings.init_window_size;
+            client->local_window_size += increment;
         }
 
         // RFC 9113 §5.1: the client may have sent DATA before it received our RST_STREAM.
@@ -1793,35 +2029,40 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
         }
 
         HttpContext *ctx = stream->ctx;
-
-        if (length > 0) {
+        if (length > stream->local_window_size) {
+            if (!http2_server_reject_request(client, stream, SW_HTTP2_ERROR_FLOW_CONTROL_ERROR)) {
+                return SW_ERR;
+            }
+            break;
+        }
+        stream->local_window_size -= length;
+        const char *data = buf;
+        ssize_t data_length = length;
+        if (flags & SW_HTTP2_FLAG_PADDED) {
+            if (data_length == 0 || uint8_t(*data) >= data_length) {
+                http2_server_abort(client, SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid DATA padding");
+                return SW_ERR;
+            }
+            data_length -= 1 + uint8_t(*data++);
+        }
+        if (data_length > 0) {
             auto buffer = ctx->get_http2_data_buffer();
-
-            // RFC 9113 §8.1: a complete response, then RST_STREAM(NO_ERROR) to stop the upload. A 413 that isn't sent
-            // leaves the connection's HPACK state out of sync.
-            if (buffer->length + length > client->max_body_size) {
-                if (!http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE)) {
-                    return SW_ERR;
-                }
-                if (!http2_server_reject_request(client, stream, SW_HTTP2_ERROR_NO_ERROR)) {
+            if (buffer->length + data_length > client->max_body_size) {
+                if (!http2_server_send_status_code(ctx, SW_HTTP_REQUEST_ENTITY_TOO_LARGE) ||
+                    !http2_server_reject_request(client, stream, SW_HTTP2_ERROR_NO_ERROR)) {
                     return SW_ERR;
                 }
                 break;
             }
-
-            buffer->append(buf, length);
-
-            // flow control
-            stream->local_window_size -= length;
-
-            if (stream->local_window_size < (client->local_settings.init_window_size / 4)) {
-                if (!http2_server_send_window_update(
-                        ctx, stream_id, client->local_settings.init_window_size - stream->local_window_size) &&
-                    http2_server_send_blocked()) {
-                    return SW_ERR;
-                }
-                stream->local_window_size = client->local_settings.init_window_size;
+            buffer->append(data, data_length);
+        }
+        if (client->local_settings.init_window_size > 0 &&
+            stream->local_window_size <= client->local_settings.init_window_size / 2) {
+            uint32_t increment = client->local_settings.init_window_size - stream->local_window_size;
+            if (!http2_server_send_window_update(ctx, stream_id, increment)) {
+                return SW_ERR;
             }
+            stream->local_window_size += increment;
         }
 
         if (flags & SW_HTTP2_FLAG_END_STREAM) {
@@ -1849,20 +2090,38 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
     }
     case SW_HTTP2_TYPE_WINDOW_UPDATE: {
         if (length != SW_HTTP2_WINDOW_UPDATE_SIZE) {
+            http2_server_abort(client, SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid WINDOW_UPDATE length");
             return SW_ERR;
         }
-        value = ntohl(*(uint32_t *) buf);
+        value = ntohl(*(uint32_t *) buf) & 0x7fffffff;
         if (stream_id == 0) {
+            if (value == 0 || client->remote_window_size + value > INT32_MAX) {
+                http2_server_abort(client,
+                                   value == 0 ? SW_HTTP2_ERROR_PROTOCOL_ERROR : SW_HTTP2_ERROR_FLOW_CONTROL_ERROR,
+                                   "invalid connection WINDOW_UPDATE");
+                return SW_ERR;
+            }
             client->remote_window_size += value;
         } else {
+            if (!(stream_id & 1) || stream_id > client->last_stream_id) {
+                http2_server_abort(client, SW_HTTP2_ERROR_PROTOCOL_ERROR, "WINDOW_UPDATE on idle stream");
+                return SW_ERR;
+            }
             auto stream = client->get_stream(stream_id);
             if (stream) {
-                stream->remote_window_size += value;
-                if (!client->is_coro && stream->waiting_coroutine) {
-                    stream->waiting_coroutine->resume();
+                if (value == 0 || stream->remote_window_size + value > INT32_MAX) {
+                    if (!http2_server_reject_request(
+                            client,
+                            stream,
+                            value == 0 ? SW_HTTP2_ERROR_PROTOCOL_ERROR : SW_HTTP2_ERROR_FLOW_CONTROL_ERROR)) {
+                        return SW_ERR;
+                    }
+                    break;
                 }
+                stream->remote_window_size += value;
             }
         }
+        client->notify_flow_control_waiters();
         swoole_http2_frame_trace_log("window_size_increment=%d", value);
         break;
     }
@@ -1888,7 +2147,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                     php_swoole_coroutine_throw_exception(stream->request_cid, true, nullptr, reason.ptr(), wake);
                 }
             }
-            stream->resume_flow_control_waiter();
+            client->notify_flow_control_waiters();
         }
         break;
     }

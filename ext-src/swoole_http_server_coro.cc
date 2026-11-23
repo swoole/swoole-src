@@ -62,7 +62,7 @@ class HttpServer {
     bool running;
     zval zclients;
     zval registration;
-    // onFlush(), started when the receive loop queues HTTP/2 frames that nothing else will send
+    // flushHttp2Queue(), started when the receive loop queues HTTP/2 frames that nothing else will send
     zend_fcall_info_cache write_fci_cache;
 
     /* options */
@@ -214,7 +214,9 @@ class HttpServer {
         }
 
         // Streams still waiting to write fail instead of writing to a finished connection
+        session->terminating = true;
         session->write_lock->close();
+        session->notify_flow_control_waiters();
         swoole_http2_server_session_free(ctx->fd);
 
         ctx->detached = 1;
@@ -239,7 +241,7 @@ static PHP_METHOD(swoole_http_server_coro, handle);
 static PHP_METHOD(swoole_http_server_coro, start);
 static PHP_METHOD(swoole_http_server_coro, shutdown);
 static PHP_METHOD(swoole_http_server_coro, onAccept);
-static PHP_METHOD(swoole_http_server_coro, onFlush);
+static PHP_METHOD(swoole_http_server_coro, flushHttp2Queue);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -249,7 +251,7 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
     PHP_ME(swoole_http_server_coro, set,         arginfo_class_Swoole_Coroutine_Http_Server_set,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, handle,      arginfo_class_Swoole_Coroutine_Http_Server_handle,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, onAccept,    arginfo_class_Swoole_Coroutine_Http_Server_onAccept,    ZEND_ACC_PRIVATE)
-    PHP_ME(swoole_http_server_coro, onFlush,     arginfo_class_Swoole_Coroutine_Http_Server_onFlush,     ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_http_server_coro, flushHttp2Queue,     arginfo_class_Swoole_Coroutine_Http_Server_flushHttp2Queue,     ZEND_ACC_PRIVATE)
     PHP_ME(swoole_http_server_coro, start,       arginfo_class_Swoole_Coroutine_Http_Server_start,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, shutdown,    arginfo_class_Swoole_Coroutine_Http_Server_shutdown,    ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -471,7 +473,7 @@ static PHP_METHOD(swoole_http_server_coro, start) try {
     zval_ptr_dtor(&zcallback);
     efree(func_name);
 
-    ZVAL_STRING(&zcallback, "onFlush");
+    ZVAL_STRING(&zcallback, "flushHttp2Queue");
     if (!sw_zend_is_callable_at_frame(
             &zcallback, ZEND_THIS, execute_data, 0, &func_name, nullptr, &hs->write_fci_cache, nullptr)) {
         zval_ptr_dtor(&zcallback);
@@ -484,12 +486,12 @@ static PHP_METHOD(swoole_http_server_coro, start) try {
     /* check settings */
     zval *zsettings =
         sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
-    if (!php_swoole_socket_set_protocol(hs->socket, zsettings)) {
+    if (!php_swoole_socket_set(hs->socket, zsettings)) {
         zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
         zend_update_property_string(
             swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), swoole_strerror(EINVAL));
         hs->running = false;
-        php_swoole_throw_setting_exception("failed to apply HTTP server protocol settings");
+        php_swoole_throw_setting_exception("failed to apply HTTP server socket settings");
         RETURN_THROWS();
     }
     HashTable *vht = Z_ARRVAL_P(zsettings);
@@ -652,10 +654,12 @@ static bool http2_server_send_queued(Http2Session *session) {
         ssize_t n = sock->send_once(queued.data(), queued.length());
         if (n == (ssize_t) queued.length()) {
             queued.clear();
+            session->queued_partial = false;
             return true;
         }
         if (n > 0) {
             queued.erase(0, n);
+            session->queued_partial = true;
         } else if (n == 0 || sock->get_socket()->catch_write_error(sw_errno()) != SW_WAIT) {
             queued.clear();
             sock->close();
@@ -673,7 +677,7 @@ static bool http2_server_send_queued(Http2Session *session) {
     return false;
 }
 
-static PHP_METHOD(swoole_http_server_coro, onFlush) {
+static PHP_METHOD(swoole_http_server_coro, flushHttp2Queue) {
     zval *zconn;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)

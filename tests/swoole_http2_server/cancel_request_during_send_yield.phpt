@@ -14,7 +14,7 @@ $pm = new ProcessManager;
 $pm->setWaitTimeout(5);
 $pm->parentFunc = function () use ($pm) {
     // Do not read until the server has suspended on send_yield and processed the reset.
-    $client = http2_test_open_request($pm->getFreePort(), '/', 0x7fffffff);
+    $client = http2_test_open_request($pm->getFreePort(), '/', 0x7fffffff, 0x7fffffff);
     try {
         $pm->wait();
         fwrite($client, http2_test_frame(3, 0, 1, pack('N', 8)));

@@ -8,6 +8,6 @@ namespace Swoole\Coroutine\Http {
 		public function start(): bool {}
 		public function shutdown(): void {}
 		private function onAccept(\Swoole\Coroutine\Socket $conn): void {}
-		private function onFlush(\Swoole\Coroutine\Socket $conn): void {}
+		private function flushHttp2Queue(\Swoole\Coroutine\Socket $conn): void {}
 	}
 }
