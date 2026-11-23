@@ -487,6 +487,10 @@ void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcoo
     add_next_index_stringl(zset_cookie_headers, (char *) at, length);
 }
 
+static sw_inline bool is_informational_response(const llhttp_t *parser) {
+    return sw_unlikely(parser->status_code >= 100 && parser->status_code < 200 && parser->status_code != 101);
+}
+
 static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
     http->tmp_header_field_name = at;
@@ -495,6 +499,9 @@ static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t 
 }
 
 static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+    if (is_informational_response(parser)) {
+        return 0;
+    }
     auto *http = static_cast<Client *>(parser->data);
     length = swoole::http_server::rtrim_ows(at, length);
     zval *zobject = static_cast<zval *>(http->zobject);
@@ -564,6 +571,9 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 }
 
 static int http_parser_on_headers_complete(llhttp_t *parser) {
+    if (is_informational_response(parser)) {
+        return 0;
+    }
     auto *http = static_cast<Client *>(parser->data);
     zend_update_property_long(
         swoole_http_client_coro_ce, Z_OBJ_P(http->zobject), ZEND_STRL("statusCode"), parser->status_code);
@@ -662,6 +672,9 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
 }
 
 static int http_parser_on_message_complete(llhttp_t *parser) {
+    if (is_informational_response(parser)) {
+        return HPE_PAUSED;
+    }
     auto *http = static_cast<Client *>(parser->data);
     zval *zobject = static_cast<zval *>(http->zobject);
     http->completed = true;
@@ -1801,6 +1814,7 @@ bool Client::recv_response(double timeout) {
     size_t total_bytes = 0, parsed_n = 0;
     String *buffer = socket->get_read_buffer();
     bool header_completed = false;
+    bool pending_response = false;
     off_t header_crlf_offset = 0;
 
     // re-init http response parser
@@ -1815,7 +1829,13 @@ bool Client::recv_response(double timeout) {
         if (sw_unlikely(tc.has_timedout(SW_TIMEOUT_READ))) {
             break;
         }
-        retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
+        if (pending_response) {
+            retval = buffer->length;
+            buffer->clear();
+            pending_response = false;
+        } else {
+            retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
+        }
         if (sw_unlikely(retval <= 0)) {
             if (retval == 0) {
                 socket->set_err(ECONNRESET);
@@ -1849,7 +1869,9 @@ bool Client::recv_response(double timeout) {
             } else {
                 if (collect_stats) {
                     ssize_t header_end = swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n"));
-                    add_assoc_long(stats(), "header_size", header_end + 4);
+                    zval *zstats = stats();
+                    zval *previous = zend_hash_str_find(Z_ARRVAL_P(zstats), ZEND_STRL("header_size"));
+                    add_assoc_long(zstats, "header_size", (previous ? zval_get_long(previous) : 0) + header_end + 4);
                 }
                 header_completed = true;
                 header_crlf_offset = 0;
@@ -1858,8 +1880,8 @@ bool Client::recv_response(double timeout) {
             }
         }
 
-        total_bytes += retval;
         parsed_n = swoole_llhttp_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
+        total_bytes += parsed_n;
         swoole_trace_log(SW_TRACE_HTTP_CLIENT,
                          "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
                          parsed_n,
@@ -1873,6 +1895,15 @@ bool Client::recv_response(double timeout) {
         }
 
         if (sw_likely(parser.error == HPE_OK)) {
+            if (is_informational_response(&parser)) {
+                buffer->length = retval;
+                buffer->reduce(parsed_n);
+                pending_response = buffer->length > 0;
+                header_completed = false;
+                header_crlf_offset = 0;
+                swoole_llhttp_parser_init(&parser, HTTP_RESPONSE, this);
+                continue;
+            }
             if (sw_unlikely(event_stream && llhttp_message_needs_eof(&parser)) == 1) {
                 llhttp_finish(&parser);
             }
