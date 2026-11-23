@@ -211,7 +211,8 @@ The client generates `Content-Length` and reads at most 64 KiB at a time,
 sending each block before reading the next. It does not load the entire stream
 or concatenate its contents into a request buffer. Both HTTP and HTTPS use
 this path. Transfer-Encoding, including chunked uploads, is not supported for
-this body mode; a configured `Transfer-Encoding` header is rejected.
+this client; a configured `Transfer-Encoding` header is rejected for every
+request body mode, including strings, arrays and multipart uploads.
 
 Reads use the PHP stream API directly. A normal stream can block, while a
 coroutine file stream can yield. The caller chooses the stream and hook

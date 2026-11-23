@@ -1417,8 +1417,8 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
                 // ignore custom Content-Length value
                 continue;
             }
-            if (stream_body.active() && SW_STRCASEEQ(key, keylen, "Transfer-Encoding")) {
-                zend_value_error("Transfer-Encoding is not supported for request body streams");
+            if (sw_unlikely(SW_STRCASEEQ(key, keylen, "Transfer-Encoding"))) {
+                zend_value_error("Transfer-Encoding is not supported for HTTP request bodies");
                 return false;
             }
 
