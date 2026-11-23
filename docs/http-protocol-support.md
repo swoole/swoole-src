@@ -97,7 +97,9 @@ normalization.
 On `master`, response DATA is limited by both the connection send window and the
 stream send window. A positive allowance can be used for a smaller DATA frame;
 the sender waits only when either window has no available credit. WINDOW_UPDATE
-adds credit, rather than replacing the current window. SETTINGS_INITIAL_WINDOW_SIZE
+adds credit, rather than replacing the current window. It grants receive
+capacity for the opposite direction and has no separate ACK; a sender with no
+credit waits for the peer's grant instead of sending WINDOW_UPDATE for itself. SETTINGS_INITIAL_WINDOW_SIZE
 adjusts existing stream windows by the difference from the previous setting and
 never changes the connection window. A stream window can become negative after
 a settings reduction; the sender preserves that debt until the peer grants

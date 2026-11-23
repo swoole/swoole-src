@@ -1015,6 +1015,14 @@ static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &sessi
 bool Http2Stream::send_frame(const char *frame, size_t length, bool data_frame) const {
 #ifndef _WIN32
     if (!ctx->is_co_socket()) {
+        if (sw_unlikely(ctx->http2_write_deadline > 0 && http2_server_now() >= ctx->http2_write_deadline)) {
+            auto iter = http2_sessions.find(ctx->fd);
+            if (iter != http2_sessions.end()) {
+                return http2_server_write_timed_out(iter->second);
+            }
+            swoole_set_last_error(SW_ERROR_CO_TIMEDOUT);
+            return false;
+        }
         auto *serv = ctx->get_async_server();
         if (serv->send(ctx->fd, frame, length)) {
             return true;
