@@ -932,7 +932,10 @@ bool Http2Stream::send_header_block(const String *frame) const {
         }
         // Encoding has already changed the connection's HPACK state.
         ctx->end_ = 1;
-        ctx->get_async_server()->close(ctx->fd, true);
+        auto session = http2_sessions.find(ctx->fd);
+        if (session != http2_sessions.end() && !session->second->terminating) {
+            ctx->get_async_server()->close(ctx->fd, true);
+        }
         return false;
     }
 #endif
@@ -1410,7 +1413,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
 
     if (!error) {
         client->remove_stream(stream->id);
-    } else if (client->get_stream(stream->id)) {
+    } else if (!client->terminating && client->get_stream(stream->id)) {
         ctx->close(ctx);
     }
 
@@ -1538,7 +1541,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 
     if (!error) {
         client->remove_stream(ctx->stream_id);
-    } else if (client->get_stream(ctx->stream_id)) {
+    } else if (!client->terminating && client->get_stream(ctx->stream_id)) {
         ctx->close(ctx);
     }
 
@@ -1649,7 +1652,7 @@ bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t of
 
     if (!error) {
         client->remove_stream(stream->id);
-    } else if (client->get_stream(stream->id)) {
+    } else if (!client->terminating && client->get_stream(stream->id)) {
         ctx->close(ctx);
     }
 
@@ -2340,7 +2343,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
     zval zdata;
     php_swoole_get_recv_data(serv, &zdata, req);
     int retval = swoole_http2_server_parse(client, Z_STRVAL(zdata));
-    if (retval < 0) {
+    if (retval < 0 && !client->terminating) {
         client->default_ctx->close(client->default_ctx);
     }
 
