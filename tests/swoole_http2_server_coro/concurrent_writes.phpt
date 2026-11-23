@@ -10,13 +10,13 @@ use Swoole\Coroutine;
 use Swoole\Coroutine\Http2\Client;
 use Swoole\Event;
 
-const CHUNK_SIZE = 64 * 1024;
+const CHUNK_SIZE = 1024 * 1024;
 
 function connect(ProcessManager $pm): Client
 {
     $cli = new Client('127.0.0.1', $pm->getFreePort());
     // Small buffers, so /big waits for the client to read
-    $cli->set(['socket_buffer_size' => 4096]);
+    $cli->set(['socket_buffer_size' => 65536]);
     Assert::true($cli->connect());
     // Complete the SETTINGS exchange before testing socket capacity. The client advertises large connection
     // and stream windows, so this test must wait on socket capacity rather than HTTP/2 flow control.
