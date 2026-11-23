@@ -238,6 +238,16 @@ string-plus-multipart rules above are unchanged. `post($path, $stream)` also
 supports a raw stream body, with its remaining length inferred; use `setData()`
 and `execute()` when an explicit length is needed.
 
+## PHP cURL hook file uploads
+
+The PHP cURL hook uses the stream upload path for seekable standard file,
+memory and temporary streams with a configured `CURLOPT_INFILESIZE` that fits
+the remaining source. It sends from the current position in bounded blocks,
+retains the configured length across address failover and restores the original
+position when a redirect requires the body to be sent again. It does not close
+the caller's stream. Unknown-length and non-seekable inputs retain the hook's
+buffered upload path.
+
 ## Compressed request bodies
 
 HTTP request bodies can use a content coding such as gzip. The sender supplies
