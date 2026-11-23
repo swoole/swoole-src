@@ -179,6 +179,7 @@ class Client {
 #ifdef SW_HAVE_COMPRESSION
     enum swHttpCompressMethod compress_method = HTTP_COMPRESS_NONE;
     bool compression_error = false;
+    bool compression_finished = false;
 #endif
 
     /* options */
@@ -246,6 +247,7 @@ class Client {
 #ifdef SW_HAVE_ZLIB
     bool gzip_stream_active = false;
     z_stream gzip_stream = {};
+    std::string deflate_header;
 #endif
 #ifdef SW_HAVE_BROTLI
     BrotliDecoderState *brotli_decoder_state = nullptr;
@@ -620,6 +622,7 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
                 data_len = http->body->length;
             } else {
                 http->compression_error = true;
+                return -1;
             }
         }
 #endif
@@ -642,14 +645,11 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
     else if (http->body_decompression && !http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
         if (!http->decompress_response(at, length)) {
             http->compression_error = true;
-            goto _append_raw;
+            return -1;
         }
     }
 #endif
     else {
-#ifdef SW_HAVE_COMPRESSION
-    _append_raw:
-#endif
         http->body->append(at, length);
     }
     if (http->download_file_name.get() && http->body->length > 0) {
@@ -687,6 +687,14 @@ static int http_parser_on_message_complete(llhttp_t *parser) {
     }
     auto *http = static_cast<Client *>(parser->data);
     zval *zobject = static_cast<zval *>(http->zobject);
+#ifdef SW_HAVE_COMPRESSION
+    if (http->body_decompression && http->compress_method != HTTP_COMPRESS_NONE && http->method != SW_HTTP_HEAD &&
+        parser->status_code != SW_HTTP_NO_CONTENT && parser->status_code != SW_HTTP_NOT_MODIFIED &&
+        !http->compression_finished) {
+        http->compression_error = true;
+        return -1;
+    }
+#endif
     http->completed = true;
     if (parser->upgrade && !http->websocket) {
         // not support, continue.
@@ -729,63 +737,96 @@ bool Client::decompress_response(const char *in, size_t in_len) {
 #ifdef SW_HAVE_ZLIB
     case HTTP_COMPRESS_GZIP:
     case HTTP_COMPRESS_DEFLATE: {
-        int status;
         int encoding = compress_method == HTTP_COMPRESS_GZIP ? SW_ZLIB_ENCODING_GZIP : SW_ZLIB_ENCODING_DEFLATE;
-        bool first_decompress = !gzip_stream_active;
-
+        bool prefix = false;
         if (!gzip_stream_active) {
-        _retry:
+            if (compress_method == HTTP_COMPRESS_DEFLATE) {
+                // Inspect the complete zlib header even when it arrives one byte at a time.
+                size_t take = std::min(2 - deflate_header.size(), in_len);
+                deflate_header.append(in, take);
+                in += take;
+                in_len -= take;
+                if (deflate_header.size() < 2) {
+                    return true;
+                }
+                auto cmf = static_cast<unsigned char>(deflate_header[0]);
+                auto flg = static_cast<unsigned char>(deflate_header[1]);
+                if ((cmf & 0x0f) != Z_DEFLATED || (cmf >> 4) > 7 || ((cmf << 8) | flg) % 31 != 0) {
+                    encoding = SW_ZLIB_ENCODING_RAW;
+                }
+                prefix = true;
+            }
             memset(&gzip_stream, 0, sizeof(gzip_stream));
             gzip_stream.zalloc = php_zlib_alloc;
             gzip_stream.zfree = php_zlib_free;
-            // gzip_stream.total_out = 0;
-            status = inflateInit2(&gzip_stream, encoding);
-            if (status != Z_OK) {
-                swoole_warning("inflateInit2() failed by %s", zError(status));
+            if (inflateInit2(&gzip_stream, encoding) != Z_OK) {
                 return false;
             }
             gzip_stream_active = true;
+        } else if (compression_finished) {
+            if (compress_method != HTTP_COMPRESS_GZIP || inflateReset2(&gzip_stream, SW_ZLIB_ENCODING_GZIP) != Z_OK) {
+                return false;
+            }
+            compression_finished = false;
         }
-
-        gzip_stream.next_in = (Bytef *) in;
-        gzip_stream.avail_in = in_len;
-        gzip_stream.total_in = 0;
-
+        gzip_stream.next_in = (Bytef *) (prefix ? deflate_header.data() : in);
+        gzip_stream.avail_in = prefix ? deflate_header.size() : in_len;
+        bool pending_input = prefix && in_len > 0;
         while (true) {
             const size_t total_out = gzip_stream.total_out;
             gzip_stream.avail_out = body->size - body->length;
             gzip_stream.next_out = (Bytef *) (body->str + body->length);
-            SW_ASSERT(body->length <= body->size);
-            status = inflate(&gzip_stream, Z_SYNC_FLUSH);
-            if (status >= 0) {
-                body->length += (gzip_stream.total_out - total_out);
-                if (body->length + (SW_BUFFER_SIZE_STD / 2) >= body->size) {
-                    body->extend();
+            int status = inflate(&gzip_stream, Z_SYNC_FLUSH);
+            bool output_full = gzip_stream.avail_out == 0;
+            if (status == Z_BUF_ERROR && gzip_stream.avail_in == 0) {
+                if (pending_input) {
+                    gzip_stream.next_in = (Bytef *) in;
+                    gzip_stream.avail_in = in_len;
+                    pending_input = false;
+                    continue;
                 }
-            }
-            if (status == Z_STREAM_END || (status == Z_OK && gzip_stream.avail_in == 0)) {
                 return true;
             }
-            if (status != Z_OK) {
-                break;
+            if (status != Z_OK && status != Z_STREAM_END) {
+                body->length = reserved_body_length;
+                return false;
+            }
+            body->length += gzip_stream.total_out - total_out;
+            if (body->length + (SW_BUFFER_SIZE_STD / 2) >= body->size) {
+                body->extend();
+            }
+            if (gzip_stream.avail_in == 0 && pending_input) {
+                gzip_stream.next_in = (Bytef *) in;
+                gzip_stream.avail_in = in_len;
+                pending_input = false;
+            }
+            if (status == Z_STREAM_END) {
+                compression_finished = true;
+                if (gzip_stream.avail_in == 0) {
+                    return true;
+                }
+                // A gzip representation may contain multiple complete members.
+                Bytef *next_in = gzip_stream.next_in;
+                uInt available_in = gzip_stream.avail_in;
+                if (compress_method != HTTP_COMPRESS_GZIP ||
+                    inflateReset2(&gzip_stream, SW_ZLIB_ENCODING_GZIP) != Z_OK) {
+                    body->length = reserved_body_length;
+                    return false;
+                }
+                gzip_stream.next_in = next_in;
+                gzip_stream.avail_in = available_in;
+                compression_finished = false;
+            } else if (gzip_stream.avail_in == 0 && !output_full) {
+                return true;
             }
         }
-
-        if (status == Z_DATA_ERROR && first_decompress) {
-            first_decompress = false;
-            inflateEnd(&gzip_stream);
-            encoding = SW_ZLIB_ENCODING_RAW;
-            body->length = reserved_body_length;
-            goto _retry;
-        }
-
-        swoole_warning("HttpClient::decompress_response failed by %s", zError(status));
-        body->length = reserved_body_length;
-        return false;
     }
 #endif
 #ifdef SW_HAVE_BROTLI
     case HTTP_COMPRESS_BR: {
+        if (compression_finished) {
+            return false;
+        }
         if (!brotli_decoder_state) {
             brotli_decoder_state = BrotliDecoderCreateInstance(php_brotli_alloc, php_brotli_free, nullptr);
             if (!brotli_decoder_state) {
@@ -808,13 +849,14 @@ bool Client::decompress_response(const char *in, size_t in_len) {
                                                                        (uint8_t **) &next_out,
                                                                        &total_out);
             body->length += reserved_available_out - available_out;
-            if (result == BROTLI_DECODER_RESULT_SUCCESS || result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
+            if (result == BROTLI_DECODER_RESULT_SUCCESS) {
+                compression_finished = available_in == 0;
+                return compression_finished;
+            } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
                 return true;
             } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
                 body->extend();
             } else {
-                swoole_warning("BrotliDecoderDecompressStream() failed, %s",
-                               BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
                 break;
             }
         }
@@ -851,8 +893,9 @@ bool Client::decompress_response(const char *in, size_t in_len) {
             }
 
             zstd_result = ZSTD_decompressStream(zstd_stream, &out_buffer, &in_buffer);
+            compression_finished = zstd_result == 0;
             if (ZSTD_isError(zstd_result)) {
-                swoole_warning("ZSTD_decompressStream() failed, Error: [%s]", ZSTD_getErrorName(zstd_result));
+                body->length = reserved_body_length;
                 return false;
             }
         }
@@ -2092,12 +2135,14 @@ void Client::reset() {
 #ifdef SW_HAVE_COMPRESSION
     compress_method = HTTP_COMPRESS_NONE;
     compression_error = false;
+    compression_finished = false;
 #endif
 #ifdef SW_HAVE_ZLIB
     if (gzip_stream_active) {
         inflateEnd(&gzip_stream);
         gzip_stream_active = false;
     }
+    deflate_header.clear();
 #endif
 #ifdef SW_HAVE_BROTLI
     if (brotli_decoder_state) {
