@@ -15,7 +15,7 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
         try {
             // Constrain the client too: macOS can otherwise buffer the entire connection allowance,
             // making this a window wait rather than the intended canceled output-buffer wait.
-            $peer = new Http2FlowPeer($pm->getFreePort(), CREDIT, false, 4096);
+            $peer = new Http2FlowPeer($pm->getFreePort(), CREDIT, false, 65536);
             $peer->update(0, CREDIT - 65535);
             $peer->request(1, '/blocked');
             Assert::true($pm->wait());
