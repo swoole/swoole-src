@@ -1479,19 +1479,16 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
 
     // ============ multipart/form-data ============
     if ((has_upload_files = (php_swoole_array_length_safe(zupload_files) > 0))) {
-        char header_buf[2048];
+        String header_buf(256);
         char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE + 1];
 
         // ============ content-type ============
         memcpy(boundary_str, SW_HTTP_CLIENT_BOUNDARY_PREKEY, sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
         swoole_random_string(boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
                              sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY));
-        ssize_t n = sw_snprintf(header_buf,
-                                sizeof(header_buf),
-                                "Content-Type: multipart/form-data; boundary=%.*s\r\n",
-                                (int) (sizeof(boundary_str) - 1),
-                                boundary_str);
-        buffer->append(header_buf, n);
+        ssize_t n = header_buf.format(
+            "Content-Type: multipart/form-data; boundary=%.*s\r\n", (int) (sizeof(boundary_str) - 1), boundary_str);
+        buffer->append(header_buf.str, n);
 
         // ============ content-length ============
         size_t content_length = 0;
@@ -1560,14 +1557,9 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
                     continue;
                 }
                 zend::String str_value(zvalue);
-                n = sw_snprintf(header_buf,
-                                sizeof(header_buf),
-                                SW_HTTP_FORM_RAW_DATA_FMT,
-                                (int) (sizeof(boundary_str) - 1),
-                                boundary_str,
-                                keylen,
-                                key);
-                buffer->append(header_buf, n);
+                n = header_buf.format(
+                    SW_HTTP_FORM_RAW_DATA_FMT, (int) (sizeof(boundary_str) - 1), boundary_str, keylen, key);
+                buffer->append(header_buf.str, n);
                 buffer->append(str_value.val(), str_value.len());
                 buffer->append(ZEND_STRL("\r\n"));
             }
@@ -1617,23 +1609,21 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
                 /**
                  * part header
                  */
-                n = sw_snprintf(header_buf,
-                                sizeof(header_buf),
-                                SW_HTTP_FORM_FILE_DATA_FMT,
-                                (int) (sizeof(boundary_str) - 1),
-                                boundary_str,
-                                (int) Z_STRLEN_P(zname),
-                                Z_STRVAL_P(zname),
-                                (int) Z_STRLEN_P(zfilename),
-                                Z_STRVAL_P(zfilename),
-                                (int) Z_STRLEN_P(ztype),
-                                Z_STRVAL_P(ztype));
+                n = header_buf.format(SW_HTTP_FORM_FILE_DATA_FMT,
+                                      (int) (sizeof(boundary_str) - 1),
+                                      boundary_str,
+                                      (int) Z_STRLEN_P(zname),
+                                      Z_STRVAL_P(zname),
+                                      (int) Z_STRLEN_P(zfilename),
+                                      Z_STRVAL_P(zfilename),
+                                      (int) Z_STRLEN_P(ztype),
+                                      Z_STRVAL_P(ztype));
                 /**
                  * from memory
                  */
                 if (zcontent) {
                     buffer->clear();
-                    buffer->append(header_buf, n);
+                    buffer->append(header_buf.str, n);
                     buffer->append(Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
                     buffer->append("\r\n", 2);
 
@@ -1645,7 +1635,7 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
                  * from disk file
                  */
                 else {
-                    if (socket->send_all(header_buf, n) != n) {
+                    if (socket->send_all(header_buf.str, n) != n) {
                         goto _send_fail;
                     }
                     if (!socket->sendfile(Z_STRVAL_P(zpath), Z_LVAL_P(zoffset), Z_LVAL_P(zsize))) {
@@ -1659,8 +1649,8 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
             SW_HASHTABLE_FOREACH_END();
         }
 
-        n = sw_snprintf(header_buf, sizeof(header_buf), "--%.*s--\r\n", (int) (sizeof(boundary_str) - 1), boundary_str);
-        if (socket->send_all(header_buf, n) != n) {
+        n = header_buf.format("--%.*s--\r\n", (int) (sizeof(boundary_str) - 1), boundary_str);
+        if (socket->send_all(header_buf.str, n) != n) {
             goto _send_fail;
         }
         wait_response = true;
