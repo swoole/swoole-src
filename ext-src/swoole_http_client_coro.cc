@@ -1665,12 +1665,13 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
                  * from memory
                  */
                 if (zcontent) {
-                    buffer->clear();
-                    buffer->append(header_buf.str, n);
-                    buffer->append(Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
-                    buffer->append("\r\n", 2);
+                    // Preserve the HTTP header buffer for getHeaderOut() and transfer statistics.
+                    String part_buffer(n + Z_STRLEN_P(zcontent) + 2);
+                    part_buffer.append(header_buf.str, n);
+                    part_buffer.append(Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
+                    part_buffer.append("\r\n", 2);
 
-                    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
+                    if (socket->send_all(part_buffer.str, part_buffer.length) != (ssize_t) part_buffer.length) {
                         goto _send_fail;
                     }
                 }
