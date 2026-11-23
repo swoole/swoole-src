@@ -91,3 +91,36 @@ Response header names are always converted to lowercase, including cookies,
 content codings, trailers and WebSocket handshake headers. The
 `lowercase_header` option has been removed; supplying it cannot disable this
 normalization.
+
+## HTTP/2 response flow control
+
+On `master`, response DATA is limited by both the connection send window and the
+stream send window. A positive allowance can be used for a smaller DATA frame;
+the sender waits only when either window has no available credit. WINDOW_UPDATE
+adds credit, rather than replacing the current window. SETTINGS_INITIAL_WINDOW_SIZE
+adjusts existing stream windows by the difference from the previous setting and
+never changes the connection window. A stream window can become negative after
+a settings reduction; the sender preserves that debt until the peer grants
+enough credit.
+
+Each coroutine HTTP/2 connection has one receive coroutine. Request coroutines
+wait for window credit without holding the connection write lock, so the receiver
+can continue processing WINDOW_UPDATE, PING and stream resets. Headers, trailers,
+control frames and an empty DATA frame carrying END_STREAM can still be sent
+when DATA credit is exhausted. Built-in static responses on an asynchronous
+server also use a coroutine when `enable_coroutine` is enabled. A synchronous
+handler cannot wait for credit; it must not send DATA beyond the peer's windows.
+
+A coroutine HTTP server applies its `write_timeout` setting to accepted sockets.
+One `write()`, `end()` or `sendfile()` operation shares a deadline across waiting
+for the write lock, window credit and socket capacity. The asynchronous server
+uses `send_timeout` for its HTTP/2 sends. A nonpositive timeout uses a finite
+60-second HTTP/2 send deadline. Unrelated PINGs and other streams do not renew a
+blocked operation's deadline.
+
+When the deadline expires, the server terminates the connection and releases its
+waiting senders. It attempts GOAWAY with NO_ERROR and timeout debug information
+when the output is at a complete-frame boundary. This final write is limited to
+100 milliseconds. If another writer owns the socket, a frame has only been
+partially transmitted, or the socket cannot send the final frame, the server
+closes the connection without guaranteeing delivery of GOAWAY.
