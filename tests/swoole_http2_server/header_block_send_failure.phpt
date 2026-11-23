@@ -10,6 +10,37 @@ require __DIR__ . '/../include/api/http2_raw_client.php';
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 
+// Handler completion and onClose can notify in the same event-loop iteration. Atomic::wakeup()
+// retains only one pending notification, so count stages instead of losing one on slower parents.
+class HeaderFailureProcessManager extends ProcessManager
+{
+    private Swoole\Atomic $notifications;
+    private int $consumed = 0;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->notifications = new Swoole\Atomic(0);
+    }
+
+    public function wait()
+    {
+        $deadline = microtime(true) + $this->waitTimeout;
+        while ($this->notifications->get() <= $this->consumed) {
+            Assert::lessThan(microtime(true), $deadline, 'missing handler/close notification');
+            usleep(1000);
+        }
+        ++$this->consumed;
+        return true;
+    }
+
+    public function wakeup()
+    {
+        $this->notifications->add();
+        return true;
+    }
+}
+
 // The server's HPACK table now has entries the client never received, so the connection must end.
 function read_until_closed($client): void
 {
@@ -105,12 +136,13 @@ $cases = [
 
 foreach ($cases as $name => [$parent, $child]) {
     echo "{$name}\n";
-    $pm = new ProcessManager();
+    $pm = new HeaderFailureProcessManager();
     $pm->setWaitTimeout(5);
     $pm->parentFunc = function () use ($pm, $parent) {
         // The client doesn't read until stream 3's send has failed, so stream 1 fills the buffers.
         $client = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}", $errno, $errstr, 2);
         Assert::notEmpty($client);
+        Assert::true(socket_set_option(socket_import_stream($client), SOL_SOCKET, SO_RCVBUF, 4096));
         stream_set_timeout($client, 2);
         $request = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
             . http2_test_frame(SWOOLE_HTTP2_TYPE_SETTINGS, 0, 0, pack('nN', 4, 0x7FFFFFFF))
@@ -132,6 +164,7 @@ foreach ($cases as $name => [$parent, $child]) {
             'http_compression'    => false,
             'send_yield'          => true,
             'buffer_output_size'  => 1024 * 1024,
+            'kernel_socket_send_buffer_size' => 4096,
         ]);
         $server->on('WorkerStart', function () use ($pm) {
             $pm->wakeup();

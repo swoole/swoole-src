@@ -1919,7 +1919,7 @@ void php_swoole_server_check_kernel_nobufs(Server *serv, SessionId session_id) {
     }
 }
 
-bool php_swoole_server_wait_send_buffer(Server *serv, SessionId session_id) {
+bool php_swoole_server_wait_send_buffer(Server *serv, SessionId session_id, double timeout) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(php_swoole_server_zval_ptr(serv)));
     Coroutine *co = Coroutine::get_current_safe();
     auto &senders = server_object->property->send_coroutine_map;
@@ -1933,7 +1933,7 @@ bool php_swoole_server_wait_send_buffer(Server *serv, SessionId session_id) {
     }
     co_list->push_back(co);
     auto sender = std::prev(co_list->end());
-    if (!co->yield_ex(serv->send_timeout)) {
+    if (!co->yield_ex(timeout >= 0 ? timeout : serv->send_timeout)) {
         co_list->erase(sender);
         return false;
     }

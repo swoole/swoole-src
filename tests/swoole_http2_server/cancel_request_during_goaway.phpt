@@ -13,7 +13,7 @@ use Swoole\Event;
 $pm = new ProcessManager;
 $pm->setWaitTimeout(5);
 $pm->parentFunc = function () use ($pm) {
-    $client = http2_test_open_request($pm->getFreePort(), '/', 0x7fffffff);
+    $client = http2_test_open_request($pm->getFreePort(), '/', 0x7fffffff, 0x7fffffff, 65536);
     try {
         $pm->wait();
         fwrite($client, http2_test_request_headers(3, '/'));
@@ -50,18 +50,22 @@ $pm->childFunc = function () use ($pm) {
         'http_compression' => false,
         'send_yield' => true,
         'buffer_output_size' => 1024 * 1024,
+        'socket_buffer_size' => 65536,
+        'kernel_socket_send_buffer_size' => 4096,
     ]);
     $server->on('WorkerStart', fn () => $pm->wakeup());
-    $server->on('Request', function ($request, $response) use ($pm) {
+    $server->on('Request', function ($request, $response) use ($pm, $server) {
         if ($request->streamId === 5) {
             Assert::true($response->end('K'));
             return;
         }
-        Event::defer(fn () => $pm->wakeup());
         try {
             if ($request->streamId === 1) {
+                Event::defer(fn () => $pm->wakeup());
                 $response->write(str_repeat('A', 16 * 1024 * 1024));
             } else {
+                http2_test_fill_send_buffer($server, $request->fd);
+                Event::defer(fn () => $pm->wakeup());
                 $response->goaway(SWOOLE_HTTP2_ERROR_NO_ERROR);
             }
             Assert::true(false, 'expected cancellation');

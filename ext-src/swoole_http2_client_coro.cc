@@ -721,6 +721,11 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {
             stream->flags |= SW_HTTP2_STREAM_PIPELINE_RESPONSE;
         }
+        if (length > local_window_size || length > stream->local_window_size) {
+            close();
+            update_error_properties(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "response DATA exceeded receive window");
+            return SW_CLOSE;
+        }
         if (length > 0) {
             if (!stream->buffer) {
                 stream->buffer = make_string(SW_HTTP2_DATA_BUFFER_SIZE);
@@ -738,17 +743,18 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 stream->buffer->append(buf, length);
             }
 
-            // now we control the connection flow only (not stream)
-            // our window size is unlimited, so we don't worry about subtraction overflow
+            // DATA consumes both receive windows; the frame header is not part of the payload.
             local_window_size -= length;
             stream->local_window_size -= length;
-            if (local_window_size < (local_settings.init_window_size / 4)) {
-                if (!send_window_update(0, local_settings.init_window_size - local_window_size)) {
+            uint32_t connection_target =
+                std::max(local_settings.init_window_size, uint32_t(SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE));
+            if (local_window_size <= connection_target / 2) {
+                if (!send_window_update(0, connection_target - local_window_size)) {
                     return SW_ERROR;
                 }
-                local_window_size = local_settings.init_window_size;
+                local_window_size = connection_target;
             }
-            if (stream->local_window_size < (local_settings.init_window_size / 4)) {
+            if (stream->local_window_size <= (local_settings.init_window_size / 2)) {
                 if (!send_window_update(_stream_id, local_settings.init_window_size - stream->local_window_size)) {
                     return SW_ERROR;
                 }
@@ -932,7 +938,19 @@ bool Client::send_setting() {
                                 local_settings.init_window_size,
                                 local_settings.max_frame_size,
                                 local_settings.max_header_list_size);
-    return send(frame, n);
+    if (!send(frame, n)) {
+        return false;
+    }
+    // SETTINGS changes stream windows only. Advertise a larger connection window explicitly, and account for
+    // that grant locally so later WINDOW_UPDATE increments describe the same credit at both endpoints.
+    if (local_settings.init_window_size > SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE) {
+        uint32_t increment = local_settings.init_window_size - SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
+        if (!send_window_update(0, increment)) {
+            return false;
+        }
+        local_window_size += increment;
+    }
+    return true;
 }
 
 void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);

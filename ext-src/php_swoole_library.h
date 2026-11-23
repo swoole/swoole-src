@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: c7a45f4fe639934d6974fd7c3e669356c788f1f8 */
+/* $Id: f31e4c489dc4af7a1a08563955f89b0114c3e28f */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -9701,6 +9701,7 @@ static const char* swoole_library_source_core_server_helper =
     "        Constant::OPTION_HTTP2_MAX_FRAME_SIZE         => true,\n"
     "        Constant::OPTION_HTTP2_MAX_HEADER_LIST_SIZE   => true,\n"
     "        Constant::OPTION_HTTP2_MAX_HEADERS            => true,\n"
+    "        Constant::OPTION_HTTP2_CANCEL_ON_STREAM_RESET => true,\n"
     "    ];\n"
     "\n"
     "    public const SERVER_OPTIONS = [\n"

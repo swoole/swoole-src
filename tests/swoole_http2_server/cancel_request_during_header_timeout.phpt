@@ -13,7 +13,7 @@ use Swoole\Event;
 $pm = new ProcessManager;
 $pm->setWaitTimeout(6);
 $pm->parentFunc = function () use ($pm) {
-    $client = http2_test_open_request($pm->getFreePort(), '/', 0x7fffffff);
+    $client = http2_test_open_request($pm->getFreePort(), '/', 0x7fffffff, 0x7fffffff);
     try {
         $pm->wait();
         fwrite($client, http2_test_request_headers(3, '/'));
