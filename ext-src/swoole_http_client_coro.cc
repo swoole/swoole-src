@@ -1004,6 +1004,8 @@ bool Client::send_request() {
     request_connection_close = false;
     zval *zvalue = nullptr;
     uint32_t header_flag = 0x0;
+    zend::String raw_body;
+    bool send_success = false;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
 
     if (path.empty()) {
@@ -1472,14 +1474,12 @@ bool Client::send_request() {
                 }
             }
         } else {
-            auto sdata = zval_get_string(zbody);
-            add_content_length(buffer, ZSTR_LEN(sdata));
+            // Keep the original string alive across write waits without copying it into the header buffer.
+            raw_body = zbody;
+            add_content_length(buffer, raw_body.len());
             if (header_too_large(buffer)) {
-                zend_string_release(sdata);
                 return false;
             }
-            buffer->append(ZSTR_VAL(sdata), ZSTR_LEN(sdata));
-            zend_string_release(sdata);
         }
     }
     // ============ no body ============
@@ -1506,7 +1506,14 @@ bool Client::send_request() {
                      (int) buffer->length,
                      buffer->str);
 
-    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
+    if (raw_body.get() && raw_body.len() > 0) {
+        iovec iov[] = {{buffer->str, buffer->length}, {raw_body.val(), raw_body.len()}};
+        network::IOVector request(iov, 2);
+        send_success = socket->writev_all(&request) == (ssize_t) request.length();
+    } else {
+        send_success = socket->send_all(buffer->str, buffer->length) == (ssize_t) buffer->length;
+    }
+    if (!send_success) {
     _send_fail:
         set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_SEND_FAILED);
         close();
