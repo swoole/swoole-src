@@ -666,6 +666,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                 }
                 // llhttp pauses at the exact end of this request, before any pipelined bytes.
                 total_length = buffer->offset;
+            } else if (ctx->parser.error != HPE_PAUSED_H2_UPGRADE &&
+                       (!ctx->completed || (size_t) buffer->offset != total_length)) {
+                // The bytes taken as the header block did not hold the request head, e.g. a leading "\r\n\r\n".
+                ctx->response.status = SW_HTTP_BAD_REQUEST;
+                break;
             }
         }
 
