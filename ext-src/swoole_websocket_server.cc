@@ -348,7 +348,8 @@ bool swoole_websocket_handshake(HttpContext *ctx) {
     }
 
     if (conn) {
-        conn->websocket_status = WebSocket::STATUS_ACTIVE;
+        // It becomes ACTIVE when the 101 response is sent, see HttpContext::end().
+        conn->websocket_status = WebSocket::STATUS_HANDSHAKE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port && !port->websocket_settings.protocol.empty()) {
             zprotocol = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-protocol"));

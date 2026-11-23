@@ -92,7 +92,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return php_swoole_server_onReceive(serv, req);
     }
     // websocket client
-    if (conn->is_websocket_status_at_least(WebSocket::STATUS_HANDSHAKE)) {
+    if (conn->is_websocket_active()) {
         return swoole_websocket_onMessage(serv, req);
     }
 
