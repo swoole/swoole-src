@@ -93,7 +93,7 @@ $pm->childFunc = function () use ($pm) {
             $results = new Coroutine\Channel(6);
             $bigCid = 0;
             $http = new Swoole\Coroutine\Http\Server('127.0.0.1', $pm->getFreePort());
-            $http->set(['open_http2_protocol' => true]);
+            $http->set(['open_http2_protocol' => true, 'socket_buffer_size' => 4096]);
             $http->handle('/', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm, $results, &$bigCid) {
                 $path = $request->server['request_uri'];
                 $case = $request->get['case'] ?? null;
@@ -149,7 +149,7 @@ $pm->childFunc = function () use ($pm) {
                     $results->push("{$case} {$path} " . var_export($ok, true));
                 }
             });
-            $pm->wakeup();
+            Event::defer(fn () => $pm->wakeup());
             $http->start();
         });
     });

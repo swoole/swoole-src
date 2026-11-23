@@ -8,7 +8,6 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Http2\Client;
 use Swoole\Coroutine\Socket;
-use Swoole\Coroutine\System;
 use Swoole\Http2\Request;
 
 const RESPONSE_SIZE = 16 * 1024 * 1024;
@@ -64,7 +63,8 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
                     . http2_frame(8, 0, 0, pack('N', 0x7FFF0000))
                     . $request;
                 Assert::same($socket->sendAll($request), strlen($request));
-                System::sleep(0.3);
+                // Wait for actual backpressure instead of assuming a fixed delay filled the output buffer.
+                Assert::true($pm->wait());
                 Assert::same($socket->sendAll($upload), strlen($upload));
 
                 // The server can't queue the 413 and RST_STREAM, so it closes the connection rather than leave the
@@ -86,12 +86,14 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
             'worker_num'          => 1,
             'open_http2_protocol' => true,
             'socket_buffer_size'  => 64 * 1024,
+            'kernel_socket_send_buffer_size' => 4096,
             'package_max_length'  => 64 * 1024,
             'log_file'            => '/dev/null',
         ]);
         $server->on('WorkerStart', function () use ($pm) {
             $pm->wakeup();
         });
+        $server->on('BufferFull', fn () => $pm->wakeup());
         $server->on('Request', function ($request, $response) {
             $response->end($request->server['request_uri'] === '/pid' ? (string) getmypid() : str_repeat('a', RESPONSE_SIZE));
         });
