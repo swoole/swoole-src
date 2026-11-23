@@ -56,13 +56,28 @@ function http2_test_request_headers(int $streamId, string $path): string
     return http2_test_frame(1, 5, $streamId, $headers);
 }
 
-function http2_test_open_request(int $port, string $path, int $windowSize = 1, int $connectionWindow = 65535)
+// Fill transport queues without spending HTTP/2 credit. The child only yields when Server::send()
+// waits for output space. Cancel that pending send before the caller starts the operation under test.
+function http2_test_fill_send_buffer(Swoole\Http\Server $server, int $fd): void
+{
+    $filler = Swoole\Coroutine::create(function () use ($server, $fd) {
+        $extension = http2_test_frame(15, 0, 0, str_repeat('P', 16384));
+        for ($i = 0; $i < 4096 && $server->send($fd, $extension); ++$i) {
+        }
+    });
+    Assert::true(Swoole\Coroutine::cancel($filler));
+}
+
+function http2_test_open_request(int $port, string $path, int $windowSize = 1, int $connectionWindow = 65535, int $receiveBuffer = 0)
 {
     $client = stream_socket_client("tcp://127.0.0.1:{$port}", $errno, $errstr, 2);
     if ($client === false) {
         throw new RuntimeException("connect failed: {$errstr} [{$errno}]");
     }
     stream_set_timeout($client, 2);
+    if ($receiveBuffer > 0) {
+        Assert::true(socket_set_option(socket_import_stream($client), SOL_SOCKET, SO_RCVBUF, $receiveBuffer));
+    }
 
     $settings = http2_test_frame(4, 0, 0, pack('nN', 4, $windowSize));
     $connection = $connectionWindow > 65535 ? http2_test_frame(8, 0, 0, pack('N', $connectionWindow - 65535)) : '';
