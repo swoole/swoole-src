@@ -11,6 +11,12 @@ previously released versions.
 
 ## Multipart form-data uploads
 
+The coroutine HTTP client can combine `setData(array)` fields with `addFile()`
+and `addData()` upload parts in one request. See
+[Coroutine HTTP client request bodies](http-client-request-body.md) for format
+selection, replacement and append rules, and the handling of raw strings with
+pending upload parts.
+
 ### Reserved part header
 
 `Swoole-Upload-File` is reserved for Swoole's internal upload processing. Clients
@@ -78,3 +84,10 @@ On `6.1` and `6.2`, processing of `Cookie`, `Content-Length`, and
 `Accept-Encoding` is also deferred until the initial header block is complete.
 Existing cookie exposure and Content-Length checks are retained; trailer values
 do not participate in this processing.
+
+## Coroutine HTTP client response header names
+
+Response header names are always converted to lowercase, including cookies,
+content codings, trailers and WebSocket handshake headers. The
+`lowercase_header` option has been removed; supplying it cannot disable this
+normalization.

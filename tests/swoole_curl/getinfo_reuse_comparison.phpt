@@ -64,10 +64,13 @@ run_curl_hook_comparison(function ($mode) {
         }
         // The PHP hook only collects timings directly available in the HTTP client.
         if ($mode === SWOOLE_HOOK_CURL) {
-            foreach (['namelookup_time', 'connect_time', 'appconnect_time'] as $key) {
+            foreach (['namelookup_time', 'connect_time'] as $key) {
                 if ($info[$key] !== 0.0) {
                     throw new RuntimeException('Unsupported connection timing must remain zero: ' . $key);
                 }
+            }
+            if (curl_getinfo($ch, CURLINFO_APPCONNECT_TIME) !== 0.0) {
+                throw new RuntimeException('Unsupported TLS connection timing must remain zero');
             }
         } elseif ($info['connect_time'] <= 0) {
             throw new RuntimeException('Missing native connection timing');

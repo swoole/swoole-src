@@ -31,6 +31,7 @@
 SW_EXTERN_C_BEGIN
 #include "stubs/php_swoole_http_client_coro_arginfo.h"
 #include "ext/standard/base64.h"
+#include "main/php_streams.h"
 SW_EXTERN_C_END
 
 #include <utility>
@@ -79,6 +80,22 @@ static constexpr llhttp_settings_t http_parser_settings =
     nullptr,                                // on_reset
 };
 // clang-format on
+
+#ifdef SW_HAVE_COMPRESSION
+// Append each enabled coding with a separator, then exclude the final separator and NUL.
+static constexpr char http_client_accept_encoding[] =
+#ifdef SW_HAVE_ZLIB
+    "gzip, deflate, "
+#endif
+#ifdef SW_HAVE_BROTLI
+    "br, "
+#endif
+#ifdef SW_HAVE_ZSTD
+    "zstd, "
+#endif
+    ;
+static constexpr size_t http_client_accept_encoding_length = sizeof(http_client_accept_encoding) - sizeof(", ");
+#endif
 
 static zend_class_entry *swoole_http_client_coro_ce;
 static zend_object_handlers swoole_http_client_coro_handlers;
@@ -130,6 +147,32 @@ static bool websocket_verify_server_handshake(zval *zobject) {
 namespace swoole {
 namespace coroutine {
 namespace http {
+struct StreamBody {
+    zend::Variable source;
+    size_t length = 0;
+    zend_off_t offset = -1;
+    bool seekable = false;
+
+    bool active() const {
+        return Z_TYPE(source.value) == IS_RESOURCE;
+    }
+
+    php_stream *stream() {
+        php_stream *result;
+        php_stream_from_zval_no_verify(result, source.ptr());
+        return result;
+    }
+};
+
+struct MultipartBody {
+    zend::Variable fields;
+    zend::Variable files;
+
+    bool active() const {
+        return Z_TYPE(files.value) == IS_ARRAY;
+    }
+};
+
 class Client {
   public:
     /* request info */
@@ -139,7 +182,6 @@ class Client {
     double connect_timeout = 0;
     double response_timeout = 0;
     bool defer = false;
-    bool lowercase_header = true;
     bool use_default_port;
 
     int8_t method = SW_HTTP_GET;
@@ -153,6 +195,7 @@ class Client {
 #ifdef SW_HAVE_COMPRESSION
     enum swHttpCompressMethod compress_method = HTTP_COMPRESS_NONE;
     bool compression_error = false;
+    bool compression_finished = false;
 #endif
 
     /* options */
@@ -220,6 +263,7 @@ class Client {
 #ifdef SW_HAVE_ZLIB
     bool gzip_stream_active = false;
     z_stream gzip_stream = {};
+    std::string deflate_header;
 #endif
 #ifdef SW_HAVE_BROTLI
     BrotliDecoderState *brotli_decoder_state = nullptr;
@@ -230,7 +274,13 @@ class Client {
     bool connect();
     void set_error(int error, const char *msg, int status) const;
     bool keep_liveness();
-    bool send_request();
+    zend_long stream_length = -1;
+    zend_long stream_length_handle = -1;
+    bool in_stream_request = false;
+    bool prepare_stream_body(StreamBody &body);
+    void prepare_multipart_body(MultipartBody &body);
+    bool send_stream_body(StreamBody &body);
+    bool send_request(StreamBody &stream_body, MultipartBody &multipart_body);
     void reset_download();
     void reset();
 
@@ -264,6 +314,8 @@ class Client {
     bool decompress_response(const char *in, size_t in_len);
 #endif
     bool apply_setting(zval *zset, bool check_all = true);
+    bool set_data(zval *data, zend_long length = -1);
+    bool check_upload_body() const;
     void set_basic_auth(const std::string &username, const std::string &password);
     bool exec(const std::string &_path);
     bool recv_response(double timeout = 0);
@@ -463,6 +515,10 @@ void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcoo
     add_next_index_stringl(zset_cookie_headers, (char *) at, length);
 }
 
+static sw_inline bool is_informational_response(const llhttp_t *parser) {
+    return sw_unlikely(parser->status_code >= 100 && parser->status_code < 200 && parser->status_code != 101);
+}
+
 static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
     http->tmp_header_field_name = at;
@@ -471,6 +527,9 @@ static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t 
 }
 
 static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t length) {
+    if (is_informational_response(parser)) {
+        return 0;
+    }
     auto *http = static_cast<Client *>(parser->data);
     length = swoole::http_server::rtrim_ows(at, length);
     zval *zobject = static_cast<zval *>(http->zobject);
@@ -479,10 +538,8 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
     size_t header_len = http->tmp_header_field_name_len;
     zend::CharPtr _header_name;
 
-    if (http->lowercase_header) {
-        _header_name.assign_tolower(header_name, header_len);
-        header_name = _header_name.get();
-    }
+    _header_name.assign_tolower(header_name, header_len);
+    header_name = _header_name.get();
 
     http->add_header(header_name, header_len, (char *) at, length);
 
@@ -505,6 +562,8 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
             sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
         zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(
             swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
+        SEPARATE_ARRAY(zcookies);
+        SEPARATE_ARRAY(zset_cookie_headers);
         php_swoole_http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
 #ifdef SW_HAVE_COMPRESSION
@@ -540,6 +599,9 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 }
 
 static int http_parser_on_headers_complete(llhttp_t *parser) {
+    if (is_informational_response(parser)) {
+        return 0;
+    }
     auto *http = static_cast<Client *>(parser->data);
     zend_update_property_long(
         swoole_http_client_coro_ce, Z_OBJ_P(http->zobject), ZEND_STRL("statusCode"), parser->status_code);
@@ -576,6 +638,7 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
                 data_len = http->body->length;
             } else {
                 http->compression_error = true;
+                return -1;
             }
         }
 #endif
@@ -598,14 +661,11 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
     else if (http->body_decompression && !http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
         if (!http->decompress_response(at, length)) {
             http->compression_error = true;
-            goto _append_raw;
+            return -1;
         }
     }
 #endif
     else {
-#ifdef SW_HAVE_COMPRESSION
-    _append_raw:
-#endif
         http->body->append(at, length);
     }
     if (http->download_file_name.get() && http->body->length > 0) {
@@ -638,8 +698,19 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
 }
 
 static int http_parser_on_message_complete(llhttp_t *parser) {
+    if (is_informational_response(parser)) {
+        return HPE_PAUSED;
+    }
     auto *http = static_cast<Client *>(parser->data);
     zval *zobject = static_cast<zval *>(http->zobject);
+#ifdef SW_HAVE_COMPRESSION
+    if (http->body_decompression && http->compress_method != HTTP_COMPRESS_NONE && http->method != SW_HTTP_HEAD &&
+        parser->status_code != SW_HTTP_NO_CONTENT && parser->status_code != SW_HTTP_NOT_MODIFIED &&
+        !http->compression_finished) {
+        http->compression_error = true;
+        return -1;
+    }
+#endif
     http->completed = true;
     if (parser->upgrade && !http->websocket) {
         // not support, continue.
@@ -682,63 +753,96 @@ bool Client::decompress_response(const char *in, size_t in_len) {
 #ifdef SW_HAVE_ZLIB
     case HTTP_COMPRESS_GZIP:
     case HTTP_COMPRESS_DEFLATE: {
-        int status;
         int encoding = compress_method == HTTP_COMPRESS_GZIP ? SW_ZLIB_ENCODING_GZIP : SW_ZLIB_ENCODING_DEFLATE;
-        bool first_decompress = !gzip_stream_active;
-
+        bool prefix = false;
         if (!gzip_stream_active) {
-        _retry:
+            if (compress_method == HTTP_COMPRESS_DEFLATE) {
+                // Inspect the complete zlib header even when it arrives one byte at a time.
+                size_t take = std::min(2 - deflate_header.size(), in_len);
+                deflate_header.append(in, take);
+                in += take;
+                in_len -= take;
+                if (deflate_header.size() < 2) {
+                    return true;
+                }
+                auto cmf = static_cast<unsigned char>(deflate_header[0]);
+                auto flg = static_cast<unsigned char>(deflate_header[1]);
+                if ((cmf & 0x0f) != Z_DEFLATED || (cmf >> 4) > 7 || ((cmf << 8) | flg) % 31 != 0) {
+                    encoding = SW_ZLIB_ENCODING_RAW;
+                }
+                prefix = true;
+            }
             memset(&gzip_stream, 0, sizeof(gzip_stream));
             gzip_stream.zalloc = php_zlib_alloc;
             gzip_stream.zfree = php_zlib_free;
-            // gzip_stream.total_out = 0;
-            status = inflateInit2(&gzip_stream, encoding);
-            if (status != Z_OK) {
-                swoole_warning("inflateInit2() failed by %s", zError(status));
+            if (inflateInit2(&gzip_stream, encoding) != Z_OK) {
                 return false;
             }
             gzip_stream_active = true;
+        } else if (compression_finished) {
+            if (compress_method != HTTP_COMPRESS_GZIP || inflateReset2(&gzip_stream, SW_ZLIB_ENCODING_GZIP) != Z_OK) {
+                return false;
+            }
+            compression_finished = false;
         }
-
-        gzip_stream.next_in = (Bytef *) in;
-        gzip_stream.avail_in = in_len;
-        gzip_stream.total_in = 0;
-
+        gzip_stream.next_in = (Bytef *) (prefix ? deflate_header.data() : in);
+        gzip_stream.avail_in = prefix ? deflate_header.size() : in_len;
+        bool pending_input = prefix && in_len > 0;
         while (true) {
             const size_t total_out = gzip_stream.total_out;
             gzip_stream.avail_out = body->size - body->length;
             gzip_stream.next_out = (Bytef *) (body->str + body->length);
-            SW_ASSERT(body->length <= body->size);
-            status = inflate(&gzip_stream, Z_SYNC_FLUSH);
-            if (status >= 0) {
-                body->length += (gzip_stream.total_out - total_out);
-                if (body->length + (SW_BUFFER_SIZE_STD / 2) >= body->size) {
-                    body->extend();
+            int status = inflate(&gzip_stream, Z_SYNC_FLUSH);
+            bool output_full = gzip_stream.avail_out == 0;
+            if (status == Z_BUF_ERROR && gzip_stream.avail_in == 0) {
+                if (pending_input) {
+                    gzip_stream.next_in = (Bytef *) in;
+                    gzip_stream.avail_in = in_len;
+                    pending_input = false;
+                    continue;
                 }
-            }
-            if (status == Z_STREAM_END || (status == Z_OK && gzip_stream.avail_in == 0)) {
                 return true;
             }
-            if (status != Z_OK) {
-                break;
+            if (status != Z_OK && status != Z_STREAM_END) {
+                body->length = reserved_body_length;
+                return false;
+            }
+            body->length += gzip_stream.total_out - total_out;
+            if (body->length + (SW_BUFFER_SIZE_STD / 2) >= body->size) {
+                body->extend();
+            }
+            if (gzip_stream.avail_in == 0 && pending_input) {
+                gzip_stream.next_in = (Bytef *) in;
+                gzip_stream.avail_in = in_len;
+                pending_input = false;
+            }
+            if (status == Z_STREAM_END) {
+                compression_finished = true;
+                if (gzip_stream.avail_in == 0) {
+                    return true;
+                }
+                // A gzip representation may contain multiple complete members.
+                Bytef *next_in = gzip_stream.next_in;
+                uInt available_in = gzip_stream.avail_in;
+                if (compress_method != HTTP_COMPRESS_GZIP ||
+                    inflateReset2(&gzip_stream, SW_ZLIB_ENCODING_GZIP) != Z_OK) {
+                    body->length = reserved_body_length;
+                    return false;
+                }
+                gzip_stream.next_in = next_in;
+                gzip_stream.avail_in = available_in;
+                compression_finished = false;
+            } else if (gzip_stream.avail_in == 0 && !output_full) {
+                return true;
             }
         }
-
-        if (status == Z_DATA_ERROR && first_decompress) {
-            first_decompress = false;
-            inflateEnd(&gzip_stream);
-            encoding = SW_ZLIB_ENCODING_RAW;
-            body->length = reserved_body_length;
-            goto _retry;
-        }
-
-        swoole_warning("HttpClient::decompress_response failed by %s", zError(status));
-        body->length = reserved_body_length;
-        return false;
     }
 #endif
 #ifdef SW_HAVE_BROTLI
     case HTTP_COMPRESS_BR: {
+        if (compression_finished) {
+            return false;
+        }
         if (!brotli_decoder_state) {
             brotli_decoder_state = BrotliDecoderCreateInstance(php_brotli_alloc, php_brotli_free, nullptr);
             if (!brotli_decoder_state) {
@@ -761,13 +865,14 @@ bool Client::decompress_response(const char *in, size_t in_len) {
                                                                        (uint8_t **) &next_out,
                                                                        &total_out);
             body->length += reserved_available_out - available_out;
-            if (result == BROTLI_DECODER_RESULT_SUCCESS || result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
+            if (result == BROTLI_DECODER_RESULT_SUCCESS) {
+                compression_finished = available_in == 0;
+                return compression_finished;
+            } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
                 return true;
             } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
                 body->extend();
             } else {
-                swoole_warning("BrotliDecoderDecompressStream() failed, %s",
-                               BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
                 break;
             }
         }
@@ -804,8 +909,9 @@ bool Client::decompress_response(const char *in, size_t in_len) {
             }
 
             zstd_result = ZSTD_decompressStream(zstd_stream, &out_buffer, &in_buffer);
+            compression_finished = zstd_result == 0;
             if (ZSTD_isError(zstd_result)) {
-                swoole_warning("ZSTD_decompressStream() failed, Error: [%s]", ZSTD_getErrorName(zstd_result));
+                body->length = reserved_body_length;
                 return false;
             }
         }
@@ -847,10 +953,6 @@ bool Client::apply_setting(zval *zset, const bool check_all) try {
         }
         if (php_swoole_array_get_value(vht, "defer", ztmp)) {
             defer = zval_is_true(ztmp);
-        }
-        if (php_swoole_array_get_value(vht, "lowercase_header", ztmp)) {
-            // TODO: Deprecate or remove this option in a future version and always normalize header keys to lowercase.
-            lowercase_header = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp)) {
             keep_alive = zval_is_true(ztmp);
@@ -1000,10 +1102,151 @@ bool Client::keep_liveness() {
     return true;
 }
 
-bool Client::send_request() {
+static php_stream *readable_body_stream(zval *source) {
+    php_stream *stream;
+    php_stream_from_zval_no_verify(stream, source);
+    if (stream &&
+        ((stream->flags & PHP_STREAM_FLAG_IS_DIR) || (stream->mode[0] != 'r' && !strchr(stream->mode, '+')))) {
+        zend_value_error("Request body stream must be readable");
+        return nullptr;
+    }
+    return stream;
+}
+
+bool Client::check_upload_body() const {
+    zval *data =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_BODY), 0);
+    ZVAL_DEREF(data);
+    if (Z_TYPE_P(data) == IS_RESOURCE) {
+        zend_value_error("A request body stream cannot be combined with addFile() or addData()");
+        return false;
+    }
+    return true;
+}
+
+bool Client::set_data(zval *data, zend_long length) {
+    ZVAL_DEREF(data);
+    if (Z_TYPE_P(data) == IS_RESOURCE) {
+        if (!readable_body_stream(data)) {
+            return false;
+        }
+        zval *uploads =
+            sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_UPLOAD_FILES), 0);
+        if (php_swoole_array_length_safe(uploads) > 0) {
+            zend_value_error("A request body stream cannot be combined with addFile() or addData()");
+            return false;
+        }
+    } else if (length >= 0) {
+        zend_argument_value_error(2, "can only be specified for a stream resource");
+        return false;
+    }
+    stream_length = length;
+    stream_length_handle = Z_TYPE_P(data) == IS_RESOURCE ? Z_RES_HANDLE_P(data) : -1;
+    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("requestBody"), data);
+    return true;
+}
+
+bool Client::prepare_stream_body(StreamBody &body) {
+    zval *data =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_BODY), 0);
+    ZVAL_DEREF(data);
+    if (Z_TYPE_P(data) != IS_RESOURCE) {
+        return true;
+    }
+    body.source = data;
+    zend_long length = Z_RES_HANDLE(body.source.value) == stream_length_handle ? stream_length : -1;
+    auto stream = readable_body_stream(body.source.ptr());
+    if (!stream) {
+        return false;
+    }
+    zval *uploads =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_UPLOAD_FILES), 0);
+    if (php_swoole_array_length_safe(uploads) > 0) {
+        zend_value_error("A request body stream cannot be combined with addFile() or addData()");
+        return false;
+    }
+    // Rewinding the underlying stream does not necessarily reset a read filter's state.
+    body.seekable = stream->ops->seek && !(stream->flags & PHP_STREAM_FLAG_NO_SEEK) && !stream->readfilters.head;
+    body.offset = body.seekable ? php_stream_tell(stream) : -1;
+    php_stream_statbuf stat;
+    // Filters can change the byte count; a pipe's stat size is not a content length.
+    bool known_length = body.seekable && body.offset >= 0 && !stream->readfilters.head &&
+                        php_stream_stat(stream, &stat) == 0 && S_ISREG(stat.sb.st_mode) && stat.sb.st_size >= 0;
+    if (EG(exception)) {
+        return false;
+    }
+    if (length < 0 && !known_length) {
+        zend_value_error("Cannot determine the remaining request body stream length; specify $length in setData()");
+        return false;
+    }
+    uint64_t available = known_length ? std::max<zend_off_t>(0, stat.sb.st_size - body.offset) : 0;
+    if (length >= 0 && known_length && (size_t) length > available) {
+        zend_value_error("Request body stream length exceeds the remaining stream size");
+        return false;
+    }
+    if (length < 0 && available > SIZE_MAX) {
+        zend_value_error("Request body stream length exceeds the supported size");
+        return false;
+    }
+    body.length = length >= 0 ? length : available;
+    return true;
+}
+
+bool Client::send_stream_body(StreamBody &body) {
+    SW_CLIENT_GET_SOCKET_SAFE(stream_socket, &zsocket);
+    Socket::TimeoutController timeout(stream_socket, stream_socket->get_timeout(SW_TIMEOUT_WRITE), SW_TIMEOUT_WRITE);
+    String chunk(64 * 1024);
+    size_t remaining = body.length;
+    while (remaining > 0) {
+        auto stream = body.stream();
+        if (!stream) {
+            set_error(EBADF, "Request body stream was closed during upload", HTTP_ESTATUS_SEND_FAILED);
+            close();
+            return false;
+        }
+        ssize_t n = php_stream_read(stream, chunk.str, std::min(remaining, chunk.size));
+        if (n <= 0 || EG(exception)) {
+            set_error(EIO, "Failed to read the complete request body stream", HTTP_ESTATUS_SEND_FAILED);
+            close();
+            return false;
+        }
+        // Reading a coroutine stream or a user wrapper can yield and close this client.
+        if (socket != stream_socket || !stream_socket->is_connected()) {
+            set_error(ECONNRESET, "Connection closed during request body stream upload", HTTP_ESTATUS_SEND_FAILED);
+            return false;
+        }
+        if (timeout.has_timedout(SW_TIMEOUT_WRITE) || stream_socket->send_all(chunk.str, n) != n) {
+            set_error(stream_socket->errCode, stream_socket->errMsg, HTTP_ESTATUS_SEND_FAILED);
+            close();
+            return false;
+        }
+        remaining -= n;
+    }
+    return true;
+}
+
+void Client::prepare_multipart_body(MultipartBody &body) {
+    zval *files =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_UPLOAD_FILES), 0);
+    ZVAL_DEREF(files);
+    if (php_swoole_array_length_safe(files) == 0) {
+        return;
+    }
+    body.files = files;
+    zval *fields =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_BODY), 0);
+    ZVAL_DEREF(fields);
+    if (!ZVAL_IS_NULL(fields)) {
+        body.fields = fields;
+    }
+}
+
+bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body) {
     request_connection_close = false;
     zval *zvalue = nullptr;
     uint32_t header_flag = 0x0;
+    zend::String raw_body;
+    bool send_success = false;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
 
     if (path.empty()) {
@@ -1018,6 +1261,24 @@ bool Client::send_request() {
 
     if (!keep_liveness()) {
         return false;
+    }
+    if (!stream_body.active()) {
+        // Connection setup can yield, allowing setData() to select a stream for this request.
+        zval *data =
+            sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_BODY), 0);
+        ZVAL_DEREF(data);
+        if (Z_TYPE_P(data) == IS_RESOURCE) {
+            SW_CLIENT_PRESERVE_SOCKET(&zsocket);
+            in_stream_request = true;
+            if (!prepare_stream_body(stream_body)) {
+                return false;
+            }
+            if (!socket || !socket->is_connected()) {
+                set_error(
+                    ECONNRESET, "Connection closed while preparing request body stream", HTTP_ESTATUS_SEND_FAILED);
+                return false;
+            }
+        }
     }
     if (collect_stats) {
         zval *zstats = stats();
@@ -1055,11 +1316,25 @@ bool Client::send_request() {
         sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_HEADERS), 0);
     zbody = sw_zend_read_property_not_null_ex(
         swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_BODY), 0);
+    if (stream_body.active()) {
+        zbody = stream_body.source.ptr();
+    }
     zupload_files =
         sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_UPLOAD_FILES), 0);
+    if (!stream_body.active() && !multipart_body.active()) {
+        prepare_multipart_body(multipart_body);
+    }
+    if (multipart_body.active()) {
+        zupload_files = multipart_body.files.ptr();
+        zbody = Z_ISUNDEF(multipart_body.fields.value) ? nullptr : multipart_body.fields.ptr();
+    }
     zcookies = sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIES), 0);
     z_download_file = sw_zend_read_property_not_null_ex(
         swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_DOWNLOAD_FILE), 0);
+    if (stream_body.active() && php_swoole_array_length_safe(zupload_files) > 0) {
+        zend_value_error("A request body stream cannot be combined with addFile() or addData()");
+        return false;
+    }
 
     // ============   host   ============
     zend::String str_host;
@@ -1158,6 +1433,10 @@ bool Client::send_request() {
                 // ignore custom Content-Length value
                 continue;
             }
+            if (sw_unlikely(SW_STRCASEEQ(key, keylen, "Transfer-Encoding"))) {
+                zend_value_error("Transfer-Encoding is not supported for HTTP request bodies");
+                return false;
+            }
 
             if (SW_STRCASEEQ(key, keylen, "Accept-Encoding")) {
 #ifdef SW_HAVE_COMPRESSION
@@ -1198,24 +1477,8 @@ bool Client::send_request() {
     }
 #ifdef SW_HAVE_COMPRESSION
     if (http_compression && !(header_flag & HTTP_HEADER_ACCEPT_ENCODING)) {
-        add_headers(buffer,
-                    ZEND_STRL("Accept-Encoding"),
-#if defined(SW_HAVE_ZLIB) && defined(SW_HAVE_BROTLI)
-                    ZEND_STRL("gzip, deflate, br")
-#else
-#ifdef SW_HAVE_ZLIB
-                    ZEND_STRL("gzip, deflate")
-#else
-#ifdef SW_HAVE_BROTLI
-                    ZEND_STRL("br")
-#else
-#ifdef SW_HAVE_ZSTD
-                    ZEND_STRL("zstd")
-#endif
-#endif
-#endif
-#endif
-        );
+        add_headers(
+            buffer, ZEND_STRL("Accept-Encoding"), http_client_accept_encoding, http_client_accept_encoding_length);
     }
 #endif
 
@@ -1259,19 +1522,16 @@ bool Client::send_request() {
 
     // ============ multipart/form-data ============
     if ((has_upload_files = (php_swoole_array_length_safe(zupload_files) > 0))) {
-        char header_buf[2048];
+        String header_buf(256);
         char boundary_str[SW_HTTP_CLIENT_BOUNDARY_TOTAL_SIZE + 1];
 
         // ============ content-type ============
         memcpy(boundary_str, SW_HTTP_CLIENT_BOUNDARY_PREKEY, sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1);
         swoole_random_string(boundary_str + sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY) - 1,
                              sizeof(boundary_str) - sizeof(SW_HTTP_CLIENT_BOUNDARY_PREKEY));
-        ssize_t n = sw_snprintf(header_buf,
-                                sizeof(header_buf),
-                                "Content-Type: multipart/form-data; boundary=%.*s\r\n",
-                                (int) (sizeof(boundary_str) - 1),
-                                boundary_str);
-        buffer->append(header_buf, n);
+        ssize_t n = header_buf.format(
+            "Content-Type: multipart/form-data; boundary=%.*s\r\n", (int) (sizeof(boundary_str) - 1), boundary_str);
+        buffer->append(header_buf.str, n);
 
         // ============ content-length ============
         size_t content_length = 0;
@@ -1340,14 +1600,9 @@ bool Client::send_request() {
                     continue;
                 }
                 zend::String str_value(zvalue);
-                n = sw_snprintf(header_buf,
-                                sizeof(header_buf),
-                                SW_HTTP_FORM_RAW_DATA_FMT,
-                                (int) (sizeof(boundary_str) - 1),
-                                boundary_str,
-                                keylen,
-                                key);
-                buffer->append(header_buf, n);
+                n = header_buf.format(
+                    SW_HTTP_FORM_RAW_DATA_FMT, (int) (sizeof(boundary_str) - 1), boundary_str, keylen, key);
+                buffer->append(header_buf.str, n);
                 buffer->append(str_value.val(), str_value.len());
                 buffer->append(ZEND_STRL("\r\n"));
             }
@@ -1397,27 +1652,27 @@ bool Client::send_request() {
                 /**
                  * part header
                  */
-                n = sw_snprintf(header_buf,
-                                sizeof(header_buf),
-                                SW_HTTP_FORM_FILE_DATA_FMT,
-                                (int) (sizeof(boundary_str) - 1),
-                                boundary_str,
-                                (int) Z_STRLEN_P(zname),
-                                Z_STRVAL_P(zname),
-                                (int) Z_STRLEN_P(zfilename),
-                                Z_STRVAL_P(zfilename),
-                                (int) Z_STRLEN_P(ztype),
-                                Z_STRVAL_P(ztype));
+                n = header_buf.format(SW_HTTP_FORM_FILE_DATA_FMT,
+                                      (int) (sizeof(boundary_str) - 1),
+                                      boundary_str,
+                                      (int) Z_STRLEN_P(zname),
+                                      Z_STRVAL_P(zname),
+                                      (int) Z_STRLEN_P(zfilename),
+                                      Z_STRVAL_P(zfilename),
+                                      (int) Z_STRLEN_P(ztype),
+                                      Z_STRVAL_P(ztype));
                 /**
                  * from memory
                  */
                 if (zcontent) {
-                    buffer->clear();
-                    buffer->append(header_buf, n);
-                    buffer->append(Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
-                    buffer->append("\r\n", 2);
-
-                    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
+                    iovec iov[3] = {{header_buf.str, (size_t) n}};
+                    size_t count = 1;
+                    if (Z_STRLEN_P(zcontent) > 0) {
+                        iov[count++] = {Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent)};
+                    }
+                    iov[count++] = {const_cast<char *>("\r\n"), 2};
+                    network::IOVector part(iov, count);
+                    if (socket->writev_all(&part) != (ssize_t) part.length()) {
                         goto _send_fail;
                     }
                 }
@@ -1425,7 +1680,7 @@ bool Client::send_request() {
                  * from disk file
                  */
                 else {
-                    if (socket->send_all(header_buf, n) != n) {
+                    if (socket->send_all(header_buf.str, n) != n) {
                         goto _send_fail;
                     }
                     if (!socket->sendfile(Z_STRVAL_P(zpath), Z_LVAL_P(zoffset), Z_LVAL_P(zsize))) {
@@ -1439,8 +1694,8 @@ bool Client::send_request() {
             SW_HASHTABLE_FOREACH_END();
         }
 
-        n = sw_snprintf(header_buf, sizeof(header_buf), "--%.*s--\r\n", (int) (sizeof(boundary_str) - 1), boundary_str);
-        if (socket->send_all(header_buf, n) != n) {
+        n = header_buf.format("--%.*s--\r\n", (int) (sizeof(boundary_str) - 1), boundary_str);
+        if (socket->send_all(header_buf.str, n) != n) {
             goto _send_fail;
         }
         wait_response = true;
@@ -1471,15 +1726,18 @@ bool Client::send_request() {
                     return false;
                 }
             }
-        } else {
-            auto sdata = zval_get_string(zbody);
-            add_content_length(buffer, ZSTR_LEN(sdata));
+        } else if (stream_body.active()) {
+            add_content_length(buffer, stream_body.length);
             if (header_too_large(buffer)) {
-                zend_string_release(sdata);
                 return false;
             }
-            buffer->append(ZSTR_VAL(sdata), ZSTR_LEN(sdata));
-            zend_string_release(sdata);
+        } else {
+            // Keep the original string alive across write waits without copying it into the header buffer.
+            raw_body = zbody;
+            add_content_length(buffer, raw_body.len());
+            if (header_too_large(buffer)) {
+                return false;
+            }
         }
     }
     // ============ no body ============
@@ -1506,10 +1764,20 @@ bool Client::send_request() {
                      (int) buffer->length,
                      buffer->str);
 
-    if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
+    if (raw_body.get() && raw_body.len() > 0) {
+        iovec iov[] = {{buffer->str, buffer->length}, {raw_body.val(), raw_body.len()}};
+        network::IOVector request(iov, 2);
+        send_success = socket->writev_all(&request) == (ssize_t) request.length();
+    } else {
+        send_success = socket->send_all(buffer->str, buffer->length) == (ssize_t) buffer->length;
+    }
+    if (!send_success) {
     _send_fail:
         set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_SEND_FAILED);
         close();
+        return false;
+    }
+    if (stream_body.active() && !send_stream_body(stream_body)) {
         return false;
     }
     wait_response = true;
@@ -1517,6 +1785,23 @@ bool Client::send_request() {
 }
 
 bool Client::exec(const std::string &_path) {
+    if (in_stream_request) {
+        zend_throw_error(nullptr, "The HTTP client is already sending a request body stream");
+        return false;
+    }
+    // Keep one source, starting position and byte count for the complete request, including retries.
+    StreamBody stream_body;
+    MultipartBody multipart_body;
+    prepare_multipart_body(multipart_body);
+    in_stream_request = true;
+    ON_SCOPE_EXIT {
+        in_stream_request = false;
+    };
+    if (!prepare_stream_body(stream_body)) {
+        reset_download();
+        return false;
+    }
+    in_stream_request = stream_body.active();
     path = _path;
     if (collect_stats) {
         stats_begin = microtime();
@@ -1534,7 +1819,7 @@ bool Client::exec(const std::string &_path) {
         resolve_context_.with_port = true;
     }
     SW_LOOP_N(max_retries + 1) {
-        if (send_request() == false) {
+        if (send_request(stream_body, multipart_body) == false) {
             // Connection and validation failures may precede initialization of the internal download state.
             reset_download();
             return false;
@@ -1565,6 +1850,18 @@ bool Client::exec(const std::string &_path) {
         if (max_retries > 0 &&
             (parser.status_code == SW_HTTP_BAD_GATEWAY || parser.status_code == SW_HTTP_SERVICE_UNAVAILABLE)) {
             close(true);
+            if (stream_body.active()) {
+                if (!stream_body.seekable) {
+                    return true;
+                }
+                if (i < max_retries) {
+                    auto stream = stream_body.stream();
+                    if (!stream || php_stream_seek(stream, stream_body.offset, SEEK_SET) != 0 || EG(exception)) {
+                        set_error(EIO, "Failed to rewind request body stream for retry", HTTP_ESTATUS_SEND_FAILED);
+                        return false;
+                    }
+                }
+            }
             if (i < max_retries && retry_download_file.get()) {
                 zend_update_property_str(
                     swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadFile"), retry_download_file.get());
@@ -1587,6 +1884,7 @@ bool Client::recv_response(double timeout) {
     size_t total_bytes = 0, parsed_n = 0;
     String *buffer = socket->get_read_buffer();
     bool header_completed = false;
+    bool pending_response = false;
     off_t header_crlf_offset = 0;
 
     // re-init http response parser
@@ -1601,7 +1899,13 @@ bool Client::recv_response(double timeout) {
         if (sw_unlikely(tc.has_timedout(SW_TIMEOUT_READ))) {
             break;
         }
-        retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
+        if (pending_response) {
+            retval = buffer->length;
+            buffer->clear();
+            pending_response = false;
+        } else {
+            retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
+        }
         if (sw_unlikely(retval <= 0)) {
             if (retval == 0) {
                 socket->set_err(ECONNRESET);
@@ -1635,7 +1939,9 @@ bool Client::recv_response(double timeout) {
             } else {
                 if (collect_stats) {
                     ssize_t header_end = swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n"));
-                    add_assoc_long(stats(), "header_size", header_end + 4);
+                    zval *zstats = stats();
+                    zval *previous = zend_hash_str_find(Z_ARRVAL_P(zstats), ZEND_STRL("header_size"));
+                    add_assoc_long(zstats, "header_size", (previous ? zval_get_long(previous) : 0) + header_end + 4);
                 }
                 header_completed = true;
                 header_crlf_offset = 0;
@@ -1644,8 +1950,8 @@ bool Client::recv_response(double timeout) {
             }
         }
 
-        total_bytes += retval;
         parsed_n = swoole_llhttp_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
+        total_bytes += parsed_n;
         swoole_trace_log(SW_TRACE_HTTP_CLIENT,
                          "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
                          parsed_n,
@@ -1659,6 +1965,15 @@ bool Client::recv_response(double timeout) {
         }
 
         if (sw_likely(parser.error == HPE_OK)) {
+            if (is_informational_response(&parser)) {
+                buffer->length = retval;
+                buffer->reduce(parsed_n);
+                pending_response = buffer->length > 0;
+                header_completed = false;
+                header_crlf_offset = 0;
+                swoole_llhttp_parser_init(&parser, HTTP_RESPONSE, this);
+                continue;
+            }
             if (sw_unlikely(event_stream && llhttp_message_needs_eof(&parser)) == 1) {
                 llhttp_finish(&parser);
             }
@@ -1737,6 +2052,7 @@ bool Client::upgrade(const std::string &_path) {
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 0);
+    SEPARATE_ARRAY(zheaders);
     zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("requestMethod"), "GET");
     create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
     add_assoc_string(zheaders, "Connection", "Upgrade");
@@ -1821,12 +2137,14 @@ void Client::reset() {
 #ifdef SW_HAVE_COMPRESSION
     compress_method = HTTP_COMPRESS_NONE;
     compression_error = false;
+    compression_finished = false;
 #endif
 #ifdef SW_HAVE_ZLIB
     if (gzip_stream_active) {
         inflateEnd(&gzip_stream);
         gzip_stream_active = false;
     }
+    deflate_header.clear();
 #endif
 #ifdef SW_HAVE_BROTLI
     if (brotli_decoder_state) {
@@ -2110,18 +2428,31 @@ static PHP_METHOD(swoole_http_client_coro, setCookies) {
 }
 
 static PHP_METHOD(swoole_http_client_coro, setData) {
+    Client *phc = http_client_coro_get_client(ZEND_THIS);
     zval *zdata;
+    zend_long length = 0;
+    bool length_is_null = true;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_ZVAL(zdata)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG_OR_NULL(length, length_is_null)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestBody"), zdata);
-
-    RETURN_TRUE;
+    ZVAL_DEREF(zdata);
+    if (Z_TYPE_P(zdata) != IS_ARRAY && Z_TYPE_P(zdata) != IS_STRING && Z_TYPE_P(zdata) != IS_RESOURCE) {
+        zend_argument_type_error(1, "must be of type array|string|resource, %s given", zend_zval_type_name(zdata));
+        RETURN_THROWS();
+    }
+    if (!length_is_null && length < 0) {
+        zend_argument_value_error(2, "must be greater than or equal to 0");
+        RETURN_THROWS();
+    }
+    RETURN_BOOL(phc->set_data(zdata, length_is_null ? -1 : length));
 }
 
 static PHP_METHOD(swoole_http_client_coro, addFile) {
+    Client *phc = http_client_coro_get_client(ZEND_THIS);
     char *path;
     size_t l_path;
     char *name;
@@ -2143,6 +2474,9 @@ static PHP_METHOD(swoole_http_client_coro, addFile) {
     Z_PARAM_LONG(length)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (!phc->check_upload_body()) {
+        RETURN_THROWS();
+    }
     if (offset < 0) {
         php_swoole_error(E_WARNING, "parameter $offset[" ZEND_LONG_FMT "] must be greater than or equal to 0", offset);
         RETURN_FALSE;
@@ -2188,6 +2522,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile) {
 
     zval *zupload_files =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("uploadFiles"), 0);
+    SEPARATE_ARRAY(zupload_files);
     zval zupload_file;
     array_init(&zupload_file);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("path"), path, l_path);
@@ -2201,8 +2536,8 @@ static PHP_METHOD(swoole_http_client_coro, addFile) {
 }
 
 static PHP_METHOD(swoole_http_client_coro, addData) {
-    char *data;
-    size_t l_data;
+    Client *phc = http_client_coro_get_client(ZEND_THIS);
+    zend_string *data;
     char *name;
     size_t l_name;
     char *type = nullptr;
@@ -2211,13 +2546,16 @@ static PHP_METHOD(swoole_http_client_coro, addData) {
     size_t l_filename = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
-    Z_PARAM_STRING(data, l_data)
+    Z_PARAM_STR(data)
     Z_PARAM_STRING(name, l_name)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING(type, l_type)
     Z_PARAM_STRING(filename, l_filename)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (!phc->check_upload_body()) {
+        RETURN_THROWS();
+    }
     if (l_type == 0) {
         type = (char *) "application/octet-stream";
         l_type = strlen(type);
@@ -2229,13 +2567,14 @@ static PHP_METHOD(swoole_http_client_coro, addData) {
 
     zval *zupload_files =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("uploadFiles"), 0);
+    SEPARATE_ARRAY(zupload_files);
     zval zupload_file;
     array_init(&zupload_file);
-    add_assoc_stringl_ex(&zupload_file, ZEND_STRL("content"), data, l_data);
+    add_assoc_str_ex(&zupload_file, ZEND_STRL("content"), zend_string_copy(data));
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("name"), name, l_name);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("filename"), filename, l_filename);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("type"), type, l_type);
-    add_assoc_long(&zupload_file, "size", l_data);
+    add_assoc_long(&zupload_file, "size", ZSTR_LEN(data));
 
     RETURN_BOOL(add_next_index_zval(zupload_files, &zupload_file) == SUCCESS);
 }
@@ -2278,7 +2617,9 @@ static PHP_METHOD(swoole_http_client_coro, post) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), "POST");
-    zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestBody"), post_data);
+    if (!phc->set_data(post_data)) {
+        RETURN_FALSE;
+    }
 
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
 }

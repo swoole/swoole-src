@@ -4,6 +4,7 @@
 
 ### Breaking changes
 
+- `onClose` and `onBufferFull` are always dispatched from the top-level worker event loop. Active close callbacks and all buffer callbacks are deferred; passive close callbacks run directly from their event-loop notification. Code following `Server::close()` runs before its deferred callback until it returns or yields to the event loop. See [Server event dispatch](server-events.md).
 - Raise the minimum supported PHP version to 8.2; PHP 8.1 is no longer supported in 6.3.
 - `Server::taskCo()` and `Server::taskWaitMulti()` now share the same behavior. Both preserve the original task keys and input iteration order, including associative and sparse arrays. Pass `array_values($tasks)` to retain positional numeric results.
 - Both methods use coroutine waiting inside a coroutine and blocking waiting outside one. `taskCo()` is therefore also available in non-coroutine workers.

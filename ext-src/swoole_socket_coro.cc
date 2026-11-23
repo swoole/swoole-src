@@ -159,6 +159,11 @@ static sw_inline SocketObject *socket_coro_fetch_object(zend_object *obj) {
 static void socket_coro_free_object(zend_object *object) {
     auto *sock = socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket) {
+        if (sock->socket->protocol.private_data_1) {
+            auto *callback = sock->socket->protocol.private_data_1;
+            sock->socket->protocol.private_data_1 = nullptr;
+            sw_callable_free(callback);
+        }
         if (!Z_ISUNDEF(sock->zstream)) {
 #ifdef _WIN32
             if (SwooleTG.iocp && GC_REFCOUNT(Z_RES(sock->zstream)) == 1) {
