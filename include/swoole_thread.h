@@ -20,6 +20,7 @@
 #include "swoole_signal.h"
 #include "swoole_util.h"
 
+#include <atomic>
 #include <thread>
 #include <string>
 
@@ -35,13 +36,13 @@ int swoole_thread_get_cpu_affinity(cpu_set_t *set);
 
 namespace swoole {
 class Thread {
-    int exit_status = 0;
-    bool living = false;
+    std::atomic<int> exit_status{0};
+    std::atomic<bool> living{false};
     std::thread thread;
 
   public:
     bool is_alive() const {
-        return living;
+        return living.load(std::memory_order_acquire);
     }
 
     bool joinable() const {
@@ -57,7 +58,7 @@ class Thread {
     }
 
     int get_exit_status() const {
-        return exit_status;
+        return exit_status.load(std::memory_order_relaxed);
     }
 
     pthread_t get_id() {
@@ -72,17 +73,24 @@ class Thread {
                 swoole_signal_unblock_all();
             }
         };
-        thread = std::thread(fn);
+        exit_status.store(0, std::memory_order_relaxed);
+        living.store(true, std::memory_order_release);
+        try {
+            thread = std::thread(fn);
+        } catch (...) {
+            living.store(false, std::memory_order_release);
+            throw;
+        }
     }
 
     void enter() {
-        exit_status = 0;
-        living = true;
+        exit_status.store(0, std::memory_order_relaxed);
+        living.store(true, std::memory_order_release);
     }
 
     void exit(const int status) {
-        exit_status = status;
-        living = false;
+        exit_status.store(status, std::memory_order_relaxed);
+        living.store(false, std::memory_order_release);
     }
 };
 }  // namespace swoole

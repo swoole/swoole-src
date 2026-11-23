@@ -50,6 +50,7 @@ using swoole::Thread;
 struct PhpThread {
     std::shared_ptr<Thread> thread;
     bool constructed = false;
+    std::string result;
 
     PhpThread() : thread(std::make_shared<Thread>()) {}
 
@@ -62,8 +63,10 @@ struct PhpThread {
     }
 };
 
+using PhpThreadPtr = std::shared_ptr<PhpThread>;
+
 struct ThreadObject {
-    PhpThread *pt;
+    PhpThreadPtr pt;
     zend_object std;
 };
 
@@ -109,17 +112,17 @@ static sw_inline ThreadObject *thread_fetch_object(const zval *zobj) {
 }
 
 static sw_inline PhpThread *thread_get_php_thread(zend_object *obj) {
-    return thread_fetch_object(obj)->pt;
+    return thread_fetch_object(obj)->pt.get();
 }
 
 static sw_inline PhpThread *thread_get_php_thread(const zval *zobj) {
-    return thread_fetch_object(zobj)->pt;
+    return thread_fetch_object(zobj)->pt.get();
 }
 
 static void thread_free_object(zend_object *object) {
-    auto pt = thread_get_php_thread(object);
-    pt->join();
-    delete pt;
+    auto to = thread_fetch_object(object);
+    to->pt->join();
+    to->pt.~PhpThreadPtr();
     zend_object_std_dtor(object);
 }
 
@@ -127,7 +130,7 @@ static zend_object *thread_create_object(zend_class_entry *ce) {
     auto to = static_cast<ThreadObject *>(zend_object_alloc(sizeof(ThreadObject), ce));
     zend_object_std_init(&to->std, ce);
     object_properties_init(&to->std, ce);
-    to->pt = new PhpThread();
+    new (&to->pt) PhpThreadPtr(std::make_shared<PhpThread>());
     to->std.handlers = &swoole_thread_handlers;
     return &to->std;
 }
@@ -138,6 +141,7 @@ static PHP_METHOD(swoole_thread, isAlive);
 static PHP_METHOD(swoole_thread, join);
 static PHP_METHOD(swoole_thread, joinable);
 static PHP_METHOD(swoole_thread, getExitStatus);
+static PHP_METHOD(swoole_thread, getResult);
 static PHP_METHOD(swoole_thread, detach);
 static PHP_METHOD(swoole_thread, getArguments);
 static PHP_METHOD(swoole_thread, getId);
@@ -161,6 +165,7 @@ static const zend_function_entry swoole_thread_methods[] = {
     PHP_ME(swoole_thread, join,          arginfo_class_Swoole_Thread_join,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, joinable,      arginfo_class_Swoole_Thread_joinable,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, getExitStatus, arginfo_class_Swoole_Thread_getExitStatus, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_thread, getResult,     arginfo_class_Swoole_Thread_getResult,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, detach,        arginfo_class_Swoole_Thread_detach,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_thread, getArguments,  arginfo_class_Swoole_Thread_getArguments,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_thread, getId,         arginfo_class_Swoole_Thread_getId,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -217,15 +222,61 @@ void php_swoole_thread_minit(int module_number) {
     zend_declare_property_long(swoole_thread_error_ce, ZEND_STRL("code"), 0, ZEND_ACC_PUBLIC | ZEND_ACC_READONLY);
 }
 
+// Only names registered by extensions are available in a fresh worker request.
+// Do not autoload classes or accept magic call handlers while classifying a path.
+static zend_function *thread_find_internal_entry(zend_string *entry, zend_class_entry **called_scope) {
+    *called_scope = nullptr;
+    const char *name = ZSTR_VAL(entry);
+    size_t length = ZSTR_LEN(entry);
+    if (length > 0 && name[0] == '\\') {
+        name++;
+        length--;
+    }
+    zend_string *lowercase = zend_string_alloc(length, false);
+    zend_str_tolower_copy(ZSTR_VAL(lowercase), name, length);
+    ON_SCOPE_EXIT {
+        zend_string_release(lowercase);
+    };
+
+    const char *separator = zend_memnstr(ZSTR_VAL(lowercase), "::", 2, ZSTR_VAL(lowercase) + length);
+    if (!separator) {
+        auto function = static_cast<zend_function *>(zend_hash_find_ptr(EG(function_table), lowercase));
+        return function && function->type == ZEND_INTERNAL_FUNCTION ? function : nullptr;
+    }
+
+    size_t class_length = separator - ZSTR_VAL(lowercase);
+    size_t method_length = length - class_length - 2;
+    if (class_length == 0 || method_length == 0) {
+        return nullptr;
+    }
+    auto ce =
+        static_cast<zend_class_entry *>(zend_hash_str_find_ptr(EG(class_table), ZSTR_VAL(lowercase), class_length));
+    if (!ce || ce->type != ZEND_INTERNAL_CLASS) {
+        return nullptr;
+    }
+    auto function =
+        static_cast<zend_function *>(zend_hash_str_find_ptr(&ce->function_table, separator + 2, method_length));
+    if (!function || function->type != ZEND_INTERNAL_FUNCTION ||
+        (function->common.fn_flags & (ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)) != (ZEND_ACC_PUBLIC | ZEND_ACC_STATIC) ||
+        (function->common.fn_flags & ZEND_ACC_ABSTRACT)) {
+        return nullptr;
+    }
+    *called_scope = ce;
+    return function;
+}
+
+static void thread_start(
+    std::shared_ptr<Thread> thread, zend_string *entry, ZendArray *argv, bool internal_entry, std::string *result);
+
 static PHP_METHOD(swoole_thread, __construct) {
-    char *script_file;
-    size_t l_script_file;
+    char *entry;
+    size_t entry_length;
     zval *args;
     int argc = 0;
     ZendArray *argv = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
-    Z_PARAM_STRING(script_file, l_script_file)
+    Z_PARAM_STRING(entry, entry_length)
     Z_PARAM_VARIADIC('+', args, argc)
     ZEND_PARSE_PARAMETERS_END();
 
@@ -235,12 +286,14 @@ static PHP_METHOD(swoole_thread, __construct) {
         return;
     }
 
-    if (l_script_file < 1) {
-        zend_throw_exception(swoole_exception_ce, "exec file name is empty", SW_ERROR_INVALID_PARAMS);
+    if (entry_length < 1) {
+        zend_throw_exception(swoole_exception_ce, "thread entry is empty", SW_ERROR_INVALID_PARAMS);
         return;
     }
 
-    zend_string *file = zend_string_init(script_file, l_script_file, true);
+    zend_string *file = zend_string_init(entry, entry_length, true);
+    zend_class_entry *called_scope = nullptr;
+    const bool internal_entry = thread_find_internal_entry(file, &called_scope) != nullptr;
     bool transferred = false;
     ON_SCOPE_EXIT {
         // A successful start transfers both resources to the new thread.
@@ -255,12 +308,24 @@ static PHP_METHOD(swoole_thread, __construct) {
     if (argc > 0) {
         argv = new ZendArray();
         for (int i = 0; i < argc; i++) {
-            argv->append(&args[i]);
+            zval *argument = &args[i];
+            ZVAL_DEREF(argument);
+            if (internal_entry && Z_TYPE_P(argument) == IS_ARRAY) {
+                // Internal functions expect PHP arrays, not shared ArrayList/Map wrappers.
+                argv->append_serialized(argument);
+            } else {
+                argv->append(argument);
+            }
+            if (EG(exception)) {
+                return;
+            }
         }
     }
 
     try {
-        pt->thread->start([file, argv, pt]() { php_swoole_thread_start(pt->thread, file, argv); });
+        pt->thread->start([file, argv, pt = thread_fetch_object(ZEND_THIS)->pt, internal_entry]() {
+            thread_start(pt->thread, file, argv, internal_entry, PHP_VERSION_ID >= 80400 ? &pt->result : nullptr);
+        });
     } catch (const std::exception &e) {
         zend_throw_exception(swoole_exception_ce, e.what(), SW_ERROR_SYSTEM_CALL_FAIL);
         return;
@@ -293,6 +358,22 @@ static PHP_METHOD(swoole_thread, detach) {
     }
     pt->thread->detach();
     RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_thread, getResult) {
+    ZEND_PARSE_PARAMETERS_NONE();
+    auto pt = thread_get_php_thread(ZEND_THIS);
+    if (!pt->constructed || pt->thread->is_alive()) {
+        zend_throw_error(nullptr, "Thread result is not available before the thread has exited");
+        RETURN_THROWS();
+    }
+#if PHP_VERSION_ID >= 80400
+    const auto &result = pt->result;
+    if (!result.empty()) {
+        zend::String serialized(result);
+        php_swoole_unserialize(serialized.get(), return_value);
+    }
+#endif
 }
 
 static PHP_METHOD(swoole_thread, getArguments) {
@@ -603,7 +684,37 @@ static void thread_unregister_stdio_file_handles() {
     thread_close_stdio_fd(s_err_fd);
 }
 
-void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, ZendArray *argv) {
+static void thread_execute_internal_entry(zend_string *entry, zval *retval) {
+    zend_class_entry *called_scope = nullptr;
+    auto function = thread_find_internal_entry(entry, &called_scope);
+    if (!function) {
+        zend_throw_error(nullptr, "Internal thread entry %s is not available in this request", ZSTR_VAL(entry));
+        return;
+    }
+
+    zend_fcall_info arguments{};
+    if (Z_TYPE(thread_argv) == IS_ARRAY) {
+        zend_fcall_info_args_ex(&arguments, function, &thread_argv);
+    }
+    bool bailed_out = false;
+    zend_try {
+        zend_call_known_function(
+            function, nullptr, called_scope, retval, arguments.param_count, arguments.params, nullptr);
+    }
+    zend_catch {
+        bailed_out = true;
+    }
+    zend_end_try();
+    // exit() and fatal errors may bypass ordinary C++ stack unwinding. Release
+    // the argument copies before propagating the bailout to the request owner.
+    zend_fcall_info_args_clear(&arguments, true);
+    if (bailed_out) {
+        zend_bailout();
+    }
+}
+
+static void thread_start(
+    std::shared_ptr<Thread> thread, zend_string *entry, ZendArray *argv, bool internal_entry, std::string *result) {
     thread_num.fetch_add(1);
     thread->enter();
     ts_resource(0);
@@ -612,6 +723,9 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
 #endif
     zend_file_handle file_handle{};
     zval global_argc, global_argv;
+    // A bailout must not leave an indeterminate automatic zval to destroy.
+    std::unique_ptr<zval> retval(new zval);
+    ZVAL_UNDEF(retval.get());
     // Script execution may longjmp out of zend_first_try after the arguments were released.
     // Keep this cleanup marker volatile so its value remains defined after a PHP bailout.
     ZendArray *volatile pending_argv = argv;
@@ -638,8 +752,10 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
     refresh_memory_manager();
 #endif
 
-    zend_stream_init_filename(&file_handle, ZSTR_VAL(file));
-    file_handle.primary_script = true;
+    if (!internal_entry) {
+        zend_stream_init_filename(&file_handle, ZSTR_VAL(entry));
+        file_handle.primary_script = true;
+    }
 
     zend_first_try {
         thread_bailout = EG(bailout);
@@ -655,12 +771,42 @@ void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, 
             pending_argv = nullptr;
         }
         thread_register_stdio_file_handles(true);
-        php_execute_script(&file_handle);
+        bool succeeded = true;
+        if (internal_entry) {
+            thread_execute_internal_entry(entry, retval.get());
+            if (EG(exception)) {
+                zend_exception_error(EG(exception), E_ERROR);
+            }
+        } else {
+#if PHP_VERSION_ID >= 80400
+            succeeded = php_execute_script_ex(&file_handle, retval.get());
+#else
+            succeeded = php_execute_script(&file_handle);
+#endif
+        }
+        if (result && succeeded && !EG(exception) && Z_TYPE_P(retval.get()) != IS_UNDEF) {
+            zend::String serialized(php_swoole_serialize(retval.get()), false);
+            if (serialized.get()) {
+                result->assign(serialized.val(), serialized.len());
+            }
+            if (EG(exception)) {
+                zend_exception_error(EG(exception), E_ERROR);
+            }
+        }
     }
     zend_end_try();
 
-    zend_destroy_file_handle(&file_handle);
+    if (!internal_entry) {
+        zend_destroy_file_handle(&file_handle);
+    }
 
+    // The result is detached from this request before its heap is destroyed.
+    zend_first_try {
+        if (Z_TYPE_P(retval.get()) != IS_UNDEF) {
+            zval_ptr_dtor(retval.get());
+        }
+    }
+    zend_end_try();
     php_request_shutdown(nullptr);
     file_handle.filename = nullptr;
     thread_unregister_stdio_file_handles();
@@ -669,11 +815,19 @@ _startup_error:
     if (pending_argv) {
         pending_argv->del_ref();
     }
-    zend_string_release(file);
-    thread->exit(EG(exit_status));
+    zend_string_release(entry);
+    const int exit_status = EG(exit_status);
     swoole_thread_clean(false);
     ts_free_thread();
     thread_num.fetch_sub(1);
+    // Publish the result only after RSHUTDOWN and TSRM cleanup, including
+    // detached workers. is_alive() acquires this completion barrier.
+    thread->exit(exit_status);
+}
+
+// Server thread bootstraps retain their explicit script-entry semantics.
+void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, ZendArray *argv) {
+    thread_start(thread, file, argv, false, nullptr);
 }
 
 size_t sw_active_thread_count() {
@@ -1246,6 +1400,13 @@ bool ZendArray::index_offsetSet(zend_long index, zval *zvalue) {
 
 void ZendArray::append(zval *zvalue) {
     zend_hash_next_index_insert_ptr(&ht, new ArrayItem(zvalue));
+}
+
+void ZendArray::append_serialized(zval *zvalue) {
+    auto serialized = php_swoole_serialize(zvalue);
+    if (serialized) {
+        zend_hash_next_index_insert_ptr(&ht, new ArrayItem(serialized));
+    }
 }
 
 bool ZendArray::index_incr(zval *zkey, zval *zvalue, zval *return_value) {
