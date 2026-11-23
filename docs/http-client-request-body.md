@@ -5,10 +5,9 @@ different parts of a request. `setData()` replaces the configured request body;
 `addFile()` and `addData()` append upload parts. They can be combined when
 `setData()` receives an array.
 
-This document describes the current implementation on `master`. PHP stream
-resources and an optional stream length for `setData()` are being discussed in
-[#6442](https://github.com/swoole/swoole-src/issues/6442); they are not part of
-the API documented here.
+This document describes the development implementation on `master`, including
+the PHP stream upload support discussed in
+[#6442](https://github.com/swoole/swoole-src/issues/6442).
 
 ## Choosing the request body format
 
@@ -19,9 +18,11 @@ sent.
 | --- | --- |
 | `setData(string)`, with no upload parts | The string is sent as the raw body. |
 | `setData(array)`, with no upload parts | The array is encoded as `application/x-www-form-urlencoded`. |
+| `setData(resource)`, with no upload parts | Bytes from a readable PHP stream are sent as the raw body. |
 | `addFile()` and/or `addData()`, with no `setData()` body | A `multipart/form-data` body containing the upload parts. |
 | `setData(array)` with `addFile()` and/or `addData()` | One `multipart/form-data` body containing ordinary fields and upload parts. |
 | `setData(string)` with `addFile()` and/or `addData()` | Multipart encoding is selected and the raw string is ignored. |
+| `setData(resource)` with `addFile()` and/or `addData()` | Rejected with `ValueError`, in either configuration order. |
 
 Set the method explicitly, for example with `setMethod('POST')`, when using
 `execute()` to send an upload.
@@ -154,6 +155,138 @@ original string alive even if `requestBody` is replaced in another coroutine.
 `setData(file_get_contents($path))` still loads the whole file into a PHP string.
 Avoiding the second full-size copy reduces upload memory, but does not turn that
 call into a streaming upload.
+
+## Sending a PHP stream as the raw body
+
+The signature follows PHP's stub convention for resource arguments:
+
+```php
+class Client
+{
+    /** @param array|string|resource $data */
+    public function setData($data, ?int $length = null): bool {}
+}
+```
+
+PHP does not support a native `resource` type declaration. The PHPDoc union
+describes the three accepted types; the implementation validates them and
+rejects other types with `TypeError`. A resource must be an open, readable PHP
+stream. A directory or write-only stream is rejected with `ValueError`.
+
+For example, inside a coroutine:
+
+```php
+$stream = fopen('/tmp/archive.bin', 'rb');
+try {
+    fseek($stream, 1024);
+    $client->setMethod('PUT');
+    $client->setHeaders(['Content-Type' => 'application/octet-stream']);
+    $client->setData($stream, 4 * 1024 * 1024);
+    $client->execute('/archive');
+} finally {
+    fclose($stream);
+}
+```
+
+This sends exactly 4 MiB starting at the stream's current position. There is no
+separate offset parameter. The starting position and byte count are captured
+when execution starts, so `fseek()` after `setData()` and before `execute()`
+takes effect.
+
+| `$length` | Behavior |
+| --- | --- |
+| `null` or omitted | Infer the remaining size of an unfiltered, seekable stream whose `fstat()` reports a regular file size. This includes normal files, `php://memory` and `php://temp`. |
+| `0` | Send an empty body without reading the source. |
+| Positive integer | Send exactly this many bytes; leave the remaining bytes for later use. |
+| Negative integer | Throw `ValueError`. |
+
+A non-null length is only valid for a resource. If the remaining length cannot
+be inferred, an explicit length is required; validation fails before headers
+are sent. This applies to pipes and streams with read filters. The explicit
+length counts the bytes returned by the stream, including any filter's output.
+If a known remaining size is smaller than the explicit length, the request is
+rejected before sending.
+
+The client generates `Content-Length` and reads at most 64 KiB at a time,
+sending each block before reading the next. It does not load the entire stream
+or concatenate its contents into a request buffer. Both HTTP and HTTPS use
+this path. Transfer-Encoding, including chunked uploads, is not supported for
+this body mode; a configured `Transfer-Encoding` header is rejected.
+
+Reads use the PHP stream API directly. A normal stream can block, while a
+coroutine file stream can yield. The caller chooses the stream and hook
+configuration. The client retains the active stream during the request, even
+if another coroutine replaces `requestBody`, and does not close or implicitly
+rewind the caller's stream after sending.
+
+For automatic 502/503 response retries, an unfiltered, seekable stream is
+restored to its original starting position and sent again with the original
+byte count. Pending `setData()` changes do not replace that retry source. A
+non-seekable or filtered stream is sent once, and the received 502/503 response
+is returned without an automatic replay. A failed rewind fails the request.
+As with other body modes, defer mode does not automatically retry responses.
+
+An early EOF, a read that makes no progress, a read exception or a failed send
+abandons the connection, so a partial request cannot contaminate a later
+exchange. PHP exceptions from stream operations propagate to the caller.
+
+Stream bodies cannot be combined with `addFile()` or `addData()`. Checks apply
+in either configuration order and again when sending, including when public
+properties were changed directly. The existing array-plus-multipart and
+string-plus-multipart rules above are unchanged. `post($path, $stream)` also
+supports a raw stream body, with its remaining length inferred; use `setData()`
+and `execute()` when an explicit length is needed.
+
+## Compressed request bodies
+
+HTTP request bodies can use a content coding such as gzip. The sender supplies
+the encoded bytes and declares the coding with `Content-Encoding`. The
+receiving endpoint must support that coding and decode the body; it may reject
+an unsupported coding with `415 Unsupported Media Type`. See
+[RFC 9110, section 8.4](https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4).
+
+The client's `http_compression` option advertises acceptable response codings
+through `Accept-Encoding`; it does not compress request bodies. The
+`body_decompression` option controls response decoding. To send compressed
+JSON, for example:
+
+```php
+$client->setHeaders([
+    'Content-Type' => 'application/json',
+    'Content-Encoding' => 'gzip',
+]);
+$client->post('/upload', gzencode($json));
+```
+
+The client calculates `Content-Length` from the compressed string's byte count.
+Setting `Content-Encoding` alone does not transform the supplied data.
+
+A file that already contains a gzip-encoded body can also be sent without
+loading the whole file into a string:
+
+```php
+$stream = fopen('/tmp/payload.json.gz', 'rb');
+try {
+    $client->setMethod('POST');
+    $client->setHeaders([
+        'Content-Type' => 'application/json',
+        'Content-Encoding' => 'gzip',
+    ]);
+    $client->setData($stream);
+    $client->execute('/upload');
+} finally {
+    fclose($stream);
+}
+```
+
+Compressing while reading usually leaves the final compressed length unknown
+until the compressor finishes. The stream upload path currently requires a
+known output length, so it does not support this unknown-length case. Supplying
+the uncompressed length would produce incorrect framing. Supporting it in this
+HTTP/1.1 client would require chunked request uploads (or buffering/spooling
+the compressed output first to determine its size). `Content-Encoding: gzip`
+and `Transfer-Encoding: chunked` serve different purposes and can be combined:
+one describes the encoded content, the other frames its transfer.
 
 ## Multipart assembly and memory use
 
