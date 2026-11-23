@@ -123,7 +123,10 @@ $pm->childFunc = function () use ($pm) {
                         }
                         $response->header('x-id', $request->get['id']);
                         $response->trailer('x-trailer', $request->get['id']);
-                        $ok = $response->end("small {$request->get['id']}");
+                        // Writes take turns per frame. A short response can finish before the peer closes;
+                        // make every close-case response large enough to remain blocked on socket capacity.
+                        $body = $case === 'close' ? str_repeat('S', CHUNK_SIZE) : "small {$request->get['id']}";
+                        $ok = $response->end($body);
                         break;
                     case '/cancel':
                         $cid = Coroutine::getCid();
