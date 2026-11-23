@@ -10,6 +10,37 @@ require __DIR__ . '/../include/api/http2_raw_client.php';
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 
+// Handler completion and onClose can notify in the same event-loop iteration. Atomic::wakeup()
+// retains only one pending notification, so count stages instead of losing one on slower parents.
+class HeaderFailureProcessManager extends ProcessManager
+{
+    private Swoole\Atomic $notifications;
+    private int $consumed = 0;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->notifications = new Swoole\Atomic(0);
+    }
+
+    public function wait()
+    {
+        $deadline = microtime(true) + $this->waitTimeout;
+        while ($this->notifications->get() <= $this->consumed) {
+            Assert::lessThan(microtime(true), $deadline, 'missing handler/close notification');
+            usleep(1000);
+        }
+        ++$this->consumed;
+        return true;
+    }
+
+    public function wakeup()
+    {
+        $this->notifications->add();
+        return true;
+    }
+}
+
 // The server's HPACK table now has entries the client never received, so the connection must end.
 function read_until_closed($client): void
 {
@@ -105,7 +136,7 @@ $cases = [
 
 foreach ($cases as $name => [$parent, $child]) {
     echo "{$name}\n";
-    $pm = new ProcessManager();
+    $pm = new HeaderFailureProcessManager();
     $pm->setWaitTimeout(5);
     $pm->parentFunc = function () use ($pm, $parent) {
         // The client doesn't read until stream 3's send has failed, so stream 1 fills the buffers.
