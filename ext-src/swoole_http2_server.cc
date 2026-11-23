@@ -430,9 +430,18 @@ static ssize_t http2_server_deflate_header_block(const std::shared_ptr<Http2Sess
     return rv;
 }
 
+static zval *http2_server_response_fields(const HttpContext *ctx, bool trailers) {
+    if (ctx->http2_header_snapshot) {
+        return trailers ? &ctx->http2_header_snapshot->trailers : &ctx->http2_header_snapshot->headers;
+    }
+    return sw_zend_read_property_ex(swoole_http_response_ce,
+                                    &ctx->response.zobject,
+                                    trailers ? SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER) : SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER),
+                                    0);
+}
+
 static ssize_t http2_server_build_trailer(const HttpContext *ctx, String *buffer) {
-    zval *ztrailer = sw_zend_read_property_ex(
-        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    zval *ztrailer = http2_server_response_fields(ctx, true);
     uint32_t size = php_swoole_array_length_safe(ztrailer);
 
     if (size > 0) {
@@ -676,8 +685,7 @@ _destroy:
 #endif
 
 static ssize_t http2_server_build_header(HttpContext *ctx, String *buffer, const String *body) {
-    zval *zheader =
-        sw_zend_read_property_ex(swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
+    zval *zheader = http2_server_response_fields(ctx, false);
     zval *zcookie =
         sw_zend_read_property_ex(swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     Http2::HeaderSet headers(32 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
@@ -1204,11 +1212,78 @@ bool Http2Stream::send_trailer(const std::shared_ptr<Http2Session> &session) con
     return lock.flush() && send_header_block(http_buffer);
 }
 
+// Resolve user Stringable values on the synchronous caller's stack. The background writer must not invoke
+// user conversions after end() has returned, or move their exceptions outside the caller's try/catch.
+static bool http2_server_snapshot_fields(zval *source, zval *result, bool multiple_values) {
+    if (!ZVAL_IS_ARRAY(source)) {
+        // These properties are ignored unless arrays. Do not retain arbitrary objects in an untraced C++ snapshot.
+        ZVAL_NULL(result);
+        return true;
+    }
+    array_init_size(result, zend_hash_num_elements(Z_ARRVAL_P(source)));
+    zend_string *key;
+    zval *value;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(source), key, value) {
+        ZVAL_DEREF(value);
+        if (!key || ZVAL_IS_NULL(value)) {
+            continue;
+        }
+        zend::Variable converted;
+        if (multiple_values && ZVAL_IS_ARRAY(value)) {
+            zend::Variable entries(value);
+            array_init(converted.ptr());
+            zval *entry;
+            ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(entries.ptr()), entry) {
+                ZVAL_DEREF(entry);
+                if (ZVAL_IS_NULL(entry)) {
+                    continue;
+                }
+                zend_string *text = zval_try_get_string(entry);
+                if (!text) {
+                    return false;
+                }
+                add_next_index_str(converted.ptr(), text);
+            }
+            ZEND_HASH_FOREACH_END();
+        } else {
+            zend_string *text = zval_try_get_string(value);
+            if (!text) {
+                return false;
+            }
+            ZVAL_STR(converted.ptr(), text);
+        }
+        zval field;
+        ZVAL_COPY(&field, converted.ptr());
+        zend_hash_update(Z_ARRVAL_P(result), key, &field);
+    }
+    ZEND_HASH_FOREACH_END();
+    return true;
+}
+
 static bool http2_server_schedule_response(
-    HttpContext *ctx, const char *method, size_t method_length, uint32_t argc, zval *argv) {
+    HttpContext *ctx, const char *method, size_t method_length, uint32_t argc, zval *argv, bool file_response = false) {
     if (UNEXPECTED(EG(exception))) {
         return false;
     }
+    auto snapshot = std::make_shared<swoole::http::Http2HeaderSnapshot>();
+    zval *headers = file_response
+                        ? sw_zend_read_and_convert_property_array(
+                              swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0)
+                        : sw_zend_read_property_ex(
+                              swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
+    zval *trailers = sw_zend_read_property_ex(
+        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    ZVAL_DEREF(headers);
+    ZVAL_DEREF(trailers);
+    zend::Variable owned_headers(headers), owned_trailers(trailers);
+    if (!http2_server_snapshot_fields(owned_headers.ptr(), &snapshot->headers, true) ||
+        !http2_server_snapshot_fields(owned_trailers.ptr(), &snapshot->trailers, false)) {
+        return false;
+    }
+    if (ctx->end_ || ctx->detached || !ctx->is_available()) {
+        return false;
+    }
+    ctx->http2_header_snapshot = std::move(snapshot);
     zend_fcall_info_cache fci{};
     fci.function_handler = static_cast<zend_function *>(
         zend_hash_str_find_ptr(&swoole_http_response_ce->function_table, method, method_length));
@@ -1284,8 +1359,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
         return false;
     }
 
-    zval *ztrailer = sw_zend_read_property_ex(
-        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    zval *ztrailer = http2_server_response_fields(ctx, true);
     if (php_swoole_array_length_safe(ztrailer) == 0) {
         ztrailer = nullptr;
     }
@@ -1358,8 +1432,7 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
     ctx->accept_compression = 0;
 #endif
     bool error = false;
-    zval *ztrailer = sw_zend_read_property_ex(
-        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    zval *ztrailer = http2_server_response_fields(ctx, true);
     if (php_swoole_array_length_safe(ztrailer) == 0) {
         ztrailer = nullptr;
     }
@@ -1477,7 +1550,7 @@ bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t of
         ZVAL_STR(&args[0], file);
         ZVAL_LONG(&args[1], offset);
         ZVAL_LONG(&args[2], length);
-        return http2_server_schedule_response(ctx, ZEND_STRL("sendhttp2file"), 3, args);
+        return http2_server_schedule_response(ctx, ZEND_STRL("sendhttp2file"), 3, args, true);
     }
 #endif
     Http2WriteDeadline deadline(ctx);
@@ -1491,16 +1564,21 @@ bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t of
         return false;
     }
 
-    zval *ztrailer = sw_zend_read_property_ex(
-        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    zval *ztrailer = http2_server_response_fields(ctx, true);
     if (php_swoole_array_length_safe(ztrailer) == 0) {
         ztrailer = nullptr;
     }
 
-    zval *zheader = sw_zend_read_and_convert_property_array(
-        swoole_http_response_ce, &ctx->response.zobject, ZEND_STRL("header"), 0);
+    zval *zheader = ctx->http2_header_snapshot
+                        ? &ctx->http2_header_snapshot->headers
+                        : sw_zend_read_and_convert_property_array(
+                              swoole_http_response_ce, &ctx->response.zobject, ZEND_STRL("header"), 0);
     if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("content-type"))) {
-        ctx->set_header(ZEND_STRL("content-type"), swoole::mime_type::get({ZSTR_VAL(file), ZSTR_LEN(file)}), false);
+        auto content_type = swoole::mime_type::get({ZSTR_VAL(file), ZSTR_LEN(file)});
+        ctx->set_header(ZEND_STRL("content-type"), content_type, false);
+        if (ctx->http2_header_snapshot) {
+            add_assoc_stringl_ex(zheader, ZEND_STRL("content-type"), content_type.c_str(), content_type.length());
+        }
     }
 
     bool end_stream = (ztrailer == nullptr);

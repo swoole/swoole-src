@@ -112,7 +112,10 @@ server use an internal writer coroutine. With `enable_coroutine=false`, user
 callbacks still run outside a coroutine. `end()` responses with a body and `sendfile()`
 transfers can be accepted by an internal writer that retains the response and
 its body/file until it finishes or times out; `true` reports acceptance, rather
-than delivery to the peer. Further writes to that response are rejected. A
+than delivery to the peer. Further writes to that response are rejected. Header and trailer values are
+converted on the caller's stack and retained as a snapshot, so conversion
+exceptions remain catchable by that callback and later property mutations do
+not change queued fields. A
 synchronous `write()` cannot suspend for missing credit and can return `false`;
 use coroutine callbacks for streaming writes that need to wait.
 

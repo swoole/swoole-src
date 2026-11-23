@@ -7,6 +7,23 @@ swoole_http2_server: internal writers drain end and sendfile without turning syn
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/../include/api/http2_flow_control.php';
 
+class FlowHeaderValue
+{
+    public function __toString(): string
+    {
+        Assert::same(Swoole\Coroutine::getCid(), -1);
+        return 'saved';
+    }
+}
+
+class FlowHeaderThrows
+{
+    public function __toString(): string
+    {
+        throw new RuntimeException('header conversion');
+    }
+}
+
 foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
     foreach (defined('SWOOLE_SSL') ? [false, true] : [false] as $tls) {
         $file = tempnam(sys_get_temp_dir(), 'swoole-http2-sync-');
@@ -33,6 +50,11 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
                 }
                 Assert::same($peer->bodies[1], str_repeat('E', 70000));
                 Assert::same($peer->bodies[3], str_repeat('F', 70000));
+                $peer->update(0, 2);
+                $peer->request(5, '/reject');
+                $peer->update(5, 2);
+                $peer->bytes(5, 2);
+                Assert::same($peer->bodies[5], 'OK');
                 $peer->close();
 
                 $peer = new Http2FlowPeer($pm->getFreePort(), 0, $tls);
@@ -60,12 +82,26 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
                 Assert::same(Swoole\Coroutine::getCid(), -1);
                 switch ($request->server['request_uri']) {
                     case '/end':
+                        $response->header('x-value', [new FlowHeaderValue(), 'literal']);
+                        $response->trailer = ['x-trailer' => new FlowHeaderValue()];
                         $data = str_repeat('E', 70000);
                         Assert::true($response->end($data));
                         $data[0] = 'Z'; // The pending writer must retain its own string reference.
+                        $response->trailer['x-trailer'] = new FlowHeaderThrows();
                         break;
                     case '/file':
                         Assert::true($response->sendfile($file, 6, 70000, true));
+                        break;
+                    case '/reject':
+                        $response->header('x-value', new FlowHeaderThrows());
+                        try {
+                            $response->end('not sent');
+                            Assert::true(false, 'expected the header conversion exception in this callback');
+                        } catch (RuntimeException $e) {
+                            Assert::same($e->getMessage(), 'header conversion');
+                            $response->header = [];
+                            Assert::true($response->end('OK'));
+                        }
                         break;
                     case '/blocked':
                         Assert::true($response->end(str_repeat('B', 70000)));

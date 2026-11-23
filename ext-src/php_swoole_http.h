@@ -152,6 +152,20 @@ struct MultipartState {
     void reset_part();
 };
 
+struct Http2HeaderSnapshot {
+    zval headers;
+    zval trailers;
+
+    Http2HeaderSnapshot() {
+        ZVAL_UNDEF(&headers);
+        ZVAL_UNDEF(&trailers);
+    }
+    ~Http2HeaderSnapshot() {
+        zval_ptr_dtor(&headers);
+        zval_ptr_dtor(&trailers);
+    }
+};
+
 struct Context {
     SessionId fd;
     uchar completed : 1;
@@ -181,6 +195,7 @@ struct Context {
     // One deadline covers HTTP/2 write-lock, flow-control and socket waits.
     double http2_write_deadline = 0;
     bool http2_send_result = true;
+    std::shared_ptr<Http2HeaderSnapshot> http2_header_snapshot;
     String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION
