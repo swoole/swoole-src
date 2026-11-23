@@ -465,8 +465,6 @@ static const char* swoole_library_source_core_constant =
     "\n"
     "    public const OPTION_DEFER = 'defer';\n"
     "\n"
-    "    public const OPTION_LOWERCASE_HEADER = 'lowercase_header';\n"
-    "\n"
     "    public const OPTION_KEEP_ALIVE = 'keep_alive';\n"
     "\n"
     "    public const OPTION_WEBSOCKET_MASK = 'websocket_mask';\n"

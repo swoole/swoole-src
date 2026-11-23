@@ -157,7 +157,6 @@ class Client {
     double connect_timeout = 0;
     double response_timeout = 0;
     bool defer = false;
-    bool lowercase_header = true;
     bool use_default_port;
 
     int8_t method = SW_HTTP_GET;
@@ -504,10 +503,8 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
     size_t header_len = http->tmp_header_field_name_len;
     zend::CharPtr _header_name;
 
-    if (http->lowercase_header) {
-        _header_name.assign_tolower(header_name, header_len);
-        header_name = _header_name.get();
-    }
+    _header_name.assign_tolower(header_name, header_len);
+    header_name = _header_name.get();
 
     http->add_header(header_name, header_len, (char *) at, length);
 
@@ -872,10 +869,6 @@ bool Client::apply_setting(zval *zset, const bool check_all) try {
         }
         if (php_swoole_array_get_value(vht, "defer", ztmp)) {
             defer = zval_is_true(ztmp);
-        }
-        if (php_swoole_array_get_value(vht, "lowercase_header", ztmp)) {
-            // TODO: Deprecate or remove this option in a future version and always normalize header keys to lowercase.
-            lowercase_header = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp)) {
             keep_alive = zval_is_true(ztmp);

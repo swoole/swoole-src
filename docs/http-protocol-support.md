@@ -84,3 +84,10 @@ On `6.1` and `6.2`, processing of `Cookie`, `Content-Length`, and
 `Accept-Encoding` is also deferred until the initial header block is complete.
 Existing cookie exposure and Content-Length checks are retained; trailer values
 do not participate in this processing.
+
+## Coroutine HTTP client response header names
+
+Response header names are always converted to lowercase, including cookies,
+content codings, trailers and WebSocket handshake headers. The
+`lowercase_header` option has been removed; supplying it cannot disable this
+normalization.
