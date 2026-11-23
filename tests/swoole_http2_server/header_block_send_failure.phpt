@@ -111,6 +111,7 @@ foreach ($cases as $name => [$parent, $child]) {
         // The client doesn't read until stream 3's send has failed, so stream 1 fills the buffers.
         $client = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}", $errno, $errstr, 2);
         Assert::notEmpty($client);
+        Assert::true(socket_set_option(socket_import_stream($client), SOL_SOCKET, SO_RCVBUF, 4096));
         stream_set_timeout($client, 2);
         $request = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
             . http2_test_frame(SWOOLE_HTTP2_TYPE_SETTINGS, 0, 0, pack('nN', 4, 0x7FFFFFFF))
@@ -132,6 +133,7 @@ foreach ($cases as $name => [$parent, $child]) {
             'http_compression'    => false,
             'send_yield'          => true,
             'buffer_output_size'  => 1024 * 1024,
+            'kernel_socket_send_buffer_size' => 4096,
         ]);
         $server->on('WorkerStart', function () use ($pm) {
             $pm->wakeup();

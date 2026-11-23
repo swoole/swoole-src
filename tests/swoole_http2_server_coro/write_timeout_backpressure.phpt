@@ -7,12 +7,12 @@ swoole_http2_server_coro: a blocked partial frame times out and closes without w
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/../include/api/http2_flow_control.php';
 
-foreach ([false, true] as $tls) {
+foreach (defined('SWOOLE_SSL') ? [false, true] : [false] as $tls) {
     $pm = new ProcessManager();
     $pm->setWaitTimeout(3);
     $pm->parentFunc = function () use ($pm, $tls) {
         try {
-            $peer = new Http2FlowPeer($pm->getFreePort(), 0x7fffffff, $tls);
+            $peer = new Http2FlowPeer($pm->getFreePort(), 0x7fffffff, $tls, 4096);
             $peer->update(0, 0x7fff0000);
             $peer->request(1, '/blocked');
             $started = microtime(true);

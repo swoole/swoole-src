@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/../include/api/http2_flow_control.php';
 
 foreach ([SWOOLE_BASE, SWOOLE_PROCESS, 'coroutine'] as $mode) {
-    foreach ([false, true] as $tls) {
+    foreach (defined('SWOOLE_SSL') ? [false, true] : [false] as $tls) {
         $pm = new ProcessManager();
         $pm->parentFunc = function () use ($pm, $tls) {
             try {

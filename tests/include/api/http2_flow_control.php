@@ -19,12 +19,18 @@ final class Http2FlowPeer
     public int $total = 0;
     private int $ping = 0;
 
-    public function __construct(int $port, int $window = 65535, bool $tls = false)
+    public function __construct(int $port, int $window = 65535, bool $tls = false, int $receiveBuffer = 0)
     {
         $context = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false]]);
-        $this->socket = stream_socket_client(($tls ? 'tls' : 'tcp') . "://127.0.0.1:$port", $errno, $errstr, 2, STREAM_CLIENT_CONNECT, $context);
+        $this->socket = stream_socket_client("tcp://127.0.0.1:$port", $errno, $errstr, 2, STREAM_CLIENT_CONNECT, $context);
         Assert::notEmpty($this->socket);
         stream_set_timeout($this->socket, 2);
+        if ($receiveBuffer > 0) {
+            Assert::true(socket_set_option(socket_import_stream($this->socket), SOL_SOCKET, SO_RCVBUF, $receiveBuffer));
+        }
+        if ($tls) {
+            Assert::true(stream_socket_enable_crypto($this->socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT));
+        }
         $this->sendBytes("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n");
         $this->settings($window);
     }
@@ -134,7 +140,7 @@ function http2_flow_server(ProcessManager $pm, $mode, Closure $handler, bool $tl
             $server = new Swoole\Coroutine\Http\Server('127.0.0.1', $pm->getFreePort(), $tls);
             $server->set($settings);
             $server->handle('/', $handler);
-            $pm->wakeup();
+            Swoole\Event::defer(fn () => $pm->wakeup());
             $server->start();
         });
     } else {
