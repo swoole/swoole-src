@@ -148,6 +148,15 @@ struct StreamBody {
     }
 };
 
+struct MultipartBody {
+    zend::Variable fields;
+    zend::Variable files;
+
+    bool active() const {
+        return Z_TYPE(files.value) == IS_ARRAY;
+    }
+};
+
 class Client {
   public:
     /* request info */
@@ -251,8 +260,9 @@ class Client {
     zend_long stream_length_handle = -1;
     bool in_stream_request = false;
     bool prepare_stream_body(StreamBody &body);
+    void prepare_multipart_body(MultipartBody &body);
     bool send_stream_body(StreamBody &body);
-    bool send_request(StreamBody &stream_body);
+    bool send_request(StreamBody &stream_body, MultipartBody &multipart_body);
     void reset_download();
     void reset();
 
@@ -1156,7 +1166,23 @@ bool Client::send_stream_body(StreamBody &body) {
     return true;
 }
 
-bool Client::send_request(StreamBody &stream_body) {
+void Client::prepare_multipart_body(MultipartBody &body) {
+    zval *files =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_UPLOAD_FILES), 0);
+    ZVAL_DEREF(files);
+    if (php_swoole_array_length_safe(files) == 0) {
+        return;
+    }
+    body.files = files;
+    zval *fields =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_BODY), 0);
+    ZVAL_DEREF(fields);
+    if (!ZVAL_IS_NULL(fields)) {
+        body.fields = fields;
+    }
+}
+
+bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body) {
     request_connection_close = false;
     zval *zvalue = nullptr;
     uint32_t header_flag = 0x0;
@@ -1236,6 +1262,13 @@ bool Client::send_request(StreamBody &stream_body) {
     }
     zupload_files =
         sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_UPLOAD_FILES), 0);
+    if (!stream_body.active() && !multipart_body.active()) {
+        prepare_multipart_body(multipart_body);
+    }
+    if (multipart_body.active()) {
+        zupload_files = multipart_body.files.ptr();
+        zbody = Z_ISUNDEF(multipart_body.fields.value) ? nullptr : multipart_body.fields.ptr();
+    }
     zcookies = sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIES), 0);
     z_download_file = sw_zend_read_property_not_null_ex(
         swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_DOWNLOAD_FILE), 0);
@@ -1723,6 +1756,8 @@ bool Client::exec(const std::string &_path) {
     }
     // Keep one source, starting position and byte count for the complete request, including retries.
     StreamBody stream_body;
+    MultipartBody multipart_body;
+    prepare_multipart_body(multipart_body);
     in_stream_request = true;
     ON_SCOPE_EXIT {
         in_stream_request = false;
@@ -1749,7 +1784,7 @@ bool Client::exec(const std::string &_path) {
         resolve_context_.with_port = true;
     }
     SW_LOOP_N(max_retries + 1) {
-        if (send_request(stream_body) == false) {
+        if (send_request(stream_body, multipart_body) == false) {
             // Connection and validation failures may precede initialization of the internal download state.
             reset_download();
             return false;
