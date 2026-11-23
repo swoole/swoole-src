@@ -1739,7 +1739,8 @@ static int http2_server_parse_header(const std::shared_ptr<Http2Session> &client
                                      const std::shared_ptr<Http2Stream> &stream,
                                      int flags,
                                      const char *in,
-                                     size_t inlen) {
+                                     size_t inlen,
+                                     bool discard_initial) {
     nghttp2_hd_inflater *inflater = client->inflater;
 
     if (!inflater) {
@@ -1772,7 +1773,7 @@ static int http2_server_parse_header(const std::shared_ptr<Http2Session> &client
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
             if (!stream) {
                 // Trailers can't carry pseudo-headers, so this is a new request on a closed stream.
-                if (nv.namelen > 0 && nv.name[0] == ':') {
+                if (!discard_initial && nv.namelen > 0 && nv.name[0] == ':') {
                     return SW_ERR;
                 }
             } else if (http2_server_parse_field(client, stream, nv, max_headers) < 0) {
@@ -1799,9 +1800,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
 
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
 
-    if (client->shutting_down) {
-        swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_IGNORE, "ignore http2 stream#%d after sending goaway", stream_id);
+    if (client->terminating) {
         return SW_ERR;
     }
 
@@ -1907,7 +1906,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             if (stream_id == 0 || !(stream_id & 1)) {
                 return SW_ERR;
             }
-            if (!stream && stream_id > client->last_stream_id) {
+            if (!stream && stream_id > client->last_stream_id && !client->shutting_down) {
                 bool refused = client->streams.size() >= client->local_settings.max_concurrent_streams;
                 stream = client->create_stream(stream_id);
                 if (!stream) {
@@ -1925,7 +1924,8 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
                 }
             } else if (!stream) {
                 // RFC 9113 §5.1: a block on a closed stream, such as trailers sent before the client received our
-                // RST_STREAM, is decoded to keep HPACK state and then discarded.
+                // RST_STREAM, is decoded to keep HPACK state and then discarded. The same applies to new
+                // requests beyond GOAWAY's last stream ID, which must never reach the application.
             } else if (stream->receive_phase == Http2Stream::ReceivePhase::BODY) {
                 stream->receive_phase = Http2Stream::ReceivePhase::TRAILERS;
                 swoole_http_init_and_read_property(swoole_http_request_ce,
@@ -1963,7 +1963,8 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             return SW_ERR;
         }
 
-        if (http2_server_parse_header(client, stream, flags, buf, length) < 0) {
+        if (http2_server_parse_header(
+                client, stream, flags, buf, length, client->shutting_down && stream_id > client->last_stream_id) < 0) {
             return SW_ERR;
         }
         if (!(flags & SW_HTTP2_FLAG_END_HEADERS)) {
@@ -1995,7 +1996,7 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
     case SW_HTTP2_TYPE_DATA: {
         swoole_http2_frame_trace_log("data");
         auto stream = client->get_stream(stream_id);
-        if (!stream && (!(stream_id & 1) || stream_id > client->last_stream_id)) {
+        if (!stream && (!(stream_id & 1) || (!client->shutting_down && stream_id > client->last_stream_id))) {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NOT_FOUND, "http2 stream#%d not found", stream_id);
             return SW_ERR;
         }
@@ -2103,6 +2104,9 @@ int swoole_http2_server_parse(const std::shared_ptr<Http2Session> &client, const
             }
             client->remote_window_size += value;
         } else {
+            if (client->shutting_down && (stream_id & 1) && stream_id > client->last_stream_id) {
+                break;
+            }
             if (!(stream_id & 1) || stream_id > client->last_stream_id) {
                 http2_server_abort(client, SW_HTTP2_ERROR_PROTOCOL_ERROR, "WINDOW_UPDATE on idle stream");
                 return SW_ERR;

@@ -111,6 +111,12 @@ when DATA credit is exhausted. Built-in static responses on an asynchronous
 server also use a coroutine when `enable_coroutine` is enabled. A synchronous
 handler cannot wait for credit; it must not send DATA beyond the peer's windows.
 
+An application `goaway()` stops accepting new requests while existing streams
+continue to receive DATA, trailers, SETTINGS and WINDOW_UPDATE. Ignored new
+streams still update the HPACK decoder and consume connection receive credit,
+so they cannot desynchronize existing requests. The connection closes after
+its existing responses finish, or when a send deadline expires.
+
 A coroutine HTTP server applies its `write_timeout` setting to accepted sockets.
 One `write()`, `end()` or `sendfile()` operation shares a deadline across waiting
 for the write lock, window credit and socket capacity. The asynchronous server
