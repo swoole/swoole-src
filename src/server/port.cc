@@ -436,7 +436,8 @@ int ListenPort::readable_callback_http(Reactor *reactor, ListenPort *port, Event
     auto *serv = static_cast<Server *>(reactor->ptr);
     RecvData dispatch_data{};
 
-    if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
+    // Frames are only accepted once the handshake response has been sent.
+    if (conn->websocket_status >= websocket::STATUS_ACTIVE) {
         if (conn->http_upgrade == 0) {
             port->destroy_http_request(conn);
             conn->websocket_status = websocket::STATUS_ACTIVE;

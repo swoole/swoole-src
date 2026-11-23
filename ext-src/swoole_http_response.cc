@@ -841,6 +841,16 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
 #endif
 
+#ifndef _WIN32
+        // The client may send frames as soon as the 101 is on the wire, so accept them from this point.
+        if (upgrade && response.status == SW_HTTP_SWITCHING_PROTOCOLS && !is_co_socket()) {
+            auto *ws_conn = get_async_server()->get_connection_verify(fd);
+            if (ws_conn && ws_conn->websocket_status == websocket::STATUS_HANDSHAKE) {
+                ws_conn->websocket_status = websocket::STATUS_ACTIVE;
+            }
+        }
+#endif
+
         build_header(http_buffer, data, length);
 
         if (length > 0) {
