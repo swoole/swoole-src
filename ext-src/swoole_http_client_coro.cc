@@ -527,6 +527,8 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
             sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
         zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(
             swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
+        SEPARATE_ARRAY(zcookies);
+        SEPARATE_ARRAY(zset_cookie_headers);
         php_swoole_http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
     }
 #ifdef SW_HAVE_COMPRESSION
@@ -1949,6 +1951,7 @@ bool Client::upgrade(const std::string &_path) {
     char buf[SW_WEBSOCKET_KEY_LENGTH + 1];
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 0);
+    SEPARATE_ARRAY(zheaders);
     zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("requestMethod"), "GET");
     create_token(SW_WEBSOCKET_KEY_LENGTH, buf);
     add_assoc_string(zheaders, "Connection", "Upgrade");
@@ -2416,6 +2419,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile) {
 
     zval *zupload_files =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("uploadFiles"), 0);
+    SEPARATE_ARRAY(zupload_files);
     zval zupload_file;
     array_init(&zupload_file);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("path"), path, l_path);
@@ -2461,6 +2465,7 @@ static PHP_METHOD(swoole_http_client_coro, addData) {
 
     zval *zupload_files =
         sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("uploadFiles"), 0);
+    SEPARATE_ARRAY(zupload_files);
     zval zupload_file;
     array_init(&zupload_file);
     add_assoc_stringl_ex(&zupload_file, ZEND_STRL("content"), data, l_data);
