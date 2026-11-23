@@ -1028,6 +1028,10 @@ static int http2_server_parse_header(const std::shared_ptr<Http2Session> &client
                     } else {
                         zstr_path = zend_string_init((char *) nv.value, nv.valuelen, false);
                     }
+                    // A repeated :path must not leak the previous value.
+                    if (ctx->request.path) {
+                        efree(ctx->request.path);
+                    }
                     ctx->request.path = estrndup((char *) nv.value, nv.valuelen);
                     ctx->request.path_len = nv.valuelen;
                     add_assoc_str_ex(zserver, ZEND_STRL("request_uri"), zstr_path);
