@@ -22,6 +22,8 @@ namespace Swoole\Http {
 		public function status(int $http_code, string $reason = ''): bool {}
 		public function disconnect(int $code = SWOOLE_WEBSOCKET_CLOSE_NORMAL, string $reason = ""): bool {}
 		private function sendStaticFile(\Swoole\Http\Request $request): void {}
+		private function sendHttp2Response(string $content): void {}
+		private function sendHttp2File(string $file, int $offset, int $length): void {}
 		public function __destruct() {}
 	}
 }

@@ -108,8 +108,13 @@ wait for window credit without holding the connection write lock, so the receive
 can continue processing WINDOW_UPDATE, PING and stream resets. Headers, trailers,
 control frames and an empty DATA frame carrying END_STREAM can still be sent
 when DATA credit is exhausted. Built-in static responses on an asynchronous
-server also use a coroutine when `enable_coroutine` is enabled. A synchronous
-handler cannot wait for credit; it must not send DATA beyond the peer's windows.
+server use an internal writer coroutine. With `enable_coroutine=false`, user
+callbacks still run outside a coroutine. `end()` responses with a body and `sendfile()`
+transfers can be accepted by an internal writer that retains the response and
+its body/file until it finishes or times out; `true` reports acceptance, rather
+than delivery to the peer. Further writes to that response are rejected. A
+synchronous `write()` cannot suspend for missing credit and can return `false`;
+use coroutine callbacks for streaming writes that need to wait.
 
 An application `goaway()` stops accepting new requests while existing streams
 continue to receive DATA, trailers, SETTINGS and WINDOW_UPDATE. Ignored new

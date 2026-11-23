@@ -41,10 +41,8 @@ $configs = [
 
 foreach ($configs as [$mode, $enable_coroutine]) {
     $pm = new ProcessManager;
-    $pm->parentFunc = function () use ($pm, $content, $offset, $length, $partial_offset, $partial_length, $enable_coroutine) {
-        Coroutine\run(function () use ($pm, $content, $offset, $length, $partial_offset, $partial_length, $enable_coroutine) {
-            // A synchronous application handler cannot wait for new credit. Grant its full transfer up front.
-            Coroutine::set(['http2_init_window_size' => $enable_coroutine ? 65535 : 1024 * 1024]);
+    $pm->parentFunc = function () use ($pm, $content, $offset, $length, $partial_offset, $partial_length) {
+        Coroutine\run(function () use ($pm, $content, $offset, $length, $partial_offset, $partial_length) {
             $client = new Client('127.0.0.1', $pm->getFreePort(), false);
             $client->set(['timeout' => 10]);
             Assert::true($client->connect());

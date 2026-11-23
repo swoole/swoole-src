@@ -495,9 +495,9 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     if (handler.status_code == SW_HTTP_OK && (!handler.try_serve_index_file() || !handler.open_file())) {
         return false;
     }
-    if (!swoole_coroutine_is_in() && serv->is_enable_coroutine()) {
-        // Static responses bypass the PHP request callback. Give them a PHP coroutine as well, so a depleted
-        // connection window can suspend this response without blocking frame parsing.
+    if (!swoole_coroutine_is_in()) {
+        // Static responses bypass the PHP request callback. Their internal writer can suspend for credit even
+        // when automatic coroutines for user callbacks are disabled.
         zend_fcall_info_cache fci{};
         fci.function_handler = static_cast<zend_function *>(
             zend_hash_str_find_ptr(&swoole_http_response_ce->function_table, ZEND_STRL("sendstaticfile")));
@@ -1204,7 +1204,36 @@ bool Http2Stream::send_trailer(const std::shared_ptr<Http2Session> &session) con
     return lock.flush() && send_header_block(http_buffer);
 }
 
+static bool http2_server_schedule_response(
+    HttpContext *ctx, const char *method, size_t method_length, uint32_t argc, zval *argv) {
+    if (UNEXPECTED(EG(exception))) {
+        return false;
+    }
+    zend_fcall_info_cache fci{};
+    fci.function_handler = static_cast<zend_function *>(
+        zend_hash_str_find_ptr(&swoole_http_response_ce->function_table, method, method_length));
+    fci.object = Z_OBJ(ctx->response.zobject);
+    fci.called_scope = swoole_http_response_ce;
+    // An immediate failure is recorded before create() returns. Otherwise true means accepted: the internal
+    // coroutine pins the response and arguments until transmission or timeout finishes.
+    ctx->http2_send_result = true;
+    if (swoole::PHPCoroutine::create(&fci, argc, argv, nullptr) < 0) {
+        return false;
+    }
+    if (ctx->http2_send_result) {
+        ctx->end_ = true;
+    }
+    return ctx->http2_send_result;
+}
+
 bool swoole_http2_server_end(HttpContext *ctx, zend_string *sdata) {
+#ifndef _WIN32
+    if (!ctx->is_co_socket() && !swoole_coroutine_is_in() && sdata && ZSTR_LEN(sdata) > 0) {
+        zval body;
+        ZVAL_STR(&body, sdata);
+        return http2_server_schedule_response(ctx, ZEND_STRL("sendhttp2response"), 1, &body);
+    }
+#endif
     Http2WriteDeadline deadline(ctx);
     String http_body = {};
     if (sdata) {
@@ -1251,6 +1280,9 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
     }
     auto client = iter->second;
     auto stream = client->get_stream(ctx->stream_id);
+    if (!stream || client->terminating) {
+        return false;
+    }
 
     zval *ztrailer = sw_zend_read_property_ex(
         swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
@@ -1430,9 +1462,25 @@ static bool http2_server_send_range_file(HttpContext *ctx, StaticHandler *handle
 }
 
 bool swoole_http2_server_send_file(HttpContext *ctx, zend_string *file, off_t offset, size_t length) {
-    Http2WriteDeadline deadline(ctx);
-    auto client = http2_sessions[ctx->fd];
+    auto iter = http2_sessions.find(ctx->fd);
+    if (iter == http2_sessions.end() || iter->second->terminating) {
+        return false;
+    }
+    auto client = iter->second;
     auto stream = client->get_stream(ctx->stream_id);
+    if (!stream) {
+        return false;
+    }
+#ifndef _WIN32
+    if (!ctx->is_co_socket() && !swoole_coroutine_is_in()) {
+        zval args[3];
+        ZVAL_STR(&args[0], file);
+        ZVAL_LONG(&args[1], offset);
+        ZVAL_LONG(&args[2], length);
+        return http2_server_schedule_response(ctx, ZEND_STRL("sendhttp2file"), 3, args);
+    }
+#endif
+    Http2WriteDeadline deadline(ctx);
 
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;

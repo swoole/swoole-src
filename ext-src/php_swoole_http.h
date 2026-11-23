@@ -180,6 +180,7 @@ struct Context {
     uint32_t stream_id;
     // One deadline covers HTTP/2 write-lock, flow-control and socket waits.
     double http2_write_deadline = 0;
+    bool http2_send_result = true;
     String *write_buffer;
 
 #ifdef SW_HAVE_COMPRESSION

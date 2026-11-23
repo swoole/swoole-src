@@ -138,6 +138,8 @@ static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
 static PHP_METHOD(swoole_http_response, sendStaticFile);
+static PHP_METHOD(swoole_http_response, sendHttp2Response);
+static PHP_METHOD(swoole_http_response, sendHttp2File);
 static PHP_METHOD(swoole_http_response, redirect);
 static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
@@ -191,6 +193,8 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, close,      arginfo_class_Swoole_Http_Response_close,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, disconnect, arginfo_class_Swoole_Http_Response_disconnect, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendStaticFile, arginfo_class_Swoole_Http_Response_sendStaticFile, ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_http_response, sendHttp2Response, arginfo_class_Swoole_Http_Response_sendHttp2Response, ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_http_response, sendHttp2File, arginfo_class_Swoole_Http_Response_sendHttp2File, ZEND_ACC_PRIVATE)
     PHP_FE_END
 };
 // clang-format on
@@ -1010,6 +1014,31 @@ static PHP_METHOD(swoole_http_response, sendStaticFile) {
         swoole_http2_server_send_static_file(ctx);
     }
 #endif
+}
+
+static PHP_METHOD(swoole_http_response, sendHttp2Response) {
+    zend_string *content;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STR(content)
+    ZEND_PARSE_PARAMETERS_END();
+    auto *ctx = php_swoole_http_response_get_context(ZEND_THIS);
+    if (ctx) {
+        ctx->http2_send_result = swoole_http2_server_end(ctx, content);
+    }
+}
+
+static PHP_METHOD(swoole_http_response, sendHttp2File) {
+    zend_string *file;
+    zend_long offset, length;
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+    Z_PARAM_STR(file)
+    Z_PARAM_LONG(offset)
+    Z_PARAM_LONG(length)
+    ZEND_PARSE_PARAMETERS_END();
+    auto *ctx = php_swoole_http_response_get_context(ZEND_THIS);
+    if (ctx) {
+        ctx->http2_send_result = swoole_http2_server_send_file(ctx, file, offset, length);
+    }
 }
 
 static PHP_METHOD(swoole_http_response, sendfile) {
