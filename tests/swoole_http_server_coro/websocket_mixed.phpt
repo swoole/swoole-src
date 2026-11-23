@@ -39,7 +39,13 @@ Coroutine\run(function () {
         if (Assert::true($socket->connect('127.0.0.1', $server->port, -1))) {
             $ret = $socket->sendAll(REQUEST);
             Assert::same($ret, strlen(REQUEST));
-            Assert::contains($socket->recv(), 'Hello Swoole');
+            // The handshake and echoed WebSocket frame may arrive in separate reads.
+            $reply = '';
+            while (!str_contains($reply, 'Hello Swoole')) {
+                $chunk = $socket->recv(65536, 5);
+                Assert::notEmpty($chunk);
+                $reply .= $chunk;
+            }
             $server->shutdown();
             echo "DONE\n";
         }
