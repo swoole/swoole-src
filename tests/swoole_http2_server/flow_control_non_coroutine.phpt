@@ -9,9 +9,17 @@ require __DIR__ . '/../include/api/http2_flow_control.php';
 
 class FlowHeaderValue
 {
+    public function __construct(private ?Swoole\Http\Response $response = null)
+    {
+    }
+
     public function __toString(): string
     {
         Assert::same(Swoole\Coroutine::getCid(), -1);
+        if ($this->response !== null) {
+            $this->response->header('x-during-conversion', 'added');
+            $this->response = null;
+        }
         return 'saved';
     }
 }
@@ -115,7 +123,7 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
                 Assert::same(Swoole\Coroutine::getCid(), -1);
                 switch ($request->server['request_uri']) {
                     case '/end':
-                        $response->header('x-value', [new FlowHeaderValue(), 'literal']);
+                        $response->header('x-value', [new FlowHeaderValue($response), 'literal']);
                         $response->trailer = ['x-trailer' => new FlowHeaderValue()];
                         $data = str_repeat('E', 70000);
                         Assert::true($response->end($data));

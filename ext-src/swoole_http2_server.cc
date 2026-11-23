@@ -1277,19 +1277,29 @@ static bool http2_server_schedule_response(
         return false;
     }
     auto snapshot = std::make_shared<swoole::http::Http2HeaderSnapshot>();
-    zval *headers = file_response
-                        ? sw_zend_read_and_convert_property_array(
-                              swoole_http_response_ce, &ctx->response.zobject, ZEND_STRL("header"), 0)
-                        : sw_zend_read_property_ex(
-                              swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
-    zval *trailers = sw_zend_read_property_ex(
-        swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
-    ZVAL_DEREF(headers);
-    ZVAL_DEREF(trailers);
-    zend::Variable owned_headers(headers), owned_trailers(trailers);
-    if (!http2_server_snapshot_fields(owned_headers.ptr(), &snapshot->headers, true) ||
-        !http2_server_snapshot_fields(owned_trailers.ptr(), &snapshot->trailers, false)) {
-        return false;
+    {
+        zval *headers =
+            file_response ? sw_zend_read_and_convert_property_array(
+                                swoole_http_response_ce, &ctx->response.zobject, ZEND_STRL("header"), 0)
+                          : sw_zend_read_property_ex(
+                                swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
+        zval *trailers = sw_zend_read_property_ex(
+            swoole_http_response_ce, &ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+        ZVAL_DEREF(headers);
+        ZVAL_DEREF(trailers);
+        zend::Variable owned_headers(headers), owned_trailers(trailers);
+        // Native header setters can mutate the property array without separating it. Own a detached source
+        // during user conversions, and release it before the internal writer adds generated file headers.
+        if (ZVAL_IS_ARRAY(owned_headers.ptr())) {
+            SEPARATE_ARRAY(owned_headers.ptr());
+        }
+        if (ZVAL_IS_ARRAY(owned_trailers.ptr())) {
+            SEPARATE_ARRAY(owned_trailers.ptr());
+        }
+        if (!http2_server_snapshot_fields(owned_headers.ptr(), &snapshot->headers, true) ||
+            !http2_server_snapshot_fields(owned_trailers.ptr(), &snapshot->trailers, false)) {
+            return false;
+        }
     }
     if (ctx->end_ || ctx->detached || !ctx->is_available()) {
         return false;
