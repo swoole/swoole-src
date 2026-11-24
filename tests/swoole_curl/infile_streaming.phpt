@@ -98,6 +98,7 @@ run_curl_hook_comparison(function ($hook) {
         $curl = curl_init($url);
         try {
             curl_setopt_array($curl, [CURLOPT_PROXY => '', CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5,
+                CURLOPT_CONNECTTIMEOUT_MS => 1000,
                 CURLOPT_FOLLOWLOCATION => true, CURLOPT_UPLOAD => true, CURLOPT_INFILE => $file,
                 CURLOPT_INFILESIZE => $length, CURLOPT_HTTPHEADER => ['Expect:'],
                 CURLOPT_RESOLVE => ['upload.test:' . $server->port . ':127.0.0.2,127.0.0.1']]);

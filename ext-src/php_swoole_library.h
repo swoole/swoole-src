@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-/* $Id: f31e4c489dc4af7a1a08563955f89b0114c3e28f */
+/* $Id: 0d9b0b99f658c72000bff76fe7d651e80ac9702d */
 
 #ifndef SWOOLE_LIBRARY_H
 #define SWOOLE_LIBRARY_H
@@ -12517,7 +12517,13 @@ static const char* swoole_library_source_ext_standard =
     "\n"
     "function swoole_real_dns_get_record(string $hostname, int $type, mixed $authoritative_name_servers = null, mixed $additional_records = null, bool $raw = false): array\n"
     "{\n"
-    "    $result = dns_get_record($hostname, $type, $authoritative_name_servers, $additional_records, $raw);\n"
+    "    // Requesting additional records makes PHP issue an extra ANY query, so preserve the caller's arity.\n"
+    "    $result = match (func_num_args()) {\n"
+    "        2       => dns_get_record($hostname, $type),\n"
+    "        3       => dns_get_record($hostname, $type, $authoritative_name_servers),\n"
+    "        4       => dns_get_record($hostname, $type, $authoritative_name_servers, $additional_records),\n"
+    "        default => dns_get_record($hostname, $type, $authoritative_name_servers, $additional_records, $raw),\n"
+    "    };\n"
     "    return ['result' => $result, 'authoritative_name_servers' => $authoritative_name_servers, 'additional_records' => $additional_records];\n"
     "}\n"
     "\n"
@@ -12533,7 +12539,17 @@ static const char* swoole_library_source_ext_standard =
     "{\n"
     "    $client = swoole_get_default_remote_object_client();\n"
     "    // These are output parameters; their old values need not be serializable or of any particular type.\n"
-    "    $result = $client->call('swoole_real_dns_get_record', $hostname, $type, null, null, $raw);\n"
+    "    $arguments = [$hostname, $type];\n"
+    "    if (func_num_args() >= 3) {\n"
+    "        $arguments[] = null;\n"
+    "    }\n"
+    "    if (func_num_args() >= 4) {\n"
+    "        $arguments[] = null;\n"
+    "    }\n"
+    "    if (func_num_args() >= 5) {\n"
+    "        $arguments[] = $raw;\n"
+    "    }\n"
+    "    $result = $client->call('swoole_real_dns_get_record', ...$arguments);\n"
     "    if (func_num_args() >= 3) {\n"
     "        $authoritative_name_servers = $result['authoritative_name_servers'];\n"
     "    }\n"

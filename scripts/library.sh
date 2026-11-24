@@ -49,8 +49,8 @@ tar zxf ${MARIADB_CONNECTOR_VERSION}.tar.gz
 mkdir build
 cd build
 cmake ../mariadb-connector-odbc-${MARIADB_CONNECTOR_VERSION}/ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCONC_WITH_UNIT_TESTS=Off -DCMAKE_INSTALL_PREFIX=/usr/local -DWITH_SSL=OPENSSL
-cmake --build . --config RelWithDebInfo
-make install
+cmake --build . --config RelWithDebInfo --parallel "${SWOOLE_BUILD_JOBS:-1}"
+make -j"${SWOOLE_BUILD_JOBS:-1}" install
 echo '/usr/local/lib/mariadb/' > /etc/ld.so.conf.d/odbc-mariadb.conf
 ldconfig
 

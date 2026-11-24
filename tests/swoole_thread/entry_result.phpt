@@ -10,7 +10,9 @@ skip_if_php_version_lower_than('8.4');
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+Assert::setThrowException(true);
 $file = tempnam(sys_get_temp_dir(), 'swoole_thread_result_');
+$files = [$file];
 try {
     $contents = str_repeat("thread\0result", 1024);
     file_put_contents($file, $contents);
@@ -21,8 +23,11 @@ try {
     Assert::same($thread->getResult(), $contents);
 
     foreach (["return 'script';" => 'script', 'return false;' => false, 'return null;' => null, '' => 1] as $body => $expected) {
-        file_put_contents($file, '<?php ' . $body);
-        $thread = new Swoole\Thread($file);
+        // Threads share OPcache; each entry script needs its own path rather than a rewritten cached file.
+        $script = tempnam(sys_get_temp_dir(), 'swoole_thread_result_');
+        $files[] = $script;
+        file_put_contents($script, '<?php ' . $body);
+        $thread = new Swoole\Thread($script);
         Assert::true($thread->join());
         Assert::same($thread->getExitStatus(), 0);
         Assert::same($thread->getResult(), $expected);
@@ -48,7 +53,9 @@ try {
     Assert::same($thread->getExitStatus(), 0);
     Assert::same($thread->getResult()->format('Y-m-d'), '2026-11-23');
 } finally {
-    unlink($file);
+    foreach ($files as $path) {
+        unlink($path);
+    }
 }
 echo "DONE\n";
 ?>

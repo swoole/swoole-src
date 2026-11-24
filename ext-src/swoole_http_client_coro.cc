@@ -1262,13 +1262,13 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
     if (!keep_liveness()) {
         return false;
     }
+    SW_CLIENT_PRESERVE_SOCKET(&zsocket);
     if (!stream_body.active()) {
         // Connection setup can yield, allowing setData() to select a stream for this request.
         zval *data =
             sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_BODY), 0);
         ZVAL_DEREF(data);
         if (Z_TYPE_P(data) == IS_RESOURCE) {
-            SW_CLIENT_PRESERVE_SOCKET(&zsocket);
             in_stream_request = true;
             if (!prepare_stream_body(stream_body)) {
                 return false;
@@ -1879,6 +1879,8 @@ bool Client::recv_response(double timeout) {
     if (!wait_response) {
         return false;
     }
+    // close() clears zsocket; timeout restoration and pending I/O still need the native socket.
+    SW_CLIENT_PRESERVE_SOCKET(&zsocket);
     write_func_aborted = false;
     ssize_t retval = 0;
     size_t total_bytes = 0, parsed_n = 0;
@@ -2182,7 +2184,7 @@ void Client::socket_dtor() {
  * The client, mysql client, http2 client also need to follow this coding convention.
  */
 bool Client::close(const bool should_be_reset) {
-    SocketImpl *_socket = socket;
+    SW_CLIENT_GET_SOCKET_SAFE(_socket, &zsocket);
     if (!_socket) {
         return false;
     }

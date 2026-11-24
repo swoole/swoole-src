@@ -940,6 +940,30 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
+    if (socket->ssl) {
+        if (io_vector->length() == 0) {
+            return 0;
+        }
+        // TLS writes can switch between read and write readiness. Retry in the coroutine so
+        // wait_event() can select the direction again, rather than returning a stale barrier result.
+        TimeoutController timeout(this, socket->write_timeout, SW_TIMEOUT_WRITE);
+        ssize_t retval = 0;
+        size_t total_bytes = 0;
+        while (io_vector->get_remain_count() > 0) {
+            if (timeout.has_timedout(SW_TIMEOUT_WRITE)) {
+                break;
+            }
+            retval = writev(io_vector);
+            if (retval <= 0) {
+                if (errCode == 0) {
+                    set_err(ECONNRESET);
+                }
+                break;
+            }
+            total_bytes += retval;
+        }
+        return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
+    }
     ssize_t total_bytes = 0;
     TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
 
@@ -952,6 +976,9 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     }
 
     if (retval == 0) {
+        if (io_vector->length() > 0) {
+            set_err(ECONNRESET);
+        }
         return retval;
     }
 
@@ -981,6 +1008,9 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     }
     send_barrier = nullptr;
 
+    if (io_vector->get_remain_count() > 0 && errCode == 0) {
+        set_err(ECONNRESET);
+    }
     return total_bytes;
 }
 
@@ -1024,6 +1054,11 @@ ssize_t Socket::send_all(const void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
+    if (socket->ssl && _n > 0) {
+        iovec iov{const_cast<void *>(_buf), _n};
+        network::IOVector data(&iov, 1);
+        return writev_all(&data);
+    }
     ssize_t retval = 0;
     size_t total_bytes = 0;
     TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
@@ -1031,6 +1066,9 @@ ssize_t Socket::send_all(const void *_buf, size_t _n) {
     retval = socket->send(_buf, _n, 0);
 
     if (retval == 0 || retval == (ssize_t) _n) {
+        if (retval == 0 && _n > 0) {
+            set_err(ECONNRESET);
+        }
         return retval;
     }
     if (retval < 0 && socket->catch_write_error(errno) != SW_WAIT) {
@@ -1053,6 +1091,9 @@ ssize_t Socket::send_all(const void *_buf, size_t _n) {
     }
     send_barrier = nullptr;
 
+    if (total_bytes < _n && errCode == 0) {
+        set_err(ECONNRESET);
+    }
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
 

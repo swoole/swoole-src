@@ -12,6 +12,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Process;
 use Swoole\Thread;
 
+Assert::setThrowException(true);
 $port = get_constant_port(__FILE__);
 
 $serv = new Swoole\Server('127.0.0.1', $port, SWOOLE_THREAD);
@@ -39,12 +40,17 @@ $serv->addProcess(new Process(function () {
     global $serv;
     [$queue, $atomic] = Thread::getArguments();
     // The first run exits after the handler is registered, so the process ends and starts again
-    if ($atomic->add() == 1) {
-        $queue->pop(-1);
+    $generation = $atomic->add();
+    if ($generation === 1) {
+        Assert::same($queue->pop(-1), 'registered');
+        return;
+    }
+    // Only the intended second run sends the signal; shutdown can briefly restart us again.
+    if ($generation > 2) {
         return;
     }
     Process::kill(getmypid(), SIGURG);
-    $queue->pop(2);
+    Assert::same($queue->pop(2), 'handled');
     $serv->shutdown();
 }));
 $serv->start();

@@ -1280,22 +1280,38 @@ function terminate_test_process($proc, array $pipes): void
     proc_close($proc);
 }
 
-function append_test_output(string &$data, string $chunk, ?string &$executionError): bool
+function append_test_output($buffer, string $chunk, ?string &$executionError): bool
 {
-    if (strlen($data) + strlen($chunk) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
+    if (ftell($buffer) + strlen($chunk) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
         $executionError = 'process output exceeded the maximum size';
-        $data = substr($data, 0, 65536) . "\n ** ERROR: {$executionError} **\n";
         return false;
     }
-    $data .= $chunk;
+    if (fwrite($buffer, $chunk) !== strlen($chunk)) {
+        $executionError = 'unable to buffer process output';
+        return false;
+    }
     return true;
+}
+
+function read_test_output($buffer, ?string $executionError): string
+{
+    rewind($buffer);
+    // Failed runs need only a diagnostic excerpt, including when a producer exceeds the output limit.
+    $data = stream_get_contents($buffer, $executionError === null ? -1 : 65536);
+    fclose($buffer);
+    return $data . ($executionError === null ? '' : "\n ** ERROR: {$executionError} **\n");
 }
 
 function system_with_timeout($commandline, $env = null, $stdin = null, $captureStdIn = true, $captureStdOut = true, $captureStdErr = true, &$executionError = null)
 {
     global $valgrind;
 
-    $data = '';
+    // Repeatedly growing a large string can exhaust memory before the output limit is reached.
+    // Keep small output in memory and spill larger output to a temporary file.
+    $buffer = fopen('php://temp/maxmemory:2097152', 'w+b');
+    if ($buffer === false) {
+        error('Unable to create the process output buffer');
+    }
     $executionError = null;
 
     $bin_env = array();
@@ -1316,6 +1332,7 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
     $proc = proc_open($commandline, $descriptorspec, $pipes, TEST_PHP_SRCDIR, $bin_env, array('suppress_errors' => true));
 
     if (!$proc) {
+        fclose($buffer);
         return false;
     }
 
@@ -1335,9 +1352,8 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
         $remaining = $deadline - microtime(true);
         if ($remaining <= 0) {
             $executionError = "process timed out after {$timeout} seconds";
-            $data .= "\n ** ERROR: {$executionError} **\n";
             terminate_test_process($proc, $pipes);
-            return $data;
+            return read_test_output($buffer, $executionError);
         }
 
         $currentStat = proc_get_status($proc);
@@ -1346,9 +1362,9 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             foreach ($pipes as $pipeIndex => $pipe) {
                 stream_set_blocking($pipe, false);
                 while (($line = fread($pipe, 8192)) !== '') {
-                    if (!append_test_output($data, $line, $executionError)) {
+                    if (!append_test_output($buffer, $line, $executionError)) {
                         terminate_test_process($proc, $pipes);
-                        return $data;
+                        return read_test_output($buffer, $executionError);
                     }
                 }
                 fclose($pipe);
@@ -1393,9 +1409,9 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
                     continue;
                 }
 
-                if (!append_test_output($data, $line, $executionError)) {
+                if (!append_test_output($buffer, $line, $executionError)) {
                     terminate_test_process($proc, $pipes);
-                    return $data;
+                    return read_test_output($buffer, $executionError);
                 }
             }
         }
@@ -1404,14 +1420,14 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
     $stat ??= proc_get_status($proc);
 
     if ($stat['signaled']) {
-        $data .= "\nTermsig=" . $stat['termsig'] . "\n";
+        append_test_output($buffer, "\nTermsig=" . $stat['termsig'] . "\n", $executionError);
     }
     if ($stat["exitcode"] > 128 && $stat["exitcode"] < 160) {
-        $data .= "\nTermsig=" . ($stat["exitcode"] - 128) . "\n";
+        append_test_output($buffer, "\nTermsig=" . ($stat["exitcode"] - 128) . "\n", $executionError);
     }
 
     proc_close($proc);
-    return $data;
+    return read_test_output($buffer, $executionError);
 }
 
 function run_all_tests($test_files, $env, $redir_tested = null)

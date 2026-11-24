@@ -25,7 +25,8 @@ $serv->set([
         file_put_contents($path, $content);
         file_put_contents($path . '.object', $content);
         $atomic = new Thread\Atomic(0);
-        return [$atomic];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$atomic, $userWorkerStarted];
     },
 ]);
 $serv->on('WorkerStart', function (Swoole\Server $serv, $workerId) {
@@ -45,7 +46,11 @@ $serv->on('shutdown', function () {
     echo "shutdown\n";
 });
 $serv->addProcess(new Swoole\Process(function ($process) use ($serv, $path, $content, $port) {
-    [$atomic] = Thread::getArguments();
+    [$atomic, $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
     while ($atomic->get() < 1) {
         usleep(10 * 1000);
     }

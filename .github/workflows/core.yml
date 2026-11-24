@@ -50,7 +50,14 @@ jobs:
         run: sudo apt update -y && sudo apt install -y googletest libgtest-dev libnghttp2-dev libboost-stacktrace-dev libbrotli-dev redis-server nodejs npm nghttp2-client
 
       - name: install liburing
-        run: sudo bash ./scripts/install-liburing.sh
+        run: |
+          jobs=$(nproc)
+          for setting in "SWOOLE_BUILD_JOBS=$jobs" "SWOOLE_TEST_JOBS=$jobs" \
+            "CMAKE_BUILD_PARALLEL_LEVEL=$jobs" "PHP_COMPILER_JOBS=$jobs" "CARGO_BUILD_JOBS=$jobs" \
+            "MAKEFLAGS=-j$jobs" "MFLAGS=-j$jobs"; do
+            echo "$setting" >> "$GITHUB_ENV"
+          done
+          sudo env SWOOLE_BUILD_JOBS="$jobs" bash ./scripts/install-liburing.sh
 
       - name: configure
         run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-iouring
@@ -58,7 +65,7 @@ jobs:
       - name: build
         run: |
           cmake . -D CODE_COVERAGE=ON -D enable_thread=1 -D verbose=1 -D async_io=1 || exit 1
-          make VERBOSE=1 -j $(nproc) core-tests || exit 1
+          cmake --build . --parallel "$SWOOLE_BUILD_JOBS" --target core-tests --verbose || exit 1
 
       - name: run tests
         run: |

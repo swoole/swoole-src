@@ -11,6 +11,8 @@ use Swoole\Coroutine;
 use Swoole\Coroutine\Http\Client;
 
 Assert::setThrowException(true);
+// The EOF case deliberately closes TLS without close_notify.
+Coroutine::set(['log_level' => SWOOLE_LOG_WARNING]);
 Coroutine\run(function () {
     foreach (defined('SWOOLE_SSL') ? [false, true] : [false] as $ssl) {
         foreach ([false, true] as $defer) {

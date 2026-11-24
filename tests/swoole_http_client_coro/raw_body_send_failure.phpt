@@ -32,7 +32,11 @@ Coroutine\run(function () {
                     $peer->close();
                 } else {
                     if ($case === 'cancel' || $case === 'throw') {
-                        Event::defer(fn () => Coroutine::cancel($cid, $case === 'throw'));
+                        Event::defer(function () use ($cid, $case, $ssl) {
+                            // Retire completed partial writes before cancelling the blocked upload (io_uring).
+                            Coroutine::sleep(0.01);
+                            Assert::true(Coroutine::cancel($cid, $case === 'throw'), $case . ' ssl:' . (int) $ssl);
+                        });
                     }
                     $release->pop();
                     $peer->close();
@@ -63,9 +67,9 @@ Coroutine\run(function () {
             if ($case === 'timeout') {
                 Assert::same($client->errCode, SOCKET_ETIMEDOUT);
             } elseif ($case === 'cancel' || $case === 'throw') {
-                Assert::same($client->errCode, SOCKET_ECANCELED);
+                Assert::same($client->errCode, SOCKET_ECANCELED, $case . ' ssl:' . (int) $ssl);
             } else {
-                Assert::notSame($client->errCode, 0);
+                Assert::notSame($client->errCode, 0, $case . ' ssl:' . (int) $ssl . ' ' . $client->errMsg);
             }
             $release->close();
             $client->set(['timeout' => 2, 'write_timeout' => 2]);

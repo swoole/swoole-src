@@ -1811,7 +1811,7 @@ ssize_t Socket::ssl_send(const void *_buf, size_t _n) {
 #endif
 
     int n = SSL_write(ssl, _buf, _n);
-    if (n < 0) {
+    if (n <= 0 && _n > 0) {
         int _errno = SSL_get_error(ssl, n);
         switch (_errno) {
         case SSL_ERROR_WANT_READ:
@@ -1824,6 +1824,7 @@ ssize_t Socket::ssl_send(const void *_buf, size_t _n) {
             sw_set_errno(EAGAIN);
             return SW_ERR;
 
+        case SSL_ERROR_ZERO_RETURN:
         case SSL_ERROR_SYSCALL:
             sw_set_errno(SW_ERROR_SSL_RESET);
             return SW_ERR;
@@ -1834,7 +1835,8 @@ ssize_t Socket::ssl_send(const void *_buf, size_t _n) {
             return SW_ERR;
 
         default:
-            break;
+            sw_set_errno(SW_ERROR_SSL_RESET);
+            return SW_ERR;
         }
     }
     return n;

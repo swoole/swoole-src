@@ -378,18 +378,20 @@ ssize_t UringSocket::writev(network::IOVector *io_vector) {
         return -1;
     }
 
+    set_err(0);
     write_co = Coroutine::get_current_safe();
     do {
         if (is_ssl()) {
+            // ssl_writev() advances the iterator and preserves errors after a partial write.
             retval = ssl_writev(io_vector);
         } else {
             retval = uring_writev(io_vector->get_iterator(), io_vector->get_remain_count());
+            io_vector->update_iterator(retval);
+            check_return_value(retval);
         }
-        io_vector->update_iterator(retval);
     } while (retval < 0 && errno == EINTR);
     write_co = nullptr;
 
-    check_return_value(retval);
     return retval;
 }
 
@@ -419,9 +421,11 @@ ssize_t UringSocket::writev_all(network::IOVector *io_vector) {
             break;
         }
         total_bytes += retval;
+        if (errCode != 0) {
+            break;
+        }
     } while (retval > 0 && io_vector->get_remain_count() > 0);
 
-    check_return_value(retval);
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
 
@@ -540,7 +544,7 @@ bool UringSocket::ssl_bio_perform(int rc, const char *fn) {
         }
         return false;
     }
-    _error:
+_error:
     check_return_value(-1);
     return false;
 }
@@ -614,6 +618,7 @@ ssize_t UringSocket::ssl_writev(network::IOVector *io_vector) {
 
     do {
         retval = ssl_send(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
+        check_return_value(retval);
         total_bytes += retval > 0 ? retval : 0;
         io_vector->update_iterator(retval);
     } while (retval > 0 && io_vector->get_remain_count() > 0);

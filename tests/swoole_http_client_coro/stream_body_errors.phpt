@@ -14,16 +14,27 @@ use Swoole\Coroutine\Http\Client;
 use Swoole\Event;
 
 Assert::setThrowException(true);
+// Abrupt TLS upload termination can emit a protocol notice without close_notify.
+Coroutine::set(['log_level' => SWOOLE_LOG_WARNING]);
 Coroutine\run(function () {
     foreach (defined('SWOOLE_SSL') ? [false, true] : [false] as $ssl) {
         foreach (['short', 'no-progress', 'throw', 'close-source', 'close-client', 'nested'] as $case) {
             $listener = http_client_body_listener($ssl);
+            if ($case === 'close-source') {
+                Assert::true($listener->setOption(SOL_SOCKET, SO_RCVBUF, 65536));
+            }
             $client = new Client('127.0.0.1', $listener->getsockname()['port'], $ssl);
             $client->set(['timeout' => 5]);
+            if ($case === 'close-source') {
+                $client->set(['socket_buffer_size' => 65536]);
+            }
             [$source, $state] = HttpClientUploadStream::open(16 * 1024 * 1024, false);
             $client->setData($source, $state->length);
             $gate = new Channel(1);
             $done = new Channel(1);
+            $aborted = new Channel(1);
+            $peerClosed = new Channel(1);
+            $requestSocket = null;
             if ($case === 'short') {
                 $state->available = 65537;
             } elseif ($case === 'no-progress') {
@@ -47,16 +58,27 @@ Coroutine\run(function () {
                     }
                 };
             }
-            Coroutine::create(function () use ($listener, $ssl, $case, $source, $state, $gate, $done) {
+            Coroutine::create(function () use ($listener, $ssl, $case, $source, $state, $gate, $done, $aborted, $peerClosed, $client, &$requestSocket) {
                 $peer = $listener->accept(5);
                 Assert::notSame($peer, false);
+                // The bounded buffers make close-source run before the complete upload is buffered.
                 if ($ssl) {
                     Assert::true($peer->sslHandshake());
                 }
                 $buffer = '';
                 $request = http_client_body_headers($peer, $buffer);
                 Assert::same($request['length'], $state->length);
+                $closingPeer = false;
                 if ($case === 'close-source') {
+                    $requestSocket = $client->socket;
+                    Coroutine::create(function () use ($aborted, $peerClosed, $peer, &$closingPeer) {
+                        Assert::true($aborted->pop(5));
+                        // The client has closed its native socket. Do not depend on TCP delivering
+                        // EOF promptly after an aborted TLS upload, especially on macOS.
+                        $closingPeer = true;
+                        $peer->close();
+                        $peerClosed->push(true);
+                    });
                     Event::defer(function () use ($source, $gate) {
                         fclose($source);
                         $gate->push(true);
@@ -68,10 +90,22 @@ Coroutine\run(function () {
                 } else {
                     $received = strlen($buffer);
                     while (($chunk = $peer->recv(65536, 5)) !== '') {
-                        Assert::notSame($chunk, false);
+                        if ($chunk === false) {
+                            if ($closingPeer) {
+                                break;
+                            }
+                            // An aborted upload may reset TCP or end TLS without close_notify.
+                            Assert::true(in_array($peer->errCode, [
+                                SOCKET_ECONNRESET, SWOOLE_ERROR_SSL_BAD_CLIENT, SWOOLE_ERROR_SSL_RESET,
+                            ], true), $case . ' ssl:' . (int) $ssl . ' error:' . $peer->errCode . ' ' . $peer->errMsg);
+                            break;
+                        }
                         $received += strlen($chunk);
                     }
                     Assert::lessThan($received, $request['length']);
+                }
+                if ($case === 'close-source') {
+                    Assert::true($peerClosed->pop(5));
                 }
                 $peer->close();
                 if ($case !== 'nested') {
@@ -100,6 +134,8 @@ Coroutine\run(function () {
                 Assert::same($exception->getMessage(), 'source-read-failed');
             } elseif ($case === 'close-source') {
                 Assert::isInstanceOf($exception, TypeError::class);
+                Assert::true($requestSocket->isClosed());
+                $aborted->push(true);
             } else {
                 Assert::null($exception);
             }

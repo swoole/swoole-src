@@ -40,8 +40,8 @@ else
   ./configure $option
 fi
 
-make -j$(cat /proc/cpuinfo | grep processor | wc -l)
-make install
+make -j"${SWOOLE_BUILD_JOBS:-1}"
+make -j"${SWOOLE_BUILD_JOBS:-1}" install
 docker-php-ext-enable swoole
 php -v
 php -m
