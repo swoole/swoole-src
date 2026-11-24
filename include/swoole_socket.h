@@ -69,6 +69,8 @@ struct SendfileTask {
 
 struct SendfileRequest {
     File file;
+    // Static multipart tasks share one opened file; ordinary sendfile owns its inline File.
+    std::shared_ptr<File> shared_file;
     int8_t corked;
     off_t begin;
     off_t end;
@@ -76,21 +78,29 @@ struct SendfileRequest {
 
   public:
     SendfileRequest(const char *filename, off_t _offset, bool _delete_file = false)
-#ifdef _WIN32
-        : file(filename, _O_RDONLY | _O_BINARY) {
-#else
-        : file(filename, O_RDONLY) {
-#endif
+        : file(filename, File::READ | File::BINARY) {
         begin = _offset;
         end = 0;
         corked = 0;
         delete_file = _delete_file;
     }
 
+    SendfileRequest(std::shared_ptr<File> opened, off_t offset, size_t length)
+        : file(-1),
+          shared_file(std::move(opened)),
+          corked(0),
+          begin(offset),
+          end(offset + length),
+          delete_file(false) {}
+
+    const File &get_file() const {
+        return shared_file ? *shared_file : file;
+    }
+
     ~SendfileRequest();
 
     const char *get_filename() const {
-        return file.get_path().c_str();
+        return get_file().get_path().c_str();
     }
 };
 
@@ -377,6 +387,8 @@ struct Socket {
     bool check_liveness();
 
     int sendfile_async(const char *filename, off_t offset, size_t length, bool delete_file = false);
+    // The caller has validated this range against the opened file's metadata.
+    int sendfile_async(const std::shared_ptr<File> &file, off_t offset, size_t length);
     int sendfile_sync(const char *filename, off_t offset, size_t length);
     ssize_t sendfile(const File &fp, off_t *offset, size_t length);
 
@@ -499,6 +511,7 @@ struct Socket {
     int wait_event(int timeout_ms, int _events) const;
     bool wait_for(const std::function<ReturnCode()> &fn, int event, int timeout_msec = -1);
     int what_event_want(int default_event) const;
+    void close_fd();
     void free();
 
     static inline bool is_dgram(SocketType type) {

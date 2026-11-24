@@ -52,7 +52,7 @@
     <date>2026-09-25</date>
     <time>17:00:00</time>
     <version>
-        <release>6.3.0RC1</release>
+        <release>6.3.0RC2</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,79 +61,241 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Windows Support: `Swoole` now supports use on `Windows`.
-        - New `Swoole\Table` Interfaces: Added `add()` (insert a new row only when the key does not exist), `update()` (update only when the key exists), `cmpset()` (compare and swap), `cmpdel()` (compare and delete), and `getdel()` (get and delete, supporting snapshots of an entire row or a single field). 
-        - ARM64 BTI Support: Added `BTI (Branch Target Identification)` support to the `Boost.Context` assembly files for `ARM64` (AArch64). 
-        - PHP 8.4 PDO Subclass Support: Added support for the driver-specific subclasses introduced for `PDO` in `PHP 8.4`: `Pdo\Sqlite`, `Pdo\Mysql`, `Pdo\Pgsql`, `Pdo\Firebird`, and `Pdo\Odbc`. 
-        - autoload Symbol Export: The original `zend_autoload` function pointer saved by `Swoole` has been changed from a `static` private variable to an exported symbol accessible via `php_swoole_api.h`, allowing third-party extensions to still call `PHP`'s original `autoload` handler after `Swoole` hijacks `autoload`. 
-        - Cross-Platform Atomic Wait/Wakeup Mechanism: Implemented an atomic wait/wakeup mechanism based on a shared memory registry for platforms without `futex (Linux)` or `WaitOnAddress (Windows)` (such as `macOS` and `BSD`), replacing the previous `std::mutex` approach and supporting cross-process waiting and timeouts. 
-        - Windows Atomic futex Implementation: Implemented `sw_atomic_futex_wait` / `sw_atomic_futex_wakeup` for the Windows platform—based on the `WaitOnAddress` / `WakeByAddressSingle` APIs, combined with a mutex + unordered_map to track waiters, supporting timeouts and correct wakeups. 
-        - HTTP/2 Multiplexing Client: `Swoole library` adds `Swoole\Coroutine\Http2\MultiplexClient`, an `HTTP/2` client that can multiplex requests from multiple coroutines onto one shared connection. 
-        - Redis ACL Authentication: `Swoole library` adds `Swoole\Database\RedisConfig::withAuth()`, which now accepts a `[username, password]` array in addition to a password string, for `Redis ACL` authentication. 
-        - Coroutine curl Support for `CURLOPT_PREREQFUNCTION`: `Swoole library` supports the `CURLOPT_PREREQFUNCTION` option in the coroutine `curl` handler. On `PHP` versions that do not natively support this option, use the namespaced constants `Swoole\Curl\CURLOPT_PREREQFUNCTION`, `Swoole\Curl\CURL_PREREQFUNC_OK`, and `Swoole\Curl\CURL_PREREQFUNC_ABORT`.
-        - HTTP/2 Server Option: `Swoole library` supports the `http2_max_headers` server option, adding the new constant `Swoole\Constant::OPTION_HTTP2_MAX_HEADERS`.
-        - SSH Host Key API: The coroutine-based `ssh` extension adds the `ssh2_hostkey()` function—a new API that exposes the negotiated server's raw host key and algorithm type, supporting precise `TOFU` storage and independent verification.
-        - SHA-256 Fingerprint Support: Added the `SSH2_FINGERPRINT_SHA256` flag while retaining the original MD5/SHA-1 default behavior.
-        - Removed the duplicate `server` array field set in `Swoole\Coroutine\Http\Server` to avoid triggering assertion failures in `debug` builds. 
-        - Fixed a logic error in the kernel version check when `Swoole` loads `io_uring`, which caused `Linux` kernels with a major version greater than `6` to be misjudged as too old. 
-        - Fixed improper maintenance of the `Swoole` coroutine context chain (`origin_ctx`) that produced dangling pointers, causing occasional segfaults when a `Worker` parsed `HTTP` parameters. 
-        - Fixed a segfault caused by the uninitialized module global variable `cli` under a multi-threaded `SAPI`. 
-        - Fixed an issue in ZTS (Zend Thread Safety) mode where, with static `TSRM` local storage caching enabled, `Swoole` global variable access could read the wrong thread cache.
-        - Fixed the handling of `Content-Length` when the `Swoole HTTP/2` server builds response headers, with the core goal of preserving `Content-Length` explicitly set by the application and preventing it from being incorrectly overwritten or recalculated. 
-        - Fixed the incorrect return value semantics of `stream_socket_shutdown()` under the `Swoole Runtime` hook. 
-        - Fixed the initialization of `SFTP` directory streams by filling in the `session` and `sftp` pointers before the stream is exposed, giving them complete handle state like ordinary file streams. 
-        - Fixed resource ownership for the `SFTP wrapper` by registering the `session` before authentication, so every failure path releases the initialized Zend resources and attaches the subsystem to the owned `session`. 
-        - Fixed the release of temporary resources after one-off `SFTP` operations by calling `zend_list_delete` after operations such as `stat` and `mutation`, so SFTP references are no longer leaked. 
-        - Fixed sub-resource protection after session closure by introducing the shared `php_ssh2_session_is_open()` predicate, so `channel`, `listener`, `public-key`, and `SFTP` return normal failure values after the parent session is closed. 
-        - Fixed session liveness protection in destructors by skipping `libssh2` calls when the parent session is already closed while still releasing `Zend` references and local bookkeeping to avoid crashes. 
-        - Fixed the default blocking state of `channel` by changing `is_blocking` from `0` to `1`, consistent with normal `PHP` stream behavior. 
-        - Fixed the `EOF` inference logic of `channel`, so negative transfer errors are no longer misjudged as `EOF`.
-        - Fixed `sub-second` timeout precision by passing per-stream timeouts directly to `socket poll`, preserving millisecond precision and preventing one `channel` from changing the shared `session` timeout. 
-        - Fixed the publication of `channel-local` stream metadata so that `stream_get_meta_data()` reflects the `channel`'s own blocking, `EOF`, timeout, and other states. 
-        - Fixed error handling for `SFTP` file streams so that negative `SFTP` reads remain errors rather than `EOF`, and `EOF` only comes from zero-byte reads. 
-        - Fixed error handling for `SFTP` directory streams to distinguish transfer errors, normal completion, and valid entries, with each result owning its own `EOF` state.
-        - Fixed the `arginfo` for `ssh2_forward_listen` / `ssh2_forward_accept` by removing the invalid `resource` return type and parameter type declarations, correcting the inconsistency between the generated `arginfo` and the handwritten function table contract. 
-        - Fixed timeout support for `ssh2_async_call` by adding `timeout` and `timeout_event` parameters, passing the timeout during `poll`, and distinguishing whether the failure was caused by a timeout. 
-        - Fixed `channel` initialization in `ssh2_forward_accept` by adding the `is_blocking = 1`, `timeout = 0`, and `timeout_event = false` fields. 
-        - Fixed a request memory leak in `Swoole\Redis\Server`. 
-        - Fixed stream writes under the `Swoole Runtime Hook` incorrectly reporting partial writes as failures. 
-        - Fixed a commit addressing ownership issues with `proc_open` stream descriptors. 
-        - Fixed `trailer` being closed prematurely in `HTTP/2` streaming responses. 
-        - Fixed the `HTTP/2` server not releasing the session after a fatal request, causing a crash when the `worker` shuts down. 
-        - Fixed `HTTP/2 sendfile` loading the entire file at once by changing it to chunked streaming transmission. 
-        - Fixed incorrect interaction between `Content-Length` and compression handling in `HTTP/2` responses. 
-        - Fixed the `HTTP/2 Bomb` security vulnerability (remote denial-of-service attack).    Liunardo 
-        - Fixed incomplete/corrupted data still being sent to the `task worker` or `pipe` transport layer when `PHP` serialization fails, while preserving the original exception and correcting `falsy` return values being misjudged as no result. 
-        - Fixed `ssh2_exec()` prematurely publishing the "completed" state when `stdout/stderr` reached `EOF` (causing an incorrect exit code). 
-        - Fixed premature reading of native state during constructor and parameter parsing in `Swoole\Table`, `Swoole\Lock`, `Swoole\Coroutine\Lock`, `Swoole\Thread\Lock`, `Swoole\Thread\Barrier`, `Swoole\Process`, and `Swoole\Server`, changing it to check native state only after `Zend` parameter parsing is complete, preventing object state corruption when `PHP 8` scalar type conversion diagnostics trigger user code reentrancy. 
-        - Fixed resource leaks and duplicate listener replacement in `Swoole\ProcessPool` when setting up the listening `socket` fails.  
-        - Fixed `MessageBus` internal buffers incorrectly using an external `allocator` for allocation, which could cause a `coredump` on release. 
-        - Fixed an issue in `Swoole ZTS` where, after setting `PHP_STREAM_FLAG_NO_CLOSE` to prevent `stdio` from being closed prematurely, `fd`s were not automatically closed at thread exit, causing file descriptor leaks.   
-        - Fixed `WebSocket` frame parsing not rejecting control frames (`CLOSE`/`PING`/`PONG`) with the `RSV1` bit set.  
-        - Fixed target hostname length validation in `SOCKS5` proxy `DNS` tunnel mode.  
-        - Fixed a memory leak where, when `reactor` initialization failed, only an error code was returned without deleting the already allocated `reactor` object.  
-        - Fixed `Swoole Runtime hook` not correctly reporting timeout status on read/write timeouts (`ETIMEDOUT`) and instead marking the stream as `EOF`.  
-        - Fixed `Swoole\Thread::setPriority()` not preserving the current scheduling policy when the `policy` parameter is omitted and instead using the invalid `-1`. 
-        - Fixed `WebSocket ping()` not reporting an error when encoding fails (such as when the payload exceeds the 125-byte control frame limit) and continuing to send an empty `buffer`. 
-        - Fixed `Swoole library` reporting fatal `accept` failures of `\Swoole\Coroutine\Server` through `start()` and `errCode`. 
-        - Fixed a memory leak in `Swoole library`'s `Swoole\RemoteObject\Client` that had existed since `6.2.0`. Previously, each client would remain alive for the entire lifetime of the process, so every hooked `dns_get_record()`, `checkdnsrr()`, `getmxrr()`, `mail()`, and `gethostbyaddr()` call, as well as every `Swoole\MongoDB\Client`, would leak a client, its HTTP client, and an open unix socket. Now, the client is released immediately when there are no users, so for clients that have disappeared, `Swoole\RemoteObject\Client::getInstance()` returns `null`; clients can also no longer be cloned.
-        - Fixed keyboard-interactive authentication state isolation by moving the in-progress password from a process-global pointer to per-session abstract data, eliminating the risk of password cross-contamination between concurrent coroutines. 
-        - Fixed build configuration error handling by upgrading missing agent/session-timeout symbols from warnings to configuration errors, avoiding silently generating feature-reduced APIs when headers and libraries do not match. 
-        - Fixed SSH2 shell size parameters by correcting the handling of shell size parameters. 
-        - Fixed SSH2 environment variable iteration to ensure each key is correctly paired with its own value. 
-        - Fixed environment variable value masking by masking SSH2 environment variable values in warning messages. 
-        - Fixed exec PTY metadata by changing the `pty` parameter from `bool` to `?string`, representing the remote terminal type. 
-        - Fixed recoverability for incomplete shell sizes by issuing a warning and returning `false` when only width is provided without height, and removing the unreachable return after the fatal error. 
-        - Fixed the issue in `SWOOLE_THREAD` mode where `Swoole\Server` could not start when the `set()` method was not called. 
-        - Fixed an issue where, after a hooked TLS stream completed the handshake in `Socket::connect()`, if that call failed or was canceled, the stream transport layer would still try to enable encryption again instead of directly returning failure. 
-        - Fixed HTTP compression using the wrong data format when returning `deflate` encoding. 
-        - Fixed the issue where, when native hook was not enabled, destroying a native `CurlHandle` did not hand the object release work back to `ext-curl`, resulting in incorrect release logic. 
-        - Fixed cURL multi not correctly restoring the "readable and writable simultaneously" event mask in the `CURL_POLL_INOUT` state, causing HTTP/2 duplex transmission to be repeatedly woken up in a busy loop when blocked by flow control. 
-        - Fixed coroutine leaks caused by the peer closing the connection after `send_yield` is enabled, preventing the coroutine from being woken up. 
-        - Fixed incorrect read/write behavior for coroutine sockets with iouring enabled when SSL/TLS is enabled. 
-        - Fixed a null pointer dereference crash when querying port properties (`ServerPortProperty`) while a `Swoole` server is closing a port, caused by passing a `NULL` port pointer. -program
-        - Fixed incorrect parameter validation, incorrect error messages, and crashes when passing objects for `SO_LINGER`, `SO_RCVTIMEO`, and `SO_SNDTIMEO` in `Swoole\Coroutine\Socket`'s `setOption()`. 
-        - Fixed an issue where calling `Swoole\Process::signal()` in `onManagerStart` when built with `--enable-thread-context` (`SW_USE_THREAD_CONTEXT`) caused the `manager` process to crash with `SIGSEGV`. 
+        - Support for the HTTP QUERY method.
+        - The coroutine HTTP server can send 100 Continue.
+        - Runtime hooks for socket-based standard streams STDIN/STDOUT/STDERR.
+        - Coroutine preemption enabled in threaded builds.
+        - Coroutine cancellation now carries a cancellation reason.
+        - sendfile supports passing a file object.
+        - The HTTP/2 coroutine client exposes trailing HEADERS frames via Response::$trailers.
+        - Socket\Coro adds export() to duplicate a socket fd.
+        - The sockets extension warns about non-blocking and UNIX datagram limitations.
+        - Sockets now track observed stream EOF separately.
+        - Atomic adds acquire/release atomic operations.
+        - name-resolver adds automatic service discovery lifecycle and isolates resolver state.
+        - Added ssh2_set_timeout().
+        - Added ssh2_keepalive_config() and ssh2_keepalive_send().
+        - Added ssh2_send_signal().
+        - Accept trailing OWS after chunked transfer coding.
+        - Handle optional whitespace in HTTP/1 headers.
+        - Ignore 100-continue for HTTP/1.0 requests.
+        - Handle HTTP body boundaries and 100 Continue.
+        - Parse chunked requests precisely in the coroutine server.
+        - The coroutine server's chunked request buffer can now grow.
+        - Clean up trailers before terminating a chunked response.
+        - Fix the completion determination for HTTP/1 trailers.
+        - Ignore HTTP/1 request trailers.
+        - Re-parse when subsequent data arrives while the request line is incomplete.
+        - Preserve request fields across multiple parse calls.
+        - Prevent underflow in the package length limit.
+        - Preserve response header values from being rewritten.
+        - Free the captured HTTP/1 content type.
+        - Decompress the response body before passing it to write_func.
+        - Output the Date header of static responses in GMT.
+        - Harden static file response handling.
+        - The upgrade/redis handler tolerates connections being closed concurrently.
+        - Fix an HTTP IP memory leak.
+        - Reject oversized HTTP Upgrade values.
+        - Fix multipart upload temporary file errors.
+        - Harden multipart parsing and upload lifecycle.
+        - Keep uploaded file paths alive.
+        - Retain upload cleanup after tmpfiles replacement.
+        - Preserve overly long upload temporary directory paths.
+        - Add bounds checking to URL encoding and allocate the output in one pass.
+        - Fix HTTP/2 header and frame size handling.
+        - Finalize HPACK decoding when response headers end.
+        - Defer Content-Type setting until headers are complete.
+        - Isolate request trailers and unify the body completion path.
+        - The connection-level flow control window starts at 65535.
+        - Validate the payload length of fixed-length frames before reading.
+        - Reject GOAWAY frames with insufficient field length.
+        - Limit GOAWAY debug data to the peer's frame size.
+        - Send the correct PING payload and reject PING frames with an incorrect length.
+        - Control frames no longer kill the worker when the buffer is full.
+        - Reuse stream reset when rejecting an oversized body.
+        - Fix HTTP/2 write stalls after stream termination.
+        - Fix client sending while another write is pending.
+        - Close the client connection on write failure.
+        - Avoid crashes when releasing an incomplete response.
+        - Fix double free and UAF caused by callbacks closing the connection in BASE mode.
+        - Fix unpacking of masked compressed WebSocket frames.
+        - Negotiate compression across multiple extension offers.
+        - Grow the compression output buffer safely.
+        - Reject unsuccessful WebSocket upgrades.
+        - Reject WebSocket token parsing errors.
+        - Fix socket initialization for the coroutine HTTP client.
+        - Reject truncated responses at EOF.
+        - Connection close state is tracked per request exchange.
+        - Clean up download state without losing the retry target.
+        - Preserve the request error on repeated close.
+        - Handle chunked HTTP proxy responses.
+        - Preserve SOCKS5 response boundaries.
+        - Fix the lifecycle of queued cURL resume.
+        - Sync curl fixes published in php-src for PHP 8.4.
+        - Preserve curl multi select readiness when using the socket API.
+        - Keep PHP stream callbacks on the request thread.
+        - FastCGI preserves cookies and accepts response frames with padding.
+        - Update the built-in FastCGI client and add response regressions.
+        - Release async client references after the callback ends.
+        - Check socket status before returning a connection to the pool.
+        - Allow receiving fragmented packets under a custom package_length_func.
+        - Allocate the swoole_client_select() pollfd array based on the total size of the three arrays.
+        - Fix Redis server receive buffer handling.
+        - Re-parse Redis fragmented requests from a clean state.
+        - Add bounds checking for RESP numbers in get_number and parse.
+        - Pass packet boundaries to Redis server number parsing.
+        - Preserve exec errors, Redis command names, and cookie state.
+        - pgsql tries the next host after a blocking connection timeout.
+        - The PDO pgsql driver enforces connect_timeout.
+        - Fix cancellation of pgsql query waits.
+        - Empty PDO pgsql error messages no longer read ahead prematurely.
+        - Move ODBC SQLParamData/SQLDescribeParam to the AIO thread pool.
+        - Move ODBC SQLCloseCursor and statement SQLFreeHandle to the AIO thread pool.
+        - Normalize empty credential lengths in the ODBC connection pool.
+        - Oracle hooks server attachment during PDO connection.
+        - Keep Oracle statement re-execution safe.
+        - Fix SSH2 resource release lifecycle.
+        - Wait for the shell exit status.
+        - Refresh poll direction after EAGAIN.
+        - Avoid integer overflow in ssh2_set_timeout().
+        - Allocate libssh2 memory using malloc.
+        - Free the parsed URL when the wrapper path is rejected.
+        - SFTP wrapper paths preserve # and ?.
+        - SCP receive stops at premature EOF.
+        - Sync upstream SCP receive write checks.
+        - Fix Coroutine::setTimeLimit() precision and cleanup.
+        - Allow clearing the time limit with 0.
+        - Ignore external interrupts when preemption is disabled.
+        - Fix coroutine exception delivery during SPL directory iteration.
+        - Delayed resume no longer touches a finished EventWaiter.
+        - Allocate the saved timeout array by element count.
+        - Retain queued tasks after coroutine creation failure.
+        - ssl_sendfile does not send more data than the requested size.
+        - Limit header reception in length protocol recv.
+        - swoole_coroutine_accept respects the caller's address buffer.
+        - Coroutine lock count reentrancy and validate the holder on unlock.
+        - Reject timer deadlines that would overflow before insertion.
+        - Detach global timers before releasing them.
+        - RSHUTDOWN cleans up PHP timers when there is no request heap.
+        - Validate timer intervals on Windows and protect process tests.
+        - After a force-unlock timeout, retain row locks for live holders (previous force unlocks have been rolled back).
+        - Cache the configured default value for error reporting.
+        - Propagate UnwindExit to ZendVM.
+        - Preserve native zero-timeout stream behavior.
+        - Apply stream timeouts to hooked write operations.
+        - Hooked write operations cancelled after a partial write must fail.
+        - Fix socket_recv behavior for empty datagrams and EOF.
+        - Reject null bytes in IP stream addresses.
+        - Let mysqlnd recognize hooked Unix sockets.
+        - Reject setting global HTTP response headers in coroutines.
+        - Preserve the cleanup path for synchronous failures in the factory.
+        - Release streams on connection errors and stop after cancellation.
+        - Initialize Windows stdio operations for include.
+        - Register the after-fork hook during the MINIT phase.
+        - Settings accept empty arrays and preserve enabled SSL.
+        - Settings propagate exceptions and isolate thread callbacks.
+        - Preserve the package limit when partially configuring settings.
+        - Manage worker lifecycle and improve shutdown handling.
+        - Preserve worker exit and advance reload in order.
+        - Release the reactor of a worker stopped by a fatal error.
+        - Restore the caller's worker when a BASE server stops.
+        - Keep BASE connection boundaries local.
+        - Initialize the port protocol only once before starting reactor threads.
+        - get_port for worker threads can match SSL ports.
+        - Fix server SSL context initialization.
+        - Enforce server-side TLS peer verification.
+        - Fix the return handling of Server Port set.
+        - Accept pre-bound datagram sockets passed in by systemd.
+        - Send FIN after peer shutdown on macOS.
+        - Close the connection when a queued sendfile cannot start.
+        - Close the connection when a queued sendfile cannot complete.
+        - Close the connection directly on unrecoverable send errors.
+        - Parse buffered packets when a paused connection resumes.
+        - Keep the connection and avoid duplicate delivery when onPackage pauses an EOF protocol connection.
+        - Settle delivered packets when onPackage pauses a connection.
+        - Keep length protocol header reception within the buffer.
+        - recv_with_length_protocol resets stale HTTP parse offsets.
+        - Avoid signed overflow in default_length_func.
+        - Fail pipe reads when readv errors on a chunk.
+        - Keep the dgram pipe send buffer above the maximum IPC datagram size.
+        - Unify the result contract of taskCo and taskWaitMulti.
+        - Share atomic task IDs between workers and threads.
+        - Isolate task results and fix idle and DTLS handling.
+        - Validate task results and tighten failure cleanup.
+        - Handle force-kill alarms synchronously and skip packaging stale large results.
+        - Reject illegal task reply sources.
+        - Clarify warnings for illegal task reply workers.
+        - Name task stream sockets with the creator PID.
+        - Restrict access to task stream sockets.
+        - Restrict task message queues to the worker account.
+        - process-pool supports explicit message queue access.
+        - Reject message queue keys outside the key_t range.
+        - Reuse the message bus across multiple starts.
+        - Reject oversized worker_num instead of aborting.
+        - Fix truncated ProcessPool stream packets.
+        - Validate ProcessPool packet boundaries.
+        - Release the master's system timers after start().
+        - Dispatch timers for synchronous workers.
+        - Release MessageBus resources when the owner closes.
+        - Release BASE event pool resources after shutdown.
+        - Fix queued writes for thread workers.
+        - Release startup arguments when thread creation fails.
+        - Preserve the main thread's signal handlers when other threads exit.
+        - PHP and server workers inherit blocked signals.
+        - Preserve the signal mask when starting background threads.
+        - Register SIGCHLD to the reactor thread in thread context.
+        - Do not discard signals that arrive while a signal handler is executing.
+        - Restore signal actions when removing listeners.
+        - Reset signal listener state in forked child processes.
+        - Clean up inherited handlers when there is no kqueue reactor.
+        - Prevent worker processes from executing manager-specific signal handlers.
+        - Child processes that inherited manager handlers no longer lose SIGTERM.
+        - Reset inherited manager runtime state.
+        - Defer handling of log reopen signals in synchronous processes.
+        - Harden manager signals, task timeout cleanup, and core helper functions.
+        - Retain pending reload tasks before initialization completes.
+        - Prevent losing reload wakeups before waiting.
+        - Cancel shutdown timers after worker exit.
+        - Use pcntl_waitpid to preserve exit statuses of unrelated child processes.
+        - Apply the configured CPU affinity to workers.
+        - Fix cpu_affinity_ignore handling.
+        - Fix CPU affinity IDs.
+        - Validate affinity IDs against the number of CPUs.
+        - get_connection_by_session_id validates the session id.
+        - Do not narrow admin numeric identifier validation.
+        - Restrict reactor thread information to the reactor owner.
+        - Free exit callback results and validate admin parameters.
+        - Fix handler types and stop on conversion exceptions.
+        - Function aliases preserve variadic arguments.
+        - Use reentrant localtime/gmtime for the logger and static handlers.
+        - Reject duplicate construction of native resource objects.
+        - Allow TCP listeners to rebind.
+        - Complete pending closes and clean up UNIX paths.
+        - Fix UNIX datagram address ownership.
+        - recvfrom preserves the source address for empty datagrams.
+        - Fix the length parameter of socket send and improve peek.
+        - Interpret socket options at their respective protocol levels.
+        - Initialize the option buffer before a short kernel reply.
+        - Preserve incomplete packets after a receive timeout.
+        - Allow SSL descriptor duplication and fix cross-platform regressions.
+        - Preserve native coroutine socket errors.
+        - Drain Windows IOCP operations before PHP close returns.
+        - Fix IOCP completion errors and stale readiness dispatch.
+        - Pass null to getaddrinfo() when no service is given.
+        - Handle EPOLLERR on c-ares sockets to stop worker busy loops.
+        - Use ares_socket_t for c-ares socket callbacks.
+        - Randomize DNS request ids and only accept replies from DNS servers.
+        - Change DNS request ids to sequential increments starting from a random value.
+        - Avoid invalid weight conversion warnings in name-resolver.
+        - io_uring records SSL_ERROR_ZERO_RETURN as SW_ERROR_SSL_RESET.
+        - io_uring validates runtime compatibility.
+        - io_uring allows compatible liburing minor versions.
+        - Improve io_uring initialization error messages.
+        - Preserve Atomic wakeups during interrupted waits.
+        - Preserve futex timeout and non-zero value semantics.
+        - Use usleep for non-futex atomic waits.
+        - Prevent lost wakeups when the AIO thread pool shuts down.
+        - Fix crashes caused by PHP requests starting in threads not created by Swoole.
     </notes>
     <contents>
         <dir name="/">
@@ -246,10 +408,12 @@
             <file role="src" name="docs/swoole-logo.svg" />
             <file role="doc" name="docs/windows-iocp-curl.md" />
             <file role="doc" name="docs/windows-native-support.md" />
+            <file role="doc" name="examples/README.md" />
             <file role="doc" name="examples/atomic/long.php" />
             <file role="doc" name="examples/atomic/test.php" />
             <file role="doc" name="examples/atomic/wait.php" />
             <file role="doc" name="examples/client/c10k.php" />
+            <file role="doc" name="examples/client/coro_echo.php" />
             <file role="doc" name="examples/client/get_socket.php" />
             <file role="doc" name="examples/client/long_tcp.php" />
             <file role="doc" name="examples/client/recv_1m.php" />
@@ -260,6 +424,7 @@
             <file role="doc" name="examples/client/test.txt" />
             <file role="doc" name="examples/client/udp_sync.php" />
             <file role="doc" name="examples/coroutine/backtrace.php" />
+            <file role="doc" name="examples/coroutine/barrier.php" />
             <file role="doc" name="examples/coroutine/before_server_start.php" />
             <file role="doc" name="examples/coroutine/behavior/do-while.php" />
             <file role="doc" name="examples/coroutine/behavior/for.php" />
@@ -271,13 +436,14 @@
             <file role="doc" name="examples/coroutine/behavior/while2.php" />
             <file role="doc" name="examples/coroutine/cancel_throw.php" />
             <file role="doc" name="examples/coroutine/channel/test.php" />
+            <file role="doc" name="examples/coroutine/channel_basic.php" />
+            <file role="doc" name="examples/coroutine/channel_timeout.php" />
             <file role="doc" name="examples/coroutine/client_send_yield.php" />
             <file role="doc" name="examples/coroutine/client_send_yield_server.php" />
             <file role="doc" name="examples/coroutine/coro_array_map.php" />
             <file role="doc" name="examples/coroutine/coro_call_user.php" />
             <file role="doc" name="examples/coroutine/coro_channel.php" />
             <file role="doc" name="examples/coroutine/coro_destruct.php" />
-            <file role="doc" name="examples/coroutine/coro_destuct.php" />
             <file role="doc" name="examples/coroutine/coro_empty.php" />
             <file role="doc" name="examples/coroutine/coro_gethost.php" />
             <file role="doc" name="examples/coroutine/coro_include.php" />
@@ -292,7 +458,6 @@
             <file role="doc" name="examples/coroutine/csp.php" />
             <file role="doc" name="examples/coroutine/deadlock.php" />
             <file role="doc" name="examples/coroutine/defer.php" />
-            <file role="doc" name="examples/coroutine/defer_client.php" />
             <file role="doc" name="examples/coroutine/enable_coroutine.php" />
             <file role="doc" name="examples/coroutine/exception/empty.php" />
             <file role="doc" name="examples/coroutine/exec.php" />
@@ -302,6 +467,7 @@
             <file role="doc" name="examples/coroutine/fread.php" />
             <file role="doc" name="examples/coroutine/fwrite.php" />
             <file role="doc" name="examples/coroutine/gethostbyname.php" />
+            <file role="doc" name="examples/coroutine/hello.php" />
             <file role="doc" name="examples/coroutine/http/server.php" />
             <file role="doc" name="examples/coroutine/http/write_func.php" />
             <file role="doc" name="examples/coroutine/http2_client.php" />
@@ -309,33 +475,13 @@
             <file role="doc" name="examples/coroutine/http_client.php" />
             <file role="doc" name="examples/coroutine/http_download.php" />
             <file role="doc" name="examples/coroutine/http_server.php" />
+            <file role="doc" name="examples/coroutine/http_server_hello.php" />
             <file role="doc" name="examples/coroutine/httpmulti.php" />
+            <file role="doc" name="examples/coroutine/iouring.php" />
             <file role="doc" name="examples/coroutine/join.php" />
             <file role="doc" name="examples/coroutine/library/base.php" />
             <file role="doc" name="examples/coroutine/list_coroutines.php" />
-            <file role="doc" name="examples/coroutine/mysql_chan.php" />
-            <file role="doc" name="examples/coroutine/mysql_escape.php" />
-            <file role="doc" name="examples/coroutine/mysql_execute_empty.php" />
-            <file role="doc" name="examples/coroutine/mysql_prepare.php" />
-            <file role="doc" name="examples/coroutine/mysql_prepare_2.php" />
-            <file role="doc" name="examples/coroutine/mysql_procedure_exec.php" />
-            <file role="doc" name="examples/coroutine/mysql_query.php" />
-            <file role="doc" name="examples/coroutine/mysql_unixsocket.php" />
-            <file role="doc" name="examples/coroutine/pdo/pdo_persistent.phpt" />
             <file role="doc" name="examples/coroutine/proc_open.php" />
-            <file role="doc" name="examples/coroutine/reconnect_test.php" />
-            <file role="doc" name="examples/coroutine/redis/auth.php" />
-            <file role="doc" name="examples/coroutine/redis/defer.php" />
-            <file role="doc" name="examples/coroutine/redis/eval.php" />
-            <file role="doc" name="examples/coroutine/redis/get.php" />
-            <file role="doc" name="examples/coroutine/redis/multi.php" />
-            <file role="doc" name="examples/coroutine/redis/pipeline.php" />
-            <file role="doc" name="examples/coroutine/redis/pub.php" />
-            <file role="doc" name="examples/coroutine/redis/request.php" />
-            <file role="doc" name="examples/coroutine/redis/serialize.php" />
-            <file role="doc" name="examples/coroutine/redis/sub.php" />
-            <file role="doc" name="examples/coroutine/redis_pool.php" />
-            <file role="doc" name="examples/coroutine/redis_subscribe.php" />
             <file role="doc" name="examples/coroutine/scheduler.php" />
             <file role="doc" name="examples/coroutine/select/1.php" />
             <file role="doc" name="examples/coroutine/select/2.php" />
@@ -353,11 +499,18 @@
             <file role="doc" name="examples/coroutine/server/tcp.php" />
             <file role="doc" name="examples/coroutine/sleep.php" />
             <file role="doc" name="examples/coroutine/socket/accept.php" />
+            <file role="doc" name="examples/coroutine/socket/client.php" />
             <file role="doc" name="examples/coroutine/socket/sendto.php" />
+            <file role="doc" name="examples/coroutine/socket/server.php" />
+            <file role="doc" name="examples/coroutine/socket/tcp_echo.php" />
+            <file role="doc" name="examples/coroutine/socket/udp.php" />
             <file role="doc" name="examples/coroutine/stack.php" />
             <file role="doc" name="examples/coroutine/stack/1.php" />
             <file role="doc" name="examples/coroutine/stack/2.php" />
             <file role="doc" name="examples/coroutine/statvfs.php" />
+            <file role="doc" name="examples/coroutine/system_dns_lookup.php" />
+            <file role="doc" name="examples/coroutine/system_exec.php" />
+            <file role="doc" name="examples/coroutine/system_file_io.php" />
             <file role="doc" name="examples/coroutine/task_co.php" />
             <file role="doc" name="examples/coroutine/tcp_backend_serv.php" />
             <file role="doc" name="examples/coroutine/tcp_echo.php" />
@@ -365,7 +518,6 @@
             <file role="doc" name="examples/coroutine/timer_test.php" />
             <file role="doc" name="examples/coroutine/udp_client.php" />
             <file role="doc" name="examples/coroutine/udp_tcp_timeout.php" />
-            <file role="doc" name="examples/coroutine/user_coroutine.php" />
             <file role="doc" name="examples/coroutine/util/resume001.php" />
             <file role="doc" name="examples/coroutine/util/resume002.php" />
             <file role="doc" name="examples/coroutine/util/resume003.php" />
@@ -380,6 +532,7 @@
             <file role="doc" name="examples/curl/hook.php" />
             <file role="doc" name="examples/curl/multi.php" />
             <file role="doc" name="examples/curl/server.php" />
+            <file role="doc" name="examples/curl/single_request.php" />
             <file role="doc" name="examples/dtls/client.php" />
             <file role="doc" name="examples/dtls/server.php" />
             <file role="doc" name="examples/eof/client.php" />
@@ -392,11 +545,15 @@
             <file role="doc" name="examples/event/test.php" />
             <file role="doc" name="examples/http/UPPER.TXT" />
             <file role="doc" name="examples/http/client.php" />
+            <file role="doc" name="examples/http/client_get.php" />
+            <file role="doc" name="examples/http/client_post.php" />
+            <file role="doc" name="examples/http/cookie.php" />
             <file role="doc" name="examples/http/curl.php" />
             <file role="doc" name="examples/http/detach.php" />
             <file role="doc" name="examples/http/download.php" />
             <file role="doc" name="examples/http/empty.txt" />
             <file role="doc" name="examples/http/event-stream.php" />
+            <file role="doc" name="examples/http/hello.php" />
             <file role="doc" name="examples/http/moc.moc" />
             <file role="doc" name="examples/http/no-compression.php" />
             <file role="doc" name="examples/http/post.data" />
@@ -406,7 +563,9 @@
             <file role="doc" name="examples/http/static_handler.php" />
             <file role="doc" name="examples/http/test.txt" />
             <file role="doc" name="examples/http/url_rewrite.php" />
+            <file role="doc" name="examples/http2/client_get.php" />
             <file role="doc" name="examples/http2/server.php" />
+            <file role="doc" name="examples/http2/server_basic.php" />
             <file role="doc" name="examples/http2/streaming.php" />
             <file role="doc" name="examples/http2/test.html" />
             <file role="doc" name="examples/ipv6/tcp_client.php" />
@@ -417,6 +576,7 @@
             <file role="doc" name="examples/length/config.php" />
             <file role="doc" name="examples/length/func.php" />
             <file role="doc" name="examples/length/server.php" />
+            <file role="doc" name="examples/lock/basic.php" />
             <file role="doc" name="examples/lock/lock.php" />
             <file role="doc" name="examples/misc/get_local_ip.php" />
             <file role="doc" name="examples/misc/get_local_mac.php" />
@@ -435,16 +595,15 @@
             <file role="doc" name="examples/php/stream_client.php" />
             <file role="doc" name="examples/php/stream_server.php" />
             <file role="doc" name="examples/php/tick.php" />
-            <file role="doc" name="examples/postgresql/postgresql_coro.php" />
             <file role="doc" name="examples/process/alarm.php" />
             <file role="doc" name="examples/process/async_master.php" />
+            <file role="doc" name="examples/process/basic.php" />
             <file role="doc" name="examples/process/client.php" />
             <file role="doc" name="examples/process/client3.php" />
             <file role="doc" name="examples/process/close.php" />
             <file role="doc" name="examples/process/daemon.php" />
             <file role="doc" name="examples/process/echo.py" />
             <file role="doc" name="examples/process/exec.php" />
-            <file role="doc" name="examples/process/func_timeout.php" />
             <file role="doc" name="examples/process/msg_pop.php" />
             <file role="doc" name="examples/process/msg_push.php" />
             <file role="doc" name="examples/process/msgqueue.php" />
@@ -458,19 +617,21 @@
             <file role="doc" name="examples/process/stdin_stdout.php" />
             <file role="doc" name="examples/process/test.php" />
             <file role="doc" name="examples/process/worker.php" />
+            <file role="doc" name="examples/process_pool/basic.php" />
             <file role="doc" name="examples/process_pool/detach.php" />
             <file role="doc" name="examples/process_pool/send.php" />
             <file role="doc" name="examples/runtime/coroutine.php" />
             <file role="doc" name="examples/runtime/curl.php" />
             <file role="doc" name="examples/runtime/file.php" />
             <file role="doc" name="examples/runtime/gethostbyname.php" />
+            <file role="doc" name="examples/runtime/hook_flags.php" />
             <file role="doc" name="examples/runtime/include.php" />
             <file role="doc" name="examples/runtime/mkdir.php" />
             <file role="doc" name="examples/runtime/mongodb.php" />
             <file role="doc" name="examples/runtime/oci.php" />
             <file role="doc" name="examples/runtime/odbc.php" />
+            <file role="doc" name="examples/runtime/pdo_hook.php" />
             <file role="doc" name="examples/runtime/read.php" />
-            <file role="doc" name="examples/runtime/rename.phpt" />
             <file role="doc" name="examples/runtime/select.php" />
             <file role="doc" name="examples/runtime/sleep.php" />
             <file role="doc" name="examples/runtime/sqlite.php" />
@@ -478,7 +639,7 @@
             <file role="doc" name="examples/runtime/stream.php" />
             <file role="doc" name="examples/runtime/sync.php" />
             <file role="doc" name="examples/runtime/time_sleep_until.php" />
-            <file role="doc" name="examples/runtime/unlink.phpt" />
+            <file role="doc" name="examples/runtime/unlink.php" />
             <file role="doc" name="examples/server/db_pool.php" />
             <file role="doc" name="examples/server/dispatch_func.php" />
             <file role="doc" name="examples/server/dispatch_stream.php" />
@@ -498,58 +659,44 @@
             <file role="doc" name="examples/server/multi_instance.php" />
             <file role="doc" name="examples/server/multi_port.php" />
             <file role="doc" name="examples/server/pipe_message.php" />
+            <file role="doc" name="examples/server/port.php" />
             <file role="doc" name="examples/server/proxy_sync.php" />
             <file role="doc" name="examples/server/redis_pool.php" />
+            <file role="doc" name="examples/server/redis_server.php" />
             <file role="doc" name="examples/server/reload_aysnc.php" />
             <file role="doc" name="examples/server/reload_force.php" />
             <file role="doc" name="examples/server/reload_force2.php" />
             <file role="doc" name="examples/server/send_1m.php" />
             <file role="doc" name="examples/server/sendfile.php" />
             <file role="doc" name="examples/server/single.php" />
+            <file role="doc" name="examples/server/stats.php" />
             <file role="doc" name="examples/server/tcp_client.php" />
             <file role="doc" name="examples/server/tcp_server.php" />
             <file role="doc" name="examples/server/trace.php" />
             <file role="doc" name="examples/server/uid_dispatch.php" />
             <file role="doc" name="examples/server/unix_stream.php" />
             <file role="doc" name="examples/server/zmq.php" />
-            <file role="doc" name="examples/socket_coro/client.php" />
-            <file role="doc" name="examples/socket_coro/server.php" />
-            <file role="doc" name="examples/socket_coro/udp.php" />
-            <file role="doc" name="examples/ssl/ca/ca-cert.pem" />
-            <file role="doc" name="examples/ssl/ca/ca-key.pem" />
-            <file role="doc" name="examples/ssl/ca/ca-req.csr" />
-            <file role="doc" name="examples/ssl/ca/client-cert.pem" />
-            <file role="doc" name="examples/ssl/ca/client-key.pem" />
-            <file role="doc" name="examples/ssl/ca/client-req.csr" />
-            <file role="doc" name="examples/ssl/ca/client.crt" />
-            <file role="doc" name="examples/ssl/ca/client.key" />
-            <file role="doc" name="examples/ssl/ca/server-cert.pem" />
-            <file role="doc" name="examples/ssl/ca/server-key.pem" />
-            <file role="doc" name="examples/ssl/ca/server-req.csr" />
+            <file role="doc" name="examples/ssl/certs.php" />
             <file role="doc" name="examples/ssl/client.c" />
             <file role="doc" name="examples/ssl/client.php" />
+            <file role="doc" name="examples/ssl/client_basic.php" />
             <file role="doc" name="examples/ssl/co_client.php" />
             <file role="doc" name="examples/ssl/gen_cert.md" />
             <file role="doc" name="examples/ssl/http_client.php" />
             <file role="doc" name="examples/ssl/passphrase.php" />
             <file role="doc" name="examples/ssl/server.php" />
-            <file role="doc" name="examples/ssl/ssl.crt" />
-            <file role="doc" name="examples/ssl/ssl.csr" />
-            <file role="doc" name="examples/ssl/ssl.key" />
-            <file role="doc" name="examples/ssl/ssl_passwd/ssl.crt" />
-            <file role="doc" name="examples/ssl/ssl_passwd/ssl.csr" />
-            <file role="doc" name="examples/ssl/ssl_passwd/ssl.key" />
             <file role="doc" name="examples/ssl/stream_client.php" />
-            <file role="doc" name="examples/ssl/swoole.log" />
             <file role="doc" name="examples/ssl/webserver.php" />
             <file role="doc" name="examples/ssl/websocket_client.html" />
             <file role="doc" name="examples/ssl/websocket_server.php" />
             <file role="doc" name="examples/table/deadlock.php" />
+            <file role="doc" name="examples/table/incr_decr.php" />
             <file role="doc" name="examples/table/iterator.php" />
             <file role="doc" name="examples/table/server.php" />
             <file role="doc" name="examples/table/set.php" />
             <file role="doc" name="examples/table/simulation.php" />
             <file role="doc" name="examples/table/usage.php" />
+            <file role="doc" name="examples/task/basic.php" />
             <file role="doc" name="examples/task/http.php" />
             <file role="doc" name="examples/task/msg_push.php" />
             <file role="doc" name="examples/task/shared_client.php" />
@@ -564,15 +711,18 @@
             <file role="doc" name="examples/thread/argv.php" />
             <file role="doc" name="examples/thread/array.php" />
             <file role="doc" name="examples/thread/atomic.php" />
+            <file role="doc" name="examples/thread/barrier.php" />
             <file role="doc" name="examples/thread/benchmark.php" />
             <file role="doc" name="examples/thread/co.php" />
             <file role="doc" name="examples/thread/exit.php" />
+            <file role="doc" name="examples/thread/hello.php" />
             <file role="doc" name="examples/thread/hook.php" />
             <file role="doc" name="examples/thread/lock.php" />
             <file role="doc" name="examples/thread/map.php" />
             <file role="doc" name="examples/thread/mt.php" />
             <file role="doc" name="examples/thread/nested_map.php" />
             <file role="doc" name="examples/thread/pipe.php" />
+            <file role="doc" name="examples/thread/queue.php" />
             <file role="doc" name="examples/thread/run_test.php" />
             <file role="doc" name="examples/thread/server.php" />
             <file role="doc" name="examples/thread/signal.php" />
@@ -581,9 +731,11 @@
             <file role="doc" name="examples/thread/thread_pool.php" />
             <file role="doc" name="examples/thread/thread_server.php" />
             <file role="doc" name="examples/timer/after.php" />
+            <file role="doc" name="examples/timer/after_basic.php" />
             <file role="doc" name="examples/timer/clear.php" />
-            <file role="doc" name="examples/timer/enable_coroutine.php" />
+            <file role="doc" name="examples/timer/clear_basic.php" />
             <file role="doc" name="examples/timer/tick.php" />
+            <file role="doc" name="examples/timer/tick_basic.php" />
             <file role="doc" name="examples/tracer/blocking.php" />
             <file role="doc" name="examples/tracer/cli.php" />
             <file role="doc" name="examples/tracer/co.php" />
@@ -597,8 +749,10 @@
             <file role="doc" name="examples/unixsock/dgram_server.php" />
             <file role="doc" name="examples/unixsock/stream_client.php" />
             <file role="doc" name="examples/unixsock/stream_server.php" />
+            <file role="doc" name="examples/websocket/broadcast.php" />
             <file role="doc" name="examples/websocket/client.html" />
             <file role="doc" name="examples/websocket/client.php" />
+            <file role="doc" name="examples/websocket/client_basic.php" />
             <file role="doc" name="examples/websocket/server.php" />
             <file role="doc" name="examples/www/dir1/file1.txt" />
             <file role="doc" name="examples/www/dir1/file2.txt" />
@@ -936,6 +1090,7 @@
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
             <file role="test" name="tests/clean" />
+            <file role="test" name="tests/include/Assert.php" />
             <file role="test" name="tests/include/api/curl_multi.php" />
             <file role="test" name="tests/include/api/exit.php" />
             <file role="test" name="tests/include/api/http_server.php" />
@@ -985,7 +1140,6 @@
             <file role="test" name="tests/include/functions.php" />
             <file role="test" name="tests/include/lib/composer.json" />
             <file role="test" name="tests/include/lib/composer.lock" />
-            <file role="test" name="tests/include/lib/src/Assert.php" />
             <file role="test" name="tests/include/lib/src/ChildProcess.php" />
             <file role="test" name="tests/include/lib/src/CoServer.php" />
             <file role="test" name="tests/include/lib/src/CurlManager.php" />
@@ -3106,9 +3260,7 @@
             <file role="src" name="tools/analysis.php" />
             <file role="src" name="tools/arginfo-check.php" />
             <file role="src" name="tools/bootstrap.php" />
-            <file role="src" name="tools/build-library.php" />
             <file role="src" name="tools/code-generator.php" />
-            <file role="src" name="tools/composer.json" />
             <file role="src" name="tools/constant-generator.php" />
             <file role="src" name="tools/export.php" />
             <file role="src" name="tools/gen-data.php" />

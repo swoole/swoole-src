@@ -3,7 +3,6 @@ swoole_http_client_coro: download file and download offset
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-skip_if_in_ci('travis network');
 ?>
 --FILE--
 <?php
@@ -17,8 +16,8 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
         go(function () use ($pm, &$count, $c, $raw_file_size, $raw_file_content) {
             $cli = new \Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
             $cli->set(['timeout' => 5]);
-            $filename = '/tmp/test-' . $c . '.jpg';
-            $offset = mt_rand(0, $raw_file_size);
+            $filename = sys_get_temp_dir() . '/swoole-download-' . getmypid() . '-' . $c . '.jpg';
+            $offset = mt_rand(0, $raw_file_size - 1);
             $cli->setHeaders(['Range' => "bytes=$offset-"]);
             Assert::assert($cli->download('/', $filename, 0));
             // assert length
@@ -46,7 +45,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
 };
 $pm->childFunc = function () use ($pm) {
     $serv = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
-    $serv->set(['log_file' => '/dev/null']);
+    $serv->set(['worker_num' => 1, 'log_file' => '/dev/null']);
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });

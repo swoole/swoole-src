@@ -344,15 +344,28 @@ PHP_METHOD(swoole_coroutine_system, waitSignal) {
     std::vector<int> signals;
 
     if (ZVAL_IS_ARRAY(zsignals)) {
+        if (zend_hash_num_elements(Z_ARRVAL_P(zsignals)) == 0) {
+            zend_argument_value_error(1, "must not be empty");
+            RETURN_THROWS();
+        }
         zval *item;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zsignals), item) {
-            signals.push_back(zval_get_long(item));
+            zend_long signal = zval_get_long(item);
+            if (UNEXPECTED(EG(exception))) {
+                RETURN_THROWS();
+            }
+            signals.push_back(signal);
         }
         ZEND_HASH_FOREACH_END();
     } else {
-        signals.push_back(zval_get_long(zsignals));
+        zend_long signal = zval_get_long(zsignals);
+        if (UNEXPECTED(EG(exception))) {
+            RETURN_THROWS();
+        }
+        signals.push_back(signal);
     }
 
+    // Only register listeners or suspend the coroutine after all PHP conversions have succeeded.
     int signo = System::wait_signal(signals, timeout);
     if (signo == -1) {
         if (swoole_get_last_error() == EBUSY) {

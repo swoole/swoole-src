@@ -123,7 +123,8 @@ void Manager::init(Server *_server) {
     ProcessPool *task_pool = server_->get_task_worker_pool();
     pool->onWorkerMessage = Server::read_worker_message;
     pool->max_wait_time = server_->max_wait_time;
-    _server->gs->manager_pid = pool->master_pid = task_pool->master_pid = getpid();
+    _server->set_manager_pid(getpid());
+    pool->master_pid = task_pool->master_pid = _server->get_manager_pid();
 
     // System timers are inherited too, even when no reactor exists to release them.
     if (swoole_timer_is_available()) {
@@ -153,7 +154,7 @@ void Manager::wait(Server *_server) {
     if (_server->is_process_mode()) {
         swoole_set_process_death_signal(SIGTERM);
 
-        _server->gs->manager_barrier.wait();
+        _server->wait_manager_barrier();
 
         if (_server->reload_async && swoole_is_root_user() && !_server->user_.empty()) {
             swoole_set_isolation(_server->group_, _server->user_, _server->chroot_);
@@ -375,7 +376,7 @@ void Manager::signal_handler(int signo) {
     // A newly forked worker briefly inherits the manager's signal handlers before
     // swoole_fork() clears them. It must never execute manager-only actions here:
     // reopening the log would broadcast SIGWINCH back to itself indefinitely.
-    if (getpid() != _server->gs->manager_pid) {
+    if (getpid() != _server->get_manager_pid()) {
         // The manager sends SIGTERM to each worker only once, so terminate as the default action would.
         if (signo == SIGTERM) {
             signal(SIGTERM, SIG_DFL);
@@ -392,7 +393,7 @@ void Manager::signal_handler(int signo) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        _server->reload(signo == SIGUSR1);
+        _server->reload(signo == SIGUSR2);
         break;
     case SIGIO:
         pool->read_message = true;
@@ -423,7 +424,7 @@ pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
     if (is_process_mode()) {
         // waitpid() has reaped this process. Publish even for a normal exit or a detached
         // reload worker, before callbacks or replacement spawn can overwrite its identity.
-        sw_atomic_fetch_add(&gs->worker_exit_sequence, 1);
+        notify_worker_exit();
     }
     Worker *exited_worker = get_worker_by_pid(exited_pid);
 
@@ -487,9 +488,9 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
     serv->message_bus.write(serv->get_command_reply_socket(), &task);
 }
 
-bool Server::reload(bool reload_all_workers) const {
+bool Server::reload(bool only_reload_taskworker) const {
     if (is_thread_mode()) {
-        return reload_worker_threads(reload_all_workers);
+        return reload_worker_threads(only_reload_taskworker);
     }
 
     if (gs->manager_pid == 0) {
@@ -498,17 +499,17 @@ bool Server::reload(bool reload_all_workers) const {
     }
 
     if (getpid() != gs->manager_pid) {
-        return swoole_kill(get_manager_pid(), reload_all_workers ? SIGUSR1 : SIGUSR2) == 0;
+        return swoole_kill(get_manager_pid(), only_reload_taskworker ? SIGUSR2 : SIGUSR1) == 0;
     }
 
     if (!get_event_worker_pool()->reload()) {
         return false;
     }
 
-    if (reload_all_workers) {
-        manager_->reload_all_worker = true;
-    } else {
+    if (only_reload_taskworker) {
         manager_->reload_task_worker = true;
+    } else {
+        manager_->reload_all_worker = true;
     }
     return true;
 }

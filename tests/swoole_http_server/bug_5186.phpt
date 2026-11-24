@@ -12,8 +12,12 @@ use Swoole\Http\Request;
 use Swoole\Http\Response;
 use function Swoole\Coroutine\run;
 
+Assert::setThrowException(true);
 $pm = new SwooleTest\ProcessManager;
+$pm->setWaitTimeout(5);
 $pm->parentFunc = function () use ($pm) {
+    // Keep the expected output ordered without racing the request callback.
+    echo "DONE\n";
     run(function () use ($pm) {
         $content = "POST / HTTP/1.1\r\nHost: 127.0.0.1:{$pm->getFreePort()}\r\nConnection: keep-alive\r\nContent-Length: 44\r\nContent-Type: multipart/form-data; boundary=----WebKitFormBoundaryOldDnwBESVoBBtI5\r\nAccept-Encoding: gzip, deflate\r\n\r\n------WebKitFormBoundaryOldDnwBESVoBBtI5--\r\n\r\n";
         $client = new Client(SWOOLE_SOCK_TCP);
@@ -21,7 +25,8 @@ $pm->parentFunc = function () use ($pm) {
         $client->send($content);
         $client->close();
     });
-    echo "DONE\n";
+    // The client still closes immediately; wait for the server to inspect the upload before killing it.
+    Assert::true($pm->wait());
     $pm->kill();
 };
 
@@ -33,9 +38,10 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (Request $request, Response $response) use ($http) {
+    $http->on('request', function (Request $request, Response $response) use ($pm) {
         var_dump($request->files);
         $response->end('Hello World');
+        $pm->wakeup();
     });
     $http->start();
 };

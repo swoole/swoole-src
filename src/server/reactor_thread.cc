@@ -213,7 +213,7 @@ void ReactorThread::remove_waiting_close(SessionId session_id) {
 // exit, the first entry or a necessary recovery check triggers a scan. No per-entry slot lock.
 void ReactorThread::check_waiting_close(Reactor *reactor) {
     auto *serv = static_cast<Server *>(reactor->ptr);
-    const auto sequence = sw_atomic_load_acquire(&serv->gs->worker_exit_sequence);
+    const auto sequence = serv->get_worker_exit_sequence();
     if (sw_likely(sequence == last_worker_exit_sequence && !waiting_close_check_pending)) {
         return;
     }
@@ -421,10 +421,30 @@ int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_
     if (events == 0) {
         return socket->removed ? SW_OK : reactor->del(socket);
     }
+    int rv;
     if (socket->removed) {
-        return reactor->add(socket, events);
+        rv = reactor->add(socket, events);
+    } else {
+        rv = events == socket->events ? SW_OK : reactor->set(socket, events);
     }
-    return events == socket->events ? SW_OK : reactor->set(socket, events);
+    // A protocol parser that was paused from onPackage() left complete packets in the receive buffer. Nothing
+    // else would wake the connection up if the peer sends no more data, so resume parsing on the next loop.
+    if (rv == SW_OK && (events & SW_EVENT_READ) && socket->skip_recv) {
+        const SessionId session_id = conn->session_id;
+        reactor->defer([this, reactor, session_id, socket](void *) {
+            auto *c = get_connection_verify_no_ssl(session_id);
+            if (!c || c->socket != socket || !socket->skip_recv || socket->removed || !c->can_receive()) {
+                return;
+            }
+            Event ev{};
+            ev.fd = socket->fd;
+            ev.reactor_id = reactor->id;
+            ev.type = socket->fd_type;
+            ev.socket = socket;
+            reactor->get_handler(socket->fd_type, SW_EVENT_READ)(reactor, &ev);
+        });
+    }
+    return rv;
 }
 
 // Owner-reactor API for EOF, I/O/protocol errors and timeouts. Stop I/O, publish the first cause,
@@ -745,11 +765,6 @@ void Server::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_SESSION, SW_EVENT_WRITE, ReactorThread_onWrite);
     // Read
     reactor->set_handler(SW_FD_SESSION, SW_EVENT_READ, ReactorThread_onRead);
-
-    // listen the all tcp port
-    for (auto port : ports) {
-        port->init_protocol();
-    }
 }
 
 static int ReactorThread_onRead(Reactor *reactor, Event *event) {
@@ -824,7 +839,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     long socket_recv_bytes = event->socket->total_recv_bytes - last_recv_bytes;
     if (socket_recv_bytes > 0) {
         sw_atomic_long_fetch_add(&port->gs->total_recv_bytes, socket_recv_bytes);
-        sw_atomic_long_fetch_add(&serv->gs->total_recv_bytes, socket_recv_bytes);
+        serv->add_recv_bytes(socket_recv_bytes);
     }
     if (!conn->active || conn->socket != event->socket) {
         return retval;

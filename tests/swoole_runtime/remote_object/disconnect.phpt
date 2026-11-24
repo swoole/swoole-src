@@ -98,7 +98,7 @@ try {
             $survivor = $client->create(RemoteObjectDisconnectTracked::class, 'survivor', $trace);
             $code = <<<'PHP'
 Swoole\Coroutine\run(static function () use ($argv): void {
-    $client = new Swoole\RemoteObject\Client('unix://' . $argv[1]);
+    $client = new Swoole\RemoteObject\Client('unix://' . $argv[1], 0, ['api_key' => $argv[3]]);
     $objects = [];
     $objects[] = $client->create('RemoteObjectDisconnectTracked', 'throwing', $argv[2], true);
     $objects[] = $client->create('RemoteObjectDisconnectTracked', 'root', $argv[2]);
@@ -117,7 +117,8 @@ Swoole\Coroutine\run(static function () use ($argv): void {
 });
 PHP;
             $command = 'exec ' . escapeshellarg(PHP_BINARY) . ' ' . getenv('TEST_PHP_EXTRA_ARGS')
-                . ' -r ' . escapeshellarg($code) . ' ' . escapeshellarg($socket) . ' ' . escapeshellarg($trace);
+                . ' -r ' . escapeshellarg($code) . ' ' . escapeshellarg($socket) . ' ' . escapeshellarg($trace)
+                . ' ' . escapeshellarg(REMOTE_OBJECT_TEST_API_KEY);
             $process = proc_open($command, [
                 0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w'],
             ], $pipes);
@@ -155,7 +156,11 @@ PHP;
 
             // The connection closes while the method is suspended, before it returns another object.
             $http = new Swoole\Coroutine\Http\Client('unix://' . $socket);
-            $http->setHeaders(['client-id' => 'in-flight', 'coroutine-id' => (string) Coroutine::getCid()]);
+            $http->setHeaders([
+                'client-id' => 'in-flight',
+                'coroutine-id' => (string) Coroutine::getCid(),
+                'x-api-key' => REMOTE_OBJECT_TEST_API_KEY,
+            ]);
             Assert::true($http->post('/new', [
                 'class' => RemoteObjectDisconnectTracked::class,
                 'args' => serialize(['in-flight', $trace]),

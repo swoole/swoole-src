@@ -242,10 +242,8 @@ void swoole_native_curl_minit(int module_number) {
 #endif
 
     swoole_coroutine_curl_handle_ce = php_curl_ce;
-    swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
-#if PHP_VERSION_ID >= 80300
-    swoole_coroutine_curl_handle_ce->default_object_handlers = &swoole_coroutine_curl_handle_handlers;
-#endif
+
+    // Native handles must keep ext-curl's handlers, including its own copy of libcurl on Windows.
     memcpy(&swoole_coroutine_curl_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     swoole_coroutine_curl_handle_handlers.offset = XtOffsetOf(php_curl, std);
     swoole_coroutine_curl_handle_handlers.free_obj = swoole_curl_free_obj;
@@ -278,11 +276,13 @@ static zend_object *swoole_curl_create_object(zend_class_entry *class_type) {
 
     zend_object_std_init(&intern->std, class_type);
     object_properties_init(&intern->std, class_type);
-#if PHP_VERSION_ID < 80300
     intern->std.handlers = &swoole_coroutine_curl_handle_handlers;
-#endif
 
     return &intern->std;
+}
+
+bool swoole_curl_is_coroutine_handle(const php_curl *ch) {
+    return ch->std.handlers == &swoole_coroutine_curl_handle_handlers;
 }
 
 static zend_function *swoole_curl_get_constructor(zend_object *object) {
@@ -418,7 +418,17 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
         return fwrite(data, size, nmemb, t->fp);
     case PHP_CURL_RETURN:
         if (length > 0) {
+#ifdef ZEND_HAS_OOM
+            if (!smart_str_fappendl_ex(&t->buf, data, (int) length, /* persistent */ false, /* fallible */ true)) {
+#ifdef CURL_WRITEFUNC_ERROR
+                return CURL_WRITEFUNC_ERROR;
+#else
+                return 0;
+#endif
+            }
+#else
             smart_str_appendl(&t->buf, data, (int) length);
+#endif
         }
         break;
     case PHP_CURL_USER: {
@@ -865,7 +875,7 @@ static void curl_free_slist(zval *el) {
 php_curl *swoole_curl_init_handle_into_zval(zval *curl) {
     php_curl *ch;
 
-    object_init_ex(curl, swoole_coroutine_curl_handle_ce);
+    ZVAL_OBJ(curl, swoole_curl_create_object(swoole_coroutine_curl_handle_ce));
     ch = Z_CURL_P(curl);
 
     swoole_curl_init_handle(ch);
@@ -1041,6 +1051,10 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
         Z_ADDREF(source->handlers.write_header->stream);
     }
     ch->handlers.write_header->stream = source->handlers.write_header->stream;
+    if (!Z_ISUNDEF(source->handlers.std_err)) {
+        Z_ADDREF(source->handlers.std_err);
+    }
+    ch->handlers.std_err = source->handlers.std_err;
 
     ch->handlers.write->fp = source->handlers.write->fp;
     ch->handlers.write_header->fp = source->handlers.write_header->fp;

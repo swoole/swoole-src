@@ -159,6 +159,11 @@ static sw_inline SocketObject *socket_coro_fetch_object(zend_object *obj) {
 static void socket_coro_free_object(zend_object *object) {
     auto *sock = socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket) {
+        if (sock->socket->protocol.private_data_1) {
+            auto *callback = sock->socket->protocol.private_data_1;
+            sock->socket->protocol.private_data_1 = nullptr;
+            sw_callable_free(callback);
+        }
         if (!Z_ISUNDEF(sock->zstream)) {
 #ifdef _WIN32
             if (SwooleTG.iocp && GC_REFCOUNT(Z_RES(sock->zstream)) == 1) {
@@ -1903,7 +1908,18 @@ static PHP_METHOD(swoole_socket_coro, close) {
         ZVAL_UNDEF(&sock->zstream);
         sock->socket->move_fd();
     } else {
-        sock->socket->close();
+        if (!sock->socket->close() && !sock->socket->is_closed()) {
+            // IOCP cancellation completes asynchronously. Keep this PHP receiver
+            // alive until the pending native I/O has drained, then release its fd.
+            // POSIX readiness backends have already unbound their coroutines here.
+            if (!sock->socket->wait_for_pending_io()) {
+                socket_coro_sync_properties(ZEND_THIS, sock);
+                RETURN_FALSE;
+            }
+            if (!sock->socket->is_closed()) {
+                sock->socket->close();
+            }
+        }
     }
     RETURN_TRUE;
 }
@@ -1936,9 +1952,9 @@ static PHP_METHOD(swoole_socket_coro, getpeername) {
 }
 
 static PHP_METHOD(swoole_socket_coro, getOption) {
-    struct linger linger_val;
+    struct linger linger_val = {};
     socklen_t optlen;
-    int other_val;
+    int other_val = 0;
     zend_long level, optname;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
@@ -1952,7 +1968,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     if (level == IPPROTO_IP) {
         switch (optname) {
         case IP_MULTICAST_IF: {
-            struct in_addr if_addr;
+            struct in_addr if_addr = {};
             unsigned int if_index;
             optlen = sizeof(if_addr);
             if (_socket->get_option(level, optname, &if_addr, &optlen) != 0) {
@@ -1981,9 +1997,12 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         } /* else continue */
     }
 
-    /* sol_socket options and general case */
+    // Option numbers are local to their protocol level; colliding numbers use the integer fallback.
     switch (optname) {
     case SO_LINGER: {
+        if (level != SOL_SOCKET) {
+            goto default_case;
+        }
         optlen = sizeof(linger_val);
 
         if (_socket->get_option(level, optname, (char *) &linger_val, &optlen) != 0) {
@@ -2002,6 +2021,9 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
     case SO_RCVTIMEO:
     case SO_SNDTIMEO: {
+        if (level != SOL_SOCKET) {
+            goto default_case;
+        }
         double timeout = sock->socket->get_timeout(optname == SO_RCVTIMEO ? SW_TIMEOUT_READ : SW_TIMEOUT_WRITE);
         array_init(return_value);
         int sec = (int) timeout;
@@ -2011,10 +2033,14 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
 #ifdef TCP_INFO
     case TCP_INFO: {
-        tcp_info info;
+        if (level != IPPROTO_TCP) {
+            goto default_case;
+        }
+        tcp_info info = {};
         socklen_t len = sizeof(info);
         if (_socket->get_option(SOL_TCP, TCP_INFO, &info, &len) < 0) {
             php_swoole_sys_error(E_WARNING, "getsockopt(%d, SOL_TCP, TCP_INFO)", sock->socket->get_fd());
+            RETURN_FALSE;
         } else {
             array_init(return_value);
             auto info_map = sw_socket_parse_tcp_info(&info);
@@ -2026,6 +2052,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
 #endif
     default: {
+    default_case:
         optlen = sizeof(other_val);
 
         if (_socket->get_option(level, optname, (char *) &other_val, &optlen) != 0) {
@@ -2037,7 +2064,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
             RETURN_FALSE;
         }
         if (optlen == 1) {
-            char _val;
+            unsigned char _val;
             memcpy(&_val, &other_val, optlen);
             RETURN_LONG(_val);
         } else {
@@ -2087,6 +2114,11 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
             res = php_do_setsockopt_ipv6_rfc3542(sock->socket, level, optname, optval);
         }
         HANDLE_SUBCALL(res);
+    }
+
+    // Linger, timeouts and interface names have special representations only at SOL_SOCKET.
+    if (level != SOL_SOCKET) {
+        goto default_case;
     }
 
     switch (optname) {

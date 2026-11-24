@@ -32,7 +32,8 @@ $server->set([
         $target = new Thread\Atomic();
         $phase = new Thread\Atomic();
         $senderTid = new Thread\Atomic();
-        return [$ready, $target, $phase, $senderTid];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$ready, $target, $phase, $senderTid, $userWorkerStarted];
     },
 ]);
 $server->on('WorkerStart', function (Swoole\Server $server, int $workerId) {
@@ -67,7 +68,11 @@ $server->on('Shutdown', function () {
     echo "shutdown\n";
 });
 $server->addProcess(new Swoole\Process(function () use ($server, $port) {
-    [$ready, , $phase, $senderTid] = Thread::getArguments();
+    [$ready, , $phase, $senderTid, $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
     $wait = function (callable $condition) {
         for ($i = 0; $i < 500 && !$condition(); $i++) {
             usleep(10_000);

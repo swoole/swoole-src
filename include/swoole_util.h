@@ -77,6 +77,36 @@ static inline long time(bool steady = false) {
     }
 }
 
+// std::localtime()/gmtime() return a shared static buffer and race when called from several threads.
+static inline std::tm get_local_tm(time_t t) {
+    std::tm result{};
+#ifdef _WIN32
+    localtime_s(&result, &t);
+#else
+    localtime_r(&t, &result);
+#endif
+    return result;
+}
+
+static inline std::tm get_utc_tm(time_t t) {
+    std::tm result{};
+#ifdef _WIN32
+    gmtime_s(&result, &t);
+#else
+    gmtime_r(&t, &result);
+#endif
+    return result;
+}
+
+// Interpret calendar fields as UTC; mktime() interprets them in the local timezone.
+static inline time_t make_utc_time(std::tm value) {
+#ifdef _WIN32
+    return _mkgmtime(&value);
+#else
+    return timegm(&value);
+#endif
+}
+
 static inline long get_timezone() {
     using namespace std::chrono;
     auto now_time_t = system_clock::to_time_t(system_clock::now());

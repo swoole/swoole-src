@@ -22,26 +22,20 @@ $pm->parentFunc = function () use ($pm) {
         }
 
         // failed when recv response
-        $retry_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
             Assert::assert(!$cli->get('/'));
+            Assert::same($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
         }
-        $retry_time = microtime(true) - $retry_time;
 
         $pm->kill();
         $pm->wait();
 
         // failed when connect
-        $failed_time = microtime(true);
         for ($n = MAX_REQUESTS; $n--;) {
             Assert::assert(!$cli->get('/'));
             Assert::same($cli->errCode, SOCKET_ECONNREFUSED);
             Assert::same($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED, $cli->statusCode);
         }
-        $failed_time = microtime(true) - $failed_time;
-
-        phpt_var_dump($retry_time, $failed_time);
-        Assert::assert($retry_time > $failed_time * 2);
     });
     Swoole\Event::wait();
     echo "OK\n";

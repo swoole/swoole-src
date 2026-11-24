@@ -43,11 +43,13 @@ int swoole_event_init(int flags) {
     swoole::coroutine::Socket::init_reactor(reactor.get());
     swoole::coroutine::System::init_reactor(reactor.get());
     swoole::network::Client::init_reactor(reactor.get());
+#ifndef _WIN32
+    if (swoole_is_main_thread()) {
+        swoole_signal_init_reactor(reactor.get());
+    }
+#endif
 
     SwooleTG.reactor = reactor.release();
-#ifndef _WIN32
-    swoole_signal_init_reactor(SwooleTG.reactor);
-#endif
 
     return SW_OK;
 }

@@ -22,12 +22,14 @@
 
 namespace swoole {
 #define proto_error(_sock, _error, _fmt, ...)                                                                          \
-    network::Address _remote_addr;                                                                                     \
-    if (_sock->get_peer_name(&_remote_addr) < 0) {                                                                     \
-        _remote_addr = _sock->info;                                                                                    \
-    }                                                                                                                  \
-    swoole_error_log(                                                                                                  \
-        SW_LOG_WARNING, _error, _fmt "<%s:%d>", ##__VA_ARGS__, _remote_addr.get_addr(), _remote_addr.get_port())
+    do {                                                                                                               \
+        network::Address _remote_addr;                                                                                 \
+        if (_sock->get_peer_name(&_remote_addr) < 0) {                                                                 \
+            _remote_addr = _sock->info;                                                                                \
+        }                                                                                                              \
+        swoole_error_log(                                                                                              \
+            SW_LOG_WARNING, _error, _fmt "<%s:%d>", ##__VA_ARGS__, _remote_addr.get_addr(), _remote_addr.get_port());  \
+    } while (0)
 
 /**
  * return the package total length
@@ -51,7 +53,7 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     int64_t body_length = swoole_unpack(protocol->package_length_type, pl->buf + length_offset);
     // Length error
     // Protocol length is not legitimate, out of bounds or exceed the allocated length
-    if (body_length < 0) {
+    if (body_length < 0 || body_length > INT64_MAX - static_cast<int64_t>(protocol->package_body_offset)) {
         return SW_ERR;
     }
     swoole_debug("length=%ld", protocol->package_body_offset + body_length);
@@ -70,10 +72,15 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
         return SW_CONTINUE;
     }
 
+    size_t delivered_end = 0;
+    bool delivery_failed = false;
     ssize_t n = buffer->split(package_eof, package_eof_len, [&](const char *data, size_t length) -> int {
         rdata.info.len = length;
         rdata.data = data;
+        // The buffer may be released by onPackage() if it closes the connection synchronously.
+        delivered_end = data + length - buffer->str;
         if (onPackage(this, socket, &rdata) < 0) {
+            delivery_failed = true;
             return false;
         }
         if (socket->removed) {
@@ -82,7 +89,24 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
         return true;
     });
 
-    if (socket->removed || n < 0) {
+    if (delivery_failed) {
+        return SW_CLOSE;
+    }
+    if (socket->removed) {
+        // onPackage() paused receiving: drop the delivered packets so that a resumed read does not deliver them again.
+        if (socket->recv_buffer != buffer) {
+            return SW_CLOSE;
+        }
+        if (delivered_end < buffer->length) {
+            buffer->reduce(delivered_end);
+            buffer->offset = 0;
+            socket->skip_recv = 1;
+        } else {
+            buffer->clear();
+        }
+        return SW_OK;
+    }
+    if (n < 0) {
         return SW_CLOSE;
     } else if (n == 0) {
         return SW_CONTINUE;
@@ -108,7 +132,6 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
  */
 int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer) const {
     RecvData rdata{};
-    PacketLength pl{};
     ssize_t package_length;
     uint8_t _package_length_size = get_package_length_size ? get_package_length_size(socket) : package_length_size;
     uint32_t recv_size = 0;
@@ -124,14 +147,32 @@ int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer)
         goto _do_get_length;
     }
 
+    // The HTTP parser uses buffer->offset as a scan position. When a connection switches to this protocol
+    // (WebSocket upgrade, HTTP/2), a stale offset must not be mistaken for the length of a pending packet.
+    if (!socket->recv_wait) {
+        buffer->offset = 0;
+    }
+
 _do_recv:
     if (socket->removed) {
         return SW_OK;
     }
     if (buffer->offset > 0) {
+        // Defensive: a pending packet that is already complete must never reach the read below, where the unsigned
+        // size computation would wrap around and overflow the buffer.
+        if (sw_unlikely(buffer->length >= (size_t) buffer->offset)) {
+            return SW_ERR;
+        }
         recv_size = buffer->offset - buffer->length;
     } else {
         recv_size = package_length_offset + _package_length_size;
+        if (sw_unlikely(buffer->size < recv_size)) {
+            buffer->extend(recv_size);
+        }
+        // A partially received header must not make the read run past the end of the buffer.
+        if (sw_unlikely(buffer->length + recv_size > buffer->size)) {
+            recv_size = buffer->size - buffer->length;
+        }
     }
 
     recv_n = socket->recv(buffer->str + buffer->length, recv_size, 0);
@@ -159,6 +200,17 @@ _do_recv:
                     return SW_ERR;
                 }
                 if (socket->removed) {
+                    // onPackage() paused or closed the connection. The packet was delivered, so a resumed read must
+                    // not see it as pending. The buffer is gone if the connection was closed synchronously.
+                    if (socket->recv_buffer == buffer) {
+                        socket->recv_wait = 0;
+                        if (buffer->length > (size_t) buffer->offset) {
+                            buffer->reduce(buffer->offset);
+                            socket->skip_recv = 1;
+                        } else {
+                            buffer->clear();
+                        }
+                    }
                     return SW_OK;
                 }
                 socket->recv_wait = 0;
@@ -176,54 +228,85 @@ _do_recv:
             return SW_OK;
         } else {
         _do_get_length:
-            pl.buf = buffer->str;
-            pl.buf_size = buffer->length;
             // TODO: support dynamic calculation of header buffer length (recv_size)
-            pl.header_len = 0;
-            package_length = get_package_length(this, socket, &pl);
-            // invalid package, close connection.
-            if (package_length < 0) {
-                proto_error(socket,
-                            SW_ERROR_PACKAGE_MALFORMED_DATA,
-                            "received %zu bytes of malformed data, remote_addr=",
-                            buffer->length);
-                return SW_ERR;
-            }
-            // no length
-            else if (package_length == 0) {
-                if (buffer->length == recv_size) {
-                    swoole_error_log(SW_LOG_WARNING,
-                                     SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
-                                     "bad request, no length found in %zu bytes, remote_addr=",
-                                     buffer->length);
-                    return SW_ERR;
-                } else {
+            {
+                auto status = resolve_package_length(socket, buffer->str, buffer->length, &package_length);
+                // package_length_func closed the connection synchronously: the buffer is already released
+                if (socket->removed && socket->recv_buffer != buffer) {
                     return SW_OK;
                 }
-            } else if (package_length > package_max_length) {
-                proto_error(socket,
-                            SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                            "the received packet length %ld is too large, remote_addr=",
-                            package_length);
-                return SW_ERR;
+                switch (status) {
+                case PackageLengthStatus::MALFORMED:
+                    // invalid package, close connection.
+                    proto_error(socket,
+                                SW_ERROR_PACKAGE_MALFORMED_DATA,
+                                "received %zu bytes of malformed data, remote_addr=",
+                                buffer->length);
+                    return SW_ERR;
+                case PackageLengthStatus::NEED_MORE:
+                    if (buffer->length == recv_size) {
+                        swoole_error_log(SW_LOG_WARNING,
+                                         SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
+                                         "bad request, no length found in %zu bytes, remote_addr=",
+                                         buffer->length);
+                        return SW_ERR;
+                    }
+                    return SW_OK;
+                case PackageLengthStatus::TOO_LARGE:
+                    proto_error(socket,
+                                SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                                "the received packet length %ld is too large, remote_addr=",
+                                package_length);
+                    return SW_ERR;
+                case PackageLengthStatus::OK:
+                    break;
+                }
             }
             // get length success
-            else {
-                if (buffer->size < (size_t) package_length) {
-                    buffer->extend(package_length);
-                }
-                socket->recv_wait = 1;
-                buffer->offset = package_length;
+            if (buffer->size < (size_t) package_length) {
+                buffer->extend(package_length);
+            }
+            socket->recv_wait = 1;
+            buffer->offset = package_length;
 
-                if (buffer->length >= (size_t) package_length) {
-                    goto _do_dispatch;
-                } else {
-                    goto _do_recv;
-                }
+            if (buffer->length >= (size_t) package_length) {
+                goto _do_dispatch;
+            } else {
+                goto _do_recv;
             }
         }
     }
     return SW_OK;
+}
+
+PackageLengthStatus Protocol::resolve_package_length(
+    network::Socket *socket, const char *buf, size_t len, ssize_t *package_length, uint32_t *header_len) const {
+    PacketLength pl{buf, (uint32_t) len, 0};
+    ssize_t length = get_package_length(this, socket, &pl);
+    *package_length = length;
+    if (length < 0) {
+        return PackageLengthStatus::MALFORMED;
+    }
+    if (length == 0) {
+        if (header_len && pl.header_len != 0) {
+            *header_len = pl.header_len;
+        }
+        return PackageLengthStatus::NEED_MORE;
+    }
+    if ((size_t) length > package_max_length) {
+        return PackageLengthStatus::TOO_LARGE;
+    }
+    return PackageLengthStatus::OK;
+}
+
+ssize_t Protocol::find_eof_end(const char *buf, size_t len) const {
+    ssize_t eof = swoole_strnpos(buf, len, package_eof, package_eof_len);
+    return eof < 0 ? -1 : eof + package_eof_len;
+}
+
+size_t Protocol::next_eof_buffer_size(size_t size) const {
+    size_t new_size = swoole_size_align(size * 2, swoole_pagesize());
+    return new_size > package_max_length ? package_max_length : new_size;
 }
 
 /**
@@ -234,6 +317,15 @@ int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) co
     bool recv_again = false;
     size_t buf_size;
     RecvData rdata{};
+
+    // Packets left in the buffer by a paused connection are parsed without waiting for new data.
+    if (socket->skip_recv) {
+        socket->skip_recv = 0;
+        if (split_by_eof && buffer->length >= package_eof_len) {
+            return recv_split_by_eof(socket, buffer) == SW_CLOSE ? SW_ERR : SW_OK;
+        }
+        return SW_OK;
+    }
 
 _recv_data:
     buf_size = buffer->size - buffer->length;
@@ -280,6 +372,10 @@ _recv_data:
                 return SW_ERR;
             }
             if (socket->removed) {
+                // Paused or closed by onPackage(); the packet was delivered, do not deliver it again on resume.
+                if (socket->recv_buffer == buffer) {
+                    buffer->clear();
+                }
                 return SW_OK;
             }
             buffer->clear();
@@ -302,11 +398,7 @@ _recv_data:
         if (buffer->length == buffer->size) {
             recv_again = true;
             if (buffer->size < package_max_length) {
-                uint32_t extend_size = swoole_size_align(buffer->size * 2, swoole_pagesize());
-                if (extend_size > package_max_length) {
-                    extend_size = package_max_length;
-                }
-                buffer->extend(extend_size);
+                buffer->extend(next_eof_buffer_size(buffer->size));
             }
         }
         // no eof

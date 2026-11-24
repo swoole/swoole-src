@@ -1,13 +1,14 @@
 <?php
+require __DIR__ . '/certs.php';
 //$serv = new Swoole\Http\Server("0.0.0.0", 443, SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $serv = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $serv->set([
-    'ssl_cert_file' => __DIR__ . '/ssl.crt',
-    'ssl_key_file' => __DIR__ . '/ssl.key',
+    'ssl_cert_file' => SSL_CERT_DIR . 'server.crt',
+    'ssl_key_file' => SSL_CERT_DIR . 'server.key',
     //'ssl_method' => SWOOLE_TLSv1_2_SERVER_METHOD,
     'worker_num' => 1,
     'open_http2_protocol' => true,
-    //'ssl_client_cert_file' => __DIR__ . '/ca.crt',
+    //'ssl_client_cert_file' => SSL_CERT_DIR . 'ca-cert.pem',
     //'ssl_verify_depth' => 10,
 ]);
 //c158354564362fcc

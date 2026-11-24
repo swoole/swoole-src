@@ -23,9 +23,37 @@
 #include "swoole_timer.h"
 
 #include <stdexcept>
+#include <thread>
 
 using swoole::Timer;
 using swoole::TimerNode;
+
+TEST(timer, deadline_overflow_preserves_existing_timers) {
+    if (sizeof(long) < sizeof(int64_t)) {
+        GTEST_SKIP() << "long cannot exceed the 64-bit deadline range on this platform";
+    }
+    Timer timer(true);
+    auto *existing = timer.add(60000, false, nullptr, [](Timer *, TimerNode *) {});
+    ASSERT_NE(existing, nullptr);
+    const auto id = existing->id;
+    while (timer.get_relative_msec() == 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    for (bool persistent : {false, true}) {
+        swoole_clear_last_error();
+        EXPECT_EQ(timer.add(LONG_MAX, persistent, nullptr, [](Timer *, TimerNode *) {}), nullptr);
+        ASSERT_ERREQ(SW_ERROR_INVALID_PARAMS);
+        EXPECT_EQ(timer.count(), 1);
+        EXPECT_EQ(timer.get(id), existing);
+        EXPECT_EQ(timer.get_next_msec(), 60000);
+    }
+    auto *large = timer.add(LONG_MAX / 2, false, nullptr, [](Timer *, TimerNode *) {});
+    ASSERT_NE(large, nullptr);
+    EXPECT_EQ(large->id, id + 1);
+    EXPECT_GE(large->exec_msec, LONG_MAX / 2);
+    EXPECT_TRUE(timer.remove(large));
+    EXPECT_TRUE(timer.remove(existing));
+}
 
 TEST(timer, callback_exception_restores_removal_state) {
     Timer timer(true);

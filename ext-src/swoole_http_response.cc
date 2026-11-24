@@ -137,6 +137,9 @@ SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
+static PHP_METHOD(swoole_http_response, sendStaticFile);
+static PHP_METHOD(swoole_http_response, sendHttp2Response);
+static PHP_METHOD(swoole_http_response, sendHttp2File);
 static PHP_METHOD(swoole_http_response, redirect);
 static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
@@ -189,6 +192,9 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, recv,       arginfo_class_Swoole_Http_Response_recv,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, close,      arginfo_class_Swoole_Http_Response_close,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, disconnect, arginfo_class_Swoole_Http_Response_disconnect, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, sendStaticFile, arginfo_class_Swoole_Http_Response_sendStaticFile, ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_http_response, sendHttp2Response, arginfo_class_Swoole_Http_Response_sendHttp2Response, ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_http_response, sendHttp2File, arginfo_class_Swoole_Http_Response_sendHttp2File, ZEND_ACC_PRIVATE)
     PHP_FE_END
 };
 // clang-format on
@@ -790,6 +796,43 @@ void HttpContext::write(zend_string *sdata, zval *return_value) {
     RETURN_BOOL(send(this, http_buffer->str, http_buffer->length));
 }
 
+#ifdef SW_HAVE_ZLIB
+static bool http_response_offers_websocket_compression(const char *value, size_t length) {
+    size_t offset = 0;
+    while (offset < length) {
+        size_t start = offset;
+        while (offset < length && value[offset] != ';' && value[offset] != ',') {
+            offset++;
+        }
+        size_t end = offset;
+        while (start < end && (value[start] == ' ' || value[start] == '\t')) {
+            start++;
+        }
+        while (end > start && (value[end - 1] == ' ' || value[end - 1] == '\t')) {
+            end--;
+        }
+        if (end - start == sizeof("permessage-deflate") - 1 &&
+            memcmp(value + start, ZEND_STRL("permessage-deflate")) == 0) {
+            return true;
+        }
+
+        // Commas in quoted parameter values do not separate extension offers.
+        bool quoted = false;
+        while (offset < length) {
+            char c = value[offset++];
+            if (quoted && c == '\\' && offset < length) {
+                offset++;
+            } else if (c == '"') {
+                quoted = !quoted;
+            } else if (!quoted && c == ',') {
+                break;
+            }
+        }
+    }
+    return false;
+}
+#endif
+
 void HttpContext::end(zend_string *sdata, zval *return_value) {
     if (http2) {
         RETURN_BOOL(swoole_http2_server_end(this, sdata));
@@ -841,11 +884,10 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
 #endif
             bool accept_websocket_compression = false;
             zval *pData;
-            if (enable_websocket_compression && !Z_ISUNDEF(request.zobject) &&
+            if (enable_websocket_compression && !Z_ISUNDEF(request.zobject) && Z_TYPE(request.zheader) == IS_ARRAY &&
                 ((pData = zend_hash_str_find(Z_ARRVAL(request.zheader), ZEND_STRL("sec-websocket-extensions")))) &&
                 Z_TYPE_P(pData) == IS_STRING) {
-                const std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
-                if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
+                if (http_response_offers_websocket_compression(Z_STRVAL_P(pData), Z_STRLEN_P(pData))) {
                     accept_websocket_compression = true;
                     set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
                 }
@@ -856,6 +898,16 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
                 conn->websocket_compression = accept_websocket_compression;
             }
 #endif
+        }
+#endif
+
+#ifndef _WIN32
+        // The client may send frames as soon as the 101 is on the wire, so accept them from this point.
+        if (upgrade && response.status == SW_HTTP_SWITCHING_PROTOCOLS && !is_co_socket()) {
+            auto *ws_conn = get_async_server()->get_connection_verify(fd);
+            if (ws_conn && ws_conn->is_websocket_status(websocket::STATUS_HANDSHAKE)) {
+                ws_conn->websocket_status = websocket::STATUS_ACTIVE;
+            }
         }
 #endif
 
@@ -949,6 +1001,44 @@ bool HttpContext::set_header(const char *k, size_t klen, zval *zvalue, bool form
     }
     zend::array_set(zheader, k, klen, zvalue);
     return true;
+}
+
+static PHP_METHOD(swoole_http_response, sendStaticFile) {
+    zval *request;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_OBJECT_OF_CLASS(request, swoole_http_request_ce)
+    ZEND_PARSE_PARAMETERS_END();
+    auto *ctx = http_response_get_and_check_context(ZEND_THIS);
+#ifndef _WIN32
+    if (ctx && ctx->http2 && !ctx->is_co_socket()) {
+        swoole_http2_server_send_static_file(ctx);
+    }
+#endif
+}
+
+static PHP_METHOD(swoole_http_response, sendHttp2Response) {
+    zend_string *content;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STR(content)
+    ZEND_PARSE_PARAMETERS_END();
+    auto *ctx = php_swoole_http_response_get_context(ZEND_THIS);
+    if (ctx) {
+        ctx->http2_send_result = swoole_http2_server_end(ctx, content);
+    }
+}
+
+static PHP_METHOD(swoole_http_response, sendHttp2File) {
+    zend_string *file;
+    zend_long offset, length;
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+    Z_PARAM_STR(file)
+    Z_PARAM_LONG(offset)
+    Z_PARAM_LONG(length)
+    ZEND_PARSE_PARAMETERS_END();
+    auto *ctx = php_swoole_http_response_get_context(ZEND_THIS);
+    if (ctx) {
+        ctx->http2_send_result = swoole_http2_server_send_file(ctx, file, offset, length);
+    }
 }
 
 static PHP_METHOD(swoole_http_response, sendfile) {
@@ -1457,7 +1547,7 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
 
                 if (complete_flags & WebSocket::FLAG_RSV1) {
                     if (sw_unlikely(!FrameObject::uncompress(
-                            &zpayload, continue_frame_buffer->str, continue_frame_buffer->length))) {
+                            &zpayload, continue_frame_buffer->str, continue_frame_buffer->length, max_frame_size))) {
                         continue_frame_buffer.reset();
                         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
                         RETURN_NULL();
@@ -1487,7 +1577,8 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
             }
             if (frame.header.FIN) {
                 if (frame.compressed()) {
-                    if (sw_unlikely(!FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length))) {
+                    if (sw_unlikely(
+                            !FrameObject::uncompress(&zpayload, frame.payload, frame.payload_length, max_frame_size))) {
                         swoole_set_last_error(SW_ERROR_PROTOCOL_ERROR);
                         RETURN_NULL();
                     }

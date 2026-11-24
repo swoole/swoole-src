@@ -921,7 +921,7 @@ struct ThreadReloadTask {
         return contains(worker_id) && completed_workers.emplace(worker_id).second;
     }
 
-    ThreadReloadTask(Server *_server, bool _reload_all_workers);
+    ThreadReloadTask(Server *_server, bool only_reload_taskworker);
     ~ThreadReloadTask() = default;
 };
 
@@ -930,8 +930,12 @@ class ThreadFactory : public BaseFactory {
     std::mutex lock_;
     std::condition_variable cv_;
     std::queue<Worker *> queue_;
-    bool reload_all_workers = false;
+    // Manager-thread policy, populated only after consuming the corresponding reload command.
+    bool only_reload_taskworker = false;
+    // Cross-thread reservation for one pending/active request; the manager owns reload_task itself.
     sw_atomic_t reloading = 0;
+    // Manager-thread state: replacements remain enabled until it consumes a shutdown command.
+    bool shutting_down = false;
     std::shared_ptr<ThreadReloadTask> reload_task;
     void at_thread_enter(WorkerId id, int process_type);
     void at_thread_exit(Worker *worker);
@@ -940,6 +944,7 @@ class ThreadFactory : public BaseFactory {
     void do_reload();
     void finish_reload_worker(Worker *worker);
     void push_to_wait_queue(Worker *worker);
+    void shutdown_workers();
 
   public:
     explicit ThreadFactory(Server *server);
@@ -950,9 +955,8 @@ class ThreadFactory : public BaseFactory {
     void spawn_task_worker(WorkerId i);
     void spawn_user_worker(WorkerId i);
     void spawn_manager_thread(WorkerId i);
-    void terminate_manager_thread();
     void wait();
-    bool reload(bool reload_all_workers);
+    bool reload(bool only_reload_taskworker = false);
     bool start() override;
     bool shutdown() override;
 };
@@ -1105,6 +1109,7 @@ class Server {
     enum CloseCallbackFlag {
         CLOSE_CALLBACK_WEBSOCKET = 1u << 0,
         CLOSE_CALLBACK_HTTP2 = 1u << 1,
+        CLOSE_CALLBACK_ACTIVELY = 1u << 2,
     };
 
     /**
@@ -1178,6 +1183,10 @@ class Server {
      * discard the timeout request
      */
     bool discard_timeout_request = false;
+    /**
+     * Cancel the HTTP/2 request coroutine when the peer resets its stream.
+     */
+    bool http2_cancel_on_stream_reset = false;
     /**
      * parse cookie header
      */
@@ -1317,8 +1326,12 @@ class Server {
     }
 
     ListenPort *get_port(SocketType type, const char *host, int _port) const {
+        // add_port() stores SW_SOCK_SSL in ListenPort::ssl instead of the type
+        const bool ssl = type & SW_SOCK_SSL;
+        type = static_cast<SocketType>(type & (~SW_SOCK_SSL));
         for (auto port : ports) {
-            if (port->port == _port && port->type == type && strcmp(host, port->host.c_str()) == 0) {
+            if (port->port == _port && port->type == type && (port->ssl != 0) == ssl &&
+                strcmp(host, port->host.c_str()) == 0) {
                 return port;
             }
         }
@@ -1454,8 +1467,12 @@ class Server {
     int64_t command_current_request_id = 1;
 
     Worker *workers = nullptr;
+
+  private:
+    // Process-shared storage belongs to Server. External callers use the typed operations below.
     ServerGS *gs = nullptr;
 
+  public:
     std::shared_ptr<std::unordered_set<std::string>> locations = nullptr;
     std::shared_ptr<std::vector<std::string>> http_index_files = nullptr;
     std::shared_ptr<std::unordered_set<std::string>> http_compression_types = nullptr;
@@ -1557,7 +1574,8 @@ class Server {
 
     int start();
     void destroy();
-    bool reload(bool reload_all_workers) const;
+    // Same convention as PHP: false reloads all workers; true reloads only task workers.
+    bool reload(bool only_reload_taskworker = false) const;
     bool shutdown();
 
     int add_worker(Worker *worker);
@@ -1582,6 +1600,91 @@ class Server {
     uint32_t get_idle_worker_num() const;
     int get_idle_task_worker_num() const;
     int get_tasking_num() const;
+
+    // Statistics are independent observations, not a transactionally consistent snapshot.
+    // Keep these accessors inline: reading a counter must not add locks or atomic RMW operations.
+    time_t get_start_time() const {
+        return gs->start_time;
+    }
+
+    int64_t get_abort_count() const {
+        return gs->abort_count;
+    }
+
+    int64_t get_accept_count() const {
+        return gs->accept_count;
+    }
+
+    int64_t get_close_count() const {
+        return gs->close_count;
+    }
+
+    int64_t get_dispatch_count() const {
+        return gs->dispatch_count;
+    }
+
+    int64_t get_request_count() const {
+        return gs->request_count;
+    }
+
+    int64_t get_response_count() const {
+        return gs->response_count;
+    }
+
+    int64_t get_total_recv_bytes() const {
+        return gs->total_recv_bytes;
+    }
+
+    int64_t get_total_send_bytes() const {
+        return gs->total_send_bytes;
+    }
+
+    int64_t get_pipe_packet_msg_id() const {
+        return gs->pipe_packet_msg_id;
+    }
+
+    SessionId get_session_round() const {
+        return gs->session_round;
+    }
+
+    int64_t get_task_count() const {
+        return gs->task_count;
+    }
+
+    void increment_dispatch_count() const {
+        sw_atomic_long_fetch_add(&gs->dispatch_count, 1);
+    }
+
+    void increment_request_count() const {
+        sw_atomic_long_fetch_add(&gs->request_count, 1);
+    }
+
+    void add_recv_bytes(int64_t bytes) const {
+        sw_atomic_long_fetch_add(&gs->total_recv_bytes, bytes);
+    }
+
+    void increment_task_count() const {
+        sw_atomic_long_fetch_add(&gs->task_count, 1);
+    }
+
+    // A task is queued before dispatch and leaves the queue when execution starts or dispatch fails.
+    // PHP and native dispatch paths must use the same process-shared atomic counter.
+    void increment_tasking_num() const {
+        sw_atomic_fetch_add(&gs->tasking_num, 1);
+    }
+
+    void decrement_tasking_num() const {
+        sw_atomic_fetch_sub(&gs->tasking_num, 1);
+    }
+
+    uint32_t get_worker_exit_sequence() const {
+        return sw_atomic_load_acquire(&gs->worker_exit_sequence);
+    }
+
+    // PROCESS manager, after waitpid() confirms an exit; owner reactors observe this notification.
+    void notify_worker_exit() const {
+        sw_atomic_fetch_add(&gs->worker_exit_sequence, 1);
+    }
 
     TaskId get_task_id(const EventData *task) const {
         return get_task_worker_pool()->get_task_id(task);
@@ -1629,6 +1732,16 @@ class Server {
 
     pid_t get_manager_pid() const {
         return gs->manager_pid;
+    }
+
+    // Manager initialization only, before publishing its startup barrier to the master.
+    void set_manager_pid(pid_t pid) const {
+        gs->manager_pid = pid;
+    }
+
+    // PROCESS master and manager each arrive once during startup.
+    void wait_manager_barrier() const {
+        gs->manager_barrier.wait();
     }
 
     pid_t get_worker_pid(WorkerId worker_id) const {
@@ -1764,6 +1877,12 @@ class Server {
 
     bool is_started() const {
         return gs->start;
+    }
+
+    // Set only during serialized lifecycle transitions or isolated test setup.
+    // Real startup claims this flag with a CAS in start(); this does not launch or stop workers.
+    void set_started(bool started) const {
+        gs->start = started;
     }
 
     bool is_created() const {
@@ -1911,8 +2030,13 @@ class Server {
         return nullptr;
     }
 
+    /**
+     * The fd slot may already belong to a newer connection, so the session id must match.
+     * Unlike get_connection_verify(), a connection that is closing but not yet cleaned is still returned.
+     */
     Connection *get_connection_by_session_id(SessionId session_id) const {
-        return get_connection(get_connection_fd(session_id));
+        Connection *conn = get_connection(get_connection_fd(session_id));
+        return sw_likely(conn->session_id == session_id) ? conn : nullptr;
     }
 
     Session *get_session(SessionId session_id) const {
@@ -1955,7 +2079,8 @@ class Server {
     static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
     static void discard_sendfile(DataHead *info, const char *data);
 
-    int send_to_connection(SendData *) const;
+    // Optional opened file is local to the owning reactor, never serialized through IPC.
+    int send_to_connection(SendData *, const std::shared_ptr<File> *file = nullptr) const;
     int request_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason, bool reset = false) const;
     int request_force_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason) const;
     bool finish_close(SessionId session_id, int flags) const;
@@ -2036,6 +2161,15 @@ class Server {
         return gs->concurrency;
     }
 
+    // HTTP request/response hot paths: preserve the existing single atomic update per transition.
+    void increment_concurrency() const {
+        sw_atomic_add_fetch(&gs->concurrency, 1);
+    }
+
+    void decrement_concurrency() const {
+        sw_atomic_sub_fetch(&gs->concurrency, 1);
+    }
+
     bool is_unavailable() const {
         return get_concurrency() >= get_max_concurrency();
     }
@@ -2091,7 +2225,7 @@ class Server {
      */
     bool signal_handler_shutdown();
     bool signal_handler_child_exit() const;
-    bool signal_handler_reload(bool reload_all_workers) const;
+    bool signal_handler_reload(bool only_reload_taskworker) const;
     bool signal_handler_read_message() const;
     bool signal_handler_reopen_logger() const;
 
@@ -2174,8 +2308,7 @@ class Server {
     int start_worker_threads();
     int start_master_thread(Reactor *reactor);
     void start_heartbeat_thread();
-    void stop_worker_threads();
-    bool reload_worker_threads(bool reload_all_workers) const;
+    bool reload_worker_threads(bool only_reload_taskworker) const;
     void join_reactor_thread();
     void stop_master_thread();
     void join_heartbeat_thread();

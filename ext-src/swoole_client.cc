@@ -102,8 +102,8 @@ static PHP_METHOD(swoole_client, getSocket);
 #endif
 SW_EXTERN_C_END
 
-static uint32_t client_poll_add(const zval *sock_array, uint32_t index, pollfd *fds, int maxevents, int event);
-static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, int n_event, int revent);
+static uint32_t client_poll_add(const zval *sock_array, uint32_t index, pollfd *fds, int event);
+static int client_poll_wait(zval *sock_array, const pollfd *fds, uint32_t nfds, int n_event, int revent);
 
 Client *php_swoole_client_get_cli_safe(const zval *zobject) {
     Client *cli = php_swoole_client_get_cli(zobject);
@@ -467,6 +467,7 @@ void php_swoole_client_free(const zval *zobject, Client *cli) {
     }
 
     delete cli;
+    php_swoole_client_fetch_object(zobject)->generation++;
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
     zval *zsocket = client_get_zsocket(zobject);
@@ -871,9 +872,8 @@ static PHP_METHOD(swoole_client, recv) {
             }
 
         _find_eof:
-            eof = swoole_strnpos(buffer->str, buffer->length, protocol->package_eof, protocol->package_eof_len);
+            eof = protocol->find_eof_end(buffer->str, buffer->length);
             if (eof >= 0) {
-                eof += protocol->package_eof_len;
 
                 if ((ssize_t) buffer->length > eof) {
                     cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, sw_zend_string_allocator());
@@ -896,11 +896,7 @@ static PHP_METHOD(swoole_client, recv) {
                     RETURN_FALSE;
                 } else if (buffer->length == buffer->size) {
                     if (buffer->size < protocol->package_max_length) {
-                        uint32_t new_size = buffer->size * 2;
-                        if (new_size > protocol->package_max_length) {
-                            new_size = protocol->package_max_length;
-                        }
-                        buffer->extend(new_size);
+                        buffer->extend(protocol->next_eof_buffer_size(buffer->size));
                     }
                 }
             }
@@ -916,35 +912,54 @@ static PHP_METHOD(swoole_client, recv) {
         String *buffer = cli->buffer;
 
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
+        if (sw_unlikely(header_len > buffer->size)) {
+            buffer->extend(header_len);
+        }
 
+        const uint32_t generation = php_swoole_client_fetch_object(ZEND_THIS)->generation;
         while (true) {
             auto retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
-            if (retval <= 0) {
-                break;
+            if (retval < 0) {
+                php_swoole_sys_error(E_WARNING, "recv() failed");
+                zend_update_property_long(
+                    swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+                buffer->clear();
+                RETURN_FALSE;
+            } else if (retval == 0) {
+                buffer->clear();
+                RETURN_EMPTY_STRING();
             }
             buffer->length += retval;
-            PacketLength pl{
-                buffer->str,
-                (uint32_t) buffer->length,
-            };
-            buf_len = protocol->get_package_length(protocol, cli->socket, &pl);
-            if (buf_len == 0) {
-                continue;
-            } else if (buf_len < 0) {
-                break;
-            } else {
-                break;
+            ssize_t package_length = 0;
+            auto status = protocol->resolve_package_length(
+                cli->socket, buffer->str, buffer->length, &package_length, nullptr);
+            // package_length_func closed the client: cli and its buffer are freed
+            if (php_swoole_client_fetch_object(ZEND_THIS)->generation != generation) {
+                swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
+                zend_update_property_long(
+                    swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);
+                RETURN_FALSE;
             }
+            buf_len = package_length;
+            if (status == swoole::PackageLengthStatus::NEED_MORE) {
+                // The header is complete but the length is still unknown; no room is left to receive more.
+                if (buffer->length >= header_len) {
+                    buf_len = -1;
+                    break;
+                }
+                continue;
+            }
+            if (status == swoole::PackageLengthStatus::MALFORMED) {
+                buf_len = -1;
+            }
+            break;
         }
 
         // error package
         if (buf_len < 0) {
             RETURN_EMPTY_STRING();
         }
-        // empty package
-        else if (buf_len == header_len) {
-            RETURN_STRINGL(buffer->str, header_len);
-        } else if (buf_len > protocol->package_max_length) {
+        else if (buf_len > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                              "Package is too big. package_length=%d",
@@ -959,12 +974,14 @@ static PHP_METHOD(swoole_client, recv) {
             return;
         }
 
+        // The header may be shorter than header_len when package_length_func answers early.
+        const size_t received_len = buffer->length;
         strbuf = zend_string_alloc(buf_len, false);
-        memcpy(strbuf->val, buffer->str, buffer->length);
+        memcpy(strbuf->val, buffer->str, received_len);
         swoole_set_last_error(0);
-        ret = cli->recv(strbuf->val + header_len, buf_len - buffer->length, MSG_WAITALL);
+        ret = cli->recv(strbuf->val + received_len, buf_len - received_len, MSG_WAITALL);
         if (ret > 0) {
-            ret += header_len;
+            ret += received_len;
             if (ret != buf_len) {
                 ret = 0;
             }
@@ -1211,18 +1228,23 @@ PHP_FUNCTION(swoole_client_select) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END();
 
-    int maxevents = SW_MAX(SW_MAX(php_swoole_array_length_safe(r_array), php_swoole_array_length_safe(w_array)),
-                           php_swoole_array_length_safe(e_array));
+    // The three arrays are merged into one pollfd list, so the upper bound is the sum of their lengths.
+    size_t maxevents = (size_t) php_swoole_array_length_safe(r_array) + php_swoole_array_length_safe(w_array) +
+                       php_swoole_array_length_safe(e_array);
+    if (maxevents == 0) {
+        php_swoole_fatal_error(E_WARNING, "no resource arrays were passed to select");
+        RETURN_FALSE;
+    }
     auto *fds = static_cast<struct pollfd *>(ecalloc(maxevents, sizeof(struct pollfd)));
 
     if (r_array != nullptr && php_swoole_array_length(r_array) > 0) {
-        index = client_poll_add(r_array, index, fds, maxevents, POLLIN);
+        index = client_poll_add(r_array, index, fds, POLLIN);
     }
     if (w_array != nullptr && php_swoole_array_length(w_array) > 0) {
-        index = client_poll_add(w_array, index, fds, maxevents, POLLOUT);
+        index = client_poll_add(w_array, index, fds, POLLOUT);
     }
     if (e_array != nullptr && php_swoole_array_length(e_array) > 0) {
-        index = client_poll_add(e_array, index, fds, maxevents, POLLHUP);
+        index = client_poll_add(e_array, index, fds, POLLHUP);
     }
     if (index == 0) {
         efree(fds);
@@ -1231,7 +1253,7 @@ PHP_FUNCTION(swoole_client_select) {
     }
 
     do {
-        retval = poll(fds, maxevents, (int) (timeout * 1000));
+        retval = poll(fds, index, (int) (timeout * 1000));
     } while (retval < 0 && errno == EINTR);
 
     if (retval == -1) {
@@ -1241,20 +1263,20 @@ PHP_FUNCTION(swoole_client_select) {
     }
 
     if (r_array != nullptr && php_swoole_array_length(r_array) > 0) {
-        client_poll_wait(r_array, fds, maxevents, retval, POLLIN);
+        client_poll_wait(r_array, fds, index, retval, POLLIN);
     }
     if (w_array != nullptr && php_swoole_array_length(w_array) > 0) {
-        client_poll_wait(w_array, fds, maxevents, retval, POLLOUT);
+        client_poll_wait(w_array, fds, index, retval, POLLOUT);
     }
     if (e_array != nullptr && php_swoole_array_length(e_array) > 0) {
-        client_poll_wait(e_array, fds, maxevents, retval, POLLHUP);
+        client_poll_wait(e_array, fds, index, retval, POLLHUP);
     }
     efree(fds);
     RETURN_LONG(retval);
 }
 
-static inline int client_poll_get(const pollfd *fds, int maxevents, swSocketFd fd) {
-    for (int i = 0; i < maxevents; i++) {
+static inline int client_poll_get(const pollfd *fds, uint32_t nfds, swSocketFd fd) {
+    for (uint32_t i = 0; i < nfds; i++) {
         if (fds[i].fd == fd) {
             return i;
         }
@@ -1262,7 +1284,7 @@ static inline int client_poll_get(const pollfd *fds, int maxevents, swSocketFd f
     return -1;
 }
 
-static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, int n_event, int revent) {
+static int client_poll_wait(zval *sock_array, const pollfd *fds, uint32_t nfds, int n_event, int revent) {
     zval *element = nullptr;
 
     ulong_t num = 0;
@@ -1281,7 +1303,7 @@ static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, 
         if (sock < 0) {
             continue;
         }
-        int poll_key = client_poll_get(fds, maxevents, (swSocketFd) sock);
+        int poll_key = client_poll_get(fds, nfds, (swSocketFd) sock);
         if (poll_key == -1) {
             php_swoole_fatal_error(E_WARNING, "bad fd[%d]", sock);
             continue;
@@ -1306,22 +1328,19 @@ static int client_poll_wait(zval *sock_array, const pollfd *fds, int maxevents, 
     return num;
 }
 
-static uint32_t client_poll_add(const zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event) {
+static uint32_t client_poll_add(const zval *sock_array, uint32_t index, struct pollfd *fds, int event) {
     zval *element = nullptr;
     if (!ZVAL_IS_ARRAY(sock_array)) {
         return 0;
     }
-
-    int key = -1;
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
     int sock = php_swoole_convert_to_fd(element);
     if (sock < 0) {
         continue;
     }
-    if (event != POLLIN) {
-        key = client_poll_get(fds, maxevents, sock);
-    }
+    // Merge duplicates, so index never exceeds the sum of the array lengths.
+    int key = client_poll_get(fds, index, sock);
     if (key < 0) {
         fds[index].fd = (swSocketFd) sock;
         fds[index].events = event;

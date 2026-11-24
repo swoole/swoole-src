@@ -175,7 +175,8 @@ void php_swoole_process_pool_minit(int module_number) {
 static void process_pool_onWorkerStart(ProcessPool *pool, Worker *worker) {
     auto zobject = static_cast<zval *>(pool->ptr);
     auto pp = process_pool_fetch_object(zobject);
-    php_swoole_process_clean();
+
+    php_swoole_process_reset_worker_type();
 
     current_pool = pool;
     current_worker = worker;
@@ -657,14 +658,6 @@ static PHP_METHOD(swoole_process_pool, start) {
         RETURN_FALSE;
     }
 
-    // The reactor must be cleaned up before registering signal
-    swoole_event_free();
-    std::vector<int> signal_numbers = {SIGTERM, SIGUSR1, SIGUSR2, SIGIO, SIGWINCH};
-#ifdef SIGRTMIN
-    signal_numbers.push_back(SIGRTMIN);
-#endif
-    SignalGuard signal_guard(signal_numbers, process_pool_signal_handler);
-
     if (pp->enable_message_bus) {
         if (pool->message_bus == nullptr && pool->create_message_bus() != SW_OK) {
             RETURN_FALSE;
@@ -674,6 +667,14 @@ static PHP_METHOD(swoole_process_pool, start) {
     } else {
         pool->set_protocol(SW_PROTOCOL_STREAM);
     }
+
+    // The reactor must be cleaned up before registering signal
+    swoole_event_free();
+    std::vector<int> signal_numbers = {SIGTERM, SIGUSR1, SIGUSR2, SIGIO, SIGWINCH};
+#ifdef SIGRTMIN
+    signal_numbers.push_back(SIGRTMIN);
+#endif
+    SignalGuard signal_guard(signal_numbers, process_pool_signal_handler);
 
     if (pp->onMessage) {
         pool->onMessage = process_pool_onMessage;

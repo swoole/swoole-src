@@ -116,9 +116,9 @@ if [ "$1" = "library" ] ;then
   set -e
 
   if [ "$2" = "dev" ] ;then
-    /usr/bin/env php tools/build-library.php dev
+    /usr/bin/env php library/tools/build-library.php dev
   else
-    /usr/bin/env php tools/build-library.php
+    /usr/bin/env php library/tools/build-library.php
   fi
 
   echo "remake..."

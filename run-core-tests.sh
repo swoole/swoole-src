@@ -2,12 +2,21 @@
 __DIR__=$(cd "$(dirname "$0")" || exit;pwd)
 
 export ASAN_OPTIONS=detect_leaks=0
+# Some sudo implementations ignore -E. Pass the settings consumed by the tests
+# explicitly so privileged suites still recognize CI and retain their diagnostics.
+test_env=()
+for name in ASAN_OPTIONS DISPLAY_BACKTRACE GITHUB_ACTIONS SSL_CERT_FILE VERBOSE; do
+    if [[ ${!name+x} ]]; then
+        test_env+=("$name=${!name}")
+    fi
+done
+
 sudo sysctl -w kernel.randomize_va_space=0
 
 ipcs -q
 
 cd "${__DIR__}"/core-tests/js || exit 1
-npm install
+npm install || exit 1
 cd "${__DIR__}" || exit 1
 
 #
@@ -26,15 +35,28 @@ watchdog_kill() {
     sudo kill -KILL -- "-$1" 2>/dev/null || kill -KILL -- "-$1" 2>/dev/null
 }
 
-tasks=$(./bin/core-tests --gtest_list_tests | awk '/\./') || exit 255
-for task in $tasks; do
+if ! test_list=$(./bin/core-tests --gtest_list_tests); then
+    printf '%s\n' "$test_list" >&2
+    echo "Failed to list core tests" >&2
+    exit 255
+fi
+# Only unindented GoogleTest suite names belong here, not diagnostics or individual test names.
+mapfile -t tasks < <(printf '%s\n' "$test_list" | awk '/^[^[:space:]]/ && $1 ~ /^[[:alnum:]_\/]+\.$/ { print $1 }')
+if [ "${#tasks[@]}" -eq 0 ]; then
+    printf '%s\n' "$test_list" >&2
+    echo "No core test suites found" >&2
+    exit 255
+fi
+printf 'Discovered %d core test suites\n' "${#tasks[@]}"
+for task in "${tasks[@]}"; do
     execute_command="./bin/core-tests"
 
+    printf 'Running core test suite: %s\n' "$task"
     : >"${SUITE_LOG}"
     if [ "$task" = "log." ]; then
-        setsid stdbuf -oL -eL $execute_command --gtest_filter="$task"* >>"${SUITE_LOG}" 2>&1 &
+        setsid stdbuf -oL -eL "$execute_command" --gtest_color=no --gtest_filter="${task}*" >>"${SUITE_LOG}" 2>&1 &
     else
-        setsid sudo -E stdbuf -oL -eL "$execute_command" --gtest_filter="$task"* >>"${SUITE_LOG}" 2>&1 &
+        setsid sudo -E env "${test_env[@]}" stdbuf -oL -eL "$execute_command" --gtest_color=no --gtest_filter="${task}*" >>"${SUITE_LOG}" 2>&1 &
     fi
     pid=$!
 
@@ -67,4 +89,12 @@ for task in $tasks; do
         cat "${SUITE_LOG}"
         exit 255
     fi
+    # A successful exit alone does not prove that the filter selected any tests.
+    if ! grep -Eq '^\[==========\] [1-9][0-9]* tests? from .* ran\.' "${SUITE_LOG}"; then
+        cat "${SUITE_LOG}"
+        echo "No core tests executed for '${task}'" >&2
+        exit 255
+    fi
+    # Show GoogleTest progress for successful suites; keep verbose engine traces in the watchdog log.
+    grep -E '^\[(=|-| RUN |[[:space:]]+(OK|PASSED|SKIPPED))' "${SUITE_LOG}"
 done

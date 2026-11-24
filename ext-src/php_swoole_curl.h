@@ -42,6 +42,7 @@ SW_EXTERN_C_END
 #endif
 
 CURLcode swoole_curl_easy_perform(CURL *cp);
+bool swoole_curl_is_coroutine_handle(const php_curl *ch);
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
 void swoole_curl_easy_reset(CURL *curl);
 

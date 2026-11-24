@@ -15,7 +15,7 @@ function my_onStart($serv)
 {
     echo "MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}\n";
     echo "Server: start.Swoole version is [".SWOOLE_VERSION."]\n";
-    //$serv->addtimer(1000);
+    //Swoole\Timer::tick(1000);
 }
 
 function my_onShutdown($serv)
@@ -43,7 +43,7 @@ function my_onWorkerStart($serv, $worker_id)
         swoole_set_process_name("php {$argv[0]} event worker");
     }
     //echo "WorkerStart|MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerId=$worker_id\n";
-    //$serv->addtimer(500); //500ms
+    //Swoole\Timer::tick(500); //500ms
 }
 
 function my_onWorkerStop($serv, $worker_id)

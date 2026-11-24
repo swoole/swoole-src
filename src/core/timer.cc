@@ -99,11 +99,19 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         return nullptr;
     }
 
+    const int64_t now_msec = get_relative_msec();
+    // Check before allocating an ID or changing the heap/backend timeout.
+    if (sw_unlikely(now_msec > INT64_MAX - _msec)) {
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "msec value[%ld] overflows the timer deadline", _msec);
+        return nullptr;
+    }
+
     auto tnode = std::make_unique<TimerNode>();
     tnode->id = _next_id++;
     tnode->data = data;
     tnode->type = TimerNode::TYPE_KERNEL;
-    tnode->exec_msec = get_relative_msec() + _msec;
+    tnode->exec_msec = now_msec + _msec;
     tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;
     tnode->callback = callback;

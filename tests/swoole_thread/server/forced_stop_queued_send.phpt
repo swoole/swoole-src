@@ -40,7 +40,8 @@ $serv->set([
         $ready = new Thread\Atomic(0);
         $state = new Thread\Atomic(0);
         $target = new Thread\Atomic(0);
-        return [$ready, $state, $target];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$ready, $state, $target, $userWorkerStarted];
     },
 ]);
 // INI bounds IPC kernel buffers; configure client capacity only on the port to preserve that limit.
@@ -138,7 +139,11 @@ $serv->on('Shutdown', function () use ($path) {
     echo "shutdown\n";
 });
 $serv->addProcess(new Swoole\Process(function () use ($serv, $port) {
-    [$ready, $state] = Thread::getArguments();
+    [$ready, $state, , $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
 
     $wait = function (callable $condition) {
         for ($i = 0; $i < 1000 && !$condition(); $i++) {

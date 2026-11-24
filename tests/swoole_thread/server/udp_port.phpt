@@ -21,10 +21,11 @@ $serv->set(array(
     'log_level' => SWOOLE_LOG_ERROR,
     'reload_async' => true,
     'init_arguments' => function () {
-        global $queue, $atomic;
+        global $queue, $atomic, $userWorkerStarted;
         $queue = new Swoole\Thread\Queue();
         $atomic = new Swoole\Thread\Atomic(0);
-        return [$queue, $atomic];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$queue, $atomic, $userWorkerStarted];
     }
 ));
 $udp = $serv->addListener('127.0.0.1', $port + 1, SWOOLE_SOCK_UDP);
@@ -53,7 +54,11 @@ $serv->on('shutdown', function (Server $server) {
     Assert::eq($atomic->get(), $server->setting['worker_num']);
 });
 $serv->addProcess(new Swoole\Process(function ($process) use ($serv) {
-    [$queue, $atomic] = Thread::getArguments();
+    [$queue, $atomic, $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
     global $port;
     echo $queue->pop(-1);
     Co\run(function () use ($port) {

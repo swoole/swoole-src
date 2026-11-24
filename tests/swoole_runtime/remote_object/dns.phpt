@@ -2,29 +2,39 @@
 swoole_runtime/remote_object: dns
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc';
-skip_if_in_ci('failure');
+skip_if_offline();
 ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-use function Swoole\Coroutine\run;
+require __DIR__ . '/server.inc';
 
-run(function ()  {
-    Assert::true(checkdnsrr('www.baidu.com', 'A'));
-    Assert::true(dns_check_record('www.baidu.com', 'A'));
+remote_object_test(function ($client, $socket) {
+    $previous                                        = SwooleLibrary::$remote_object_server_socket_file;
+    $previousOptions = swoole_library_get_option('default_remote_object_server_options');
+    SwooleLibrary::$remote_object_server_socket_file = 'unix://' . $socket;
+    swoole_library_set_option('default_remote_object_server_options', ['api_key' => REMOTE_OBJECT_TEST_API_KEY]);
+    Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
+    try {
+        Assert::true(checkdnsrr('www.baidu.com', 'A'));
+        Assert::true(dns_check_record('www.baidu.com', 'A'));
 
-    Assert::true(checkdnsrr('qq.com', 'MX'));
-    $mxhosts = [];
-    Assert::true(getmxrr('qq.com', $mxhosts));
-    Assert::greaterThanEq(count($mxhosts), 1);
+        Assert::true(checkdnsrr('qq.com', 'MX'));
+        $mxhosts = [];
+        Assert::true(getmxrr('qq.com', $mxhosts));
+        Assert::greaterThanEq(count($mxhosts), 1);
 
-    Assert::true(getmxrr('qq.com', $mxhosts, $mxweights));
-    Assert::greaterThanEq(count($mxweights), 1);
+        Assert::true(getmxrr('qq.com', $mxhosts, $mxweights));
+        Assert::greaterThanEq(count($mxweights), 1);
 
-    $rs = dns_get_record('www.baidu.com', DNS_A);
-    Assert::greaterThanEq(count($rs), 1);
-    Assert::eq(gethostbyaddr('127.0.0.1'), 'localhost');
+        $rs = dns_get_record('www.baidu.com', DNS_A);
+        Assert::greaterThanEq(count($rs), 1);
+        Assert::eq(gethostbyaddr('127.0.0.1'), 'localhost');
+    } finally {
+        SwooleLibrary::$remote_object_server_socket_file = $previous;
+        swoole_library_set_option('default_remote_object_server_options', $previousOptions);
+    }
 });
 ?>
 --EXPECTF--

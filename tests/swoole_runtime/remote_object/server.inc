@@ -2,7 +2,14 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../include/lib/src/Assert.php';
+require_once __DIR__ . '/../../include/Assert.php';
+
+const REMOTE_OBJECT_TEST_API_KEY = 'swoole-remote-object-test';
+
+function remote_object_test_client(string $socket): Swoole\RemoteObject\Client
+{
+    return new Swoole\RemoteObject\Client('unix://' . $socket, 0, ['api_key' => REMOTE_OBJECT_TEST_API_KEY]);
+}
 
 class RemoteObjectTestServer extends Swoole\RemoteObject\Server
 {
@@ -69,6 +76,10 @@ function remote_object_test(callable $test, array $options = []): void
             'worker_num' => 1,
             'enable_coroutine' => false,
             'log_file' => '/dev/null',
+            'api_key' => REMOTE_OBJECT_TEST_API_KEY,
+            // These local fixtures exercise arbitrary test classes and helper functions.
+            'allowed_classes' => [],
+            'allowed_functions' => [],
         ], $options)))->start();
     });
     $pid = $process->start();
@@ -92,7 +103,7 @@ function remote_object_test(callable $test, array $options = []): void
         $error = null;
         Swoole\Coroutine\run(static function () use ($socket, $test, &$error): void {
             try {
-                $test(new Swoole\RemoteObject\Client('unix://' . $socket), $socket);
+                $test(remote_object_test_client($socket), $socket);
             } catch (Throwable $e) {
                 $error = $e;
             }

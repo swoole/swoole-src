@@ -29,7 +29,8 @@ class Client
 
     public function setCookies(array $cookies): bool {}
 
-    public function setData(array|string $data): bool {}
+    /** @param array|string|resource $data */
+    public function setData($data, ?int $length = null): bool {}
 
     public function addFile(string $path, string $name, ?string $type = null, ?string $filename = null, int $offset = 0, int $length = 0): bool {}
 

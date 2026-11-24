@@ -1,5 +1,36 @@
 # Swoole Changelog
 
+## 6.3.0 (unreleased)
+
+### Breaking changes
+
+- `onClose` and `onBufferFull` are always dispatched from the top-level worker event loop. Active close callbacks and all buffer callbacks are deferred; passive close callbacks run directly from their event-loop notification. Code following `Server::close()` runs before its deferred callback until it returns or yields to the event loop. See [Server event dispatch](server-events.md).
+- Raise the minimum supported PHP version to 8.2; PHP 8.1 is no longer supported in 6.3.
+- `Server::taskCo()` and `Server::taskWaitMulti()` now share the same behavior. Both preserve the original task keys and input iteration order, including associative and sparse arrays. Pass `array_values($tasks)` to retain positional numeric results.
+- Both methods use coroutine waiting inside a coroutine and blocking waiting outside one. `taskCo()` is therefore also available in non-coroutine workers.
+- After at least one task is dispatched, both methods return every input key, with `false` for failed or unfinished tasks, including when the entire batch times out. Timeouts set `SWOOLE_ERROR_TASK_TIMEOUT`. Empty batches, batches with no successfully dispatched tasks, and batch setup/read failures still return `false`.
+- In `SWOOLE_THREAD` mode, `ManagerStop` now runs after all event, task and user workers finish. Publish a shared stop flag and notify user workers from `BeforeShutdown` instead of `ManagerStop`, so replacements created before the manager receives shutdown can also exit.
+- A thread-manager callback calling `reload()` now queues the request instead of immediately entering `BeforeReload`; both reload callbacks run from the manager loop, matching process mode.
+- C++ `Server::reload()` now follows PHP's `only_reload_taskworker = false` convention: `false` reloads all workers and `true` reloads task workers only. Update explicit Boolean arguments in C++ callers; PHP arguments and defaults are unchanged.
+- C++ `Server::gs` is now private. Use the server's typed state, statistics and counter methods instead of accessing its shared-memory layout directly.
+- The built-in static handler now handles only GET and HEAD; other methods reach the application's request callback. Static directory URLs without a trailing slash redirect to the canonical URL while preserving the query string.
+
+### Bug fixes
+
+- Wait for pending Windows IOCP cancellation completions in `Swoole\Coroutine\Socket::close()` before releasing the descriptor, including listening sockets and TLS operations.
+- Fix associative task-array crashes and partial task-dispatch cleanup, building on [#6408](https://github.com/swoole/swoole-src/pull/6408) by @NathanFreeman. Swoole 6.1 and 6.2 receive compatible fixes while retaining their existing result conventions.
+- Let the thread manager create, restart and reap all workers. As in process mode, the master notifies the manager after its event loop ends; replacements stop when the manager receives that command. Builds on [#6397](https://github.com/swoole/swoole-src/pull/6397) by @binaryfire.
+- Carry the thread-server reload kind in its queued command instead of a caller-written flag, preventing the manager from starting a reload with stale options.
+- Keep task threads from changing the master's signal backend, so shutdown and signal cleanup remain consistent across server restarts.
+- Fix malformed multipart Range requests aborting the server or producing an incorrect response length. Limit static responses to 16 ranges and fall back to a complete response when the aggregate selected bytes exceed the file size.
+- Fix static HEAD bodies and lengths, timezone-dependent conditional responses, index-file modification times, URI path decoding and Connection: close completion. Remove premature static-response corking that could delay small responses.
+
+### Improvements
+
+- Add the opt-in `http2_cancel_on_stream_reset` server option. A peer HTTP/2 reset interrupts the active request coroutine with `Swoole\Coroutine\CanceledException`. Its reason is an associative array with `session_id`, `stream_id`, the HTTP/2 error `code`, and a `message` of `HTTP2 Stream Reset`. Catch the exception in the PHP request handler. An uncaught exception is fatal and terminates the worker process. A reset received while the request is queued skips its callback.
+- Add static-file ETag validators and conditional request handling, including strong If-Range matching and precondition precedence, consistently across HTTP/1 and HTTP/2.
+- Retain an opened static file through response completion and share it across ranges. Find configured index files directly instead of enumerating the directory.
+
 ## 2024-12-16 v6.0.0
 # ✨ New Feature:
 - Added multi-threading support, require the ZTS version of PHP. Add `--enable-swoole-thread` option to the configure command to activate it.

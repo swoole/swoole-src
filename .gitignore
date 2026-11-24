@@ -46,19 +46,9 @@ modules/*
 /run-tests.php
 /autom4te.cache
 /build
-/examples/async/data.txt
 /examples/.idea
-/examples/recv_file.jpg
+/examples/client/recv_file_*.jpg
 /modules
-/examples/async/test.copy
-/examples/ssl_client
-/examples/ssl/ca.crt
-/examples/ssl/client.key
-/examples/ssl/client.pfx
-/examples/ssl/client
-/examples/ssl/corpssl.crt
-/examples/ssl/corpssl.key
-/examples/ext
 /benchmark/.idea/
 /benchmark/vendor
 /benchmark/composer.lock
@@ -94,20 +84,21 @@ cmake-build-test/
 /core-tests/samples/CMakeCache\.txt
 /core-tests/samples/bin/
 /core-tests/samples/CMakeFiles/
-/core-tests/.project
-/core-tests/.cproject
-/core-tests/compile_commands.json
 /core-tests/samples/.project
+/core-tests/samples/.cproject
+/core-tests/compile_commands.json
 /core-tests/fuzz/fuzz_results/
 /core-tests/fuzz/bin/
 
-/tools/vendor
-/tools/composer.lock
-/examples/wrapper/CMakeFiles
-/examples/wrapper/CMakeCache.txt
-/examples/wrapper/Makefile
-/examples/wrapper/server
-/examples/wrapper/cmake_install.cmake
+# Generated files produced by examples (never commit these)
+/examples/**/*.log
+/examples/**/data.txt
+/examples/**/test.data
+/examples/**/httpdata
+/examples/**/resp.html
+/examples/test_link.jpg
+/examples/test2.jpg
+/examples/*.xyz
 /out
 /gcov_result
 

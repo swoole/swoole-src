@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(libswoole)
 
 enable_language(ASM)
-set(SWOOLE_VERSION 6.3.0RC1)
+set(SWOOLE_VERSION 6.3.0RC2)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -191,6 +191,12 @@ set(TEST_SRC_LIST examples/cpp/co.cc)
 add_executable(co ${TEST_SRC_LIST})
 add_dependencies(co lib-swoole)
 target_link_libraries(co swoole)
+
+# repeat
+set(TEST_SRC_LIST examples/cpp/repeat.cc)
+add_executable(repeat ${TEST_SRC_LIST})
+add_dependencies(repeat lib-swoole)
+target_link_libraries(repeat swoole)
 
 # ext-swoole
 file(GLOB ext_cxx_files ext-src/*.cc)

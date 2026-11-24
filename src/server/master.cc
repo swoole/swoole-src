@@ -613,7 +613,13 @@ int Server::start_master_thread(Reactor *reactor) {
         }
     }
     if (is_process_mode()) {
-        gs->manager_barrier.wait();
+        wait_manager_barrier();
+    }
+    if (is_thread_mode()) {
+        // Master thread: signals, listeners and the reactor are ready before any worker can
+        // request shutdown. The manager creates and subsequently owns all worker threads.
+        auto *factory = dynamic_cast<ThreadFactory *>(factory_);
+        factory->spawn_manager_thread(factory->get_manager_thread_id());
     }
     if (isset_hook(HOOK_MASTER_START)) {
         call_hook(HOOK_MASTER_START, this);
@@ -875,6 +881,10 @@ int Server::start() {
         size_t n = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, "%d", getpid());
         file_put_contents(pid_file, sw_tg_buffer()->str, n);
     }
+    // Ports are shared by all reactor threads, so initialize their protocol once before any of them starts.
+    for (auto port : ports) {
+        port->init_protocol();
+    }
     int ret;
     if (is_base_mode()) {
         ret = start_reactor_processes();
@@ -1123,8 +1133,7 @@ bool Server::shutdown() {
     }
 
     if (is_thread_mode() && is_master_thread()) {
-        // Already on the master thread: run the common shutdown sequence directly, without sending SIGTERM.
-        // The signal handler uses the same sequence; it does not call shutdown() again.
+        // Master callers use the same handler as SIGTERM. Worker threads take the signal path below.
         return signal_handler_shutdown();
     }
 
@@ -1156,8 +1165,8 @@ bool Server::shutdown() {
     return true;
 }
 
-bool Server::signal_handler_reload(bool reload_all_workers) const {
-    const auto rv = reload(reload_all_workers);
+bool Server::signal_handler_reload(bool only_reload_taskworker) const {
+    const auto rv = reload(only_reload_taskworker);
     sw_logger()->reopen();
     return rv;
 }
@@ -1206,9 +1215,6 @@ void Server::stop_master_thread() {
             return true;
         };
         reactor->set_exit_condition(Reactor::EXIT_CONDITION_FORCED_TERMINATION, fn);
-    }
-    if (is_thread_mode()) {
-        stop_worker_threads();
     }
     if (is_process_mode() && single_thread) {
         get_thread(0)->shutdown(reactor);
@@ -1645,7 +1651,7 @@ void Server::discard_sendfile(DataHead *info, const char *data) {
  * flags; readiness, output queues and physical socket release remain owned by this one reactor.
  * @return SW_OK or SW_ERR
  */
-int Server::send_to_connection(SendData *_send) const {
+int Server::send_to_connection(SendData *_send, const std::shared_ptr<File> *file) const {
     const SessionId session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
@@ -1795,7 +1801,9 @@ int Server::send_to_connection(SendData *_send) const {
         // the event so a synchronous base/thread caller does not delete the file again.
         const bool delete_file = _send->info.ext_flags & SW_SERVER_SENDFILE_DELETE;
         _send->info.ext_flags &= ~SW_SERVER_SENDFILE_DELETE;
-        if (conn->socket->sendfile_async(task->filename, task->offset, task->length, delete_file) < 0) {
+        const int result = file ? conn->socket->sendfile_async(*file, task->offset, task->length)
+                                : conn->socket->sendfile_async(task->filename, task->offset, task->length, delete_file);
+        if (result < 0) {
             return SW_ERR;
         }
     } else {
@@ -2222,7 +2230,7 @@ void Server::master_signal_handler(int signo) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        serv->signal_handler_reload(signo == SIGUSR1);
+        serv->signal_handler_reload(signo == SIGUSR2);
         break;
     case SIGIO:
         serv->signal_handler_read_message();

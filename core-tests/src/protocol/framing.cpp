@@ -53,6 +53,52 @@ TEST(protocol, default_length_rejects_zero_field_width_and_negative_lengths) {
     EXPECT_EQ(Protocol::default_length_func(&protocol, nullptr, &pl), SW_ERR);
 }
 
+TEST(protocol, resolve_package_length_status) {
+    Protocol protocol{};
+    protocol.package_length_type = 'N';
+    protocol.package_length_size = 4;
+    protocol.package_body_offset = 4;
+    protocol.package_max_length = 64;
+    protocol.get_package_length = Protocol::default_length_func;
+    const char header[] = {0, 0, 0, 10, 'x'};
+    ssize_t length = -1;
+    uint32_t header_len = 99;
+
+    EXPECT_EQ(protocol.resolve_package_length(nullptr, header, 3, &length, &header_len),
+              PackageLengthStatus::NEED_MORE);
+    EXPECT_EQ(length, 0);
+    EXPECT_EQ(header_len, 4u);  // updated from the length function
+    EXPECT_EQ(protocol.resolve_package_length(nullptr, header, 5, &length), PackageLengthStatus::OK);
+    EXPECT_EQ(length, 14);
+
+    const char big[] = {0, 0, 1, 0};
+    EXPECT_EQ(protocol.resolve_package_length(nullptr, big, 4, &length), PackageLengthStatus::TOO_LARGE);
+    EXPECT_EQ(length, 260);
+
+    const char negative[] = {
+        static_cast<char>(0xff), static_cast<char>(0xff), static_cast<char>(0xff), static_cast<char>(0xff)};
+    protocol.package_length_type = 'l';
+    EXPECT_EQ(protocol.resolve_package_length(nullptr, negative, 4, &length), PackageLengthStatus::MALFORMED);
+}
+
+TEST(protocol, find_eof_end_and_growth) {
+    Protocol protocol{};
+    protocol.package_eof_len = 2;
+    memcpy(protocol.package_eof, "\r\n", 2);
+    EXPECT_EQ(protocol.find_eof_end("ab\r", 3), -1);
+    EXPECT_EQ(protocol.find_eof_end("ab\r\ncd", 7), 4);
+    EXPECT_EQ(protocol.find_eof_end("\r\n", 2), 2);
+    EXPECT_EQ(protocol.find_eof_end("", 0), -1);
+
+    protocol.package_max_length = 10000;
+    EXPECT_EQ(protocol.next_eof_buffer_size(16),
+              static_cast<size_t>(swoole_size_align(32, swoole_pagesize())) > 10000
+                  ? 10000u
+                  : swoole_size_align(32, swoole_pagesize()));
+    protocol.package_max_length = 100;
+    EXPECT_EQ(protocol.next_eof_buffer_size(80), 100u);
+}
+
 #ifndef _WIN32
 namespace {
 class ProtocolFramingTest : public testing::Test {

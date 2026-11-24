@@ -91,7 +91,7 @@ swoole_execute_and_check(['php', __DIR__ . '/arginfo-check.php']);
 swoole_execute_and_check(['php', __DIR__ . '/code-generator.php']);
 if (file_exists(LIBRARY_DIR)) {
     swoole_execute_and_check(['php', __DIR__ . '/constant-generator.php']);
-    swoole_execute_and_check(['php', __DIR__ . '/build-library.php']);
+    swoole_execute_and_check(['php', LIBRARY_DIR . '/tools/build-library.php']);
 } else {
     swoole_warn('Unable to find source of library, this step will be skipped');
 }

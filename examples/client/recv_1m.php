@@ -1,6 +1,12 @@
 <?php
+// This example writes a temporary file; remove it on exit to keep the tree clean.
+register_shutdown_function(function () {
+    foreach (glob(__DIR__ . '/data.log') as $file) {
+        @unlink($file);
+    }
+});
 $c = new Swoole\Client(SWOOLE_TCP);
-$f = fopen('data.log', 'w');
+$f = fopen(__DIR__ . '/data.log', 'w');
 $c->connect('127.0.0.1', 9509, 60);
 $c->send("AAAAAAAAAAAAAAAA");
 

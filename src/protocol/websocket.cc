@@ -335,12 +335,14 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
         frame_buffer->append(data + offset, frame_length);
         // frame is finished, do dispatch
         if (ws.header.FIN) {
-            dispatch_data.info.ext_flags = conn->websocket_buffer->offset | FLAG_FIN;
+            dispatch_data.info.ext_flags = frame_buffer->offset | FLAG_FIN;
             dispatch_data.info.len = frame_buffer->length;
             dispatch_data.data = frame_buffer->str;
+            // In BASE mode the callback runs synchronously and may close the connection, which frees
+            // conn->websocket_buffer, so detach it before dispatching.
+            conn->websocket_buffer = nullptr;
             Server::dispatch_task(proto, _socket, &dispatch_data);
             delete frame_buffer;
-            conn->websocket_buffer = nullptr;
         }
         break;
 
@@ -396,15 +398,20 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
             dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, ws.get_flags());
             dispatch_data.info.len = length - offset;
             dispatch_data.data = data + offset;
-            Server::dispatch_task(proto, _socket, &dispatch_data);
-
-            // Client attempt to close
+            // The reply must be built before dispatching: in BASE mode the callback runs synchronously and may
+            // close the connection, which releases the buffer that `data` points to.
             send_frame.str[0] = 0x88;  // FIN | OPCODE: WEBSOCKET_OPCODE_CLOSE
             send_frame.str[1] = ws.payload_length;
             // Get payload and return it as it is
             memcpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN, data + length - ws.payload_length, ws.payload_length);
             send_frame.length = SW_WEBSOCKET_HEADER_LEN + ws.payload_length;
-            _socket->send(send_frame.str, send_frame.length, 0);
+
+            Server::dispatch_task(proto, _socket, &dispatch_data);
+
+            // Client attempt to close
+            if (conn->active) {
+                _socket->send(send_frame.str, send_frame.length, 0);
+            }
         } else {
             // Server attempt to close, frame sent by swoole_websocket_server->disconnect()
             conn->websocket_status = 0;

@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include <memory>
 #include "test_coroutine.h"
 #include "redis_client.h"
 #include "swoole_redis.h"
@@ -75,7 +76,7 @@ TEST(redis, server) {
                 ASSERT_FALSE(redis.Select(1));
                 ASSERT_EQ(redis.Role(), "master");
 
-                kill(serv->gs->master_pid, SIGTERM);
+                kill(serv->get_master_pid(), SIGTERM);
             },
             serv);
     };
@@ -202,6 +203,42 @@ TEST(redis, parse_binary_empty_and_nil_bulk_strings) {
 TEST(redis, parse_preserves_complete_arguments_before_incomplete_bulk) {
     const std::string packet = "*2\r\n$3\r\nGET\r\n$5\r\nhel";
     EXPECT_EQ(redis::parse(packet.data(), packet.size()), std::vector<std::string>{"GET"});
+}
+
+namespace {
+// Exact-size heap copy so that a read past the end is reported by ASAN.
+const char *get_number_of(const std::string &text, int *value) {
+    std::unique_ptr<char[]> copy(new char[text.size()]);
+    memcpy(copy.get(), text.data(), text.size());
+    const char *end = redis::get_number(copy.get(), copy.get() + text.size(), value);
+    return end ? end - copy.get() + text.data() : nullptr;
+}
+}  // namespace
+
+TEST(redis, get_number_requires_digits_and_crlf_inside_the_buffer) {
+    int value = 0;
+    const std::string ok = "$12\r\nxx";
+    EXPECT_EQ(get_number_of(ok, &value), ok.data() + 5);
+    EXPECT_EQ(value, 12);
+    EXPECT_NE(get_number_of(std::string("$-1\r\n"), &value), nullptr);
+    EXPECT_EQ(value, -1);
+
+    for (const char *bad : {"$", "$\r\n", "$\r\n\r\n", "$ 1\r\n", "$+1\r\n", "$-\r\n", "$1", "$1\r", "$1\n\r",
+                            "$99999999999\r\n", "$2147483648\r\n", "$1x\r\n"}) {
+        EXPECT_EQ(get_number_of(bad, &value), nullptr) << bad;
+    }
+    EXPECT_NE(get_number_of("$2147483647\r\n", &value), nullptr);
+    EXPECT_EQ(value, INT32_MAX);
+}
+
+TEST(redis, parse_rejects_malformed_numbers_and_lengths) {
+    for (const std::string packet : {std::string("$-2\r\n"), std::string("*\r\n"), std::string("$\r\n"),
+                                     std::string("*1\r\n$x\r\n"), std::string("*1\r\n$99999999999\r\n")}) {
+        std::unique_ptr<char[]> copy(new char[packet.size()]);
+        memcpy(copy.get(), packet.data(), packet.size());
+        EXPECT_NO_THROW(redis::parse(copy.get(), packet.size())) << packet;
+    }
+    EXPECT_TRUE(redis::parse("", 0).empty());
 }
 
 #ifndef _WIN32

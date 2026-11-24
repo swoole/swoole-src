@@ -176,6 +176,10 @@ static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
 
     auto ao = arraylist_fetch_object_check(ZEND_THIS);
     zend_long index = ZVAL_IS_NULL(zkey) ? -1 : zval_get_long(zkey);
+    // A conversion warning can invoke a PHP error handler that throws. Preserve the list on failure.
+    if (UNEXPECTED(EG(exception))) {
+        RETURN_THROWS();
+    }
     if (!ao->list->index_offsetSet(index, zvalue)) {
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }

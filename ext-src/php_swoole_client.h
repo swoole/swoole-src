@@ -46,6 +46,8 @@ struct ClientObject {
     zval *zsocket;
 #endif
     AsyncClientObject *async;
+    // Bumped whenever the native client is freed, so a caller can tell that a callback closed it.
+    uint32_t generation;
     zend_object std;
 };
 

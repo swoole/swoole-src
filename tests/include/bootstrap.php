@@ -74,6 +74,7 @@ if ($traceFlags) {
 }
 
 // Components
+require_once __DIR__ . '/Assert.php';
 require __DIR__ . '/lib/vendor/autoload.php';
 
 class_alias(SwooleTest\ProcessManager::class, ProcessManager::class);

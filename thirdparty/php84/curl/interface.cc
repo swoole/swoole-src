@@ -215,7 +215,6 @@ void swoole_curl_verify_handlers(php_curl *ch, bool reporterror) /* {{{ */
 
 /* CurlHandle class */
 static zend_object_handlers swoole_coroutine_curl_handle_handlers;
-static const zend_object_handlers *php_curl_object_handlers;
 
 static zend_object *swoole_curl_create_object(zend_class_entry *class_type);
 static void swoole_curl_free_obj(zend_object *object);
@@ -253,9 +252,8 @@ void swoole_native_curl_minit(int module_number) {
 #endif
 
     swoole_coroutine_curl_handle_ce = php_curl_ce;
-    swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
-    php_curl_object_handlers = php_curl_ce->default_object_handlers;
-    swoole_coroutine_curl_handle_ce->default_object_handlers = &swoole_coroutine_curl_handle_handlers;
+
+    // Native handles must keep ext-curl's handlers, including its own copy of libcurl on Windows.
 
     memcpy(&swoole_coroutine_curl_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     swoole_coroutine_curl_handle_handlers.offset = XtOffsetOf(php_curl, std);
@@ -288,8 +286,13 @@ static zend_object *swoole_curl_create_object(zend_class_entry *class_type) {
 
     zend_object_std_init(&intern->std, class_type);
     object_properties_init(&intern->std, class_type);
+    intern->std.handlers = &swoole_coroutine_curl_handle_handlers;
 
     return &intern->std;
+}
+
+bool swoole_curl_is_coroutine_handle(const php_curl *ch) {
+    return ch->std.handlers == &swoole_coroutine_curl_handle_handlers;
 }
 
 static zend_function *swoole_curl_get_constructor(zend_object *object) {
@@ -457,7 +460,18 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx) {
         return fwrite(data, size, nmemb, write_handler->fp);
     case PHP_CURL_RETURN:
         if (length > 0) {
+#ifdef ZEND_HAS_OOM
+            if (!smart_str_fappendl_ex(
+                    &write_handler->buf, data, length, /* persistent */ false, /* fallible */ true)) {
+#ifdef CURL_WRITEFUNC_ERROR
+                return CURL_WRITEFUNC_ERROR;
+#else
+                return 0;
+#endif
+            }
+#else
             smart_str_appendl(&write_handler->buf, data, length);
+#endif
         }
         break;
     case PHP_CURL_USER: {
@@ -672,6 +686,10 @@ static int fn_ssh_hostkeyfunction(void *clientp, int keytype, const char *key, s
     php_curl *ch = (php_curl *) clientp;
     int rval = CURLKHMATCH_MISMATCH; /* cancel connection in case of an exception */
 
+    if (!ZEND_FCC_INITIALIZED(ch->handlers.sshhostkey)) {
+        return rval;
+    }
+
 #if PHP_CURL_DEBUG
     fprintf(stderr, "curl_ssh_hostkeyfunction() called\n");
     fprintf(stderr, "clientp = %x, keytype = %d, key = %s, keylen = %zu\n", clientp, keytype, key, keylen);
@@ -881,7 +899,7 @@ static void curl_free_slist(zval *el) {
 php_curl *swoole_curl_init_handle_into_zval(zval *curl) {
     php_curl *ch;
 
-    object_init_ex(curl, swoole_coroutine_curl_handle_ce);
+    ZVAL_OBJ(curl, swoole_curl_create_object(swoole_coroutine_curl_handle_ce));
     ch = Z_CURL_P(curl);
 
     swoole_curl_init_handle(ch);
@@ -1027,8 +1045,11 @@ static void php_curl_copy_fcc_with_option(php_curl *ch,
                                           zend_fcall_info_cache *source_fcc) {
     if (ZEND_FCC_INITIALIZED(*source_fcc)) {
         zend_fcc_dup(target_fcc, source_fcc);
-        curl_easy_setopt(ch->cp, (CURLoption) option, (void *) ch);
     }
+
+    /* The callback data (i.e. pointer to the curl handle) stays even if a user callback
+     * is reset to NULL. Ensure the data pointer always points to the new handle. */
+    curl_easy_setopt(ch->cp, (CURLoption) option, (void *) ch);
 }
 
 void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
@@ -1047,6 +1068,10 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
         Z_ADDREF(source->handlers.write_header->stream);
     }
     ch->handlers.write_header->stream = source->handlers.write_header->stream;
+    if (!Z_ISUNDEF(source->handlers.std_err)) {
+        Z_ADDREF(source->handlers.std_err);
+    }
+    ch->handlers.std_err = source->handlers.std_err;
 
     ch->handlers.write->fp = source->handlers.write->fp;
     ch->handlers.write_header->fp = source->handlers.write_header->fp;
@@ -1067,7 +1092,6 @@ void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source) {
     curl_easy_setopt(ch->cp, CURLOPT_FILE, (void *) ch);
     curl_easy_setopt(ch->cp, CURLOPT_INFILE, (void *) ch);
     curl_easy_setopt(ch->cp, CURLOPT_WRITEHEADER, (void *) ch);
-    curl_easy_setopt(ch->cp, CURLOPT_DEBUGDATA, (void *) ch);
 
     php_curl_copy_fcc_with_option(ch, CURLOPT_PROGRESSDATA, &ch->handlers.progress, &source->handlers.progress);
     php_curl_copy_fcc_with_option(ch, CURLOPT_XFERINFODATA, &ch->handlers.xferinfo, &source->handlers.xferinfo);
@@ -2656,10 +2680,6 @@ static void swoole_curl_free_obj(zend_object *object) {
     swoole_curl_verify_handlers(ch, /* reporterror */ false);
 
     swoole::curl::Handle *handle = swoole::curl::get_handle(ch->cp);
-    if (!handle) {
-        php_curl_object_handlers->free_obj(object);
-        return;
-    }
 
     if (handle->multi) {
         handle->multi->remove_handle(handle);

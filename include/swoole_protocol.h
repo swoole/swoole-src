@@ -66,6 +66,13 @@ struct WebSocketSettings : WebSocketFrameSettings {
     std::string protocol;  // with `Sec-WebSocket-Protocol` HTTP Header
 };
 
+enum class PackageLengthStatus {
+    OK,         // PacketLength result is the full packet length
+    NEED_MORE,  // the header is incomplete, more data is required
+    MALFORMED,  // get_package_length() rejected the data
+    TOO_LARGE,  // the length exceeds package_max_length
+};
+
 struct Protocol {
     typedef ssize_t (*LengthFunc)(const Protocol *, network::Socket *, PacketLength *pl);
     /* one package: eof check */
@@ -99,6 +106,25 @@ struct Protocol {
     int recv_with_eof_protocol(network::Socket *socket, String *buffer) const;
     int recv_with_length_protocol(network::Socket *socket, String *buffer) const;
     int recv_split_by_eof(network::Socket *socket, String *buffer) const;
+
+    /**
+     * Pure framing helpers shared by the server, the async/sync clients and coroutine sockets.
+     * resolve_package_length: parse the header in buf. On NEED_MORE, *header_len is updated when the length
+     * function asked for a longer header (0 keeps the previous value).
+     */
+    PackageLengthStatus resolve_package_length(network::Socket *socket,
+                                               const char *buf,
+                                               size_t len,
+                                               ssize_t *package_length,
+                                               uint32_t *header_len = nullptr) const;
+    /**
+     * @return the offset just past the first EOF in buf, or -1 if there is none.
+     */
+    ssize_t find_eof_end(const char *buf, size_t len) const;
+    /**
+     * @return the next buffer size when an EOF-delimited packet filled the buffer, capped by package_max_length.
+     */
+    size_t next_eof_buffer_size(size_t size) const;
 
     static ssize_t default_length_func(const Protocol *protocol, network::Socket *socket, PacketLength *pl);
 };

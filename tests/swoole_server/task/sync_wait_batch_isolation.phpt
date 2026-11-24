@@ -30,12 +30,12 @@ $pm->childFunc = function () use ($pm) {
         }
     });
     $server->on('receive', function ($server, $fd) {
-        Assert::false(@$server->taskWaitMulti(['old-a', 'old-b'], 0.02));
+        Assert::same($server->taskWaitMulti(['old-a', 'old-b'], 0.02), [false, false]);
         $results = $server->taskWaitMulti(['new-a', 'new-b'], 5);
         Assert::same($results[0], 'new-a');
         Assert::same($results[1], 'new-b');
 
-        Assert::false(@$server->taskWaitMulti(['old-c', 'old-d'], 0.02));
+        Assert::same($server->taskWaitMulti(['old-c', 'old-d'], 0.02), [false, false]);
         Assert::same($server->taskwait('single', 5), 'single');
 
         Assert::false(@$server->taskwait('old-single', 0.02));

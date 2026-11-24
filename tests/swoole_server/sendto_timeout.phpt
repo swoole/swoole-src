@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 const N = 65507;
 
-define('SOCK_FILE', __DIR__.'/server.sock');
+define('SOCK_FILE', __DIR__.'/sendto_timeout.sock');
 swoole_async_set(['socket_send_timeout' => 0.5]);
 $pm = new SwooleTest\ProcessManager;
 
@@ -46,5 +46,9 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
+?>
+--CLEAN--
+<?php
+@unlink(__DIR__ . '/sendto_timeout.sock');
 ?>
 --EXPECT--

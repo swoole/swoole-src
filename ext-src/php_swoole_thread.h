@@ -120,6 +120,13 @@ struct ArrayItem {
         store(zvalue);
     }
 
+    // Takes ownership of the persistent buffer produced by php_swoole_serialize().
+    explicit ArrayItem(zend_string *serialized) {
+        value = {};
+        type = IS_SERIALIZED_OBJECT;
+        value.serialized_object = serialized;
+    }
+
     void setKey(zend::String &_key) {
         key = zend_string_init(_key.val(), _key.len(), true);
     }
@@ -171,6 +178,7 @@ class ZendArray : public ThreadResource {
     }
 
     void append(zval *zvalue);
+    void append_serialized(zval *zvalue);
 
     void add(const zend_string *skey, zval *zvalue) {
         auto item = new ArrayItem(zvalue);

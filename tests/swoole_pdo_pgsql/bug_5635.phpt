@@ -12,39 +12,28 @@ use Swoole\Coroutine\WaitGroup;
 use Swoole\Coroutine\Channel;
 use function Swoole\Coroutine\run;
 
-ini_set("memory_limit", "-1");
-
-$pdo = pdo_pgsql_test_inc::create();
-$pdo->exec('create table bug_5635 (id int, data varchar(1024));');
-$pdo->exec(<<<EOL
-DO $$
-BEGIN
-FOR i IN 1..5000000 LOOP
-INSERT INTO bug_5635(id, data) VALUES (i, 'data' || i);
-END LOOP;
-END $$;
-EOL);
-
 Coroutine::set(['hook_flags' => SWOOLE_HOOK_PDO_PGSQL]);
 run(function() {
     $waitGroup = new WaitGroup();
+    $waitGroup->add(2);
     $channel = new Channel(1);
 
     Coroutine::create(function() use ($waitGroup, $channel) {
-        $start = time();
-        $waitGroup->add();
         $pdo = pdo_pgsql_test_inc::create();
-        $stmt = $pdo->query("select * from bug_5635;");
-        $data = $stmt->fetchAll();
-        Assert::true(count($data) == 5000000);
-        $channel->push($data ?? [], 10);
+        // Exercise a pending database read without inserting or retaining millions of rows.
+        $stmt = $pdo->query("SELECT 1 AS id, 'data1' AS data FROM pg_sleep(0.2)");
+        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        Assert::same(count($data), 1);
+        Assert::same((int) $data[0]['id'], 1);
+        Assert::same($data[0]['data'], 'data1');
+        $channel->push($data);
         $waitGroup->done();
         echo 'DONE' . PHP_EOL;
     });
 
     Coroutine::create(function() use ($waitGroup, $channel) {
-        $waitGroup->add();
-        $result = $channel->pop(0.5);
+        $result = $channel->pop(0.05);
+        Assert::false($result);
         if (!$result) {
             echo 'channel pop timeout' . PHP_EOL;
         }
@@ -52,17 +41,10 @@ run(function() {
     });
 
     var_dump(1);
-    Coroutine::sleep(0.2);
+    Coroutine::sleep(0.02);
     var_dump(2);
     $waitGroup->wait();
 });
-?>
---CLEAN--
-<?php
-require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/pdo_pgsql.inc';
-$pdo = pdo_pgsql_test_inc::create();
-$pdo->exec('drop table bug_5635;');
 ?>
 --EXPECTF--
 int(1)

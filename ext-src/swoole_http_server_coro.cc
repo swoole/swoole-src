@@ -17,6 +17,7 @@
 #include "php_swoole_http_server.h"
 #include "php_swoole_websocket.h"
 #include "swoole_coroutine_api.h"
+#include "swoole_coroutine_channel.h"
 
 #include <string>
 
@@ -48,6 +49,7 @@ static bool http_context_disconnect(HttpContext *ctx);
 
 static void http2_server_onRequest(const std::shared_ptr<Http2Session> &session,
                                    const std::shared_ptr<Http2Stream> &stream);
+static bool http2_server_send_queued(Http2Session *session);
 
 namespace swoole {
 namespace coroutine {
@@ -60,6 +62,8 @@ class HttpServer {
     bool running;
     zval zclients;
     zval registration;
+    // flushHttp2Queue(), started when the receive loop queues HTTP/2 frames that nothing else will send
+    zend_fcall_info_cache write_fci_cache;
 
     /* options */
     bool parse_cookie;
@@ -173,8 +177,6 @@ class HttpServer {
 
     void recv_http2_frame(HttpContext *ctx) {
         auto *sock = ctx->get_co_socket();
-        http2::send_setting_frame(&sock->protocol, sock->get_socket());
-
         sock->open_length_check = true;
         sock->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
         sock->protocol.package_length_offset = 0;
@@ -187,18 +189,34 @@ class HttpServer {
         session->handle = http2_server_onRequest;
         session->private_data = this;
         session->is_coro = true;
+        session->write_lock = std::make_unique<coroutine::Channel>(1);
+        session->reader_cid = Coroutine::get_current_cid();
+        ctx->send = swoole_http2_server_coro_send;
+
+        char setting_frame[SW_HTTP2_SETTING_FRAME_SIZE];
+        size_t setting_frame_length = http2::pack_setting_frame(setting_frame, session->local_settings, true);
+        swoole_http2_server_coro_send(ctx, setting_frame, setting_frame_length);
 
         while (true) {
+            if (!http2_server_send_queued(session.get())) {
+                break;
+            }
             auto buffer = sock->get_read_buffer();
             ssize_t retval = sock->recv_packet();
             if (sw_unlikely(retval <= 0)) {
                 break;
             }
             if (swoole_http2_server_parse(session, buffer->str) == SW_ERR) {
+                // Try to send frames queued before the parse error
+                http2_server_send_queued(session.get());
                 break;
             }
         }
 
+        // Streams still waiting to write fail instead of writing to a finished connection
+        session->terminating = true;
+        session->write_lock->close();
+        session->notify_flow_control_waiters();
         swoole_http2_server_session_free(ctx->fd);
 
         ctx->detached = 1;
@@ -223,6 +241,7 @@ static PHP_METHOD(swoole_http_server_coro, handle);
 static PHP_METHOD(swoole_http_server_coro, start);
 static PHP_METHOD(swoole_http_server_coro, shutdown);
 static PHP_METHOD(swoole_http_server_coro, onAccept);
+static PHP_METHOD(swoole_http_server_coro, flushHttp2Queue);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -232,6 +251,7 @@ static const zend_function_entry swoole_http_server_coro_methods[] =
     PHP_ME(swoole_http_server_coro, set,         arginfo_class_Swoole_Coroutine_Http_Server_set,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, handle,      arginfo_class_Swoole_Coroutine_Http_Server_handle,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, onAccept,    arginfo_class_Swoole_Coroutine_Http_Server_onAccept,    ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_http_server_coro, flushHttp2Queue,     arginfo_class_Swoole_Coroutine_Http_Server_flushHttp2Queue,     ZEND_ACC_PRIVATE)
     PHP_ME(swoole_http_server_coro, start,       arginfo_class_Swoole_Coroutine_Http_Server_start,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_server_coro, shutdown,    arginfo_class_Swoole_Coroutine_Http_Server_shutdown,    ZEND_ACC_PUBLIC)
     PHP_FE_END
@@ -453,15 +473,25 @@ static PHP_METHOD(swoole_http_server_coro, start) try {
     zval_ptr_dtor(&zcallback);
     efree(func_name);
 
+    ZVAL_STRING(&zcallback, "flushHttp2Queue");
+    if (!sw_zend_is_callable_at_frame(
+            &zcallback, ZEND_THIS, execute_data, 0, &func_name, nullptr, &hs->write_fci_cache, nullptr)) {
+        zval_ptr_dtor(&zcallback);
+        php_swoole_fatal_error(E_CORE_ERROR, "function '%s' is not callable", func_name);
+        return;
+    }
+    zval_ptr_dtor(&zcallback);
+    efree(func_name);
+
     /* check settings */
     zval *zsettings =
         sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
-    if (!php_swoole_socket_set_protocol(hs->socket, zsettings)) {
+    if (!php_swoole_socket_set(hs->socket, zsettings)) {
         zend_update_property_long(swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), EINVAL);
         zend_update_property_string(
             swoole_http_server_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), swoole_strerror(EINVAL));
         hs->running = false;
-        php_swoole_throw_setting_exception("failed to apply HTTP server protocol settings");
+        php_swoole_throw_setting_exception("failed to apply HTTP server socket settings");
         RETURN_THROWS();
     }
     HashTable *vht = Z_ARRVAL_P(zsettings);
@@ -607,6 +637,56 @@ static PHP_METHOD(swoole_http_server_coro, start) try {
     RETURN_THROWS();
 }
 
+static bool http2_server_send_queued(Http2Session *session) {
+    auto &queued = session->queued_frames;
+    // An owner sends the queue before releasing the writes
+    if (queued.empty() || session->write_owner != 0) {
+        return true;
+    }
+    auto *sock = session->default_ctx->get_co_socket();
+#if defined(SW_USE_IOCP_SOCKET) || defined(SW_USE_URING_SOCKET)
+    // Sending their TLS output means draining an encryption buffer, which can suspend, so the writer does it
+    bool try_send = !sock->ssl_is_enable();
+#else
+    bool try_send = true;
+#endif
+    if (try_send) {
+        ssize_t n = sock->send_once(queued.data(), queued.length());
+        if (n == (ssize_t) queued.length()) {
+            queued.clear();
+            session->queued_partial = false;
+            return true;
+        }
+        if (n > 0) {
+            queued.erase(0, n);
+            session->queued_partial = true;
+        } else if (n == 0 || sock->get_socket()->catch_write_error(sw_errno()) != SW_WAIT) {
+            queued.clear();
+            sock->close();
+            return false;
+        }
+    }
+    // The writer takes the whole queue before anything is added to it, so a TLS write that has to wait is retried
+    // with the same bytes. The connection object pins the socket while the writer waits.
+    auto *hs = static_cast<HttpServer *>(session->private_data);
+    if (PHPCoroutine::create(&hs->write_fci_cache, 1, &session->default_ctx->zsocket, nullptr) >= 0) {
+        return true;
+    }
+    queued.clear();
+    sock->close();
+    return false;
+}
+
+static PHP_METHOD(swoole_http_server_coro, flushHttp2Queue) {
+    zval *zconn;
+
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 1)
+    Z_PARAM_OBJECT(zconn)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_NULL());
+
+    swoole_http2_server_coro_write_queued(php_swoole_get_socket(zconn));
+}
+
 static PHP_METHOD(swoole_http_server_coro, onAccept) {
     HttpServer *hs = http_server_coro_get_object(Z_OBJ_P(ZEND_THIS));
     zval *zconn;
@@ -738,6 +818,11 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                 }
                 // llhttp pauses at the exact end of this request, before any pipelined bytes.
                 total_length = buffer->offset;
+            } else if (ctx->parser.error != HPE_PAUSED_H2_UPGRADE &&
+                       (!ctx->completed || (size_t) buffer->offset != total_length)) {
+                // The bytes taken as the header block did not hold the request head, e.g. a leading "\r\n\r\n".
+                ctx->response.status = SW_HTTP_BAD_REQUEST;
+                break;
             }
         }
 

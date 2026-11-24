@@ -89,3 +89,48 @@ TEST(coroutine_hook, accept) {
         swoole_coroutine_close(server_sock);
     });
 }
+
+TEST(coroutine_hook, accept_optional_and_truncated_address) {
+    coroutine::run([](void *arg) {
+        int server_sock = swoole_coroutine_socket(AF_INET, SOCK_STREAM, 0);
+        ASSERT_GT(server_sock, 0);
+
+        struct sockaddr_in server_addr {};
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+        ASSERT_EQ(::bind(server_sock, (struct sockaddr *) &server_addr, sizeof(server_addr)), 0);
+        ASSERT_EQ(::listen(server_sock, 128), 0);
+
+        socklen_t server_len = sizeof(server_addr);
+        ASSERT_EQ(getsockname(server_sock, (struct sockaddr *) &server_addr, &server_len), 0);
+
+        Coroutine::create([&](void *arg) {
+            for (int i = 0; i < 2; i++) {
+                int fd = swoole_coroutine_socket(AF_INET, SOCK_STREAM, 0);
+                ASSERT_EQ(swoole_coroutine_connect(fd, (struct sockaddr *) &server_addr, server_len), 0);
+                swoole_coroutine_close(fd);
+            }
+        });
+
+        // accept(2) allows a null address
+        int fd = swoole_coroutine_accept(server_sock, nullptr, nullptr);
+        ASSERT_GT(fd, 0);
+        swoole_coroutine_close(fd);
+
+        // The address is truncated to the caller's buffer while addrlen reports the full size
+        struct {
+            char buf[4];
+            char guard[sizeof(sockaddr_in)];
+        } peer;
+        memset(&peer, 0x5a, sizeof(peer));
+        socklen_t peer_len = sizeof(peer.buf);
+        fd = swoole_coroutine_accept(server_sock, (struct sockaddr *) peer.buf, &peer_len);
+        ASSERT_GT(fd, 0);
+        ASSERT_EQ(peer_len, sizeof(sockaddr_in));
+        for (char c : peer.guard) {
+            ASSERT_EQ(c, 0x5a);
+        }
+        swoole_coroutine_close(fd);
+        swoole_coroutine_close(server_sock);
+    });
+}

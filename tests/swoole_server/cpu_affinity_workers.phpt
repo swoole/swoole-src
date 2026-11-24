@@ -43,14 +43,15 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
             $server->on('workerStart', function (Server $server, int $workerId) use ($results) {
                 $results->set((string) $workerId, ['cpus' => json_encode(Process::getAffinity())]);
                 if ($workerId === 0) {
-                    Timer::tick(10, function (int $timerId) use ($server, $results) {
+                    $deadlineTimer = Timer::after(5000, function () use ($server) {
+                        $server->shutdown();
+                    });
+                    Timer::tick(10, function (int $timerId) use ($server, $results, $deadlineTimer) {
                         if (count($results) === 4) {
                             Timer::clear($timerId);
+                            Timer::clear($deadlineTimer);
                             $server->shutdown();
                         }
-                    });
-                    Timer::after(5000, function () use ($server) {
-                        $server->shutdown();
                     });
                 }
             });

@@ -524,6 +524,7 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
         return 0;
     }
     auto *ctx = static_cast<HttpContext *>(parser->data);
+    length = swoole::http_server::rtrim_ows(at, length);
     zval *zheader = &ctx->request.zheader;
     const char *header_name = ctx->current_header_name;
     size_t header_len = ctx->current_header_name_len;
@@ -553,12 +554,14 @@ static int http_request_on_header_value(llhttp_t *parser, const char *at, size_t
         }
 #ifndef _WIN32
         auto *serv = ctx->get_async_server();
-        Connection *conn = serv->get_connection_by_session_id(ctx->fd);
-        if (!conn) {
+        // The unverified lookup may return a recycled or already cleared slot (server_fd == 0) when the connection
+        // is closed concurrently, so verify the session and tolerate a missing port.
+        Connection *conn = serv->get_connection_verify_no_ssl(ctx->fd);
+        ListenPort *port = conn ? serv->get_port_by_server_fd(conn->server_fd) : nullptr;
+        if (!port) {
             swoole_error_log(SW_LOG_TRACE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
             return -1;
         }
-        ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port->open_websocket_protocol) {
             conn->websocket_status = swoole::websocket::STATUS_CONNECTION;
         }
@@ -862,9 +865,9 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
         return 0;
     }
 
-    char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
-    sw_snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir.c_str());
-    int tmpfile = swoole_tmpfile(file_path);
+    // Keep the complete directory and template suffix; mkstemp modifies only the final six characters.
+    std::string file_path = ctx->upload_tmp_dir + "/swoole.upfile.XXXXXX";
+    int tmpfile = swoole_tmpfile(&file_path[0]);
     if (tmpfile < 0) {
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         return 0;
@@ -873,16 +876,16 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         close(tmpfile);
-        unlink(file_path);
+        unlink(file_path.c_str());
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
-        swoole_sys_warning("fopen(%s) failed", file_path);
+        swoole_sys_warning("fopen(%s) failed", file_path.c_str());
         return 0;
     }
 
     p->fp = fp;
-    add_assoc_string(z_multipart_header, "tmp_name", file_path);
+    add_assoc_stringl(z_multipart_header, "tmp_name", file_path.data(), file_path.length());
 
-    http_request_add_upload_file(ctx, file_path, strlen(file_path));
+    http_request_add_upload_file(ctx, file_path.data(), file_path.length());
 
     return 0;
 }

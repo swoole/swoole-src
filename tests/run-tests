@@ -388,7 +388,11 @@ NO_PROC_OPEN_ERROR;
     define('PHP_QA_EMAIL', 'qa-reports@lists.php.net');
     define('QA_SUBMISSION_PAGE', 'https://qa.php.net/buildtest-process.php');
     define('QA_REPORTS_PAGE', 'https://qa.php.net/reports');
-    define('TRAVIS_CI', (bool) getenv('TRAVIS'));
+    define('GITHUB_ACTIONS_CI', (bool) getenv('GITHUB_ACTIONS'));
+    if (GITHUB_ACTIONS_CI) {
+        putenv('NO_INTERACTION=1');
+        $environment['NO_INTERACTION'] = '1';
+    }
 
     // Determine the tests to be run.
 
@@ -956,7 +960,7 @@ function save_or_mail_results()
            $PHP_FAILED_TESTS, $php, $output_file;
 
     /* We got failed Tests, offer the user to send an e-mail to QA team, unless NO_INTERACTION is set */
-    if (!getenv('NO_INTERACTION') && !TRAVIS_CI) {
+    if (!getenv('NO_INTERACTION')) {
         $fp = fopen("php://stdin", "r+");
         if ($sum_results['FAILED'] || $sum_results['BORKED'] || $sum_results['WARNED'] || $sum_results['LEAKED']) {
             echo "\nYou may have found a problem in PHP.";
@@ -973,8 +977,8 @@ function save_or_mail_results()
         $just_save_results = (strtolower($user_input[0]) == 's');
     }
 
-    if ($just_save_results || !getenv('NO_INTERACTION') || TRAVIS_CI) {
-        if ($just_save_results || TRAVIS_CI || strlen(trim($user_input)) == 0 || strtolower($user_input[0]) == 'y') {
+    if ($just_save_results || !getenv('NO_INTERACTION')) {
+        if ($just_save_results || strlen(trim($user_input)) == 0 || strtolower($user_input[0]) == 'y') {
             /*
              * Collect information about the host system for our report
              * Fetch phpinfo() output so that we can see the PHP environment
@@ -986,9 +990,7 @@ function save_or_mail_results()
             }
 
             /* Ask the user to provide an email address, so that QA team can contact the user */
-            if (TRAVIS_CI) {
-                $user_email = 'travis at php dot net';
-            } elseif (!strncasecmp($user_input, 'y', 1) || strlen(trim($user_input)) == 0) {
+            if (!strncasecmp($user_input, 'y', 1) || strlen(trim($user_input)) == 0) {
                 echo "\nPlease enter your email address.\n(Your address will be mangled so that it will not go out on any\nmailinglist in plain text): ";
                 flush();
                 $user_email = trim(fgets($fp, 1024));
@@ -1064,7 +1066,7 @@ function save_or_mail_results()
             $failed_tests_data .= $sep . "PHPINFO" . $sep;
             $failed_tests_data .= shell_exec($php . ' -ddisplay_errors=stderr -dhtml_errors=0 -i 2> /dev/null');
 
-            if (($just_save_results || !mail_qa_team($failed_tests_data, $status)) && !TRAVIS_CI) {
+            if ($just_save_results || !mail_qa_team($failed_tests_data, $status)) {
                 file_put_contents($output_file, $failed_tests_data);
 
                 if (!$just_save_results) {
@@ -1072,7 +1074,7 @@ function save_or_mail_results()
                 }
 
                 echo "Please send " . $output_file . " to " . PHP_QA_EMAIL . " manually, thank you.\n";
-            } elseif (!getenv('NO_INTERACTION') && !TRAVIS_CI) {
+            } elseif (!getenv('NO_INTERACTION')) {
                 fwrite($fp, "\nThank you for helping to make PHP better.\n");
                 fclose($fp);
             }
@@ -1278,22 +1280,38 @@ function terminate_test_process($proc, array $pipes): void
     proc_close($proc);
 }
 
-function append_test_output(string &$data, string $chunk, ?string &$executionError): bool
+function append_test_output($buffer, string $chunk, ?string &$executionError): bool
 {
-    if (strlen($data) + strlen($chunk) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
+    if (ftell($buffer) + strlen($chunk) > SWOOLE_TEST_OUTPUT_MAX_SIZE) {
         $executionError = 'process output exceeded the maximum size';
-        $data = substr($data, 0, 65536) . "\n ** ERROR: {$executionError} **\n";
         return false;
     }
-    $data .= $chunk;
+    if (fwrite($buffer, $chunk) !== strlen($chunk)) {
+        $executionError = 'unable to buffer process output';
+        return false;
+    }
     return true;
+}
+
+function read_test_output($buffer, ?string $executionError): string
+{
+    rewind($buffer);
+    // Failed runs need only a diagnostic excerpt, including when a producer exceeds the output limit.
+    $data = stream_get_contents($buffer, $executionError === null ? -1 : 65536);
+    fclose($buffer);
+    return $data . ($executionError === null ? '' : "\n ** ERROR: {$executionError} **\n");
 }
 
 function system_with_timeout($commandline, $env = null, $stdin = null, $captureStdIn = true, $captureStdOut = true, $captureStdErr = true, &$executionError = null)
 {
     global $valgrind;
 
-    $data = '';
+    // Repeatedly growing a large string can exhaust memory before the output limit is reached.
+    // Keep small output in memory and spill larger output to a temporary file.
+    $buffer = fopen('php://temp/maxmemory:2097152', 'w+b');
+    if ($buffer === false) {
+        error('Unable to create the process output buffer');
+    }
     $executionError = null;
 
     $bin_env = array();
@@ -1314,6 +1332,7 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
     $proc = proc_open($commandline, $descriptorspec, $pipes, TEST_PHP_SRCDIR, $bin_env, array('suppress_errors' => true));
 
     if (!$proc) {
+        fclose($buffer);
         return false;
     }
 
@@ -1333,9 +1352,8 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
         $remaining = $deadline - microtime(true);
         if ($remaining <= 0) {
             $executionError = "process timed out after {$timeout} seconds";
-            $data .= "\n ** ERROR: {$executionError} **\n";
             terminate_test_process($proc, $pipes);
-            return $data;
+            return read_test_output($buffer, $executionError);
         }
 
         $currentStat = proc_get_status($proc);
@@ -1344,9 +1362,9 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
             foreach ($pipes as $pipeIndex => $pipe) {
                 stream_set_blocking($pipe, false);
                 while (($line = fread($pipe, 8192)) !== '') {
-                    if (!append_test_output($data, $line, $executionError)) {
+                    if (!append_test_output($buffer, $line, $executionError)) {
                         terminate_test_process($proc, $pipes);
-                        return $data;
+                        return read_test_output($buffer, $executionError);
                     }
                 }
                 fclose($pipe);
@@ -1391,9 +1409,9 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
                     continue;
                 }
 
-                if (!append_test_output($data, $line, $executionError)) {
+                if (!append_test_output($buffer, $line, $executionError)) {
                     terminate_test_process($proc, $pipes);
-                    return $data;
+                    return read_test_output($buffer, $executionError);
                 }
             }
         }
@@ -1402,14 +1420,14 @@ function system_with_timeout($commandline, $env = null, $stdin = null, $captureS
     $stat ??= proc_get_status($proc);
 
     if ($stat['signaled']) {
-        $data .= "\nTermsig=" . $stat['termsig'] . "\n";
+        append_test_output($buffer, "\nTermsig=" . $stat['termsig'] . "\n", $executionError);
     }
     if ($stat["exitcode"] > 128 && $stat["exitcode"] < 160) {
-        $data .= "\nTermsig=" . ($stat["exitcode"] - 128) . "\n";
+        append_test_output($buffer, "\nTermsig=" . ($stat["exitcode"] - 128) . "\n", $executionError);
     }
 
     proc_close($proc);
-    return $data;
+    return read_test_output($buffer, $executionError);
 }
 
 function run_all_tests($test_files, $env, $redir_tested = null)
@@ -1601,7 +1619,7 @@ function run_all_tests_parallel($test_files, $env, $redir_tested) {
                     "PHP_QA_EMAIL" => PHP_QA_EMAIL,
                     "QA_SUBMISSION_PAGE" => QA_SUBMISSION_PAGE,
                     "QA_REPORTS_PAGE" => QA_REPORTS_PAGE,
-                    "TRAVIS_CI" => TRAVIS_CI
+                    "GITHUB_ACTIONS_CI" => GITHUB_ACTIONS_CI
                 ]
             ])) . "\n";
 

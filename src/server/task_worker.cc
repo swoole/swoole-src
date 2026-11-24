@@ -186,7 +186,7 @@ bool Server::task_pack(EventData *task, const void *data, size_t length) {
 }
 
 bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
-    sw_atomic_fetch_add(&gs->tasking_num, 1);
+    increment_tasking_num();
 
     swResultCode retval;
     if (blocking) {
@@ -196,11 +196,11 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
     }
 
     if (retval == SW_OK) {
-        sw_atomic_long_fetch_add(&gs->task_count, 1);
+        increment_task_count();
         return true;
     }
 
-    sw_atomic_fetch_sub(&gs->tasking_num, 1);
+    decrement_tasking_num();
     return false;
 }
 
@@ -412,6 +412,8 @@ bool Server::task_sync(MultiTask &mtask, double timeout) {
         std::lock_guard<Mutex> lock(*worker->lock);
         // Seal the batch while holding the producer's mutex, before taking a snapshot.
         task_result->info = {};
+        // Let callers distinguish an empty (timed-out) batch from a failed result-file read.
+        swoole_set_last_error(0);
         content = file_get_contents(file_path);
     } while (0);
 
@@ -492,10 +494,13 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
             swoole_error("[TaskWorker] create reactor failed");
             return;
         }
-        SwooleG.enable_signalfd = 1;
     } else {
-        SwooleG.enable_signalfd = 0;
         SwooleTG.reactor = nullptr;
+    }
+    // Only a task process owns its signal backend. Task threads share this setting with
+    // the master, whose handlers and cleanup must keep using the same backend.
+    if (!serv->is_thread_mode()) {
+        SwooleG.enable_signalfd = serv->task_enable_coroutine;
     }
 
     worker->init();

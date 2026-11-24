@@ -10,7 +10,6 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use function Swoole\Coroutine\run;
 
-define('SSL_DIR', realpath(__DIR__.'/../../examples/ssl'));
 
 $pm = new ProcessManager;
 

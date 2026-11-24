@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
                     if (serv->is_base_mode()) {
                         sw_kill(getpid(), SIGTERM);
                     } else {
-                        sw_kill(serv->gs->master_pid, SIGTERM);
+                        sw_kill(serv->get_master_pid(), SIGTERM);
                     }
                 },
                 nullptr);

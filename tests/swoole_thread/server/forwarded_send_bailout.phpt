@@ -29,7 +29,8 @@ $serv->set([
         $ready      = new Thread\Queue();
         $connection = new Thread\Queue();
         $starts     = new Thread\Atomic(0);
-        return [$ready, $connection, $starts];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$ready, $connection, $starts, $userWorkerStarted];
     },
 ]);
 $serv->on('WorkerStart', function () {
@@ -54,7 +55,11 @@ $serv->on('Shutdown', function () {
     echo "shutdown\n";
 });
 $serv->addProcess(new Swoole\Process(function () use ($serv, $port) {
-    [$ready, $connection, $starts] = Thread::getArguments();
+    [$ready, $connection, $starts, $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
     $ready->pop(-1);
 
     Coroutine\run(function () use ($serv, $port, $connection, $starts) {

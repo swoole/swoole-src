@@ -646,11 +646,11 @@ TEST_F(ConnectionState, published_abort_counts_only_as_a_close) {
     const auto id = conn->session_id;
     server->abort_connection(reactor.get(), port, conn->socket);
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
-    EXPECT_EQ(server->gs->accept_count, 1);
+    EXPECT_EQ(server->get_accept_count(), 1);
     EXPECT_EQ(port->gs->accept_count, 1);
-    EXPECT_EQ(server->gs->close_count, 1);
+    EXPECT_EQ(server->get_close_count(), 1);
     EXPECT_EQ(port->gs->close_count, 1);
-    EXPECT_EQ(server->gs->abort_count, 0);
+    EXPECT_EQ(server->get_abort_count(), 0);
     EXPECT_EQ(port->gs->abort_count, 0);
 }
 
@@ -1009,7 +1009,7 @@ TEST_F(ConnectionState, base_factory_accounts_receive_data_before_synchronous_co
     EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_OK);
     EXPECT_EQ(delivered, 1u);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 17u);
-    EXPECT_EQ(server->gs->dispatch_count, 1u);
+    EXPECT_EQ(server->get_dispatch_count(), 1u);
 }
 
 TEST_F(ConnectionState, base_factory_rejection_leaves_receive_queue_unchanged) {
@@ -1026,7 +1026,7 @@ TEST_F(ConnectionState, base_factory_rejection_leaves_receive_queue_unchanged) {
     data.data = "data";
     EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_ERR);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 17u);
-    EXPECT_EQ(server->gs->dispatch_count, 0u);
+    EXPECT_EQ(server->get_dispatch_count(), 0u);
 }
 
 TEST_F(ConnectionState, base_factory_does_not_count_control_event_payloads) {
@@ -1168,7 +1168,7 @@ TEST_F(ConnectionHandoff, worker_exit_reclaims_dispatching_close_without_heartbe
     conn->close_callback_state = CloseCallbackState::DISPATCHING;
     const auto timer_id = thread->waiting_close_timer->id;
     // An unrelated exit and repeated force requests cannot reclaim a live worker's callback.
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     thread->check_waiting_close(reactor.get());
     EXPECT_EQ(server->request_force_close(reactor.get(), conn, ConnectionCloseReason::PEER_EOF), SW_OK);
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
@@ -1176,7 +1176,7 @@ TEST_F(ConnectionHandoff, worker_exit_reclaims_dispatching_close_without_heartbe
     // Detached workers also publish normal exits; they no longer appear in the worker pool.
     server->detached_processes.insert(pid);
     EXPECT_EQ(server->restart_worker_process(ExitStatus(pid, 0)), SW_ERR);
-    EXPECT_EQ(server->gs->worker_exit_sequence, 2u);
+    EXPECT_EQ(server->get_worker_exit_sequence(), 2u);
     auto *timer = thread->waiting_close_timer;
     ASSERT_NE(timer, nullptr);
     swoole_timer_delay(timer, 0);
@@ -1285,7 +1285,7 @@ TEST_F(ConnectionHandoff, queued_close_survives_target_exit_until_a_replacement_
     const pid_t pid = start_worker();
     ASSERT_GT(pid, 0);
     ASSERT_TRUE(stop_worker(pid));
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     auto *thread = server->get_thread(0);
     thread->check_waiting_close(reactor.get());
     prepare_process_dispatch();
@@ -1334,7 +1334,7 @@ TEST_F(ConnectionHandoff, consumed_unclaimed_close_is_resent_after_replacement_p
     receiver.pop();
     ASSERT_EQ(conn->get_close_worker_pid(), 0);
     ASSERT_TRUE(stop_worker(pid));
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     auto *thread = server->get_thread(0);
     thread->check_waiting_close(reactor.get());
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
@@ -1378,7 +1378,7 @@ TEST_F(ConnectionHandoff, unclaimed_close_is_resent_even_while_the_old_reload_wo
     // A newer pipe consumer has died before claiming CLOSE. Its replacement is ready,
     // while the original asynchronous-reload process has not exited yet.
     server->get_worker(0)->pid = getpid();
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     auto *thread = server->get_thread(0);
     thread->check_waiting_close(reactor.get());
     ASSERT_EQ(::kill(old_pid, 0), 0);
@@ -1404,7 +1404,7 @@ TEST_F(ConnectionHandoff, queued_original_and_resent_close_share_one_callback_cl
     ASSERT_EQ(result, SW_OK);
     ASSERT_TRUE(stop_worker(pid));
     server->get_worker(0)->pid = getpid();
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     auto *thread = server->get_thread(0);
     thread->check_waiting_close(reactor.get());
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
@@ -1451,7 +1451,7 @@ TEST_F(ConnectionHandoff, ordinary_additions_to_a_nonempty_waiting_map_do_not_re
     thread->check_waiting_close(reactor.get());
     EXPECT_EQ(server->get_connection_verify_no_ssl(second_id), second);
     EXPECT_EQ(thread->waiting_close.size(), 2u);
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     thread->check_waiting_close(reactor.get());
     EXPECT_EQ(server->get_connection_verify_no_ssl(second_id), nullptr);
     EXPECT_EQ(thread->waiting_close.size(), 1u);
@@ -1479,7 +1479,7 @@ TEST_F(ConnectionHandoff, late_claimed_registration_is_checked_even_when_the_map
     late->close_callback_state = CloseCallbackState::DISPATCHING;
     late->begin_close(ConnectionCloseReason::APPLICATION);
     ASSERT_TRUE(stop_worker(pid));
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     thread->check_waiting_close(reactor.get());
     ASSERT_EQ(thread->last_worker_exit_sequence, 1u);
     ASSERT_FALSE(thread->waiting_close_check_pending);
@@ -1536,7 +1536,7 @@ TEST_F(ConnectionHandoff, new_registration_rechecks_a_claimed_worker_with_an_alr
     conn->set_close_worker_pid(pid);
     conn->close_callback_state = CloseCallbackState::DISPATCHING;
     ASSERT_TRUE(stop_worker(pid));
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     auto *thread = server->get_thread(0);
     thread->check_waiting_close(reactor.get());
     ASSERT_EQ(thread->last_worker_exit_sequence, 1u);
@@ -1562,7 +1562,7 @@ TEST_F(ConnectionHandoff, replacement_claim_preserves_a_live_callback_when_the_o
     ASSERT_TRUE(server->finish_close(id, 0));
     ASSERT_EQ(conn->get_close_worker_pid(), getpid());
     ASSERT_TRUE(stop_worker(old_pid));
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     thread->check_waiting_close(reactor.get());
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), conn);
     EXPECT_EQ(thread->waiting_close.at(id).worker_pid, getpid());
@@ -1584,7 +1584,7 @@ TEST_F(ConnectionHandoff, old_callback_owner_exit_is_detected_even_when_the_disp
     conn->set_close_worker_pid(old_pid);
     conn->close_callback_state = CloseCallbackState::DISPATCHING;
     ASSERT_TRUE(stop_worker(old_pid));
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     thread->check_waiting_close(reactor.get());
     EXPECT_EQ(server->get_connection_verify_no_ssl(id), nullptr);
     EXPECT_TRUE(thread->waiting_close.empty());
@@ -1609,7 +1609,7 @@ TEST_F(ConnectionHandoff, waiting_close_cleanup_rejects_a_reused_descriptor) {
     EXPECT_EQ(replacement->get_close_worker_pid(), 0);
     // Even a stale entry must resolve its original session, never the replacement fd.
     thread->waiting_close.emplace(old_id, ReactorThread::WaitingClose{getpid(), 0});
-    sw_atomic_fetch_add(&server->gs->worker_exit_sequence, 1);
+    server->notify_worker_exit();
     thread->check_waiting_close(reactor.get());
     EXPECT_TRUE(thread->waiting_close.empty());
     EXPECT_TRUE(replacement->active);
@@ -1647,10 +1647,10 @@ TEST_F(ConnectionHandoff, heartbeat_pipe_yields_after_a_bounded_batch_and_keeps_
     server->heartbeat_check_interval = 1;
     server->max_wait_time = 6;
     conn->set_last_recv_time(microtime() - 2);
-    const auto started = server->gs->start;
-    server->gs->start = 1;
+    const auto started = server->is_started();
+    server->set_started(true);
     ON_SCOPE_EXIT {
-        server->gs->start = started;
+        server->set_started(started);
     };
     auto *thread = server->get_thread(0);
     ASSERT_EQ(thread->init(server.get(), reactor.get(), 0), SW_OK);
@@ -1703,7 +1703,7 @@ TEST_F(ConnectionHandoff, process_factory_accounts_once_and_worker_consumes_once
     EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_OK);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 4u);
     EXPECT_EQ(server->get_thread(0)->dispatch_count, 1u);
-    EXPECT_EQ(server->gs->dispatch_count, 1u);
+    EXPECT_EQ(server->get_dispatch_count(), 1u);
     EXPECT_EQ(port->gs->dispatch_count, 1u);
     auto &receiver = server->message_bus;
     ASSERT_GT(receiver.read(server->get_worker_pipe_worker(0)), 0);
@@ -1734,13 +1734,13 @@ TEST_F(ConnectionHandoff, process_factory_discard_keeps_the_session_and_does_not
     EXPECT_EQ(conn->get_recv_queued_bytes(), 0u);
     EXPECT_EQ(server->get_thread(0)->dispatch_count, 0u);
     EXPECT_EQ(server->get_worker(0)->dispatch_count, 0u);
-    EXPECT_EQ(server->gs->dispatch_count, 0u);
+    EXPECT_EQ(server->get_dispatch_count(), 0u);
     EXPECT_EQ(port->gs->dispatch_count, 0u);
     server->dispatch_func = [](Server *, Connection *, SendData *) { return 0; };
     EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_OK);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 4u);
     EXPECT_EQ(server->get_thread(0)->dispatch_count, 1u);
-    EXPECT_EQ(server->gs->dispatch_count, 1u);
+    EXPECT_EQ(server->get_dispatch_count(), 1u);
     EXPECT_EQ(port->gs->dispatch_count, 1u);
 }
 
@@ -1762,7 +1762,7 @@ TEST_F(ConnectionHandoff, process_factory_rolls_back_accounting_when_pipe_write_
     EXPECT_EQ(Server::dispatch_task(&port->protocol, conn->socket, &data), SW_ERR);
     EXPECT_EQ(conn->get_recv_queued_bytes(), 17u);
     EXPECT_EQ(server->get_thread(0)->dispatch_count, 0u);
-    EXPECT_EQ(server->gs->dispatch_count, 0u);
+    EXPECT_EQ(server->get_dispatch_count(), 0u);
 }
 
 TEST_F(ConnectionHandoff, process_factory_does_not_count_connect_certificate_payloads) {
@@ -1800,13 +1800,13 @@ TEST_F(ConnectionHandoff, accept_handoff_is_unpublished_until_the_owner_adopts_i
     };
     ASSERT_TRUE(server->handoff_connection(IncomingConnection(socket, port, port->get_fd())));
     EXPECT_FALSE(server->get_connection(fd)->active);
-    EXPECT_EQ(server->gs->accept_count, 0);
+    EXPECT_EQ(server->get_accept_count(), 0);
     EXPECT_EQ(connects, 0u);
     auto incoming = read_handoff(receiver, server->get_worker_pipe_master(0), server.get());
     ASSERT_NE(incoming.socket, nullptr);
     EXPECT_TRUE(adopt(std::move(incoming)));
     EXPECT_TRUE(server->get_connection(fd)->active);
-    EXPECT_EQ(server->gs->accept_count, 1);
+    EXPECT_EQ(server->get_accept_count(), 1);
     EXPECT_EQ(factory->notifications, 1u);
     DataHead event{};
     event.type = SW_SERVER_EVENT_CONNECT;
@@ -1829,8 +1829,8 @@ TEST_F(ConnectionHandoff, failed_accept_send_releases_the_unpublished_socket) {
     reactor->execute_end_callbacks();
     EXPECT_EQ(::fcntl(fd, F_GETFD), -1);
     EXPECT_EQ(errno, EBADF);
-    EXPECT_EQ(server->gs->accept_count, 0);
-    EXPECT_EQ(server->gs->abort_count, 1);
+    EXPECT_EQ(server->get_accept_count(), 0);
+    EXPECT_EQ(server->get_abort_count(), 1);
     EXPECT_EQ(port->gs->abort_count, 1);
     EXPECT_EQ(callbacks, 0u);
 }
@@ -1874,8 +1874,8 @@ TEST_F(ConnectionHandoff, discarded_unsent_handoff_closes_without_a_close_callba
     reactor->execute_end_callbacks();
     EXPECT_EQ(::fcntl(fd, F_GETFD), -1);
     EXPECT_EQ(errno, EBADF);
-    EXPECT_EQ(server->gs->accept_count, 0);
-    EXPECT_EQ(server->gs->abort_count, 1);
+    EXPECT_EQ(server->get_accept_count(), 0);
+    EXPECT_EQ(server->get_abort_count(), 1);
     EXPECT_EQ(port->gs->abort_count, 1);
     EXPECT_EQ(callbacks, 0u);
 }
@@ -1891,10 +1891,10 @@ TEST_F(ConnectionHandoff, unread_kernel_handoff_is_reclaimed_during_shutdown) {
     reactor->execute_end_callbacks();
     EXPECT_EQ(::fcntl(fd, F_GETFD), -1);
     EXPECT_EQ(errno, EBADF);
-    EXPECT_EQ(server->gs->accept_count, 0);
-    EXPECT_EQ(server->gs->close_count, 0);
+    EXPECT_EQ(server->get_accept_count(), 0);
+    EXPECT_EQ(server->get_close_count(), 0);
     EXPECT_EQ(port->gs->close_count, 0);
-    EXPECT_EQ(server->gs->abort_count, 1);
+    EXPECT_EQ(server->get_abort_count(), 1);
     EXPECT_EQ(port->gs->abort_count, 1);
     EXPECT_EQ(callbacks, 0u);
 }

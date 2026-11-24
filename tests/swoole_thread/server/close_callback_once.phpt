@@ -28,7 +28,8 @@ $server->set([
         $ready = new Thread\Atomic();
         $connects = new Thread\Atomic();
         $closes = new Thread\Atomic();
-        return [$queue, $ready, $connects, $closes];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$queue, $ready, $connects, $closes, $userWorkerStarted];
     },
 ]);
 $seen = [];
@@ -75,7 +76,11 @@ $server->on('shutdown', function () {
     echo "DONE\n";
 });
 $server->addProcess(new Swoole\Process(function () use ($server, $port) {
-    [$queue, , , $closes] = Thread::getArguments();
+    [$queue, , , $closes, $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
     Assert::same($queue->pop(5), 'ready');
     run(function () use ($port, $closes) {
         for ($wave = 0; $wave < 3; $wave++) {

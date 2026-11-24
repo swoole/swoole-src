@@ -644,27 +644,33 @@ zend_bool php_swoole_signal_isset_handler(int signo) {
 }
 
 void php_swoole_process_signal_clean() {
+    // Signal callbacks and their listener count belong to the main thread.
+    if (!sw_is_main_thread()) {
+        return;
+    }
     for (auto &signal_fci_cache : signal_fci_caches) {
-        const auto fci_cache = signal_fci_cache;
-        if (fci_cache) {
-            sw_callable_free(fci_cache);
+        if (signal_fci_cache) {
+            sw_callable_free(signal_fci_cache);
             signal_fci_cache = nullptr;
         }
     }
     SwooleG.signal_listener_num = 0;
 }
 
-void php_swoole_process_clean() {
-    php_swoole_process_signal_clean();
-#ifndef SW_THREAD
-    if (swoole_get_worker_type() != SW_USER_WORKER) {
-        swoole_set_worker_type(0);
+void php_swoole_process_signal_after_fork() {
+    if (sw_is_main_thread()) {
+        php_swoole_process_signal_clean();
+    } else {
+        // Only the fork child reaches this hook. Its copy of these pointers belongs to
+        // the parent's main-thread Zend context and must be discarded without freeing it.
+        sw_memset_zero(signal_fci_caches, sizeof(signal_fci_caches));
+        SwooleG.signal_listener_num = 0;
     }
-#endif
 }
 
 void php_swoole_process_rshutdown() {
-    php_swoole_process_clean();
+    php_swoole_process_signal_clean();
+    php_swoole_process_reset_worker_type();
 }
 
 int php_swoole_process_start(Worker *process, zval *zobject) {
@@ -695,7 +701,8 @@ int php_swoole_process_start(Worker *process, zval *zobject) {
         }
     }
 
-    php_swoole_process_clean();
+    php_swoole_process_reset_worker_type();
+
     swoole_set_worker_id(process->id);
     swoole_set_worker_pid(getpid());
     SwooleWG.worker = process;
@@ -918,9 +925,10 @@ static PHP_METHOD(swoole_process, exec) {
     size_t execfile_len = 0;
     zval *args;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa", &execfile, &execfile_len, &args) == FAILURE) {
-        RETURN_FALSE;
-    }
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_PATH(execfile, execfile_len)
+    Z_PARAM_ARRAY(args)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (execfile_len < 1) {
         php_swoole_fatal_error(E_WARNING, "exec file name is empty");
@@ -935,11 +943,25 @@ static PHP_METHOD(swoole_process, exec) {
     int i = 1;
 
     std::vector<zend_string *> zstr_args;
+    ON_SCOPE_EXIT {
+        sw_free(exec_args[0]);
+        for (auto *arg : zstr_args) {
+            zend_string_release(arg);
+        }
+        efree(exec_args);
+    };
     zstr_args.reserve(exec_argc);
 
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(args), value) {
-        zend_string *arg_str = zval_get_string(value);
+        zend_string *arg_str = zval_try_get_string(value);
+        if (UNEXPECTED(!arg_str)) {
+            RETURN_THROWS();
+        }
         zstr_args.push_back(arg_str);
+        if (UNEXPECTED(memchr(ZSTR_VAL(arg_str), '\0', ZSTR_LEN(arg_str)))) {
+            zend_value_error("Argument #2 ($args) must not contain any null bytes");
+            RETURN_THROWS();
+        }
         exec_args[i] = ZSTR_VAL(arg_str);
         i++;
     }
@@ -947,17 +969,12 @@ static PHP_METHOD(swoole_process, exec) {
 
     exec_args[i] = nullptr;
 
-    if (execv(execfile, exec_args) < 0) {
-        php_swoole_sys_error(E_WARNING, "execv(%s) failed", execfile);
-        sw_free(exec_args[0]);
-        for (auto *s : zstr_args) {
-            zend_string_release(s);
-        }
-        efree(exec_args);
-        RETURN_FALSE;
-    } else {
-        RETURN_TRUE;
-    }
+    // Conversions may execute PHP, so use the owned path copy rather than the borrowed parameter.
+    // Success replaces the process image and never returns. Reaching the warning and RETURN_FALSE
+    // therefore means execv failed; the scope guard releases the prepared arguments on return.
+    execv(exec_args[0], exec_args);
+    php_swoole_sys_error(E_WARNING, "execv(%s) failed", exec_args[0]);
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_process, daemon) {

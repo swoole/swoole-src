@@ -24,6 +24,7 @@
 #include "swoole_iocp.h"
 #endif
 
+#include <limits>
 #include <utility>
 #include <memory>
 
@@ -450,20 +451,28 @@ ssize_t Socket::recvfrom_sync(char *buf, size_t len, int flags, sockaddr *addr, 
     return rv ? bytes : -1;
 }
 
+void Socket::close_fd() {
+    if (fd == SW_BAD_SOCKET) {
+        return;
+    }
+    // Resolve the bound UNIX path before invalidating the descriptor.
+    if (is_local() && bound && get_name() == SW_OK && *get_addr()) {
+        ::unlink(get_addr());
+    }
+#ifdef _WIN32
+    int result = Iocp::close(fd);
+#else
+    int result = sw_close_socket(fd);
+#endif
+    if (result != 0) {
+        swoole_sys_warning("close(%d) failed", (int) fd);
+    }
+    fd = SW_BAD_SOCKET;
+}
+
 static void socket_free_defer(void *ptr) {
     auto *sock = static_cast<Socket *>(ptr);
-    if (sock->is_local() && sock->bound && sock->get_name() == SW_OK && *sock->get_addr()) {
-        ::unlink(sock->get_addr());
-    }
-    if (sock->fd != SW_BAD_SOCKET &&
-#ifdef _WIN32
-        Iocp::close(sock->fd) != 0
-#else
-        close(sock->fd) != 0
-#endif
-    ) {
-        swoole_sys_warning("close(%d) failed", sock->fd);
-    }
+    sock->close_fd();
     delete sock;
 }
 
@@ -806,7 +815,7 @@ int Socket::handle_sendfile() {
 
     size_t sendn = get_sendfile_chunk_size(task->begin, task->end);
     // A zero-length request has nothing to send, and FreeBSD's sendfile() would read to the end of the file.
-    ssize_t rv = sendn == 0 ? 0 : sendfile(task->file, &task->begin, sendn);
+    ssize_t rv = sendn == 0 ? 0 : sendfile(task->get_file(), &task->begin, sendn);
 
     swoole_trace("rv=%ld|begin=%ld|sendn=%lu|end=%lu", rv, (long) task->begin, sendn, task->end);
 
@@ -941,6 +950,22 @@ int Socket::sendfile_async(const char *filename, off_t offset, size_t length, bo
     chunk->value.ptr = task.release();
     chunk->destroy = Socket_sendfile_destructor;
 
+    return SW_OK;
+}
+
+int Socket::sendfile_async(const std::shared_ptr<File> &file, off_t offset, size_t length) {
+    if (!file || !file->ready() || offset < 0 || length == 0 ||
+        length > static_cast<uint64_t>(std::numeric_limits<off_t>::max() - offset)) {
+        errno = EINVAL;
+        return SW_ERR;
+    }
+    auto task = std::make_unique<SendfileRequest>(file, offset, length);
+    if (!out_buffer) {
+        out_buffer = new Buffer(SW_SEND_BUFFER_SIZE);
+    }
+    auto *chunk = out_buffer->alloc(BufferChunk::TYPE_SENDFILE, 0);
+    chunk->value.ptr = task.release();
+    chunk->destroy = Socket_sendfile_destructor;
     return SW_OK;
 }
 
@@ -1268,6 +1293,14 @@ bool Socket::ssl_check_host(const char *tls_host_name, bool strict) const {
     const bool is_ip = Address::verify_ip(AF_INET, tls_host_name) || Address::verify_ip(AF_INET6, tls_host_name);
     if ((strict && is_ip ? X509_check_ip_asc(cert, tls_host_name, 0)
                          : X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr)) != 1) {
+        // Like ext/openssl, accept a subject CN equal to the address when the certificate has no subjectAltName.
+        if (strict && is_ip && X509_get_ext_by_NID(cert, NID_subject_alt_name, -1) < 0) {
+            char cn[256];
+            int len = X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName, cn, sizeof(cn));
+            if (len > 0 && (size_t) len == strlen(tls_host_name) && strcasecmp(cn, tls_host_name) == 0) {
+                goto _found;
+            }
+        }
         swoole_warning("X509_check_host(): no match");
         goto _failed;
     }
@@ -1778,7 +1811,7 @@ ssize_t Socket::ssl_send(const void *_buf, size_t _n) {
 #endif
 
     int n = SSL_write(ssl, _buf, _n);
-    if (n < 0) {
+    if (n <= 0 && _n > 0) {
         int _errno = SSL_get_error(ssl, n);
         switch (_errno) {
         case SSL_ERROR_WANT_READ:
@@ -1791,6 +1824,7 @@ ssize_t Socket::ssl_send(const void *_buf, size_t _n) {
             sw_set_errno(EAGAIN);
             return SW_ERR;
 
+        case SSL_ERROR_ZERO_RETURN:
         case SSL_ERROR_SYSCALL:
             sw_set_errno(SW_ERROR_SSL_RESET);
             return SW_ERR;
@@ -1801,7 +1835,8 @@ ssize_t Socket::ssl_send(const void *_buf, size_t _n) {
             return SW_ERR;
 
         default:
-            break;
+            sw_set_errno(SW_ERROR_SSL_RESET);
+            return SW_ERR;
         }
     }
     return n;

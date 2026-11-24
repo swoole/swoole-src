@@ -43,8 +43,17 @@ static sw_inline bool php_swoole_msgqueue_key_is_valid(zend_long key) {
     return static_cast<zend_ulong>(key) <= std::numeric_limits<unsigned_key_t>::max();
 }
 
-void php_swoole_process_clean();
+static sw_inline void php_swoole_process_reset_worker_type() {
+#ifndef SW_THREAD
+    // Preserve the existing process-role reset, including its exception for server user workers.
+    if (swoole_get_worker_type() != SW_USER_WORKER) {
+        swoole_set_worker_type(SW_GENERIC_WORKER);
+    }
+#endif
+}
+
 void php_swoole_process_signal_clean();
+void php_swoole_process_signal_after_fork();
 int php_swoole_process_start(swoole::Worker *process, zval *zobject);
 swoole::Worker *php_swoole_process_get_worker(const zval *zobject);
 void php_swoole_process_set_worker(const zval *zobject, swoole::Worker *worker, bool enable_coroutine, int pipe_type);

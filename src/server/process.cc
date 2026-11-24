@@ -199,12 +199,12 @@ void Factory::check_worker_exit_status(Worker *worker, const ExitStatus &exit_st
 bool ProcessFactory::shutdown() {
     int status;
 
-    if (swoole_kill(server_->gs->manager_pid, SIGTERM) < 0) {
-        swoole_sys_warning("kill(%d) failed", server_->gs->manager_pid);
+    if (swoole_kill(server_->get_manager_pid(), SIGTERM) < 0) {
+        swoole_sys_warning("kill(%d) failed", server_->get_manager_pid());
     }
 
-    if (swoole_waitpid(server_->gs->manager_pid, &status, 0) < 0) {
-        swoole_sys_warning("waitpid(%d) failed", server_->gs->manager_pid);
+    if (swoole_waitpid(server_->get_manager_pid(), &status, 0) < 0) {
+        swoole_sys_warning("waitpid(%d) failed", server_->get_manager_pid());
     }
 
     return SW_OK;
@@ -320,7 +320,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     }
     if (receive_data) {
         thread->dispatch_count++;
-        sw_atomic_long_fetch_add(&server_->gs->dispatch_count, 1);
+        server_->increment_dispatch_count();
         sw_atomic_long_fetch_add(&server_->get_port_by_server_fd(conn->server_fd)->gs->dispatch_count, 1);
     }
     return true;

@@ -187,8 +187,12 @@ int swoole_coroutine_accept(int sockfd, struct sockaddr *addr, socklen_t *addrle
         return -1;
     }
 
-    *addrlen = conn->get_socket()->info.len;
-    memcpy(addr, &conn->get_socket()->info.addr.ss, *addrlen);
+    // Like accept(2): addr and addrlen are optional, and the address is truncated to the caller's buffer.
+    if (addr != nullptr && addrlen != nullptr) {
+        const socklen_t peer_len = conn->get_socket()->info.len;
+        memcpy(addr, &conn->get_socket()->info.addr.ss, SW_MIN(*addrlen, peer_len));
+        *addrlen = peer_len;
+    }
 
     std::unique_lock<std::mutex> _lock(socket_map_lock);
     socket_map.emplace(conn->get_fd(), std::shared_ptr<SocketImpl>(conn));
@@ -278,7 +282,8 @@ int swoole_coroutine_socket_unwrap(int fd) {
 }
 
 uint8_t swoole_coroutine_socket_exists(int fd) {
-    return socket_map.find((swSocketFd)fd) != socket_map.end();
+    std::unique_lock<std::mutex> _lock(socket_map_lock);
+    return socket_map.find((swSocketFd) fd) != socket_map.end();
 }
 
 FILE *swoole_coroutine_fopen(const char *pathname, const char *mode) {
@@ -453,13 +458,9 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
         pollfd poll_ev{};
         poll_ev.fd = sockfd;
         poll_ev.events = translate_events_to_poll(event);
-        return poll(&poll_ev, 1, (int) (timeout * 1000)) == 1 ? SW_OK : SW_ERR;
+        return poll(&poll_ev, 1, static_cast<int>(timeout * 1000)) == 1 ? SW_OK : SW_ERR;
     }
-    double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? SW_TIMEOUT_READ : SW_TIMEOUT_WRITE);
-    socket->set_timeout(timeout);
-    bool retval = socket->poll(static_cast<EventType>(event));
-    socket->set_timeout(ori_timeout);
-    return retval ? SW_OK : SW_ERR;
+    return socket->poll(static_cast<EventType>(event), timeout) ? SW_OK : SW_ERR;
 }
 
 int swoole_coroutine_getaddrinfo(const char *name, const char *service, const addrinfo *req, addrinfo **pai) {
@@ -509,12 +510,15 @@ int swoole_coroutine_close(int sockfd) {
 
     auto socket = get_socket((swSocketFd)sockfd);
     if (socket != nullptr) {
-        if (socket->close()) {
+        // Keep the entry available while close() wakes coroutines with pending I/O.
+        bool closed = socket->close([](CoSocket *closing) {
             std::unique_lock<std::mutex> _lock(socket_map_lock);
-            socket_map.erase((swSocketFd)sockfd);
-            return 0;
-        }
-        return -1;
+            auto entry = socket_map.find(closing->get_fd());
+            if (entry != socket_map.end() && entry->second.get() == closing) {
+                socket_map.erase(entry);
+            }
+        });
+        return closed ? 0 : -1;
     }
 
 #ifdef SW_USE_IOCP_FILE

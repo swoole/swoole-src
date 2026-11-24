@@ -38,6 +38,25 @@ zend_object_handlers swoole_redis_server_handlers;
 
 static SW_THREAD_LOCAL std::unordered_map<std::string, zend::Callable *> redis_handlers;
 
+static constexpr char REDIS_HANDLER_PREFIX[] = "_handler_";
+static constexpr size_t REDIS_HANDLER_BUFFER_SIZE = SW_REDIS_MAX_COMMAND_SIZE + sizeof(REDIS_HANDLER_PREFIX) - 1;
+
+// The protocol limit applies to the command itself; the internal prefix needs its own space.
+// Share the explicit-length spelling across registration, lookup and wire dispatch.
+static size_t redis_handler_name(char *buffer, const char *command, size_t command_len) {
+    constexpr size_t prefix_len = sizeof(REDIS_HANDLER_PREFIX) - 1;
+    memcpy(buffer, REDIS_HANDLER_PREFIX, prefix_len);
+    memcpy(buffer + prefix_len, command, command_len);
+    const size_t length = prefix_len + command_len;
+    buffer[length] = '\0';
+#if PHP_VERSION_ID >= 80400
+    zend_str_tolower(buffer, length);
+#else
+    php_strtolower(buffer, length);
+#endif
+    return length;
+}
+
 static bool redis_response_format(String *buf, zend_long type, zval *value);
 
 SW_EXTERN_C_BEGIN
@@ -81,13 +100,13 @@ void php_swoole_redis_server_rshutdown() {
 
 int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     auto fd = req->info.fd;
-    Connection *conn = serv->get_connection_by_session_id(fd);
-    if (!conn) {
+    Connection *conn = serv->get_connection_verify_no_ssl(fd);
+    ListenPort *port = conn ? serv->get_port_by_server_fd(conn->server_fd) : nullptr;
+    if (!port) {
         swoole_warning("connection[%ld] is closed", fd);
         return SW_ERR;
     }
 
-    ListenPort *port = serv->get_port_by_fd(conn->fd);
     // other server port
     if (!port->open_redis_protocol) {
         return php_swoole_server_onReceive(serv, req);
@@ -109,20 +128,31 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
 
     int state = Redis::STATE_RECEIVE_TOTAL_LINE;
     int add_param = 0;
-    const char *command = nullptr;
+    const char *command = "";
     int command_len = 0;
 
-    do {
+    while (p < pe) {
+        const char *q;
         switch (state) {
         case Redis::STATE_RECEIVE_TOTAL_LINE:
-            if (*p == '*' && (p = Redis::get_number(p, &ret))) {
+            if (*p == '*') {
+                if ((q = Redis::get_number(p, pe, &ret)) == nullptr) {
+                    serv->close(fd, false);
+                    return SW_OK;
+                }
+                p = q;
                 state = Redis::STATE_RECEIVE_LENGTH;
                 break;
             }
             /* no break */
 
         case Redis::STATE_RECEIVE_LENGTH:
-            if (*p == '$' && (p = Redis::get_number(p, &ret))) {
+            if (*p == '$') {
+                if ((q = Redis::get_number(p, pe, &ret)) == nullptr || ret < -1) {
+                    serv->close(fd, false);
+                    return SW_OK;
+                }
+                p = q;
                 if (ret == -1) {
                     add_next_index_null(&zparams);
                     break;
@@ -132,13 +162,23 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
                 break;
             }
             // integer
-            else if (*p == ':' && (p = Redis::get_number(p, &ret))) {
+            else if (*p == ':') {
+                if ((q = Redis::get_number(p, pe, &ret)) == nullptr) {
+                    serv->close(fd, false);
+                    return SW_OK;
+                }
+                p = q;
                 add_next_index_long(&zparams, ret);
                 break;
             }
             /* no break */
 
         case Redis::STATE_RECEIVE_STRING:
+            // The announced length must fit in the packet, including the trailing CRLF.
+            if (pe - p < (ptrdiff_t) length + SW_CRLF_LEN) {
+                serv->close(fd, false);
+                return SW_OK;
+            }
             if (add_param == 0) {
                 command = p;
                 command_len = length;
@@ -153,7 +193,7 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
         default:
             break;
         }
-    } while (p < pe);
+    }
 
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE) {
         php_swoole_error(E_WARNING, "command [%.8s...](length=%d) is too long", command, command_len);
@@ -161,13 +201,8 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
         return SW_OK;
     }
 
-    char _command[SW_REDIS_MAX_COMMAND_SIZE];
-    size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%.*s", command_len, command);
-#if PHP_VERSION_ID >= 80400
-    zend_str_tolower(_command, _command_len);
-#else
-    php_strtolower(_command, _command_len);
-#endif
+    char _command[REDIS_HANDLER_BUFFER_SIZE];
+    size_t _command_len = redis_handler_name(_command, command, command_len);
 
     auto i = redis_handlers.find(std::string(_command, _command_len));
     if (i == redis_handlers.end()) {
@@ -222,13 +257,8 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
         RETURN_FALSE;
     }
 
-    char _command[SW_REDIS_MAX_COMMAND_SIZE];
-    size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
-#if PHP_VERSION_ID >= 80400
-    zend_str_tolower(_command, _command_len);
-#else
-    php_strtolower(_command, _command_len);
-#endif
+    char _command[REDIS_HANDLER_BUFFER_SIZE];
+    size_t _command_len = redis_handler_name(_command, command, command_len);
 
     zend_update_property(swoole_redis_server_ce, Z_OBJ_P(ZEND_THIS), _command, _command_len, zcallback);
 
@@ -251,13 +281,12 @@ static PHP_METHOD(swoole_redis_server, getHandler) {
     Z_PARAM_STRING(command, command_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    char _command[SW_REDIS_MAX_COMMAND_SIZE];
-    size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
-#if PHP_VERSION_ID >= 80400
-    zend_str_tolower(_command, _command_len);
-#else
-    php_strtolower(_command, _command_len);
-#endif
+    // Such a command cannot have been registered; do not truncate it into another handler's name.
+    if (command_len == 0 || command_len >= SW_REDIS_MAX_COMMAND_SIZE) {
+        RETURN_NULL();
+    }
+    char _command[REDIS_HANDLER_BUFFER_SIZE];
+    size_t _command_len = redis_handler_name(_command, command, command_len);
 
     zval rv;
     zval *handler = zend_read_property(swoole_redis_server_ce, Z_OBJ_P(ZEND_THIS), _command, _command_len, 1, &rv);

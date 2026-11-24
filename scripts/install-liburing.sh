@@ -3,4 +3,4 @@ wget https://github.com/axboe/liburing/archive/refs/tags/liburing-${LIBURING_VER
 tar zxf liburing-${LIBURING_VERSION}.tar.gz
 cd liburing-liburing-${LIBURING_VERSION} || exit
 ./configure
-make -j$(cat /proc/cpuinfo | grep processor | wc -l) install
+make -j"${SWOOLE_BUILD_JOBS:-1}" install

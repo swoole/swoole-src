@@ -27,7 +27,8 @@ $serv->set(array(
         $queue = new Swoole\Thread\Queue();
         $atomic1 = new Swoole\Thread\Atomic(0);
         $atomic2 = new Swoole\Thread\Atomic(0);
-        return [$queue, $atomic1, $atomic2];
+        $userWorkerStarted = new Swoole\Thread\Atomic(0);
+        return [$queue, $atomic1, $atomic2, $userWorkerStarted];
     }
 ));
 $serv->on('WorkerStart', function (Server $serv, $workerId) use ($port) {
@@ -55,7 +56,11 @@ $serv->on('shutdown', function () {
     Assert::eq($atomic1->get(), 3);
 });
 $serv->addProcess(new Swoole\Process(function ($process) use ($serv) {
-    [$queue, $atomic] = Thread::getArguments();
+    [$queue, $atomic, , $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
     global $port;
     echo $queue->pop(-1);
 

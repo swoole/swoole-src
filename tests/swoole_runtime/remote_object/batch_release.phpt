@@ -60,7 +60,7 @@ $started = $trace . '.started';
 $release = $trace . '.release';
 try {
     remote_object_test(static function (Client $client, string $socket) use ($trace, $started, $release): void {
-        $observer = new Client('unix://' . $socket);
+        $observer = remote_object_test_client($socket);
         $released = static fn (): int => count(file($trace));
 
         // A normal call must not flush the queue; releases across I/O share the same fallback timer.

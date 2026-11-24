@@ -282,6 +282,55 @@ static void socket_set_length_protocol_1(UringSocket &sock) {
     sock.open_length_check = true;
 }
 
+TEST(uring_socket, recv_packet_drains_io_after_outer_timeout) {
+    coroutine::run([](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        UringSocket reader(pair[0], SW_SOCK_UNIX_STREAM);
+        UringSocket writer(pair[1], SW_SOCK_UNIX_STREAM);
+        reader.set_timeout(2, SW_TIMEOUT_READ);
+        socket_set_length_protocol_1(reader);
+
+        // The packet timer fires while the underlying receive is still pending.
+        ASSERT_EQ(reader.recv_packet(0.01), -1);
+        EXPECT_EQ(reader.errCode, ETIMEDOUT);
+
+        const std::string packet("\0\x04test", 6);
+        ASSERT_EQ(writer.send_all(packet.data(), packet.size()), packet.size());
+        ASSERT_EQ(reader.recv_packet(1), packet.size());
+        EXPECT_EQ(std::string(reader.get_read_buffer()->str, packet.size()), packet);
+    });
+}
+
+TEST(uring_socket, distinguishes_active_cancel_from_timeout) {
+    coroutine::run([](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        UringSocket reader(pair[0], SW_SOCK_UNIX_STREAM);
+        UringSocket writer(pair[1], SW_SOCK_UNIX_STREAM);
+        char data;
+
+        reader.set_timeout(0.01, SW_TIMEOUT_READ);
+        ASSERT_EQ(reader.recv(&data, 1), -1);
+        ASSERT_EQ(reader.errCode, ETIMEDOUT);
+
+        reader.set_timeout(2, SW_TIMEOUT_READ);
+        const auto cid = Coroutine::get_current_cid();
+        Coroutine::create([cid](void *) {
+            System::sleep(0.01);
+            auto *co = Coroutine::get_by_cid(cid);
+            ASSERT_NE(co, nullptr);
+            EXPECT_TRUE(co->cancel());
+        });
+        ASSERT_EQ(reader.recv(&data, 1), -1);
+        EXPECT_EQ(reader.errCode, ECANCELED);
+
+        ASSERT_EQ(writer.send("x", 1), 1);
+        ASSERT_EQ(reader.recv(&data, 1), 1);
+        EXPECT_EQ(data, 'x');
+    });
+}
+
 TEST(uring_socket, length_3) {
     const int port = __LINE__ + TEST_PORT;
     coroutine::run({[](void *arg) {
@@ -373,21 +422,22 @@ static void test_sendto_recvfrom(enum swSocketType sock_type) {
         size_t client_length = client_text.length();
 
         const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
-        const char *local = "localhost";
 
         int port = swoole::test::get_random_port();
 
         UringSocket sock_server(sock_type);
         UringSocket sock_client(sock_type);
-        sock_server.bind(ip, port);
-        sock_client.bind(ip, port + 1);
+        ASSERT_TRUE(sock_server.bind(ip, port));
+        ASSERT_TRUE(sock_client.bind(ip, port + 1));
+        sock_server.set_timeout(1, SW_TIMEOUT_READ);
+        sock_client.set_timeout(1, SW_TIMEOUT_READ);
 
         ON_SCOPE_EXIT {
             sock_server.close();
             sock_client.close();
         };
 
-        sock_server.sendto(ip, port + 1, (const void *) server_text.c_str(), server_length);
+        ASSERT_EQ(sock_server.sendto(ip, port + 1, server_text.data(), server_length), server_length);
 
         char data_from_server[128] = {};
         struct sockaddr_in serveraddr;
@@ -400,13 +450,13 @@ static void test_sendto_recvfrom(enum swSocketType sock_type) {
         // receive data from server
         ssize_t result =
             sock_client.recvfrom(data_from_server, server_length, (struct sockaddr *) &serveraddr, &addr_length);
-        data_from_server[result] = '\0';
         ASSERT_EQ(result, server_length);
+        data_from_server[result] = '\0';
         ASSERT_STREQ(data_from_server, server_text.c_str());
 
         // receive data from client
         char data_from_client[128] = {};
-        sock_client.sendto(local, port, (const void *) client_text.c_str(), client_length);
+        ASSERT_EQ(sock_client.sendto(ip, port, client_text.data(), client_length), client_length);
         result = sock_server.recvfrom(data_from_client, client_length);
         data_from_client[client_length] = '\0';
         ASSERT_EQ(result, client_length);
@@ -417,6 +467,28 @@ static void test_sendto_recvfrom(enum swSocketType sock_type) {
 TEST(uring_socket, sendto_recvfrom_udp) {
     test_sendto_recvfrom(SW_SOCK_UDP);
     test_sendto_recvfrom(SW_SOCK_UDP6);
+}
+
+TEST(uring_socket, recvfrom_consumes_empty_datagram) {
+    coroutine::run([](void *) {
+        UringSocket sender(SW_SOCK_UDP);
+        UringSocket receiver(SW_SOCK_UDP);
+        ASSERT_TRUE(sender.bind("127.0.0.1", 0));
+        ASSERT_TRUE(receiver.bind("127.0.0.1", 0));
+        receiver.set_timeout(1, SW_TIMEOUT_READ);
+        ASSERT_EQ(sender.sendto("127.0.0.1", receiver.get_port(), "", 0), 0);
+        ASSERT_EQ(sender.sendto("127.0.0.1", receiver.get_port(), "x", 1), 1);
+
+        char data;
+        sockaddr_in peer{};
+        socklen_t peer_length = sizeof(peer);
+        ASSERT_EQ(receiver.recvfrom(&data, 1, reinterpret_cast<sockaddr *>(&peer), &peer_length), 0);
+        EXPECT_EQ(peer_length, sizeof(peer));
+        EXPECT_EQ(ntohs(peer.sin_port), sender.get_port());
+
+        ASSERT_EQ(receiver.recvfrom(&data, 1), 1);
+        EXPECT_EQ(data, 'x');
+    });
 }
 
 TEST(uring_socket, writev_and_readv) {
@@ -441,10 +513,10 @@ TEST(uring_socket, writev_and_readv) {
             ASSERT_EQ(result, length * 3);
         });
 
-        std::vector<std::string> results(iovcnt);
+        std::vector<std::string> results(iovcnt, std::string(length, '\0'));
         std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
         for (int i = 0; i < iovcnt; i++) {
-            iov[i].iov_base = (void *) results[i].c_str();
+            iov[i].iov_base = &results[i][0];
             iov[i].iov_len = length;
         }
         IOVector io_vector((struct iovec *) iov.get(), iovcnt);
@@ -454,9 +526,8 @@ TEST(uring_socket, writev_and_readv) {
         sock.close();
         ASSERT_EQ(result, length * 3);
 
-        for (auto iter = results.begin(); iter != results.end(); iter++) {
-            (*iter)[length] = '\0';
-            ASSERT_STREQ(text.c_str(), (*iter).c_str());
+        for (const auto &value : results) {
+            ASSERT_EQ(value, text);
         }
     });
 }
@@ -535,6 +606,41 @@ TEST(uring_socket, sendfile) {
         data[result] = '\0';
         sock.close();
         ASSERT_GT(result, 0);
+    });
+}
+
+TEST(uring_socket, sendfile_range) {
+    coroutine::run([](void *) {
+        auto file = swoole::make_tmpfile();
+        ASSERT_TRUE(file.ready());
+        ON_SCOPE_EXIT {
+            File::remove(file.get_path());
+        };
+        ASSERT_EQ(file.write("0123456789"), 10);
+
+        const size_t lengths[] = {3, 0};
+        const off_t offsets[] = {2, 7};
+        const char *expected[] = {"234", "789"};
+        SW_LOOP_N(SW_ARRAY_SIZE(lengths)) {
+            int pair[2];
+            ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+            UringSocket writer(pair[0], SW_SOCK_UNIX_STREAM);
+            UringSocket reader(pair[1], SW_SOCK_UNIX_STREAM);
+            reader.set_timeout(1, SW_TIMEOUT_READ);
+
+            EXPECT_FALSE(writer.sendfile(file.get_path().c_str(), 10, 0));
+            EXPECT_EQ(writer.errCode, EINVAL);
+            EXPECT_FALSE(writer.sendfile(file.get_path().c_str(), 11, 2));
+            EXPECT_EQ(writer.errCode, EINVAL);
+            ASSERT_TRUE(writer.sendfile(file.get_path().c_str(), offsets[i], lengths[i]));
+            EXPECT_EQ(writer.errCode, 0);
+            ASSERT_TRUE(writer.close());
+
+            char data[20];
+            const ssize_t received = reader.recv_all(data, sizeof(data));
+            ASSERT_GE(received, 0);
+            EXPECT_EQ(std::string(data, received), expected[i]);
+        }
     });
 }
 

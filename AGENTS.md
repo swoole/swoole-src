@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-`src/` and `include/` contain the C++ core. `ext-src/` implements the PHP extension and its bindings; `library/` contains bundled PHP code. PHP regression tests live in `tests/` as `.phpt` files, grouped by feature (for example, `tests/swoole_http_server/`). C++ GoogleTest cases live in `core-tests/`. Look in `examples/` for runnable samples, `docs/` for development notes, and `thirdparty/` for vendored dependencies.
+`src/` and `include/` contain the C++ core. `ext-src/` implements the PHP extension and its bindings; `library/` contains bundled PHP code. PHP regression tests live in `tests/` as `.phpt` files, grouped by feature (for example, `tests/swoole_http_server/`). C++ GoogleTest cases live in `core-tests/`. Look in `examples/` for runnable samples (see `examples/README.md` for the guided index), `docs/` for development notes, and `thirdparty/` for vendored dependencies.
 
 ## Build, Test, and Development Commands
 

@@ -176,6 +176,12 @@ HttpCookie *HttpCookie::withPartitioned(zend_bool _partitioned) {
 }
 
 zend_string *HttpCookie::toString() {
+    // Serialization owns its scratch buffer. Failed validation must preserve all configured fields,
+    // including for native callers such as Http\Response::cookie().
+    smart_str buffer = {};
+    ON_SCOPE_EXIT {
+        smart_str_free(&buffer);
+    };
     zend_string *date = nullptr;
     if (name == nullptr || ZSTR_LEN(name) == 0) {
         php_swoole_error(E_WARNING, "The name cannot be empty");
@@ -187,14 +193,14 @@ zend_string *HttpCookie::toString() {
         return nullptr;
     }
 
-    smart_str_append(&buffer_, name);
+    smart_str_append(&buffer, name);
 
     if (!value) {
-        smart_str_appends(&buffer_, "=deleted; expires=");
+        smart_str_appends(&buffer, "=deleted; expires=");
 
         date = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
-        smart_str_append(&buffer_, date);
-        smart_str_appends(&buffer_, "; Max-Age=0");
+        smart_str_append(&buffer, date);
+        smart_str_appends(&buffer, "; Max-Age=0");
         zend_string_free(date);
     } else {
         if (!encode_ && strpbrk(ZSTR_VAL(value), ILLEGAL_COOKIE_CHARACTER) != nullptr) {
@@ -202,14 +208,14 @@ zend_string *HttpCookie::toString() {
             return nullptr;
         }
 
-        smart_str_appendc(&buffer_, '=');
+        smart_str_appendc(&buffer, '=');
 
         if (encode_) {
             zend_string *encoded_value = php_url_encode(ZSTR_VAL(value), ZSTR_LEN(value));
-            smart_str_append(&buffer_, encoded_value);
+            smart_str_append(&buffer, encoded_value);
             zend_string_free(encoded_value);
         } else {
-            smart_str_append(&buffer_, value);
+            smart_str_append(&buffer, value);
         }
 
         if (expires > 0) {
@@ -217,13 +223,13 @@ zend_string *HttpCookie::toString() {
                 php_swoole_error(E_WARNING, "The expires cannot have a year greater than 9999");
                 return nullptr;
             }
-            smart_str_appends(&buffer_, "; expires=");
+            smart_str_appends(&buffer, "; expires=");
             date = php_format_date(ZEND_STRL("D, d-M-Y H:i:s T"), expires, 0);
-            smart_str_append(&buffer_, date);
-            smart_str_appends(&buffer_, "; Max-Age=");
+            smart_str_append(&buffer, date);
+            smart_str_appends(&buffer, "; Max-Age=");
 
             double diff = difftime(expires, php_time());
-            smart_str_append_long(&buffer_, (zend_long) (diff >= 0 ? diff : 0));
+            smart_str_append_long(&buffer, (zend_long) (diff >= 0 ? diff : 0));
             zend_string_free(date);
         }
     }
@@ -233,8 +239,8 @@ zend_string *HttpCookie::toString() {
             php_swoole_error(E_WARNING, "The path option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
             return nullptr;
         }
-        smart_str_appends(&buffer_, "; path=");
-        smart_str_append(&buffer_, path);
+        smart_str_appends(&buffer, "; path=");
+        smart_str_append(&buffer, path);
     }
 
     if (domain && ZSTR_LEN(domain) > 0) {
@@ -242,33 +248,33 @@ zend_string *HttpCookie::toString() {
             php_swoole_error(E_WARNING, "The domain option cannot contain " ILLEGAL_COOKIE_CHARACTER_PRINT);
             return nullptr;
         }
-        smart_str_appends(&buffer_, "; domain=");
-        smart_str_append(&buffer_, domain);
+        smart_str_appends(&buffer, "; domain=");
+        smart_str_append(&buffer, domain);
     }
 
     if (secure) {
-        smart_str_appends(&buffer_, "; secure");
+        smart_str_appends(&buffer, "; secure");
     }
 
     if (httpOnly) {
-        smart_str_appends(&buffer_, "; HttpOnly");
+        smart_str_appends(&buffer, "; HttpOnly");
     }
 
     if (sameSite && ZSTR_LEN(sameSite) > 0) {
-        smart_str_appends(&buffer_, "; SameSite=");
-        smart_str_append(&buffer_, sameSite);
+        smart_str_appends(&buffer, "; SameSite=");
+        smart_str_append(&buffer, sameSite);
     }
 
     if (priority && ZSTR_LEN(priority) > 0) {
-        smart_str_appends(&buffer_, "; Priority=");
-        smart_str_append(&buffer_, priority);
+        smart_str_appends(&buffer, "; Priority=");
+        smart_str_append(&buffer, priority);
     }
 
     if (partitioned) {
-        smart_str_appends(&buffer_, "; Partitioned");
+        smart_str_appends(&buffer, "; Partitioned");
     }
 
-    return smart_str_extract(&buffer_);
+    return smart_str_extract(&buffer);
 }
 
 void HttpCookie::reset() {
@@ -307,8 +313,6 @@ void HttpCookie::reset() {
         zend_string_release(priority);
         priority = nullptr;
     }
-
-    smart_str_free_ex(&buffer_, false);
 }
 
 #define HTTP_COOKIE_ADD_STR_TO_ARRAY(field)                                                                            \
@@ -448,7 +452,6 @@ static PHP_METHOD(swoole_http_cookie, toString) {
     }
     auto cookie_str = cookie->toString();
     if (!cookie_str) {
-        cookie->reset();
         RETURN_FALSE;
     }
     ZVAL_STR(return_value, cookie_str);

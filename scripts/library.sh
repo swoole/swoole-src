@@ -30,11 +30,16 @@ fi
 echo 'swoole_ssh2_truncated_scp_user:swoole_ssh2_truncated_scp_pass' | chpasswd
 install -m 0555 ./truncated_scp_server.sh /usr/local/bin/swoole-truncated-scp-server
 mkdir -p /etc/ssh/sshd_config.d
-printf '%s\n' 'AcceptEnv SWOOLE_TEST_*' 'PasswordAuthentication yes' > /etc/ssh/sshd_config.d/swoole-tests.conf
+printf '%s\n' 'AcceptEnv SWOOLE_TEST_*' 'PasswordAuthentication yes' 'AllowTcpForwarding yes' \
+    > /etc/ssh/sshd_config.d/swoole-tests.conf
 printf '%s\n' 'Match User swoole_ssh2_truncated_scp_user' \
     '    ForceCommand /usr/local/bin/swoole-truncated-scp-server' >> /etc/ssh/sshd_config.d/swoole-tests.conf
 mkdir -p /run/sshd
 sshd -t || { echo 'sshd configuration is invalid'; exit 1; }
+sshd -T -C user=swoole_ssh2_test_user,host=localhost,addr=127.0.0.1 | grep -qx 'allowtcpforwarding yes' || {
+    echo 'SSH forwarding is disabled for the SSH2 test user'
+    exit 1
+}
 service ssh start
 
 # MariaDB ODBC Connector
@@ -44,8 +49,8 @@ tar zxf ${MARIADB_CONNECTOR_VERSION}.tar.gz
 mkdir build
 cd build
 cmake ../mariadb-connector-odbc-${MARIADB_CONNECTOR_VERSION}/ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCONC_WITH_UNIT_TESTS=Off -DCMAKE_INSTALL_PREFIX=/usr/local -DWITH_SSL=OPENSSL
-cmake --build . --config RelWithDebInfo
-make install
+cmake --build . --config RelWithDebInfo --parallel "${SWOOLE_BUILD_JOBS:-1}"
+make -j"${SWOOLE_BUILD_JOBS:-1}" install
 echo '/usr/local/lib/mariadb/' > /etc/ld.so.conf.d/odbc-mariadb.conf
 ldconfig
 
