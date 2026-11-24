@@ -54,7 +54,7 @@ remote_object_test(static function (Client $client, string $socket): void {
     Assert::same($receiver->check(...$args), $expected);
 
     // Trusted clients on the same worker can pass each other's handles as arguments.
-    $otherClient = new Client('unix://' . $socket);
+    $otherClient = remote_object_test_client($socket);
     Assert::same($otherClient->call('remote_object_arguments_check', ...$args), $expected);
 
     $properties = $client->create(stdClass::class);

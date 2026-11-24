@@ -2359,8 +2359,8 @@ TEST(http_server, parse_multipart_boundary) {
 
 TEST(http_server, get_package_length) {
     network::Socket fake_sock;
-    PacketLength pl;
-    Connection conn;
+    PacketLength pl{};
+    Connection conn{};
 
     Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
@@ -2388,13 +2388,19 @@ TEST(http_server, get_package_length) {
 
     // websocket
     sw_tg_buffer()->clear();
-    conn.websocket_status = websocket::STATUS_HANDSHAKE;
+    conn.websocket_status = websocket::STATUS_ACTIVE;
     ASSERT_EQ(http_server::get_package_length_size(&fake_sock), SW_WEBSOCKET_FRAME_HEADER_SIZE);
     ASSERT_TRUE(websocket::encode(sw_tg_buffer(), SW_STRL(TEST_STR), websocket::OPCODE_TEXT, websocket::FLAG_FIN));
     pl.buf = sw_tg_buffer()->str;
     pl.buf_size = sw_tg_buffer()->length;
     ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl),
               SW_WEBSOCKET_HEADER_LEN + strlen(TEST_STR));
+
+    for (auto status : {websocket::STATUS_HANDSHAKE, websocket::STATUS_CLOSING, websocket::STATUS_HANDSHAKE_FAILED}) {
+        conn.websocket_status = status;
+        ASSERT_EQ(http_server::get_package_length_size(&fake_sock), 0);
+        ASSERT_EQ(http_server::get_package_length(&port->protocol, &fake_sock, &pl), SW_ERR);
+    }
 
     // http2
     sw_tg_buffer()->clear();

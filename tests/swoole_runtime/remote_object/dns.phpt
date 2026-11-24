@@ -12,7 +12,9 @@ require __DIR__ . '/server.inc';
 
 remote_object_test(function ($client, $socket) {
     $previous                                        = SwooleLibrary::$remote_object_server_socket_file;
+    $previousOptions = swoole_library_get_option('default_remote_object_server_options');
     SwooleLibrary::$remote_object_server_socket_file = 'unix://' . $socket;
+    swoole_library_set_option('default_remote_object_server_options', ['api_key' => REMOTE_OBJECT_TEST_API_KEY]);
     Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
     try {
         Assert::true(checkdnsrr('www.baidu.com', 'A'));
@@ -31,6 +33,7 @@ remote_object_test(function ($client, $socket) {
         Assert::eq(gethostbyaddr('127.0.0.1'), 'localhost');
     } finally {
         SwooleLibrary::$remote_object_server_socket_file = $previous;
+        swoole_library_set_option('default_remote_object_server_options', $previousOptions);
     }
 });
 ?>

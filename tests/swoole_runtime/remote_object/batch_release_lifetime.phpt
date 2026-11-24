@@ -36,7 +36,7 @@ try {
         $reference = null;
         $queuedAt = 0;
         remote_object_test(static function (Client $unused, string $socket) use ($trace, &$reference, &$queuedAt): void {
-            $client = new Client('unix://' . $socket);
+            $client = remote_object_test_client($socket);
             $reference = WeakReference::create($client);
             $object = $client->create(RemoteObjectLifetimeTracked::class, $trace);
             $queuedAt = hrtime(true);

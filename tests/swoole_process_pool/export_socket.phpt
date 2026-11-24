@@ -14,8 +14,8 @@ $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
     $socket = $process->exportSocket();
     if ($workerId == 0) {
         echo $socket->recv();
-        $socket->send("hello proc1\n");
         echo "proc0 stop\n";
+        $socket->send("hello proc1\n");
     } else {
         $socket->send("hello proc0\n");
         echo $socket->recv();

@@ -67,6 +67,10 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
                 Assert::true($pm->wait());
                 Assert::same($socket->sendAll($upload), strlen($upload));
 
+                // Keep the receive buffer full until the worker has processed the rejected upload and closed it.
+                // Draining it immediately can make room for a valid 413 response instead of exercising send failure.
+                Assert::true($pm->wait());
+
                 // The server can't queue the 413 and RST_STREAM, so it closes the connection rather than leave the
                 // upload unanswered.
                 do {
@@ -81,6 +85,7 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
         $pm->kill();
     };
     $pm->childFunc = function () use ($pm, $mode) {
+        $blockedFd = null;
         $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), $mode);
         $server->set([
             'worker_num'          => 1,
@@ -90,11 +95,20 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
             'package_max_length'  => 64 * 1024,
             'log_file'            => '/dev/null',
         ]);
-        $server->on('WorkerStart', function () use ($pm) {
+        $server->on($mode === SWOOLE_PROCESS ? 'Start' : 'WorkerStart', function () use ($pm) {
             $pm->wakeup();
         });
         $server->on('BufferFull', fn () => $pm->wakeup());
-        $server->on('Request', function ($request, $response) {
+        $server->on('Close', function ($server, $fd) use ($pm, &$blockedFd) {
+            if ($fd === $blockedFd) {
+                $blockedFd = null;
+                $pm->wakeup();
+            }
+        });
+        $server->on('Request', function ($request, $response) use (&$blockedFd) {
+            if ($request->server['request_uri'] === '/large') {
+                $blockedFd = $request->fd;
+            }
             $response->end($request->server['request_uri'] === '/pid' ? (string) getmypid() : str_repeat('a', RESPONSE_SIZE));
         });
         $server->start();

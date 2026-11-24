@@ -37,7 +37,7 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
     $pm->childFunc = function () use ($pm, $mode) {
         $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), $mode);
         $server->set(['worker_num' => 1, 'log_file' => '/dev/null']);
-        $server->on('workerStart', function () use ($pm) { $pm->wakeup(); });
+        $server->on($mode === SWOOLE_PROCESS ? 'Start' : 'WorkerStart', function () use ($pm) { $pm->wakeup(); });
         $server->on('request', function ($request, $response) {
             $response->end($request->rawContent());
         });
