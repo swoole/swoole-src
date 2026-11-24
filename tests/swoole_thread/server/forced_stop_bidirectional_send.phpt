@@ -27,10 +27,11 @@ $serv->set([
     'open_eof_check'   => true,
     'package_eof'      => "\n",
     'init_arguments'   => function () {
-        global $phase, $workerStarts;
+        global $phase, $workerStarts, $userWorkerStarted;
         $phase = new Thread\Atomic(0);
         $workerStarts = new Thread\Atomic(0);
-        return [$phase, $workerStarts];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$phase, $workerStarts, $userWorkerStarted];
     },
 ]);
 $serv->on('WorkerStart', function () {
@@ -64,7 +65,11 @@ $serv->on('Shutdown', function () {
     echo "shutdown\n";
 });
 $serv->addProcess(new Swoole\Process(function () use ($serv, $port) {
-    [, $workerStarts] = Thread::getArguments();
+    [, $workerStarts, $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
 
     $wait = function (callable $condition) {
         for ($i = 0; $i < 1000 && !$condition(); $i++) {

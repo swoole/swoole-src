@@ -763,6 +763,11 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {
             stream->flags |= SW_HTTP2_STREAM_PIPELINE_RESPONSE;
         }
+        if (length > local_window_size || length > stream->local_window_size) {
+            close();
+            update_error_properties(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "response DATA exceeded receive window");
+            return SW_CLOSE;
+        }
         char *data = buf;
         ssize_t data_length = length;
         if (flags & SW_HTTP2_FLAG_PADDED) {
@@ -794,17 +799,17 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         }
         // The padding counts against the flow-control windows too
         if (length > 0) {
-            // now we control the connection flow only (not stream)
-            // our window size is unlimited, so we don't worry about subtraction overflow
             local_window_size -= length;
             stream->local_window_size -= length;
-            if (local_window_size < (local_settings.init_window_size / 4)) {
-                if (!send_window_update(0, local_settings.init_window_size - local_window_size)) {
+            uint32_t connection_target =
+                std::max(local_settings.init_window_size, uint32_t(SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE));
+            if (local_window_size <= connection_target / 2) {
+                if (!send_window_update(0, connection_target - local_window_size)) {
                     return SW_ERROR;
                 }
-                local_window_size = local_settings.init_window_size;
+                local_window_size = connection_target;
             }
-            if (stream->local_window_size < (local_settings.init_window_size / 4)) {
+            if (stream->local_window_size <= (local_settings.init_window_size / 2)) {
                 if (!send_window_update(_stream_id, local_settings.init_window_size - stream->local_window_size)) {
                     return SW_ERROR;
                 }
@@ -989,7 +994,19 @@ bool Client::send_setting() {
                                 local_settings.init_window_size,
                                 local_settings.max_frame_size,
                                 local_settings.max_header_list_size);
-    return send(frame, n);
+    if (!send(frame, n)) {
+        return false;
+    }
+    // SETTINGS changes stream windows only. Advertise a larger connection window explicitly, and account for
+    // that grant locally so later WINDOW_UPDATE increments describe the same credit at both endpoints.
+    if (local_settings.init_window_size > SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE) {
+        uint32_t increment = local_settings.init_window_size - SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
+        if (!send_window_update(0, increment)) {
+            return false;
+        }
+        local_window_size += increment;
+    }
+    return true;
 }
 
 void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);
@@ -1013,10 +1030,9 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
     bool has_status_pseudo_header = false;
     zval *ztrailers = nullptr;
 
-    int inflate_flags = 0;
-
-    do {
+    for (;;) {
         nghttp2_nv nv;
+        int inflate_flags = 0;
 
         ssize_t rv = nghttp2_hd_inflate_hd(
             inflater, &nv, &inflate_flags, (uchar *) in, inlen, (flags & SW_HTTP2_FLAG_END_HEADERS) != 0);
@@ -1089,13 +1105,16 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                 }
             }
         }
-    } while ([=] {
         if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL) {
             nghttp2_hd_inflate_end_headers(inflater);
-            return false;
+            break;
         }
-        return inlen != 0;
-    }());
+
+        // Emitting the last field can consume all input before the inflater signals FINAL.
+        if ((inflate_flags & NGHTTP2_HD_INFLATE_EMIT) == 0 && inlen == 0) {
+            break;
+        }
+    }
 
     // Only a frame carrying :status marks the initial response headers as received. A trailers
     // frame has no pseudo-headers, so it leaves the flag untouched and is classified correctly

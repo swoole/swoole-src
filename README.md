@@ -1,13 +1,12 @@
 <p align="center">
-  <img src="docs/swoole-logo.svg" width="200" height="120" alt="Swoole logo">
+  <img src="docs/swoole-logo.svg" title="Swoole" width="200" height="120" alt="Swoole logo">
 </p>
-
-<h1 align="center">Swoole</h1>
 
 <p align="center">An event-driven networking engine and coroutine runtime for PHP</p>
 
 <p align="center">
   <a href="https://github.com/swoole/swoole-src/actions/workflows/ci.yml?query=branch%3Amaster+event%3Apush"><img src="https://github.com/swoole/swoole-src/actions/workflows/ci.yml/badge.svg?branch=master&amp;event=push" alt="CI"></a>
+  <a href="https://codecov.io/gh/swoole/swoole-src"><img src="https://codecov.io/gh/swoole/swoole-src/branch/master/graph/badge.svg" alt="Codecov"></a>
   <a href="https://github.com/swoole/swoole-src/releases"><img src="https://img.shields.io/github/v/release/swoole/swoole-src" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/swoole/swoole-src" alt="License"></a>
 </p>
@@ -162,7 +161,7 @@ Check `./configure --help` and [`config.m4`](config.m4) for the options and depe
 ## Documentation and development
 
 - [Official documentation](https://wiki.swoole.com/) covers APIs, configuration, and usage.
-- [Examples](examples/) show servers, clients, coroutines, and protocols.
+- [Examples](examples/README.md) — a guided index of server, client, coroutine, and protocol samples.
 - [Testing guide](docs/TESTS.md) explains PHP PHPT and C++ GoogleTest workflows.
 - [Supported versions](docs/SUPPORTED.md) and [changelog](docs/CHANGELOG.md) help with branch selection and upgrades.
 - [Repository guidelines](AGENTS.md) describe the source layout, style, tests, and contribution process.

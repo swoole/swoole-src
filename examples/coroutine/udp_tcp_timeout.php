@@ -63,10 +63,10 @@ class TestHttpServer {
 		// $udp_cli->close();
 
 		// if ($ret) {
-		// 	//error_log(" udp cli get rsp == " . print_r($ret, true),3, '/data/log/udp_timeout.log');
+		// 	//error_log(" udp cli get rsp == " . print_r($ret, true),3, sys_get_temp_dir() . '/swoole_example.log');
 		// }
 		// else{
-		// 	error_log(" udp cli timeout \n",3, '/data/log/udp_timeout.log');
+		// 	error_log(" udp cli timeout \n",3, sys_get_temp_dir() . '/swoole_example.log');
 		// }
 
   		$ret = $tcp_cli ->connect("10.100.64.151", 9805);
@@ -75,10 +75,10 @@ class TestHttpServer {
 		$tcp_cli->close();
 
 		if ($ret) {
-			//error_log(" tcp cli get rsp == " . print_r($ret, true) . PHP_EOL, 3, '/data/log/udp_timeout.log');
+			//error_log(" tcp cli get rsp == " . print_r($ret, true) . PHP_EOL, 3, sys_get_temp_dir() . '/swoole_example.log');
 		}
 		else{
-			error_log(" tcp cli timeout \n",3, '/data/log/udp_timeout.log');
+			error_log(" tcp cli timeout \n",3, sys_get_temp_dir() . '/swoole_example.log');
 		}
 
 		$response ->end(" swoole response is ok");
@@ -115,7 +115,7 @@ $setting = array(
 		'reactor_num' => 4,     //亲核
 		'daemonize' => 1,       //守护进程
 		'backlog' => 128,
-		'log_file' => '/data/log/test_http_server.log',
+		'log_file' => sys_get_temp_dir() . '/swoole_example.log',
 );
 $th = new TestHttpServer();
 $th ->set($setting);

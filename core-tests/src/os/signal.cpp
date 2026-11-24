@@ -132,6 +132,22 @@ TEST(os_signal, dispatch) {
     swoole_signal_clear();
 }
 
+TEST(os_signal, dispatch_signal_raised_in_callback) {
+    trigger_signal = 0;
+    swoole_signal_set(SIGUSR1, [](int signo) { trigger_signal = signo; }, true);
+    swoole_signal_set(SIGUSR2, [](int signo) { swoole_kill(getpid(), SIGUSR1); }, true);
+    swoole_kill(getpid(), SIGUSR2);
+
+    // The SIGUSR2 callback raises SIGUSR1 after this pass has checked it, so it runs on the next pass.
+    swoole_signal_dispatch();
+    ASSERT_EQ(trigger_signal, 0);
+
+    swoole_signal_dispatch();
+    ASSERT_EQ(trigger_signal, SIGUSR1);
+
+    swoole_signal_clear();
+}
+
 TEST(os_signal, nested) {
     trigger_signal = 0;
     swoole_signal_set(SIGUSR1, [](int signo) { raise(SIGUSR2); });

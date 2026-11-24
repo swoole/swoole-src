@@ -226,6 +226,8 @@ a { color: #0969da; } \
 #define SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE ((1 << 16) - 1)
 #define SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE UINT_MAX
 #define SW_HTTP2_DEFAULT_MAX_HEADERS 1000
+// Frames the coroutine server's receive loop holds while another coroutine writes to the connection.
+#define SW_HTTP2_MAX_QUEUED_FRAMES_SIZE (64 * 1024)
 
 #define SW_HTTP_CLIENT_USERAGENT "swoole-http-client"
 #define SW_HTTP_CLIENT_BOUNDARY_PREKEY "----SwooleBoundary"

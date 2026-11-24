@@ -467,6 +467,7 @@ void php_swoole_client_free(const zval *zobject, Client *cli) {
     }
 
     delete cli;
+    php_swoole_client_fetch_object(zobject)->generation++;
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
     zval *zsocket = client_get_zsocket(zobject);
@@ -915,6 +916,7 @@ static PHP_METHOD(swoole_client, recv) {
             buffer->extend(header_len);
         }
 
+        const uint32_t generation = php_swoole_client_fetch_object(ZEND_THIS)->generation;
         while (true) {
             auto retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
             if (retval < 0) {
@@ -931,6 +933,13 @@ static PHP_METHOD(swoole_client, recv) {
             ssize_t package_length = 0;
             auto status = protocol->resolve_package_length(
                 cli->socket, buffer->str, buffer->length, &package_length, nullptr);
+            // package_length_func closed the client: cli and its buffer are freed
+            if (php_swoole_client_fetch_object(ZEND_THIS)->generation != generation) {
+                swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
+                zend_update_property_long(
+                    swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);
+                RETURN_FALSE;
+            }
             buf_len = package_length;
             if (status == swoole::PackageLengthStatus::NEED_MORE) {
                 // The header is complete but the length is still unknown; no room is left to receive more.

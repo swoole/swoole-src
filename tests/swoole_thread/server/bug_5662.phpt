@@ -21,7 +21,8 @@ $server->set([
 	'init_arguments' => function () {
         global $queue;
         $queue = new Queue();
-        return [$queue];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$queue, $userWorkerStarted];
     }
 ]);
 $server->on('WorkerStart', function (Swoole\Server $server, $workerId) {
@@ -29,7 +30,11 @@ $server->on('WorkerStart', function (Swoole\Server $server, $workerId) {
     $queue->push('start', Queue::NOTIFY_ALL);
 });
 $server->addProcess(new Swoole\Process(function ($process) use ($server, $port) {
-	[$queue] = Thread::getArguments();
+    [$queue, $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
 	Assert::true($queue->pop(-1) == 'start');
 	for ($i = 0; $i < 20; $i++) {
         Assert::true(file_get_contents("http://127.0.0.1:{$port}/") == 'OK');

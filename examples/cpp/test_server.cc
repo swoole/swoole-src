@@ -1,7 +1,7 @@
 /**
- * cmake .
- * make test_server
- * ./bin/test_server
+ * Build and run (links against libswoole, not the PHP extension):
+ *   cmake . && cmake --build . --target test_server --parallel 1
+ *   ./bin/test_server
  */
 #include "swoole_server.h"
 #include "swoole_util.h"
@@ -40,8 +40,8 @@ int main(int argc, char **argv) {
     // serv.open_tcp_keepalive = 1;
 
 #ifdef HAVE_OPENSSL
-    // serv.ssl_cert_file = "tests/ssl/ssl.crt";
-    // serv.ssl_key_file = "tests/ssl/ssl.key";
+    // serv.ssl_cert_file = "tests/include/ssl_certs/server.crt";
+    // serv.ssl_key_file = "tests/include/ssl_certs/server.key";
     // serv.open_ssl = 1;
 #endif
 

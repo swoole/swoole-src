@@ -10,24 +10,27 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Process\Pool;
 use Swoole\Process;
 
-const N = 70000;
-
+Assert::setThrowException(true);
+$ready = new Swoole\Atomic(0);
 $pool = new Pool(2, SWOOLE_IPC_UNIXSOCK);
 $pool->set(['max_wait_time' => 2]);
 
-$pool->on('workerStart', function (Pool $pool, int $workerId) {
+$pool->on('workerStart', function (Pool $pool, int $workerId) use ($ready) {
     if ($workerId == 0) {
-        usleep(100_000);
+        Assert::true($ready->wait(10));
         $process1 = $pool->getProcess(1);
         phpt_var_dump($process1);
         $pid1 = $process1->pid;
-        Process::kill($process1->pid, SIGTERM);
-        usleep(100_000);
+        Assert::greaterThan($pid1, 0);
+        Assert::true(Process::kill($pid1, SIGTERM));
+        Assert::true($ready->wait(10));
         $process2 = $pool->getProcess(1);
         phpt_var_dump($process2);
         $pid2 = $process2->pid;
         Assert::notEq($pid1, $pid2);
         $pool->shutdown();
+    } else {
+        $ready->wakeup();
     }
 });
 

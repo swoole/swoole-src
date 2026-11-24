@@ -1,45 +1,25 @@
 <?php
-$serv = new Swoole\Server("0.0.0.0", 9501);
+// Dispatch connections by uid and relay messages between bound clients.
+$serv = new Swoole\Server('0.0.0.0', 9501);
 $serv->fdlist = [];
-$serv->set(array(
-		//'tcp_defer_accept' => 5,
-		//'ipc_mode' => 2,
-		'worker_num' => 4,
-		//'task_worker_num' => 2,
-		'dispatch_mode' => 5,   //uid dispatch
-		//'max_request' => 1000,
-		//'daemonize' => true,
-		//'log_file' => '/tmp/swoole.log'
-));
-$serv->on('timer', function($serv, $interval) {
-	echo "onTimer: $interval\n";
+$serv->set([
+    'worker_num' => 4,
+    'dispatch_mode' => 5,   // uid dispatch
+]);
+$serv->on('workerStart', function ($serv, $worker_id) {
+    echo "{$worker_id} start" . PHP_EOL;
 });
-
-$serv->on('start', function($serv) {
-	//$serv->addtimer(1000);
+$serv->on('connect', function ($serv, $fd, $reactor_id) {
+    echo "{$fd} connect, worker:" . $serv->worker_id . PHP_EOL;
 });
-
-$serv->on('workerStart', function($serv, $worker_id) {
-	echo "{$worker_id} start".PHP_EOL;
-	//if($worker_id == 0) $serv->addtimer(1000);
+$serv->on('task', function ($serv, $task_id, $reactor_id, $data) {
 });
-
-$serv->on('connect', function ($serv, $fd, $reactor_id){
-	//echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Connect.\n";
-	echo "{$fd} connect, worker:".$serv->worker_id.PHP_EOL;
+$serv->on('finish', function ($serv, $fd, $reactor_id) {
 });
-
-$serv->on('task', function ($serv, $task_id, $reactor_id, $data){
-});
-
-$serv->on('finish', function ($serv, $fd, $reactor_id){
-
-});
-
 $serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
     $conn = $serv->connection_info($fd);
     print_r($conn);
-    echo "worker_id: " . $serv->worker_id . PHP_EOL;
+    echo 'worker_id: ' . $serv->worker_id . PHP_EOL;
     if (empty($conn['uid'])) {
         $uid = $fd + 1;
         if ($serv->bind($fd, $uid)) {
@@ -55,10 +35,7 @@ $serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
         }
     }
 });
-
 $serv->on('close', function ($serv, $fd, $reactor_id) {
-	//echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Close.\n";
-	unset($serv->fdlist[$fd]);
+    unset($serv->fdlist[$fd]);
 });
-
 $serv->start();

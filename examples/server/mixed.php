@@ -22,7 +22,7 @@ class G
         'dispatch_mode' => 2,
         //'daemonize'                => 1,     // 设置守护进程模式
         'backlog' => 128,
-        //'log_file'                 => '/data/logs/swoole.log',
+        //'log_file'                 => sys_get_temp_dir() . '/swoole_example.log',
         'heartbeat_check_interval' => 2,    // 心跳检测间隔时长(秒)
         'heartbeat_idle_time'      => 3,   // 连接最大允许空闲的时间
         //'open_eof_check'           => 1,
@@ -145,17 +145,16 @@ function setTimerInWorker(Swoole\Server $serv, $worker_id)
 {
     if ($worker_id == 0) {
         echo 'Start: ' . microtime(true) . "\n";
-        //$serv->addtimer(3000);
-        //		$serv->addtimer(7000);
-        //var_dump($serv->gettimer());
+        //Timer::tick(3000, function ($id) { echo "timer #{$id}" . PHP_EOL; });
+        //		Timer::tick(7000);
     }
-    //	$serv->after(2000, function(){
+    //	Timer::after(2000, function(){
     //		echo "Timeout: ".microtime(true)."\n";
     //	});
-    //	$serv->after(5000, function(){
+    //	Timer::after(5000, function(){
     //		echo "Timeout: ".microtime(true)."\n";
     //		global $serv;
-    //		$serv->deltimer(3000);
+    //		Timer::clear(3000);
     //	});
 }
 
@@ -176,7 +175,7 @@ function my_onConnect(Swoole\Server $serv, $fd, $reactor_id)
     //    var_dump($serv->connection_info($fd));
     //var_dump($serv, $fd, $reactor_id);
     //    echo "Worker#{$serv->worker_pid} Client[$fd@$reactor_id]: Connect.\n";
-    $serv->after(2000, function () use ($serv, $fd) {
+    Timer::after(2000, function () use ($serv, $fd) {
         $serv->confirm($fd);
     });
     my_log("Client: Connect --- {$fd}");
@@ -203,16 +202,16 @@ function my_onWorkerStart(Swoole\Server $serv, $worker_id)
         Swoole\Event::defer(function () {
             echo "defer call\n";
         });
-        //        $serv->tick(2000, function() use ($serv) {
+        //        Timer::tick(2000, function() use ($serv) {
         //           echo "Worker-{$serv->worker_id} tick-2000\n";
         //        });
     }
     //        Swoole\Timer::after(2000, function() {
     //            echo "after 2 secends.\n";
     //        });
-    //        $serv->tick(1000, function ($id) use ($serv) {
+    //        Timer::tick(1000, function ($id) use ($serv) {
     //            if (G::$index > 10) {
-    //                $serv->after(2500, 'timer_show', 2);
+    //                Timer::after(2500, 'timer_show', 2);
     //                G::$index = 0;
     //            } else {
     //                G::$index++;
@@ -298,11 +297,11 @@ function my_onReceive(Swoole\Server $serv, $fd, $reactor_id, $data)
         }
         return;
     } elseif ($cmd == 'tick') {
-        $serv->tick(2000, function ($id) {
+        Timer::tick(2000, function ($id) {
             echo "tick #{$id}\n";
         });
     } elseif ($cmd == 'addtimer') {
-        $serv->addtimer(3000);
+        Timer::tick(3000, function ($id) { echo "timer #{$id}" . PHP_EOL; });
     } elseif ($cmd == 'list') {
         $start_fd = 0;
         echo "broadcast\n";
@@ -338,9 +337,9 @@ function my_onReceive(Swoole\Server $serv, $fd, $reactor_id, $data)
     } elseif ($cmd == 'fatalerror') {
         require __DIR__ . '/php/error.php';
     } elseif ($cmd == 'defer') {
-        $serv->defer(function () use ($fd, $serv) {
+        Swoole\Event::defer(function () use ($fd, $serv) {
             $serv->close($fd);
-            $serv->defer(function () {
+            Swoole\Event::defer(function () {
                 echo "deferd\n";
             });
         });
@@ -350,7 +349,7 @@ function my_onReceive(Swoole\Server $serv, $fd, $reactor_id, $data)
         //$serv->close($fd);
     }
     //echo "Client:Data. fd=$fd|reactor_id=$reactor_id|data=$data";
-    //    $serv->after(
+    //    Timer::after(
     //        800, function () {
     //            echo "hello";
     //        }

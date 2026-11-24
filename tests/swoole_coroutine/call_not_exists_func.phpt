@@ -5,30 +5,20 @@ swoole_coroutine: call_not_exists_func
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
-$pm->parentFunc = function (int $pid) use ($pm) {
-    go(function () use ($pm) {
-        Assert::throws(function () use ($pm) {
-            httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/");
-        }, Exception::class);
-        $pm->kill();
-    });
-};
-$pm->childFunc = function () use ($pm) {
-    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+$pm = ProcessManager::exec(function () {
+    $http = new Swoole\Http\Server('127.0.0.1', 0, SWOOLE_BASE);
     $http->set(['worker_num' => 1]);
-    $http->on('workerStart', function () use ($pm) {
+    $http->on('workerStart', function () {
         none();
-        $pm->wakeup();
     });
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         co::sleep(0.001);
         throw new Exception('whoops');
     });
     $http->start();
-};
-$pm->childFirst();
-$pm->run();
+});
+echo $pm->getChildOutput();
+Assert::greaterThan($pm->getChildExitStatus(), 0);
 ?>
 --EXPECTF--
 Fatal error: Uncaught Error: Call to undefined function none() in %s:%d

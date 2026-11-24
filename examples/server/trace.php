@@ -16,7 +16,7 @@ $server->set([
     'worker_num' => 1,
     'task_worker_num' => 1,
     'request_slowlog_timeout' => 1,
-    'request_slowlog_file' => '/tmp/trace.log',
+    'request_slowlog_file' => sys_get_temp_dir() . '/swoole_example.log',
 ]);
 
 $server->on('Receive', function($serv, $fd, $reactor_id, $data) {

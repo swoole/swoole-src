@@ -92,7 +92,7 @@ function http2_trailer_server(ProcessManager $pm, $mode, callable $handler, arra
         'http_compression' => false,
         'log_file' => '/dev/null',
     ]);
-    $server->on('WorkerStart', function () use ($pm) {
+    $server->on($mode === SWOOLE_PROCESS ? 'Start' : 'WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
     $server->on('Request', $handler);

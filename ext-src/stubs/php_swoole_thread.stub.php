@@ -2,11 +2,16 @@
 namespace Swoole {
     class Thread {
         public int $id;
-        public function __construct(string $script_file, mixed ...$args) {}
+        /**
+         * Registered internal function names and public static methods of internal
+         * classes are called with $args. Other strings are executed as script paths.
+         */
+        public function __construct(string $entry, mixed ...$args) {}
 
         public function join(): bool {}
         public function joinable(): bool {}
         public function getExitStatus(): int {}
+        public function getResult(): mixed {}
         public function isAlive(): bool {}
         public function detach(): bool {}
 

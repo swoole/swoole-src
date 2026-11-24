@@ -34,6 +34,7 @@ $logfile = "$workdir/server.log";
 $bigfile = "$workdir/big.bin";
 $pidfile = "$workdir/worker.pids";
 file_put_contents($bigfile, random_bytes(1 << 20));
+file_put_contents("$workdir/small.txt", "hello\n");
 $http_port = 19600 + getmypid() % 200;
 $tcp_port = $http_port + 200;
 
@@ -67,6 +68,11 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
     // dispatch_mode 1/3 in process mode has no onConnect, so a delayed connection could never be confirmed
     $delay_receive = mt_rand(0, 3) === 0 && !($mode === SWOOLE_PROCESS && in_array($dispatch_mode, [1, 3], true));
     $ssl_port = $http_port + 400;
+    // Drawn after the original settings so that existing seeds keep their previous configuration.
+    $package_max_length = pick([8192, 64 * 1024, 2 << 20]);
+    $upload_max_filesize = pick([0, 1024, 1 << 20]);
+    $static = mt_rand(0, 1) === 1;
+    $ws_compression = mt_rand(0, 1) === 1;
     $use_ssl = defined('SWOOLE_SSL');
     echo "settings: worker_num=$worker_num max_request=$max_request dispatch_mode=$dispatch_mode " .
         "http2=" . (int) $h2 . " buffer_output_size=$out_size socket_buffer_size=$sock_buf task_worker_num=$task_num delay_receive=" .
@@ -91,6 +97,11 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
         'socket_buffer_size' => $sock_buf,
         'send_yield' => in_array($dispatch_mode, [2, 4], true) && $mode === SWOOLE_PROCESS,
         'enable_coroutine' => true,
+        'package_max_length' => $package_max_length,
+        'upload_max_filesize' => $upload_max_filesize,
+        'enable_static_handler' => $static,
+        'document_root' => dirname($bigfile),
+        'websocket_compression' => $ws_compression,
         'init_arguments' => function () {
             return [1];
         },
@@ -112,8 +123,8 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
     if ($use_ssl) {
         $ssl = $server->listen('127.0.0.1', $ssl_port, SWOOLE_SOCK_TCP | SWOOLE_SSL);
         $ssl->set([
-            'ssl_cert_file' => __DIR__ . '/../../examples/ssl/ssl.crt',
-            'ssl_key_file' => __DIR__ . '/../../examples/ssl/ssl.key',
+            'ssl_cert_file' => __DIR__ . '/../../tests/include/ssl_certs/server.crt',
+            'ssl_key_file' => __DIR__ . '/../../tests/include/ssl_certs/server.key',
             'open_http_protocol' => true,
             'open_websocket_protocol' => true,
         ]);
@@ -168,6 +179,28 @@ function server_main(int $http_port, int $tcp_port, int $mode, string $logfile, 
             $server->send($fd, $payload);
         }
     };
+
+    $eof = $server->listen('127.0.0.1', $http_port + 600, SWOOLE_SOCK_TCP);
+    $eof->set([
+        'open_eof_split' => true,
+        'package_eof' => "\r\n",
+        'package_max_length' => 1 << 16,
+        'open_http_protocol' => false,
+        'open_websocket_protocol' => false,
+    ]);
+    $eof->on('receive', function (Server $server, int $fd, int $rid, string $data) use ($chaos) {
+        $chaos($server, $fd, "pong\r\n");
+    });
+    $mqtt = $server->listen('127.0.0.1', $http_port + 1000, SWOOLE_SOCK_TCP);
+    $mqtt->set([
+        'open_mqtt_protocol' => true,
+        'package_max_length' => 1 << 16,
+        'open_http_protocol' => false,
+        'open_websocket_protocol' => false,
+    ]);
+    $mqtt->on('receive', function (Server $server, int $fd, int $rid, string $data) use ($chaos) {
+        $chaos($server, $fd, "\x20\x02\x00\x00");
+    });
 
     $server->on('request', function ($req, $resp) use ($server, $chaos, $bigfile) {
         $fd = $req->fd;
@@ -361,10 +394,10 @@ function tree_usage(int $root): array
     return [(int) $rss, $procs, $threads];
 }
 
-function ws_frame(int $opcode, string $payload, bool $mask = true, bool $fin = true): string
+function ws_frame(int $opcode, string $payload, bool $mask = true, bool $fin = true, bool $rsv1 = false): string
 {
     $len = strlen($payload);
-    $b = chr(($fin ? 0x80 : 0) | $opcode);
+    $b = chr(($fin ? 0x80 : 0) | ($rsv1 ? 0x40 : 0) | $opcode);
     $m = $mask ? 0x80 : 0;
     if ($len < 126) {
         $b .= chr($m | $len);
@@ -413,7 +446,30 @@ function mutate(string $s): string
 function http_payload(string $path): string
 {
     $body = random_bytes(mt_rand(0, 2000));
-    switch (mt_rand(0, 7)) {
+    switch (mt_rand(0, 11)) {
+    case 8:
+        $chunks = '';
+        foreach (str_split($body, mt_rand(1, 300)) as $c) {
+            $chunks .= dechex(strlen($c)) . pick(['', ';ext=1', ' ']) . "\r\n$c\r\n";
+        }
+        return "POST $path HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n"
+            . pick(['', "Expect: 100-continue\r\n"]) . "\r\n{$chunks}0\r\n" . pick(["\r\n", "X-T: 1\r\n\r\n", '']);
+    case 9:
+        $boundary = 'fuzz' . mt_rand();
+        $m = '';
+        for ($i = mt_rand(1, 4); $i > 0; $i--) {
+            $m .= "--$boundary\r\nContent-Disposition: form-data; name=\"f$i\"" . pick(['', '; filename="a.txt"', '; filename=""'])
+                . "\r\n" . pick(['', "Content-Type: text/plain\r\n"]) . "\r\n" . substr($body, 0, mt_rand(0, 600)) . "\r\n";
+        }
+        $m .= pick(["--$boundary--\r\n", "--$boundary\r\n", '']);
+        return "POST $path HTTP/1.1\r\nHost: x\r\n" . pick(['', "Expect: 100-continue\r\n"])
+            . "Content-Type: multipart/form-data; boundary=$boundary\r\nContent-Length: " . (strlen($m) + mt_rand(-2, 2)) . "\r\n\r\n$m";
+    case 10:
+        return "GET " . pick(['/big.bin', '/small.txt', '/']) . " HTTP/1.1\r\nHost: x\r\n"
+            . pick(['', 'Range: bytes=' . mt_rand(0, 2000000) . '-' . mt_rand(0, 2000000) . "\r\n", "Range: bytes=-5\r\n", "Range: bytes=0-1,5-9,3-4\r\n",
+                    "If-Modified-Since: Thu, 01 Jan 1970 00:00:00 GMT\r\n", "Accept-Encoding: gzip\r\n"]) . "\r\n";
+    case 11:
+        return "POST $path HTTP/1.1\r\nHost: x\r\nContent-Length: " . pick(['-1', '18446744073709551616', '1, 2', '0x10', ' 5', strlen($body) . ' ']) . "\r\n\r\n$body";
     case 0:
         return "GET $path?a=1&b[]=2&c=%zz HTTP/1.1\r\nHost: x\r\nCookie: a=b; c=%41\r\n\r\n";
     case 1:
@@ -440,14 +496,15 @@ function http_payload(string $path): string
 function ws_handshake(): string
 {
     return "GET /ws HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-        . 'Sec-WebSocket-Key: ' . base64_encode(random_bytes(16)) . "\r\nSec-WebSocket-Version: 13\r\n\r\n";
+        . 'Sec-WebSocket-Key: ' . base64_encode(random_bytes(16)) . "\r\nSec-WebSocket-Version: 13\r\n"
+        . (mt_rand(0, 1) ? "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n" : '') . "\r\n";
 }
 
 function ws_payload(): string
 {
     $frames = '';
     for ($i = mt_rand(1, 4); $i > 0; $i--) {
-        switch (mt_rand(0, 6)) {
+        switch (mt_rand(0, 7)) {
         case 0:
             $frames .= ws_frame(WEBSOCKET_OPCODE_TEXT, random_bytes(mt_rand(0, 300)));
             break;
@@ -467,11 +524,47 @@ function ws_payload(): string
         case 5:
             $frames .= ws_frame(WEBSOCKET_OPCODE_TEXT, 'unmasked', false);
             break;
+        case 6:
+            // permessage-deflate: valid, truncated or garbage deflate data with RSV1 set
+            $plain = str_repeat(random_bytes(mt_rand(1, 20)), mt_rand(1, 400));
+            $z = substr(gzdeflate($plain), 0, -1) . "\x00\x00\xff\xff";
+            $z = pick([$z, substr($z, 0, mt_rand(0, strlen($z))), random_bytes(mt_rand(0, 60))]);
+            $frames .= ws_frame(pick([WEBSOCKET_OPCODE_TEXT, WEBSOCKET_OPCODE_BINARY]), $z, true, mt_rand(0, 3) !== 0, true);
+            break;
         default:
             $frames .= mutate(ws_frame(WEBSOCKET_OPCODE_TEXT, random_bytes(mt_rand(0, 100))));
         }
     }
     return $frames;
+}
+
+function eof_payload(): string
+{
+    $out = '';
+    for ($i = mt_rand(1, 6); $i > 0; $i--) {
+        $out .= str_replace("\r\n", 'x', random_bytes(mt_rand(0, 400))) . pick(["\r\n", "\r", "\n", "\r\n\r\n", '']);
+    }
+    return $out;
+}
+
+function mqtt_payload(): string
+{
+    $out = '';
+    for ($i = mt_rand(1, 5); $i > 0; $i--) {
+        $body = random_bytes(mt_rand(0, 300));
+        $len = strlen($body);
+        $varlen = '';
+        do {
+            $d = $len % 128;
+            $len = intdiv($len, 128);
+            $varlen .= chr($len > 0 ? $d | 0x80 : $d);
+        } while ($len > 0);
+        if (mt_rand(0, 4) === 0) {
+            $varlen = str_repeat("\xff", mt_rand(1, 6)) . pick(["\x01", "\x7f", '']);
+        }
+        $out .= chr(mt_rand(0, 255)) . $varlen . $body;
+    }
+    return $out;
 }
 
 function tcp_payload(): string
@@ -629,7 +722,7 @@ function h2_payload(): string
 
 function one_client(int $http_port, int $tcp_port, array &$stat): void
 {
-    $kind = mt_rand(0, 5);
+    $kind = mt_rand(0, 7);
     if ($kind === 4) {
         if (defined('SWOOLE_SSL')) {
             ssl_client($http_port + 400, $stat);
@@ -637,7 +730,7 @@ function one_client(int $http_port, int $tcp_port, array &$stat): void
         return;
     }
     $sock = new Socket(AF_INET, SOCK_STREAM, 0);
-    if (!$sock->connect('127.0.0.1', $kind === 3 ? $tcp_port : $http_port, 1)) {
+    if (!$sock->connect('127.0.0.1', [3 => $tcp_port, 6 => $http_port + 600, 7 => $http_port + 1000][$kind] ?? $http_port, 1)) {
         $stat['connect_fail']++;
         return;
     }
@@ -659,6 +752,12 @@ function one_client(int $http_port, int $tcp_port, array &$stat): void
         break;
     case 5:
         $payload = h2_payload();
+        break;
+    case 6:
+        $payload = eof_payload();
+        break;
+    case 7:
+        $payload = mqtt_payload();
         break;
     default:
         $payload = tcp_payload();

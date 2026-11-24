@@ -32,6 +32,7 @@ BEGIN_EXTERN_C()
 extern const pdo_driver_t swoole_pdo_oci_driver;
 
 void swoole_oracle_set_blocking(bool blocking);
+sword swoole_oci_server_attach(OCIServer *srvhp, OCIError *errhp, const OraText *dblink, sb4 dblink_len, ub4 mode);
 sword swoole_oci_session_begin(OCISvcCtx *svchp, OCIError *errhp, OCISession *usrhp, ub4 credt, ub4 mode);
 sword swoole_oci_server_detach(OCIServer *srvhp, OCIError *errhp, ub4 mode);
 sword swoole_oci_stmt_prepare(
@@ -51,6 +52,7 @@ sword swoole_oci_trans_rollback(OCISvcCtx *svchp, OCIError *errhp, ub4 flags);
 sword swoole_oci_ping(OCISvcCtx *svchp, OCIError *errhp, ub4 mode);
 
 #ifdef SW_USE_ORACLE_HOOK
+#define OCIServerAttach swoole_oci_server_attach
 #define OCISessionBegin swoole_oci_session_begin
 #define OCIServerDetach swoole_oci_server_detach
 #define OCIStmtPrepare swoole_oci_stmt_prepare

@@ -855,7 +855,7 @@ php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
         exclusive = false;
     }
     if (exclusive && swoole_coroutine_is_in()) {
-        auto handle = swoole::curl::get_handle(ch->cp);
+        auto handle = swoole_curl_is_coroutine_handle(ch) ? swoole::curl::get_handle(ch->cp) : nullptr;
         if (required && !handle) {
             php_swoole_fatal_error(E_WARNING, "The given handle is not initialized in coroutine");
             return nullptr;

@@ -66,7 +66,7 @@ $server->on('open', function (Server $_server, Request $request) {
 //        if (!$ret)
 //        {
 //            var_dump($id);
-//            var_dump($_server->clearTimer($id));
+//            Swoole\Timer::clear($id);
 //        }
 //    });
 });

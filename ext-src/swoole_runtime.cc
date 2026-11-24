@@ -103,7 +103,7 @@ static int socket_flush(php_stream *stream);
 static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
-static bool socket_ssl_set_options(SocketImpl *sock, php_stream_context *context);
+static bool socket_ssl_set_options(SocketImpl *sock, php_stream_context *context, bool is_client);
 
 static php_stream *socket_create(const char *proto,
                                  size_t protolen,
@@ -727,12 +727,14 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
             if (sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
                 didwrite = 0;
             } else {
-                php_error_docref(nullptr,
-                                 E_NOTICE,
-                                 "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
-                                 (zend_long) count,
-                                 sock->errCode,
-                                 sock->errMsg);
+                if (!(stream->flags & PHP_STREAM_FLAG_SUPPRESS_ERRORS)) {
+                    php_error_docref(nullptr,
+                                     E_NOTICE,
+                                     "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
+                                     (zend_long) count,
+                                     sock->errCode,
+                                     sock->errMsg);
+                }
                 stream->eof = 1;
             }
         }
@@ -1150,13 +1152,67 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, SocketImpl *sslso
     return true;
 }
 
+static bool socket_ssl_fingerprint_cmp(X509 *cert, const char *method, const char *expected) {
+    const EVP_MD *md = EVP_get_digestbyname(method);
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int len = 0;
+    if (cert == nullptr || md == nullptr || !X509_digest(cert, md, digest, &len)) {
+        return false;
+    }
+    char hex[EVP_MAX_MD_SIZE * 2 + 1];
+    for (unsigned int i = 0; i < len; i++) {
+        snprintf(hex + i * 2, 3, "%02x", digest[i]);
+    }
+    return strcasecmp(expected, hex) == 0;
+}
+
+// Same forms as ext/openssl: a md5 or sha1 string, or [algo => fingerprint, ...]
+static bool socket_ssl_fingerprint_match(X509 *cert, zval *val) {
+    if (Z_TYPE_P(val) == IS_STRING) {
+        const char *method = Z_STRLEN_P(val) == 32 ? "md5" : (Z_STRLEN_P(val) == 40 ? "sha1" : nullptr);
+        return method && socket_ssl_fingerprint_cmp(cert, method, Z_STRVAL_P(val));
+    }
+    if (Z_TYPE_P(val) != IS_ARRAY || zend_hash_num_elements(Z_ARRVAL_P(val)) == 0) {
+        return false;
+    }
+    zend_string *key;
+    zval *current;
+    ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(val), key, current) {
+        if (key == nullptr || Z_TYPE_P(current) != IS_STRING ||
+            !socket_ssl_fingerprint_cmp(cert, ZSTR_VAL(key), Z_STRVAL_P(current))) {
+            return false;
+        }
+    }
+    ZEND_HASH_FOREACH_END();
+    return true;
+}
+
+static bool socket_ssl_check_fingerprint(SocketImpl *sock, php_stream_context *context) {
+    zval *val = context ? php_stream_context_get_option(context, "ssl", "peer_fingerprint") : nullptr;
+    if (val == nullptr) {
+        return true;
+    }
+    X509 *cert = sock->get_socket()->ssl_get_peer_certificate();
+    ON_SCOPE_EXIT {
+        if (cert) {
+            X509_free(cert);
+        }
+    };
+    if (!socket_ssl_fingerprint_match(cert, val)) {
+        php_error_docref(nullptr, E_WARNING, "peer_fingerprint match failure");
+        sock->set_err(SW_ERROR_SSL_VERIFY_FAILED);
+        return false;
+    }
+    return true;
+}
+
 static int socket_enable_crypto(php_stream *stream,
                                 SocketImpl *sock,
                                 php_stream_xport_crypto_param *cparam STREAMS_DC) {
     php_stream_context *context = PHP_STREAM_CONTEXT(stream);
     if (cparam->inputs.activate && !sock->ssl_is_available()) {
         sock->enable_ssl_encrypt();
-        if (!socket_ssl_set_options(sock, context)) {
+        if (!socket_ssl_set_options(sock, context, true)) {
             return -1;
         }
         if (!sock->ssl_handshake()) {
@@ -1164,6 +1220,11 @@ static int socket_enable_crypto(php_stream *stream,
         }
     } else if (!cparam->inputs.activate && sock->ssl_is_available() && sock->get_ssl()) {
         sock->ssl_close();
+        return -1;
+    }
+
+    // the handshake of a tls:// stream is already done by connect()
+    if (cparam->inputs.activate && sock->ssl_is_available() && !socket_ssl_check_fingerprint(sock, context)) {
         return -1;
     }
 
@@ -1401,41 +1462,69 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     return PHP_STREAM_OPTION_RETURN_OK;
 }
 
-static bool socket_ssl_set_options(SocketImpl *sock, php_stream_context *context) {
-    if (context && ZVAL_IS_ARRAY(&context->options)) {
-        zval *ztmp;
-
-        if (sock->ssl_is_enable() && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
-            ZVAL_IS_ARRAY(ztmp)) {
-            zval zalias;
-            array_init(&zalias);
-            zend_array *options = Z_ARRVAL_P(ztmp);
-
-            auto add_alias = [&zalias, options](const char *name, const char *alias) {
-                zval *ztmp;
-                if (php_swoole_array_get_value_ex(options, name, ztmp)) {
-                    zend::array_set(&zalias, alias, strlen(alias), ztmp);
-                }
-            };
-
-            add_alias("peer_name", "ssl_host_name");
-            add_alias("verify_peer", "ssl_verify_peer");
-            add_alias("allow_self_signed", "ssl_allow_self_signed");
-            add_alias("cafile", "ssl_cafile");
-            add_alias("capath", "ssl_capath");
-            add_alias("local_cert", "ssl_cert_file");
-            add_alias("local_pk", "ssl_key_file");
-            add_alias("passphrase", "ssl_passphrase");
-            add_alias("verify_depth", "ssl_verify_depth");
-            add_alias("disable_compression", "ssl_disable_compression");
-
-            bool ret = php_swoole_socket_set_ssl(sock, &zalias);
-            zval_dtor(&zalias);
-            return ret;
-        }
+static bool socket_ssl_set_options(SocketImpl *sock, php_stream_context *context, bool is_client) {
+    if (!sock->ssl_is_enable()) {
+        return true;
     }
 
-    return true;
+    zend_array *options = nullptr;
+    zval *ztmp;
+    if (context && ZVAL_IS_ARRAY(&context->options) &&
+        php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) && ZVAL_IS_ARRAY(ztmp)) {
+        options = Z_ARRVAL_P(ztmp);
+    }
+    if (options == nullptr && !is_client) {
+        return true;
+    }
+
+    zval zalias;
+    array_init(&zalias);
+    ON_SCOPE_EXIT {
+        zval_dtor(&zalias);
+    };
+
+    auto get_option = [options](const char *name) -> zval * {
+        zval *v;
+        return options && php_swoole_array_get_value_ex(options, name, v) ? v : nullptr;
+    };
+    auto add_alias = [&zalias, &get_option](const char *name, const char *alias) {
+        if (auto *v = get_option(name)) {
+            zend::array_set(&zalias, alias, strlen(alias), v);
+        }
+    };
+
+    add_alias("peer_name", "ssl_host_name");
+    add_alias("verify_peer", "ssl_verify_peer");
+    add_alias("allow_self_signed", "ssl_allow_self_signed");
+    add_alias("cafile", "ssl_cafile");
+    add_alias("capath", "ssl_capath");
+    add_alias("local_cert", "ssl_cert_file");
+    add_alias("local_pk", "ssl_key_file");
+    add_alias("passphrase", "ssl_passphrase");
+    add_alias("verify_depth", "ssl_verify_depth");
+    add_alias("disable_compression", "ssl_disable_compression");
+
+    if (is_client) {
+        // The same defaults as ext/openssl: the chain and the host name are verified unless the context says otherwise.
+        // The host is peer_name or else the host the stream connected to.
+        auto *vp = get_option("verify_peer");
+        auto *vpn = get_option("verify_peer_name");
+        add_assoc_bool_ex(&zalias, ZEND_STRL("ssl_verify_peer"), vp ? zend_is_true(vp) : true);
+        add_assoc_bool_ex(&zalias, ZEND_STRL("ssl_verify_host"), vpn ? zend_is_true(vpn) : true);
+
+        const char *ini_cafile = zend_ini_string_ex(ZEND_STRL("openssl.cafile"), 0, nullptr);
+        const char *ini_capath = zend_ini_string_ex(ZEND_STRL("openssl.capath"), 0, nullptr);
+        if (!get_option("cafile") && ini_cafile && *ini_cafile) {
+            add_assoc_string_ex(&zalias, ZEND_STRL("ssl_cafile"), ini_cafile);
+        }
+        if (!get_option("capath") && ini_capath && *ini_capath) {
+            add_assoc_string_ex(&zalias, ZEND_STRL("ssl_capath"), ini_capath);
+        }
+    } else if (auto *vpn = get_option("verify_peer_name")) {
+        add_assoc_bool_ex(&zalias, ZEND_STRL("ssl_verify_host"), zend_is_true(vpn));
+    }
+
+    return php_swoole_socket_set_ssl(sock, &zalias);
 }
 
 static php_stream *socket_create_original(const char *proto,
@@ -1538,7 +1627,7 @@ static php_stream *socket_create(const char *proto,
         return nullptr;
     }
 
-    if (!socket_ssl_set_options(sock, context)) {
+    if (!socket_ssl_set_options(sock, context, !(flags & STREAM_XPORT_SERVER))) {
         goto _failed;
     }
 

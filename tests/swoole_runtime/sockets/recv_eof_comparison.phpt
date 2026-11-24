@@ -23,12 +23,21 @@ run_socket_hook_comparison(function ($writer, $reader) {
         $flagsList[] = MSG_DONTWAIT;
         $flagsList[] = MSG_PEEK | MSG_DONTWAIT;
     }
-    foreach ($flagsList as $flags) {
-        $buffer = 'sentinel';
-        $alias = &$buffer;
-        if (socket_recv($reader, $buffer, 16, $flags) !== 0 || $buffer !== null || $alias !== null) {
-            throw new RuntimeException('EOF did not return zero and clear the output to null');
+    // The PHP sockets hook warns about its MSG_DONTWAIT timeout emulation; EOF still has native semantics.
+    set_error_handler(static function (int $severity, string $message): bool {
+        return $severity === E_USER_WARNING
+            && str_contains($message, 'Swoole sockets hook differs from the sockets extension: MSG_DONTWAIT');
+    });
+    try {
+        foreach ($flagsList as $flags) {
+            $buffer = 'sentinel';
+            $alias = &$buffer;
+            if (socket_recv($reader, $buffer, 16, $flags) !== 0 || $buffer !== null || $alias !== null) {
+                throw new RuntimeException('EOF did not return zero and clear the output to null');
+            }
         }
+    } finally {
+        restore_error_handler();
     }
 });
 echo "DONE\n";

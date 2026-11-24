@@ -28,6 +28,16 @@ void swoole_oracle_set_blocking(bool blocking) {
     swoole_oracle_blocking = blocking;
 }
 
+sword swoole_oci_server_attach(OCIServer *srvhp, OCIError *errhp, const OraText *dblink, sb4 dblink_len, ub4 mode) {
+    swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_server_attach");
+    // Keep a failed async dispatch from being reported as OCI_SUCCESS.
+    sword result = OCI_ERROR;
+    php_swoole_async(swoole_oracle_blocking,
+                     [&]() { result = OCIServerAttach(srvhp, errhp, dblink, dblink_len, mode); });
+
+    return result;
+}
+
 sword swoole_oci_session_begin(OCISvcCtx *svchp, OCIError *errhp, OCISession *usrhp, ub4 credt, ub4 mode) {
     swoole_trace_log(SW_TRACE_CO_ORACLE, "oci_session_begin");
     sword result = 0;

@@ -1109,6 +1109,7 @@ class Server {
     enum CloseCallbackFlag {
         CLOSE_CALLBACK_WEBSOCKET = 1u << 0,
         CLOSE_CALLBACK_HTTP2 = 1u << 1,
+        CLOSE_CALLBACK_ACTIVELY = 1u << 2,
     };
 
     /**
@@ -1182,6 +1183,10 @@ class Server {
      * discard the timeout request
      */
     bool discard_timeout_request = false;
+    /**
+     * Cancel the HTTP/2 request coroutine when the peer resets its stream.
+     */
+    bool http2_cancel_on_stream_reset = false;
     /**
      * parse cookie header
      */
@@ -2025,8 +2030,13 @@ class Server {
         return nullptr;
     }
 
+    /**
+     * The fd slot may already belong to a newer connection, so the session id must match.
+     * Unlike get_connection_verify(), a connection that is closing but not yet cleaned is still returned.
+     */
     Connection *get_connection_by_session_id(SessionId session_id) const {
-        return get_connection(get_connection_fd(session_id));
+        Connection *conn = get_connection(get_connection_fd(session_id));
+        return sw_likely(conn->session_id == session_id) ? conn : nullptr;
     }
 
     Session *get_session(SessionId session_id) const {
@@ -2069,7 +2079,8 @@ class Server {
     static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
     static void discard_sendfile(DataHead *info, const char *data);
 
-    int send_to_connection(SendData *) const;
+    // Optional opened file is local to the owning reactor, never serialized through IPC.
+    int send_to_connection(SendData *, const std::shared_ptr<File> *file = nullptr) const;
     int request_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason, bool reset = false) const;
     int request_force_close(Reactor *reactor, Connection *conn, ConnectionCloseReason reason) const;
     bool finish_close(SessionId session_id, int flags) const;

@@ -21,6 +21,7 @@ $pm->parentFunc = function () use ($pm) {
         $cli->close();
     });
     Swoole\Event::wait();
+    $pm->wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
@@ -40,8 +41,9 @@ $pm->childFunc = function () use ($pm) {
         $frame->data = str_replace('server', 'client', $frame->data);
         $ws->push($frame->fd, "server-reply: {$frame->data}");
     });
-    $ws->on('close', function (Swoole\WebSocket\Server  $ws, int $fd) {
+    $ws->on('close', function (Swoole\WebSocket\Server  $ws, int $fd) use ($pm) {
         echo "client-{$fd} is closed\n";
+        $pm->wakeup();
     });
     $ws->start();
 };

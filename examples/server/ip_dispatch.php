@@ -10,7 +10,7 @@ $serv->set(array(
 		'dispatch_mode' => 4,   //ip dispatch
 		//'max_request' => 1000,
 		//'daemonize' => true,
-		//'log_file' => '/tmp/swoole.log'
+		//'log_file' => sys_get_temp_dir() . '/swoole_example.log'
 ));
 
 $serv->on('workerStart', function($serv, $worker_id) {

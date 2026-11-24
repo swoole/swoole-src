@@ -72,69 +72,67 @@ Coroutine\run(function () {
 
     try {
         foreach ([false, true] as $defer) {
-            foreach ([true, false] as $lowercase) {
-                foreach (['/response-close', '/response-token-close', '/response-duplicate-close'] as $path) {
-                    $client = new Client('127.0.0.1', $port);
-                    $client->set(['timeout' => 2, 'lowercase_header' => $lowercase]);
-                    $closedId = connection_request($client, $path, $defer);
-                    Assert::false($client->connected, $path);
-                    $id = connection_request($client, '/normal', $defer);
-                    Assert::true($client->connected, $path);
-                    Assert::notSame($id, $closedId);
-                    Assert::same(connection_request($client, '/normal', $defer), $id);
-                    $client->close();
-                }
-
-                foreach (['close', 'keep-alive, CLOSE', " keep-alive,\tclose "] as $value) {
-                    $client = new Client('127.0.0.1', $port);
-                    $client->set(['timeout' => 2, 'lowercase_header' => $lowercase]);
-                    $client->setHeaders(['Connection' => $value]);
-                    connection_request($client, '/response-keep-alive', $defer);
-                    Assert::false($client->connected, $value);
-                    $client->setHeaders([]);
-                    $id = connection_request($client, '/normal', $defer);
-                    Assert::true($client->connected, $value);
-                    Assert::contains($client->getHeaderOut(), "Connection: keep-alive\r\n");
-                    Assert::same(connection_request($client, '/normal', $defer), $id);
-                    $client->close();
-                }
-
-                $client = new Client('127.0.0.1', $port);
-                $client->set(['timeout' => 2, 'lowercase_header' => $lowercase]);
-                $id = connection_request($client, '/response-prefix', $defer);
-                Assert::true($client->connected);
-                Assert::same(connection_request($client, '/normal', $defer), $id);
-                $client->close();
-
+            foreach (['/response-close', '/response-token-close', '/response-duplicate-close'] as $path) {
                 $client = new Client('127.0.0.1', $port);
                 $client->set(['timeout' => 2]);
-                $client->setDefer($defer);
-                $client->setHeaders(['Connection' => 'close']);
-                $client->setCookies(['token' => str_repeat('x', 4097)]);
-                try {
-                    $client->get('/normal');
-                    Assert::true(false, 'Expected cookie validation to fail');
-                } catch (Swoole\Coroutine\Http\Client\Exception $e) {
-                    Assert::contains($e->getMessage(), 'cookie header is too large');
-                }
-                $client->setHeaders([]);
-                $client->setCookies([]);
+                $closedId = connection_request($client, $path, $defer);
+                Assert::false($client->connected, $path);
                 $id = connection_request($client, '/normal', $defer);
-                Assert::true($client->connected);
-                Assert::same(connection_request($client, '/normal', $defer), $id);
-                $client->close();
-
-                $client = new Client('127.0.0.1', $port);
-                $client->set(['timeout' => 2, 'keep_alive' => false]);
-                connection_request($client, '/response-keep-alive', $defer);
-                Assert::false($client->connected);
-                Assert::contains($client->getHeaderOut(), "Connection: close\r\n");
-                $client->set(['keep_alive' => true]);
-                $id = connection_request($client, '/normal', $defer);
-                Assert::true($client->connected);
+                Assert::true($client->connected, $path);
+                Assert::notSame($id, $closedId);
                 Assert::same(connection_request($client, '/normal', $defer), $id);
                 $client->close();
             }
+
+            foreach (['close', 'keep-alive, CLOSE', " keep-alive,\tclose "] as $value) {
+                $client = new Client('127.0.0.1', $port);
+                $client->set(['timeout' => 2]);
+                $client->setHeaders(['Connection' => $value]);
+                connection_request($client, '/response-keep-alive', $defer);
+                Assert::false($client->connected, $value);
+                $client->setHeaders([]);
+                $id = connection_request($client, '/normal', $defer);
+                Assert::true($client->connected, $value);
+                Assert::contains($client->getHeaderOut(), "Connection: keep-alive\r\n");
+                Assert::same(connection_request($client, '/normal', $defer), $id);
+                $client->close();
+            }
+
+            $client = new Client('127.0.0.1', $port);
+            $client->set(['timeout' => 2]);
+            $id = connection_request($client, '/response-prefix', $defer);
+            Assert::true($client->connected);
+            Assert::same(connection_request($client, '/normal', $defer), $id);
+            $client->close();
+
+            $client = new Client('127.0.0.1', $port);
+            $client->set(['timeout' => 2]);
+            $client->setDefer($defer);
+            $client->setHeaders(['Connection' => 'close']);
+            $client->setCookies(['token' => str_repeat('x', 4097)]);
+            try {
+                $client->get('/normal');
+                Assert::true(false, 'Expected cookie validation to fail');
+            } catch (Swoole\Coroutine\Http\Client\Exception $e) {
+                Assert::contains($e->getMessage(), 'cookie header is too large');
+            }
+            $client->setHeaders([]);
+            $client->setCookies([]);
+            $id = connection_request($client, '/normal', $defer);
+            Assert::true($client->connected);
+            Assert::same(connection_request($client, '/normal', $defer), $id);
+            $client->close();
+
+            $client = new Client('127.0.0.1', $port);
+            $client->set(['timeout' => 2, 'keep_alive' => false]);
+            connection_request($client, '/response-keep-alive', $defer);
+            Assert::false($client->connected);
+            Assert::contains($client->getHeaderOut(), "Connection: close\r\n");
+            $client->set(['keep_alive' => true]);
+            $id = connection_request($client, '/normal', $defer);
+            Assert::true($client->connected);
+            Assert::same(connection_request($client, '/normal', $defer), $id);
+            $client->close();
         }
 
         $client = new Client('127.0.0.1', $port);

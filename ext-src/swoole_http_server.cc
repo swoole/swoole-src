@@ -41,8 +41,13 @@ zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
 static SW_THREAD_LOCAL std::queue<HttpContext *> queued_http_contexts;
-static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> server_ips;
-static SW_THREAD_LOCAL std::unordered_map<SessionId, zend::Variable> client_ips;
+
+struct SessionAddresses {
+    zend::Variable server;
+    zend::Variable client;
+};
+
+static SW_THREAD_LOCAL std::unordered_map<SessionId, SessionAddresses> session_addresses;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
 static bool http_context_sendfile(HttpContext *ctx, zend_string *file, off_t offset, size_t length, bool &delete_file);
@@ -59,7 +64,9 @@ static void http_server_process_request(const Server *serv, zend::Callable *cb, 
     zval args[2];
     args[0] = ctx->request.zobject;
     args[1] = ctx->response.zobject;
-    if (UNEXPECTED(!zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine()))) {
+    const bool success = ctx->http2 ? swoole_http2_server_call_request(ctx, cb, args)
+                                    : zend::function::call(cb, 2, args, nullptr, serv->is_enable_coroutine());
+    if (UNEXPECTED(!success)) {
         php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
@@ -85,7 +92,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return php_swoole_server_onReceive(serv, req);
     }
     // websocket client
-    if (conn->is_websocket_status_at_least(WebSocket::STATUS_HANDSHAKE)) {
+    if (conn->is_websocket_active()) {
         return swoole_websocket_onMessage(serv, req);
     }
 
@@ -175,8 +182,7 @@ _dtor_and_return:
 }
 
 void php_swoole_http_server_cleanup_connection(SessionId session_id) {
-    server_ips.erase(session_id);
-    client_ips.erase(session_id);
+    session_addresses.erase(session_id);
 }
 
 void php_swoole_http_server_onClose(Server *serv, DataHead *info) {
@@ -207,8 +213,7 @@ void php_swoole_http_server_rshutdown() {
 
     // A fatal bailout can leave HTTP/2 sessions here; free them before Zend tears down the allocator nghttp2 uses.
     swoole_http2_server_release_sessions();
-    server_ips.clear();
-    client_ips.clear();
+    session_addresses.clear();
     while (!queued_http_contexts.empty()) {
         HttpContext *ctx = queued_http_contexts.front();
         queued_http_contexts.pop();
@@ -400,8 +405,10 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
         while (!queued_http_contexts.empty()) {
             HttpContext *_ctx = queued_http_contexts.front();
             queued_http_contexts.pop();
-            _ctx->send(_ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
-            _ctx->close(_ctx);
+            if (!_ctx->http2 || !_ctx->end_) {
+                _ctx->send(_ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+                _ctx->close(_ctx);
+            }
             http_context_discard(_ctx);
         }
         return;
@@ -432,32 +439,23 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
 }
 
 /**
- * When calculating the server-side IP and client-side IP, since these two calculations
- * share the same memory block, they cannot be performed simultaneously; otherwise,
- * both results would be identical. Therefore, it is necessary to first calculate the client-side IP,
- * write it to the cache, and then proceed to calculate the server-side IP.
+ * The client-side and server-side addresses are resolved through the same memory block, so each result
+ * has to be copied into the cache before the other one is resolved, or both entries would be identical.
  */
-static void http_server_session_track_ip(swoole::Server *server,
-                                         HashTable *ht,
-                                         swoole::Connection *conn,
-                                         swoole::SessionId session_id,
-                                         zend_string *known_string,
-                                         std::unordered_map<swoole::SessionId, zend::Variable> &ips) {
-    auto iter = ips.find(session_id);
-    if (iter == ips.end()) {
-        const char *address = nullptr;
-        if (known_string == SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR)) {
-            address = server->get_local_addr(conn);
-        } else {
-            address = conn->info.get_addr();
-        }
-
-        auto rs = ips.emplace(session_id, address);
-        iter = rs.first;
+static void http_server_session_track_ip(Server *server, HashTable *ht, Connection *conn, SessionId session_id) {
+    auto iter = session_addresses.find(session_id);
+    if (iter == session_addresses.end()) {
+        zend::Variable client_addr(conn->info.get_addr());
+        zend::Variable server_addr(server->get_local_addr(conn));
+        SessionAddresses entry{std::move(server_addr), std::move(client_addr)};
+        iter = session_addresses.emplace(session_id, std::move(entry)).first;
     }
 
-    iter->second.add_ref();
-    http_server_add_server_array(ht, known_string, iter->second.ptr());
+    SessionAddresses &addrs = iter->second;
+    addrs.server.add_ref();
+    addrs.client.add_ref();
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), addrs.server.ptr());
+    http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), addrs.client.ptr());
 }
 
 /**
@@ -479,10 +477,7 @@ void swoole_http_server_populate_ip_and_port(
         http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), SW_ZSTR_KNOWN(key));
     } else {
         if (keepalive && swoole_http_server_can_cache_session_addr(server)) {
-            http_server_session_track_ip(
-                server, ht, conn, session_id, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), server_ips);
-            http_server_session_track_ip(
-                server, ht, conn, session_id, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), client_ips);
+            http_server_session_track_ip(server, ht, conn, session_id);
         } else {
             http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_SERVER_ADDR), server->get_local_addr(conn));
             http_server_add_server_array(ht, SW_ZSTR_KNOWN(SW_ZEND_STR_REMOTE_ADDR), server->get_remote_addr(conn));

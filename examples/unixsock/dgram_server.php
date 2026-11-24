@@ -4,7 +4,7 @@ $serv->set(array(
     //'tcp_defer_accept' => 5,
     'worker_num' => 1,
     //'daemonize' => true,
-    //'log_file' => '/tmp/swoole.log'
+    //'log_file' => sys_get_temp_dir() . '/swoole_example.log'
 ));
 //$serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
 //    echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";

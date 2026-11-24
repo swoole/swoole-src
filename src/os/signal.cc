@@ -211,13 +211,18 @@ void swoole_signal_dispatch() {
     if (!SwooleG.signal_dispatch) {
         return;
     }
+    // Clear the flags before the callbacks, so a signal caught while one runs stays pending.
+    SwooleG.signal_dispatch = false;
     SW_LOOP_N(SW_SIGNO_MAX) {
         if (triggered_signals[i]) {
-            swoole_signal_callback(i);
             triggered_signals[i] = false;
+            swoole_signal_callback(i);
         }
     }
-    SwooleG.signal_dispatch = false;
+    if (SwooleG.signal_dispatch && sw_reactor()) {
+        // Keeps the reactor alive for another dispatch pass.
+        sw_reactor()->defer([](void *) {}, nullptr);
+    }
 }
 
 void swoole_signal_callback(int signo) {

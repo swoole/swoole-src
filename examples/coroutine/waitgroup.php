@@ -1,39 +1,19 @@
 <?php
-class WaitGroup {
-    private $count = 0;
-    private $chan;
+// WaitGroup blocks until every task has called done().
+// Run: php examples/coroutine/waitgroup.php
+use Swoole\Coroutine\WaitGroup;
+use function Swoole\Coroutine\run;
 
-    function __construct() {
-        $this->chan = new chan;
-    }
-
-    function add() {
-        $this->count++;
-    }
-
-    function done() {
-        $this->chan->push(true);
-    }
-
-    function wait() {
-        while ($this->count--) {
-            $this->chan->pop();
-        }
-    }
-}
-
-go(function () {
-    $wg = new WaitGroup;
-
-    for($i=0;$i<10;$i++) {
+run(function () {
+    $wg = new WaitGroup();
+    for ($i = 1; $i <= 3; $i++) {
         $wg->add();
-        go(function() use ($wg, $i) {
-            co::sleep(.3);
-            echo "hello $i\n";
+        Swoole\Coroutine::create(function () use ($wg, $i) {
+            Swoole\Coroutine\System::sleep(0.05);
+            echo "task $i done" . PHP_EOL;
             $wg->done();
         });
     }
-
     $wg->wait();
-    echo "all done\n";
+    echo 'all tasks finished' . PHP_EOL;
 });

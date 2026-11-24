@@ -80,18 +80,24 @@ jobs:
 
       - name: Build Swoole
         run: |
+          jobs=$(sysctl -n hw.logicalcpu)
+          echo "SWOOLE_TEST_JOBS=$jobs" >> "$GITHUB_ENV"
+          export CMAKE_BUILD_PARALLEL_LEVEL=$jobs PHP_COMPILER_JOBS=$jobs CARGO_BUILD_JOBS=$jobs
+          export MAKEFLAGS=-j$jobs MFLAGS=-j$jobs
           phpize
           export PCRE2_INCLUDE_DIR="/opt/homebrew/opt/pcre2/include"
           export CPPFLAGS="${CPPFLAGS} -I${PCRE2_INCLUDE_DIR}"
           export CFLAGS="${CFLAGS} -I${PCRE2_INCLUDE_DIR}"
           ./configure CPPFLAGS="${CPPFLAGS}" --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares --enable-zstd
-          make -j$(sysctl -n hw.ncpu)
-          sudo make install
+          make -j"$jobs"
+          sudo make -j"$jobs" install
           php --ri swoole
           uname -a
 
       - name: Run unit tests
         run: |
+          export CMAKE_BUILD_PARALLEL_LEVEL=1 PHP_COMPILER_JOBS=1 CARGO_BUILD_JOBS=1
+          export MAKEFLAGS=-j1 MFLAGS=-j1
           export SWOOLE_CI_TYPE=NORMAL
           export SWOOLE_BRANCH=${GITHUB_REF##*/}
           export SWOOLE_BUILD_DIR=$(realpath .)

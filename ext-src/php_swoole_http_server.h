@@ -38,6 +38,7 @@ bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
 int swoole_http2_server_parse(const std::shared_ptr<swoole::http2::Session> &client, const char *buf);
 int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);
+bool swoole_http2_server_call_request(swoole::http::Context *ctx, zend::Callable *cb, zval *args);
 
 std::shared_ptr<swoole::http2::Session> swoole_http2_server_session_new(swoole::SessionId fd);
 void swoole_http2_server_session_free(swoole::SessionId fd);
@@ -46,6 +47,10 @@ void swoole_http2_server_release_sessions();
 bool swoole_http2_server_end(swoole::http::Context *ctx, zend_string *sdata);
 bool swoole_http2_server_write(swoole::http::Context *ctx, zend_string *sdata);
 bool swoole_http2_server_send_file(swoole::http::Context *ctx, zend_string *file, off_t offset, size_t length);
+bool swoole_http2_server_coro_send(swoole::http::Context *ctx, const char *data, size_t length);
+// Sends the frames the coroutine server's receive loop queued while nothing owned the connection's writes
+void swoole_http2_server_coro_write_queued(SocketImpl *socket);
+void swoole_http2_server_send_static_file(swoole::http::Context *ctx);
 bool swoole_http2_server_ping(swoole::http::Context *ctx);
 bool swoole_http2_server_goaway(swoole::http::Context *ctx, zend_long error_code, zend_string *sdata);
 

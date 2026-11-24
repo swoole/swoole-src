@@ -64,7 +64,7 @@ foreach ([SWOOLE_BASE, SWOOLE_PROCESS] as $mode) {
     $pm->childFunc = function () use ($pm, $mode, $delete_path, $submitted) {
         $http = new Server('127.0.0.1', $pm->getFreePort(), $mode);
         $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
-        $http->on('workerStart', function () use ($pm) {
+        $http->on($mode === SWOOLE_PROCESS ? 'Start' : 'WorkerStart', function () use ($pm) {
             $pm->wakeup();
         });
         $http->on('request', function (Request $request, Response $response) use ($delete_path, $submitted) {

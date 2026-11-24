@@ -44,6 +44,16 @@ $healthy = <<<'PHPT'
     --EXPECT--
     OK
     PHPT;
+$buffered = <<<'PHPT'
+    --TEST--
+    runner buffered output
+    --FILE--
+    <?php echo "BEGIN\n", str_repeat('y', 4 * 1024 * 1024), "\nEND\n"; ?>
+    --EXPECTF--
+    BEGIN
+    %a
+    END
+    PHPT;
 $timeout = <<<'PHPT'
     --TEST--
     runner timeout
@@ -56,6 +66,7 @@ $timeout = <<<'PHPT'
 try {
     file_put_contents($directory . '/flood.phpt', sprintf($flood, var_export($pidFile, true)));
     file_put_contents($directory . '/healthy.phpt', $healthy);
+    file_put_contents($directory . '/buffered.phpt', $buffered);
     file_put_contents($directory . '/timeout.phpt', $timeout);
     // Workers load this smaller php.ini but must keep the runner's 128M runtime memory limit.
     $iniFile = $directory . '/php.ini';
@@ -65,15 +76,18 @@ try {
         . escapeshellarg(TESTS_ROOT_PATH . '/run-tests')
         . ' -n';
     $command = $runner . ' -j2 --set-timeout 5 ' . escapeshellarg($directory . '/flood.phpt')
-        . ' ' . escapeshellarg($directory . '/healthy.phpt') . ' 2>&1';
+        . ' ' . escapeshellarg($directory . '/healthy.phpt')
+        . ' ' . escapeshellarg($directory . '/buffered.phpt') . ' 2>&1';
     exec($command, $lines, $exitCode);
     $output = preg_replace('/\x1b\[[0-9;]*m/', '', implode("\n", $lines));
 
     Assert::notSame($exitCode, 0);
-    Assert::contains($output, 'ERROR: process output exceeded the maximum size', $output);
+    // Console diffs are truncated; inspect the complete result artifact for the termination reason.
+    Assert::contains(file_get_contents($directory . '/flood.out'), 'ERROR: process output exceeded the maximum size', $output);
     // The broad EXPECTF must not turn a terminated test into a pass.
     Assert::contains($output, '[FAIL] runner output limit');
     Assert::contains($output, '[PASS] runner healthy test');
+    Assert::contains($output, '[PASS] runner buffered output');
     Assert::contains($output, 'FAILED TEST SUMMARY');
     Assert::notContains($output, 'died unexpectedly');
     Assert::false(posix_kill((int) file_get_contents($pidFile), 0));
@@ -84,13 +98,13 @@ try {
     exec($runner . ' --show-out --set-timeout 5 ' . escapeshellarg($directory . '/exited.phpt') . ' 2>&1', $exitedLines, $exitCode);
     $output = preg_replace('/\x1b\[[0-9;]*m/', '', implode("\n", $exitedLines));
     Assert::notSame($exitCode, 0);
-    Assert::contains($output, 'ERROR: process output exceeded the maximum size', $output);
+    Assert::contains(file_get_contents($directory . '/exited.out'), 'ERROR: process output exceeded the maximum size', $output);
     Assert::contains($output, '[FAIL] runner output limit');
 
     exec($runner . ' --show-out --set-timeout 1 ' . escapeshellarg($directory . '/timeout.phpt') . ' 2>&1', $timeoutLines, $exitCode);
     $output = preg_replace('/\x1b\[[0-9;]*m/', '', implode("\n", $timeoutLines));
     Assert::notSame($exitCode, 0);
-    Assert::contains($output, 'ERROR: process timed out after 1 seconds');
+    Assert::contains(file_get_contents($directory . '/timeout.out'), 'ERROR: process timed out after 1 seconds', $output);
     Assert::contains($output, '[FAIL] runner timeout');
 } finally {
     foreach (glob($directory . '/*') as $file) {

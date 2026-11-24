@@ -313,6 +313,10 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return false;
     }
+    if (sw_unlikely(offset < 0)) {
+        set_err(EINVAL);
+        return false;
+    }
 
     File file(filename, O_RDONLY);
     if (!file.ready()) {
@@ -320,16 +324,17 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
         return false;
     }
 
+    FileStatus file_stat;
+    if (!file.stat(&file_stat)) {
+        set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
+        return false;
+    }
+    if (sw_unlikely(offset >= file_stat.st_size)) {
+        set_err(EINVAL);
+        return false;
+    }
     if (length == 0) {
-        FileStatus file_stat;
-        if (!file.stat(&file_stat)) {
-            set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
-            return false;
-        }
-        length = file_stat.st_size;
-    } else {
-        // total length of the file
-        length = offset + length;
+        length = static_cast<size_t>(file_stat.st_size - offset);
     }
 
     ssize_t retval;
@@ -342,7 +347,8 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
     }
     write_co = nullptr;
 
-    return retval == (ssize_t) length;
+    check_return_value(retval);
+    return retval >= 0 && static_cast<size_t>(retval) == length;
 }
 
 ssize_t UringSocket::readv(network::IOVector *io_vector) {
@@ -372,18 +378,20 @@ ssize_t UringSocket::writev(network::IOVector *io_vector) {
         return -1;
     }
 
+    set_err(0);
     write_co = Coroutine::get_current_safe();
     do {
         if (is_ssl()) {
+            // ssl_writev() advances the iterator and preserves errors after a partial write.
             retval = ssl_writev(io_vector);
         } else {
             retval = uring_writev(io_vector->get_iterator(), io_vector->get_remain_count());
+            io_vector->update_iterator(retval);
+            check_return_value(retval);
         }
-        io_vector->update_iterator(retval);
     } while (retval < 0 && errno == EINTR);
     write_co = nullptr;
 
-    check_return_value(retval);
     return retval;
 }
 
@@ -413,14 +421,20 @@ ssize_t UringSocket::writev_all(network::IOVector *io_vector) {
             break;
         }
         total_bytes += retval;
+        if (errCode != 0) {
+            break;
+        }
     } while (retval > 0 && io_vector->get_remain_count() > 0);
 
-    check_return_value(retval);
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
 
 bool UringSocket::ssl_bio_write() {
-    auto buf = get_write_buffer();
+    if (BIO_ctrl_pending(wbio) == 0) {
+        return true;
+    }
+    // The SSL caller can still reference the protocol's plaintext write buffer.
+    String ciphertext(SW_BUFFER_SIZE_BIG);
 
     while (true) {
         size_t pending = BIO_ctrl_pending(wbio);
@@ -428,7 +442,7 @@ bool UringSocket::ssl_bio_write() {
             break;
         }
 
-        int nread = BIO_read(wbio, buf->str, buf->size);
+        int nread = BIO_read(wbio, ciphertext.str, ciphertext.size);
         if (nread <= 0) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -436,7 +450,7 @@ bool UringSocket::ssl_bio_write() {
 
         ssize_t written = 0;
         while (written < nread) {
-            ssize_t n = uring_send(buf->str + written, nread - written);
+            ssize_t n = uring_send(ciphertext.str + written, nread - written);
             if (n > 0) {
                 written += n;
             } else if (n == 0) {
@@ -456,10 +470,15 @@ bool UringSocket::ssl_bio_write() {
 }
 
 bool UringSocket::ssl_bio_read() {
-    auto buf = get_read_buffer();
-    ssize_t rv = uring_recv(buf->str, buf->size);
+    // Keep TLS records separate from the partial plaintext packet in the read buffer.
+    String ciphertext(SW_BUFFER_SIZE_BIG);
+    ssize_t rv;
+    do {
+        rv = uring_recv(ciphertext.str, ciphertext.size);
+    } while (rv < 0 && errno == EINTR);
+
     if (rv > 0) {
-        int written = BIO_write(rbio, buf->str, rv);
+        int written = BIO_write(rbio, ciphertext.str, static_cast<int>(rv));
         if (written != rv) {
             set_err(SW_ERROR_SSL_BAD_PROTOCOL);
             return false;
@@ -469,9 +488,6 @@ bool UringSocket::ssl_bio_read() {
         set_err(SW_ERROR_SSL_RESET);
         return false;
     } else {
-        if (errno == EINTR) {
-            return ssl_bio_read();
-        }
         set_err(errno);
         return false;
     }
@@ -528,7 +544,7 @@ bool UringSocket::ssl_bio_perform(int rc, const char *fn) {
         }
         return false;
     }
-    _error:
+_error:
     check_return_value(-1);
     return false;
 }
@@ -602,6 +618,7 @@ ssize_t UringSocket::ssl_writev(network::IOVector *io_vector) {
 
     do {
         retval = ssl_send(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
+        check_return_value(retval);
         total_bytes += retval > 0 ? retval : 0;
         io_vector->update_iterator(retval);
     } while (retval > 0 && io_vector->get_remain_count() > 0);

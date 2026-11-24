@@ -70,8 +70,8 @@ Swoole\Coroutine\run(function () {
     $client->close();
     $peer->close();
 
-    // The padding still counts against the flow-control windows: 49162 bytes of a 65535-byte window crosses the
-    // client's quarter-window threshold, but the 48384 body bytes alone don't
+    // Padding counts against the flow-control windows: two 16384-byte payloads cross the client's half-window
+    // threshold and replenish 32768 bytes, while their 32256 body bytes alone would not trigger an update.
     [$client, $peer] = http2_connect();
     $padded          = "\xff" . str_repeat('a', 16128) . str_repeat("\0", 255);
     http2_send(
@@ -95,7 +95,7 @@ Swoole\Coroutine\run(function () {
             $increments[unpack('N', substr($received, $offset + 5, 4))[1]] = unpack('N', substr($received, $offset + 9, 4))[1];
         }
     }
-    Assert::same($increments, [0 => 49162, 1 => 49162]);
+    Assert::same($increments, [0 => 32768, 1 => 32768]);
 
     foreach ([
         // Padding at least as long as the payload

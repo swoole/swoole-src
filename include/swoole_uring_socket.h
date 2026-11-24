@@ -46,6 +46,14 @@ class UringSocket : public Socket {
         return !!socket->ssl;
     }
 
+    void check_return_value(ssize_t retval) {
+        if (retval >= 0) {
+            set_err(0);
+        } else if (errno == ECANCELED || errno == ETIMEDOUT || errCode == 0) {
+            set_err(errno);
+        }
+    }
+
   public:
     UringSocket(SocketType sock_type) : Socket(sock_type) {}
     UringSocket(int domain, int type, int protocol) : Socket(domain, type, protocol) {}

@@ -26,7 +26,8 @@ $server->set([
     'init_arguments' => function () {
         global $ready;
         $ready = new Thread\Queue();
-        return [$ready];
+        $userWorkerStarted = new Thread\Atomic(0);
+        return [$ready, $userWorkerStarted];
     },
 ]);
 $server->on('WorkerStart', function (Swoole\Server $server) {
@@ -56,7 +57,11 @@ $server->on('Shutdown', function () {
     echo "shutdown\n";
 });
 $server->addProcess(new Swoole\Process(function () use ($server, $port) {
-    [$ready] = Thread::getArguments();
+    [$ready, $userWorkerStarted] = Thread::getArguments();
+    // The manager may restart this user worker before it handles the shutdown command.
+    if (!$userWorkerStarted->cmpset(0, 1)) {
+        return;
+    }
     Assert::true($ready->pop(-1));
     $client = new Swoole\Client(SWOOLE_SOCK_TCP);
     Assert::true($client->connect('127.0.0.1', $port, 5));

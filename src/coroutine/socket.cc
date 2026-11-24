@@ -37,10 +37,10 @@ void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
     socket->set_err(ETIMEDOUT);
     if (sw_likely(tnode == socket->read_timer)) {
         socket->read_timer = nullptr;
-        socket->read_co->resume();
+        socket->read_co->resume_on_timeout();
     } else if (tnode == socket->write_timer) {
         socket->write_timer = nullptr;
-        socket->write_co->resume();
+        socket->write_co->resume_on_timeout();
     } else {
         abort();
     }
@@ -940,6 +940,30 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
+    if (socket->ssl) {
+        if (io_vector->length() == 0) {
+            return 0;
+        }
+        // TLS writes can switch between read and write readiness. Retry in the coroutine so
+        // wait_event() can select the direction again, rather than returning a stale barrier result.
+        TimeoutController timeout(this, socket->write_timeout, SW_TIMEOUT_WRITE);
+        ssize_t retval = 0;
+        size_t total_bytes = 0;
+        while (io_vector->get_remain_count() > 0) {
+            if (timeout.has_timedout(SW_TIMEOUT_WRITE)) {
+                break;
+            }
+            retval = writev(io_vector);
+            if (retval <= 0) {
+                if (errCode == 0) {
+                    set_err(ECONNRESET);
+                }
+                break;
+            }
+            total_bytes += retval;
+        }
+        return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
+    }
     ssize_t total_bytes = 0;
     TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
 
@@ -952,6 +976,9 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     }
 
     if (retval == 0) {
+        if (io_vector->length() > 0) {
+            set_err(ECONNRESET);
+        }
         return retval;
     }
 
@@ -981,6 +1008,9 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     }
     send_barrier = nullptr;
 
+    if (io_vector->get_remain_count() > 0 && errCode == 0) {
+        set_err(ECONNRESET);
+    }
     return total_bytes;
 }
 
@@ -1024,6 +1054,11 @@ ssize_t Socket::send_all(const void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
+    if (socket->ssl && _n > 0) {
+        iovec iov{const_cast<void *>(_buf), _n};
+        network::IOVector data(&iov, 1);
+        return writev_all(&data);
+    }
     ssize_t retval = 0;
     size_t total_bytes = 0;
     TimerController timer(&write_timer, socket->write_timeout, this, timer_callback);
@@ -1031,6 +1066,9 @@ ssize_t Socket::send_all(const void *_buf, size_t _n) {
     retval = socket->send(_buf, _n, 0);
 
     if (retval == 0 || retval == (ssize_t) _n) {
+        if (retval == 0 && _n > 0) {
+            set_err(ECONNRESET);
+        }
         return retval;
     }
     if (retval < 0 && socket->catch_write_error(errno) != SW_WAIT) {
@@ -1053,6 +1091,9 @@ ssize_t Socket::send_all(const void *_buf, size_t _n) {
     }
     send_barrier = nullptr;
 
+    if (total_bytes < _n && errCode == 0) {
+        set_err(ECONNRESET);
+    }
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
 
@@ -1332,12 +1373,22 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
         return false;
     }
 
+    if (sw_unlikely(offset < 0)) {
+        set_err(EINVAL);
+        return false;
+    }
+
+    FileStatus file_stat;
+    if (!file.stat(&file_stat)) {
+        set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
+        return false;
+    }
+    // An empty file or an offset at/after the end leaves nothing to send, which is a caller error.
+    if (sw_unlikely(offset >= file_stat.st_size)) {
+        set_err(EINVAL);
+        return false;
+    }
     if (length == 0) {
-        FileStatus file_stat;
-        if (!file.stat(&file_stat)) {
-            set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
-            return false;
-        }
         length = file_stat.st_size;
     } else {
         // total length of the file
@@ -1670,6 +1721,10 @@ bool Socket::cancel(const EventType event) {
  * and release when all references are 0
  */
 bool Socket::close() {
+    return close(nullptr);
+}
+
+bool Socket::close(void (*before_release)(Socket *)) {
     if (is_closed()) {
         set_err(EBADF);
         return false;
@@ -1686,6 +1741,9 @@ bool Socket::close() {
         }
         if (!socket->removed) {
             swoole_event_del(socket);
+        }
+        if (before_release) {
+            before_release(this);
         }
         // Close only this descriptor. shutdown() would affect all duplicated owners.
         sock_fd = SW_BAD_SOCKET;

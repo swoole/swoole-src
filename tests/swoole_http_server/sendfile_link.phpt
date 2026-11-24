@@ -6,8 +6,8 @@ swoole_http_server: sendfile link
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-const FILE = '/tmp/sendfile.txt';
-const LINK = '/tmp/sendfile.txt.link';
+const FILE = __DIR__ . '/sendfile_link.tmp';
+const LINK = FILE . '.link';
 
 $send_file = get_safe_random(mt_rand(0, 65535 * 10));
 file_put_contents(FILE, $send_file);
