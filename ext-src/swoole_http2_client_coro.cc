@@ -59,6 +59,11 @@ struct Stream {
     uint32_t stream_id;
     uint8_t gzip;
     uint8_t flags;
+
+    // State of the current received header block, shared by its HEADERS and CONTINUATION frames.
+    bool header_block_end_stream;
+    bool header_block_is_trailers;
+
     String *buffer;
 #ifdef SW_HAVE_ZLIB
     z_stream gzip_stream;
@@ -69,9 +74,6 @@ struct Stream {
     // flow control
     uint32_t remote_window_size;
     uint32_t local_window_size;
-
-    bool header_end_stream;
-    bool header_trailers;
 };
 
 class Client {
@@ -729,9 +731,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     }
     if (type == SW_HTTP2_TYPE_HEADERS || type == SW_HTTP2_TYPE_CONTINUATION) {
         if (type == SW_HTTP2_TYPE_HEADERS) {
-            stream->header_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
+            stream->header_block_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
             // CONTINUATION frames carry the rest of this field section, so they keep its classification
-            stream->header_trailers = stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED;
+            stream->header_block_is_trailers = stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED;
             if (flags & SW_HTTP2_FLAG_PADDED) {
                 if (length < 1 || (uint8_t) buf[0] >= length) {
                     close();
@@ -818,8 +820,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         }
     }
 
-    bool end = (type == SW_HTTP2_TYPE_CONTINUATION ? stream->header_end_stream : (flags & SW_HTTP2_FLAG_END_STREAM)) ||
-               type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY;
+    bool end =
+        (type == SW_HTTP2_TYPE_CONTINUATION ? stream->header_block_end_stream : (flags & SW_HTTP2_FLAG_END_STREAM)) ||
+        type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY;
     pipeline_read = ((pipeline_read || (stream->flags & SW_HTTP2_STREAM_USE_PIPELINE_READ)) &&
                      (stream->flags & SW_HTTP2_STREAM_PIPELINE_RESPONSE));
     if (end || pipeline_read) {
@@ -1066,7 +1069,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                     }
                     zend::object_set(zresponse, ZEND_STRL("statusCode"), status_code);
                     has_status_pseudo_header = true;
-                    stream->header_trailers = false;
+                    stream->header_block_is_trailers = false;
                 }
             } else {
 #ifdef SW_HAVE_ZLIB
@@ -1096,7 +1099,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
 
                 // "headers" still receives every header above (backward compatible). Only a
                 // trailing HEADERS frame additionally feeds the separate "trailers" view.
-                if (stream->header_trailers) {
+                if (stream->header_block_is_trailers) {
                     if (ztrailers == nullptr) {
                         ztrailers = sw_zend_read_and_convert_property_array(
                             swoole_http2_response_ce, zresponse, ZEND_STRL("trailers"), 0);
