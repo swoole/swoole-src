@@ -215,7 +215,6 @@ void swoole_curl_verify_handlers(php_curl *ch, bool reporterror) /* {{{ */
 
 /* CurlHandle class */
 static zend_object_handlers swoole_coroutine_curl_handle_handlers;
-static const zend_object_handlers *php_curl_object_handlers;
 
 static zend_object *swoole_curl_create_object(zend_class_entry *class_type);
 static void swoole_curl_free_obj(zend_object *object);
@@ -253,9 +252,8 @@ void swoole_native_curl_minit(int module_number) {
 #endif
 
     swoole_coroutine_curl_handle_ce = php_curl_ce;
-    swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
-    php_curl_object_handlers = php_curl_ce->default_object_handlers;
-    swoole_coroutine_curl_handle_ce->default_object_handlers = &swoole_coroutine_curl_handle_handlers;
+
+    // Native handles must keep ext-curl's handlers, including its own copy of libcurl on Windows.
 
     memcpy(&swoole_coroutine_curl_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     swoole_coroutine_curl_handle_handlers.offset = XtOffsetOf(php_curl, std);
@@ -288,8 +286,13 @@ static zend_object *swoole_curl_create_object(zend_class_entry *class_type) {
 
     zend_object_std_init(&intern->std, class_type);
     object_properties_init(&intern->std, class_type);
+    intern->std.handlers = &swoole_coroutine_curl_handle_handlers;
 
     return &intern->std;
+}
+
+bool swoole_curl_is_coroutine_handle(const php_curl *ch) {
+    return ch->std.handlers == &swoole_coroutine_curl_handle_handlers;
 }
 
 static zend_function *swoole_curl_get_constructor(zend_object *object) {
@@ -896,7 +899,7 @@ static void curl_free_slist(zval *el) {
 php_curl *swoole_curl_init_handle_into_zval(zval *curl) {
     php_curl *ch;
 
-    object_init_ex(curl, swoole_coroutine_curl_handle_ce);
+    ZVAL_OBJ(curl, swoole_curl_create_object(swoole_coroutine_curl_handle_ce));
     ch = Z_CURL_P(curl);
 
     swoole_curl_init_handle(ch);
@@ -2677,10 +2680,6 @@ static void swoole_curl_free_obj(zend_object *object) {
     swoole_curl_verify_handlers(ch, /* reporterror */ false);
 
     swoole::curl::Handle *handle = swoole::curl::get_handle(ch->cp);
-    if (!handle) {
-        php_curl_object_handlers->free_obj(object);
-        return;
-    }
 
     if (handle->multi) {
         handle->multi->remove_handle(handle);
