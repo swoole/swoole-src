@@ -78,6 +78,7 @@ static PHP_METHOD(swoole_socket_coro, recvPacket);
 static PHP_METHOD(swoole_socket_coro, recvLine);
 static PHP_METHOD(swoole_socket_coro, recvWithBuffer);
 static PHP_METHOD(swoole_socket_coro, recvfrom);
+static PHP_METHOD(swoole_socket_coro, recvmsg);
 static PHP_METHOD(swoole_socket_coro, sendto);
 static PHP_METHOD(swoole_socket_coro, getOption);
 static PHP_METHOD(swoole_socket_coro, setOption);
@@ -117,6 +118,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, sendFile,       arginfo_class_Swoole_Coroutine_Socket_sendFile,       ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendAll,        arginfo_class_Swoole_Coroutine_Socket_sendAll,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvfrom,       arginfo_class_Swoole_Coroutine_Socket_recvfrom,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvmsg,        arginfo_class_Swoole_Coroutine_Socket_recvmsg,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendto,         arginfo_class_Swoole_Coroutine_Socket_sendto,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getOption,      arginfo_class_Swoole_Coroutine_Socket_getOption,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, setProtocol,    arginfo_class_Swoole_Coroutine_Socket_setProtocol,    ZEND_ACC_PUBLIC)
@@ -159,6 +161,11 @@ static sw_inline SocketObject *socket_coro_fetch_object(zend_object *obj) {
 static void socket_coro_free_object(zend_object *object) {
     auto *sock = socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket) {
+        if (sock->socket->protocol.private_data_1) {
+            auto *callback = sock->socket->protocol.private_data_1;
+            sock->socket->protocol.private_data_1 = nullptr;
+            sw_callable_free(callback);
+        }
         if (!Z_ISUNDEF(sock->zstream)) {
 #ifdef _WIN32
             if (SwooleTG.iocp && GC_REFCOUNT(Z_RES(sock->zstream)) == 1) {
@@ -1832,6 +1839,224 @@ static PHP_METHOD(swoole_socket_coro, recvfrom) {
         ZSTR_VAL(buf)[bytes] = 0;
         RETURN_STR(buf);
     }
+}
+
+#ifndef SW_SOCKET_CORO_MAX_MSG_BUFF
+#define SW_SOCKET_CORO_MAX_MSG_BUFF ((size_t) (100 * 1024 * 1024))
+#endif
+#ifndef IP_RECVORIGDSTADDR
+#define SW_IP_RECVORIGDSTADDR 20
+#else
+#define SW_IP_RECVORIGDSTADDR IP_RECVORIGDSTADDR
+#endif
+#ifndef IP_ORIGDSTADDR
+#define SW_IP_ORIGDSTADDR SW_IP_RECVORIGDSTADDR
+#else
+#define SW_IP_ORIGDSTADDR IP_ORIGDSTADDR
+#endif
+#ifndef IPV6_RECVORIGDSTADDR
+#define SW_IPV6_RECVORIGDSTADDR 74
+#else
+#define SW_IPV6_RECVORIGDSTADDR IPV6_RECVORIGDSTADDR
+#endif
+#ifndef IPV6_ORIGDSTADDR
+#define SW_IPV6_ORIGDSTADDR SW_IPV6_RECVORIGDSTADDR
+#else
+#define SW_IPV6_ORIGDSTADDR IPV6_ORIGDSTADDR
+#endif
+#ifndef SOL_IP
+#define SOL_IP IPPROTO_IP
+#endif
+
+static void socket_coro_sockaddr_to_name(const struct sockaddr *sa, socklen_t sa_len, zval *name) {
+    array_init(name);
+    if (sa == nullptr || sa_len == 0) {
+        add_assoc_string(name, "address", "");
+        add_assoc_long(name, "port", 0);
+        return;
+    }
+    char ip[INET6_ADDRSTRLEN] = {0};
+    int port = 0;
+    if (sa->sa_family == AF_INET && sa_len >= (socklen_t) sizeof(struct sockaddr_in)) {
+        auto *sin = (const struct sockaddr_in *) sa;
+        inet_ntop(AF_INET, &sin->sin_addr, ip, sizeof(ip));
+        port = ntohs(sin->sin_port);
+    } else if (sa->sa_family == AF_INET6 && sa_len >= (socklen_t) sizeof(struct sockaddr_in6)) {
+        auto *sin6 = (const struct sockaddr_in6 *) sa;
+        inet_ntop(AF_INET6, &sin6->sin6_addr, ip, sizeof(ip));
+        port = ntohs(sin6->sin6_port);
+#ifndef _WIN32
+    } else if (sa->sa_family == AF_UNIX && sa_len >= (socklen_t) offsetof(struct sockaddr_un, sun_path)) {
+        auto *sun = (const struct sockaddr_un *) sa;
+        add_assoc_string(name, "address", sun->sun_path);
+        add_assoc_long(name, "port", 0);
+        return;
+    }
+#endif
+    add_assoc_string(name, "address", ip);
+    add_assoc_long(name, "port", port);
+}
+
+#ifndef _WIN32
+static void socket_coro_cmsg_to_zval(struct cmsghdr *cmsg, zval *elem) {
+    array_init(elem);
+    add_assoc_long(elem, "level", cmsg->cmsg_level);
+    add_assoc_long(elem, "type", cmsg->cmsg_type);
+
+    unsigned char *data = CMSG_DATA(cmsg);
+    size_t data_len = cmsg->cmsg_len > CMSG_LEN(0) ? (size_t) (cmsg->cmsg_len - CMSG_LEN(0)) : 0;
+
+    // Decode well-known sockaddr ancillary messages (e.g. IP_RECVORIGDSTADDR for UDP TPROXY).
+    if ((cmsg->cmsg_level == IPPROTO_IP || cmsg->cmsg_level == SOL_IP) &&
+        (cmsg->cmsg_type == SW_IP_RECVORIGDSTADDR || cmsg->cmsg_type == SW_IP_ORIGDSTADDR) &&
+        data_len >= sizeof(struct sockaddr_in)) {
+        zval name;
+        socket_coro_sockaddr_to_name((const struct sockaddr *) data, (socklen_t) data_len, &name);
+        add_assoc_zval(elem, "data", &name);
+        return;
+    }
+    if (cmsg->cmsg_level == IPPROTO_IPV6 &&
+        (cmsg->cmsg_type == SW_IPV6_RECVORIGDSTADDR || cmsg->cmsg_type == SW_IPV6_ORIGDSTADDR) &&
+        data_len >= sizeof(struct sockaddr_in6)) {
+        zval name;
+        socket_coro_sockaddr_to_name((const struct sockaddr *) data, (socklen_t) data_len, &name);
+        add_assoc_zval(elem, "data", &name);
+        return;
+    }
+#ifdef IPV6_PKTINFO
+    if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO &&
+        data_len >= sizeof(struct in6_pktinfo)) {
+        auto *pkt = (struct in6_pktinfo *) data;
+        zval info;
+        array_init(&info);
+        char addr6[INET6_ADDRSTRLEN] = {0};
+        inet_ntop(AF_INET6, &pkt->ipi6_addr, addr6, sizeof(addr6));
+        add_assoc_string(&info, "addr", addr6);
+        add_assoc_long(&info, "ifindex", pkt->ipi6_ifindex);
+        add_assoc_zval(elem, "data", &info);
+        return;
+    }
+#endif
+#ifdef IP_PKTINFO
+    if ((cmsg->cmsg_level == IPPROTO_IP || cmsg->cmsg_level == SOL_IP) && cmsg->cmsg_type == IP_PKTINFO &&
+        data_len >= sizeof(struct in_pktinfo)) {
+        auto *pkt = (struct in_pktinfo *) data;
+        zval info;
+        array_init(&info);
+        char addr4[INET_ADDRSTRLEN] = {0};
+        inet_ntop(AF_INET, &pkt->ipi_addr, addr4, sizeof(addr4));
+        add_assoc_string(&info, "addr", addr4);
+        add_assoc_long(&info, "ifindex", pkt->ipi_ifindex);
+        add_assoc_zval(elem, "data", &info);
+        return;
+    }
+#endif
+    add_assoc_stringl(elem, "data", (char *) data, data_len);
+}
+#endif /* !_WIN32 */
+
+/**
+ * Coroutine recvmsg(2). Array shape mirrors PHP sockets::socket_recvmsg.
+ * Requires setsockopt(...RECV ancillary...) beforehand when reading control messages.
+ */
+static PHP_METHOD(swoole_socket_coro, recvmsg) {
+    zval *zmessage;
+    zend_long flags = 0;
+    double timeout = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 3)
+    Z_PARAM_ARRAY_EX(zmessage, 0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(flags)
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_get_socket_coro(sock, ZEND_THIS);
+
+    size_t buffer_size = SW_BUFFER_SIZE_BIG;
+    size_t controllen = 0;
+    zval *zv;
+
+    if ((zv = zend_hash_str_find(Z_ARRVAL_P(zmessage), ZEND_STRL("buffer_size"))) != nullptr) {
+        zend_long v = zval_get_long(zv);
+        if (v <= 0 || (zend_ulong) v > SW_SOCKET_CORO_MAX_MSG_BUFF) {
+            php_swoole_error(E_WARNING, "buffer_size must be between 1 and %zu", SW_SOCKET_CORO_MAX_MSG_BUFF);
+            RETURN_FALSE;
+        }
+        buffer_size = (size_t) v;
+    }
+    if ((zv = zend_hash_str_find(Z_ARRVAL_P(zmessage), ZEND_STRL("controllen"))) != nullptr) {
+        zend_long v = zval_get_long(zv);
+        if (v < 0 || (zend_ulong) v > SW_SOCKET_CORO_MAX_MSG_BUFF) {
+            php_swoole_error(E_WARNING, "controllen is out of range");
+            RETURN_FALSE;
+        }
+        controllen = (size_t) v;
+    }
+
+    char *databuf = (char *) emalloc(buffer_size);
+    char *ctrlbuf = controllen > 0 ? (char *) ecalloc(1, controllen) : nullptr;
+    struct sockaddr_storage src_addr;
+    memset(&src_addr, 0, sizeof(src_addr));
+
+    struct iovec iov;
+    iov.iov_base = databuf;
+    iov.iov_len = buffer_size;
+
+    struct msghdr msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_name = &src_addr;
+    msg.msg_namelen = sizeof(src_addr);
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_control = ctrlbuf;
+    msg.msg_controllen = controllen;
+
+    SocketImpl::TimeoutSetter ts(sock->socket, timeout, SW_TIMEOUT_READ);
+    ssize_t bytes = sock->socket->recvmsg(&msg, (int) flags);
+    socket_coro_sync_properties(ZEND_THIS, sock);
+    if (bytes < 0) {
+        efree(databuf);
+        if (ctrlbuf) {
+            efree(ctrlbuf);
+        }
+        RETURN_FALSE;
+    }
+
+    zval result;
+    array_init(&result);
+
+    zval name;
+    socket_coro_sockaddr_to_name((const struct sockaddr *) &src_addr, msg.msg_namelen, &name);
+    add_assoc_zval(&result, "name", &name);
+
+    zval iov_arr;
+    array_init(&iov_arr);
+    add_next_index_stringl(&iov_arr, databuf, (size_t) bytes);
+    add_assoc_zval(&result, "iov", &iov_arr);
+
+    zval control_arr;
+    array_init(&control_arr);
+#ifndef _WIN32
+    if (ctrlbuf && msg.msg_controllen > 0) {
+        for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg); cmsg != nullptr; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+            zval celem;
+            socket_coro_cmsg_to_zval(cmsg, &celem);
+            add_next_index_zval(&control_arr, &celem);
+        }
+    }
+#endif
+    add_assoc_zval(&result, "control", &control_arr);
+    add_assoc_long(&result, "flags", msg.msg_flags);
+
+    zval_ptr_dtor(zmessage);
+    ZVAL_COPY_VALUE(zmessage, &result);
+
+    efree(databuf);
+    if (ctrlbuf) {
+        efree(ctrlbuf);
+    }
+    RETURN_LONG(bytes);
 }
 
 static PHP_METHOD(swoole_socket_coro, sendto) {
