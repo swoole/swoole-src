@@ -103,6 +103,9 @@ struct Protocol {
     LengthFunc get_package_length;
     uint8_t (*get_package_length_size)(network::Socket *);
 
+    // Set a non-empty delimiter. Leave the existing delimiter intact on failure.
+    bool set_package_eof(const char *eof, size_t length);
+
     int recv_with_eof_protocol(network::Socket *socket, String *buffer) const;
     int recv_with_length_protocol(network::Socket *socket, String *buffer) const;
     int recv_split_by_eof(network::Socket *socket, String *buffer) const;

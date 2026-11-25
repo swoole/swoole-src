@@ -947,16 +947,8 @@ SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset) t
         }
     }
     // package eof
-    if (php_swoole_array_get_value(vht, "package_eof", ztmp)) {
-        auto str_v = zend::setting::get_string(ztmp);
-        if (str_v.len() == 0) {
-            return php_swoole_throw_setting_exception("package_eof cannot be an empty string");
-        } else if (str_v.len() > SW_DATA_EOF_MAXLEN) {
-            return php_swoole_throw_setting_exception("package_eof max length is %d", SW_DATA_EOF_MAXLEN);
-        } else {
-            sock->protocol.package_eof_len = str_v.len();
-            memcpy(sock->protocol.package_eof, str_v.val(), str_v.len());
-        }
+    if (php_swoole_array_get_value(vht, "package_eof", ztmp) && !php_swoole_protocol_set_eof(&sock->protocol, ztmp)) {
+        return false;
     }
     if (php_swoole_array_get_value(vht, "open_fastcgi_protocol", ztmp)) {
 #define FCGI_HEADER_LEN 8

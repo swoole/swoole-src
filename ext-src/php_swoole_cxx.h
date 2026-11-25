@@ -140,6 +140,7 @@ SW_API SocketImpl *php_swoole_get_socket(const zval *zobject);
 SW_API bool php_swoole_socket_is_closed(const zval *zobject);
 SW_API bool php_swoole_socket_set_ssl(SocketImpl *sock, const zval *zset);
 SW_API bool php_swoole_socket_set_protocol(SocketImpl *sock, const zval *zset);
+bool php_swoole_protocol_set_eof(swoole::Protocol *protocol, zval *value);
 SW_API bool php_swoole_socket_set(SocketImpl *cli, const zval *zset);
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code);
 SW_API void php_swoole_socket_set_error_properties(const zval *zobject, int code, const char *msg);

@@ -14,6 +14,23 @@ try {
 } catch (Swoole\Exception $exception) {
     Assert::contains($exception->getMessage(), 'package_eof cannot be an empty string');
 }
+
+$optionsWithLongEof = ['package_eof' => str_repeat('x', 256), 'open_eof_check' => true];
+$client = new Swoole\Client(SWOOLE_SOCK_TCP);
+try {
+    $server->set($optionsWithLongEof);
+    Assert::true(false, 'oversized EOF must throw');
+} catch (Swoole\Exception $exception) {
+    Assert::contains($exception->getMessage(), 'package_eof max length');
+}
+$client->set($optionsWithLongEof);
+try {
+    $client->connect('127.0.0.1', 1);
+    Assert::true(false, 'oversized EOF must throw before connecting');
+} catch (Swoole\Exception $exception) {
+    Assert::contains($exception->getMessage(), 'package_eof max length');
+}
+
 Swoole\Coroutine\run(function () use ($options) {
     $client = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
     Assert::true($client->set($options));

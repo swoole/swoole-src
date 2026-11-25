@@ -81,6 +81,19 @@ TEST(protocol, resolve_package_length_status) {
     EXPECT_EQ(protocol.resolve_package_length(nullptr, negative, 4, &length), PackageLengthStatus::MALFORMED);
 }
 
+TEST(protocol, set_package_eof) {
+    Protocol protocol{};
+    std::string eof(sizeof(protocol.package_eof), 'x');
+    eof[0] = '\0';
+    ASSERT_TRUE(protocol.set_package_eof(eof.data(), eof.size()));
+
+    EXPECT_FALSE(protocol.set_package_eof("", 0));
+    const std::string oversized(eof.size() + 1, 'y');
+    EXPECT_FALSE(protocol.set_package_eof(oversized.data(), oversized.size()));
+    EXPECT_EQ(protocol.package_eof_len, eof.size());
+    EXPECT_MEMEQ(protocol.package_eof, eof.data(), eof.size());
+}
+
 TEST(protocol, find_eof_end_and_growth) {
     Protocol protocol{};
     protocol.package_eof_len = 2;

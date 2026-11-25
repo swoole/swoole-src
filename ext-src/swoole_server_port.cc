@@ -383,17 +383,8 @@ static PHP_METHOD(swoole_server_port, set) try {
         }
     }
     // package eof
-    if (php_swoole_array_get_value(vht, "package_eof", ztmp)) {
-        auto str_v = zend::setting::get_string(ztmp);
-        port->protocol.package_eof_len = str_v.len();
-        if (port->protocol.package_eof_len == 0) {
-            php_swoole_throw_setting_exception("package_eof cannot be an empty string");
-            RETURN_THROWS();
-        } else if (port->protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
-            php_swoole_throw_setting_exception("package_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            RETURN_THROWS();
-        }
-        memcpy(port->protocol.package_eof, str_v.val(), str_v.len());
+    if (php_swoole_array_get_value(vht, "package_eof", ztmp) && !php_swoole_protocol_set_eof(&port->protocol, ztmp)) {
+        RETURN_THROWS();
     }
     // http_protocol
     if (php_swoole_array_get_value(vht, "open_http_protocol", ztmp)) {

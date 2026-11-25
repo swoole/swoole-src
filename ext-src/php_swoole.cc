@@ -419,6 +419,17 @@ bool php_swoole_throw_setting_exception(const char *format, ...) {
     return false;
 }
 
+bool php_swoole_protocol_set_eof(swoole::Protocol *protocol, zval *value) {
+    auto eof = zend::setting::get_string(value);
+    if (protocol->set_package_eof(eof.val(), eof.len())) {
+        return true;
+    }
+    if (eof.len() == 0) {
+        return php_swoole_throw_setting_exception("package_eof cannot be an empty string");
+    }
+    return php_swoole_throw_setting_exception("package_eof max length is %d", SW_DATA_EOF_MAXLEN);
+}
+
 void php_swoole_set_global_option(HashTable *vht) try {
     zval *ztmp;
 

@@ -21,6 +21,16 @@
 #include "swoole_protocol.h"
 
 namespace swoole {
+bool Protocol::set_package_eof(const char *eof, size_t length) {
+    static_assert(SW_DATA_EOF_MAXLEN <= UINT8_MAX, "EOF length must fit in package_eof_len");
+    if (length == 0 || length > sizeof(package_eof)) {
+        return false;
+    }
+    memcpy(package_eof, eof, length);
+    package_eof_len = static_cast<uint8_t>(length);
+    return true;
+}
+
 #define proto_error(_sock, _error, _fmt, ...)                                                                          \
     do {                                                                                                               \
         network::Address _remote_addr;                                                                                 \
