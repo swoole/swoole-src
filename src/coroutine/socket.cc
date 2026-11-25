@@ -1577,7 +1577,6 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
 
         retval = recv(buf, l_buf);
         if (retval <= 0) {
-            read_buffer->clear();
             return retval;
         }
 
@@ -1593,7 +1592,6 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
             return (read_buffer->offset = eof);
         }
         if (read_buffer->length == protocol.package_max_length) {
-            read_buffer->clear();
             set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "no package eof, package_max_length exceeded");
             return -1;
         }
@@ -1646,8 +1644,8 @@ ssize_t Socket::recv_packet(double timeout) {
             read_buffer->length = read_buffer->offset = recv_bytes;
         }
     }
-    // Keep incomplete length-prefixed packets for a subsequent read after a timeout.
-    if (recv_bytes <= 0 && !(open_length_check && recv_bytes < 0 && errCode == ETIMEDOUT)) {
+    // Retain incomplete framed packets so the next call can continue reading them after a timeout.
+    if (recv_bytes <= 0 && !(recv_bytes < 0 && errCode == ETIMEDOUT && (open_length_check || open_eof_check))) {
         read_buffer->clear();
     }
     return recv_bytes;

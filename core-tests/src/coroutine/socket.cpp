@@ -361,6 +361,33 @@ static void socket_set_eof_protocol(Socket &sock) {
     sock.open_eof_check = true;
 }
 
+TEST(coroutine_socket, eof_packet_survives_timeout) {
+    coroutine::run([](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        Socket reader(pair[0], SW_SOCK_UNIX_STREAM);
+        Socket writer(pair[1], SW_SOCK_UNIX_STREAM);
+        socket_set_eof_protocol(reader);
+
+        ASSERT_EQ(writer.send_all(SW_STRL("hello\r")), 6);
+        for (int i = 0; i < 2; i++) {
+            ASSERT_EQ(reader.recv_packet(0.01), -1);
+            EXPECT_EQ(reader.errCode, ETIMEDOUT);
+            EXPECT_FALSE(reader.is_closed());
+        }
+
+        ASSERT_EQ(writer.send_all(SW_STRL("\nnext\r\ntruncated")), 16);
+        ASSERT_TRUE(writer.close());
+
+        ASSERT_EQ(reader.recv_packet(1), 7);
+        EXPECT_MEMEQ(reader.get_read_buffer()->str, "hello\r\n", 7);
+        ASSERT_EQ(reader.recv_packet(1), 6);
+        EXPECT_MEMEQ(reader.get_read_buffer()->str, "next\r\n", 6);
+        EXPECT_EQ(reader.recv_packet(1), 0);
+        EXPECT_TRUE(reader.get_read_buffer()->empty());
+    });
+}
+
 TEST(coroutine_socket, eof_1) {
     const int port = __LINE__ + TEST_PORT;
     coroutine::run({[port](void *arg) {
