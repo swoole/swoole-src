@@ -421,6 +421,7 @@ void Manager::signal_handler(int signo) {
  */
 pid_t Server::restart_worker_process(const ExitStatus &exit_status) {
     pid_t exited_pid = exit_status.get_pid();
+    cleanup_task_result_socket(exited_pid);
     if (is_process_mode()) {
         // waitpid() has reaped this process. Publish even for a normal exit or a detached
         // reload worker, before callbacks or replacement spawn can overwrite its identity.

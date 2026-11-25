@@ -1455,7 +1455,8 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         }
         (void) add_index_zval(task_co->result, task_index, zresult.ptr());
         zresult.reset();
-        server_object->property->task_coroutine_map.erase(task_id);
+        server_object->property->task_coroutine_map.erase(task_co_iterator);
+        serv->complete_task();
 
         if (php_swoole_array_length(task_co->result) == task_co->count) {
             task_co->co->resume();
@@ -1464,10 +1465,12 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     }
 
     zend::Callable *cb = nullptr;
-    if (req->info.ext_flags & SW_TASK_CALLBACK) {
+    const bool task_callback = req->info.ext_flags & SW_TASK_CALLBACK;
+    if (task_callback) {
         auto callback_iterator = server_object->property->task_callbacks.find(task_id);
         if (callback_iterator == server_object->property->task_callbacks.end()) {
-            req->info.ext_flags = req->info.ext_flags & (~SW_TASK_CALLBACK);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_TIMEOUT, "task[%ld] has expired", task_id);
+            return SW_OK;
         } else {
             cb = callback_iterator->second;
         }
@@ -1506,9 +1509,16 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     if (UNEXPECTED(!zend::function::call(cb, argc, args, nullptr, serv->enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onFinish handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
-    if (req->info.ext_flags & SW_TASK_CALLBACK) {
-        sw_callable_free(server_object->property->task_callbacks[task_id]);
-        server_object->property->task_callbacks.erase(task_id);
+    if (task_callback) {
+        // The callback can submit more tasks and rehash this map, so look up its
+        // entry again rather than retaining an iterator across user code.
+        auto callback_iterator = server_object->property->task_callbacks.find(task_id);
+        if (callback_iterator != server_object->property->task_callbacks.end()) {
+            auto *completed_callback = callback_iterator->second;
+            server_object->property->task_callbacks.erase(callback_iterator);
+            serv->complete_task();
+            sw_callable_free(completed_callback);
+        }
     }
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
@@ -3445,7 +3455,9 @@ static PHP_METHOD(swoole_server, taskwait) {
 
         server_object->property->task_coroutine_map[task_id] = &task_co;
         auto retval = task_co.co->yield_ex(timeout);
-        server_object->property->task_coroutine_map.erase(task_id);
+        if (server_object->property->task_coroutine_map.erase(task_id) > 0) {
+            serv->complete_task();
+        }
 
         if (!retval) {
             RETURN_FALSE;
@@ -3586,8 +3598,8 @@ static bool php_swoole_server_task_wait_coroutine(
             swoole_set_last_error(SW_ERROR_TASK_TIMEOUT);
         }
         for (uint32_t j = 0; j < n_task; j++) {
-            if (list[j] >= 0) {
-                server_object->property->task_coroutine_map.erase(list[j]);
+            if (list[j] >= 0 && server_object->property->task_coroutine_map.erase(list[j]) > 0) {
+                serv->complete_task();
             }
         }
     }

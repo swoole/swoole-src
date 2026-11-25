@@ -15,9 +15,324 @@
 */
 
 #include "swoole_server.h"
+#include "swoole_util.h"
+
+#include <dirent.h>
+#include <deque>
 
 namespace swoole {
 using network::Socket;
+
+// A replacement reads the ordinary worker pipe. Only FINISH messages cross this
+// private channel; PHP task waiters and their accumulated results stay in their owner.
+struct Server::TaskResultChannel {
+    Server *server;
+    Socket *receiver = nullptr;
+    std::string path;
+    struct Forwarder {
+        Socket *socket;
+        TimerNode *expiry_timer = nullptr;
+        std::deque<std::string> messages;
+
+        void cancel_expiry_timer() {
+            if (expiry_timer) {
+                if (swoole_timer_is_available()) {
+                    swoole_timer_del(expiry_timer);
+                }
+                expiry_timer = nullptr;
+            }
+        }
+
+        ~Forwarder() {
+            cancel_expiry_timer();
+            socket->free();
+        }
+    };
+    std::unordered_map<uint32_t, std::unique_ptr<Forwarder>> forwarders;
+    size_t queued_bytes = 0;
+
+    static void discard(const EventData *result) {
+        if ((result->info.ext_flags & SW_TASK_TMPFILE) && result->info.len == sizeof(PacketTask)) {
+            PacketTask packet{};
+            memcpy(&packet, result->data, sizeof(packet));
+            packet.tmpfile[sizeof(packet.tmpfile) - 1] = '\0';
+            unlink(packet.tmpfile);
+        }
+    }
+
+    void discard_queue(Forwarder &forwarder) {
+        for (const auto &message : forwarder.messages) {
+            EventData result;
+            memcpy(&result, message.data(), message.size());
+            discard(&result);
+            queued_bytes -= message.size();
+        }
+        forwarder.messages.clear();
+    }
+
+    explicit TaskResultChannel(Server *serv) : server(serv) {
+        auto *reactor = sw_reactor();
+        reactor->set_handler(SW_FD_TASK_RESULT, SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
+            auto *serv = static_cast<Server *>(reactor->ptr);
+            for (uint32_t i = 0; i < SW_WORKER_MAX_RECV_CHUNK_COUNT; i++) {
+                // One extra byte detects an oversized/truncated datagram.
+                char buffer[sizeof(EventData) + 1];
+                const auto n = event->socket->recv(buffer, sizeof(buffer), 0);
+                if (n < 0) {
+                    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                        swoole_sys_warning("read forwarded task result failed");
+                    }
+                    break;
+                }
+                if (static_cast<size_t>(n) < sizeof(DataHead) || static_cast<size_t>(n) > sizeof(EventData)) {
+                    continue;
+                }
+                EventData result;
+                memcpy(&result, buffer, n);
+                if (result.info.type != SW_SERVER_EVENT_FINISH || result.info.len > sizeof(result.data) ||
+                    result.size() != static_cast<size_t>(n) ||
+                    result.info.task_source_pid != static_cast<uint32_t>(swoole_get_worker_pid())) {
+                    continue;
+                }
+                serv->finish_task(&result);
+            }
+            return SW_OK;
+        });
+        reactor->set_handler(SW_FD_TASK_RESULT, SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
+            auto *serv = static_cast<Server *>(reactor->ptr);
+            auto &channel = *serv->task_result_channel_;
+            auto pid = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(event->socket->object));
+            channel.flush(pid);
+            return SW_OK;
+        });
+        reactor->set_handler(SW_FD_TASK_RESULT, SW_EVENT_ERROR, [](Reactor *reactor, Event *event) -> int {
+            auto *serv = static_cast<Server *>(reactor->ptr);
+            auto &channel = *serv->task_result_channel_;
+            if (event->socket != channel.receiver) {
+                auto pid = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(event->socket->object));
+                channel.flush(pid);
+            }
+            return SW_OK;
+        });
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_SERVER_TASK, [this](Reactor *, size_t &event_num) {
+            // An idle reply receiver is internal. Coroutine waits and per-task
+            // callbacks keep the reactor alive even without a timer or other socket.
+            if (receiver && !receiver->removed && event_num > 0) {
+                event_num--;
+            }
+            return server->pending_task_count_ == 0 && queued_bytes == 0;
+        });
+    }
+
+    ~TaskResultChannel() {
+        close();
+    }
+
+    void close() {
+        for (auto &entry : forwarders) {
+            discard_queue(*entry.second);
+        }
+        forwarders.clear();
+        if (receiver) {
+            if (auto *reactor = sw_reactor()) {
+                if (!receiver->removed) {
+                    reactor->del(receiver);
+                }
+                // free() defers the close while a reactor exists. Close the FD now:
+                // WorkerStop callbacks must not leave an undrained reply endpoint open.
+                receiver->close_fd();
+            }
+            receiver->free();
+            receiver = nullptr;
+            unlink(path.c_str());
+        }
+    }
+
+    bool listen() {
+        // Housekeeping must not keep a draining worker alive. Its existing exit
+        // budget already bounds any queued forwards after these timers are gone.
+        for (auto &entry : forwarders) {
+            entry.second->cancel_expiry_timer();
+        }
+        if (receiver) {
+            return true;
+        }
+        path = server->get_task_result_socket_path(getpid());
+        auto *socket = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_TASK_RESULT, SW_SOCK_NONBLOCK | SW_SOCK_CLOEXEC);
+        if (!socket) {
+            return false;
+        }
+        if (!socket->set_buffer_size(SW_IPC_MAX_SIZE * 2) || socket->bind(path) < 0 ||
+            sw_reactor()->add(socket, SW_EVENT_READ) < 0) {
+            socket->free();
+            unlink(path.c_str());
+            return false;
+        }
+        receiver = socket;
+        return true;
+    }
+
+    void flush(uint32_t pid) {
+        auto iter = forwarders.find(pid);
+        if (iter == forwarders.end()) {
+            return;
+        }
+        auto &forwarder = *iter->second;
+        while (!forwarder.messages.empty()) {
+            const auto &message = forwarder.messages.front();
+            if (forwarder.socket->send(message.data(), message.size(), 0) != static_cast<ssize_t>(message.size())) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS) {
+                    return;
+                }
+                swoole_sys_warning("forward task result to worker[%u] failed", pid);
+                discard_queue(forwarder);
+                forwarders.erase(iter);
+                return;
+            }
+            queued_bytes -= message.size();
+            forwarder.messages.pop_front();
+        }
+        // Keep the connected sender for subsequent replies to the same old worker.
+        // An idle cached socket must not pin this worker's reactor during shutdown.
+        if (!forwarder.socket->removed) {
+            sw_reactor()->remove_write_event(forwarder.socket);
+        }
+    }
+
+    void forward(EventData *result) {
+        const uint32_t pid = result->info.task_source_pid;
+        auto iter = forwarders.find(pid);
+        if (iter == forwarders.end()) {
+            auto *socket = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_TASK_RESULT, SW_SOCK_NONBLOCK | SW_SOCK_CLOEXEC);
+            if (!socket) {
+                discard(result);
+                return;
+            }
+            auto forwarder = std::make_unique<Forwarder>();
+            forwarder->socket = socket;
+            socket->object = reinterpret_cast<void *>(static_cast<uintptr_t>(pid));
+            const auto address = server->get_task_result_socket_path(pid);
+            if (!socket->set_buffer_size(SW_IPC_MAX_SIZE * 2) || socket->connect(address, 0) < 0) {
+                // The owner has already exited; never run its callback in this process.
+                discard(result);
+                return;
+            }
+            const uint64_t timeout_msec = static_cast<uint64_t>(server->max_wait_time) * 2000;
+            const auto delay = static_cast<long>(clamp<uint64_t>(timeout_msec, SW_TIMER_MIN_MS, SW_TIMER_MAX_MS));
+            forwarder->expiry_timer = swoole_timer_add(delay, false, [this, pid](Timer *, TimerNode *node) {
+                auto iter = forwarders.find(pid);
+                if (iter == forwarders.end() || iter->second->expiry_timer != node) {
+                    return;
+                }
+                // The timer owns the executing node; the forwarder must not delete it.
+                iter->second->expiry_timer = nullptr;
+                discard_queue(*iter->second);
+                forwarders.erase(iter);
+            });
+            if (!forwarder->expiry_timer) {
+                swoole_warning("failed to schedule task result socket expiration");
+                discard(result);
+                return;
+            }
+            iter = forwarders.emplace(pid, std::move(forwarder)).first;
+        }
+        auto &forwarder = *iter->second;
+        if (forwarder.messages.empty()) {
+            const auto n = forwarder.socket->send(result, result->size(), 0);
+            if (n == static_cast<ssize_t>(result->size())) {
+                return;
+            }
+            if (n >= 0 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != ENOBUFS)) {
+                swoole_sys_warning("forward task result to worker[%u] failed", pid);
+                discard(result);
+                forwarders.erase(iter);
+                return;
+            }
+        }
+        // Only backpressured sends copy the caller's message into an owned queue.
+        // Preserve FIFO when this destination already has unsent replies.
+        const size_t limit = Socket::default_buffer_size;
+        if (result->size() > limit || queued_bytes > limit - result->size()) {
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_PIPE_BUFFER_FULL, "task result forwarding buffer is full");
+            discard(result);
+            return;
+        }
+        forwarder.messages.emplace_back(reinterpret_cast<const char *>(result), result->size());
+        queued_bytes += result->size();
+        if (forwarder.socket->removed && sw_reactor()->add(forwarder.socket, SW_EVENT_WRITE) < 0) {
+            discard_queue(forwarder);
+            forwarders.erase(iter);
+        }
+    }
+};
+
+std::string Server::get_task_result_socket_path(pid_t pid) const {
+    return task_result_directory_ + '/' + std::to_string(pid) + ".sock";
+}
+
+Server::TaskResultChannel &Server::get_task_result_channel() {
+    if (!task_result_channel_) {
+        task_result_channel_ = std::make_shared<TaskResultChannel>(this);
+    }
+    return *task_result_channel_;
+}
+
+bool Server::prepare_task_result_channel() {
+    if (!is_process_mode() || !is_event_worker() || task_worker_num == 0) {
+        return true;
+    }
+
+    return get_task_result_channel().listen();
+}
+
+void Server::finish_task(EventData *result) {
+    const auto context_flags = SW_TASK_COROUTINE | SW_TASK_CALLBACK;
+    if (is_process_mode() && (result->info.ext_flags & context_flags) && result->info.task_source_pid != 0) {
+        if (sw_unlikely(result->info.task_source_pid != static_cast<uint32_t>(swoole_get_worker_pid()))) {
+            get_task_result_channel().forward(result);
+            return;
+        }
+    }
+    onFinish(this, result);
+}
+
+bool Server::create_task_result_directory(uid_t uid, gid_t gid) {
+    char path[] = "/tmp/swoole.task-result.XXXXXX";
+    if (!mkdtemp(path)) {
+        return false;
+    }
+    task_result_directory_ = path;
+    if ((uid != geteuid() || gid != getegid()) && chown(path, uid, gid) < 0) {
+        destroy_task_result_directory();
+        return false;
+    }
+    return true;
+}
+
+void Server::cleanup_task_result_socket(pid_t pid) const {
+    if (pid == getpid() && task_result_channel_) {
+        task_result_channel_->close();
+    }
+    if (!task_result_directory_.empty()) {
+        unlink(get_task_result_socket_path(pid).c_str());
+    }
+}
+
+void Server::destroy_task_result_directory() {
+    if (task_result_directory_.empty()) {
+        return;
+    }
+    if (auto *directory = opendir(task_result_directory_.c_str())) {
+        while (auto *entry = readdir(directory)) {
+            if (entry->d_name[0] != '.') {
+                unlink((task_result_directory_ + '/' + entry->d_name).c_str());
+            }
+        }
+        closedir(directory);
+    }
+    rmdir(task_result_directory_.c_str());
+    task_result_directory_.clear();
+}
 
 static void TaskWorker_signal_init(ProcessPool *pool);
 static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event);
@@ -135,6 +450,8 @@ static bool TaskWorker_pack(EventData *task, const void *_data, size_t _length, 
     task->info.type = SW_SERVER_EVENT_TASK;
     task->info.fd = task_id;
     task->info.reactor_id = swoole_get_worker_id();
+    static_assert(sizeof(pid_t) <= sizeof(task->info.task_source_pid), "task source PID must fit in the header");
+    task->info.task_source_pid = static_cast<uint32_t>(swoole_get_worker_pid());
     task->info.time = microtime();
 
     if (sw_likely(_length < sizeof(task->data))) {
@@ -186,6 +503,10 @@ bool Server::task_pack(EventData *task, const void *data, size_t length) {
 }
 
 bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
+    const bool wait_for_result = is_process_mode() && (_task->info.ext_flags & (SW_TASK_COROUTINE | SW_TASK_CALLBACK));
+    if (wait_for_result) {
+        pending_task_count_++;
+    }
     increment_tasking_num();
 
     swResultCode retval;
@@ -201,6 +522,9 @@ bool Server::task(EventData *_task, int *dst_worker_id, bool blocking) {
     }
 
     decrement_tasking_num();
+    if (wait_for_result) {
+        complete_task();
+    }
     return false;
 }
 
@@ -607,6 +931,7 @@ bool Server::finish(const char *data, size_t data_len, int flags, const EventDat
         }
         buf.info.ext_flags |= flags;
         buf.info.type = SW_SERVER_EVENT_FINISH;
+        buf.info.task_source_pid = current_task->info.task_source_pid;
 
         if (worker->pool->use_socket && worker->pool->stream_info_->last_connection) {
             uint32_t _len = htonl(data_len);

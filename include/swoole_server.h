@@ -2205,6 +2205,16 @@ class Server {
 
     static void read_worker_message(ProcessPool *pool, EventData *msg);
 
+    void finish_task(EventData *result);
+    // Bindings call this only when removing an existing coroutine waiter or task callback.
+    void complete_task() {
+        if (is_process_mode()) {
+            assert(pending_task_count_ > 0);
+            pending_task_count_--;
+        }
+    }
+    void cleanup_task_result_socket(pid_t pid) const;
+
     void drain_worker_pipe();
     // Remaining milliseconds in the original shutdown budget, shared by all cleanup phases.
     int get_worker_exit_timeout_msec() const;
@@ -2243,6 +2253,16 @@ class Server {
     const char *get_startup_error_message() const;
 
   private:
+    struct TaskResultChannel;
+    size_t pending_task_count_ = 0;
+    std::shared_ptr<TaskResultChannel> task_result_channel_;
+    std::string task_result_directory_;
+    std::string get_task_result_socket_path(pid_t pid) const;
+    TaskResultChannel &get_task_result_channel();
+    bool prepare_task_result_channel();
+    bool create_task_result_directory(uid_t uid, gid_t gid);
+    void destroy_task_result_directory();
+
     enum Mode mode_;
     Connection *connection_list = nullptr;
     // BASE workers have private connection tables, so their scan bounds must also stay private after fork.

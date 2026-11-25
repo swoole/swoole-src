@@ -186,7 +186,7 @@ void Server::worker_accept_event(DataHead *info) {
         break;
     }
     case SW_SERVER_EVENT_FINISH: {
-        onFinish(this, reinterpret_cast<EventData *>(get_worker_message_bus()->get_buffer()));
+        finish_task(reinterpret_cast<EventData *>(get_worker_message_bus()->get_buffer()));
         break;
     }
     case SW_SERVER_EVENT_PIPE_MESSAGE: {
@@ -245,6 +245,9 @@ void Server::worker_start_callback(Worker *worker) {
 
 void Server::worker_stop_callback(Worker *worker) {
     call_worker_stop_callback(worker);
+    if (is_process_mode()) {
+        task_result_channel_.reset();
+    }
 }
 
 #ifdef HAVE_CPU_AFFINITY
@@ -399,6 +402,11 @@ void Server::stop_async_worker(Worker *worker) {
     // The worker process is shutting down now.
     if (reactor->wait_exit) {
         return;
+    }
+
+    // Publish the independent result endpoint before the replacement starts reading the normal pipe.
+    if (!prepare_task_result_channel()) {
+        swoole_sys_warning("failed to prepare task result forwarding during worker shutdown");
     }
 
     // Separated from the event worker process pool
@@ -605,6 +613,7 @@ int Server::start_event_worker(Worker *worker) {
 
     // main loop
     const auto rv = reactor->wait();
+    cleanup_task_result_socket(getpid());
     // drain pipe buffer
     drain_worker_pipe();
     // reactor free

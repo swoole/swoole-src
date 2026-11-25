@@ -701,6 +701,11 @@ bool Server::create_task_workers() {
         return false;
     }
 
+    if (is_process_mode() && !create_task_result_directory(worker_uid, worker_gid)) {
+        cleanup();
+        return false;
+    }
+
     pool->set_max_request(task_max_request, task_max_request_grace);
     pool->set_start_id(worker_num);
     pool->set_type(SW_TASK_WORKER);
@@ -759,6 +764,7 @@ void Server::destroy_task_workers() {
     }
     task_notify_pipes.clear();
     get_task_worker_pool()->destroy();
+    destroy_task_result_directory();
 }
 
 bool Server::create_event_workers() {

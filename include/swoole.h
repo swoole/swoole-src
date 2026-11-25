@@ -462,6 +462,7 @@ enum swFdType {
      * io_uring
      */
     SW_FD_IOURING,
+    SW_FD_TASK_RESULT,
     /**
      * SW_FD_USER or SW_FD_USER+n: for custom event
      */
@@ -665,7 +666,10 @@ struct DataHead {
     uint8_t flags;
     uint16_t server_fd;
     uint16_t ext_flags;
-    uint32_t reserved;
+    union {
+        uint32_t reserved;
+        uint32_t task_source_pid;
+    };
     double time;
     size_t dump(char *buf, size_t len);
     void print();
