@@ -91,6 +91,7 @@ class Channel;
 namespace http2 {
 class Stream;
 class Session;
+class HeaderTurn;
 }  // namespace http2
 
 namespace http {
@@ -373,8 +374,9 @@ class Stream {
     bool reset(uint32_t error_code) const;
 
   private:
-    bool send_header_block(const String *frame) const;
-    bool send_frame(const char *frame, size_t length, bool data_frame) const;
+    bool send_header_block(const String *frame, const std::shared_ptr<Session> &session) const;
+    // A header block passes the connection's turn; DATA passes nullptr
+    bool send_frame(const char *frame, size_t length, HeaderTurn *turn) const;
 };
 
 class Session : public std::enable_shared_from_this<Session> {
@@ -397,6 +399,7 @@ class Session : public std::enable_shared_from_this<Session> {
     uint32_t continuation_stream_id = 0;
     bool shutting_down;
     bool is_coro;
+    // The coroutine server's write lock, or the async server's header turn
     std::unique_ptr<coroutine::Channel> write_lock;
     long write_owner = 0;
     long reader_cid = 0;
