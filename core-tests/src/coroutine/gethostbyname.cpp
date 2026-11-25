@@ -1,5 +1,7 @@
 #include "test_coroutine.h"
 
+#include <atomic>
+
 using swoole::Coroutine;
 using swoole::Timer;
 using swoole::coroutine::System;
@@ -23,6 +25,59 @@ TEST(coroutine_gethostbyname, resolve_cache) {
         }
         ASSERT_LT(System::get_dns_cache_hit_ratio(), 0.01);
     });
+}
+
+TEST(coroutine_gethostbyname, concurrent_cache_reconfiguration) {
+    System::set_dns_cache_capacity(2);
+    ON_SCOPE_EXIT {
+        System::set_dns_cache_capacity(1000);
+        System::set_dns_cache_expire(60);
+    };
+
+    std::atomic<bool> running{true};
+    std::atomic<bool> reconfigured{false};
+    std::thread configure([&] {
+        do {
+            System::set_dns_cache_capacity(0);
+            System::set_dns_cache_expire(60);
+            System::set_dns_cache_capacity(2);
+            System::clear_dns_cache();
+            const float ratio = System::get_dns_cache_hit_ratio();
+            EXPECT_GE(ratio, 0);
+            EXPECT_LE(ratio, 1);
+            reconfigured = true;
+            std::this_thread::yield();
+        } while (running);
+    });
+    ON_SCOPE_EXIT {
+        running = false;
+        configure.join();
+    };
+    while (!reconfigured) {
+        std::this_thread::yield();
+    }
+
+    coroutine::run([](void *) {
+        for (int i = 0; i < 200; ++i) {
+            const char *address = i % 2 == 0 ? "127.0.0.1" : "127.0.0.2";
+            ASSERT_EQ(System::gethostbyname(address, AF_INET, 2), address);
+        }
+    });
+
+#ifndef _WIN32
+    // The child must be able to acquire the cache lock even while another thread is configuring it.
+    pid_t pid = fork();
+    if (pid == 0) {
+        alarm(2);
+        System::clear_dns_cache();
+        _exit(0);
+    }
+    ASSERT_GT(pid, 0);
+    int status;
+    ASSERT_EQ(swoole_waitpid(pid, &status, 0), pid);
+    ASSERT_TRUE(WIFEXITED(status));
+    EXPECT_EQ(WEXITSTATUS(status), 0);
+#endif
 }
 
 TEST(coroutine_gethostbyname, impl_async) {

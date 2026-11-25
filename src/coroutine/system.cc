@@ -24,43 +24,62 @@
 #endif
 #include "swoole_socket_impl.h"
 
+#ifndef _WIN32
+#include <pthread.h>
+#endif
+
 namespace swoole {
 namespace coroutine {
+namespace {
 
-static struct {
-    size_t capacity;
-    time_t expire;
-    LRUCache<std::string> *data;
-    size_t miss_count;
-    size_t hit_count;
-} dns_cache = {
-    1000,
-    60,
-    nullptr,
-    0,
-    0,
+struct DnsCache {
+    DnsCache();
+
+    std::mutex mutex;
+    size_t capacity = 1000;
+    time_t expire = 60;
+    std::unique_ptr<LRUCache<std::string>> data;
+    size_t miss_count = 0;
+    size_t hit_count = 0;
+    uint64_t generation = 0;
+
+    // The caller holds mutex. Outstanding lookups belong to the previous cache.
+    void reset() {
+        data.reset();
+        miss_count = hit_count = 0;
+        ++generation;
+    }
 };
 
+DnsCache dns_cache;
+
+DnsCache::DnsCache() {
+#ifndef _WIN32
+    // Fork with a consistent cache and release the inherited lock in both processes.
+    pthread_atfork([] { dns_cache.mutex.lock(); }, [] { dns_cache.mutex.unlock(); }, [] { dns_cache.mutex.unlock(); });
+#endif
+}
+
+}  // namespace
+
 void System::set_dns_cache_expire(time_t expire) {
+    std::lock_guard<std::mutex> lock(dns_cache.mutex);
     dns_cache.expire = expire;
 }
 
 void System::set_dns_cache_capacity(size_t capacity) {
+    std::lock_guard<std::mutex> lock(dns_cache.mutex);
     dns_cache.capacity = capacity;
-    clear_dns_cache();
-    delete dns_cache.data;
-    dns_cache.data = nullptr;
+    dns_cache.reset();
 }
 
 void System::clear_dns_cache() {
-    if (dns_cache.data) {
-        dns_cache.data->clear();
-    }
-    dns_cache.miss_count = 0;
-    dns_cache.hit_count = 0;
+    std::lock_guard<std::mutex> lock(dns_cache.mutex);
+    dns_cache.reset();
 }
 
 float System::get_dns_cache_hit_ratio() {
+    std::lock_guard<std::mutex> lock(dns_cache.mutex);
     auto total = dns_cache.hit_count + dns_cache.miss_count;
     if (total == 0) {
         return 0;
@@ -153,30 +172,32 @@ std::string gethostbyname_impl_with_async(const std::string &hostname, int domai
 }
 
 std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
-    if (dns_cache.data == nullptr && dns_cache.capacity != 0) {
-        dns_cache.data = new LRUCache<std::string>(dns_cache.capacity);
-    }
-
     std::string cache_key;
-    std::string result;
-
-    if (dns_cache.data) {
-        /**
-         * The cache key must end with a prefix that uses a dot.
-         * The domain name cannot contain the `.` symbol, and other characters are considered unsafe.
-         */
-        cache_key.append(domain == AF_INET ? "IPv4." : "IPv6.");
-        cache_key.append(hostname);
-        auto cache = dns_cache.data->get(cache_key);
-
-        if (cache) {
-            dns_cache.hit_count++;
-            return *(std::string *) cache.get();
-        } else {
-            dns_cache.miss_count++;
+    std::shared_ptr<std::string> cached;
+    uint64_t generation;
+    do {
+        std::lock_guard<std::mutex> lock(dns_cache.mutex);
+        generation = dns_cache.generation;
+        if (dns_cache.capacity != 0) {
+            if (!dns_cache.data) {
+                dns_cache.data = std::make_unique<LRUCache<std::string>>(dns_cache.capacity);
+            }
+            cache_key.append(domain == AF_INET ? "IPv4." : "IPv6.");
+            cache_key.append(hostname);
+            cached = dns_cache.data->get(cache_key);
+            if (cached) {
+                dns_cache.hit_count++;
+            } else {
+                dns_cache.miss_count++;
+            }
         }
+    } while (0);
+    if (cached) {
+        return *cached;
     }
 
+    // The resolver may yield, so it must run outside the cache lock.
+    std::string result;
 #ifdef SW_USE_CARES
     auto result_list = dns_lookup_impl_with_cares(hostname.c_str(), domain, timeout);
     if (!result_list.empty()) {
@@ -190,8 +211,11 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     result = gethostbyname_impl_with_async(hostname, domain, timeout);
 #endif
 
-    if (dns_cache.data && !result.empty()) {
-        dns_cache.data->set(cache_key, std::make_shared<std::string>(result), dns_cache.expire);
+    if (!cache_key.empty() && !result.empty()) {
+        std::lock_guard<std::mutex> lock(dns_cache.mutex);
+        if (dns_cache.generation == generation) {
+            dns_cache.data->set(cache_key, std::make_shared<std::string>(result), dns_cache.expire);
+        }
     }
 
     return result;
@@ -599,9 +623,9 @@ bool System::exec(const char *command, bool get_error_stream, std::shared_ptr<St
 
     SocketImpl socket(fd,
 #ifndef _WIN32
-        SW_SOCK_UNIX_STREAM
+                      SW_SOCK_UNIX_STREAM
 #else
-        SW_SOCK_TCP
+                      SW_SOCK_TCP
 #endif
     );
     while (true) {
