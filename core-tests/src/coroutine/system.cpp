@@ -18,6 +18,7 @@
 */
 
 #include "test_coroutine.h"
+#include "swoole_file.h"
 #include "swoole_pipe.h"
 
 using namespace swoole;
@@ -324,6 +325,34 @@ TEST(coroutine_system, swoole_stream_select) {
         ASSERT_STREQ(ptr, buffer);
     });
 }
+
+#ifdef HAVE_EPOLL
+TEST(coroutine_system, socket_poll_partial_registration) {
+    // epoll cannot register ordinary files.
+    File file("/dev/null", File::READ);
+    ASSERT_TRUE(file.ready());
+    UnixSocket pipe(true, SOCK_STREAM);
+    const auto *reader = pipe.get_socket(false);
+    ASSERT_EQ(pipe.get_socket(true)->write("x", 1), 1);
+
+    std::unordered_map<swSocketFd, swoole::coroutine::PollSocket> fds;
+    fds.emplace(file.get_fd(), swoole::coroutine::PollSocket(SW_EVENT_READ, nullptr));
+    fds.emplace(reader->fd, swoole::coroutine::PollSocket(SW_EVENT_READ, nullptr));
+
+    test::coroutine::run([&](void *) {
+        ASSERT_TRUE(System::socket_poll(fds, 0.5));
+        EXPECT_EQ(fds.at(file.get_fd()).revents, 0);
+        EXPECT_EQ(fds.at(reader->fd).revents, SW_EVENT_READ);
+        EXPECT_EQ(fds.at(file.get_fd()).socket, nullptr);
+        EXPECT_EQ(fds.at(reader->fd).socket, nullptr);
+
+        char value;
+        EXPECT_EQ(file.read(&value, 1), 0);
+        ASSERT_EQ(reader->read(&value, 1), 1);
+        EXPECT_EQ(value, 'x');
+    });
+}
+#endif
 
 TEST(coroutine_system, timeout_is_zero) {
     UnixSocket p(true, SOCK_STREAM);

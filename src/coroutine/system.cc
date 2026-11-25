@@ -341,13 +341,10 @@ static inline void socket_poll_clean(const CoroPollTask *task) {
         if (!socket) {
             continue;
         }
-        int retval = swoole_event_del(fd.second.socket);
+        swoole_event_del(socket);
         socket->move_fd();
         socket->free();
         fd.second.socket = nullptr;
-        if (retval < 0) {
-            continue;
-        }
     }
 }
 
@@ -434,16 +431,17 @@ bool System::socket_poll(std::unordered_map<swSocketFd, PollSocket> &fds, double
     task.co = Coroutine::get_current_safe();
 
     for (auto &fd : fds) {
-        fd.second.socket = make_socket(fd.first, SW_FD_CO_POLL);
-        if (swoole_event_add(fd.second.socket, fd.second.events) < 0) {
+        auto *socket = make_socket(fd.first, SW_FD_CO_POLL);
+        if (swoole_event_add(socket, fd.second.events) < 0) {
             // socket_poll() is not the owner of the socket,
             // so the socket should not be closed upon failure or successful return;
             // it is necessary to release control over the fd.
-            fd.second.socket->move_fd();
-            fd.second.socket->free();
+            socket->move_fd();
+            socket->free();
             continue;
         }
-        fd.second.socket->object = &task;
+        socket->object = &task;
+        fd.second.socket = socket;
         tasked_num++;
     }
 
