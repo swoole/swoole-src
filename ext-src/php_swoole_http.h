@@ -195,6 +195,8 @@ struct Context {
     // One deadline covers HTTP/2 write-lock, flow-control and socket waits.
     double http2_write_deadline = 0;
     bool http2_send_result = true;
+    // A suspended async writer holds this stream's encoded header block
+    bool http2_header_send_pending = false;
     std::shared_ptr<Http2HeaderSnapshot> http2_header_snapshot;
     String *write_buffer;
 
@@ -370,7 +372,7 @@ class Stream {
     bool send_end_stream_data_frame(const std::shared_ptr<Session> &session) const;
     bool send_trailer(const std::shared_ptr<Session> &session) const;
 
-    bool reset(uint32_t error_code) const;
+    bool reset(uint32_t error_code, bool wait = false) const;
 
   private:
     bool send_header_block(const String *frame) const;

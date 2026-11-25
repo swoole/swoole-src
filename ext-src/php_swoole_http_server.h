@@ -53,6 +53,7 @@ void swoole_http2_server_coro_write_queued(SocketImpl *socket);
 void swoole_http2_server_send_static_file(swoole::http::Context *ctx);
 bool swoole_http2_server_ping(swoole::http::Context *ctx);
 bool swoole_http2_server_goaway(swoole::http::Context *ctx, zend_long error_code, zend_string *sdata);
+bool swoole_http2_server_reset(swoole::http::Context *ctx, zend_long error_code);
 
 static inline void http_server_add_server_array(HashTable *ht, zend_string *key, const char *value) {
     zval tmp;

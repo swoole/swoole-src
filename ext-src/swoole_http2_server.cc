@@ -67,16 +67,19 @@ static double http2_server_send_timeout(HttpContext *ctx) {
 
 class Http2WriteDeadline {
     HttpContext *ctx_;
-    double previous_;
+    bool installed_;
 
   public:
-    explicit Http2WriteDeadline(HttpContext *ctx) : ctx_(ctx), previous_(ctx->http2_write_deadline) {
-        if (previous_ == 0) {
+    explicit Http2WriteDeadline(HttpContext *ctx) : ctx_(ctx), installed_(ctx->http2_write_deadline == 0) {
+        if (installed_) {
             ctx->http2_write_deadline = http2_server_now() + http2_server_send_timeout(ctx);
         }
     }
+    // A reset from another coroutine borrows the writer's deadline and can finish after the writer
     ~Http2WriteDeadline() {
-        ctx_->http2_write_deadline = previous_;
+        if (installed_) {
+            ctx_->http2_write_deadline = 0;
+        }
     }
 };
 
@@ -136,9 +139,11 @@ static bool http2_server_write_timed_out(const std::shared_ptr<Http2Session> &se
     return false;
 }
 
-static bool http2_server_wait_send_buffer(HttpContext *ctx, const std::shared_ptr<Http2Session> &session) {
+static bool http2_server_wait_send_buffer(HttpContext *ctx,
+                                          const std::shared_ptr<Http2Session> &session,
+                                          double deadline) {
 #ifndef _WIN32
-    double remaining = ctx->http2_write_deadline - http2_server_now();
+    double remaining = deadline - http2_server_now();
     if (remaining <= 0) {
         return http2_server_write_timed_out(session);
     }
@@ -288,13 +293,18 @@ Http2Stream::~Stream() {
     ctx->free();
 }
 
-bool Http2Stream::reset(uint32_t error_code) const {
+bool Http2Stream::reset(uint32_t error_code, bool wait) const {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE];
     swoole_trace_log(
         SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, error_code=%u", "RST_STREAM", id, error_code);
     *(uint32_t *) ((char *) frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(error_code);
     set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, SW_HTTP2_RST_STREAM_SIZE, 0, id);
-    return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE);
+    if (wait) {
+        // Waits for output buffer space within the write deadline. Unlike DATA, it is still sent after the stream
+        // has been removed.
+        return send_frame(frame, sizeof(frame), false);
+    }
+    return ctx->send(ctx, frame, sizeof(frame));
 }
 
 Http2Session::Session(SessionId _fd) {
@@ -923,6 +933,46 @@ bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, zend_str
     return rv;
 }
 
+// After GOAWAY, the connection closes once its last stream has finished
+static void http2_server_close_drained(const std::shared_ptr<Http2Session> &client, HttpContext *ctx) {
+    if (client->shutting_down && client->streams.empty()) {
+        if (ctx->is_co_socket() && client->reader_cid == Coroutine::get_current_cid()) {
+            // The receive loop queued this response. It stops reading here, so it can wait to send it first.
+            client->reader_cid = 0;
+            Http2WriteLock lock;
+            lock.lock(ctx->get_co_socket(), client);
+        }
+        ctx->close(ctx);
+    }
+}
+
+bool swoole_http2_server_reset(HttpContext *ctx, zend_long error_code) {
+    auto iter = http2_sessions.find(ctx->fd);
+    // The client must receive an encoded header block before the stream's RST_STREAM
+    if (iter == http2_sessions.end() || iter->second->terminating || ctx->http2_header_send_pending) {
+        return false;
+    }
+    auto session = iter->second;
+    auto stream = session->take_stream(ctx->stream_id);
+    if (!stream) {
+        return false;
+    }
+    session->notify_flow_control_waiters();
+    if (ctx->onAfterResponse) {
+        ctx->onAfterResponse(ctx);
+    }
+    Http2WriteDeadline deadline(ctx);
+    if (!stream->reset(error_code, true)) {
+        // The stream has already been removed, so the client would wait for it indefinitely
+        if (!session->terminating) {
+            ctx->close(ctx);
+        }
+        return false;
+    }
+    http2_server_close_drained(session, ctx);
+    return true;
+}
+
 bool Http2Stream::send_header_block(const String *frame) const {
 #ifndef _WIN32
     // Preserve encoded header order and the operation's deadline on every async send-yield path.
@@ -1041,15 +1091,21 @@ bool Http2Stream::send_frame(const char *frame, size_t length, bool data_frame) 
         auto session = iter->second;
         // Another writer can reuse the context's buffer while we are suspended.
         zend::String pending(frame, length);
+        // Another coroutine's operation on this response can restore the context's deadline while we are suspended
+        const double deadline = ctx->http2_write_deadline;
         auto *header_task = data_frame ? nullptr : static_cast<swoole::PHPContext *>(Coroutine::get_current_task());
         const bool was_header_pending = header_task && std::exchange(header_task->http2_header_send_pending, true);
+        if (header_task) {
+            ctx->http2_header_send_pending = true;
+        }
         ON_SCOPE_EXIT {
             if (header_task) {
                 header_task->http2_header_send_pending = was_header_pending;
+                ctx->http2_header_send_pending = false;
             }
         };
         SW_LOOP {
-            if (!http2_server_wait_send_buffer(ctx, session)) {
+            if (!http2_server_wait_send_buffer(ctx, session, deadline)) {
                 break;
             }
             if (data_frame && session->get_stream(id).get() != this) {
@@ -1427,15 +1483,7 @@ static bool http2_server_respond(HttpContext *ctx, const String *body) {
         ctx->close(ctx);
     }
 
-    if (client->shutting_down && client->streams.empty()) {
-        if (ctx->is_co_socket() && client->reader_cid == Coroutine::get_current_cid()) {
-            // The receive loop queued this response. It stops reading here, so it can wait to send it first.
-            client->reader_cid = 0;
-            Http2WriteLock lock;
-            lock.lock(ctx->get_co_socket(), client);
-        }
-        ctx->close(ctx);
-    }
+    http2_server_close_drained(client, ctx);
 
     return !error;
 }

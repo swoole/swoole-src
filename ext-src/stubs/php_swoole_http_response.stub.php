@@ -19,6 +19,7 @@ namespace Swoole\Http {
 		public function trailer(string $key, string $value): bool {}
 		public function ping(string $data = ''): bool {}
 		public function goaway(int $error_code = SWOOLE_HTTP2_ERROR_NO_ERROR, string $debug_data = ''): bool {}
+		public function reset(int $error_code = SWOOLE_HTTP2_ERROR_INTERNAL_ERROR): bool {}
 		public function status(int $http_code, string $reason = ''): bool {}
 		public function disconnect(int $code = SWOOLE_WEBSOCKET_CLOSE_NORMAL, string $reason = ""): bool {}
 		private function sendStaticFile(\Swoole\Http\Request $request): void {}
