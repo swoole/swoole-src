@@ -1265,9 +1265,11 @@ void ZendArray::incr_update(ArrayItem *item, zval *zvalue, zval *return_value) {
     if (item->type == IS_DOUBLE) {
         item->value.dval += zval_get_double(zvalue);
         RETVAL_DOUBLE(item->value.dval);
-    } else {
+    } else if (item->type == IS_LONG) {
         item->value.lval += zval_get_long(zvalue);
         RETVAL_LONG(item->value.lval);
+    } else {
+        RETVAL_FALSE;
     }
 }
 
