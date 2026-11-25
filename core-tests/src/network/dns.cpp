@@ -26,6 +26,10 @@
 #include <algorithm>
 #include <atomic>
 
+#ifdef SW_USE_CARES
+#include <ares_version.h>
+#endif
+
 using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
@@ -175,9 +179,10 @@ TEST(dns, load_resolv_conf_empty_nameserver) {
 
 TEST(dns, load_resolv_conf_long_nameserver) {
     std::string resolv_conf = "/tmp/swoole_resolv_conf_long." + std::to_string(getpid());
+    const std::string nameserver = "resolver-with-a-long-label.example.test";
     std::ofstream file(resolv_conf);
     ASSERT_TRUE(file.is_open());
-    file << "nameserver " << std::string(256, '1') << "\n";
+    file << "nameserver " << nameserver << "\n";
     file.close();
 
     auto ori_path = SwooleG.dns_resolvconf_path;
@@ -190,7 +195,82 @@ TEST(dns, load_resolv_conf_long_nameserver) {
 
     SwooleG.dns_resolvconf_path = resolv_conf;
     ASSERT_TRUE(swoole_load_resolv_conf());
-    ASSERT_LT(SwooleG.dns_server.host.size(), 32);
+    ASSERT_EQ(SwooleG.dns_server.host, nameserver);
+}
+
+TEST(dns, server_endpoint) {
+    const auto original = swoole_get_dns_server();
+    ON_SCOPE_EXIT {
+        SwooleG.dns_server = original;
+    };
+
+    const struct {
+        const char *input;
+        DnsServer expected;
+    } cases[] = {
+        {"127.0.0.1", {"127.0.0.1", SW_DNS_SERVER_PORT}},
+        {"resolver-with-a-long-label.example.test:5353", {"resolver-with-a-long-label.example.test", 5353}},
+        {"127.0.0.1:65536", {"127.0.0.1", SW_DNS_SERVER_PORT}},
+        {"127.0.0.1:53extra", {"127.0.0.1", SW_DNS_SERVER_PORT}},
+        {"2001:db8:1234:5678:90ab:cdef:1234:5678", {"2001:db8:1234:5678:90ab:cdef:1234:5678", SW_DNS_SERVER_PORT}},
+        {"[::1]", {"::1", SW_DNS_SERVER_PORT}},
+        {"[::1]:5353", {"::1", 5353}},
+    };
+    for (const auto &test : cases) {
+        SCOPED_TRACE(test.input);
+        swoole_set_dns_server(test.input);
+        const auto server = swoole_get_dns_server();
+        EXPECT_EQ(server.host, test.expected.host);
+        EXPECT_EQ(server.port, test.expected.port);
+    }
+}
+
+TEST(dns, ipv6_server_lookup) {
+    const auto original = swoole_get_dns_server();
+    ON_SCOPE_EXIT {
+        SwooleG.dns_server = original;
+    };
+
+    test::coroutine::run([](void *) {
+        auto server = std::make_shared<Socket>(SW_SOCK_UDP6);
+        if (!server->bind("::1", 0)) {
+            GTEST_SKIP() << "IPv6 loopback is unavailable";
+        }
+        ASSERT_TRUE(server->getsockname());
+        server->set_timeout(0.5);
+        swoole_set_dns_server("[::1]:" + std::to_string(server->get_port()));
+
+        const auto reply = [server](void *) {
+            char packet[512];
+            sockaddr_in6 peer{};
+            socklen_t peer_len = sizeof(peer);
+            // Keep the header and the question for resolver.test, dropping any additional records.
+            constexpr size_t question_end = 12 +
+                                            sizeof("\x08"
+                                                   "resolver"
+                                                   "\x04"
+                                                   "test") +
+                                            4;
+            ASSERT_GE(server->recvfrom(packet, sizeof(packet), reinterpret_cast<sockaddr *>(&peer), &peer_len),
+                      static_cast<ssize_t>(question_end));
+            packet[2] = static_cast<char>(0x81);
+            packet[3] = static_cast<char>(0x80);
+            packet[7] = 1;
+            packet[11] = 0;
+            const unsigned char answer[] = {0xc0, 12, 0, 1, 0, 1, 0, 0, 0, 1, 0, 4, 192, 0, 2, 10};
+            memcpy(packet + question_end, answer, sizeof(answer));
+            ASSERT_EQ(server->sendto("::1", ntohs(peer.sin6_port), packet, question_end + sizeof(answer)),
+                      question_end + sizeof(answer));
+        };
+
+        const std::vector<std::string> expected{"192.0.2.10"};
+        Coroutine::create(reply);
+        EXPECT_EQ(swoole::coroutine::dns_lookup_impl_with_socket("resolver.test", AF_INET, 1), expected);
+#if defined(SW_USE_CARES) && ARES_VERSION >= 0x010b00
+        Coroutine::create(reply);
+        EXPECT_EQ(swoole::coroutine::dns_lookup_impl_with_cares("resolver.test", AF_INET, 1), expected);
+#endif
+    });
 }
 
 TEST(dns, getaddrinfo_result_limit) {

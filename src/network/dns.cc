@@ -91,19 +91,40 @@ SW_API bool swoole_load_resolv_conf() {
 }
 
 SW_API void swoole_set_dns_server(const std::string &server) {
-    char *_port;
-    int dns_server_port = SW_DNS_SERVER_PORT;
-    char dns_server_host[32];
-    swoole_strlcpy(dns_server_host, server.c_str(), sizeof(dns_server_host));
-    if ((_port = strchr(const_cast<char *>(server.c_str()), ':'))) {
-        dns_server_port = sw_atoi(_port + 1);
-        if (!Address::verify_port(dns_server_port, true)) {
-            dns_server_port = SW_DNS_SERVER_PORT;
+    std::string host = server;
+    const char *port_string = nullptr;
+    if (!server.empty() && server.front() == '[') {
+        const auto end = server.find(']');
+        if (end == std::string::npos || (end + 1 < server.size() && server[end + 1] != ':')) {
+            swoole_warning("invalid bracketed DNS server address");
+            return;
         }
-        dns_server_host[_port - server.c_str()] = '\0';
+        host = server.substr(1, end - 1);
+        if (!Address::verify_ip(AF_INET6, host)) {
+            swoole_warning("invalid bracketed DNS server address");
+            return;
+        }
+        if (end + 1 < server.size()) {
+            port_string = server.c_str() + end + 2;
+        }
+    } else {
+        const auto separator = server.find(':');
+        // An unbracketed address with multiple colons is a bare IPv6 address.
+        if (separator != std::string::npos && separator == server.rfind(':')) {
+            host.resize(separator);
+            port_string = server.c_str() + separator + 1;
+        }
     }
-    SwooleG.dns_server.host = dns_server_host;
-    SwooleG.dns_server.port = dns_server_port;
+
+    int port = SW_DNS_SERVER_PORT;
+    if (port_string) {
+        char *end;
+        const long parsed_port = strtol(port_string, &end, 10);
+        if (*end == '\0' && parsed_port > 0 && parsed_port <= UINT16_MAX) {
+            port = static_cast<int>(parsed_port);
+        }
+    }
+    SwooleG.dns_server = {std::move(host), port};
 }
 
 SW_API swoole::DnsServer swoole_get_dns_server() {
@@ -365,7 +386,8 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     qflags->qclass = htons(0x0001);
     steps += sizeof(Q_FLAGS);
 
-    Socket _sock(SW_SOCK_UDP);
+    const auto socket_type = Address::verify_ip(AF_INET6, SwooleG.dns_server.host) ? SW_SOCK_UDP6 : SW_SOCK_UDP;
+    Socket _sock(socket_type);
     if (timeout > 0) {
         _sock.set_timeout(timeout);
     }
@@ -680,19 +702,33 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     }
 
     if (!SwooleG.dns_server.host.empty()) {
+#if (ARES_VERSION >= 0x010701)
 #if (ARES_VERSION >= 0x010b00)
         struct ares_addr_port_node servers = {};
-        servers.family = AF_INET;
-        servers.udp_port = SwooleG.dns_server.port;
-        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
-        ares_set_servers_ports(ctx.channel, &servers);
-#elif (ARES_VERSION >= 0x010701)
+        servers.udp_port = servers.tcp_port = SwooleG.dns_server.port;
+#else
         struct ares_addr_node servers = {};
-        servers.family = AF_INET;
-        inet_pton(AF_INET, SwooleG.dns_server.host.c_str(), &servers.addr.addr4);
-        ares_set_servers(ctx.channel, &servers);
+#endif
+        const char *host = SwooleG.dns_server.host.c_str();
+        if (inet_pton(AF_INET, host, &servers.addr.addr4) == 1) {
+            servers.family = AF_INET;
+        } else if (inet_pton(AF_INET6, host, &servers.addr.addr6) == 1) {
+            servers.family = AF_INET6;
+        } else {
+            ctx.error = ARES_EBADSTR;
+            goto _destroy;
+        }
+#if (ARES_VERSION >= 0x010b00)
+        res = ares_set_servers_ports(ctx.channel, &servers);
+#else
+        res = ares_set_servers(ctx.channel, &servers);
         if (SwooleG.dns_server.port != SW_DNS_SERVER_PORT) {
             swoole_warning("not support to set port of dns server");
+        }
+#endif
+        if (res != ARES_SUCCESS) {
+            ctx.error = res;
+            goto _destroy;
         }
 #else
         swoole_warning("not support to set dns server");
