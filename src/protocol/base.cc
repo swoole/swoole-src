@@ -41,6 +41,10 @@ bool Protocol::set_package_eof(const char *eof, size_t length) {
             SW_LOG_WARNING, _error, _fmt "<%s:%d>", ##__VA_ARGS__, _remote_addr.get_addr(), _remote_addr.get_port());  \
     } while (0)
 
+static void log_oversized_eof_packet(network::Socket *socket, size_t length) {
+    proto_error(socket, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "The received data packet is too large, length=%zu", length);
+}
+
 /**
  * return the package total length
  */
@@ -79,12 +83,21 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
     RecvData rdata{};
 
     if (buffer->length < package_eof_len) {
+        if (sw_unlikely(buffer->length >= package_max_length)) {
+            log_oversized_eof_packet(socket, buffer->length);
+            return SW_CLOSE;
+        }
         return SW_CONTINUE;
     }
 
     size_t delivered_end = 0;
     bool delivery_failed = false;
     ssize_t n = buffer->split(package_eof, package_eof_len, [&](const char *data, size_t length) -> int {
+        if (sw_unlikely(length > package_max_length)) {
+            log_oversized_eof_packet(socket, length);
+            delivery_failed = true;
+            return false;
+        }
         rdata.info.len = length;
         rdata.data = data;
         // The buffer may be released by onPackage() if it closes the connection synchronously.
@@ -118,18 +131,22 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
     }
     if (n < 0) {
         return SW_CLOSE;
-    } else if (n == 0) {
-        return SW_CONTINUE;
-    } else if (n < (ssize_t) buffer->length) {
-        off_t offset;
-        buffer->reduce(n);
-        offset = buffer->length - package_eof_len;
-        buffer->offset = offset > 0 ? offset : 0;
-    } else {
-        buffer->clear();
+    }
+    if (n > 0) {
+        if (static_cast<size_t>(n) < buffer->length) {
+            buffer->reduce(n);
+            buffer->offset = buffer->length > package_eof_len ? buffer->length - package_eof_len : 0;
+        } else {
+            buffer->clear();
+        }
     }
 
-    if (socket->ssl) {
+    // Split leaves only the unfinished packet. It needs at least one more byte to reach EOF.
+    if (sw_unlikely(buffer->length >= package_max_length)) {
+        log_oversized_eof_packet(socket, buffer->length);
+        return SW_CLOSE;
+    }
+    if (n == 0 || socket->ssl) {
         return SW_CONTINUE;
     }
 
@@ -331,7 +348,7 @@ int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) co
     // Packets left in the buffer by a paused connection are parsed without waiting for new data.
     if (socket->skip_recv) {
         socket->skip_recv = 0;
-        if (split_by_eof && buffer->length >= package_eof_len) {
+        if (split_by_eof) {
             return recv_split_by_eof(socket, buffer) == SW_CLOSE ? SW_ERR : SW_OK;
         }
         return SW_OK;
@@ -361,7 +378,7 @@ _recv_data:
     } else {
         buffer->length += n;
 
-        if (buffer->length < package_eof_len) {
+        if (buffer->length < package_eof_len && buffer->length < package_max_length) {
             return SW_OK;
         }
 
@@ -374,7 +391,8 @@ _recv_data:
             } else {
                 return SW_OK;
             }
-        } else if (memcmp(buffer->str + buffer->length - package_eof_len, package_eof, package_eof_len) == 0) {
+        } else if (buffer->length <= package_max_length && buffer->length >= package_eof_len &&
+                   memcmp(buffer->str + buffer->length - package_eof_len, package_eof, package_eof_len) == 0) {
             buffer->offset = buffer->length;
             rdata.info.len = buffer->length;
             rdata.data = buffer->str;
@@ -393,14 +411,8 @@ _recv_data:
                 goto _recv_data;
             }
             return SW_OK;
-        }
-
-        // over max length, will discard
-        if (buffer->length == package_max_length) {
-            proto_error(socket,
-                        SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                        "The received data packet is too large, length=%lu",
-                        (ulong_t) buffer->length);
+        } else if (sw_unlikely(buffer->length >= package_max_length)) {
+            log_oversized_eof_packet(socket, buffer->length);
             return SW_ERR;
         }
 

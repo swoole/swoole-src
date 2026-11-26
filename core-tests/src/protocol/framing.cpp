@@ -359,6 +359,67 @@ TEST_F(ProtocolFramingTest, eof_accepts_terminated_packet_at_limit) {
     EXPECT_EQ(packets[0].size(), protocol.package_max_length);
 }
 
+TEST_F(ProtocolFramingTest, eof_rejects_oversized_complete_packet_in_large_buffer) {
+    protocol.package_max_length = 8;
+    ASSERT_GT(buffer.size, protocol.package_max_length);
+    send("1234567\r\n");
+    EXPECT_EQ(receive_eof(), SW_ERR);
+    EXPECT_EQ(swoole_get_last_error(), SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+    EXPECT_TRUE(packets.empty());
+}
+
+TEST_F(ProtocolFramingTest, eof_split_limits_each_packet_after_fragmented_delimiter) {
+    protocol.split_by_eof = true;
+    protocol.package_max_length = 8;
+    buffer.reserve(64);
+    send("123456\r");
+    ASSERT_EQ(receive_eof(), SW_OK);
+    EXPECT_TRUE(packets.empty());
+
+    send("\nabcdef\r\ntail\r");
+    ASSERT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{"123456\r\n", "abcdef\r\n"}));
+    EXPECT_EQ(buffer.to_std_string(), "tail\r");
+
+    send("\n");
+    ASSERT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{"123456\r\n", "abcdef\r\n", "tail\r\n"}));
+}
+
+TEST_F(ProtocolFramingTest, eof_split_stops_at_oversized_complete_packet) {
+    protocol.split_by_eof = true;
+    protocol.package_max_length = 8;
+    buffer.reserve(64);
+    send("valid\r\n1234567\r\nlater\r\n");
+    EXPECT_EQ(receive_eof(), SW_ERR);
+    EXPECT_EQ(swoole_get_last_error(), SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+    EXPECT_EQ(packets, std::vector<std::string>{"valid\r\n"});
+}
+
+TEST_F(ProtocolFramingTest, eof_split_rejects_unterminated_tail_at_or_above_limit) {
+    protocol.split_by_eof = true;
+    protocol.package_max_length = 8;
+    buffer.reserve(64);
+    for (size_t length : {8u, 9u}) {
+        buffer.clear();
+        packets.clear();
+        send("valid\r\n" + std::string(length, 'x'));
+        EXPECT_EQ(receive_eof(), SW_ERR);
+        EXPECT_EQ(swoole_get_last_error(), SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+        EXPECT_EQ(packets, std::vector<std::string>{"valid\r\n"});
+    }
+}
+
+TEST_F(ProtocolFramingTest, eof_split_checks_buffered_packets_on_resume) {
+    protocol.split_by_eof = true;
+    protocol.package_max_length = 8;
+    socket.skip_recv = true;
+    buffer.append("1234567\r\n");
+    EXPECT_EQ(receive_eof(), SW_ERR);
+    EXPECT_EQ(swoole_get_last_error(), SW_ERROR_PACKAGE_LENGTH_TOO_LARGE);
+    EXPECT_TRUE(packets.empty());
+}
+
 TEST_F(ProtocolFramingTest, eof_stops_when_callback_removes_socket) {
     remove_on_package = true;
     send("a\r\n");
