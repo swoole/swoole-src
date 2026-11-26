@@ -18,9 +18,19 @@
 #include "php_swoole_client.h"
 #include "swoole_mqtt.h"
 
+#include <algorithm>
+#include <list>
+#include <memory>
+#include <mutex>
 #include <string>
-#include <queue>
+#include <thread>
 #include <unordered_map>
+#include <utility>
+
+#ifndef _WIN32
+#include <pthread.h>
+#include <sys/resource.h>
+#endif
 
 BEGIN_EXTERN_C()
 #include "stubs/php_swoole_client_arginfo.h"
@@ -36,15 +46,242 @@ using swoole::network::Address;
 using swoole::network::Client;
 using swoole::network::Socket;
 
-static std::unordered_map<std::string, std::queue<Client *> *> long_connections;
+static void client_release_length_callback(Protocol &protocol) {
+    if (auto *callback = std::exchange(protocol.private_data_1, nullptr)) {
+        sw_callable_free(callback);
+    }
+}
+
+static bool client_set_length_callback(Protocol &protocol, zval *value) {
+    auto *callback = sw_callable_create_for_setting(value);
+    if (!callback) {
+        return false;
+    }
+    client_release_length_callback(protocol);
+    protocol.private_data_1 = callback;
+    return true;
+}
+
+struct ClientDeleter {
+    void operator()(Client *cli) const {
+        if (cli->timer) {
+            swoole_timer_del(cli->timer);
+            cli->timer = nullptr;
+        }
+        client_release_length_callback(cli->protocol);
+        delete cli;
+    }
+};
+
+static bool client_is_reusable(const Client *cli);
+
+namespace {
+
+struct PooledClientDeleter {
+    void operator()(Client *cli) const {
+        // The fork handler closes the inherited descriptor without sending a TLS shutdown.
+        if (cli->closed && cli->socket->ssl) {
+            SSL_free(cli->socket->ssl);
+            cli->socket->ssl = nullptr;
+        }
+        delete cli;
+    }
+};
+
+using PooledClient = std::unique_ptr<Client, PooledClientDeleter>;
+
+class ClientConnectionPool {
+    using IdleConnections = std::list<PooledClient>;
+    using Connections = std::unordered_map<std::string, IdleConnections>;
+
+    struct Pools {
+        std::unordered_map<std::thread::id, Connections> idle;
+        // A candidate still belongs to the pool while its socket is checked outside the lock.
+        IdleConnections checkout;
+        size_t shared_idle = 0;
+    };
+
+    static constexpr size_t MAX_SHARED_IDLE = 1024;
+
+    std::mutex mutex_;
+    // Fork waits for detached sockets to close without serializing ordinary pool operations.
+    std::mutex retirement_mutex_;
+    std::unique_ptr<Pools> pools_;
+    size_t shared_idle_limit_ = MAX_SHARED_IDLE;
+    bool inherited_ = false;
+
+    static std::thread::id owner(bool shared) {
+        return shared ? std::thread::id{} : std::this_thread::get_id();
+    }
+
+    template <typename T>
+    static void append_key(std::string &key, T value) {
+        key.append(reinterpret_cast<const char *>(&value), sizeof(value));
+    }
+
+    static void append_key(std::string &key, const char *value, size_t length) {
+        append_key(key, length);
+        key.append(value, length);
+    }
+
+    void detach_inherited(std::unique_ptr<Pools> &retired) {
+        if (inherited_) {
+            retired = std::move(pools_);
+            inherited_ = false;
+        }
+    }
+
+  public:
+    struct Key {
+        std::string value;
+        bool shared = false;
+    };
+
+    static Key make_key(
+        const char *host, size_t host_len, int port, SocketType type, bool ssl, const zval *id, int socket_flags);
+
+    bool enabled = true;
+
+    void limit_shared_idle(size_t descriptor_limit) {
+        // Reserve most of the process descriptor limit for active connections and other I/O.
+        shared_idle_limit_ = std::min(static_cast<size_t>(MAX_SHARED_IDLE), descriptor_limit / 4);
+    }
+
+    PooledClient take(const Key &key, bool ssl, int socket_flags) {
+        std::unique_ptr<Pools> retired;
+        IdleConnections::iterator candidate;
+        Client *client;
+        do {
+            std::lock_guard<std::mutex> lock(mutex_);
+            detach_inherited(retired);
+            if (!pools_) {
+                return {};
+            }
+            auto pool = pools_->idle.find(owner(key.shared));
+            if (pool == pools_->idle.end()) {
+                return {};
+            }
+            auto bucket = pool->second.find(key.value);
+            if (bucket == pool->second.end()) {
+                return {};
+            }
+            candidate = bucket->second.begin();
+            client = candidate->get();
+            // A pool ID can be reused by mistake. Never hand out an incompatible socket.
+            if (client->open_ssl != ssl ||
+                (client->socket->is_dgram() && !ssl && (client->sock_flags_ == 1) != (socket_flags == 1))) {
+                return {};
+            }
+            pools_->checkout.splice(pools_->checkout.end(), bucket->second, candidate);
+            if (key.shared) {
+                --pools_->shared_idle;
+            }
+            if (bucket->second.empty()) {
+                pool->second.erase(bucket);
+                if (pool->second.empty()) {
+                    pools_->idle.erase(pool);
+                }
+            }
+        } while (0);
+
+        if (client_is_reusable(client)) {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto connection = std::move(*candidate);
+            pools_->checkout.erase(candidate);
+            return connection;
+        }
+
+        std::lock_guard<std::mutex> retirement_lock(retirement_mutex_);
+        PooledClient rejected;
+        do {
+            std::lock_guard<std::mutex> lock(mutex_);
+            rejected = std::move(*candidate);
+            pools_->checkout.erase(candidate);
+        } while (0);
+        return {};
+    }
+
+    void put(PooledClient connection, bool shared) {
+        std::unique_ptr<Pools> retired;
+        std::lock_guard<std::mutex> lock(mutex_);
+        detach_inherited(retired);
+        if (!pools_) {
+            pools_ = std::make_unique<Pools>();
+        }
+        if (shared && pools_->shared_idle >= shared_idle_limit_) {
+            // Shared entries are plain TCP. Close before releasing the fork lock on the pool.
+            connection->close();
+            return;
+        }
+        auto &bucket = pools_->idle[owner(shared)][connection->server_id];
+        bucket.push_back(std::move(connection));
+        if (shared) {
+            ++pools_->shared_idle;
+        }
+    }
+
+    void clear_local() {
+        std::lock_guard<std::mutex> retirement_lock(retirement_mutex_);
+        std::unique_ptr<Pools> inherited;
+        Connections retired;
+        std::lock_guard<std::mutex> lock(mutex_);
+        detach_inherited(inherited);
+        if (pools_) {
+            auto pool = pools_->idle.find(owner(false));
+            if (pool != pools_->idle.end()) {
+                retired.swap(pool->second);
+                pools_->idle.erase(pool);
+            }
+        }
+    }
+
+    void clear() {
+        std::lock_guard<std::mutex> retirement_lock(retirement_mutex_);
+        std::unique_ptr<Pools> retired;
+        std::lock_guard<std::mutex> lock(mutex_);
+        retired = std::move(pools_);
+        inherited_ = false;
+    }
+
+#ifndef _WIN32
+    void prepare_fork() {
+        retirement_mutex_.lock();
+        mutex_.lock();
+    }
+
+    void finish_fork(bool child) {
+        if (child && pools_ && !inherited_) {
+            // Only close descriptors here. C++ and TLS objects are released later, outside the fork handler.
+            auto close_descriptors = [](IdleConnections &bucket) {
+                for (auto &client : bucket) {
+                    ::close(client->socket->fd);
+                    client->socket->fd = SW_BAD_SOCKET;
+                    client->closed = true;
+                }
+            };
+            for (auto &pool : pools_->idle) {
+                for (auto &bucket : pool.second) {
+                    close_descriptors(bucket.second);
+                }
+            }
+            close_descriptors(pools_->checkout);
+            inherited_ = true;
+        }
+        mutex_.unlock();
+        retirement_mutex_.unlock();
+    }
+#endif
+};
+
+ClientConnectionPool client_pool;
+
+}  // namespace
 
 zend_class_entry *swoole_client_ce;
 zend_object_handlers swoole_client_handlers;
 
 static zend_class_entry *swoole_client_exception_ce;
 static zend_object_handlers swoole_client_exception_handlers;
-
-static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
 
 static sw_inline void php_swoole_client_set_cli(const zval *zobject, Client *cli) {
     php_swoole_client_fetch_object(Z_OBJ_P(zobject))->cli = cli;
@@ -156,6 +393,19 @@ static const zend_function_entry swoole_client_methods[] =
 // clang-format on
 
 void php_swoole_client_minit(int module_number) {
+#ifndef _WIN32
+    rlimit descriptors;
+    if (sw_getrlimit(RLIMIT_NOFILE, &descriptors) == 0) {
+        client_pool.limit_shared_idle(descriptors.rlim_cur);
+    }
+    int error = pthread_atfork([] { client_pool.prepare_fork(); },
+                               [] { client_pool.finish_fork(false); },
+                               [] { client_pool.finish_fork(true); });
+    if (error != 0) {
+        client_pool.enabled = false;
+        swoole_warning("Failed to register Client connection pool fork handlers: %s", strerror(error));
+    }
+#endif
     SW_INIT_CLASS_ENTRY(swoole_client, "Swoole\\Client", nullptr, swoole_client_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_client);
     SW_SET_CLASS_CLONEABLE(swoole_client, sw_zend_class_clone_deny);
@@ -184,6 +434,14 @@ void php_swoole_client_minit(int module_number) {
     zend::add_constant("SWOOLE_SYNC", SW_FLAG_SYNC);
     zend::add_constant("SWOOLE_ASYNC", SW_FLAG_ASYNC);
     zend::add_constant("SWOOLE_KEEP", SW_FLAG_KEEP);
+}
+
+void php_swoole_client_rshutdown() {
+    client_pool.clear_local();
+}
+
+void php_swoole_client_mshutdown() {
+    client_pool.clear();
 }
 
 void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) try {
@@ -254,10 +512,8 @@ void php_swoole_client_check_ssl_setting(const Client *cli, const zval *zset) tr
     return;
 }
 
-bool php_swoole_client_check_setting(Client *cli, const zval *zset) try {
+static bool client_check_protocol(Client *cli, const HashTable *vht) try {
     zval *ztmp;
-    int value = 1;
-    HashTable *vht = Z_ARRVAL_P(zset);
 
     // buffer: eof check
     if (php_swoole_array_get_value(vht, "open_eof_check", ztmp)) {
@@ -310,15 +566,10 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) try {
     }
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
-        auto fci_cache = sw_callable_create_for_setting(ztmp);
-        if (!fci_cache) {
+        if (!client_set_length_callback(cli->protocol, ztmp)) {
             return false;
         }
         cli->protocol.get_package_length = php_swoole_length_func;
-        if (cli->protocol.private_data_1) {
-            sw_callable_free(cli->protocol.private_data_1);
-        }
-        cli->protocol.private_data_1 = fci_cache;
         cli->protocol.package_length_size = 0;
         cli->protocol.package_length_type = '\0';
         cli->protocol.package_length_offset = SW_IPC_BUFFER_SIZE;
@@ -332,6 +583,19 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) try {
     } else {
         cli->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
     }
+    return !EG(exception);
+} catch (const zend::setting::ParseError &) {
+    return false;
+}
+
+bool php_swoole_client_check_setting(Client *cli, const zval *zset) try {
+    auto *vht = Z_ARRVAL_P(zset);
+    if (!client_check_protocol(cli, vht)) {
+        return false;
+    }
+
+    zval *ztmp;
+    int value = 1;
     /**
      * socket send/recv buffer size
      */
@@ -372,17 +636,9 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) try {
     /**
      * client: tcp_nodelay
      */
-    if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp)) {
-        if (zval_is_true(ztmp)) {
-            goto _open_tcp_nodelay;
-        }
-    } else {
-    _open_tcp_nodelay:
-        // The failure to set tcp_nodelay does not affect the normal operation of the client;
-        // therefore, only an error log is printed without returning false.
-        if (cli->socket->is_tcp() && !cli->socket->set_tcp_nodelay()) {
-            return php_swoole_throw_setting_exception("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
-        }
+    if (cli->socket->is_tcp() && (!php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp) || zval_is_true(ztmp)) &&
+        !cli->socket->set_tcp_nodelay()) {
+        return php_swoole_throw_setting_exception("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
     }
     /**
      * socks5 proxy
@@ -439,60 +695,100 @@ bool php_swoole_client_check_setting(Client *cli, const zval *zset) try {
 }
 
 void php_swoole_client_free(const zval *zobject, Client *cli) {
-    if (cli->timer) {
-        swoole_timer_del(cli->timer);
-        cli->timer = nullptr;
-    }
-    if (cli->protocol.private_data_1) {
-        sw_callable_free(cli->protocol.private_data_1);
-        cli->protocol.private_data_1 = nullptr;
-    }
-    // long tcp connection, delete from connection pool
-    if (cli->keep) {
-        auto i = long_connections.find(cli->server_id);
-        if (i != long_connections.end()) {
-            std::queue<Client *> *q = i->second;
-            if (q->empty()) {
-                delete q;
-                long_connections.erase(cli->server_id);
-            }
-        }
+    if (cli->async) {
+        ClientDeleter{}(cli);
+        cli = nullptr;
     }
 
-    delete cli;
-    php_swoole_client_fetch_object(zobject)->generation++;
+    auto *object = php_swoole_client_fetch_object(zobject);
+    object->cli = nullptr;
+    object->generation++;
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    zval *zsocket = client_get_zsocket(zobject);
+    auto *zsocket = std::exchange(object->zsocket, nullptr);
+#endif
+    if (cli) {
+        // Releasing a PHP callable can run its destructor.
+        ClientDeleter{}(cli);
+    }
+#ifdef SWOOLE_SOCKETS_SUPPORT
     if (zsocket) {
         sw_zval_free(zsocket);
-        client_set_zsocket(zobject, nullptr);
     }
 #endif
-    // unset object
-    php_swoole_client_set_cli(zobject, nullptr);
 }
 
 ssize_t php_swoole_length_func(const Protocol *protocol, Socket *_socket, PacketLength *pl) {
     auto *cb = static_cast<zend::Callable *>(protocol->private_data_1);
+    // Keep the PHP callable and its cache alive if the callback closes the connection.
+    auto fcc = *cb->ptr();
+    zval function;
+    cb->copy_function(&function);
     zval zdata;
     zval retval;
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
-    if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, cb->ptr(), 1, &zdata, &retval) != SUCCESS)) {
+    if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, &fcc, 1, &zdata, &retval) != SUCCESS)) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
         ret = zval_get_long(&retval);
         zval_ptr_dtor(&retval);
     }
     zval_ptr_dtor(&zdata);
+    zval_ptr_dtor(&function);
 
     return ret;
 }
 
-static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port) {
+static bool client_is_reusable(const Client *cli) {
+    auto *socket = cli->socket;
+    if (!cli->active || cli->async || cli->async_connect || cli->timer || !socket->removed || socket->events ||
+        socket->recv_timer || socket->send_timer || socket->out_buffer || cli->is_shutdown() ||
+        (cli->buffer && cli->buffer->length > 0) || socket->recv_eof) {
+        return false;
+    }
+    if (socket->ssl) {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+        if (SSL_has_pending(socket->ssl)) {
+            return false;
+        }
+#else
+        // SSL_pending() cannot detect unread TLS records already buffered by read-ahead.
+        return false;
+#endif
+    }
+
+    // Readability includes unread data and EOF. Poll also reports socket errors without consuming bytes.
+    pollfd event{};
+    event.fd = socket->get_fd();
+    event.events = POLLIN;
+    return poll(&event, 1, 0) == 0;
+}
+
+ClientConnectionPool::Key ClientConnectionPool::make_key(
+    const char *host, size_t host_len, int port, SocketType type, bool ssl, const zval *id, int socket_flags) {
+    Key key;
+    const bool named = id && Z_TYPE_P(id) == IS_STRING && Z_STRLEN_P(id) > 0;
+#ifdef SW_THREAD
+    // A named pool lets the application identify connections with interchangeable session state.
+    key.shared = SWOOLE_G(cli) && Socket::is_tcp(type) && !ssl && socket_flags == 0 && named;
+#endif
+    append_key(key.value, type);
+    append_key(key.value, host, host_len);
+    append_key(key.value, port);
+    if (named) {
+        append_key(key.value, Z_STRVAL_P(id), Z_STRLEN_P(id));
+    } else {
+        append_key(key.value, "", 0);
+    }
+
+    return key;
+}
+
+static Client *php_swoole_client_new(
+    zval *zobject, const char *host, size_t host_len, int port, const int *socket_flags = nullptr) {
     zval *ztype = sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TYPE), 0);
     if (ztype == nullptr || ZVAL_IS_NULL(ztype)) {
         php_swoole_fatal_error(E_ERROR, "failed to get swoole_client->type");
@@ -500,45 +796,25 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
     }
 
     long type = Z_LVAL_P(ztype);
-    int socket_type = php_swoole_client_get_type(type);
-    if (Socket::is_tcp(static_cast<SocketType>(socket_type)) && !Address::verify_port(port)) {
+    auto socket_type = php_swoole_client_get_type(type);
+    if (Socket::is_tcp(socket_type) && !Address::verify_port(port)) {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return nullptr;
     }
 
-    Client *cli;
-    std::string conn_key;
-    zval *zconnection_id =
-        sw_zend_read_property_not_null_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_ID), 1);
-
-    if (zconnection_id && Z_TYPE_P(zconnection_id) == IS_STRING && Z_STRLEN_P(zconnection_id) > 0) {
-        conn_key = std::string(Z_STRVAL_P(zconnection_id), Z_STRLEN_P(zconnection_id));
-    } else {
-        size_t size = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, "%s:%d", host, port);
-        conn_key = std::string(sw_tg_buffer()->str, size);
+    const bool keep = type & SW_FLAG_KEEP;
+    const bool ssl = type & SW_SOCK_SSL;
+    ClientConnectionPool::Key key;
+    Client *cli = nullptr;
+    // sendto() can create an unconnected datagram socket, which has no persistent peer.
+    if (keep && socket_flags && client_pool.enabled) {
+        auto *id = sw_zend_read_property_not_null_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_ID), 1);
+        key = ClientConnectionPool::make_key(host, host_len, port, socket_type, ssl, id, *socket_flags);
+        cli = client_pool.take(key, ssl, *socket_flags).release();
     }
-
-    // keep the tcp connection
-    if (type & SW_FLAG_KEEP) {
-        auto i = long_connections.find(conn_key);
-        if (i == long_connections.end() || i->second->empty()) {
-            goto _create_socket;
-        } else {
-            std::queue<Client *> *q = i->second;
-            cli = q->front();
-            q->pop();
-            if (!cli->socket->check_liveness()) {
-                cli->close();
-                php_swoole_client_free(zobject, cli);
-                goto _create_socket;
-            }
-            cli->reuse_count++;
-            zend_update_property_long(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("reuseCount"), cli->reuse_count);
-        }
-    } else {
-    _create_socket:
-        cli = new Client(php_swoole_client_get_type(type), false);
+    if (!cli) {
+        cli = new Client(socket_type, false);
         if (cli->socket == nullptr) {
             php_swoole_sys_error(E_WARNING, "Client_create() failed");
             zend_update_property_long(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("errCode"), errno);
@@ -546,19 +822,15 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
             return nullptr;
         }
 
-        cli->server_id = std::string(conn_key.c_str(), conn_key.length());
+        cli->server_id = std::move(key.value);
+        cli->keep = keep;
+        if (ssl) {
+            cli->enable_ssl_encrypt();
+        }
     }
 
+    php_swoole_client_fetch_object(zobject)->pool_shared = key.shared;
     zend_update_property_long(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("sock"), cli->socket->fd);
-
-    if (type & SW_FLAG_KEEP) {
-        cli->keep = true;
-    }
-
-    if (type & SW_SOCK_SSL) {
-        cli->enable_ssl_encrypt();
-    }
-
     return cli;
 }
 
@@ -640,40 +912,73 @@ static PHP_METHOD(swoole_client, connect) {
         RETURN_FALSE;
     }
 
-    Client *cli = php_swoole_client_get_cli(ZEND_THIS);
-    if (cli) {
+    auto *object = php_swoole_client_fetch_object(ZEND_THIS);
+    if (object->cli || object->connecting) {
         php_swoole_fatal_error(E_WARNING, "connection to the server has already been established");
         RETURN_FALSE;
     }
+    object->connecting = true;
+    ON_SCOPE_EXIT {
+        object->connecting = false;
+    };
 
-    cli = php_swoole_client_new(ZEND_THIS, host, host_len, port);
-    if (cli == nullptr) {
+    zend_update_property_bool(swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("reuse"), false);
+    zend_update_property_long(swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("reuseCount"), 0);
+
+    const int socket_flags = static_cast<int>(sock_flag);
+    std::unique_ptr<Client, ClientDeleter> connection(
+        php_swoole_client_new(ZEND_THIS, host, host_len, port, &socket_flags));
+    if (!connection) {
         RETURN_FALSE;
     }
-    php_swoole_client_set_cli(ZEND_THIS, cli);
+    auto *cli = connection.get();
 
-    if (cli->keep && cli->active) {
-        zend_update_property_bool(swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("reuse"), 1);
-        RETURN_TRUE;
-    } else if (cli->active == 1) {
-        php_swoole_fatal_error(E_WARNING, "connection to the server has already been established");
-        RETURN_FALSE;
-    }
+    const bool reused = cli->keep && cli->active;
+    const bool needs_callback = reused && cli->protocol.get_package_length == php_swoole_length_func;
+    if (!reused || needs_callback) {
+        zval settings;
+        ZVAL_COPY(&settings,
+                  sw_zend_read_property_ex(swoole_client_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0));
+        ON_SCOPE_EXIT {
+            zval_ptr_dtor(&settings);
+        };
 
-    zval *zset = sw_zend_read_property_ex(swoole_client_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
-    if (zset && ZVAL_IS_ARRAY(zset)) {
+        const bool has_settings = Z_TYPE(settings) == IS_ARRAY;
+        bool valid = true;
         swoole_set_last_error(0);
-        if (!php_swoole_client_check_setting(cli, zset)) {
+        if (needs_callback) {
+            zval *callback;
+            if (has_settings && php_swoole_array_get_value(Z_ARRVAL(settings), "package_length_func", callback)) {
+                valid = client_set_length_callback(cli->protocol, callback);
+            } else {
+                valid = php_swoole_throw_setting_exception("package_length_func is required for this pooled client");
+            }
+        } else if (has_settings) {
+            valid = php_swoole_client_check_setting(cli, &settings);
+        }
+        if (!valid || EG(exception)) {
             zend_update_property_long(
                 swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
             RETURN_FALSE;
         }
     }
 
-    if (cli->connect(host, port, timeout, sock_flag) < 0) {
+    if (reused) {
+        cli->reuse_count++;
+        zend_update_property_long(swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("reuseCount"), cli->reuse_count);
+        zend_update_property_bool(swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("reuse"), 1);
+        object->cli = connection.release();
+        RETURN_TRUE;
+    } else if (cli->active == 1) {
+        php_swoole_fatal_error(E_WARNING, "connection to the server has already been established");
+        RETURN_FALSE;
+    }
+
+    if (cli->connect(host, port, timeout, socket_flags) < 0) {
         zend_update_property_long(swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
         // async connect
         if (cli->async_connect) {
+            object->cli = connection.release();
             RETURN_TRUE;
         }
         php_swoole_core_error(E_WARNING,
@@ -682,9 +987,9 @@ static PHP_METHOD(swoole_client, connect) {
                               (int) port,
                               swoole_strerror(swoole_get_last_error()),
                               swoole_get_last_error());
-        php_swoole_client_free(ZEND_THIS, cli);
         RETURN_FALSE;
     }
+    object->cli = connection.release();
     RETURN_TRUE;
 }
 
@@ -711,7 +1016,11 @@ static PHP_METHOD(swoole_client, send) {
 
     // clear errno
     swoole_set_last_error(0);
+    const size_t sent = cli->socket->total_send_bytes;
     ssize_t ret = cli->send(data, data_len, flags);
+    if (static_cast<size_t>(ret) != data_len && cli->socket->total_send_bytes != sent) {
+        cli->server_id.clear();
+    }
     if (ret < 0) {
         php_swoole_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
@@ -739,6 +1048,10 @@ static PHP_METHOD(swoole_client, sendto) {
 
     Client *cli = php_swoole_client_get_cli(ZEND_THIS);
     if (!cli) {
+        if (php_swoole_client_fetch_object(ZEND_THIS)->connecting) {
+            php_swoole_error(E_WARNING, "connection to the server is being established");
+            RETURN_FALSE;
+        }
         cli = php_swoole_client_new(ZEND_THIS, host, host_len, port);
         if (cli == nullptr) {
             RETURN_FALSE;
@@ -787,8 +1100,12 @@ static PHP_METHOD(swoole_client, sendfile) {
     }
     // clear errno
     swoole_set_last_error(0);
+    const size_t sent = cli->socket->total_send_bytes;
     int ret = cli->sendfile(file, offset, length);
     if (ret < 0) {
+        if (cli->socket->total_send_bytes != sent) {
+            cli->server_id.clear();
+        }
         swoole_set_last_error(errno);
         php_swoole_fatal_error(E_WARNING,
                                "sendfile() failed. Error: %s [%d]",
@@ -801,10 +1118,17 @@ static PHP_METHOD(swoole_client, sendfile) {
     }
 }
 
+static void client_discard_read_buffer(Client *client) {
+    if (client->buffer->length > 0) {
+        client->server_id.clear();
+        client->buffer->clear();
+    }
+}
+
 static PHP_METHOD(swoole_client, recv) {
     zend_long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
     zend_long flags = 0;
-    int ret;
+    ssize_t ret;
     zend_string *strbuf = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
@@ -848,13 +1172,13 @@ static PHP_METHOD(swoole_client, recv) {
 
             ret = cli->recv(buf, buf_len, 0);
             if (ret < 0) {
+                client_discard_read_buffer(cli);
                 php_swoole_sys_error(E_WARNING, "recv() failed");
                 zend_update_property_long(
                     swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
-                buffer->length = 0;
                 RETURN_FALSE;
             } else if (ret == 0) {
-                buffer->length = 0;
+                client_discard_read_buffer(cli);
                 RETURN_EMPTY_STRING();
             }
 
@@ -884,8 +1208,8 @@ static PHP_METHOD(swoole_client, recv) {
                 return;
             } else {
                 if (buffer->length == protocol->package_max_length) {
+                    client_discard_read_buffer(cli);
                     php_swoole_error(E_WARNING, "no package eof");
-                    buffer->length = 0;
                     RETURN_FALSE;
                 } else if (buffer->length == buffer->size) {
                     if (buffer->size < protocol->package_max_length) {
@@ -897,6 +1221,11 @@ static PHP_METHOD(swoole_client, recv) {
         buffer->length = 0;
         RETURN_FALSE;
     } else if (cli->open_length_check) {
+        auto *object = php_swoole_client_fetch_object(ZEND_THIS);
+        if (UNEXPECTED(object->reading_length)) {
+            php_swoole_error(E_WARNING, "cannot receive while resolving a packet length");
+            RETURN_FALSE;
+        }
         if (cli->buffer == nullptr) {
             cli->buffer = new String(SW_BUFFER_SIZE_STD);
         }
@@ -907,22 +1236,25 @@ static PHP_METHOD(swoole_client, recv) {
             buffer->extend(header_len);
         }
 
-        const uint32_t generation = php_swoole_client_fetch_object(ZEND_THIS)->generation;
         while (true) {
             // A custom length header can read ahead into the next frame.
             if (buffer->length > 0) {
                 ssize_t package_length = 0;
+                const auto generation = object->generation;
+                const bool custom_length = protocol->get_package_length == php_swoole_length_func;
+                object->reading_length = custom_length;
                 const auto status = protocol->resolve_package_length(
                     cli->socket, buffer->str, buffer->length, &package_length, nullptr);
+                object->reading_length = false;
                 // A custom length callback may close the client and release this buffer.
-                if (php_swoole_client_fetch_object(ZEND_THIS)->generation != generation) {
+                if (object->generation != generation) {
                     swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
                     zend_update_property_long(
                         swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);
                     RETURN_FALSE;
                 }
                 if (status == swoole::PackageLengthStatus::MALFORMED) {
-                    buffer->clear();
+                    client_discard_read_buffer(cli);
                     RETURN_EMPTY_STRING();
                 }
                 if (status != swoole::PackageLengthStatus::NEED_MORE) {
@@ -930,31 +1262,31 @@ static PHP_METHOD(swoole_client, recv) {
                     break;
                 }
                 if (buffer->length >= header_len) {
-                    buffer->clear();
+                    client_discard_read_buffer(cli);
                     RETURN_EMPTY_STRING();
                 }
             }
 
             auto retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
             if (retval < 0) {
+                client_discard_read_buffer(cli);
                 php_swoole_sys_error(E_WARNING, "recv() failed");
                 zend_update_property_long(
                     swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
-                buffer->clear();
                 RETURN_FALSE;
             } else if (retval == 0) {
-                buffer->clear();
+                client_discard_read_buffer(cli);
                 RETURN_EMPTY_STRING();
             }
             buffer->length += retval;
         }
 
         if (buf_len > protocol->package_max_length) {
+            client_discard_read_buffer(cli);
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                              "Package is too big. package_length=%d",
                              (int) buf_len);
-            buffer->clear();
             RETURN_EMPTY_STRING();
         }
         if (static_cast<size_t>(buf_len) <= buffer->length) {
@@ -970,9 +1302,11 @@ static PHP_METHOD(swoole_client, recv) {
         buffer->clear();
         swoole_set_last_error(0);
         ret = cli->recv(strbuf->val + received_len, buf_len - received_len, MSG_WAITALL);
-        if (ret > 0) {
-            ret += received_len;
-            if (ret != buf_len) {
+        if (ret == buf_len - static_cast<zend_long>(received_len)) {
+            ret = buf_len;
+        } else {
+            cli->server_id.clear();
+            if (ret > 0) {
                 ret = 0;
             }
         }
@@ -982,7 +1316,11 @@ static PHP_METHOD(swoole_client, recv) {
         }
         strbuf = zend_string_alloc(buf_len, false);
         swoole_set_last_error(0);
+        const size_t received = cli->socket->total_recv_bytes;
         ret = cli->recv(strbuf->val, buf_len, flags);
+        if (ret < 0 && cli->socket->total_recv_bytes != received) {
+            cli->server_id.clear();
+        }
     }
 
     if (ret < 0) {
@@ -1095,26 +1433,22 @@ static PHP_METHOD(swoole_client, close) {
         php_swoole_error(E_WARNING, "client socket is closed");
         RETURN_FALSE;
     }
-    // A buffered length frame belongs to the current client and may still need bytes from the socket.
-    const bool buffered_length_data =
-        cli->open_length_check && !cli->open_eof_check && cli->buffer && cli->buffer->length > 0;
-    if (force || !cli->keep || cli->is_shutdown() || buffered_length_data || !cli->socket->check_liveness()) {
+    if (force || !cli->keep || cli->server_id.empty() || SWOOLE_G(req_status) >= PHP_SWOOLE_RSHUTDOWN_BEGIN ||
+        !client_is_reusable(cli)) {
         ret = cli->close();
         php_swoole_client_free(ZEND_THIS, cli);
     } else {
-        if (cli->keep) {
-            std::queue<Client *> *q;
-            auto i = long_connections.find(cli->server_id);
-            if (i == long_connections.end()) {
-                q = new std::queue<Client *>;
-                long_connections[cli->server_id] = q;
-            } else {
-                q = i->second;
-            }
-            q->push(cli);
-        }
-        // unset object
+        auto connection = PooledClient(cli);
+        auto *object = php_swoole_client_fetch_object(ZEND_THIS);
+        const bool shared = object->pool_shared;
         php_swoole_client_set_cli(ZEND_THIS, nullptr);
+        object->generation++;
+
+        // An empty EOF buffer may still own memory from the current PHP request.
+        delete std::exchange(cli->buffer, nullptr);
+        // Preserve native framing. Its PHP handler must be supplied by the next borrower.
+        client_release_length_callback(cli->protocol);
+        client_pool.put(std::move(connection), shared);
     }
     SW_CHECK_RETURN(ret);
 }
@@ -1169,6 +1503,8 @@ static PHP_METHOD(swoole_client, enableSSL) {
         php_swoole_client_free(ZEND_THIS, cli);
         RETURN_FALSE;
     }
+    // The old pool key describes the connection before the TLS upgrade.
+    cli->server_id.clear();
     RETURN_TRUE;
 }
 

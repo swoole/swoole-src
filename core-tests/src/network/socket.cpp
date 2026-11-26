@@ -29,6 +29,41 @@ using namespace swoole;
 
 const char test_data[] = "hello swoole, hello world, php is best";
 
+TEST(socket, reset_kernel_timeout) {
+    auto *socket = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+    ASSERT_NE(socket, nullptr);
+    ON_SCOPE_EXIT {
+        socket->close_fd();
+        delete socket;
+    };
+
+    for (double seconds : {0.25, 0.0}) {
+        ASSERT_TRUE(socket->set_kernel_timeout(seconds));
+        EXPECT_DOUBLE_EQ(socket->read_timeout, seconds);
+        EXPECT_DOUBLE_EQ(socket->write_timeout, seconds);
+
+        for (int option : {SO_RCVTIMEO, SO_SNDTIMEO}) {
+#ifdef _WIN32
+            DWORD timeout{};
+#else
+            timeval timeout{};
+#endif
+            socklen_t size = sizeof(timeout);
+            ASSERT_EQ(socket->get_option(SOL_SOCKET, option, &timeout, &size), 0);
+#ifdef _WIN32
+            EXPECT_EQ(timeout, static_cast<DWORD>(seconds * 1000));
+#else
+            EXPECT_EQ(timeout.tv_sec, 0);
+            if (seconds > 0) {
+                EXPECT_GE(timeout.tv_usec, 250000);
+            } else {
+                EXPECT_EQ(timeout.tv_usec, 0);
+            }
+#endif
+        }
+    }
+}
+
 TEST(socket, dup_preserves_configuration_without_aliasing_owned_state) {
     UnixSocket sockets(true, SOCK_STREAM);
     ASSERT_TRUE(sockets.ready());
@@ -469,6 +504,7 @@ TEST(socket, sendfile_sync) {
         int len = htonl(str->get_length());
         cli->send(&len, sizeof(len), 0);
         ASSERT_EQ(cli->sendfile_sync(file.c_str(), 0, 0), SW_OK);
+        ASSERT_EQ(cli->total_send_bytes, sizeof(len) + str->get_length());
         cli->free();
     });
 

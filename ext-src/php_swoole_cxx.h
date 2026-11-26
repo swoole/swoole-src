@@ -660,6 +660,10 @@ class Callable {
         return &fcc;
     }
 
+    void copy_function(zval *function) const {
+        ZVAL_COPY(function, &zfn);
+    }
+
     void add_to_gc_buffer(zend_get_gc_buffer *buffer) {
         zend_get_gc_buffer_add_zval(buffer, &zfn);
     }

@@ -81,6 +81,19 @@ TEST(protocol, resolve_package_length_status) {
     EXPECT_EQ(protocol.resolve_package_length(nullptr, negative, 4, &length), PackageLengthStatus::MALFORMED);
 }
 
+TEST(protocol, resolve_package_length_uses_limit_from_before_callback) {
+    Protocol protocol{};
+    protocol.package_max_length = 8;
+    protocol.get_package_length = [](const Protocol *current, network::Socket *, PacketLength *) -> ssize_t {
+        const_cast<Protocol *>(current)->package_max_length = 16;
+        return 12;
+    };
+
+    ssize_t length = 0;
+    EXPECT_EQ(protocol.resolve_package_length(nullptr, "x", 1, &length), PackageLengthStatus::TOO_LARGE);
+    EXPECT_EQ(length, 12);
+}
+
 TEST(protocol, set_package_eof) {
     Protocol protocol{};
     std::string eof(sizeof(protocol.package_eof), 'x');

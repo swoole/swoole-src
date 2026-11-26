@@ -46,8 +46,11 @@ struct ClientObject {
     zval *zsocket;
 #endif
     AsyncClientObject *async;
-    // Bumped whenever the native client is freed, so a caller can tell that a callback closed it.
+    // Bumped when the native client is detached or freed, so a caller can detect closure during a callback.
     uint32_t generation;
+    bool pool_shared;
+    bool reading_length;
+    bool connecting;
     zend_object std;
 };
 
@@ -68,6 +71,8 @@ static inline enum swSocketType php_swoole_client_get_type(long type) {
 }
 
 NetClient *php_swoole_client_get_cli_safe(const zval *zobject);
+void php_swoole_client_rshutdown();
+void php_swoole_client_mshutdown();
 void php_swoole_client_free(const zval *zobject, NetClient *cli);
 void php_swoole_client_async_free_object(const ClientObject *client_obj);
 bool php_swoole_client_check_setting(NetClient *cli, const zval *zset);

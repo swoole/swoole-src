@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
 */
 #include "php_swoole_cxx.h"
+#include "php_swoole_client.h"
 #include "php_swoole_library.h"
 #ifndef _WIN32
 #include "php_swoole_process.h"
@@ -1183,6 +1184,7 @@ PHP_MINIT_FUNCTION(swoole) {
 PHP_MSHUTDOWN_FUNCTION(swoole) {
     zend::known_strings_dtor();
 
+    php_swoole_client_mshutdown();
     php_swoole_runtime_mshutdown();
 #ifdef SW_USE_PGSQL
     php_swoole_pgsql_mshutdown();
@@ -1533,11 +1535,13 @@ PHP_RINIT_FUNCTION(swoole) {
 
 PHP_RSHUTDOWN_FUNCTION(swoole) {
     if (!SWOOLE_G(cli)) {
+        php_swoole_client_rshutdown();
         return SUCCESS;
     }
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
 
+    php_swoole_client_rshutdown();
 #ifndef _WIN32
     php_swoole_server_rshutdown();
     php_swoole_http_server_rshutdown();

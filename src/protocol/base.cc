@@ -308,6 +308,8 @@ _do_recv:
 
 PackageLengthStatus Protocol::resolve_package_length(
     network::Socket *socket, const char *buf, size_t len, ssize_t *package_length, uint32_t *header_len) const {
+    // A user callback may close the client and release this Protocol.
+    const auto max_length = package_max_length;
     PacketLength pl{buf, (uint32_t) len, 0};
     ssize_t length = get_package_length(this, socket, &pl);
     *package_length = length;
@@ -320,7 +322,7 @@ PackageLengthStatus Protocol::resolve_package_length(
         }
         return PackageLengthStatus::NEED_MORE;
     }
-    if ((size_t) length > package_max_length) {
+    if ((size_t) length > max_length) {
         return PackageLengthStatus::TOO_LARGE;
     }
     return PackageLengthStatus::OK;

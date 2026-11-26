@@ -24,6 +24,7 @@
 #include "swoole_iocp.h"
 #endif
 
+#include <cmath>
 #include <limits>
 #include <utility>
 #include <memory>
@@ -210,6 +211,7 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length) {
         return SW_ERR;
     }
 
+    const auto start = offset;
     auto corked = false;
     if (end - offset > SW_SOCKET_CORK_MIN_SIZE) {
         corked = cork();
@@ -229,6 +231,7 @@ int Socket::sendfile_sync(const char *filename, off_t offset, size_t length) {
         uncork();
     }
 
+    total_send_bytes += offset - start;
     return rv ? SW_OK : SW_ERR;
 }
 
@@ -644,10 +647,19 @@ Socket *Socket::dup() const {
     return copy.release();
 }
 
-static bool _set_timeout(int fd, int type, double timeout) {
+static bool _set_timeout(swSocketFd fd, int type, double timeout) {
+#ifdef _WIN32
+    const double milliseconds = std::ceil(timeout * 1000);
+    if (!(milliseconds >= 0 && milliseconds <= std::numeric_limits<DWORD>::max())) {
+        sw_set_errno(EINVAL);
+        return false;
+    }
+    const auto timeo = static_cast<DWORD>(milliseconds);
+#else
     timeval timeo;
     timeo.tv_sec = (int) timeout;
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
+#endif
     int ret = setsockopt(fd, SOL_SOCKET, type, (const char *) &timeo, sizeof(timeo));
     if (ret < 0) {
         swoole_sys_warning("setsockopt(SO_SNDTIMEO, %s) failed", type == SO_SNDTIMEO ? "SEND" : "RECV");
