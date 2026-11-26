@@ -1240,10 +1240,21 @@ static PHP_METHOD(swoole_http_request, parse) {
         ZVAL_STR(&ctx->request.zdata, new_str);
     }
 
-    RETURN_LONG(swoole_llhttp_parser_execute(&ctx->parser,
-                                             &http_request_parser_settings,
-                                             Z_STRVAL(ctx->request.zdata) + Z_STRLEN(ctx->request.zdata) - l_str,
-                                             l_str));
+    auto &request = ctx->request;
+    const size_t offset = Z_STRLEN(request.zdata) - l_str;
+    const size_t parsed = swoole_llhttp_parser_execute(
+        &ctx->parser, &http_request_parser_settings, Z_STRVAL(request.zdata) + offset, l_str);
+    if (ctx->completed && parsed < l_str) {
+        // Keep only the completed request. The caller still owns any bytes for the next request.
+        const size_t length = offset + parsed;
+        auto *data = zend_string_truncate(Z_STR(request.zdata), length, false);
+        ZSTR_VAL(data)[length] = '\0';
+        ZVAL_STR(&request.zdata, data);
+        if (request.body_length > 0) {
+            request.body_at = ZSTR_VAL(data) + length - request.body_length;
+        }
+    }
+    RETURN_LONG(parsed);
 }
 
 static PHP_METHOD(swoole_http_request, getMethod) {
