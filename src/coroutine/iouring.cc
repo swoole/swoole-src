@@ -634,6 +634,7 @@ ssize_t Iouring::writev(int fd, const struct iovec *iovec, int count, double tim
 
 ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, double timeout) {
     if (size == 0) {
+        errno = 0;
         return 0;
     }
 
@@ -658,52 +659,56 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
     }
 
     size_t total_sent = 0;
-    off_t current_offset = offset ? *offset : 0;
+    size_t pending = 0;
+    int error = 0;
+    const off_t current_offset = offset ? *offset : 0;
 
-    while (total_sent < size) {
-        size_t remaining = size - total_sent;
-        size_t to_send = std::min(remaining, (size_t) pipe_size);
-
-        ssize_t ret1 =
+    while (total_sent < size && error == 0) {
+        const size_t to_send = std::min(size - total_sent, static_cast<size_t>(pipe_size));
+        const ssize_t loaded =
             splice(in_fd, offset ? current_offset + static_cast<off_t>(total_sent) : -1, pipe_fds[1], to_send);
-        if (ret1 <= 0) {
-            if (total_sent > 0) {
-                break;
-            }
-            int saved_errno = errno;
-            ::close(pipe_fds[0]);
-            ::close(pipe_fds[1]);
-            errno = saved_errno;
-            return -1;
-        }
-
-        ssize_t ret2 = splice(pipe_fds[0], -1, out_fd, ret1);
-        if (ret2 <= 0) {
-            if (total_sent > 0) {
-                break;
-            }
-            int saved_errno = errno;
-            ::close(pipe_fds[0]);
-            ::close(pipe_fds[1]);
-            errno = saved_errno;
-            return -1;
-        }
-
-        total_sent += ret2;
-
-        if (ret2 < ret1) {
+        if (loaded <= 0) {
+            error = loaded < 0 ? errno : 0;
             break;
+        }
+
+        // Drain the whole batch before reading more from the file.
+        pending = loaded;
+        while (pending > 0) {
+            const ssize_t sent = splice(pipe_fds[0], -1, out_fd, pending);
+            if (sent < 0 && errno == EAGAIN) {
+                INIT_EVENT(IORING_OP_POLL_ADD);
+                io_uring_prep_poll_add(&event.data, out_fd, POLLOUT);
+                event.set_timeout(timeout);
+                const ssize_t ready = execute(&event);
+                if (ready > 0) {
+                    continue;
+                }
+                error = ready < 0 ? errno : EIO;
+                break;
+            }
+            if (sent <= 0) {
+                error = sent < 0 ? errno : EIO;
+                break;
+            }
+            pending -= sent;
+            total_sent += sent;
         }
     }
 
     ::close(pipe_fds[0]);
     ::close(pipe_fds[1]);
 
-    if (total_sent > 0 && offset) {
+    if (offset) {
         *offset += total_sent;
+    } else if (pending > 0) {
+        // For a seekable input, leave the file position at the first unsent byte.
+        ::lseek(in_fd, -static_cast<off_t>(pending), SEEK_CUR);
     }
 
-    return total_sent;
+    // Report progress even on a later error. EOF leaves errno clear.
+    errno = error;
+    return error != 0 && total_sent == 0 ? -1 : static_cast<ssize_t>(total_sent);
 
 #else
     INIT_EVENT(IORING_OP_SENDMSG);
@@ -727,6 +732,9 @@ ssize_t Iouring::sendfile(int out_fd, int in_fd, off_t *offset, size_t size, dou
 
     if (ret > 0 && offset) {
         *offset += ret;
+    }
+    if (ret >= 0) {
+        errno = 0;
     }
 
     return ret;

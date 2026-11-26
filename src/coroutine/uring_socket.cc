@@ -340,15 +340,21 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
     ssize_t retval;
 
     write_co = Coroutine::get_current_safe();
-    if (is_ssl()) {
+    const bool ssl = is_ssl();
+    if (ssl) {
         retval = ssl_sendfile(file, &offset, length);
     } else {
         retval = uring_sendfile(file, &offset, length);
     }
     write_co = nullptr;
 
+    const bool complete = retval >= 0 && static_cast<size_t>(retval) == length;
+    if (!ssl && !complete) {
+        set_err(errno != 0 ? errno : EIO);
+        return false;
+    }
     check_return_value(retval);
-    return retval >= 0 && static_cast<size_t>(retval) == length;
+    return complete;
 }
 
 ssize_t UringSocket::readv(network::IOVector *io_vector) {

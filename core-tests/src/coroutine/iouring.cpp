@@ -15,7 +15,9 @@
  */
 
 #include "test_coroutine.h"
+#include "swoole_file.h"
 #include "swoole_iouring.h"
+#include "swoole_util.h"
 
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -265,6 +267,47 @@ TEST(iouring, sendfile) {
         data[result] = '\0';
         sock.close();
         ASSERT_EQ(result, file.get_size());
+    });
+}
+
+TEST(iouring, sendfile_reports_partial_progress_on_timeout) {
+    auto file = swoole::make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    ON_SCOPE_EXIT {
+        swoole::File::remove(file.get_path());
+    };
+    const std::string payload(96 * 1024, 'x');
+    ASSERT_EQ(file.write(payload), payload.size());
+
+    coroutine::run([&](void *) {
+        for (const bool implicit_offset : {false, true}) {
+            int pair[2];
+            ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, pair), 0);
+            ON_SCOPE_EXIT {
+                ::close(pair[0]);
+            };
+            CoSocket reader(pair[1], SW_SOCK_UNIX_STREAM);
+            reader.set_timeout(1, SW_TIMEOUT_READ);
+            const int send_buffer = 4096;
+            ASSERT_EQ(setsockopt(pair[0], SOL_SOCKET, SO_SNDBUF, &send_buffer, sizeof(send_buffer)), 0);
+            ASSERT_EQ(::lseek(file.get_fd(), 0, SEEK_SET), 0);
+
+            off_t offset = 0;
+            const auto sent =
+                Iouring::sendfile(pair[0], file.get_fd(), implicit_offset ? nullptr : &offset, payload.size(), 0.1);
+            const int error = errno;
+            ASSERT_GT(sent, 0);
+            ASSERT_LT(sent, payload.size());
+            EXPECT_EQ(error, ETIMEDOUT);
+            EXPECT_EQ(::lseek(file.get_fd(), 0, SEEK_CUR), implicit_offset ? sent : 0);
+            EXPECT_EQ(offset, implicit_offset ? 0 : sent);
+
+            ASSERT_EQ(::shutdown(pair[0], SHUT_WR), 0);
+            std::string received(payload.size(), '\0');
+            ASSERT_EQ(reader.recv_all(&received[0], received.size()), sent);
+            EXPECT_EQ(received.substr(0, sent), payload.substr(0, sent));
+            EXPECT_TRUE(reader.close());
+        }
     });
 }
 

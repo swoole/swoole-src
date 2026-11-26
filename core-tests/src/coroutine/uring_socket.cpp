@@ -618,9 +618,9 @@ TEST(uring_socket, sendfile_range) {
         };
         ASSERT_EQ(file.write("0123456789"), 10);
 
-        const size_t lengths[] = {3, 0};
-        const off_t offsets[] = {2, 7};
-        const char *expected[] = {"234", "789"};
+        const size_t lengths[] = {3, 0, 4};
+        const off_t offsets[] = {2, 7, 7};
+        const char *expected[] = {"234", "789", "789"};
         SW_LOOP_N(SW_ARRAY_SIZE(lengths)) {
             int pair[2];
             ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
@@ -632,8 +632,9 @@ TEST(uring_socket, sendfile_range) {
             EXPECT_EQ(writer.errCode, EINVAL);
             EXPECT_FALSE(writer.sendfile(file.get_path().c_str(), 11, 2));
             EXPECT_EQ(writer.errCode, EINVAL);
-            ASSERT_TRUE(writer.sendfile(file.get_path().c_str(), offsets[i], lengths[i]));
-            EXPECT_EQ(writer.errCode, 0);
+            const bool complete = lengths[i] != 4;
+            ASSERT_EQ(writer.sendfile(file.get_path().c_str(), offsets[i], lengths[i]), complete);
+            EXPECT_EQ(writer.errCode, complete ? 0 : EIO);
             ASSERT_TRUE(writer.close());
 
             char data[20];
@@ -641,6 +642,41 @@ TEST(uring_socket, sendfile_range) {
             ASSERT_GE(received, 0);
             EXPECT_EQ(std::string(data, received), expected[i]);
         }
+    });
+}
+
+TEST(uring_socket, sendfile_under_backpressure) {
+    auto file = swoole::make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    ON_SCOPE_EXIT {
+        File::remove(file.get_path());
+    };
+    std::string payload(96 * 1024, '\0');
+    for (size_t i = 0; i < payload.size(); ++i) {
+        payload[i] = static_cast<char>(i % 251);
+    }
+    ASSERT_EQ(file.write(payload), payload.size());
+
+    coroutine::run([&](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        UringSocket reader(pair[1], SW_SOCK_UNIX_STREAM);
+        reader.set_timeout(2, SW_TIMEOUT_READ);
+        Coroutine::create([&, fd = pair[0]](void *) {
+            UringSocket writer(fd, SW_SOCK_UNIX_STREAM);
+            ASSERT_TRUE(writer.get_socket()->set_send_buffer_size(4096));
+            writer.set_timeout(1, SW_TIMEOUT_WRITE);
+            EXPECT_TRUE(writer.sendfile(file.get_path().c_str(), 0, payload.size())) << writer.errMsg;
+            EXPECT_EQ(writer.errCode, 0);
+            EXPECT_TRUE(writer.close());
+        });
+
+        // Let the writer fill the send queue before the reader drains it.
+        System::sleep(0.02);
+        std::string received(payload.size(), '\0');
+        ASSERT_EQ(reader.recv_all(&received[0], received.size()), received.size());
+        EXPECT_EQ(received, payload);
+        EXPECT_TRUE(reader.close());
     });
 }
 
