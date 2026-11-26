@@ -20,6 +20,7 @@
 
 #include "swoole_socket.h"
 
+#include <atomic>
 #include <vector>
 
 #ifndef O_DIRECT
@@ -38,9 +39,9 @@ struct AsyncRequest {
 };
 
 struct AsyncEvent {
-    size_t task_id;
-    uint8_t canceled;
-    int error;
+    size_t task_id = 0;
+    std::atomic<bool> canceled{false};
+    int error = 0;
     /**
      * input & output
      */
@@ -48,15 +49,38 @@ struct AsyncEvent {
     /**
      * output
      */
-    ssize_t retval;
-    /**
-     * internal use only
-     */
-    network::Socket *pipe_socket;
-    double timestamp;
-    void *object;
-    void (*handler)(AsyncEvent *event);
-    void (*callback)(AsyncEvent *event);
+    ssize_t retval = 0;
+    double timestamp = 0;
+    void *object = nullptr;
+    void (*handler)(AsyncEvent *event) = nullptr;
+    void (*callback)(AsyncEvent *event) = nullptr;
+
+    AsyncEvent() = default;
+
+    AsyncEvent(const AsyncEvent &request) {
+        *this = request;
+    }
+
+    AsyncEvent &operator=(const AsyncEvent &request) {
+        task_id = request.task_id;
+        set_canceled(request.is_canceled());
+        error = request.error;
+        data = request.data;
+        retval = request.retval;
+        timestamp = request.timestamp;
+        object = request.object;
+        handler = request.handler;
+        callback = request.callback;
+        return *this;
+    }
+
+    bool is_canceled() const {
+        return canceled.load(std::memory_order_relaxed);
+    }
+
+    void set_canceled(bool value) {
+        canceled.store(value, std::memory_order_relaxed);
+    }
 
     bool catch_error() const {
         return (error == SW_ERROR_AIO_TIMEOUT || error == SW_ERROR_AIO_CANCELED);
@@ -88,6 +112,10 @@ struct GetaddrinfoRequest : public AsyncRequest {
     ~GetaddrinfoRequest() override = default;
 };
 
+namespace async {
+struct CompletionQueue;
+}
+
 class AsyncThreads {
   public:
     size_t task_num = 0;
@@ -117,8 +145,8 @@ class AsyncThreads {
     static int callback(Reactor *reactor, Event *event);
 
   private:
-    AsyncEvent *completed_events[SW_AIO_EVENT_NUM] = {};
-    size_t completed_event_bytes = 0;
+    friend class async::ThreadPool;
+    std::unique_ptr<async::CompletionQueue> completions;
 };
 
 namespace async {
@@ -126,6 +154,10 @@ namespace async {
 typedef void (*Handler)(AsyncEvent *event);
 
 AsyncEvent *dispatch(const AsyncEvent *request);
+
+#ifndef _WIN32
+bool fork_without_pool(pid_t *pid);
+#endif
 
 void handler_gethostbyname(AsyncEvent *event);
 void handler_getaddrinfo(AsyncEvent *event);

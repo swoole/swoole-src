@@ -337,23 +337,26 @@ pid_t swoole_fork_exec(const std::function<void(void)> &fn) {
 }
 
 pid_t swoole_fork(int flags) {
-    if (!(flags & SW_FORK_EXEC)) {
-        if (swoole_coroutine_is_in()) {
-            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
-        }
-        if (SwooleTG.async_threads) {
-            swoole_trace("aio_task_num=%lu, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
-            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "can not fork after using async-threads");
-        }
+    const bool precheck = flags & SW_FORK_PRECHECK;
+    const bool will_exec = flags & SW_FORK_EXEC;
+    if (!will_exec && swoole_coroutine_is_in()) {
+        swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
+        return -1;
     }
 
-    if (flags & SW_FORK_PRECHECK) {
-        return 0;
-    }
-
-    pid_t pid;
+    pid_t pid = 0;
     while (true) {
-        pid = fork();
+        if (will_exec) {
+            if (!precheck) {
+                pid = fork();
+            }
+        } else if (!swoole::async::fork_without_pool(precheck ? nullptr : &pid)) {
+            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "can not fork after using async-threads");
+            return -1;
+        }
+        if (precheck) {
+            return 0;
+        }
         if (pid < 0) {
             swoole_sys_warning("fork() failed");
             sleep(1);

@@ -655,13 +655,14 @@ void System::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_CO_EVENT, SW_EVENT_ERROR, event_waiter_error_callback);
 
     reactor->set_handler(SW_FD_AIO, SW_EVENT_READ, AsyncThreads::callback);
+    reactor->set_handler(SW_FD_AIO, SW_EVENT_ERROR, AsyncThreads::callback);
 #ifdef SW_USE_IOURING
     reactor->set_handler(SW_FD_IOURING, SW_EVENT_READ, Iouring::callback);
 #endif
 }
 
 static void async_task_completed(AsyncEvent *event) {
-    if (event->canceled) {
+    if (event->is_canceled()) {
         return;
     }
     auto *co = static_cast<Coroutine *>(event->object);
@@ -680,16 +681,19 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
 
     AsyncEvent *_ev = async::dispatch(&event);
     if (_ev == nullptr) {
+        event.retval = -1;
+        event.error = errno = swoole_get_last_error();
         return false;
     }
 
     if (!co->yield_ex(timeout)) {
-        event.canceled = _ev->canceled = true;
+        _ev->set_canceled(true);
+        event.set_canceled(true);
         event.retval = -1;
         event.error = errno = swoole_get_last_error();
         return false;
     } else {
-        event.canceled = _ev->canceled;
+        event.set_canceled(_ev->is_canceled());
         event.error = errno = _ev->error;
         event.retval = _ev->retval;
         return true;
@@ -723,11 +727,16 @@ bool async(const std::function<void()> &fn) {
 
     AsyncEvent *_ev = async::dispatch(&event);
     if (_ev == nullptr) {
+        errno = swoole_get_last_error();
         return false;
     }
 
     task.co->yield();
     errno = _ev->error;
+    if (_ev->retval < 0) {
+        swoole_set_last_error(_ev->error);
+        return false;
+    }
     return true;
 }
 

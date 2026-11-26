@@ -21,11 +21,13 @@
 
 #include "swoole_socket.h"
 #include "swoole_async.h"
+#include "swoole_reactor.h"
 #include "swoole_signal.h"
 #include "swoole_util.h"
 
 #include <atomic>
 #include <future>
+#include <stdexcept>
 
 using namespace swoole;
 
@@ -142,6 +144,185 @@ TEST(async, misc) {
 
     ASSERT_EQ(handle_count, 1);
     ASSERT_EQ(callback_count, 2);
+}
+
+TEST(async, worker_and_completion_exceptions_settle_tasks) {
+    SwooleG.aio_core_worker_num = SwooleG.aio_worker_num = 1;
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ON_SCOPE_EXIT {
+        if (sw_reactor()) {
+            swoole_event_free();
+        }
+    };
+
+    int completed = 0;
+    AsyncEvent request{};
+    request.object = &completed;
+    request.handler = [](AsyncEvent *) { throw Exception(SW_ERROR_INVALID_PARAMS); };
+    request.callback = [](AsyncEvent *event) {
+        EXPECT_EQ(event->retval, -1);
+        EXPECT_EQ(event->error, SW_ERROR_INVALID_PARAMS);
+        ++*static_cast<int *>(event->object);
+        throw std::runtime_error("test completion exception");
+    };
+    ASSERT_NE(async::dispatch(&request), nullptr);
+
+    request.handler = [](AsyncEvent *) { throw std::bad_alloc(); };
+    request.callback = [](AsyncEvent *event) {
+        EXPECT_EQ(event->retval, -1);
+        EXPECT_EQ(event->error, SW_ERROR_MALLOC_FAIL);
+        ++*static_cast<int *>(event->object);
+    };
+    ASSERT_NE(async::dispatch(&request), nullptr);
+
+    // When this handler starts, both prior results are already in the same completion queue.
+    std::promise<void> queued;
+    request.object = &queued;
+    request.handler = [](AsyncEvent *event) { static_cast<std::promise<void> *>(event->object)->set_value(); };
+    request.callback = nullptr;
+    ASSERT_NE(async::dispatch(&request), nullptr);
+    ASSERT_EQ(queued.get_future().wait_for(std::chrono::seconds(3)), std::future_status::ready);
+    EXPECT_THROW(sw_reactor()->wait(), std::runtime_error);
+    EXPECT_EQ(completed, 1);
+    EXPECT_EQ(swoole_event_wait(), SW_OK);
+    EXPECT_EQ(completed, 2);
+}
+
+TEST(async, worker_initialization_failure_rolls_back_pool) {
+    SwooleG.aio_core_worker_num = SwooleG.aio_worker_num = 1;
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ON_SCOPE_EXIT {
+        if (sw_reactor()) {
+            swoole_event_free();
+        }
+    };
+
+    const auto allocator = SwooleG.std_allocator;
+    ON_SCOPE_EXIT {
+        SwooleG.std_allocator = allocator;
+    };
+    SwooleG.std_allocator.malloc = [](size_t size) -> void * {
+        return swoole_is_main_thread() ? malloc(size) : nullptr;
+    };
+    AsyncEvent request{};
+    request.handler = [](AsyncEvent *) {};
+    EXPECT_EQ(async::dispatch(&request), nullptr);
+    EXPECT_EQ(swoole_get_last_error(), SW_ERROR_SYSTEM_CALL_FAIL);
+    EXPECT_EQ(sw_async_threads(), nullptr);
+
+    SwooleG.std_allocator = allocator;
+    ASSERT_NE(async::dispatch(&request), nullptr);
+    EXPECT_EQ(swoole_event_wait(), SW_OK);
+}
+
+TEST(async, failed_wakeup_preserves_completed_result) {
+    SwooleG.aio_core_worker_num = SwooleG.aio_worker_num = 1;
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ON_SCOPE_EXIT {
+        if (sw_reactor()) {
+            swoole_event_free();
+        }
+    };
+    auto *receiver = new AsyncThreads();
+    ASSERT_EQ(receiver->write_socket->shutdown(SHUT_WR), 0);
+    std::promise<void> handled;
+    AsyncEvent request{};
+    request.object = &handled;
+    request.handler = [](AsyncEvent *event) {
+        event->retval = 42;
+        static_cast<std::promise<void> *>(event->object)->set_value();
+    };
+    request.callback = [](AsyncEvent *event) {
+        EXPECT_EQ(event->retval, 42);
+        ++callback_count;
+    };
+    callback_count = 0;
+    ASSERT_NE(async::dispatch(&request), nullptr);
+    ASSERT_EQ(handled.get_future().wait_for(std::chrono::seconds(3)), std::future_status::ready);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (receiver->get_idle_worker_num() != 1 && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    ASSERT_EQ(receiver->get_idle_worker_num(), 1);
+    EXPECT_EQ(async::dispatch(&request), nullptr);
+    EXPECT_EQ(swoole_get_last_error(), SW_ERROR_SYSTEM_CALL_FAIL);
+    EXPECT_EQ(swoole_event_wait(), SW_OK);
+    EXPECT_EQ(callback_count, 1);
+}
+
+TEST(async, destroying_receiver_discards_only_its_queued_work) {
+    SwooleG.aio_core_worker_num = SwooleG.aio_worker_num = 1;
+    struct State {
+        std::atomic<bool> close{false};
+        std::atomic<bool> resume{false};
+        std::atomic<bool> closed{false};
+        std::atomic<bool> abandoned_ran{false};
+        std::promise<bool> queued;
+        std::promise<void> entered;
+    } state;
+    std::thread other([&state] {
+        swoole_thread_init(false);
+        ON_SCOPE_EXIT {
+            swoole_thread_clean(false);
+            state.closed = true;
+        };
+        if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) != SW_OK) {
+            state.queued.set_value(false);
+            return;
+        }
+        AsyncEvent request{};
+        request.object = &state;
+        request.handler = [](AsyncEvent *event) {
+            auto *state = static_cast<State *>(event->object);
+            state->entered.set_value();
+            while (!state->resume.load()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+        };
+        const bool dispatched = async::dispatch(&request) != nullptr;
+        request.handler = [](AsyncEvent *event) { static_cast<State *>(event->object)->abandoned_ran = true; };
+        state.queued.set_value(dispatched && async::dispatch(&request) != nullptr);
+        while (!state.close.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    });
+    ON_SCOPE_EXIT {
+        state.close = state.resume = true;
+        if (other.joinable()) {
+            other.join();
+        }
+    };
+    auto queued = state.queued.get_future();
+    ASSERT_EQ(queued.wait_for(std::chrono::seconds(3)), std::future_status::ready);
+    ASSERT_TRUE(queued.get());
+    ASSERT_EQ(state.entered.get_future().wait_for(std::chrono::seconds(3)), std::future_status::ready);
+    EXPECT_FALSE(async::fork_without_pool(nullptr));
+
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ON_SCOPE_EXIT {
+        if (sw_reactor()) {
+            swoole_event_free();
+        }
+    };
+    auto *receiver = new AsyncThreads();
+    AsyncEvent request{};
+    request.handler = [](AsyncEvent *) {};
+    request.callback = [](AsyncEvent *) { ++callback_count; };
+    callback_count = 0;
+    ASSERT_NE(async::dispatch(&request), nullptr);
+    state.close = true;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    while (receiver->get_queue_size() > 1 && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    EXPECT_EQ(receiver->get_queue_size(), 1);
+    EXPECT_FALSE(state.closed);
+    state.resume = true;
+    other.join();
+    EXPECT_FALSE(state.abandoned_ran);
+    EXPECT_EQ(swoole_event_wait(), SW_OK);
+    EXPECT_EQ(callback_count, 1);
+    EXPECT_TRUE(async::fork_without_pool(nullptr));
 }
 
 TEST(async, retire_worker_after_latest_reactor_exits) {
