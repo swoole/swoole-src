@@ -375,6 +375,10 @@ bool IocpSocket::sendfile(const char *filename, off_t offset, size_t length) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return false;
     }
+    if (sw_unlikely(offset < 0)) {
+        set_err(EINVAL);
+        return false;
+    }
 
     File file(filename, O_RDONLY);
     if (!file.ready()) {
@@ -382,21 +386,24 @@ bool IocpSocket::sendfile(const char *filename, off_t offset, size_t length) {
         return false;
     }
 
+    FileStatus file_stat;
+    if (!file.stat(&file_stat)) {
+        set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
+        return false;
+    }
+    if (sw_unlikely(offset >= file_stat.st_size)) {
+        set_err(EINVAL);
+        return false;
+    }
     if (length == 0) {
-        FileStatus file_stat;
-        if (!file.stat(&file_stat)) {
-            set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
-            return false;
-        }
-        length = file_stat.st_size;
-    } else {
-        length = offset + length;
+        length = static_cast<size_t>(file_stat.st_size - offset);
     }
 
+    // Both send helpers take a byte count starting at offset.
     IoBinding binding(this, SW_EVENT_WRITE);
     ssize_t retval = has_ssl() ? ssl_sendfile(file, &offset, length) : iocp_sendfile(file, &offset, length);
 
-    return retval == static_cast<ssize_t>(length);
+    return retval >= 0 && static_cast<size_t>(retval) == length;
 }
 
 ssize_t IocpSocket::readv(network::IOVector *io_vector) {
