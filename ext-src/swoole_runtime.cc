@@ -182,9 +182,14 @@ static struct {
 
 static std::vector<std::string> unsafe_functions {
     "pcntl_fork",
+    "pcntl_forkx",
     "pcntl_rfork",
     "pcntl_wait",
+    "pcntl_waitid",
     "pcntl_waitpid",
+    "pcntl_alarm",
+    "pcntl_signal",
+    "pcntl_sigprocmask",
     "pcntl_sigtimedwait",
     "pcntl_sigwaitinfo",
 };
@@ -1650,11 +1655,12 @@ static bool disable_func(const char *name,
     auto *rf = static_cast<PhpFunc *>(zend_hash_str_find_ptr(hook_function_table, name, l_name));
     if (rf) {
         rf->function->internal_function.handler = handler;
+        rf->function->internal_function.fn_flags = ZEND_ACC_FAKE_CLOSURE;
         return true;
     }
 
     auto *zf = zend::get_function(name, l_name);
-    if (zf == nullptr) {
+    if (zf == nullptr || zf->type != ZEND_INTERNAL_FUNCTION) {
         return false;
     }
 

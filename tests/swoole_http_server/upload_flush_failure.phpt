@@ -3,9 +3,9 @@ swoole_http_server: reject uploads whose final stdio flush fails
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
-if (!function_exists('posix_setrlimit') || !defined('POSIX_RLIMIT_FSIZE') || !function_exists('pcntl_signal')) {
-    exit('skip requires POSIX file size limits and pcntl');
-}
+skip_if_function_not_exist('posix_setrlimit');
+skip_if_constant_not_defined('POSIX_RLIMIT_FSIZE');
+skip_if_constant_not_defined('SIGXFSZ');
 ?>
 --FILE--
 <?php
@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm, $dir) {
     $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->set(['worker_num' => 1, 'log_file' => '/dev/null', 'package_max_length' => 65536, 'upload_max_filesize' => 1024 * 1024, 'upload_tmp_dir' => $dir]);
     $server->on('workerStart', function () use ($pm) {
-        pcntl_signal(SIGXFSZ, SIG_IGN);
+        Assert::true(Swoole\Process::signal(SIGXFSZ, SIG_IGN));
         posix_setrlimit(POSIX_RLIMIT_FSIZE, 1024, 1024);
         $pm->wakeup();
     });
