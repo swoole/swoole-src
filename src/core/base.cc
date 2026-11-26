@@ -932,15 +932,24 @@ bool swoole_get_env(const char *name, int *value) {
 }
 
 int swoole_get_systemd_listen_fds() {
-    int ret;
-    if (!swoole_get_env("LISTEN_FDS", &ret)) {
+    int pid = 0;
+    if (!swoole_get_env("LISTEN_PID", &pid) || pid <= 0 || getpid() != pid) {
+        return -1;
+    }
+
+    int count = 0;
+    if (!getenv("LISTEN_FDS")) {
+        return -1;
+    }
+    if (!swoole_get_env("LISTEN_FDS", &count) || count < 0) {
         swoole_warning("invalid LISTEN_FDS");
         return -1;
-    } else if (ret >= SW_MAX_LISTEN_PORT) {
+    }
+    if (count >= SW_MAX_LISTEN_PORT) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big");
         return -1;
     }
-    return ret;
+    return count;
 }
 
 #ifdef HAVE_BOOST_STACKTRACE

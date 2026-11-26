@@ -81,8 +81,18 @@ $pm->childFunc = function () use ($pm) {
     }
     putenv('LISTEN_FDS_START=' . $start_fd);
 
-    putenv('LISTEN_PID=' . posix_getpid());
     putenv('LISTEN_FDS=' . count($sockets));
+    foreach ([null, posix_getppid()] as $owner) {
+        putenv($owner === null ? 'LISTEN_PID' : 'LISTEN_PID=' . $owner);
+        try {
+            new Server('SYSTEMD', 0, SWOOLE_BASE);
+            Assert::true(false);
+        } catch (Error $exception) {
+            Assert::contains($exception->getMessage(), 'failed to add systemd socket');
+        }
+        Assert::same(readlink($fd_directory . '/' . $start_fd), $target);
+    }
+    putenv('LISTEN_PID=' . posix_getpid());
 
     $serv = new Server('SYSTEMD', 0, SWOOLE_BASE);
 

@@ -328,6 +328,25 @@ TEST(base, itoa) {
 }
 
 TEST(base, get_systemd_listen_fds) {
+    ON_SCOPE_EXIT {
+        unsetenv("LISTEN_PID");
+        unsetenv("LISTEN_FDS");
+    };
+    unsetenv("LISTEN_PID");
+    setenv("LISTEN_FDS", "1", 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_PID", "0", 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_PID", "invalid", 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_PID", to_string(getpid()).c_str(), 1);
+    unsetenv("LISTEN_FDS");
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_FDS", "-1", 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_FDS", "0", 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), 0);
+    setenv("LISTEN_FDS", "999999999999999999999", 1);
     ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
     setenv("LISTEN_FDS", to_string(SW_MAX_LISTEN_PORT + 1).c_str(), 1);
     ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);

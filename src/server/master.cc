@@ -2146,12 +2146,6 @@ bool Server::is_healthy_connection(double now, const Connection *conn) const {
  * Return the number of ports successfully
  */
 int Server::add_systemd_socket() {
-    int pid;
-    if (!swoole_get_env("LISTEN_PID", &pid) && getpid() != pid) {
-        swoole_warning("invalid LISTEN_PID");
-        return 0;
-    }
-
     int n = swoole_get_systemd_listen_fds();
     if (n <= 0) {
         return 0;
@@ -2159,19 +2153,18 @@ int Server::add_systemd_socket() {
 
     int count = 0;
 
-    int start_fd;
-    if (!swoole_get_env("LISTEN_FDS_START", &start_fd)) {
-        start_fd = SW_SYSTEMD_FDS_START;
-    } else if (start_fd < 0) {
+    int start_fd = SW_SYSTEMD_FDS_START;
+    if (getenv("LISTEN_FDS_START") &&
+        (!swoole_get_env("LISTEN_FDS_START", &start_fd) || start_fd < 0 || start_fd > INT_MAX - (n - 1))) {
         swoole_warning("invalid LISTEN_FDS_START");
         return 0;
     }
 
-    for (int sock = start_fd; sock < start_fd + n; sock++) {
+    for (int i = 0; i < n; i++) {
         auto ptr = std::make_unique<ListenPort>(this);
         ListenPort *ls = ptr.get();
 
-        if (!ls->import(sock)) {
+        if (!ls->import(start_fd + i)) {
             continue;
         }
 
