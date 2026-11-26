@@ -217,15 +217,18 @@ class Client {
             buffered_response_bytes -= pending.bytes;
         }
         pending_responses.clear();
+        pending_upload_responses = 0;
         preserve_disconnect_error = false;
     }
     bool has_deferred_disconnect_error() const {
         return preserve_disconnect_error;
     }
     bool close() const;
+    bool request_close();
     void socket_dtor();
 
     ~Client() {
+        cancel_drain_timer();
         close();
     }
 
@@ -233,6 +236,7 @@ class Client {
     struct PendingResponse {
         zend::Variable response;
         size_t bytes;
+        bool buffered_by_upload;
     };
     static constexpr size_t MAX_PENDING_RESPONSES = 128;
     size_t max_buffered_response_bytes = 64 * 1024 * 1024;
@@ -247,9 +251,21 @@ class Client {
     std::unique_ptr<String> gzip_buffer;
 #endif
     std::list<PendingResponse> pending_responses;
+    size_t pending_upload_responses = 0;
+    // GOAWAY carries a 31-bit ID. UINT32_MAX indicates that the peer has not sent one.
+    uint32_t peer_last_stream_id = UINT32_MAX;
+    long drain_timer = 0;
     bool buffered_pipeline_data = false;
     bool preserve_disconnect_error = false;
+    bool drain_timed_out = false;
 
+    bool is_draining() const {
+        return peer_last_stream_id != UINT32_MAX;
+    }
+    void cancel_drain_timer();
+    void on_drain_timeout();
+    bool close_if_drained();
+    ReturnCode receive_goaway(const char *payload, size_t length, zval *return_value, bool upload_read);
     bool send_data(const Upload &upload, const char *p, size_t len, int flag);
     void finish_request(const Upload &upload);
     ReturnCode reset_stream(uint32_t id, uint32_t error, zval *return_value = nullptr, size_t *pending_bytes = nullptr);
@@ -323,6 +339,7 @@ struct Upload {
     const uint32_t stream_id;
     bool reset_received = false;
     bool completed_by_peer = false;
+    bool refused_by_goaway = false;
 
     Upload(Client &client, Stream *stream) : client(client), socket(client.socket_), stream_id(stream->stream_id) {
         stream->upload = this;
@@ -342,7 +359,9 @@ struct Upload {
     }
 
     void report_reset() const {
-        if (completed_by_peer) {
+        if (refused_by_goaway) {
+            return;
+        } else if (completed_by_peer) {
             client.update_error_properties(ECANCELED, "peer stopped the HTTP/2 upload after sending the response");
         } else {
             client.update_error_properties(SW_ERROR_HTTP2_STREAM_NOT_FOUND, "HTTP/2 upload stream is closed");
@@ -516,10 +535,11 @@ void php_swoole_http2_client_coro_minit(int module_number) {
 }
 
 void Client::socket_dtor() {
+    cancel_drain_timer();
     socket_ = nullptr;
     clean_send_queue();
     // Responses already parsed by a writer belong to the application even after a transport failure.
-    preserve_disconnect_error = !pending_responses.empty();
+    preserve_disconnect_error = is_draining() || !pending_responses.empty();
     buffered_pipeline_data = false;
 #ifdef SW_HAVE_ZLIB
     gzip_buffer.reset();
@@ -550,6 +570,8 @@ bool Client::connect() {
     }
 
     discard_pending_responses();
+    peer_last_stream_id = UINT32_MAX;
+    drain_timed_out = false;
     auto object = php_swoole_create_socket(socket_type);
     if (UNEXPECTED(!object)) {
         php_swoole_socket_set_error_properties(zobject, errno, strerror(errno));
@@ -634,6 +656,124 @@ bool Client::close() const {
     return true;
 }
 
+void Client::cancel_drain_timer() {
+    if (drain_timer > 0 && swoole_timer_is_available()) {
+        swoole_timer_clear(drain_timer);
+    }
+    drain_timer = 0;
+}
+
+bool Client::request_close() {
+    if (!drain_timed_out || !socket_) {
+        discard_pending_responses();
+        return close();
+    }
+
+    auto *socket = socket_;
+    const bool ret = close();
+    if (!socket_ || socket_ == socket) {
+        update_error_properties(ETIMEDOUT, "HTTP/2 GOAWAY drain timed out");
+    }
+    return ret;
+}
+
+void Client::on_drain_timeout() {
+    drain_timer = 0;
+    drain_timed_out = true;
+    update_error_properties(ETIMEDOUT, "HTTP/2 GOAWAY drain timed out");
+
+    // A completion backend can suspend during close and needs a PHP coroutine to resume its I/O waiters.
+    zend::Variable client(zobject);
+    zend_fcall_info_cache fci{};
+    fci.function_handler = static_cast<zend_function *>(
+        zend_hash_str_find_ptr(&swoole_http2_client_coro_ce->function_table, ZEND_STRL("close")));
+    fci.object = Z_OBJ_P(zobject);
+    fci.called_scope = swoole_http2_client_coro_ce;
+    if (swoole::PHPCoroutine::create(&fci, 0, nullptr, nullptr) < 0 && socket_) {
+        if (socket_->has_bound()) {
+            // Wake the existing I/O coroutine if we cannot create a separate closer.
+            ::shutdown(socket_->get_socket()->fd, SHUT_RDWR);
+        } else {
+            request_close();
+        }
+    }
+}
+
+bool Client::close_if_drained() {
+    if (!is_draining() || !streams.empty() || !socket_) {
+        return false;
+    }
+
+    // Closing can wake other socket operations, which can overwrite the peer's GOAWAY diagnostic.
+    auto *object = Z_OBJ_P(zobject);
+    zval rv;
+    zend::Variable error(zend_read_property(swoole_http2_client_coro_ce, object, ZEND_STRL("errCode"), 1, &rv));
+    zend::Variable message(zend_read_property(swoole_http2_client_coro_ce, object, ZEND_STRL("errMsg"), 1, &rv));
+    cancel_drain_timer();
+    close();
+    zend_update_property(swoole_http2_client_coro_ce, object, ZEND_STRL("errCode"), error.ptr());
+    zend_update_property(swoole_http2_client_coro_ce, object, ZEND_STRL("errMsg"), message.ptr());
+    return true;
+}
+
+ReturnCode Client::receive_goaway(const char *payload, size_t length, zval *return_value, bool upload_read) {
+    uint32_t last, error;
+    memcpy(&last, payload, sizeof(last));
+    memcpy(&error, payload + sizeof(last), sizeof(error));
+    last = std::min<uint32_t>(ntohl(last) & 0x7fffffffU, peer_last_stream_id);
+    error = ntohl(error);
+    zend::String message(payload + SW_HTTP2_GOAWAY_SIZE, length - SW_HTTP2_GOAWAY_SIZE);
+    swoole_http2_frame_trace_log("last_stream_id=%u, error_code=%u, opaque_data=[%.*s]",
+                                 last,
+                                 error,
+                                 static_cast<int>(message.len()),
+                                 message.val());
+
+    bool closed = error != SW_HTTP2_ERROR_NO_ERROR;
+    if (closed) {
+        close();
+    } else {
+        const bool first_goaway = !is_draining();
+        peer_last_stream_id = last;
+        for (auto iter = streams.begin(); iter != streams.end();) {
+            auto *stream = (iter++)->second;
+            if (stream->stream_id <= last) {
+                continue;
+            }
+            if (stream->upload) {
+                stream->upload->refused_by_goaway = true;
+            }
+            zend::Variable response;
+            size_t bytes = 0;
+            if (reset_stream(stream->stream_id, SW_HTTP2_ERROR_REFUSED_STREAM, response.ptr(), &bytes) == SW_READY) {
+                pending_responses.push_back({std::move(response), bytes, false});
+            }
+        }
+        if (first_goaway && !streams.empty()) {
+            double timeout = socket_->get_timeout(SW_TIMEOUT_READ);
+            if (!(timeout > 0 && timeout < SW_SOCKET_DEFAULT_READ_TIMEOUT)) {
+                timeout = SW_SOCKET_DEFAULT_READ_TIMEOUT;
+            }
+            drain_timer =
+                swoole_timer_after(std::max(1L, static_cast<long>(timeout * 1000)), [this](Timer *, TimerNode *) {
+                    on_drain_timeout();
+                });
+            if (drain_timer <= 0) {
+                close();
+                closed = true;
+            }
+        }
+    }
+
+    zend_update_property_long(swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errCode"), error);
+    zend_update_property_str(swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errMsg"), message.get());
+    zend_update_property_long(swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("serverLastStreamId"), last);
+    if (!upload_read && pop_pending_response(return_value)) {
+        return SW_READY;
+    }
+    return closed ? SW_CLOSE : SW_CONTINUE;
+}
+
 static double http2_client_now() {
     return swoole::time<std::chrono::microseconds>(true) / 1000000.0;
 }
@@ -660,6 +800,7 @@ bool Client::pop_pending_response(zval *return_value) {
     ZVAL_COPY_VALUE(return_value, pending.response.ptr());
     pending.response.reset();
     buffered_response_bytes -= pending.bytes;
+    pending_upload_responses -= pending.buffered_by_upload;
     pending_responses.pop_front();
     return true;
 }
@@ -708,6 +849,9 @@ ReturnCode Client::receive_frame(
         read_lock->pop();
     };
 
+    if (upload == 0 && pop_pending_response(return_value)) {
+        return SW_READY;
+    }
     if (socket != socket_ || !socket->is_connected()) {
         return SW_CLOSE;
     }
@@ -716,8 +860,6 @@ ReturnCode Client::receive_frame(
         if (!stream || (remote_window_size > 0 && stream->remote_window_size > 0)) {
             return SW_CONTINUE;
         }
-    } else if (pop_pending_response(return_value)) {
-        return SW_READY;
     } else if (pipeline_read && buffered_pipeline_data) {
         for (const auto &entry : streams) {
             auto *stream = entry.second;
@@ -736,12 +878,18 @@ ReturnCode Client::receive_frame(
             return SW_ERROR;
         }
     }
-    if (socket->recv_packet(timeout) <= 0) {
+    const auto received = socket->recv_packet(timeout);
+    if (received <= 0) {
+        if (drain_timed_out) {
+            close();
+            update_error_properties(ETIMEDOUT, "HTTP/2 GOAWAY drain timed out");
+            return SW_CLOSE;
+        }
         if (upload != 0 && socket->errCode == 0) {
             socket->set_err(ECONNRESET);
         }
         io_error();
-        if (socket->get_socket()->close_wait) {
+        if (socket->get_socket()->close_wait || (is_draining() && (received == 0 || socket->errCode != ECANCELED))) {
             close();
             return SW_CLOSE;
         }
@@ -749,7 +897,11 @@ ReturnCode Client::receive_frame(
     }
 
     if (upload == 0) {
-        return parse_frame(return_value, pipeline_read);
+        const auto ret = parse_frame(return_value, pipeline_read);
+        if (ret != SW_CLOSE && close_if_drained() && ret == SW_CONTINUE) {
+            return SW_CLOSE;
+        }
+        return ret;
     }
 
     // Uploads may receive response frames before the application calls recv() or read().
@@ -758,15 +910,18 @@ ReturnCode Client::receive_frame(
     const bool data = socket->get_read_buffer()->str[3] == SW_HTTP2_TYPE_DATA;
     auto ret = parse_frame(response.ptr(), false, &bytes);
     if (ret == SW_READY) {
-        if (sw_unlikely(pending_responses.size() >= MAX_PENDING_RESPONSES)) {
+        if (sw_unlikely(pending_upload_responses >= MAX_PENDING_RESPONSES)) {
             buffered_response_bytes -= bytes;
             return reject_response_buffer();
         }
-        pending_responses.push_back({std::move(response), bytes});
-        return SW_CONTINUE;
-    }
-    if (ret == SW_CONTINUE && data) {
+        pending_responses.push_back({std::move(response), bytes, true});
+        ++pending_upload_responses;
+        ret = SW_CONTINUE;
+    } else if (ret == SW_CONTINUE && data) {
         buffered_pipeline_data = true;
+    }
+    if (ret != SW_CLOSE && close_if_drained() && ret == SW_CONTINUE) {
+        return SW_CLOSE;
     }
     return ret;
 }
@@ -944,25 +1099,12 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
             update_error_properties(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid GOAWAY frame length");
             return SW_CLOSE;
         }
-        uint32_t server_last_stream_id = ntohl(*(uint32_t *) (buf));
-        buf += 4;
-        uint32_t value = ntohl(*(uint32_t *) (buf));
-        buf += 4;
-        swoole_http2_frame_trace_log("last_stream_id=%d, error_code=%d, opaque_data=[%.*s]",
-                                     server_last_stream_id,
-                                     value,
-                                     (int) (length - SW_HTTP2_GOAWAY_SIZE),
-                                     buf);
-
-        // close() can resume a coroutine waiting to write, which records its own error.
-        close();
-        // update goaway error code and error msg
-        zend_update_property_long(swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errCode"), value);
-        zend_update_property_stringl(
-            swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE);
-        zend_update_property_long(
-            swoole_http2_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("serverLastStreamId"), server_last_stream_id);
-        return SW_CLOSE;
+        if (_stream_id != 0) {
+            close();
+            update_error_properties(SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid GOAWAY stream ID");
+            return SW_CLOSE;
+        }
+        return receive_goaway(buf, length, return_value, upload_read);
     }
     case SW_HTTP2_TYPE_RST_STREAM: {
         if (length != SW_HTTP2_RST_STREAM_SIZE) {
@@ -1607,6 +1749,7 @@ void Client::finish_request(const Upload &upload) {
         stream->flags |= SW_HTTP2_STREAM_REQUEST_END;
         if (stream->response_ended) {
             delete_stream(stream->stream_id);
+            close_if_drained();
         }
     }
 }
@@ -1692,6 +1835,10 @@ bool Client::send_data(const Upload &upload, const char *p, size_t len, int flag
  * called in write channel
  */
 uint32_t Client::send_request(zval *zrequest) {
+    if (sw_unlikely(is_draining())) {
+        return 0;
+    }
+
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http2_request_ce, zrequest, ZEND_STRL("headers"), 0);
     zval *zdata = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_DATA), 0);
@@ -1718,7 +1865,7 @@ uint32_t Client::send_request(zval *zrequest) {
     String *buffer = socket_->has_bound(SW_EVENT_WRITE) ? sw_tg_buffer() : &header_frame;
     ssize_t bytes = build_header(zobject, zrequest, buffer);
 
-    if (bytes < 0) {
+    if (bytes < 0 || sw_unlikely(is_draining())) {
         return 0;
     }
 
@@ -1951,8 +2098,7 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct) {}
 static PHP_METHOD(swoole_http2_client_coro, close) {
     Client *h2c = http2_client_coro_get_client(ZEND_THIS);
     SW_CLIENT_PRESERVE_SOCKET(&h2c->zsocket);
-    h2c->discard_pending_responses();
-    RETURN_BOOL(h2c->close());
+    RETURN_BOOL(h2c->request_close());
 }
 
 static PHP_METHOD(swoole_http2_client_coro, connect) {

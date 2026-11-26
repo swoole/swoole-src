@@ -212,6 +212,9 @@ Coroutine\run(static function () {
         check($endpoint->send(uploadRequest()) === false && !$endpoint->connected, 'upload survived GOAWAY');
         check($endpoint->read(2)->streamId === $first, 'read lost the first response after GOAWAY');
         check($endpoint->recv(2)->streamId === $second, 'recv lost the second response after GOAWAY');
+        $refused = $endpoint->recv(2);
+        check($refused instanceof Response && $refused->streamId === $second + 2, 'GOAWAY refusal was lost');
+        check($refused->errCode === SWOOLE_HTTP2_ERROR_REFUSED_STREAM, 'GOAWAY reported the wrong stream error');
         check($endpoint->recv(2) === false && $endpoint->errMsg === 'draining', 'GOAWAY diagnostic was lost');
     });
 
