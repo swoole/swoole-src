@@ -61,17 +61,16 @@ function create_request(string $path, array $headers = [], ?string $data = null)
 $pm             = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
     Coroutine\run(function () use ($pm) {
-        // A request sent while another request's body waits gets its own stream, is queued whole, and a request
-        // rejected because the queue is full doesn't change the connection's HPACK state.
+        // Concurrent uploads use different streams and both can wait for the shared connection window.
         [$client, $resume] = connect_paused($pm);
         $big               = 0;
+        $queued            = 0;
         go(function () use ($client, &$big) {
             $big = $client->send(create_request('/big', [], str_repeat('A', 16 * 1024 * 1024)));
         });
-        $queued = $client->send(create_request('/queued', [], str_repeat('B', 4 * 1024 * 1024)));
-        Assert::greaterThan($queued, 0);
-        Assert::false($client->send(create_request('/rejected', ['x-test' => 'test-value'])));
-        Assert::same($client->errCode, SWOOLE_ERROR_QUEUE_FULL);
+        go(function () use ($client, &$queued) {
+            $queued = $client->send(create_request('/queued', [], str_repeat('B', 4 * 1024 * 1024)));
+        });
 
         $resume();
         $responses = [];
@@ -80,11 +79,9 @@ $pm->parentFunc = function () use ($pm) {
         }
         Assert::same($responses[$big] ?? null, (string) (16 * 1024 * 1024));
         Assert::same($responses[$queued] ?? null, (string) (4 * 1024 * 1024));
-        Assert::greaterThan($client->send(create_request('/header', ['x-test' => 'test-value'])), 0);
-        Assert::same($client->recv()->data, md5('test-value'));
         $client->close();
 
-        // A request encoded while another request's HEADERS frame waits doesn't overwrite that frame.
+        // Requests queued behind a waiting HEADERS frame preserve that frame and the HPACK encoding order.
         [$client, $resume] = connect_paused($pm);
         $expected          = [];
         $stop              = false;
@@ -104,6 +101,18 @@ $pm->parentFunc = function () use ($pm) {
         $id    = $client->send(create_request('/header', ['x-test' => $value]));
         Assert::greaterThan($id, 0);
         $expected[$id] = md5($value);
+        $rejected = false;
+        for ($i = 0; $i <= $client->stats('remote_settings')['max_concurrent_streams']; $i++) {
+            $value = base64_encode(random_bytes(32));
+            $id = $client->send(create_request('/header', ['x-test' => $value]));
+            if ($id === false) {
+                Assert::same($client->errCode, SWOOLE_ERROR_QUEUE_FULL);
+                $rejected = true;
+                break;
+            }
+            $expected[$id] = md5($value);
+        }
+        Assert::true($rejected);
 
         $resume();
         Assert::true($sent->pop(), 'a HEADERS write must have been waiting');
@@ -114,6 +123,8 @@ $pm->parentFunc = function () use ($pm) {
         ksort($expected);
         ksort($responses);
         Assert::same($responses, $expected);
+        Assert::greaterThan($client->send(create_request('/header', ['x-test' => 'test-value'])), 0);
+        Assert::same($client->recv()->data, md5('test-value'));
         $client->close();
 
         // Frames queued while a DATA frame's header waits are sent after its payload, not between them. Each write

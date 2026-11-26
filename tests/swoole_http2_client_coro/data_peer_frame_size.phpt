@@ -56,7 +56,8 @@ $pm->childFunc = function () use ($pm) {
     Swoole\Coroutine\run(function () use ($pm) {
         $server = new Server('127.0.0.1', $pm->getFreePort(), false);
         $server->handle(function (Connection $connection) use ($server) {
-            $settings = http2_frame(SWOOLE_HTTP2_TYPE_SETTINGS, 0, 0, pack('nN', 5, 16384));
+            $settings = http2_frame(SWOOLE_HTTP2_TYPE_SETTINGS, 0, 0, pack('nNnN', 5, 16384, 4, 131072))
+                . http2_frame(SWOOLE_HTTP2_TYPE_WINDOW_UPDATE, 0, 0, pack('N', 131072));
             Assert::same($connection->send($settings), strlen($settings));
 
             $buffer = '';

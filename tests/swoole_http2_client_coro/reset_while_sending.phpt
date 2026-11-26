@@ -83,7 +83,9 @@ foreach (['send', 'write'] as $method) {
         }
         Assert::same($client->stats('active_stream_num'), 0);
         $drain->push(true);
-        Assert::same($result->pop(), $method === 'send' ? 1 : true);
+        Assert::false($result->pop(2));
+        Assert::same($client->errCode, SWOOLE_ERROR_HTTP2_STREAM_NOT_FOUND);
+        Assert::true($client->connected);
         $client->close();
         $listener->close();
     });

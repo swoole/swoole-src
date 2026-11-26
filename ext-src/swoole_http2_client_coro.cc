@@ -17,6 +17,7 @@
 #include "php_swoole_cxx.h"
 #include "php_swoole_http.h"
 
+#include "swoole_coroutine_channel.h"
 #include "swoole_string.h"
 #include "swoole_protocol.h"
 #include "swoole_socket.h"
@@ -63,6 +64,7 @@ struct Stream {
     // State of the current received header block, shared by its HEADERS and CONTINUATION frames.
     bool header_block_end_stream;
     bool header_block_is_trailers;
+    bool sending_data;
 
     String *buffer;
 #ifdef SW_HAVE_ZLIB
@@ -72,8 +74,8 @@ struct Stream {
     zval zresponse;
 
     // flow control
-    uint32_t remote_window_size;
-    uint32_t local_window_size;
+    int32_t remote_window_size;  // A SETTINGS reduction may leave this stream in debt.
+    uint32_t local_window_size;  // Remaining receive credit, checked before subtracting DATA.
 };
 
 class Client {
@@ -156,14 +158,6 @@ class Client {
         return true;
     }
 
-    bool recv_packet(double _timeout) const {
-        if (sw_unlikely(socket_->recv_packet(_timeout) <= 0)) {
-            io_error();
-            return false;
-        }
-        return true;
-    }
-
     bool connect();
     Stream *create_stream(uint32_t _stream_id, uint8_t flags);
     void destroy_stream(Stream *stream);
@@ -186,7 +180,8 @@ class Client {
     uint32_t send_request(zval *zrequest);
     bool write_data(uint32_t _stream_id, zval *zdata, bool end);
     bool send_goaway_frame(zend_long error_code, const char *debug_data, size_t debug_data_len);
-    ReturnCode parse_frame(zval *return_value, bool pipeline_read = false);
+    ReturnCode receive_frame(
+        SocketImpl *socket, double timeout, zval *return_value, bool pipeline_read, uint32_t upload = 0);
     bool close() const;
     void socket_dtor();
 
@@ -197,9 +192,16 @@ class Client {
   private:
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
+    // The public receiver and writers waiting for credit share the frame reader.
+    std::unique_ptr<Channel> read_lock;
+    std::list<zend::Variable> pending_responses;
+    bool buffered_pipeline_data = false;
 
     bool send_setting();
     int parse_header(Stream *stream, int flags, char *in, size_t inlen) const;
+    ReturnCode parse_frame(zval *return_value, bool pipeline_read);
+    ReturnCode reject_send_window(uint32_t error, const char *reason);
+    void return_response(Stream *stream, zval *return_value, bool end);
 
     void clean_send_queue() {
         while (!send_queue.empty()) {
@@ -423,6 +425,8 @@ void php_swoole_http2_client_coro_minit(int module_number) {
 void Client::socket_dtor() {
     socket_ = nullptr;
     clean_send_queue();
+    pending_responses.clear();
+    buffered_pipeline_data = false;
     auto i = streams.begin();
     while (i != streams.end()) {
         destroy_stream(i->second);
@@ -486,7 +490,9 @@ bool Client::connect() {
     continuation_stream_id = 0;
     // [init]: we must set default value, server is not always send all the settings
     Http2::init_settings(&remote_settings);
-    remote_window_size = remote_settings.init_window_size;
+    remote_settings.init_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
+    remote_settings.max_frame_size = SW_HTTP2_DEFAULT_MAX_FRAME_SIZE;
+    remote_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
     local_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
 
     int ret = nghttp2_hd_inflate_new2(&inflater, php_nghttp2_mem());
@@ -528,6 +534,110 @@ bool Client::close() const {
         return false;
     }
     return true;
+}
+
+static double http2_client_now() {
+    return swoole::time<std::chrono::microseconds>(true) / 1000000.0;
+}
+
+ReturnCode Client::reject_send_window(uint32_t error, const char *reason) {
+    auto *socket = socket_;
+    // Try GOAWAY without interrupting a partially written frame or blocking on a stalled peer.
+    if (!socket->has_bound(SW_EVENT_WRITE)) {
+        SocketImpl::TimeoutSetter timeout(socket, 0.1, SW_TIMEOUT_WRITE);
+        send_goaway_frame(error, reason, strlen(reason));
+    }
+    if (socket_ == socket) {
+        close();
+    }
+    update_error_properties(error, reason);
+    return SW_CLOSE;
+}
+
+ReturnCode Client::receive_frame(
+    SocketImpl *socket, double timeout, zval *return_value, bool pipeline_read, uint32_t upload) {
+    if (socket != socket_ || !socket->is_connected()) {
+        return SW_CLOSE;
+    }
+    if (!read_lock) {
+        read_lock = std::make_unique<Channel>();
+    }
+    if (timeout == 0) {
+        timeout = socket->get_timeout(SW_TIMEOUT_READ);
+    }
+    const double deadline = timeout > 0 && read_lock->is_full() ? http2_client_now() + timeout : 0;
+    if (!read_lock->push(nullptr, timeout)) {
+        if (socket != socket_ || !socket->is_connected()) {
+            return SW_CLOSE;
+        }
+        socket->set_err(read_lock->get_error() == Channel::ERROR_CANCELED ? ECANCELED : ETIMEDOUT);
+        io_error();
+        return SW_ERROR;
+    }
+    ON_SCOPE_EXIT {
+        read_lock->pop();
+    };
+
+    if (socket != socket_ || !socket->is_connected()) {
+        return SW_CLOSE;
+    }
+    if (upload != 0) {
+        auto *stream = get_stream(upload);
+        if (!stream || (remote_window_size > 0 && stream->remote_window_size > 0)) {
+            return SW_CONTINUE;
+        }
+    } else if (!pending_responses.empty()) {
+        auto &response = pending_responses.front();
+        ZVAL_COPY_VALUE(return_value, response.ptr());
+        response.reset();
+        pending_responses.pop_front();
+        return SW_READY;
+    } else if (pipeline_read && buffered_pipeline_data) {
+        for (const auto &entry : streams) {
+            auto *stream = entry.second;
+            if ((stream->flags & SW_HTTP2_STREAM_PIPELINE_RESPONSE) && stream->buffer && !stream->buffer->empty()) {
+                return_response(stream, return_value, false);
+                return SW_READY;
+            }
+        }
+        buffered_pipeline_data = false;
+    }
+    if (deadline > 0) {
+        timeout = deadline - http2_client_now();
+        if (timeout <= 0) {
+            socket->set_err(ETIMEDOUT);
+            io_error();
+            return SW_ERROR;
+        }
+    }
+    if (socket->recv_packet(timeout) <= 0) {
+        if (upload != 0 && socket->errCode == 0) {
+            socket->set_err(ECONNRESET);
+        }
+        io_error();
+        if (socket->get_socket()->close_wait) {
+            close();
+            return SW_CLOSE;
+        }
+        return SW_ERROR;
+    }
+
+    if (upload == 0) {
+        return parse_frame(return_value, pipeline_read);
+    }
+
+    // Uploads may receive response frames before the application calls recv() or read().
+    zend::Variable response;
+    const bool data = socket->get_read_buffer()->str[3] == SW_HTTP2_TYPE_DATA;
+    auto ret = parse_frame(response.ptr(), false);
+    if (ret == SW_READY) {
+        pending_responses.emplace_back(std::move(response));
+        return SW_CONTINUE;
+    }
+    if (ret == SW_CONTINUE && data) {
+        buffered_pipeline_data = true;
+    }
+    return ret;
 }
 
 ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
@@ -579,10 +689,23 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 remote_settings.max_concurrent_streams = value;
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_concurrent_streams=%u", value);
                 break;
-            case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE:
-                remote_window_size = remote_settings.init_window_size = value;
+            case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE: {
+                if (value > INT32_MAX) {
+                    return reject_send_window(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "invalid initial send window");
+                }
+                const int64_t delta = int64_t(value) - remote_settings.init_window_size;
+                for (const auto &entry : streams) {
+                    if (entry.second->remote_window_size + delta > INT32_MAX) {
+                        return reject_send_window(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "stream send window overflow");
+                    }
+                }
+                for (const auto &entry : streams) {
+                    entry.second->remote_window_size += delta;
+                }
+                remote_settings.init_window_size = value;
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: init_send_window=%u", value);
                 break;
+            }
             case SW_HTTP2_SETTINGS_MAX_FRAME_SIZE:
                 if (value < SW_HTTP2_DEFAULT_MAX_FRAME_SIZE || value > SW_HTTP2_MAX_FRAME_SIZE) {
                     close();
@@ -632,15 +755,29 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
             update_error_properties(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid WINDOW_UPDATE frame length");
             return SW_CLOSE;
         }
-        uint32_t value = ntohl(*(uint32_t *) buf);
+        uint32_t value;
+        memcpy(&value, buf, sizeof(value));
+        value = ntohl(value) & 0x7fffffff;
         swoole_trace_log(
-            SW_TRACE_HTTP2, "[" SW_ECHO_YELLOW "] stream_id=%d, size=%d", "WINDOW_UPDATE", stream_id, value);
+            SW_TRACE_HTTP2, "[" SW_ECHO_YELLOW "] stream_id=%u, size=%u", "WINDOW_UPDATE", _stream_id, value);
         if (_stream_id == 0) {
+            if (value == 0 || int64_t(remote_window_size) + value > INT32_MAX) {
+                return reject_send_window(
+                    value == 0 ? SW_HTTP2_ERROR_PROTOCOL_ERROR : SW_HTTP2_ERROR_FLOW_CONTROL_ERROR,
+                    "invalid connection WINDOW_UPDATE");
+            }
             remote_window_size += value;
-        } else {
-            Stream *stream = get_stream(_stream_id);
-            if (stream) {
-                stream->remote_window_size += value;
+        } else if (auto *stream = get_stream(_stream_id)) {
+            if (value == 0 || int64_t(stream->remote_window_size) + value > INT32_MAX) {
+                uint32_t error = htonl(value == 0 ? SW_HTTP2_ERROR_PROTOCOL_ERROR : SW_HTTP2_ERROR_FLOW_CONTROL_ERROR);
+                delete_stream(_stream_id);
+                Http2::set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, SW_HTTP2_RST_STREAM_SIZE, 0, _stream_id);
+                memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, &error, sizeof(error));
+                if (!send(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE)) {
+                    return SW_ERROR;
+                }
+            } else {
+                stream->remote_window_size += static_cast<int32_t>(value);
             }
         }
         return SW_CONTINUE;
@@ -826,36 +963,37 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     pipeline_read = ((pipeline_read || (stream->flags & SW_HTTP2_STREAM_USE_PIPELINE_READ)) &&
                      (stream->flags & SW_HTTP2_STREAM_PIPELINE_RESPONSE));
     if (end || pipeline_read) {
-        zval *zresponse = &stream->zresponse;
         if (type == SW_HTTP2_TYPE_RST_STREAM) {
-            zend::object_set(zresponse, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
-            zend::object_set(zresponse, ZEND_STRL("errCode"), stream_error);
+            zend::object_set(&stream->zresponse, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
+            zend::object_set(&stream->zresponse, ZEND_STRL("errCode"), stream_error);
         }
-        if (stream->buffer && stream->buffer->length > 0) {
-            zend_update_property_stringl(swoole_http2_response_ce,
-                                         Z_OBJ_P(zresponse),
-                                         ZEND_STRL("data"),
-                                         stream->buffer->str,
-                                         stream->buffer->length);
-            stream->buffer->clear();
-        }
-        if (!end) {
-            zend_update_property_bool(swoole_http2_response_ce, Z_OBJ_P(&stream->zresponse), ZEND_STRL("pipeline"), 1);
-        }
-        RETVAL_ZVAL(zresponse, end, 0);
-        if (!end) {
-            // reinit response object for the following frames
-            object_init_ex(zresponse, swoole_http2_response_ce);
-            zend_update_property_long(
-                swoole_http2_response_ce, Z_OBJ_P(&stream->zresponse), ZEND_STRL("streamId"), _stream_id);
-        } else {
-            delete_stream(_stream_id);
-        }
-
+        return_response(stream, return_value, end);
         return SW_READY;
     }
 
     return SW_CONTINUE;
+}
+
+void Client::return_response(Stream *stream, zval *return_value, bool end) {
+    zval *zresponse = &stream->zresponse;
+    if (stream->buffer && !stream->buffer->empty()) {
+        zend_update_property_stringl(swoole_http2_response_ce,
+                                     Z_OBJ_P(zresponse),
+                                     ZEND_STRL("data"),
+                                     stream->buffer->str,
+                                     stream->buffer->length);
+        stream->buffer->clear();
+    }
+    if (end) {
+        RETVAL_ZVAL(zresponse, 1, 0);
+        delete_stream(stream->stream_id);
+    } else {
+        zend_update_property_bool(swoole_http2_response_ce, Z_OBJ_P(zresponse), ZEND_STRL("pipeline"), 1);
+        RETVAL_ZVAL(zresponse, 0, 0);
+        object_init_ex(zresponse, swoole_http2_response_ce);
+        zend_update_property_long(
+            swoole_http2_response_ce, Z_OBJ_P(zresponse), ZEND_STRL("streamId"), stream->stream_id);
+    }
 }
 
 #ifdef SW_HAVE_ZLIB
@@ -1280,23 +1418,75 @@ bool Client::send_ping_frame() {
 }
 
 bool Client::send_data(uint32_t _stream_id, const char *p, size_t len, int flag) {
-    uint8_t send_flag;
-    uint32_t send_len;
+    auto *socket = socket_;
+    auto *stream = get_stream(_stream_id);
+    if (!stream) {
+        update_error_properties(SW_ERROR_HTTP2_STREAM_NOT_FOUND, "HTTP/2 upload stream is closed");
+        return false;
+    }
+    if (stream->sending_data) {
+        update_error_properties(EBUSY, "another write is pending on this HTTP/2 stream");
+        return false;
+    }
+    stream->sending_data = true;
+    ON_SCOPE_EXIT {
+        if (socket == socket_) {
+            if (auto *active = get_stream(_stream_id)) {
+                active->sending_data = false;
+            }
+        }
+    };
+
     char header[SW_HTTP2_FRAME_HEADER_SIZE];
     if (len == 0) {
+        if (!(flag & SW_HTTP2_FLAG_END_STREAM)) {
+            return true;
+        }
         Http2::set_frame_header(header, SW_HTTP2_TYPE_DATA, 0, flag, _stream_id);
         swoole_trace_log(
             SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, flags=%d, send_n=0", "DATA", _stream_id, flag);
         return send(header, SW_HTTP2_FRAME_HEADER_SIZE);
     }
+    double deadline = 0;
     while (len > 0) {
-        if (len > remote_settings.max_frame_size) {
-            send_len = remote_settings.max_frame_size;
-            send_flag = 0;
-        } else {
-            send_len = len;
-            send_flag = flag;
+        if (socket != socket_ || !socket->is_connected()) {
+            return false;
         }
+        // A read can remove the stream while the frame write or flow-control wait is suspended.
+        stream = get_stream(_stream_id);
+        if (!stream) {
+            update_error_properties(SW_ERROR_HTTP2_STREAM_NOT_FOUND, "HTTP/2 upload stream is closed");
+            return false;
+        }
+        const auto window = std::min(static_cast<int32_t>(remote_window_size), stream->remote_window_size);
+        if (window <= 0) {
+            const double now = http2_client_now();
+            if (deadline == 0) {
+                const double timeout = socket->get_timeout(SW_TIMEOUT_WRITE);
+                deadline = now + (timeout > 0 ? timeout : SW_SOCKET_DEFAULT_WRITE_TIMEOUT);
+            }
+            if (deadline <= now) {
+                socket->set_err(ETIMEDOUT);
+                send_error();
+                return false;
+            }
+            auto ret = receive_frame(socket, deadline - now, nullptr, false, _stream_id);
+            if (ret == SW_ERROR && socket == socket_ && socket->is_connected()) {
+                if (socket->errCode == 0) {
+                    socket->set_err(SW_ERROR_HTTP2_INTERNAL_ERROR, "failed to receive HTTP/2 upload credit");
+                }
+                send_error();
+            }
+            if (ret != SW_CONTINUE) {
+                return false;
+            }
+            continue;
+        }
+        const uint32_t send_len = std::min({len, size_t(remote_settings.max_frame_size), size_t(window)});
+        const int send_flag = send_len == len ? flag : 0;
+        // Reserve credit before send() can yield or queue DATA behind another frame.
+        remote_window_size -= send_len;
+        stream->remote_window_size -= static_cast<int32_t>(send_len);
         Http2::set_frame_header(header, SW_HTTP2_TYPE_DATA, send_len, send_flag, _stream_id);
         swoole_trace_log(SW_TRACE_HTTP2,
                          "send [" SW_ECHO_YELLOW "] stream_id=%u, flags=%d, send_n=%u",
@@ -1534,20 +1724,14 @@ static void http2_client_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool pipeline_r
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (!h2c->is_available()) {
+        RETURN_FALSE;
+    }
+    auto *socket = h2c->socket_;
     SW_CLIENT_PRESERVE_SOCKET(&h2c->zsocket);
 
     while (true) {
-        if (!h2c->is_available()) {
-            RETURN_FALSE;
-        }
-        if (!h2c->recv_packet(timeout)) {
-            // A close() that had to wait for this read finishes here.
-            if (h2c->socket_->get_socket()->close_wait) {
-                h2c->close();
-            }
-            RETURN_FALSE;
-        }
-        ReturnCode ret = h2c->parse_frame(return_value, pipeline_read);
+        ReturnCode ret = h2c->receive_frame(socket, timeout, return_value, pipeline_read);
         if (ret == SW_CONTINUE) {
             continue;
         } else if (ret == SW_READY) {
