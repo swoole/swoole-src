@@ -46,6 +46,37 @@ function grant(int $stream, int $credit): string
     return http2_test_frame(8, 0, $stream, pack('N', $credit));
 }
 
+function withCreditLimitedPeer(Socket $listener, callable $handle, array $options = [], int $streams = 128): void
+{
+    Coroutine::create(static function () use ($listener, $handle, $streams) {
+        $peer = $listener->accept(2);
+        check($peer instanceof Socket, 'accept failed');
+        check($peer->recvAll(24, 2) === "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n", 'missing client preface');
+        readFrame($peer, 4);
+        [$warmup] = readFrame($peer, 1);
+        sendFrames($peer, http2_test_frame(4, 0, 0, pack('nNnN', 4, 1, 3, $streams))
+            . http2_test_frame(1, 5, $warmup, "\x88"));
+        check(readFrame($peer, 4) === [0, 1, ''], 'missing SETTINGS ACK');
+        $handle($peer);
+        $peer->close();
+    });
+
+    $client = new Client('127.0.0.1', $listener->getsockname()['port']);
+    $client->set($options + ['write_timeout' => 2]);
+    check($client->connect(), 'connect failed');
+    $warmup = $client->send(new Request());
+    check($warmup !== false && $client->recv(2)->streamId === $warmup, 'warmup failed');
+    $handle($client);
+}
+
+function uploadRequest(string $data = 'abc'): Request
+{
+    $request = new Request();
+    $request->method = 'POST';
+    $request->data = $data;
+    return $request;
+}
+
 Coroutine\run(static function () {
     $listener = new Socket(AF_INET, SOCK_STREAM, 0);
     check($listener->bind('127.0.0.1', 0) && $listener->listen(), 'listen failed');
@@ -163,6 +194,142 @@ Coroutine\run(static function () {
         check($client->recv(2) === false && !$client->connected, 'invalid window was accepted');
         check($client->errCode === $error, 'incorrect connection error');
     }
+
+    withCreditLimitedPeer($listener, static function (Socket|Client $endpoint) {
+        if ($endpoint instanceof Socket) {
+            [$first] = readFrame($endpoint, 1);
+            [$second] = readFrame($endpoint, 1);
+            [$upload] = readFrame($endpoint, 1);
+            check(readFrame($endpoint, 0) === [$upload, 0, 'a'], 'upload did not exhaust its window');
+            sendFrames($endpoint, http2_test_frame(1, 5, $first, "\x88")
+                . http2_test_frame(1, 5, $second, "\x88")
+                . http2_test_frame(7, 0, 0, pack('NN', $second, 0) . 'draining'));
+            check($endpoint->recv(1, 2) === '', 'GOAWAY did not close the client');
+            return;
+        }
+        $first = $endpoint->send(new Request());
+        $second = $endpoint->send(new Request());
+        check($endpoint->send(uploadRequest()) === false && !$endpoint->connected, 'upload survived GOAWAY');
+        check($endpoint->read(2)->streamId === $first, 'read lost the first response after GOAWAY');
+        check($endpoint->recv(2)->streamId === $second, 'recv lost the second response after GOAWAY');
+        check($endpoint->recv(2) === false && $endpoint->errMsg === 'draining', 'GOAWAY diagnostic was lost');
+    });
+
+    foreach ([[false, false], [false, true], [true, true]] as [$pipeline, $reset]) {
+        withCreditLimitedPeer($listener, static function (Socket|Client $endpoint) use ($pipeline, $reset) {
+            if ($endpoint instanceof Socket) {
+                [$upload] = readFrame($endpoint, 1);
+                check(readFrame($endpoint, 0) === [$upload, 0, 'a'], 'upload did not exhaust its window');
+                $response = http2_test_frame(1, 5, $upload, "\x08\x03" . '413');
+                sendFrames($endpoint, $response . ($reset ? http2_test_frame(3, 0, $upload, pack('N', 0)) : grant($upload, 2)));
+                if (!$reset) {
+                    check(readFrame($endpoint, 0) === [$upload, 1, 'bc'], 'response END_STREAM stopped the request');
+                }
+                [$next] = readFrame($endpoint, 1);
+                sendFrames($endpoint, http2_test_frame(1, 5, $next, "\x88"));
+                check($endpoint->recv(1, 2) === '', 'client did not close');
+                return;
+            }
+            if ($pipeline) {
+                $request = uploadRequest('');
+                $request->pipeline = true;
+                $upload = $endpoint->send($request);
+                check($upload !== false && !$endpoint->write($upload, 'abc', true), 'write survived RST_STREAM');
+                check(str_contains($endpoint->errMsg, 'after sending the response'), 'write lost the reset reason');
+            } else {
+                $upload = $endpoint->send(uploadRequest());
+                check($upload !== false, 'send lost the stream ID for a complete response');
+            }
+            $response = $endpoint->recv(2);
+            check($response instanceof Response && $response->streamId === $upload && $response->statusCode === 413,
+                'early response was lost');
+            check(!$endpoint->isStreamExist($upload), 'closed stream was retained');
+            $next = $endpoint->send(new Request());
+            check($next !== false && $endpoint->recv(2)->streamId === $next, 'connection was unusable after early response');
+            $endpoint->close();
+        });
+    }
+
+    withCreditLimitedPeer($listener, static function (Socket|Client $endpoint) {
+        if ($endpoint instanceof Socket) {
+            [$complete] = readFrame($endpoint, 1);
+            [$partial] = readFrame($endpoint, 1);
+            [$upload] = readFrame($endpoint, 1);
+            check(readFrame($endpoint, 0) === [$upload, 0, 'a'], 'upload did not exhaust its window');
+            sendFrames($endpoint, http2_test_frame(1, 5, $complete, "\x88")
+                . http2_test_frame(1, 4, $partial, "\x88")
+                . http2_test_frame(0, 0, $partial, str_repeat('b', 50)));
+            check($endpoint->recv(1, 2) === '', 'buffer limit did not close the client');
+            return;
+        }
+        $complete = $endpoint->send(new Request());
+        check($complete !== false && $endpoint->send(new Request()) !== false, 'could not start downloads');
+        check($endpoint->send(uploadRequest()) === false && !$endpoint->connected, 'buffer limit was ignored');
+        check(str_contains($endpoint->errMsg, 'buffering limit'), 'wrong error for full response buffer');
+        check($endpoint->recv(2)->streamId === $complete, 'buffer limit discarded a complete response');
+        check($endpoint->recv(2) === false, 'incomplete response was delivered');
+    }, ['http2_max_buffered_response_bytes' => 128]);
+
+    if (defined('SWOOLE_HAVE_ZLIB') && function_exists('gzencode')) {
+        $body = str_repeat('g', 12288);
+        foreach ([256, 16384] as $limit) {
+            withCreditLimitedPeer($listener, static function (Socket|Client $endpoint) use ($body, $limit) {
+                if ($endpoint instanceof Socket) {
+                    [$download] = readFrame($endpoint, 1);
+                    [$upload] = readFrame($endpoint, 1);
+                    check(readFrame($endpoint, 0) === [$upload, 0, 'a'], 'upload did not exhaust its window');
+                    sendFrames($endpoint, http2_test_frame(1, 4, $download, "\x88\x5a\x04gzip")
+                        . http2_test_frame(0, 1, $download, gzencode($body)));
+                    if ($limit > strlen($body)) {
+                        sendFrames($endpoint, grant($upload, 2));
+                        check(readFrame($endpoint, 0) === [$upload, 1, 'bc'], 'upload did not use new credit');
+                        sendFrames($endpoint, http2_test_frame(1, 5, $upload, "\x88"));
+                    }
+                    check($endpoint->recv(1, 2) === '', 'client did not close');
+                    return;
+                }
+                $download = $endpoint->send(new Request());
+                $upload = $endpoint->send(uploadRequest());
+                if ($limit > strlen($body)) {
+                    $response = $endpoint->recv(2);
+                    check($response instanceof Response && $response->streamId === $download && $response->data === $body,
+                        'gzip response was damaged while buffering');
+                    check($upload !== false && $endpoint->recv(2)->streamId === $upload, 'upload failed after gzip response');
+                    $endpoint->close();
+                } else {
+                    check($upload === false && !$endpoint->connected, 'decoded body was allowed to exceed the limit');
+                    check(str_contains($endpoint->errMsg, 'buffering limit'), 'wrong error for oversized gzip response');
+                }
+            }, ['http2_max_buffered_response_bytes' => $limit]);
+        }
+    }
+
+    withCreditLimitedPeer($listener, static function (Socket|Client $endpoint) {
+        if ($endpoint instanceof Socket) {
+            $responses = '';
+            for ($i = 0; $i < 129; ++$i) {
+                [$stream] = readFrame($endpoint, 1);
+                $responses .= http2_test_frame(1, 5, $stream, "\x88");
+            }
+            [$upload] = readFrame($endpoint, 1);
+            check(readFrame($endpoint, 0) === [$upload, 0, 'a'], 'upload did not exhaust its window');
+            sendFrames($endpoint, $responses);
+            check($endpoint->recv(1, 2) === '', 'response queue limit did not close the client');
+            return;
+        }
+        $streams = [];
+        for ($i = 0; $i < 129; ++$i) {
+            $stream = $endpoint->send(new Request());
+            check($stream !== false, 'could not start download');
+            $streams[] = $stream;
+        }
+        check($endpoint->send(uploadRequest()) === false && !$endpoint->connected, 'response queue limit was ignored');
+        foreach (array_slice($streams, 0, 128) as $stream) {
+            check($endpoint->recv(2)->streamId === $stream, 'wrong queued response');
+        }
+        check($endpoint->recv(2) === false && str_contains($endpoint->errMsg, 'buffering limit'), 'queue limit error was lost');
+    }, [], 256);
+
     $listener->close();
 });
 echo "DONE\n";

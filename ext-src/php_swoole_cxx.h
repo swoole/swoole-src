@@ -165,10 +165,6 @@ SW_API zend_long php_swoole_parse_to_size(zval *zv);
 SW_API zend_string *php_swoole_serialize(zval *zdata);
 SW_API bool php_swoole_unserialize(const zend_string *data, zval *zv);
 
-#ifdef SW_HAVE_ZLIB
-int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
-#endif
-
 swoole::NameResolver::Context *php_swoole_name_resolver_get_context(zval *zobject);
 std::string php_swoole_name_resolver_lookup(const std::string &name,
                                             swoole::NameResolver::Context *ctx,

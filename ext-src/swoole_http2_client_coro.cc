@@ -56,6 +56,8 @@ namespace swoole {
 namespace coroutine {
 namespace http2 {
 
+struct Upload;
+
 struct Stream {
     uint32_t stream_id;
     uint8_t gzip;
@@ -64,18 +66,31 @@ struct Stream {
     // State of the current received header block, shared by its HEADERS and CONTINUATION frames.
     bool header_block_end_stream;
     bool header_block_is_trailers;
-    bool sending_data;
+    bool response_ended;
 
     String *buffer;
+    // The sending coroutine owns this state until send() or write() returns.
+    Upload *upload;
 #ifdef SW_HAVE_ZLIB
     z_stream gzip_stream;
-    String *gzip_buffer;
 #endif
     zval zresponse;
+    size_t response_bytes;
 
     // flow control
     int32_t remote_window_size;  // A SETTINGS reduction may leave this stream in debt.
     uint32_t local_window_size;  // Remaining receive credit, checked before subtracting DATA.
+
+    void release_receive_buffers() {
+        delete buffer;
+        buffer = nullptr;
+#ifdef SW_HAVE_ZLIB
+        if (gzip) {
+            inflateEnd(&gzip_stream);
+            gzip = 0;
+        }
+#endif
+    }
 };
 
 class Client {
@@ -151,11 +166,26 @@ class Client {
         return true;
     }
 
-    bool apply_setting(const zval *zset) const {
-        if (socket_ && ZVAL_IS_ARRAY(zset)) {
-            return php_swoole_socket_set(socket_, zset);
+    bool apply_setting(const zval *zset) try {
+        if (!ZVAL_IS_ARRAY(zset)) {
+            return true;
         }
+        size_t limit = max_buffered_response_bytes;
+        zval *value;
+        if (php_swoole_array_get_value(Z_ARRVAL_P(zset), "http2_max_buffered_response_bytes", value)) {
+            const auto size = zend::setting::get_size(value);
+            if (size <= 0) {
+                return php_swoole_throw_setting_exception("http2_max_buffered_response_bytes must be positive");
+            }
+            limit = size;
+        }
+        if (socket_ && !php_swoole_socket_set(socket_, zset)) {
+            return false;
+        }
+        max_buffered_response_bytes = limit;
         return true;
+    } catch (const zend::setting::ParseError &) {
+        return false;
     }
 
     bool connect();
@@ -176,12 +206,22 @@ class Client {
 
     bool send_window_update(int _stream_id, uint32_t size);
     bool send_ping_frame();
-    bool send_data(uint32_t _stream_id, const char *p, size_t len, int flag);
     uint32_t send_request(zval *zrequest);
     bool write_data(uint32_t _stream_id, zval *zdata, bool end);
     bool send_goaway_frame(zend_long error_code, const char *debug_data, size_t debug_data_len);
     ReturnCode receive_frame(
         SocketImpl *socket, double timeout, zval *return_value, bool pipeline_read, uint32_t upload = 0);
+    bool pop_pending_response(zval *return_value);
+    void discard_pending_responses() {
+        for (const auto &pending : pending_responses) {
+            buffered_response_bytes -= pending.bytes;
+        }
+        pending_responses.clear();
+        preserve_disconnect_error = false;
+    }
+    bool has_deferred_disconnect_error() const {
+        return preserve_disconnect_error;
+    }
     bool close() const;
     void socket_dtor();
 
@@ -190,18 +230,37 @@ class Client {
     }
 
   private:
+    struct PendingResponse {
+        zend::Variable response;
+        size_t bytes;
+    };
+    static constexpr size_t MAX_PENDING_RESPONSES = 128;
+    size_t max_buffered_response_bytes = 64 * 1024 * 1024;
+    // Track responses held by both open streams and the delivery queue. Only upload-driven reads enforce the limit.
+    size_t buffered_response_bytes = 0;
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
     // The public receiver and writers waiting for credit share the frame reader.
     std::unique_ptr<Channel> read_lock;
-    std::list<zend::Variable> pending_responses;
+#ifdef SW_HAVE_ZLIB
+    // Frame decoding is serialized by read_lock, so streams share the decompression scratch space.
+    std::unique_ptr<String> gzip_buffer;
+#endif
+    std::list<PendingResponse> pending_responses;
     bool buffered_pipeline_data = false;
+    bool preserve_disconnect_error = false;
 
+    bool send_data(const Upload &upload, const char *p, size_t len, int flag);
+    void finish_request(const Upload &upload);
+    void reset_stream(uint32_t id, uint32_t error);
     bool send_setting();
-    int parse_header(Stream *stream, int flags, char *in, size_t inlen) const;
-    ReturnCode parse_frame(zval *return_value, bool pipeline_read);
+    ReturnCode parse_header(Stream *stream, int flags, char *in, size_t inlen, bool upload_read);
+    ReturnCode parse_frame(zval *return_value, bool pipeline_read, size_t *pending_bytes = nullptr);
     ReturnCode reject_send_window(uint32_t error, const char *reason);
-    void return_response(Stream *stream, zval *return_value, bool end);
+    ReturnCode reject_response_buffer();
+    size_t remaining_response_bytes(bool upload_read) const;
+    bool reserve_response_bytes(Stream *stream, size_t bytes, bool upload_read);
+    void return_response(Stream *stream, zval *return_value, bool end, size_t *pending_bytes = nullptr);
 
     void clean_send_queue() {
         while (!send_queue.empty()) {
@@ -254,6 +313,39 @@ class Client {
             zend_string_release(frame);
         }
         return true;
+    }
+};
+
+struct Upload {
+    Client &client;
+    SocketImpl *const socket;
+    const uint32_t stream_id;
+    bool reset_received = false;
+    bool completed_by_peer = false;
+
+    Upload(Client &client, Stream *stream) : client(client), socket(client.socket_), stream_id(stream->stream_id) {
+        stream->upload = this;
+    }
+
+    Upload(const Upload &) = delete;
+    Upload &operator=(const Upload &) = delete;
+
+    ~Upload() {
+        if (auto *stream = get_stream()) {
+            stream->upload = nullptr;
+        }
+    }
+
+    Stream *get_stream() const {
+        return client.socket_ == socket ? client.get_stream(stream_id) : nullptr;
+    }
+
+    void report_reset() const {
+        if (completed_by_peer) {
+            client.update_error_properties(ECANCELED, "peer stopped the HTTP/2 upload after sending the response");
+        } else {
+            client.update_error_properties(SW_ERROR_HTTP2_STREAM_NOT_FOUND, "HTTP/2 upload stream is closed");
+        }
     }
 };
 
@@ -425,8 +517,12 @@ void php_swoole_http2_client_coro_minit(int module_number) {
 void Client::socket_dtor() {
     socket_ = nullptr;
     clean_send_queue();
-    pending_responses.clear();
+    // Responses already parsed by a writer belong to the application even after a transport failure.
+    preserve_disconnect_error = !pending_responses.empty();
     buffered_pipeline_data = false;
+#ifdef SW_HAVE_ZLIB
+    gzip_buffer.reset();
+#endif
     auto i = streams.begin();
     while (i != streams.end()) {
         destroy_stream(i->second);
@@ -452,6 +548,7 @@ bool Client::connect() {
         return false;
     }
 
+    discard_pending_responses();
     auto object = php_swoole_create_socket(socket_type);
     if (UNEXPECTED(!object)) {
         php_swoole_socket_set_error_properties(zobject, errno, strerror(errno));
@@ -554,6 +651,38 @@ ReturnCode Client::reject_send_window(uint32_t error, const char *reason) {
     return SW_CLOSE;
 }
 
+bool Client::pop_pending_response(zval *return_value) {
+    if (pending_responses.empty()) {
+        return false;
+    }
+    auto &pending = pending_responses.front();
+    ZVAL_COPY_VALUE(return_value, pending.response.ptr());
+    pending.response.reset();
+    buffered_response_bytes -= pending.bytes;
+    pending_responses.pop_front();
+    return true;
+}
+
+size_t Client::remaining_response_bytes(bool upload_read) const {
+    const size_t limit = upload_read ? max_buffered_response_bytes : SIZE_MAX;
+    return buffered_response_bytes < limit ? limit - buffered_response_bytes : 0;
+}
+
+bool Client::reserve_response_bytes(Stream *stream, size_t bytes, bool upload_read) {
+    if (sw_unlikely(bytes > remaining_response_bytes(upload_read))) {
+        return false;
+    }
+    buffered_response_bytes += bytes;
+    stream->response_bytes += bytes;
+    return true;
+}
+
+ReturnCode Client::reject_response_buffer() {
+    close();
+    update_error_properties(ENOBUFS, "HTTP/2 response buffering limit reached during upload");
+    return SW_CLOSE;
+}
+
 ReturnCode Client::receive_frame(
     SocketImpl *socket, double timeout, zval *return_value, bool pipeline_read, uint32_t upload) {
     if (socket != socket_ || !socket->is_connected()) {
@@ -586,11 +715,7 @@ ReturnCode Client::receive_frame(
         if (!stream || (remote_window_size > 0 && stream->remote_window_size > 0)) {
             return SW_CONTINUE;
         }
-    } else if (!pending_responses.empty()) {
-        auto &response = pending_responses.front();
-        ZVAL_COPY_VALUE(return_value, response.ptr());
-        response.reset();
-        pending_responses.pop_front();
+    } else if (pop_pending_response(return_value)) {
         return SW_READY;
     } else if (pipeline_read && buffered_pipeline_data) {
         for (const auto &entry : streams) {
@@ -628,10 +753,15 @@ ReturnCode Client::receive_frame(
 
     // Uploads may receive response frames before the application calls recv() or read().
     zend::Variable response;
+    size_t bytes = 0;
     const bool data = socket->get_read_buffer()->str[3] == SW_HTTP2_TYPE_DATA;
-    auto ret = parse_frame(response.ptr(), false);
+    auto ret = parse_frame(response.ptr(), false, &bytes);
     if (ret == SW_READY) {
-        pending_responses.emplace_back(std::move(response));
+        if (sw_unlikely(pending_responses.size() >= MAX_PENDING_RESPONSES)) {
+            buffered_response_bytes -= bytes;
+            return reject_response_buffer();
+        }
+        pending_responses.push_back({std::move(response), bytes});
         return SW_CONTINUE;
     }
     if (ret == SW_CONTINUE && data) {
@@ -640,11 +770,15 @@ ReturnCode Client::receive_frame(
     return ret;
 }
 
-ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
+#ifdef SW_HAVE_ZLIB
+static ReturnCode http2_client_decompress(z_stream *stream, String *buffer, char *body, size_t length, size_t limit);
+#endif
+
+ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *pending_bytes) {
+    const bool upload_read = pending_bytes != nullptr;
     char *buf = socket_->get_read_buffer()->str;
     uint8_t type = buf[3];
     uint8_t flags = buf[4];
-    uint32_t stream_error = 0;
     uint32_t _stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
     ssize_t length = Http2::get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
@@ -769,8 +903,10 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
             remote_window_size += value;
         } else if (auto *stream = get_stream(_stream_id)) {
             if (value == 0 || int64_t(stream->remote_window_size) + value > INT32_MAX) {
-                uint32_t error = htonl(value == 0 ? SW_HTTP2_ERROR_PROTOCOL_ERROR : SW_HTTP2_ERROR_FLOW_CONTROL_ERROR);
-                delete_stream(_stream_id);
+                const uint32_t error_code =
+                    value == 0 ? SW_HTTP2_ERROR_PROTOCOL_ERROR : SW_HTTP2_ERROR_FLOW_CONTROL_ERROR;
+                reset_stream(_stream_id, error_code);
+                const uint32_t error = htonl(error_code);
                 Http2::set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, SW_HTTP2_RST_STREAM_SIZE, 0, _stream_id);
                 memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, &error, sizeof(error));
                 if (!send(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE)) {
@@ -834,11 +970,11 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
             update_error_properties(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid RST_STREAM frame length");
             return SW_CLOSE;
         }
-        stream_error = ntohl(*(uint32_t *) (buf));
-        swoole_http2_frame_trace_log("error_code=%d", stream_error);
-
-        // delete and free quietly
-        delete_stream(_stream_id);
+        uint32_t error;
+        memcpy(&error, buf, sizeof(error));
+        error = ntohl(error);
+        swoole_http2_frame_trace_log("error_code=%u", error);
+        reset_stream(_stream_id, error);
 
         return SW_CONTINUE;
     }
@@ -866,6 +1002,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
         swoole_notice("http2 stream#%d belongs to an unknown type or it never registered", _stream_id);
         return SW_CONTINUE;
     }
+    if (stream->response_ended) {
+        return SW_CONTINUE;
+    }
     if (type == SW_HTTP2_TYPE_HEADERS || type == SW_HTTP2_TYPE_CONTINUATION) {
         if (type == SW_HTTP2_TYPE_HEADERS) {
             stream->header_block_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
@@ -890,8 +1029,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
                 length -= SW_HTTP2_PRIORITY_SIZE;
             }
         }
-        if (parse_header(stream, flags, buf, length) < 0) {
-            return SW_ERROR;
+        const auto ret = parse_header(stream, flags, buf, length, upload_read);
+        if (ret != SW_SUCCESS) {
+            return ret;
         }
         if (!(flags & SW_HTTP2_FLAG_END_HEADERS)) {
             continuation_stream_id = _stream_id;
@@ -919,20 +1059,31 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
             data++;
         }
         if (data_length > 0) {
-            if (!stream->buffer) {
-                stream->buffer = make_string(SW_HTTP2_DATA_BUFFER_SIZE);
-            }
 #ifdef SW_HAVE_ZLIB
             if (stream->gzip) {
-                if (php_swoole_zlib_decompress(&stream->gzip_stream, stream->gzip_buffer, data, data_length) ==
-                    SW_ERR) {
+                if (!gzip_buffer) {
+                    gzip_buffer.reset(make_string(SW_HTTP2_DATA_BUFFER_SIZE));
+                }
+                const auto ret = http2_client_decompress(
+                    &stream->gzip_stream, gzip_buffer.get(), data, data_length, remaining_response_bytes(upload_read));
+                if (ret == SW_CLOSE) {
+                    return reject_response_buffer();
+                }
+                if (ret == SW_ERROR) {
                     swoole_warning("decompress failed");
                     return SW_ERROR;
                 }
-                stream->buffer->append(stream->gzip_buffer->str, stream->gzip_buffer->length);
-            } else
+                data = gzip_buffer->str;
+                data_length = gzip_buffer->length;
+            }
 #endif
-            {
+            if (!reserve_response_bytes(stream, data_length, upload_read)) {
+                return reject_response_buffer();
+            }
+            if (data_length > 0) {
+                if (!stream->buffer) {
+                    stream->buffer = make_string(SW_HTTP2_DATA_BUFFER_SIZE);
+                }
                 stream->buffer->append(data, data_length);
             }
         }
@@ -958,23 +1109,18 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     }
 
     bool end =
-        (type == SW_HTTP2_TYPE_CONTINUATION ? stream->header_block_end_stream : (flags & SW_HTTP2_FLAG_END_STREAM)) ||
-        type == SW_HTTP2_TYPE_RST_STREAM || type == SW_HTTP2_TYPE_GOAWAY;
+        type == SW_HTTP2_TYPE_CONTINUATION ? stream->header_block_end_stream : (flags & SW_HTTP2_FLAG_END_STREAM);
     pipeline_read = ((pipeline_read || (stream->flags & SW_HTTP2_STREAM_USE_PIPELINE_READ)) &&
                      (stream->flags & SW_HTTP2_STREAM_PIPELINE_RESPONSE));
     if (end || pipeline_read) {
-        if (type == SW_HTTP2_TYPE_RST_STREAM) {
-            zend::object_set(&stream->zresponse, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
-            zend::object_set(&stream->zresponse, ZEND_STRL("errCode"), stream_error);
-        }
-        return_response(stream, return_value, end);
+        return_response(stream, return_value, end, pending_bytes);
         return SW_READY;
     }
 
     return SW_CONTINUE;
 }
 
-void Client::return_response(Stream *stream, zval *return_value, bool end) {
+void Client::return_response(Stream *stream, zval *return_value, bool end, size_t *pending_bytes) {
     zval *zresponse = &stream->zresponse;
     if (stream->buffer && !stream->buffer->empty()) {
         zend_update_property_stringl(swoole_http2_response_ce,
@@ -984,9 +1130,24 @@ void Client::return_response(Stream *stream, zval *return_value, bool end) {
                                      stream->buffer->length);
         stream->buffer->clear();
     }
+    if (pending_bytes) {
+        *pending_bytes = stream->response_bytes;
+        delete stream->buffer;
+        stream->buffer = nullptr;
+    } else {
+        buffered_response_bytes -= stream->response_bytes;
+    }
+    stream->response_bytes = 0;
     if (end) {
-        RETVAL_ZVAL(zresponse, 1, 0);
-        delete_stream(stream->stream_id);
+        // The response can end before the request. Keep the send window alive until END_STREAM or RST_STREAM.
+        RETVAL_ZVAL(zresponse, 0, 0);
+        ZVAL_UNDEF(zresponse);
+        stream->response_ended = true;
+        if (stream->flags & SW_HTTP2_STREAM_REQUEST_END) {
+            delete_stream(stream->stream_id);
+        } else {
+            stream->release_receive_buffers();
+        }
     } else {
         zend_update_property_bool(swoole_http2_response_ce, Z_OBJ_P(zresponse), ZEND_STRL("pipeline"), 1);
         RETVAL_ZVAL(zresponse, 0, 0);
@@ -997,7 +1158,7 @@ void Client::return_response(Stream *stream, zval *return_value, bool end) {
 }
 
 #ifdef SW_HAVE_ZLIB
-int php_swoole_zlib_decompress(z_stream *stream, String *buffer, char *body, int length) {
+static ReturnCode http2_client_decompress(z_stream *stream, String *buffer, char *body, size_t length, size_t limit) {
     int status = 0;
 
     stream->avail_in = length;
@@ -1015,8 +1176,11 @@ int php_swoole_zlib_decompress(z_stream *stream, String *buffer, char *body, int
 
     buffer->clear();
 
+    // Allow one byte beyond the limit to detect when the decoded body needs more space.
+    const size_t capacity = limit < SIZE_MAX ? limit + 1 : SIZE_MAX;
     while (true) {
-        stream->avail_out = buffer->size - buffer->length;
+        const auto space = std::min({buffer->size - buffer->length, capacity - buffer->length, size_t(UINT_MAX)});
+        stream->avail_out = space;
         stream->next_out = (Bytef *) (buffer->str + buffer->length);
 
         status = inflate(stream, Z_SYNC_FLUSH);
@@ -1030,23 +1194,23 @@ int php_swoole_zlib_decompress(z_stream *stream, String *buffer, char *body, int
                          stream->total_out,
                          buffer->length);
 
-        if (status >= 0) {
-            buffer->length = stream->total_out;
+        buffer->length += space - stream->avail_out;
+        if (buffer->length > limit) {
+            return SW_CLOSE;
         }
-        if (status == Z_STREAM_END) {
-            return SW_OK;
-        } else if (status == Z_OK) {
-            if (buffer->length + 4096 >= buffer->size) {
-                buffer->extend();
-            }
-            if (stream->avail_in == 0) {
-                return SW_OK;
-            }
-        } else {
-            return SW_ERR;
+        if (status == Z_STREAM_END || (status == Z_BUF_ERROR && stream->avail_in == 0)) {
+            return SW_SUCCESS;
+        }
+        if (status != Z_OK) {
+            return SW_ERROR;
+        }
+        if (stream->avail_in == 0 && stream->avail_out != 0) {
+            return SW_SUCCESS;
+        }
+        if (buffer->length == buffer->size) {
+            buffer->reserve(buffer->size + std::min(buffer->size, capacity - buffer->size));
         }
     }
-    return SW_ERR;
 }
 #endif
 
@@ -1152,7 +1316,7 @@ bool Client::send_setting() {
 
 void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);
 
-int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) const {
+ReturnCode Client::parse_header(Stream *stream, int flags, char *in, size_t inlen, bool upload_read) {
     zval *zresponse = &stream->zresponse;
 
     zval *zheaders =
@@ -1179,13 +1343,17 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
             inflater, &nv, &inflate_flags, (uchar *) in, inlen, (flags & SW_HTTP2_FLAG_END_HEADERS) != 0);
         if (rv < 0) {
             nghttp2_error(rv, "nghttp2_hd_inflate_hd failed");
-            return SW_ERR;
+            return SW_ERROR;
         }
 
         in += (size_t) rv;
         inlen -= (size_t) rv;
 
         if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
+            // Include per-field overhead so small, decoded headers count toward the buffering limit too.
+            if (!reserve_response_bytes(stream, nv.namelen + nv.valuelen + 32, upload_read)) {
+                return reject_response_buffer();
+            }
             swoole_trace_log(SW_TRACE_HTTP2,
                              "[" SW_ECHO_GREEN "] %.*s[%lu]: %.*s[%lu]",
                              "HEADER",
@@ -1203,7 +1371,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status")) {
                     uint16_t status_code = 0;
                     if (!Http2::parse_status_code((char *) nv.value, nv.valuelen, &status_code)) {
-                        return SW_ERR;
+                        return SW_ERROR;
                     }
                     zend::object_set(zresponse, ZEND_STRL("statusCode"), status_code);
                     has_status_pseudo_header = true;
@@ -1218,7 +1386,6 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                      */
                     stream->gzip = 1;
                     memset(&stream->gzip_stream, 0, sizeof(stream->gzip_stream));
-                    stream->gzip_buffer = make_string(8192);
                     stream->gzip_stream.zalloc = php_zlib_alloc;
                     stream->gzip_stream.zfree = php_zlib_free;
                     /**
@@ -1226,7 +1393,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
                      */
                     if (Z_OK != inflateInit2(&stream->gzip_stream, MAX_WBITS + 16)) {
                         swoole_warning("inflateInit2() failed");
-                        return SW_ERR;
+                        return SW_ERROR;
                     }
                 } else
 #endif
@@ -1264,7 +1431,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) cons
         stream->flags |= SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED;
     }
 
-    return SW_OK;
+    return SW_SUCCESS;
 }
 
 ssize_t Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
@@ -1380,13 +1547,8 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
 }
 
 void Client::destroy_stream(Stream *stream) {
-    delete (stream->buffer);
-#ifdef SW_HAVE_ZLIB
-    if (stream->gzip) {
-        inflateEnd(&stream->gzip_stream);
-    }
-    delete (stream->gzip_buffer);
-#endif
+    buffered_response_bytes -= stream->response_bytes;
+    stream->release_receive_buffers();
     zval_ptr_dtor(&stream->zresponse);
     efree(stream);
 }
@@ -1417,25 +1579,31 @@ bool Client::send_ping_frame() {
     return send(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
 }
 
-bool Client::send_data(uint32_t _stream_id, const char *p, size_t len, int flag) {
-    auto *socket = socket_;
-    auto *stream = get_stream(_stream_id);
-    if (!stream) {
-        update_error_properties(SW_ERROR_HTTP2_STREAM_NOT_FOUND, "HTTP/2 upload stream is closed");
-        return false;
-    }
-    if (stream->sending_data) {
-        update_error_properties(EBUSY, "another write is pending on this HTTP/2 stream");
-        return false;
-    }
-    stream->sending_data = true;
-    ON_SCOPE_EXIT {
-        if (socket == socket_) {
-            if (auto *active = get_stream(_stream_id)) {
-                active->sending_data = false;
-            }
+void Client::reset_stream(uint32_t id, uint32_t error) {
+    if (auto *stream = get_stream(id)) {
+        if (auto *upload = stream->upload) {
+            upload->reset_received = true;
+            upload->completed_by_peer = stream->response_ended && error == SW_HTTP2_ERROR_NO_ERROR;
         }
-    };
+        delete_stream(id);
+    }
+}
+
+void Client::finish_request(const Upload &upload) {
+    if (auto *stream = upload.get_stream()) {
+        stream->flags |= SW_HTTP2_STREAM_REQUEST_END;
+        if (stream->response_ended) {
+            delete_stream(stream->stream_id);
+        }
+    }
+}
+
+bool Client::send_data(const Upload &upload, const char *p, size_t len, int flag) {
+    auto *socket = upload.socket;
+    const auto _stream_id = upload.stream_id;
+    if (socket != socket_ || !socket->is_connected() || upload.reset_received) {
+        return false;
+    }
 
     char header[SW_HTTP2_FRAME_HEADER_SIZE];
     if (len == 0) {
@@ -1445,15 +1613,15 @@ bool Client::send_data(uint32_t _stream_id, const char *p, size_t len, int flag)
         Http2::set_frame_header(header, SW_HTTP2_TYPE_DATA, 0, flag, _stream_id);
         swoole_trace_log(
             SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, flags=%d, send_n=0", "DATA", _stream_id, flag);
-        return send(header, SW_HTTP2_FRAME_HEADER_SIZE);
+        return send(header, SW_HTTP2_FRAME_HEADER_SIZE) && !upload.reset_received;
     }
     double deadline = 0;
     while (len > 0) {
-        if (socket != socket_ || !socket->is_connected()) {
+        if (socket != socket_ || !socket->is_connected() || upload.reset_received) {
             return false;
         }
         // A read can remove the stream while the frame write or flow-control wait is suspended.
-        stream = get_stream(_stream_id);
+        auto *stream = get_stream(_stream_id);
         if (!stream) {
             update_error_properties(SW_ERROR_HTTP2_STREAM_NOT_FOUND, "HTTP/2 upload stream is closed");
             return false;
@@ -1504,7 +1672,7 @@ bool Client::send_data(uint32_t _stream_id, const char *p, size_t len, int flag)
         len -= send_len;
         p += send_len;
     }
-    return true;
+    return !upload.reset_received;
 }
 
 /**
@@ -1553,7 +1721,7 @@ uint32_t Client::send_request(zval *zrequest) {
     // the stream meanwhile, so only its id is used after this.
     uint32_t _stream_id = stream_id;
     bool pipeline = flags & SW_HTTP2_STREAM_PIPELINE_REQUEST;
-    create_stream(_stream_id, flags);
+    Upload upload(*this, create_stream(_stream_id, flags));
     stream_id += 2;
 
     flags = SW_HTTP2_FLAG_END_HEADERS;
@@ -1568,6 +1736,9 @@ uint32_t Client::send_request(zval *zrequest) {
         "[" SW_ECHO_GREEN ", STREAM#%d] length=%zd", Http2::get_type(SW_HTTP2_TYPE_HEADERS), _stream_id, bytes);
     if (!send(buffer->str, buffer->length)) {
         return 0;
+    }
+    if (flags & SW_HTTP2_FLAG_END_STREAM) {
+        finish_request(upload);
     }
 
     /**
@@ -1595,10 +1766,19 @@ uint32_t Client::send_request(zval *zrequest) {
         swoole_http2_send_trace_log(
             "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", Http2::get_type(SW_HTTP2_TYPE_DATA), _stream_id, len);
 
-        bool sent = send_data(_stream_id, p, len, flag);
+        bool sent = send_data(upload, p, len, flag);
         smart_str_free(&formstr_s);
         if (!sent) {
+            if (upload.completed_by_peer) {
+                return _stream_id;
+            }
+            if (upload.reset_received) {
+                upload.report_reset();
+            }
             return 0;
+        }
+        if (flag & SW_HTTP2_FLAG_END_STREAM) {
+            finish_request(upload);
         }
     }
 
@@ -1618,11 +1798,17 @@ bool Client::write_data(uint32_t _stream_id, zval *zdata, bool end) {
                                 std_string::format("unable to found active pipeline stream#%u", _stream_id).c_str());
         return false;
     }
+    if (stream->upload) {
+        update_error_properties(EBUSY, "another write is pending on this HTTP/2 stream");
+        return false;
+    }
 
     if (!check_send_queue()) {
         return false;
     }
+    Upload upload(*this, stream);
 
+    bool sent;
     if (ZVAL_IS_ARRAY(zdata)) {
         size_t len;
         smart_str formstr_s = {};
@@ -1637,11 +1823,8 @@ bool Client::write_data(uint32_t _stream_id, zval *zdata, bool end) {
                          end ? " END," : "",
                          stream_id,
                          len);
-        bool retval = send_data(_stream_id, formstr, len, flag);
+        sent = send_data(upload, formstr, len, flag);
         smart_str_free(&formstr_s);
-        if (!retval) {
-            return false;
-        }
     } else {
         zend::String data(zdata);
         swoole_trace_log(SW_TRACE_HTTP2,
@@ -1650,17 +1833,17 @@ bool Client::write_data(uint32_t _stream_id, zval *zdata, bool end) {
                          end ? " END," : "",
                          stream_id,
                          data.len());
-        if (!send_data(_stream_id, data.val(), data.len(), flag)) {
-            return false;
-        }
+        sent = send_data(upload, data.val(), data.len(), flag);
     }
 
-    if (end) {
-        // A concurrent recv() can delete the stream while send_data() waits.
-        stream = get_stream(_stream_id);
-        if (stream) {
-            stream->flags |= SW_HTTP2_STREAM_REQUEST_END;
+    if (!sent) {
+        if (upload.reset_received) {
+            upload.report_reset();
         }
+        return false;
+    }
+    if (end) {
+        finish_request(upload);
     }
 
     return true;
@@ -1724,7 +1907,11 @@ static void http2_client_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool pipeline_r
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (!h2c->is_available()) {
+    if (h2c->pop_pending_response(return_value)) {
+        return;
+    }
+    // Preserve the disconnect error once the queued responses have been delivered.
+    if (h2c->has_deferred_disconnect_error() || !h2c->is_available()) {
         RETURN_FALSE;
     }
     auto *socket = h2c->socket_;
@@ -1751,6 +1938,7 @@ static PHP_METHOD(swoole_http2_client_coro, __destruct) {}
 static PHP_METHOD(swoole_http2_client_coro, close) {
     Client *h2c = http2_client_coro_get_client(ZEND_THIS);
     SW_CLIENT_PRESERVE_SOCKET(&h2c->zsocket);
+    h2c->discard_pending_responses();
     RETURN_BOOL(h2c->close());
 }
 
