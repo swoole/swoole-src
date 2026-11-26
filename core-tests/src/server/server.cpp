@@ -36,6 +36,30 @@ using swoole::network::AsyncClient;
 
 int beforeReloadPid = 0;
 
+TEST(server, master_shutdown_deadline) {
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = serv.reactor_num = 1;
+    serv.max_wait_time = 1;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::chrono::steady_clock::time_point shutdown_at;
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onStart = [&](Server *serv) {
+        shutdown_at = std::chrono::steady_clock::now();
+        EXPECT_TRUE(serv->shutdown());
+    };
+    serv.onBeforeShutdown = [](Server *) {
+        // No user timer is due before the forced shutdown deadline.
+        ASSERT_GT(swoole_timer_tick(60000, [](Timer *, TimerNode *) {}), 0);
+    };
+
+    ASSERT_EQ(serv.start(), SW_OK);
+    const auto elapsed = std::chrono::steady_clock::now() - shutdown_at;
+    EXPECT_GE(elapsed, std::chrono::seconds(1));
+    EXPECT_LT(elapsed, std::chrono::seconds(5));
+}
+
 TEST(server, worker_start_checks_isolation_result) {
     if (!swoole_is_root_user()) {
         GTEST_SKIP() << "requires privileges to configure process isolation";

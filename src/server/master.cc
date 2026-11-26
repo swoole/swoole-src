@@ -25,6 +25,7 @@
 #include "swoole_coroutine_api.h"
 
 #include <cassert>
+#include <chrono>
 #include <grp.h>
 #include <pwd.h>
 #include <net/if.h>
@@ -573,6 +574,7 @@ int Server::start_check() {
 int Server::start_master_thread(Reactor *reactor) {
     swoole_set_thread_type(THREAD_MASTER);
     swoole_set_thread_id(single_thread ? 0 : reactor_num);
+    master_shutdown_started_ = false;
 
     if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
         SwooleTG.timer->reinit();
@@ -1193,6 +1195,25 @@ bool Server::signal_handler_reopen_logger() const {
     return true;
 }
 
+static bool arm_master_shutdown_timer(Reactor *reactor, std::chrono::steady_clock::time_point deadline) {
+    const auto remaining = deadline - std::chrono::steady_clock::now();
+    if (remaining > std::chrono::steady_clock::duration::zero()) {
+        const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(remaining);
+        // Long delays are split into waits that fit the backend timeout.
+        const long delay = static_cast<long>(std::min<int64_t>(millis.count() + (millis < remaining), INT_MAX));
+        if (swoole_timer_after(delay, [reactor, deadline](Timer *, TimerNode *) {
+                arm_master_shutdown_timer(reactor, deadline);
+            }) != SW_ERR) {
+            return true;
+        }
+    }
+    reactor->terminated = true;
+    reactor->running = false;
+    swoole_error_log(
+        SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "graceful shutdown failed, forced termination");
+    return false;
+}
+
 void Server::stop_master_thread() {
     Reactor *reactor = SwooleTG.reactor;
     reactor->set_wait_exit(true);
@@ -1208,20 +1229,6 @@ void Server::stop_master_thread() {
         reactor->del(pipe_command->get_socket(true));
     }
     clear_timer();
-    if (max_wait_time > 0) {
-        time_t shutdown_time = std::time(nullptr);
-        auto fn = [shutdown_time, this](Reactor *reactor, size_t &) {
-            time_t now = std::time(nullptr);
-            if (now - shutdown_time > max_wait_time) {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
-                                 "graceful shutdown failed, forced termination");
-                reactor->running = false;
-            }
-            return true;
-        };
-        reactor->set_exit_condition(Reactor::EXIT_CONDITION_FORCED_TERMINATION, fn);
-    }
     if (is_process_mode() && single_thread) {
         get_thread(0)->shutdown(reactor);
     }
@@ -1239,6 +1246,13 @@ bool Server::signal_handler_shutdown() {
         }
         return true;
     }
+    if (master_shutdown_started_) {
+        return true;
+    }
+    master_shutdown_started_ = true;
+    const auto wait_time = max_wait_time;
+    const auto deadline = wait_time > 0 ? std::chrono::steady_clock::now() + std::chrono::seconds(wait_time)
+                                        : std::chrono::steady_clock::time_point{};
     if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
     }
@@ -1247,6 +1261,12 @@ bool Server::signal_handler_shutdown() {
     }
     running = false;
     stop_master_thread();
+    auto *reactor = sw_reactor();
+    if (wait_time > 0 && arm_master_shutdown_timer(reactor, deadline)) {
+        // The watchdog wakes the backend at the deadline but must not keep an otherwise idle server alive.
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
+                                    [](Reactor *, size_t &) { return sw_timer()->count() <= 1; });
+    }
     swoole_trace_log(SW_TRACE_SERVER, "shutdown end");
     return true;
 }

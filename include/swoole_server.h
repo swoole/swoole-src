@@ -2288,6 +2288,8 @@ class Server {
     std::mutex heartbeat_mutex_;
     std::condition_variable heartbeat_cv_;
     bool heartbeat_stop_requested_ = true;
+    // Master thread only, set before invoking BeforeShutdown to keep the original deadline.
+    bool master_shutdown_started_ = false;
     /**
      * The number of pipe per reactor maintenance
      */
