@@ -27,6 +27,12 @@
 
 using namespace swoole;
 
+TEST(os, page_size) {
+    const int pagesize = sw_getpagesize();
+    ASSERT_GT(pagesize, 0);
+    EXPECT_EQ(swoole_pagesize(), static_cast<uint32_t>(pagesize));
+}
+
 TEST(os, daemon) {
     auto sid = getsid(getpid());
     int status;
@@ -44,26 +50,34 @@ TEST(os, daemon) {
 }
 
 TEST(os, cpu_affinity) {
-    cpu_set_t ori_affinity, affinity;
-    ASSERT_EQ(swoole_get_cpu_affinity(&affinity), 0);
-    ori_affinity = affinity;
+    cpu_set_t ori_affinity;
+    ASSERT_EQ(swoole_get_cpu_affinity(&ori_affinity), 0);
+    int cpu = CPU_SETSIZE - 1;
+    while (cpu >= 0 && !CPU_ISSET(cpu, &ori_affinity)) {
+        cpu--;
+    }
+    ASSERT_GE(cpu, 0);
 
+    const auto startup_cpu_num = SW_CPU_NUM;
+    const auto startup_cpu_limit = swoole_get_cpu_num_for_limits();
+    cpu_set_t affinity;
     CPU_ZERO(&affinity);
-    CPU_SET(1, &affinity);
+    CPU_SET(cpu, &affinity);
 
     ASSERT_EQ(swoole_set_cpu_affinity(&affinity), 0);
+    ON_SCOPE_EXIT {
+        EXPECT_EQ(swoole_set_cpu_affinity(&ori_affinity), 0);
+    };
     ASSERT_EQ(swoole_get_cpu_affinity(&affinity), 0);
 
-    auto cpu_n = SW_CPU_NUM;
-    SW_LOOP_N(cpu_n) {
-        if (i == 1) {
-            ASSERT_TRUE(CPU_ISSET(i, &affinity));
-        } else {
-            ASSERT_FALSE(CPU_ISSET(i, &affinity));
-        }
+    for (int i = 0; i < CPU_SETSIZE; i++) {
+        EXPECT_EQ(bool(CPU_ISSET(i, &affinity)), i == cpu);
     }
-
-    ASSERT_EQ(swoole_set_cpu_affinity(&ori_affinity), 0);
+#ifdef __linux__
+    EXPECT_EQ(swoole_get_available_cpu_num(), 1);
+#endif
+    EXPECT_EQ(SW_CPU_NUM, startup_cpu_num);
+    EXPECT_EQ(swoole_get_cpu_num_for_limits(), startup_cpu_limit);
 }
 
 TEST(os, thread_name) {

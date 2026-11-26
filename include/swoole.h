@@ -613,6 +613,8 @@ pid_t swoole_fork(int flags);
 pid_t swoole_fork_exec(const std::function<void()> &child_fn);
 int swoole_get_available_cpu_num();
 #endif
+void swoole_init_cpu_num();
+int swoole_get_cpu_num_for_limits();
 pid_t swoole_waitpid(pid_t _pid, int *_stat_loc, int _options);
 void swoole_thread_init(bool main_thread = false);
 void swoole_thread_clean(bool main_thread = false);
@@ -639,6 +641,8 @@ typedef cpuset_t cpu_set_t;
 #endif
 int swoole_set_cpu_affinity(cpu_set_t *set);
 int swoole_get_cpu_affinity(cpu_set_t *set);
+int swoole_get_cpu_id_limit();
+void swoole_get_system_cpu_set(cpu_set_t *set);
 #endif
 
 namespace swoole {

@@ -104,6 +104,7 @@ if (PHP_SWOOLE != "no") {
 	swoole_source_files += "src\\network\\socket.cc ";
 	swoole_source_files += "src\\network\\stream.cc ";
 	swoole_source_files += "src\\os\\async_thread.cc ";
+	swoole_source_files += "src\\os\\available_cpu.cc ";
 	swoole_source_files += "src\\os\\base.cc ";
 	swoole_source_files += "src\\os\\file.cc ";
 	swoole_source_files += "src\\os\\pipe.cc ";

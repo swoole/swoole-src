@@ -47,6 +47,12 @@ void sw_wsacleanup() {
     }
 }
 
+int sw_getpagesize() {
+    SYSTEM_INFO info;
+    GetNativeSystemInfo(&info);
+    return static_cast<int>(info.dwPageSize);
+}
+
 // ============================================================================
 // uname() - get system name information
 // ============================================================================

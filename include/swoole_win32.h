@@ -802,6 +802,8 @@ SW_EXTERN_C_BEGIN
 // uname() replacement
 int sw_uname(struct utsname *buf);
 
+int sw_getpagesize();
+
 // usleep() replacement
 int sw_usleep(unsigned int microseconds);
 

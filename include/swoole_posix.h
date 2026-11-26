@@ -69,6 +69,7 @@ static inline swSocketFd sw_dup(swSocketFd fd) {
 #define sw_kill kill
 #define sw_access access
 #define sw_uname uname
+#define sw_getpagesize getpagesize
 #define sw_getrlimit getrlimit
 #define sw_setrlimit setrlimit
 #define sw_wait wait

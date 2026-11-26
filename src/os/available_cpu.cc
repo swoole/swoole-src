@@ -26,10 +26,17 @@
 #include <vector>
 
 static int get_hardware_cpu_num() {
+#ifdef _WIN32
+    SYSTEM_INFO info;
+    GetNativeSystemInfo(&info);
+    return SW_MAX(1, static_cast<int>(info.dwNumberOfProcessors));
+#else
     auto cpu_num = std::thread::hardware_concurrency();
     return cpu_num > 0 ? static_cast<int>(cpu_num) : 1;
+#endif
 }
 
+#if defined(__linux__) || defined(__FreeBSD__)
 #ifdef HAVE_CPU_AFFINITY
 static int count_cpu_set(const cpu_set_t *cpu_set) {
 #ifdef CPU_COUNT
@@ -63,6 +70,7 @@ static int get_affinity_cpu_num() {
 static int get_affinity_cpu_num() {
     return get_hardware_cpu_num();
 }
+#endif
 #endif
 
 #ifdef __linux__
@@ -103,6 +111,42 @@ static bool read_first_line(const std::string &path, std::string *line) {
     }
     return static_cast<bool>(std::getline(file, *line));
 }
+
+#ifdef HAVE_CPU_AFFINITY
+static bool get_present_cpu_set(cpu_set_t *set) {
+    std::string line;
+    if (!read_first_line("/sys/devices/system/cpu/present", &line)) {
+        return false;
+    }
+
+    CPU_ZERO(set);
+    std::istringstream ranges(line);
+    while (true) {
+        int first;
+        if (!(ranges >> first) || first < 0) {
+            return false;
+        }
+        int last = first;
+        if (ranges.peek() == '-') {
+            ranges.get();
+            if (!(ranges >> last) || last < first) {
+                return false;
+            }
+        }
+        for (int cpu = first; cpu < CPU_SETSIZE && cpu <= last; cpu++) {
+            CPU_SET(cpu, set);
+        }
+
+        const int separator = ranges.get();
+        if (separator == std::char_traits<char>::eof()) {
+            return true;
+        }
+        if (separator != ',') {
+            return false;
+        }
+    }
+}
+#endif
 
 static bool has_path_prefix(const std::string &path, const std::string &prefix) {
     auto size = prefix.length();
@@ -384,16 +428,64 @@ static int get_cgroup_cpu_num() {
 }
 #endif
 
-int swoole_get_available_cpu_num() {
+struct CpuCounts {
+    int available;
+    int for_limits;
+};
+
+static uint16_t cpu_num_for_limits;
+
+static CpuCounts get_cpu_counts() {
 #ifdef __linux__
-    auto cgroup_cpu_num = get_cgroup_cpu_num();
+    const int affinity_cpu_num = get_affinity_cpu_num();
+    const int cgroup_cpu_num = get_cgroup_cpu_num();
     if (cgroup_cpu_num <= 0) {
-        return get_hardware_cpu_num();
+        return {affinity_cpu_num, get_hardware_cpu_num()};
     }
-    return SW_MAX(1, SW_MIN(get_affinity_cpu_num(), cgroup_cpu_num));
+    const int available = SW_MIN(affinity_cpu_num, cgroup_cpu_num);
 #elif defined(__FreeBSD__)
-    return get_affinity_cpu_num();
+    const int available = get_affinity_cpu_num();
 #else
-    return get_hardware_cpu_num();
+    const int available = get_hardware_cpu_num();
+#endif
+    return {available, available};
+}
+
+int swoole_get_available_cpu_num() {
+    return get_cpu_counts().available;
+}
+
+void swoole_init_cpu_num() {
+    const auto counts = get_cpu_counts();
+    SwooleG.cpu_num = counts.available;
+    // Keep the existing ceilings for explicitly configured server thread and worker counts.
+    cpu_num_for_limits = counts.for_limits;
+}
+
+int swoole_get_cpu_num_for_limits() {
+    return cpu_num_for_limits > 0 ? cpu_num_for_limits : SW_CPU_NUM;
+}
+
+#ifdef HAVE_CPU_AFFINITY
+int swoole_get_cpu_id_limit() {
+#ifdef __linux__
+    return CPU_SETSIZE;
+#else
+    return SW_MIN(SW_CPU_NUM, CPU_SETSIZE);
 #endif
 }
+
+void swoole_get_system_cpu_set(cpu_set_t *set) {
+#ifdef __linux__
+    if (get_present_cpu_set(set)) {
+        return;
+    }
+#endif
+    // When topology is unavailable, the kernel validates IDs within the supported mask range.
+    CPU_ZERO(set);
+    const int limit = swoole_get_cpu_id_limit();
+    for (int cpu = 0; cpu < limit; cpu++) {
+        CPU_SET(cpu, set);
+    }
+}
+#endif

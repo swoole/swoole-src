@@ -3249,16 +3249,17 @@ TEST(server, min_connection) {
 
 TEST(server, worker_num) {
     Server serv;
+    const int limit = swoole_get_cpu_num_for_limits() * SW_MAX_WORKER_NCPU;
 
-    serv.worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU + 99;
-    serv.task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU + 99;
+    serv.worker_num = limit + 99;
+    serv.task_worker_num = limit + 99;
 
     ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
 
     serv.create();
 
-    ASSERT_EQ(serv.worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
-    ASSERT_EQ(serv.task_worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+    ASSERT_EQ(serv.worker_num, limit);
+    ASSERT_EQ(serv.task_worker_num, limit);
 }
 
 TEST(server, reactor_num_base) {
@@ -3272,12 +3273,14 @@ TEST(server, reactor_num_base) {
 
 TEST(server, reactor_num_large) {
     Server serv(Server::MODE_PROCESS);
-    serv.worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
-    serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
+    const int cpu_num_for_limits = swoole_get_cpu_num_for_limits();
+    const int limit = cpu_num_for_limits * SW_MAX_THREAD_NCPU;
+    serv.worker_num = cpu_num_for_limits * SW_MAX_WORKER_NCPU;
+    serv.reactor_num = limit + 99;
     ASSERT_TRUE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0));
     serv.create();
 
-    ASSERT_EQ(serv.reactor_num, SW_CPU_NUM * SW_MAX_THREAD_NCPU);
+    ASSERT_EQ(serv.reactor_num, limit);
 }
 
 TEST(server, reactor_num_large2) {

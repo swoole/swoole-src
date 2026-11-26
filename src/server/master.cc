@@ -1062,11 +1062,13 @@ int Server::create() {
             "max_connection must be bigger than %u, it's reset to %u", minimum_connection, real_max_connection);
         max_connection = real_max_connection;
     }
+    const int cpu_num_for_limits = swoole_get_cpu_num_for_limits();
+    const int max_reactor_num = cpu_num_for_limits * SW_MAX_THREAD_NCPU;
+    const int max_worker_num = cpu_num_for_limits * SW_MAX_WORKER_NCPU;
     // Reactor Thread Num
-    if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {
-        swoole_warning(
-            "reactor_num == %d, Too many threads, reset to max value %d", reactor_num, SW_CPU_NUM * SW_MAX_THREAD_NCPU);
-        reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
+    if (reactor_num > max_reactor_num) {
+        swoole_warning("reactor_num == %d, Too many threads, reset to max value %d", reactor_num, max_reactor_num);
+        reactor_num = max_reactor_num;
     } else if (reactor_num == 0) {
         reactor_num = SW_CPU_NUM;
     }
@@ -1074,22 +1076,18 @@ int Server::create() {
         reactor_num = 1;
     }
     // Worker Process Num
-    if (worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-        swoole_warning(
-            "worker_num == %d, Too many processes, reset to max value %d", worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
-        worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
+    if (worker_num > max_worker_num) {
+        swoole_warning("worker_num == %d, Too many processes, reset to max value %d", worker_num, max_worker_num);
+        worker_num = max_worker_num;
     }
     if (worker_num < reactor_num) {
         reactor_num = worker_num;
     }
     // TaskWorker Process Num
-    if (task_worker_num > 0) {
-        if (task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-            swoole_warning("task_worker_num == %d, Too many processes, reset to max value %d",
-                           task_worker_num,
-                           SW_CPU_NUM * SW_MAX_WORKER_NCPU);
-            task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
-        }
+    if (task_worker_num > max_worker_num) {
+        swoole_warning(
+            "task_worker_num == %d, Too many processes, reset to max value %d", task_worker_num, max_worker_num);
+        task_worker_num = max_worker_num;
     }
     workers = static_cast<Worker *>(sw_shm_calloc(worker_num, sizeof(Worker)));
     if (workers == nullptr) {

@@ -57,18 +57,20 @@ bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set) {
         return false;
     }
 
-    const zend_long cpu_num = SW_MIN((zend_long) SW_CPU_NUM, (zend_long) CPU_SETSIZE);
-    if ((zend_long) php_swoole_array_length(array) > cpu_num) {
+    const zend_long cpu_id_limit = swoole_get_cpu_id_limit();
+    if ((zend_long) php_swoole_array_length(array) > cpu_id_limit) {
         php_swoole_fatal_error(E_WARNING, "More than the number of CPU");
         return false;
     }
 
     zval *value = nullptr;
+    cpu_set_t system_cpus;
+    swoole_get_system_cpu_set(&system_cpus);
     CPU_ZERO(cpu_set);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(array), value)
     const zend_long cpu_id = zval_get_long(value);
-    if (cpu_id < 0 || cpu_id >= cpu_num) {
+    if (cpu_id < 0 || cpu_id >= cpu_id_limit || !CPU_ISSET(cpu_id, &system_cpus)) {
         php_swoole_fatal_error(E_WARNING, "invalid cpu id [" ZEND_LONG_FMT "]", cpu_id);
         return false;
     }
@@ -81,8 +83,8 @@ bool php_swoole_array_to_cpu_set(const zval *array, cpu_set_t *cpu_set) {
 void php_swoole_cpu_set_to_array(zval *array, cpu_set_t *cpu_set) {
     array_init(array);
 
-    int cpu_n = SW_MIN(SW_CPU_NUM, CPU_SETSIZE);
-    SW_LOOP_N(cpu_n) {
+    const int cpu_n = swoole_get_cpu_id_limit();
+    for (int i = 0; i < cpu_n; i++) {
         if (CPU_ISSET(i, cpu_set)) {
             add_next_index_long(array, i);
         }

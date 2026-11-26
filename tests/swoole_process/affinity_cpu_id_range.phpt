@@ -1,5 +1,5 @@
 --TEST--
-swoole_process: reject CPU IDs outside the available CPU range
+swoole_process: reject CPU IDs outside the supported mask range
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -14,6 +14,7 @@ use Swoole\Process;
 
 $original = Process::getAffinity();
 $cpu = $original[0];
+$invalidCpu = PHP_INT_MAX;
 
 try {
     Assert::true(Process::setAffinity([$cpu]));
@@ -26,12 +27,12 @@ try {
     try {
         // Linux silently intersects affinity masks with the CPUs that are
         // physically present. Reject the invalid member before that happens.
-        Assert::false(Process::setAffinity([$cpu, swoole_cpu_num()]));
+        Assert::false(Process::setAffinity([$cpu, $invalidCpu]));
     } finally {
         restore_error_handler();
     }
 
-    Assert::contains($warning, 'invalid cpu id [' . swoole_cpu_num() . ']');
+    Assert::contains($warning, 'invalid cpu id [' . $invalidCpu . ']');
     Assert::same(Process::getAffinity(), [$cpu]);
 } finally {
     @Process::setAffinity($original);

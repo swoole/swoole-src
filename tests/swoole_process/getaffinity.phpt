@@ -10,11 +10,16 @@ skip_if_no_process_affinity();
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Process;
-$r = Process::getAffinity();
-Assert::isArray($r);
-Assert::eq(count($r), swoole_cpu_num());
+$original = Process::getAffinity();
+Assert::notEmpty($original);
+$cpu = [$original[array_key_last($original)]];
 
-Assert::assert(Process::setAffinity([0, 1]));
-Assert::eq(Process::getAffinity(), [0, 1]);
+try {
+    Assert::true(Process::setAffinity($cpu));
+    Assert::same(Process::getAffinity(), $cpu);
+} finally {
+    Assert::true(Process::setAffinity($original));
+}
+Assert::same(Process::getAffinity(), $original);
 ?>
 --EXPECT--
