@@ -835,7 +835,6 @@ struct Global {
 #endif
     double aio_max_wait_time;
     double aio_max_idle_time;
-    network::Socket *aio_default_socket;
     //-----------------------[Hook]--------------------------
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(Reactor *reactor, size_t &event_num)> user_exit_condition;

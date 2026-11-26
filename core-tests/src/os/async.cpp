@@ -22,8 +22,10 @@
 #include "swoole_socket.h"
 #include "swoole_async.h"
 #include "swoole_signal.h"
+#include "swoole_util.h"
 
 #include <atomic>
+#include <future>
 
 using namespace swoole;
 
@@ -140,6 +142,101 @@ TEST(async, misc) {
 
     ASSERT_EQ(handle_count, 1);
     ASSERT_EQ(callback_count, 2);
+}
+
+TEST(async, retire_worker_after_latest_reactor_exits) {
+    // Start a fresh process so earlier AIO tests cannot retain their pool configuration.
+    const auto style = ::testing::GTEST_FLAG(death_test_style);
+    ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
+    ON_SCOPE_EXIT {
+        ::testing::GTEST_FLAG(death_test_style) = style;
+    };
+    ASSERT_EXIT(
+        {
+            alarm(10);
+            SwooleG.aio_core_worker_num = 1;
+            SwooleG.aio_worker_num = 2;
+            SwooleG.aio_max_idle_time = 0.25;
+
+            if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) != SW_OK) {
+                _exit(1);
+            }
+            auto *pool = new AsyncThreads();
+            const auto startup_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+            // Wait for the core worker to be ready before dispatch can trigger pool growth.
+            while (pool->get_idle_worker_num() != 1) {
+                if (std::chrono::steady_clock::now() >= startup_deadline) {
+                    _exit(1);
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+
+            struct Pause {
+                std::promise<void> entered;
+                std::promise<void> resume;
+            } pause;
+            AsyncEvent blocking{};
+            blocking.object = &pause;
+            blocking.handler = [](AsyncEvent *event) {
+                auto *pause = static_cast<Pause *>(event->object);
+                pause->entered.set_value();
+                pause->resume.get_future().wait();
+            };
+            blocking.callback = [](AsyncEvent *) {};
+            if (!async::dispatch(&blocking) ||
+                pause.entered.get_future().wait_for(std::chrono::seconds(3)) != std::future_status::ready) {
+                _exit(1);
+            }
+
+            bool completed = false;
+            std::thread other([&completed] {
+                swoole_thread_init(false);
+                ON_SCOPE_EXIT {
+                    swoole_thread_clean(false);
+                };
+                if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) != SW_OK) {
+                    return;
+                }
+                AsyncEvent event{};
+                event.object = &completed;
+                event.handler = [](AsyncEvent *) {};
+                event.callback = [](AsyncEvent *ev) { *static_cast<bool *>(ev->object) = true; };
+                if (async::dispatch(&event)) {
+                    swoole_event_wait();
+                }
+            });
+            other.join();
+            if (!completed || pool->get_peak_worker_num() != 2) {
+                _exit(2);
+            }
+
+            // The core worker is still busy, and the surviving reactor is not pumping events.
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+            while (pool->get_worker_num() != 1) {
+                if (std::chrono::steady_clock::now() >= deadline) {
+                    _exit(3);
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+
+            std::promise<void> replacement_ran;
+            AsyncEvent request{};
+            request.object = &replacement_ran;
+            request.handler = [](AsyncEvent *event) { static_cast<std::promise<void> *>(event->object)->set_value(); };
+            request.callback = [](AsyncEvent *) {};
+            if (!async::dispatch(&request) ||
+                replacement_ran.get_future().wait_for(std::chrono::seconds(3)) != std::future_status::ready ||
+                pool->get_released_worker_num() == 0) {
+                _exit(4);
+            }
+            pause.resume.set_value();
+            if (swoole_event_wait() != SW_OK) {
+                _exit(5);
+            }
+            _exit(0);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
 }
 
 static std::atomic<bool> thread_started_with_signals_unblocked;

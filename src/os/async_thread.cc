@@ -111,12 +111,14 @@ class ThreadPool {
     }
 
     bool shutdown() {
+        std::thread retired;
         do {
             std::lock_guard<std::mutex> lock(event_mutex);
             if (!running.load(std::memory_order_relaxed)) {
                 return false;
             }
             running.store(false, std::memory_order_release);
+            retired = std::move(retired_thread);
         } while (0);
 
         _cv.notify_all();
@@ -133,6 +135,11 @@ class ThreadPool {
             }
         }
 
+        // A retiree already picked up by a worker was joined by that worker.
+        if (retired.joinable()) {
+            retired.join();
+        }
+        n_closing.store(0, std::memory_order_release);
         return true;
     }
 
@@ -225,41 +232,6 @@ class ThreadPool {
         return queue_.count();
     }
 
-    void release_thread(std::thread::id tid) {
-        std::thread thread;
-        do {
-            std::lock_guard<std::mutex> lock(threads_mutex);
-            auto i = std::find_if(
-                threads.begin(), threads.end(), [tid](const std::thread &worker) { return worker.get_id() == tid; });
-            if (i == threads.end()) {
-                swoole_warning("AIO thread#%s is missing", swoole_thread_id_to_str(tid).c_str());
-                return;
-            }
-            thread = std::move(*i);
-            threads.erase(i);
-        } while (0);
-
-        released_worker_num.fetch_add(1, std::memory_order_acq_rel);
-        scale_down_count.fetch_add(1, std::memory_order_acq_rel);
-        swoole_trace_log(SW_TRACE_AIO,
-                         "release idle thread#%s, we have %zu now",
-                         swoole_thread_id_to_str(tid).c_str(),
-                         get_worker_num());
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-
-    static void release_callback(AsyncEvent *event) {
-        auto *tid = static_cast<std::thread::id *>(event->object);
-        auto pool = SwooleTG.async_threads->pool;
-        pool->release_thread(*tid);
-        pool->n_closing.fetch_sub(1, std::memory_order_acq_rel);
-        delete tid;
-        // balance
-        SwooleTG.async_threads->task_num++;
-    }
-
     void notify_one() {
         _cv.notify_one();
     }
@@ -267,6 +239,7 @@ class ThreadPool {
   private:
     void create_thread(bool is_core_worker = false);
     void main_func(bool is_core_worker);
+    std::thread take_thread(std::thread::id tid);
     static bool send_event(AsyncEvent *event);
 
     size_t core_worker_num;
@@ -288,8 +261,22 @@ class ThreadPool {
     mutable std::mutex threads_mutex;
     EventQueue queue_;
     std::mutex event_mutex;
+    // Excluded from pool capacity. The handle is handed off under event_mutex and joined outside it.
+    std::thread retired_thread;
     std::condition_variable _cv;
 };
+
+std::thread ThreadPool::take_thread(std::thread::id tid) {
+    std::lock_guard<std::mutex> lock(threads_mutex);
+    auto it = std::find_if(
+        threads.begin(), threads.end(), [tid](const std::thread &worker) { return worker.get_id() == tid; });
+    if (it == threads.end()) {
+        return {};
+    }
+    auto worker = std::move(*it);
+    threads.erase(it);
+    return worker;
+}
 
 bool ThreadPool::send_event(AsyncEvent *event) {
     AsyncEvent *completed_event = event;
@@ -307,7 +294,6 @@ bool ThreadPool::send_event(AsyncEvent *event) {
 }
 
 void ThreadPool::main_func(const bool is_core_worker) {
-    bool exit_flag = false;
     swoole_thread_init(false);
 
     const auto idle_timeout =
@@ -315,17 +301,37 @@ void ThreadPool::main_func(const bool is_core_worker) {
     const auto safe_idle_timeout = idle_timeout.count() > 0 ? idle_timeout : std::chrono::microseconds(1);
 
     while (running.load(std::memory_order_acquire)) {
-        bool timeout = false;
+        bool timed_out = false;
         std::unique_lock<std::mutex> lock(event_mutex);
+        const auto ready = [this] {
+            return retired_thread.joinable() || !queue_.empty() || !running.load(std::memory_order_acquire);
+        };
         n_waiting.fetch_add(1, std::memory_order_acq_rel);
         if (is_core_worker || max_idle_time <= 0) {
-            _cv.wait(lock, [this] { return !queue_.empty() || !running.load(std::memory_order_acquire); });
+            _cv.wait(lock, ready);
         } else {
-            timeout = !_cv.wait_for(lock, safe_idle_timeout, [this] {
-                return !queue_.empty() || !running.load(std::memory_order_acquire);
-            });
+            timed_out = !_cv.wait_for(lock, safe_idle_timeout, ready);
         }
         n_waiting.fetch_sub(1, std::memory_order_acq_rel);
+
+        if (retired_thread.joinable()) {
+            auto worker = std::move(retired_thread);
+            lock.unlock();
+            worker.join();
+            released_worker_num.fetch_add(1, std::memory_order_acq_rel);
+            scale_down_count.fetch_add(1, std::memory_order_acq_rel);
+            n_closing.store(0, std::memory_order_release);
+            continue;
+        }
+        if (timed_out && n_closing.load(std::memory_order_acquire) == 0) {
+            retired_thread = take_thread(std::this_thread::get_id());
+            if (retired_thread.joinable()) {
+                n_closing.store(1, std::memory_order_release);
+                lock.unlock();
+                _cv.notify_one();
+                break;
+            }
+        }
 
         AsyncEvent *event = queue_.pop();
         lock.unlock();
@@ -347,32 +353,9 @@ void ThreadPool::main_func(const bool is_core_worker) {
                              event->retval,
                              event->error);
 
-        _send_event:
             if (!send_event(event)) {
                 delete event;
-                if (exit_flag) {
-                    n_closing.fetch_sub(1, std::memory_order_acq_rel);
-                }
             }
-            // exit
-            if (exit_flag) {
-                break;
-            }
-        } else if (timeout) {
-            if (n_closing != 0) {
-                // wait for the next round
-                continue;
-            }
-            /* notifies the main thread to release this thread */
-            event = new AsyncEvent{};
-            event->object = new std::thread::id(std::this_thread::get_id());
-            event->callback = release_callback;
-            event->pipe_socket = SwooleG.aio_default_socket;
-            event->canceled = false;
-
-            n_closing.fetch_add(1, std::memory_order_acq_rel);
-            exit_flag = true;
-            goto _send_event;
         }
     }
     swoole_thread_clean(false);
@@ -537,8 +520,7 @@ AsyncThreads::AsyncThreads() {
     });
 
     sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_AIO_TASK, [](Reactor *reactor, size_t &event_num) -> bool {
-        if (SwooleTG.async_threads && SwooleTG.async_threads->task_num == 0 &&
-            SwooleTG.async_threads->pool->get_closing_num() == 0) {
+        if (SwooleTG.async_threads && SwooleTG.async_threads->task_num == 0) {
             event_num--;
         }
         return true;
@@ -559,7 +541,6 @@ AsyncThreads::AsyncThreads() {
     lock.unlock();
 
     pipe = new_pipe.release();
-    SwooleG.aio_default_socket = write_socket;
     SwooleTG.async_threads = this;
 }
 
