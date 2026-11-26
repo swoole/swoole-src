@@ -278,6 +278,8 @@ class Client {
     zend_long stream_length_handle = -1;
     bool executing_request = false;
     bool in_stream_request = false;
+    // The application owns the SSE body until the socket is closed.
+    bool event_stream_handed_off = false;
     bool prepare_stream_body(StreamBody &body);
     void prepare_multipart_body(MultipartBody &body);
     bool send_stream_body(StreamBody &body);
@@ -319,6 +321,7 @@ class Client {
     bool check_upload_body() const;
     void set_basic_auth(const std::string &username, const std::string &password);
     bool can_start_request() const;
+    bool handoff_event_stream();
     bool exec(const std::string &_path);
     bool recv_response(double timeout = 0, bool can_retry_download = false);
     void recv_websocket_frame(zval *return_value, double timeout = 0);
@@ -602,6 +605,39 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
     return 0;
 }
 
+bool Client::handoff_event_stream() {
+    if (write_func || parser.status_code != SW_HTTP_OK ||
+        (parser.flags & (F_CONTENT_LENGTH | F_TRANSFER_ENCODING | F_SKIPBODY)) || download_file_name.get()) {
+        return false;
+    }
+
+    const auto *headers =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
+    if (!ZVAL_IS_ARRAY(headers)) {
+        return false;
+    }
+    const auto *content_type = zend_hash_str_find(Z_ARRVAL_P(headers), ZEND_STRL("content-type"));
+    if (!content_type || !ZVAL_IS_STRING(content_type)) {
+        return false;
+    }
+    const char *media_type = Z_STRVAL_P(content_type);
+    const auto *params = static_cast<const char *>(memchr(media_type, ';', Z_STRLEN_P(content_type)));
+    const size_t length = params ? params - media_type : Z_STRLEN_P(content_type);
+    if (!SW_STRCASEEQ(media_type, swoole::http_server::rtrim_ows(media_type, length), "text/event-stream")) {
+        return false;
+    }
+
+    // Direct Socket reads expose the encoded bytes, so hand over only an unencoded body.
+    const auto *encoding = zend_hash_str_find(Z_ARRVAL_P(headers), ZEND_STRL("content-encoding"));
+    if (encoding &&
+        (!ZVAL_IS_STRING(encoding) ||
+         (Z_STRLEN_P(encoding) != 0 && !SW_STRCASEEQ(Z_STRVAL_P(encoding), Z_STRLEN_P(encoding), "identity")))) {
+        return false;
+    }
+    event_stream_handed_off = true;
+    return true;
+}
+
 static int http_parser_on_headers_complete(llhttp_t *parser) {
     if (is_informational_response(parser)) {
         return 0;
@@ -619,7 +655,7 @@ static int http_parser_on_headers_complete(llhttp_t *parser) {
     if (http->method == SW_HTTP_HEAD || parser->status_code == SW_HTTP_NO_CONTENT) {
         return 1;
     }
-    return 0;
+    return http->handoff_event_stream() ? HPE_PAUSED : 0;
 }
 
 static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) {
@@ -1798,7 +1834,7 @@ bool Client::can_start_request() const {
         zend_throw_error(nullptr, "The HTTP client is already sending a request body stream");
         return false;
     }
-    if (sw_unlikely(executing_request || wait_response)) {
+    if (sw_unlikely(executing_request || wait_response || event_stream_handed_off)) {
         php_swoole_socket_set_error_properties(zobject, EBUSY, "The HTTP client already has a request in progress");
         return false;
     }
@@ -1991,6 +2027,13 @@ bool Client::recv_response(double timeout, bool can_retry_download) {
         }
 
         if (sw_likely(parser.error == HPE_OK)) {
+            if (sw_unlikely(event_stream_handed_off)) {
+                // recvLine() and recvWithBuffer() consume any body bytes received along with the headers.
+                buffer->length = retval;
+                buffer->offset = parsed_n;
+                reset();
+                return true;
+            }
             if (is_informational_response(&parser)) {
                 buffer->length = retval;
                 buffer->reduce(parsed_n);
@@ -2190,6 +2233,7 @@ void Client::reset() {
 void Client::socket_dtor() {
     // The pending response is lost when the underlying socket is closed directly.
     wait_response = false;
+    event_stream_handed_off = false;
     delete tmp_write_buffer;
     tmp_write_buffer = socket->pop_write_buffer();
     socket = nullptr;
