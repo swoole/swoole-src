@@ -12,6 +12,10 @@ require __DIR__ . '/../include/bootstrap.php';
 Assert::setThrowException(true);
 Swoole\Coroutine\run(function () {
     $server = new Swoole\Coroutine\Socket(AF_INET, SOCK_STREAM, 0);
+    Assert::false($server->sslHandshake());
+    Assert::same($server->errCode, SWOOLE_ERROR_SSL_NOT_READY);
+    Assert::contains($server->errMsg, 'Enable TLS');
+
     $settings = [
         'open_ssl' => true,
         'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
@@ -28,6 +32,11 @@ Swoole\Coroutine\run(function () {
         Assert::isInstanceOf($socket, Swoole\Coroutine\Socket::class);
         Assert::true($socket->setProtocol($settings));
         Assert::true($socket->sslHandshake());
+        Assert::same($socket->errCode, 0);
+        Assert::same($socket->errMsg, '');
+        Assert::false($socket->sslHandshake());
+        Assert::same($socket->errCode, SWOOLE_ERROR_WRONG_OPERATION);
+        Assert::same($socket->errMsg, swoole_strerror(SWOOLE_ERROR_WRONG_OPERATION));
         Assert::same($socket->recvAll(4, 2), 'PING');
         Assert::same($socket->sendAll('PONG'), 4);
         $socket->close();

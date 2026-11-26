@@ -556,22 +556,7 @@ _error:
 }
 
 bool UringSocket::ssl_handshake() {
-    if (ssl_handshaked) {
-        set_err(SW_ERROR_WRONG_OPERATION);
-        return false;
-    }
-    if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
-        return false;
-    }
-
-    /**
-     * If the ssl_context is empty, it indicates that this socket was not a connection
-     * returned by a server socket accept, and a new ssl_context needs to be created.
-     */
-    if (ssl_context->context == nullptr && !ssl_context_create()) {
-        return false;
-    }
-    if (!ssl_create(get_ssl_context())) {
+    if (!ssl_prepare_handshake()) {
         return false;
     }
     rbio = BIO_new(BIO_s_mem());
@@ -599,12 +584,7 @@ bool UringSocket::ssl_handshake() {
         }
     }
 
-    if (!ssl_verify()) {
-        return false;
-    }
-    ssl_handshaked = true;
-
-    return true;
+    return ssl_finish_handshake();
 }
 
 ssize_t UringSocket::ssl_readv(network::IOVector *io_vector) {

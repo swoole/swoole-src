@@ -2259,7 +2259,9 @@ static PHP_METHOD(swoole_socket_coro, setProtocol) {
 static PHP_METHOD(swoole_socket_coro, sslHandshake) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    RETURN_BOOL(sock->socket->ssl_handshake());
+    const bool success = sock->socket->ssl_handshake();
+    socket_coro_sync_properties(ZEND_THIS, sock);
+    RETURN_BOOL(success);
 }
 
 static PHP_METHOD(swoole_socket_coro, isClosed) {

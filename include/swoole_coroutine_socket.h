@@ -455,6 +455,8 @@ class Socket {
     std::string ssl_host_name;
     bool ssl_context_create();
     bool ssl_create(SSLContext *ssl_context);
+    bool ssl_prepare_handshake();
+    bool ssl_finish_handshake();
 
     bool connected = false;
     bool shutdown_read = false;

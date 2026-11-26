@@ -1355,7 +1355,9 @@ TEST(coroutine_socket, ssl_accept) {
         bool retval = sock.bind("127.0.0.1", port);
         ASSERT_EQ(retval, true);
 
-        sock.enable_ssl_encrypt();
+        ASSERT_FALSE(sock.ssl_handshake());
+        EXPECT_EQ(sock.errCode, SW_ERROR_SSL_NOT_READY);
+        ASSERT_TRUE(sock.enable_ssl_encrypt());
         sock.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/server.crt");
         sock.set_ssl_key_file(swoole::test::get_ssl_dir() + "/server.key");
         sock.set_ssl_dhparam(swoole::test::get_ssl_dir() + "/dhparams.pem");
@@ -1365,7 +1367,11 @@ TEST(coroutine_socket, ssl_accept) {
 
         Socket *conn = sock.accept();
         ASSERT_NE(conn, nullptr);
+        conn->set_err(ETIMEDOUT);
         ASSERT_TRUE(conn->ssl_handshake());
+        EXPECT_EQ(conn->errCode, 0);
+        EXPECT_FALSE(conn->ssl_handshake());
+        EXPECT_EQ(conn->errCode, SW_ERROR_WRONG_OPERATION);
         conn->send(EOF_PACKET);
         char rbuf[1024];
         auto n = conn->recv(rbuf, sizeof(rbuf));

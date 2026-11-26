@@ -1253,7 +1253,7 @@ bool Socket::ssl_create(SSLContext *ssl_context) {
     return true;
 }
 
-bool Socket::ssl_handshake() {
+bool Socket::ssl_prepare_handshake() {
     if (ssl_handshaked) {
         set_err(SW_ERROR_WRONG_OPERATION);
         return false;
@@ -1261,14 +1261,29 @@ bool Socket::ssl_handshake() {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
-    /**
-     * If the ssl_context is empty, it indicates that this socket was not a connection
-     * returned by a server socket accept, and a new ssl_context needs to be created.
-     */
-    if (ssl_context->context == nullptr && !ssl_context_create()) {
+    auto *context = get_ssl_context();
+    if (sw_unlikely(context == nullptr)) {
+        set_err(SW_ERROR_SSL_NOT_READY, "Enable TLS before starting the handshake");
         return false;
     }
-    if (!ssl_create(get_ssl_context())) {
+    // Accepted sockets share their listener's OpenSSL context. Other sockets may initialize it here.
+    if (context->context == nullptr && !ssl_context_create()) {
+        return false;
+    }
+    return ssl_create(context);
+}
+
+bool Socket::ssl_finish_handshake() {
+    if (!ssl_verify()) {
+        return false;
+    }
+    ssl_handshaked = true;
+    set_err(0);
+    return true;
+}
+
+bool Socket::ssl_handshake() {
+    if (!ssl_prepare_handshake()) {
         return false;
     }
     /**
@@ -1303,12 +1318,7 @@ bool Socket::ssl_handshake() {
             return false;
         }
     }
-    if (!ssl_verify()) {
-        return false;
-    }
-    ssl_handshaked = true;
-
-    return true;
+    return ssl_finish_handshake();
 }
 
 bool Socket::ssl_verify(bool allow_self_signed) {
