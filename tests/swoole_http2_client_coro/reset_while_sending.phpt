@@ -11,6 +11,7 @@ use Swoole\Coroutine\Channel;
 use Swoole\Coroutine\Http2\Client;
 use Swoole\Coroutine\Socket;
 use Swoole\Http2\Request;
+use Swoole\Http2\Response;
 
 const HTTP2_FLAG_ACK     = 0x1;
 const HTTP2_ERROR_CANCEL = 0x8;
@@ -57,8 +58,10 @@ foreach (['send', 'write'] as $method) {
         $client = new Client('127.0.0.1', $listener->getsockname()['port']);
         $client->set(['timeout' => 10]);
         Assert::true($client->connect());
-        go(function () use ($client) {
-            while ($client->recv(-1)) {
+        $received = new Channel(1);
+        go(function () use ($client, $received) {
+            while ($response = $client->recv(-1)) {
+                $received->push($response);
             }
         });
 
@@ -85,6 +88,11 @@ foreach (['send', 'write'] as $method) {
         $drain->push(true);
         Assert::false($result->pop(2));
         Assert::same($client->errCode, SWOOLE_ERROR_HTTP2_STREAM_NOT_FOUND);
+        $response = $received->pop(2);
+        Assert::isInstanceOf($response, Response::class);
+        Assert::same($response->streamId, 1);
+        Assert::same($response->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
+        Assert::same($response->errCode, HTTP2_ERROR_CANCEL);
         Assert::true($client->connected);
         $client->close();
         $listener->close();

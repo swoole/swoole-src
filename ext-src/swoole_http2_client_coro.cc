@@ -252,7 +252,7 @@ class Client {
 
     bool send_data(const Upload &upload, const char *p, size_t len, int flag);
     void finish_request(const Upload &upload);
-    void reset_stream(uint32_t id, uint32_t error);
+    ReturnCode reset_stream(uint32_t id, uint32_t error, zval *return_value = nullptr, size_t *pending_bytes = nullptr);
     bool send_setting();
     ReturnCode parse_header(Stream *stream, int flags, char *in, size_t inlen, bool upload_read);
     ReturnCode parse_frame(zval *return_value, bool pipeline_read, size_t *pending_bytes = nullptr);
@@ -260,6 +260,7 @@ class Client {
     ReturnCode reject_response_buffer();
     size_t remaining_response_bytes(bool upload_read) const;
     bool reserve_response_bytes(Stream *stream, size_t bytes, bool upload_read);
+    void transfer_response(Stream *stream, zval *return_value, size_t *pending_bytes);
     void return_response(Stream *stream, zval *return_value, bool end, size_t *pending_bytes = nullptr);
 
     void clean_send_queue() {
@@ -974,9 +975,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
         memcpy(&error, buf, sizeof(error));
         error = ntohl(error);
         swoole_http2_frame_trace_log("error_code=%u", error);
-        reset_stream(_stream_id, error);
-
-        return SW_CONTINUE;
+        return reset_stream(_stream_id, error, return_value, pending_bytes);
     }
     /**
      * TODO not support push_promise
@@ -1120,7 +1119,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
     return SW_CONTINUE;
 }
 
-void Client::return_response(Stream *stream, zval *return_value, bool end, size_t *pending_bytes) {
+void Client::transfer_response(Stream *stream, zval *return_value, size_t *pending_bytes) {
     zval *zresponse = &stream->zresponse;
     if (stream->buffer && !stream->buffer->empty()) {
         zend_update_property_stringl(swoole_http2_response_ce,
@@ -1138,10 +1137,14 @@ void Client::return_response(Stream *stream, zval *return_value, bool end, size_
         buffered_response_bytes -= stream->response_bytes;
     }
     stream->response_bytes = 0;
+    ZVAL_COPY_VALUE(return_value, zresponse);
+    ZVAL_UNDEF(zresponse);
+}
+
+void Client::return_response(Stream *stream, zval *return_value, bool end, size_t *pending_bytes) {
+    transfer_response(stream, return_value, pending_bytes);
     if (end) {
         // The response can end before the request. Keep the send window alive until END_STREAM or RST_STREAM.
-        RETVAL_ZVAL(zresponse, 0, 0);
-        ZVAL_UNDEF(zresponse);
         stream->response_ended = true;
         if (stream->flags & SW_HTTP2_STREAM_REQUEST_END) {
             delete_stream(stream->stream_id);
@@ -1149,11 +1152,10 @@ void Client::return_response(Stream *stream, zval *return_value, bool end, size_
             stream->release_receive_buffers();
         }
     } else {
-        zend_update_property_bool(swoole_http2_response_ce, Z_OBJ_P(zresponse), ZEND_STRL("pipeline"), 1);
-        RETVAL_ZVAL(zresponse, 0, 0);
-        object_init_ex(zresponse, swoole_http2_response_ce);
+        zend_update_property_bool(swoole_http2_response_ce, Z_OBJ_P(return_value), ZEND_STRL("pipeline"), 1);
+        object_init_ex(&stream->zresponse, swoole_http2_response_ce);
         zend_update_property_long(
-            swoole_http2_response_ce, Z_OBJ_P(zresponse), ZEND_STRL("streamId"), stream->stream_id);
+            swoole_http2_response_ce, Z_OBJ_P(&stream->zresponse), ZEND_STRL("streamId"), stream->stream_id);
     }
 }
 
@@ -1579,14 +1581,25 @@ bool Client::send_ping_frame() {
     return send(frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE);
 }
 
-void Client::reset_stream(uint32_t id, uint32_t error) {
-    if (auto *stream = get_stream(id)) {
-        if (auto *upload = stream->upload) {
-            upload->reset_received = true;
-            upload->completed_by_peer = stream->response_ended && error == SW_HTTP2_ERROR_NO_ERROR;
-        }
-        delete_stream(id);
+ReturnCode Client::reset_stream(uint32_t id, uint32_t error, zval *return_value, size_t *pending_bytes) {
+    auto *stream = get_stream(id);
+    if (!stream) {
+        return SW_CONTINUE;
     }
+    if (auto *upload = stream->upload) {
+        upload->reset_received = true;
+        upload->completed_by_peer = stream->response_ended && error == SW_HTTP2_ERROR_NO_ERROR;
+    }
+
+    // An early complete response can be followed by a reset that stops the request body.
+    const bool deliver_reset = return_value && !stream->response_ended;
+    if (deliver_reset) {
+        zend::object_set(&stream->zresponse, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
+        zend::object_set(&stream->zresponse, ZEND_STRL("errCode"), error);
+        transfer_response(stream, return_value, pending_bytes);
+    }
+    delete_stream(id);
+    return deliver_reset ? SW_READY : SW_CONTINUE;
 }
 
 void Client::finish_request(const Upload &upload) {

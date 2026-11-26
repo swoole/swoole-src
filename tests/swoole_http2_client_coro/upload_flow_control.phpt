@@ -215,6 +215,44 @@ Coroutine\run(static function () {
         check($endpoint->recv(2) === false && $endpoint->errMsg === 'draining', 'GOAWAY diagnostic was lost');
     });
 
+    foreach ([false, true] as $upload) {
+        withCreditLimitedPeer($listener, static function (Socket|Client $endpoint) use ($upload) {
+            $error = SWOOLE_HTTP2_ERROR_REFUSED_STREAM;
+            if ($endpoint instanceof Socket) {
+                [$other] = readFrame($endpoint, 1);
+                [$reset] = readFrame($endpoint, 1);
+                if ($upload) {
+                    check(readFrame($endpoint, 0) === [$reset, 0, 'a'], 'upload did not exhaust its window');
+                }
+                $rst = http2_test_frame(3, 0, $reset, pack('N', $error));
+                // The duplicate reset must not become another response or affect the other stream.
+                sendFrames($endpoint, $rst . $rst . http2_test_frame(1, 5, $other, "\x88"));
+                check($endpoint->recv(1, 2) === '', 'client did not close');
+                return;
+            }
+
+            $other = $endpoint->send(new Request());
+            check($other !== false, 'failed to start the other stream');
+            $request = new Request();
+            $request->pipeline = $upload;
+            $reset = $endpoint->send($request);
+            check($reset !== false, 'failed to start the stream to reset');
+            if ($upload) {
+                check($endpoint->write($reset, 'abc', true) === false, 'write survived RST_STREAM');
+                check($endpoint->errCode === SWOOLE_ERROR_HTTP2_STREAM_NOT_FOUND, 'write error changed');
+            }
+            $response = $upload ? $endpoint->recv(2) : $endpoint->read(2);
+            check($response instanceof Response && $response->streamId === $reset, 'reset result was lost');
+            check($response->errCode === $error && $response->statusCode === SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET,
+                'reset result lost the peer error');
+            check(!$endpoint->isStreamExist($reset), 'reset stream was retained');
+            $response = $endpoint->recv(2);
+            check($response instanceof Response && $response->streamId === $other && $response->statusCode === 200,
+                'reset affected the other stream');
+            $endpoint->close();
+        });
+    }
+
     foreach ([[false, false], [false, true], [true, true]] as [$pipeline, $reset]) {
         withCreditLimitedPeer($listener, static function (Socket|Client $endpoint) use ($pipeline, $reset) {
             if ($endpoint instanceof Socket) {
