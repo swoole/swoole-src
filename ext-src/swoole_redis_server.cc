@@ -359,6 +359,7 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
         if (!ZVAL_IS_ARRAY(value)) {
             zend_throw_exception(
                 swoole_exception_ce, "the second parameter should be an array", SW_ERROR_INVALID_PARAMS);
+            return false;
         }
         buf->append_format("*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
 
@@ -374,6 +375,7 @@ static bool redis_response_format(String *buf, zend_long type, zval *value) {
         if (!ZVAL_IS_ARRAY(value)) {
             zend_throw_exception(
                 swoole_exception_ce, "the second parameter should be an array", SW_ERROR_INVALID_PARAMS);
+            return false;
         }
         buf->append_format("*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
 
