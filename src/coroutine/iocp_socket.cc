@@ -15,6 +15,7 @@
 */
 
 #include "swoole_iocp_socket.h"
+#include "socket_transfer.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_iocp.h"
 #include "swoole_reactor.h"
@@ -315,35 +316,41 @@ ssize_t IocpSocket::send(const void *_buf, size_t _n) {
 }
 
 ssize_t IocpSocket::recv_all(void *_buf, size_t _n) {
-    ssize_t retval = 0;
-    size_t total_bytes = 0;
-
-    do {
-        retval = recv(static_cast<char *>(_buf) + total_bytes, _n - total_bytes);
-        if (retval <= 0) {
-            break;
-        }
-        total_bytes += retval;
-    } while (total_bytes < _n);
-
-    check_return_value(retval);
-    return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
+    const double timeout = is_ssl() ? 0 : socket->read_timeout;
+    return transfer_all(
+        *this,
+        static_cast<char *>(_buf),
+        _n,
+        timeout,
+        [this](char *buf, size_t length) { return recv(buf, length); },
+        [this](char *buf, size_t length, double remaining) -> ssize_t {
+            if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+                return -1;
+            }
+            IoBinding binding(this, SW_EVENT_READ);
+            const auto n = Iocp::recv(socket->get_fd(), buf, length, 0, remaining);
+            set_err(n < 0 ? errno : 0);
+            return n;
+        });
 }
 
 ssize_t IocpSocket::send_all(const void *_buf, size_t _n) {
-    ssize_t retval = 0;
-    size_t total_bytes = 0;
-
-    do {
-        retval = send(static_cast<const char *>(_buf) + total_bytes, _n - total_bytes);
-        if (retval <= 0) {
-            break;
-        }
-        total_bytes += retval;
-    } while (total_bytes < _n);
-
-    check_return_value(retval);
-    return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
+    const double timeout = is_ssl() ? 0 : socket->write_timeout;
+    return transfer_all(
+        *this,
+        static_cast<const char *>(_buf),
+        _n,
+        timeout,
+        [this](const char *buf, size_t length) { return send(buf, length); },
+        [this](const char *buf, size_t length, double remaining) -> ssize_t {
+            if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
+                return -1;
+            }
+            IoBinding binding(this, SW_EVENT_WRITE);
+            const auto n = Iocp::send(socket->get_fd(), buf, length, 0, remaining);
+            check_return_value(n);
+            return n;
+        });
 }
 
 bool IocpSocket::poll(EventType _type, double timeout) {

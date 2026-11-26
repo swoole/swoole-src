@@ -18,6 +18,7 @@
 */
 
 #include "swoole_uring_socket.h"
+#include "socket_transfer.h"
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_util.h"
@@ -260,35 +261,43 @@ ssize_t UringSocket::send(const void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::recv_all(void *_buf, size_t _n) {
-    ssize_t retval = 0;
-    size_t total_bytes = 0;
-
-    do {
-        retval = recv((char *) _buf + total_bytes, _n - total_bytes);
-        if (retval <= 0) {
-            break;
-        }
-        total_bytes += retval;
-    } while (total_bytes < _n);
-
-    check_return_value(retval);
-    return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
+    const double timeout = is_ssl() ? 0 : socket->read_timeout;
+    return transfer_all(
+        *this,
+        static_cast<char *>(_buf),
+        _n,
+        timeout,
+        [this](char *buf, size_t length) { return recv(buf, length); },
+        [this](char *buf, size_t length, double remaining) -> ssize_t {
+            if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+                return -1;
+            }
+            read_co = Coroutine::get_current_safe();
+            const auto n = Iouring::recv(socket->get_fd(), buf, length, 0, remaining);
+            read_co = nullptr;
+            check_return_value(n);
+            return n;
+        });
 }
 
 ssize_t UringSocket::send_all(const void *_buf, size_t _n) {
-    ssize_t retval = 0;
-    size_t total_bytes = 0;
-
-    do {
-        retval = send((char *) _buf + total_bytes, _n - total_bytes);
-        if (retval <= 0) {
-            break;
-        }
-        total_bytes += retval;
-    } while (total_bytes < _n);
-
-    check_return_value(retval);
-    return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
+    const double timeout = is_ssl() ? 0 : socket->write_timeout;
+    return transfer_all(
+        *this,
+        static_cast<const char *>(_buf),
+        _n,
+        timeout,
+        [this](const char *buf, size_t length) { return send(buf, length); },
+        [this](const char *buf, size_t length, double remaining) -> ssize_t {
+            if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
+                return -1;
+            }
+            write_co = Coroutine::get_current_safe();
+            const auto n = Iouring::send(socket->get_fd(), buf, length, 0, remaining);
+            write_co = nullptr;
+            check_return_value(n);
+            return n;
+        });
 }
 
 bool UringSocket::poll(EventType _type, double timeout) {

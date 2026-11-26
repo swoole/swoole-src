@@ -717,6 +717,31 @@ TEST(uring_socket, send_and_recv_all) {
     });
 }
 
+TEST(uring_socket, send_all_timeout_budget) {
+    coroutine::run([](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        UringSocket writer(pair[0], SW_SOCK_UNIX_STREAM);
+        ASSERT_TRUE(writer.get_socket()->set_send_buffer_size(4096));
+        writer.set_timeout(0.25, SW_TIMEOUT_WRITE);
+        Coroutine::create([fd = pair[1]](void *) {
+            UringSocket reader(fd, SW_SOCK_UNIX_STREAM);
+            char buffer[4096];
+            do {
+                System::sleep(0.06);
+            } while (reader.recv(buffer, sizeof(buffer)) > 0);
+            EXPECT_TRUE(reader.close());
+        });
+
+        std::string payload(64 * 1024, 'x');
+        const auto sent = writer.send_all(payload.data(), payload.size());
+        EXPECT_GT(sent, 0);
+        EXPECT_LT(sent, payload.size());
+        EXPECT_EQ(writer.errCode, ETIMEDOUT);
+        EXPECT_TRUE(writer.close());
+    });
+}
+
 TEST(uring_socket, poll) {
     coroutine::run([&](void *arg) {
         int pairs[2];
