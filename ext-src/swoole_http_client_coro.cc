@@ -1072,8 +1072,8 @@ bool Client::connect() {
 
     if (!socket->connect(host, port)) {
 #ifdef SW_USE_OPENSSL
-        if (collect_stats && socket->get_socket()->ssl) {
-            add_assoc_long(stats(), "ssl_verify_result", SSL_get_verify_result(socket->get_socket()->ssl));
+        if (collect_stats && socket->has_ssl()) {
+            add_assoc_long(stats(), "ssl_verify_result", SSL_get_verify_result(socket->get_ssl()));
         }
 #endif
         set_error(socket->errCode, socket->errMsg, HTTP_ESTATUS_CONNECT_FAILED);
@@ -2016,7 +2016,7 @@ bool Client::recv_response(double timeout, bool can_retry_download) {
         php_swoole_socket_set_error_properties(zobject, socket);
         zend::object_set(zobject,
                          ZEND_STRL("statusCode"),
-                         socket->errCode == ETIMEDOUT ? HTTP_ESTATUS_REQUEST_TIMEOUT : HTTP_ESTATUS_SERVER_RESET);
+                         socket->is_timedout() ? HTTP_ESTATUS_REQUEST_TIMEOUT : HTTP_ESTATUS_SERVER_RESET);
         close();
         return false;
     }
@@ -2053,7 +2053,7 @@ void Client::recv_websocket_frame(zval *return_value, double timeout) {
     if (sw_unlikely(ZVAL_IS_FALSE(return_value))) {
         php_swoole_socket_set_error_properties(zobject, socket);
         zend::object_set(zobject, ZEND_STRL("statusCode"), HTTP_ESTATUS_SERVER_RESET);
-        if (socket->errCode != ETIMEDOUT) {
+        if (!socket->is_timedout()) {
             close();
         }
         return;

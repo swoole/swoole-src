@@ -288,7 +288,7 @@ ssize_t IocpSocket::recv(void *_buf, size_t _n) {
 
     ssize_t retval;
     IoBinding binding(this, SW_EVENT_READ);
-    if (is_ssl()) {
+    if (has_ssl()) {
         retval = ssl_recv(_buf, _n);
     } else {
         retval = iocp_recv(_buf, _n);
@@ -305,7 +305,7 @@ ssize_t IocpSocket::send(const void *_buf, size_t _n) {
 
     ssize_t retval;
     IoBinding binding(this, SW_EVENT_WRITE);
-    if (is_ssl()) {
+    if (has_ssl()) {
         retval = ssl_send(_buf, _n);
     } else {
         retval = iocp_send(_buf, _n);
@@ -316,7 +316,7 @@ ssize_t IocpSocket::send(const void *_buf, size_t _n) {
 }
 
 ssize_t IocpSocket::recv_all(void *_buf, size_t _n) {
-    const double timeout = is_ssl() ? 0 : socket->read_timeout;
+    const double timeout = has_ssl() ? 0 : socket->read_timeout;
     return transfer_all(
         *this,
         static_cast<char *>(_buf),
@@ -335,7 +335,7 @@ ssize_t IocpSocket::recv_all(void *_buf, size_t _n) {
 }
 
 ssize_t IocpSocket::send_all(const void *_buf, size_t _n) {
-    const double timeout = is_ssl() ? 0 : socket->write_timeout;
+    const double timeout = has_ssl() ? 0 : socket->write_timeout;
     return transfer_all(
         *this,
         static_cast<const char *>(_buf),
@@ -394,7 +394,7 @@ bool IocpSocket::sendfile(const char *filename, off_t offset, size_t length) {
     }
 
     IoBinding binding(this, SW_EVENT_WRITE);
-    ssize_t retval = is_ssl() ? ssl_sendfile(file, &offset, length) : iocp_sendfile(file, &offset, length);
+    ssize_t retval = has_ssl() ? ssl_sendfile(file, &offset, length) : iocp_sendfile(file, &offset, length);
 
     return retval == static_cast<ssize_t>(length);
 }
@@ -407,7 +407,7 @@ ssize_t IocpSocket::readv(network::IOVector *io_vector) {
 
     IoBinding binding(this, SW_EVENT_READ);
     do {
-        if (is_ssl()) {
+        if (has_ssl()) {
             retval = ssl_readv(io_vector);
         } else {
             retval = iocp_readv(io_vector->get_iterator(), io_vector->get_remain_count());
@@ -427,7 +427,7 @@ ssize_t IocpSocket::writev(network::IOVector *io_vector) {
 
     IoBinding binding(this, SW_EVENT_WRITE);
     do {
-        if (is_ssl()) {
+        if (has_ssl()) {
             retval = ssl_writev(io_vector);
         } else {
             retval = iocp_writev(io_vector->get_iterator(), io_vector->get_remain_count());

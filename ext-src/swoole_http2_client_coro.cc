@@ -723,11 +723,12 @@ ReturnCode Client::receive_goaway(const char *payload, size_t length, zval *retu
     last = std::min<uint32_t>(ntohl(last) & 0x7fffffffU, peer_last_stream_id);
     error = ntohl(error);
     zend::String message(payload + SW_HTTP2_GOAWAY_SIZE, length - SW_HTTP2_GOAWAY_SIZE);
-    swoole_http2_frame_trace_log("last_stream_id=%u, error_code=%u, opaque_data=[%.*s]",
-                                 last,
-                                 error,
-                                 static_cast<int>(message.len()),
-                                 message.val());
+    swoole_http2_recv_trace_log("GOAWAY length=%zu, last_stream_id=%u, error_code=%u, opaque_data=[%.*s]",
+                                length,
+                                last,
+                                error,
+                                static_cast<int>(message.len()),
+                                message.val());
 
     bool closed = error != SW_HTTP2_ERROR_NO_ERROR;
     if (closed) {

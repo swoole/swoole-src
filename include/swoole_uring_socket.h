@@ -42,10 +42,6 @@ class UringSocket : public Socket {
     ssize_t uring_sendfile(const File &file, off_t *offset, size_t size);
     network::Socket *uring_accept(double timeout);
 
-    bool is_ssl() const {
-        return !!socket->ssl;
-    }
-
     void check_return_value(ssize_t retval) {
         if (retval >= 0) {
             set_err(0);

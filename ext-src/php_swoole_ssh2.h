@@ -74,7 +74,7 @@ static inline int ssh2_async_call(LIBSSH2_SESSION *session,
         if (rc == LIBSSH2_ERROR_EAGAIN) {
             if (!socket->poll(ssh2_get_event_type(session), timeout)) {
                 if (timeout_event) {
-                    *timeout_event = socket->errCode == ETIMEDOUT;
+                    *timeout_event = socket->is_timedout();
                 }
                 return LIBSSH2_ERROR_SOCKET_NONE;
             }

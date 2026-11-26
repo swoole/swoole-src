@@ -358,6 +358,10 @@ class Socket {
         return swoole_strerror(errCode);
     }
 
+    bool is_timedout() const {
+        return errCode == ETIMEDOUT;
+    }
+
     /* set connect read write timeout */
     void set_timeout(double timeout, int _type = SW_TIMEOUT_ALL) const;
 
@@ -415,8 +419,13 @@ class Socket {
         return socket && ssl_handshaked;
     }
 
+    // The SSL object exists during the handshake as well as after it completes.
+    bool has_ssl() const {
+        return get_ssl() != nullptr;
+    }
+
     SSL *get_ssl() const {
-        return socket->ssl;
+        return socket ? socket->ssl : nullptr;
     }
 
     void ssl_close() const;

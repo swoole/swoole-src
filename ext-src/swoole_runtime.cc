@@ -149,10 +149,24 @@ struct NetStream {
 
     NetStream() {
         stream.timeout.tv_sec = FG(default_socket_timeout);
+        set_blocking(true);
+    }
+
+    bool is_blocking() const {
+        return stream.is_blocked;
+    }
+
+    // Changing the logical stream mode must preserve the descriptor's nonblocking mode.
+    void set_blocking(bool blocking) {
+        stream.is_blocked = blocking;
     }
 
     bool has_zero_timeout() const {
         return stream.timeout.tv_sec == 0 && stream.timeout.tv_usec == 0;
+    }
+
+    bool can_wait_for_read() const {
+        return is_blocking() && (!has_zero_timeout() || socket->has_ssl());
     }
 };
 
@@ -401,7 +415,7 @@ static php_stream_size_t socket_stdio_read(php_stream *stream, char *buf, size_t
     abstract->stream.timeout_event = 0;
     auto result = socket_read(stream, buf, count);
     if (stream->abstract) {
-        abstract->stream.timeout_event = result < 0 && abstract->socket->errCode == ETIMEDOUT;
+        abstract->stream.timeout_event = result < 0 && abstract->socket->is_timedout();
     }
     return result;
 }
@@ -420,7 +434,7 @@ static php_stream_size_t socket_stdio_write(php_stream *stream, const char *buf,
     abstract->stream.timeout_event = 0;
     auto result = socket_write(stream, buf, count);
     if (stream->abstract) {
-        abstract->stream.timeout_event = abstract->stream.is_blocked && abstract->socket->errCode == ETIMEDOUT;
+        abstract->stream.timeout_event = abstract->is_blocking() && abstract->socket->is_timedout();
     }
     return result;
 }
@@ -431,8 +445,7 @@ static int socket_stdio_set_option(php_stream *stream, int option, int value, vo
         return PHP_STREAM_OPTION_RETURN_ERR;
     }
     if (option == PHP_STREAM_OPTION_BLOCKING) {
-        // Do not clear the fd's O_NONBLOCK when PHP changes the logical stream mode.
-        abstract->stream.is_blocked = (bool) value;
+        abstract->set_blocking(value != 0);
         return PHP_STREAM_OPTION_RETURN_OK;
     }
     if (option == PHP_STREAM_OPTION_READ_TIMEOUT) {
@@ -699,7 +712,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         return sock->get_socket()->send_sync(buf, count, 0);
     }
 
-    if (abstract->stream.is_blocked && (!abstract->has_zero_timeout() || sock->get_socket()->ssl)) {
+    if (abstract->is_blocking() && (!abstract->has_zero_timeout() || sock->has_ssl())) {
         didwrite = sock->send_all(buf, count);
         // PHP retries the rest of a partial write at once, which would wait again after a cancellation.
         if (didwrite > 0 && (size_t) didwrite < count && sock->errCode == ECANCELED) {
@@ -709,7 +722,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         while (true) {
             didwrite = sock->send_once(buf, count);
             sock->set_err(didwrite < 0 ? errno : 0);
-            if (didwrite >= 0 || !abstract->stream.is_blocked ||
+            if (didwrite >= 0 || !abstract->is_blocking() ||
                 sock->get_socket()->catch_write_error(sock->errCode) != SW_WAIT) {
                 break;
             }
@@ -726,9 +739,10 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
 
     // Preserve positive partial counts so PHP can retry the unwritten remainder.
     if (didwrite < 0) {
-        abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
+        const bool timed_out = sock->is_timedout();
+        abstract->stream.timeout_event = timed_out;
 
-        if (sock->errCode != ETIMEDOUT) {
+        if (!timed_out) {
             if (sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
                 didwrite = 0;
             } else {
@@ -769,7 +783,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         return sock->get_socket()->recv_sync(buf, count, 0);
     }
 
-    if (abstract->stream.is_blocked && (!abstract->has_zero_timeout() || sock->get_socket()->ssl)
+    if (abstract->can_wait_for_read()
 #if PHP_VERSION_ID >= 80300
         && !stream->has_buffered_data
 #endif
@@ -785,7 +799,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }
 
-    if (nr_bytes < 0 && sock->errCode != ETIMEDOUT) {
+    if (nr_bytes < 0 && !sock->is_timedout()) {
         if (sock->get_socket()->catch_read_error(sock->errCode) == SW_WAIT) {
             nr_bytes = 0;
         } else {
@@ -1025,7 +1039,6 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
         auto abstract = new NetStream();
         abstract->socket = clisock;
         abstract->stream.socket = (int) clisock->get_fd();
-        abstract->stream.is_blocked = true;
 
         xparam->outputs.client = php_stream_alloc_rel(stream->ops, abstract, nullptr, "r+");
         if (xparam->outputs.client == nullptr) {
@@ -1041,17 +1054,36 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
     }
 }
 
-static inline int socket_recvfrom(
-    SocketImpl *sock, char *buf, size_t buflen, zend_string **textaddr, struct sockaddr **addr, socklen_t *addrlen) {
-    int ret;
-    int want_addr = textaddr || addr;
+static inline int socket_recvfrom(SocketImpl *sock, php_stream_xport_param *param, bool wait) {
+    auto *buf = param->inputs.buf;
+    const auto buflen = param->inputs.buflen;
+    const bool peek = (param->inputs.flags & STREAM_PEEK) != 0;
+    if (peek && wait) {
+        return sock->peek(buf, buflen);
+    }
 
-    if (want_addr) {
-        php_sockaddr_storage sa;
-        socklen_t sl = sizeof(sa);
-        ret = sock->recvfrom(buf, buflen, (struct sockaddr *) &sa, &sl);
-        if (sl) {
-            php_network_populate_name_from_sockaddr((struct sockaddr *) &sa, sl, textaddr, addr, addrlen);
+    zend_string **textaddr = param->want_textaddr ? &param->outputs.textaddr : nullptr;
+    sockaddr **addr = param->want_addr ? &param->outputs.addr : nullptr;
+    socklen_t *addrlen = param->want_addr ? &param->outputs.addrlen : nullptr;
+    const bool want_addr = textaddr || addr;
+    php_sockaddr_storage storage;
+    auto *peer = reinterpret_cast<sockaddr *>(&storage);
+    socklen_t peer_len = sizeof(storage);
+
+    int ret;
+    if (wait) {
+        ret = want_addr ? sock->recvfrom(buf, buflen, peer, &peer_len) : sock->recv(buf, buflen);
+    } else {
+        // The stream's logical blocking option does not change the underlying nonblocking descriptor.
+        const int flags = MSG_DONTWAIT | (peek ? MSG_PEEK : 0);
+        ret = sock->get_socket()->recvfrom(
+            buf, buflen, flags, want_addr ? peer : nullptr, want_addr ? &peer_len : nullptr);
+        sock->set_err(ret < 0 ? sw_errno() : 0);
+    }
+
+    if (ret >= 0 && want_addr) {
+        if (peer_len) {
+            php_network_populate_name_from_sockaddr(peer, peer_len, textaddr, addr, addrlen);
         } else {
             if (textaddr) {
                 *textaddr = ZSTR_EMPTY_ALLOC();
@@ -1061,8 +1093,6 @@ static inline int socket_recvfrom(
                 *addrlen = 0;
             }
         }
-    } else {
-        ret = sock->recv(buf, buflen);
     }
 
     return ret;
@@ -1327,23 +1357,18 @@ static inline int socket_xport_api(php_stream *stream, SocketImpl *sock, php_str
         }
         break;
 
-    case STREAM_XPORT_OP_RECV:
+    case STREAM_XPORT_OP_RECV: {
         if ((xparam->inputs.flags & STREAM_OOB) == STREAM_OOB) {
             php_swoole_error(E_WARNING, "STREAM_OOB flags is not supports");
             xparam->outputs.returncode = -1;
             break;
         }
-        if ((xparam->inputs.flags & STREAM_PEEK) == STREAM_PEEK) {
-            xparam->outputs.returncode = sock->peek(xparam->inputs.buf, xparam->inputs.buflen);
-        } else {
-            xparam->outputs.returncode = socket_recvfrom(sock,
-                                                         xparam->inputs.buf,
-                                                         xparam->inputs.buflen,
-                                                         xparam->want_textaddr ? &xparam->outputs.textaddr : nullptr,
-                                                         xparam->want_addr ? &xparam->outputs.addr : nullptr,
-                                                         xparam->want_addr ? &xparam->outputs.addrlen : nullptr);
-        }
+        const auto *abstract = static_cast<const NetStream *>(stream->abstract);
+        // TLS transport reads can require a BIO exchange on completion-based backends.
+        const bool wait = sock->has_ssl() || abstract->can_wait_for_read();
+        xparam->outputs.returncode = socket_recvfrom(sock, xparam, wait);
         break;
+    }
     case STREAM_XPORT_OP_SHUTDOWN:
         xparam->outputs.returncode = sock->shutdown(shutdown_how[xparam->how]) ? 0 : -1;
         break;
@@ -1365,13 +1390,13 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     auto sock = sock_wrapped.get();
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
-        abstract->stream.is_blocked = (bool) value;
+        abstract->set_blocking(value != 0);
         break;
     case PHP_STREAM_OPTION_XPORT_API: {
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
     }
     case PHP_STREAM_OPTION_META_DATA_API: {
-        SSL *ssl = sock->get_socket() ? sock->get_socket()->ssl : nullptr;
+        SSL *ssl = sock->get_ssl();
         if (ssl) {
             zval tmp;
             const char *proto_str;
@@ -1413,9 +1438,9 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             add_assoc_string(&tmp, "cipher_version", SSL_CIPHER_get_version(cipher));
             add_assoc_zval((zval *) ptrparam, "crypto", &tmp);
         }
-        add_assoc_bool((zval *) ptrparam, "timed_out", sock->errCode == ETIMEDOUT);
+        add_assoc_bool((zval *) ptrparam, "timed_out", sock->is_timedout());
         add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
-        add_assoc_bool((zval *) ptrparam, "blocked", abstract->stream.is_blocked);
+        add_assoc_bool((zval *) ptrparam, "blocked", abstract->is_blocking());
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
@@ -1623,7 +1648,6 @@ static php_stream *socket_create(const char *proto,
     auto abstract = new NetStream();
     abstract->socket.reset(sock);
     abstract->stream.socket = (int)sock->get_fd();
-    abstract->stream.is_blocked = true;
 
     stream = php_stream_alloc_rel(
         sock->get_type() == SW_SOCK_UNIX_STREAM ? &unix_socket_ops : &socket_ops, abstract, persistent_id, "r+");
@@ -2608,7 +2632,6 @@ php_stream *php_swoole_create_stream_from_socket(swSocketFd _fd, int domain, int
         abstract->socket->set_timeout((double) FG(default_socket_timeout));
     }
     abstract->stream.socket = static_cast<php_socket_t>(abstract->socket->get_fd());
-    abstract->stream.is_blocked = true;
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
 

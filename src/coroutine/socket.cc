@@ -113,7 +113,7 @@ static const char *get_trigger_event_name(Socket *socket, EventType added_event)
         return "CLOSE";
     }
     if (socket->errCode) {
-        return socket->errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR";
+        return socket->is_timedout() ? "TIMEOUT" : "ERROR";
     }
     return added_event == SW_EVENT_READ ? "READ" : "WRITE";
 }
@@ -1558,7 +1558,7 @@ _get_length:
     if (retval > 0) {
         read_buffer->length += retval;
         if (read_buffer->length != (size_t) packet_len) {
-            retval = errCode == ETIMEDOUT ? -1 : 0;
+            retval = is_timedout() ? -1 : 0;
         } else {
             read_buffer->offset = packet_len;
             return packet_len;
@@ -1655,7 +1655,7 @@ ssize_t Socket::recv_packet(double timeout) {
         }
     }
     // Retain incomplete framed packets so the next call can continue reading them after a timeout.
-    if (recv_bytes <= 0 && !(recv_bytes < 0 && errCode == ETIMEDOUT && (open_length_check || open_eof_check))) {
+    if (recv_bytes <= 0 && !(recv_bytes < 0 && is_timedout() && (open_length_check || open_eof_check))) {
         read_buffer->clear();
     }
     return recv_bytes;

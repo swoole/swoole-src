@@ -74,10 +74,6 @@ class IocpSocket : public Socket {
         }
     }
 
-    bool is_ssl() {
-        return !!socket->ssl;
-    }
-
   public:
     IocpSocket(SocketType sock_type) : Socket(sock_type) {}
     IocpSocket(int domain, int type, int protocol) : Socket(domain, type, protocol) {}

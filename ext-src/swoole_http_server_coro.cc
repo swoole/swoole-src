@@ -617,7 +617,7 @@ static PHP_METHOD(swoole_http_server_coro, start) try {
             if (sock->errCode == EMFILE || sock->errCode == ENFILE) {
             _wait_1s:
                 System::sleep(SW_ACCEPT_RETRY_TIME);
-            } else if (sock->errCode == ETIMEDOUT || sock->errCode == SW_ERROR_SSL_BAD_CLIENT) {
+            } else if (sock->is_timedout() || sock->errCode == SW_ERROR_SSL_BAD_CLIENT) {
                 continue;
             } else if (sock->errCode == ECANCELED) {
                 http_server_coro_set_error(ZEND_THIS, sock);

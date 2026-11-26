@@ -231,7 +231,7 @@ ssize_t UringSocket::recv(void *_buf, size_t _n) {
 
     ssize_t retval;
     read_co = Coroutine::get_current_safe();
-    if (is_ssl()) {
+    if (has_ssl()) {
         retval = ssl_recv(_buf, _n);
     } else {
         retval = uring_recv(_buf, _n);
@@ -249,7 +249,7 @@ ssize_t UringSocket::send(const void *_buf, size_t _n) {
 
     ssize_t retval;
     write_co = Coroutine::get_current_safe();
-    if (is_ssl()) {
+    if (has_ssl()) {
         retval = ssl_send(_buf, _n);
     } else {
         retval = uring_send(_buf, _n);
@@ -261,7 +261,7 @@ ssize_t UringSocket::send(const void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::recv_all(void *_buf, size_t _n) {
-    const double timeout = is_ssl() ? 0 : socket->read_timeout;
+    const double timeout = has_ssl() ? 0 : socket->read_timeout;
     return transfer_all(
         *this,
         static_cast<char *>(_buf),
@@ -281,7 +281,7 @@ ssize_t UringSocket::recv_all(void *_buf, size_t _n) {
 }
 
 ssize_t UringSocket::send_all(const void *_buf, size_t _n) {
-    const double timeout = is_ssl() ? 0 : socket->write_timeout;
+    const double timeout = has_ssl() ? 0 : socket->write_timeout;
     return transfer_all(
         *this,
         static_cast<const char *>(_buf),
@@ -349,7 +349,7 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
     ssize_t retval;
 
     write_co = Coroutine::get_current_safe();
-    const bool ssl = is_ssl();
+    const bool ssl = has_ssl();
     if (ssl) {
         retval = ssl_sendfile(file, &offset, length);
     } else {
@@ -374,7 +374,7 @@ ssize_t UringSocket::readv(network::IOVector *io_vector) {
 
     read_co = Coroutine::get_current_safe();
     do {
-        if (is_ssl()) {
+        if (has_ssl()) {
             retval = ssl_readv(io_vector);
         } else {
             retval = uring_readv(io_vector->get_iterator(), io_vector->get_remain_count());
@@ -396,7 +396,7 @@ ssize_t UringSocket::writev(network::IOVector *io_vector) {
     set_err(0);
     write_co = Coroutine::get_current_safe();
     do {
-        if (is_ssl()) {
+        if (has_ssl()) {
             // ssl_writev() advances the iterator and preserves errors after a partial write.
             retval = ssl_writev(io_vector);
         } else {
@@ -689,7 +689,7 @@ ssize_t UringSocket::ssl_sendfile(const File &file, off_t *offset, size_t size) 
 
 ssize_t UringSocket::send_once(const void *buf, size_t count) {
     NetSocket *socket = get_socket();
-    if (!is_ssl()) {
+    if (!has_ssl()) {
         return socket->send(buf, count, 0);
     }
 
@@ -718,7 +718,7 @@ ssize_t UringSocket::send_once(const void *buf, size_t count) {
 
 ssize_t UringSocket::recv_once(void *buf, size_t count) {
     NetSocket *socket = get_socket();
-    if (!is_ssl()) {
+    if (!has_ssl()) {
         return socket->recv(buf, count, 0);
     }
 
