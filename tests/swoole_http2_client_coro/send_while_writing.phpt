@@ -102,7 +102,8 @@ $pm->parentFunc = function () use ($pm) {
         Assert::greaterThan($id, 0);
         $expected[$id] = md5($value);
         $rejected = false;
-        for ($i = 0; $i <= $client->stats('remote_settings')['max_concurrent_streams']; $i++) {
+        // The local write queue has a fixed limit even before the peer's SETTINGS are processed.
+        for ($i = 0; $i <= 128; $i++) {
             $value = base64_encode(random_bytes(32));
             $id = $client->send(create_request('/header', ['x-test' => $value]));
             if ($id === false) {

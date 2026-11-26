@@ -144,8 +144,6 @@ class Client {
         }
     }
 
-    ssize_t build_header(const zval *zobj, zval *zrequest, String *buffer);
-
     void update_error_properties(int code, const char *msg) const {
         php_swoole_socket_set_error_properties(zobject, code, msg);
     }
@@ -239,6 +237,7 @@ class Client {
         bool buffered_by_upload;
     };
     static constexpr size_t MAX_PENDING_RESPONSES = 128;
+    static constexpr size_t SEND_QUEUE_LIMIT = 128;
     size_t max_buffered_response_bytes = 64 * 1024 * 1024;
     // Track responses held by both open streams and the delivery queue. Only upload-driven reads enforce the limit.
     size_t buffered_response_bytes = 0;
@@ -262,6 +261,17 @@ class Client {
     bool is_draining() const {
         return peer_last_stream_id != UINT32_MAX;
     }
+    bool can_open_stream() const {
+        if (sw_unlikely(is_draining())) {
+            return false;
+        }
+        if (sw_unlikely(streams.size() >= remote_settings.max_concurrent_streams)) {
+            update_error_properties(SW_ERROR_HTTP2_TOO_MANY_STREAMS, "HTTP/2 peer concurrent stream limit reached");
+            return false;
+        }
+        return true;
+    }
+    ssize_t build_header(zval *zrequest, SocketImpl *socket, String *&buffer);
     void cancel_drain_timer();
     void on_drain_timeout();
     bool close_if_drained();
@@ -290,10 +300,8 @@ class Client {
     // Checked before a request or DATA write starts: dropping part of one would break the connection's HPACK state or
     // leave the stream unfinished.
     bool check_send_queue() const {
-        if (socket_->has_bound(SW_EVENT_WRITE) && send_queue.size() > remote_settings.max_concurrent_streams) {
-            socket_->errCode = SW_ERROR_QUEUE_FULL;
-            socket_->errMsg = "the send queue is full, try again later";
-            io_error();
+        if (socket_->has_bound(SW_EVENT_WRITE) && send_queue.size() >= SEND_QUEUE_LIMIT) {
+            update_error_properties(SW_ERROR_QUEUE_FULL, "the send queue is full, try again later");
             return false;
         }
         return true;
@@ -610,6 +618,8 @@ bool Client::connect() {
     continuation_stream_id = 0;
     // [init]: we must set default value, server is not always send all the settings
     Http2::init_settings(&remote_settings);
+    // The peer's initial limit is unlimited until it advertises MAX_CONCURRENT_STREAMS.
+    remote_settings.max_concurrent_streams = UINT32_MAX;
     remote_settings.init_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
     remote_settings.max_frame_size = SW_HTTP2_DEFAULT_MAX_FRAME_SIZE;
     remote_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
@@ -1579,8 +1589,7 @@ ReturnCode Client::parse_header(Stream *stream, int flags, char *in, size_t inle
     return SW_SUCCESS;
 }
 
-ssize_t Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
-    Client *h2c = http2_client_coro_get_client(zobj);
+ssize_t Client::build_header(zval *zrequest, SocketImpl *socket, String *&buffer) {
     zval *zmethod = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_METHOD), 0);
     zval *zpath = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH), 0);
     zval *zheaders = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
@@ -1598,7 +1607,7 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
     } else {
         headers.add(ZEND_STRL(":path"), Z_STRVAL_P(zpath), Z_STRLEN_P(zpath));
     }
-    if (h2c->open_ssl) {
+    if (open_ssl) {
         headers.add(ZEND_STRL(":scheme"), ZEND_STRL("https"));
     } else {
         headers.add(ZEND_STRL(":scheme"), ZEND_STRL("http"));
@@ -1627,11 +1636,11 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
     if (!find_host) {
         const std::string *host_ptr;
         std::string _host;
-        if (!h2c->open_ssl ? h2c->port != 80 : h2c->port != 443) {
-            _host = std_string::format("%s:%d", h2c->host.c_str(), h2c->port);
+        if (!open_ssl ? port != 80 : port != 443) {
+            _host = std_string::format("%s:%d", host.c_str(), port);
             host_ptr = &_host;
         } else {
-            host_ptr = &h2c->host;
+            host_ptr = &host;
         }
         headers.add(HTTP2_CLIENT_HOST_HEADER_INDEX, ZEND_STRL(":authority"), host_ptr->c_str(), host_ptr->length());
     }
@@ -1665,7 +1674,14 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
         ZEND_HASH_FOREACH_END();
     }
 
-    size_t buflen = nghttp2_hd_deflate_bound(h2c->deflater, headers.get(), headers.len());
+    // PHP conversions above can run user code. Recheck admission before changing the HPACK state.
+    if (sw_unlikely(EG(exception) || socket_ != socket || !socket->is_connected()) || !can_open_stream() ||
+        !check_send_queue()) {
+        return -1;
+    }
+    // send() copies queued frames. A direct write can yield, so keep its HEADERS frame in the client buffer.
+    buffer = socket->has_bound(SW_EVENT_WRITE) ? sw_tg_buffer() : &header_frame;
+    size_t buflen = nghttp2_hd_deflate_bound(deflater, headers.get(), headers.len());
     size_t buffer_size = SW_HTTP2_FRAME_HEADER_SIZE + buflen;
     // HeaderSet::add() copies cookie scratch values before this shared buffer is reused for encoding.
     buffer->clear();
@@ -1674,14 +1690,14 @@ ssize_t Client::build_header(const zval *zobj, zval *zrequest, String *buffer) {
     }
 
     ssize_t rv = nghttp2_hd_deflate_hd(
-        h2c->deflater, (uchar *) buffer->str + SW_HTTP2_FRAME_HEADER_SIZE, buflen, headers.get(), headers.len());
+        deflater, (uchar *) buffer->str + SW_HTTP2_FRAME_HEADER_SIZE, buflen, headers.get(), headers.len());
     if (rv < 0) {
-        h2c->nghttp2_error(rv, "nghttp2_hd_deflate_hd() failed");
-        h2c->close();
+        nghttp2_error(rv, "nghttp2_hd_deflate_hd() failed");
+        close();
         return rv;
     }
-    if ((uint64_t) rv > h2c->remote_settings.max_frame_size) {
-        h2c->close();
+    if ((uint64_t) rv > remote_settings.max_frame_size) {
+        close();
         zend_throw_exception_ex(
             swoole_http2_client_coro_exception_ce, SW_ERROR_INVALID_PARAMS, "HTTP/2 header block is too large");
         return NGHTTP2_ERR_FRAME_SIZE_ERROR;
@@ -1836,9 +1852,10 @@ bool Client::send_data(const Upload &upload, const char *p, size_t len, int flag
  * called in write channel
  */
 uint32_t Client::send_request(zval *zrequest) {
-    if (sw_unlikely(is_draining())) {
+    if (!can_open_stream()) {
         return 0;
     }
+    auto *socket = socket_;
 
     zval *zheaders =
         sw_zend_read_and_convert_property_array(swoole_http2_request_ce, zrequest, ZEND_STRL("headers"), 0);
@@ -1854,28 +1871,18 @@ uint32_t Client::send_request(zval *zrequest) {
             zheaders, ZEND_STRL("content-type"), (char *) ZEND_STRL("application/x-www-form-urlencoded"));
     }
 
-    if (!check_send_queue()) {
-        return 0;
-    }
-
-    /**
-     * send headers
-     */
-    // While another write waits, send() queues a copy, so the shared buffer is enough. Otherwise send() may wait with
-    // the frame unsent, and other coroutines can reuse the shared buffer meanwhile.
-    String *buffer = socket_->has_bound(SW_EVENT_WRITE) ? sw_tg_buffer() : &header_frame;
-    ssize_t bytes = build_header(zobject, zrequest, buffer);
-
-    if (bytes < 0 || sw_unlikely(is_draining())) {
-        return 0;
-    }
-
     uint8_t flags = 0;
     if (zval_is_true(zpipeline)) {
         flags |= SW_HTTP2_STREAM_PIPELINE_REQUEST;
     }
     if (zval_is_true(zuse_pipeline_read)) {
         flags |= SW_HTTP2_STREAM_USE_PIPELINE_READ;
+    }
+
+    String *buffer;
+    ssize_t bytes = build_header(zrequest, socket, buffer);
+    if (sw_unlikely(bytes < 0)) {
+        return 0;
     }
 
     // Reserve the id before sending: other coroutines can send while send() waits. A concurrent recv() can also delete
