@@ -277,6 +277,7 @@ class Client {
     bool keep_liveness();
     zend_long stream_length = -1;
     zend_long stream_length_handle = -1;
+    bool executing_request = false;
     bool in_stream_request = false;
     bool prepare_stream_body(StreamBody &body);
     void prepare_multipart_body(MultipartBody &body);
@@ -318,6 +319,7 @@ class Client {
     bool set_data(zval *data, zend_long length = -1);
     bool check_upload_body() const;
     void set_basic_auth(const std::string &username, const std::string &password);
+    bool can_start_request() const;
     bool exec(const std::string &_path);
     bool recv_response(double timeout = 0, bool can_retry_download = false);
     void recv_websocket_frame(zval *return_value, double timeout = 0);
@@ -1794,19 +1796,30 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
     return true;
 }
 
-bool Client::exec(const std::string &_path) {
-    if (in_stream_request) {
+bool Client::can_start_request() const {
+    if (sw_unlikely(in_stream_request)) {
         zend_throw_error(nullptr, "The HTTP client is already sending a request body stream");
         return false;
     }
+    if (sw_unlikely(executing_request || wait_response)) {
+        php_swoole_socket_set_error_properties(zobject, EBUSY, "The HTTP client already has a request in progress");
+        return false;
+    }
+    return true;
+}
+
+bool Client::exec(const std::string &_path) {
+    // Sending can yield before wait_response is set, and retries can temporarily clear it.
+    executing_request = true;
+    in_stream_request = true;
+    ON_SCOPE_EXIT {
+        in_stream_request = false;
+        executing_request = false;
+    };
     // Keep one source, starting position and byte count for the complete request, including retries.
     StreamBody stream_body;
     MultipartBody multipart_body;
     prepare_multipart_body(multipart_body);
-    in_stream_request = true;
-    ON_SCOPE_EXIT {
-        in_stream_request = false;
-    };
     if (!prepare_stream_body(stream_body)) {
         reset_download();
         return false;
@@ -2183,6 +2196,8 @@ void Client::reset() {
 }
 
 void Client::socket_dtor() {
+    // The pending response is lost when the underlying socket is closed directly.
+    wait_response = false;
     delete tmp_write_buffer;
     tmp_write_buffer = socket->pop_write_buffer();
     socket = nullptr;
@@ -2604,6 +2619,9 @@ static PHP_METHOD(swoole_http_client_coro, execute) {
     Z_PARAM_STRING(path, path_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (sw_unlikely(!phc->can_start_request())) {
+        RETURN_FALSE;
+    }
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
 }
 
@@ -2616,6 +2634,9 @@ static PHP_METHOD(swoole_http_client_coro, get) {
     Z_PARAM_STRING(path, path_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (sw_unlikely(!phc->can_start_request())) {
+        RETURN_FALSE;
+    }
     zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), "GET");
 
     RETURN_BOOL(phc->exec(std::string(path, path_len)));
@@ -2632,6 +2653,9 @@ static PHP_METHOD(swoole_http_client_coro, post) {
     Z_PARAM_ZVAL(post_data)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (sw_unlikely(!phc->can_start_request())) {
+        RETURN_FALSE;
+    }
     zend_update_property_string(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("requestMethod"), "POST");
     if (!phc->set_data(post_data)) {
         RETURN_FALSE;
@@ -2659,6 +2683,9 @@ static PHP_METHOD(swoole_http_client_coro, download) {
         RETURN_FALSE;
     }
 
+    if (sw_unlikely(!phc->can_start_request())) {
+        RETURN_FALSE;
+    }
     zend_update_property(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("downloadFile"), download_file);
     zend_update_property_long(swoole_http_client_coro_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("downloadOffset"), offset);
 
@@ -2674,6 +2701,9 @@ static PHP_METHOD(swoole_http_client_coro, upgrade) {
     Z_PARAM_STRING(path, path_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (sw_unlikely(!phc->can_start_request())) {
+        RETURN_FALSE;
+    }
     RETURN_BOOL(phc->upgrade(std::string(path, path_len)));
 }
 
