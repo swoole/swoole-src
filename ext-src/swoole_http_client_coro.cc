@@ -238,7 +238,6 @@ class Client {
     std::unique_ptr<String> continue_frame_buffer;
     bool request_connection_close = false;
     bool completed = false;
-    bool event_stream = false;
 
     Client(const zval *zobject, SocketType socket_type, std::string &&host, zend_long port = 80, zend_bool ssl = false);
 
@@ -598,8 +597,6 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
 #endif
     else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
         http->chunked = true;
-    } else if (SW_STREQ(header_name, header_len, "content-type")) {
-        http->event_stream = SW_STR_ISTARTS_WITH(at, length, "text/event-stream");
     }
 
     return 0;
@@ -2003,10 +2000,6 @@ bool Client::recv_response(double timeout, bool can_retry_download) {
                 swoole_llhttp_parser_init(&parser, HTTP_RESPONSE, this);
                 continue;
             }
-            if (sw_unlikely(event_stream && llhttp_message_needs_eof(&parser)) == 1) {
-                llhttp_finish(&parser);
-            }
-
             if (completed) {
                 if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN) {
                     buffer->length = retval;
@@ -2162,7 +2155,6 @@ void Client::reset_download() {
 void Client::reset() {
     wait_response = false;
     completed = false;
-    event_stream = false;
 #ifdef SW_HAVE_COMPRESSION
     compress_method = HTTP_COMPRESS_NONE;
     compression_error = false;
