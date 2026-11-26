@@ -31,6 +31,9 @@
 #ifdef HAVE_EPOLL
 #include <sys/resource.h>
 #endif
+#ifdef HAVE_KQUEUE
+#include <sys/event.h>
+#endif
 
 using namespace std;
 using namespace swoole;
@@ -717,6 +720,113 @@ TEST(reactor, poll) {
     reactor.wait_exit = true;
     reactor_test_func(&reactor);
 }
+
+#if defined(HAVE_EPOLL) || defined(HAVE_KQUEUE)
+TEST(reactor, failed_interest_update_keeps_events) {
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+    ON_SCOPE_EXIT {
+        ::close(fds[1]);
+    };
+#ifdef HAVE_EPOLL
+    Reactor reactor(16, Reactor::TYPE_EPOLL);
+#else
+    Reactor reactor(16, Reactor::TYPE_KQUEUE);
+#endif
+    ASSERT_TRUE(reactor.ready());
+
+    network::Socket socket;
+    socket.fd_type = SW_FD_PIPE;
+    socket.fd = fds[0];
+    ASSERT_EQ(reactor.add(&socket, SW_EVENT_READ | SW_EVENT_WRITE), SW_OK);
+    ASSERT_EQ(::close(socket.fd), 0);
+
+    EXPECT_EQ(reactor.remove_write_event(&socket), SW_ERR);
+    EXPECT_EQ(socket.events, SW_EVENT_READ | SW_EVENT_WRITE);
+    EXPECT_EQ(reactor.remove_read_event(&socket), SW_ERR);
+    EXPECT_EQ(socket.events, SW_EVENT_READ | SW_EVENT_WRITE);
+    EXPECT_EQ(reactor.del(&socket), SW_OK);
+}
+#endif
+
+#ifdef HAVE_KQUEUE
+TEST(reactor, kqueue_removes_read_and_write_filters) {
+    UnixSocket sockets(true, SOCK_STREAM);
+    ASSERT_TRUE(sockets.ready());
+    Reactor reactor(16, Reactor::TYPE_KQUEUE);
+    ASSERT_TRUE(reactor.ready());
+    auto *socket = sockets.get_socket(false);
+    ASSERT_EQ(reactor.add(socket, SW_EVENT_READ | SW_EVENT_WRITE), SW_OK);
+
+    const struct timespec no_wait = {};
+    struct kevent ready[2];
+    ASSERT_EQ(reactor.remove_write_event(socket), SW_OK);
+    EXPECT_EQ(::kevent(reactor.native_handle, nullptr, 0, ready, 2, &no_wait), 0);
+
+    ASSERT_EQ(sockets.get_socket(true)->write("x", 1), 1);
+    ASSERT_EQ(::kevent(reactor.native_handle, nullptr, 0, ready, 2, &no_wait), 1);
+    EXPECT_EQ(ready[0].filter, EVFILT_READ);
+
+    ASSERT_EQ(reactor.add_write_event(socket), SW_OK);
+    ASSERT_EQ(reactor.remove_read_event(socket), SW_OK);
+    ASSERT_EQ(::kevent(reactor.native_handle, nullptr, 0, ready, 2, &no_wait), 1);
+    EXPECT_EQ(ready[0].filter, EVFILT_WRITE);
+    EXPECT_EQ(reactor.del(socket), SW_OK);
+
+    ASSERT_EQ(reactor.add(socket, SW_FD_PIPE), SW_OK);  // The default interest is READ.
+    ASSERT_EQ(reactor.remove_read_event(socket), SW_OK);
+    EXPECT_EQ(::kevent(reactor.native_handle, nullptr, 0, ready, 2, &no_wait), 0);
+}
+
+TEST(reactor, kqueue_skips_ready_filters_removed_in_same_batch) {
+    UnixSocket sockets(true, SOCK_STREAM);
+    ASSERT_TRUE(sockets.ready());
+    Reactor reactor(16, Reactor::TYPE_KQUEUE);
+    ASSERT_TRUE(reactor.ready());
+    reactor.once = true;
+    reactor.set_timeout_msec(100);
+    int calls = 0;
+    reactor.ptr = &calls;
+
+    reactor.set_handler(SW_FD_PIPE, SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
+        ++*static_cast<int *>(reactor->ptr);
+        return reactor->remove_write_event(event->socket);
+    });
+    reactor.set_handler(SW_FD_PIPE, SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
+        ++*static_cast<int *>(reactor->ptr);
+        return reactor->remove_read_event(event->socket);
+    });
+
+    auto *socket = sockets.get_socket(false);
+    ASSERT_EQ(reactor.add(socket, SW_EVENT_READ | SW_EVENT_WRITE), SW_OK);
+    ASSERT_EQ(sockets.get_socket(true)->write("x", 1), 1);
+    ASSERT_EQ(reactor.wait(), SW_OK);
+    EXPECT_EQ(calls, 1);
+    EXPECT_EQ(reactor.del(socket), SW_OK);
+}
+
+TEST(reactor, kqueue_rolls_back_failed_filter_switch) {
+    UnixSocket sockets(true, SOCK_STREAM);
+    ASSERT_TRUE(sockets.ready());
+    Reactor reactor(16, Reactor::TYPE_KQUEUE);
+    ASSERT_TRUE(reactor.ready());
+    auto *socket = sockets.get_socket(false);
+    ASSERT_EQ(reactor.add(socket, SW_EVENT_READ), SW_OK);
+
+    // Remove the old filter in the kernel to make the second change fail after WRITE was added.
+    struct kevent change;
+    EV_SET(&change, socket->fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
+    ASSERT_EQ(::kevent(reactor.native_handle, &change, 1, nullptr, 0, nullptr), 0);
+    EXPECT_EQ(reactor.set(socket, SW_EVENT_WRITE), SW_ERR);
+    EXPECT_EQ(errno, ENOENT);
+    EXPECT_EQ(socket->events, SW_EVENT_READ);
+
+    const struct timespec no_wait = {};
+    struct kevent ready;
+    EXPECT_EQ(::kevent(reactor.native_handle, nullptr, 0, &ready, 1, &no_wait), 0);
+    EXPECT_EQ(reactor.del(socket), SW_OK);
+}
+#endif
 
 struct PollSocketState {
     network::Socket *sockets[2];

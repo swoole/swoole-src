@@ -37,15 +37,17 @@ class ReactorKqueue : public ReactorImpl {
     int event_max_;
     std::unique_ptr<struct kevent[]> events_;
 
-    bool fetch_event(Event *event, void *udata) {
-        event->socket = (Socket *) udata;
-        event->fd = event->socket->fd;
-        event->type = event->socket->fd_type;
-        event->reactor_id = reactor_->id;
-
-        if (event->socket->removed) {
+    bool fetch_event(Event *event, void *udata, EventType interest) {
+        auto *socket = static_cast<Socket *>(udata);
+        // A previous handler may have changed the interests since this batch was fetched.
+        if (socket->removed || !(interest == SW_EVENT_READ ? Reactor::isset_read_event(socket->events)
+                                                           : Reactor::isset_write_event(socket->events))) {
             return false;
         }
+        event->socket = socket;
+        event->fd = socket->fd;
+        event->type = socket->fd_type;
+        event->reactor_id = reactor_->id;
         return true;
     }
 
@@ -138,7 +140,7 @@ int ReactorKqueue::set(Socket *socket, int events) {
     int n = 0;
 
     int fd = socket->fd;
-    int old_events = socket->events;
+    const int old_events = socket->events;
 
 #if !defined(__NetBSD__) || (defined(__NetBSD__) && __NetBSD_Version__ >= 1000000000)
     auto sobj = socket;
@@ -146,30 +148,48 @@ int ReactorKqueue::set(Socket *socket, int events) {
     auto sobj = reinterpret_cast<intptr_t>(socket);
 #endif
 
-    reactor_->_set(socket, events);
-
-    if (Reactor::isset_read_event(events)) {
+    const bool read = Reactor::isset_read_event(events);
+    const bool write = Reactor::isset_write_event(events);
+    if (read != Reactor::isset_read_event(old_events)) {
         int fflags = 0;
 #ifdef NOTE_EOF
         fflags = NOTE_EOF;
 #endif
-        EV_SET(&changelist[n++], fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
-    } else if (Reactor::isset_read_event(old_events)) {
-        EV_SET(&changelist[n++], fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
+        EV_SET(&changelist[n++], fd, EVFILT_READ, read ? EV_ADD : EV_DELETE, fflags, 0, sobj);
     }
 
-    if (Reactor::isset_write_event(events)) {
-        EV_SET(&changelist[n++], fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
-    } else if (Reactor::isset_write_event(old_events)) {
-        EV_SET(&changelist[n++], fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
+    if (write != Reactor::isset_write_event(old_events)) {
+        EV_SET(&changelist[n++], fd, EVFILT_WRITE, write ? EV_ADD : EV_DELETE, 0, 0, sobj);
     }
 
-    if (n > 0 && ::kevent(epfd_, changelist, n, nullptr, 0, nullptr) < 0) {
+    // When switching filters, add the new one first so a failed add leaves the old filter in place.
+    if (n == 2 && changelist[0].flags == EV_DELETE && changelist[1].flags == EV_ADD) {
+        std::swap(changelist[0], changelist[1]);
+    }
+    for (int i = 0; i < n; ++i) {
+        if (::kevent(epfd_, &changelist[i], 1, nullptr, 0, nullptr) == 0) {
+            continue;
+        }
+        const int error = errno;
+        if (i == 1) {
+            // Restore the first filter if the second change fails.
+            auto rollback = changelist[0];
+            const bool added = rollback.flags == EV_ADD;
+            rollback.flags = added ? EV_DELETE : EV_ADD;
+            if (::kevent(epfd_, &rollback, 1, nullptr, 0, nullptr) < 0) {
+                const int interest = rollback.filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE;
+                const int current = Reactor::isset_read_event(old_events) ? old_events | SW_EVENT_READ : old_events;
+                reactor_->_set(socket, added ? current | interest : current & ~interest);
+                swoole_sys_warning("kqueue->set(%d) failed to restore its previous filters", fd);
+            }
+        }
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_UPDATE_FAILED, "kqueue->set(%d, events=%d) failed", fd, events);
         swoole_print_backtrace_on_error();
+        errno = error;
         return SW_ERR;
     }
 
+    reactor_->_set(socket, events);
     swoole_trace_log(SW_TRACE_EVENT, "[THREAD #%d]epfd=%d, fd=%d, events=%d", SwooleTG.id, epfd_, fd, socket->events);
 
     return SW_OK;
@@ -193,7 +213,7 @@ int ReactorKqueue::del(Socket *socket) {
         return SW_ERR;
     }
 
-    if (socket->events & SW_EVENT_READ) {
+    if (Reactor::isset_read_event(socket->events)) {
         EV_SET(&changelist[n++], fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
     }
 
@@ -266,9 +286,9 @@ int ReactorKqueue::wait() {
             switch (kevent->filter) {
             case EVFILT_READ:
             case EVFILT_WRITE: {
-                if (fetch_event(&event, udata)) {
-                    handler = reactor_->get_handler(event.type,
-                                                    kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE);
+                const auto interest = kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE;
+                if (fetch_event(&event, udata, interest)) {
+                    handler = reactor_->get_handler(event.type, interest);
                     if (sw_unlikely(handler(reactor_, &event) < 0)) {
                         swoole_sys_warning("kqueue event %s socket#%d handler failed",
                                            kevent->filter == EVFILT_READ ? "read" : "write",

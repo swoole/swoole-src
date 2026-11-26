@@ -292,8 +292,7 @@ class Reactor {
 
     int remove_read_event(network::Socket *_socket) const {
         if (_socket->events & SW_EVENT_WRITE) {
-            _socket->events &= (~SW_EVENT_READ);
-            return set(_socket, _socket->events);
+            return set(_socket, _socket->events & ~SW_EVENT_READ);
         } else {
             return del(_socket);
         }
@@ -301,8 +300,7 @@ class Reactor {
 
     int remove_write_event(network::Socket *_socket) const {
         if (_socket->events & SW_EVENT_READ) {
-            _socket->events &= (~SW_EVENT_WRITE);
-            return set(_socket, _socket->events);
+            return set(_socket, _socket->events & ~SW_EVENT_WRITE);
         } else {
             return del(_socket);
         }
@@ -310,8 +308,7 @@ class Reactor {
 
     int add_read_event(network::Socket *_socket) const {
         if (_socket->events & SW_EVENT_WRITE) {
-            _socket->events |= SW_EVENT_READ;
-            return set(_socket, _socket->events);
+            return set(_socket, _socket->events | SW_EVENT_READ);
         } else {
             return add(_socket, SW_EVENT_READ);
         }
@@ -319,8 +316,7 @@ class Reactor {
 
     int add_write_event(network::Socket *_socket) const {
         if (_socket->events & SW_EVENT_READ) {
-            _socket->events |= SW_EVENT_WRITE;
-            return set(_socket, _socket->events);
+            return set(_socket, _socket->events | SW_EVENT_WRITE);
         } else {
             return add(_socket, SW_EVENT_WRITE);
         }
