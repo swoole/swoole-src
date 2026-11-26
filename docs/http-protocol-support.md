@@ -34,6 +34,32 @@ constitute this reserved header. Clients should send file metadata through
 
 ## HTTP/1
 
+### Closing a connection from the application
+
+On an otherwise persistent HTTP/1 connection, an application that sets the
+response header `Connection: close` is responsible for initiating transport
+shutdown. Use `$server->close($req->fd)` with `Swoole\Http\Server`, or
+`$res->close()` with `Swoole\Coroutine\Http\Server`, when the application is
+ready to close the connection.
+
+`end()` can succeed while response bytes are still queued in Swoole or in the
+kernel. The default `Server::close()` path drains output already queued in
+Swoole before closing the socket. Delivery to the client depends on the TCP
+connection. A full close with unread incoming bytes, such as part of an upload
+or a pipelined request, can cause a TCP reset and prevent the client from
+reading the complete response.
+
+When a client receives `Connection: close`, it stops sending further requests
+on that connection and closes its side after reading the complete final
+response. A client can determine completion from framing such as
+`Content-Length` or chunked encoding. For a close-delimited response, it needs
+EOF from the server to determine that the response has ended.
+[RFC 9112 §6.3](https://www.rfc-editor.org/rfc/rfc9112.html#section-6.3)
+
+For applications that control the transport directly, HTTP/1.1 describes a
+staged TCP shutdown that closes the write side first and leaves time to drain
+the read side before the final close. [RFC 9112 §9.6](https://www.rfc-editor.org/rfc/rfc9112.html#section-9.6)
+
 ### Request trailers
 
 Swoole does not support exposing HTTP/1 request trailers to PHP applications.

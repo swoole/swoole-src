@@ -999,20 +999,21 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
     sockaddr **addr = xparam->want_addr ? &xparam->outputs.addr : nullptr;
     socklen_t *addrlen = xparam->want_addr ? &xparam->outputs.addrlen : nullptr;
 
-    timeval *timeout = xparam->inputs.timeout;
+    const auto *timeout = xparam->inputs.timeout;
     zend_string **error_string = xparam->want_errortext ? &xparam->outputs.error_text : nullptr;
     int *error_code = &xparam->outputs.error_code;
 
     int error = 0;
 
-    if (timeout) {
-        sock->set_timeout(timeout, SW_TIMEOUT_READ);
-    }
+    // The accepted socket inherits the listener's I/O timeouts, including the timeout used for TLS.
+    const double accept_timeout = timeout ? timeout->tv_sec + timeout->tv_usec / 1e6 : 0;
+    std::shared_ptr<SocketImpl> clisock(sock->accept(accept_timeout));
 
-    std::shared_ptr<SocketImpl> clisock(sock->accept());
-
-    if (clisock != nullptr && clisock->ssl_is_enable()) {
-        if (!clisock->ssl_handshake()) {
+    timeval stream_timeout{};
+    if (clisock != nullptr) {
+        // Snapshot the stream setting before TLS negotiation can yield.
+        stream_timeout = static_cast<const NetStream *>(stream->abstract)->stream.timeout;
+        if (clisock->ssl_is_enable() && !clisock->ssl_handshake()) {
             sock->errCode = clisock->errCode;
             clisock.reset();
         }
@@ -1039,6 +1040,7 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
         auto abstract = new NetStream();
         abstract->socket = clisock;
         abstract->stream.socket = (int) clisock->get_fd();
+        abstract->stream.timeout = stream_timeout;
 
         xparam->outputs.client = php_stream_alloc_rel(stream->ops, abstract, nullptr, "r+");
         if (xparam->outputs.client == nullptr) {
