@@ -55,8 +55,9 @@ DnsCache dns_cache;
 
 DnsCache::DnsCache() {
 #ifndef _WIN32
-    // Fork with a consistent cache and release the inherited lock in both processes.
-    pthread_atfork([] { dns_cache.mutex.lock(); }, [] { dns_cache.mutex.unlock(); }, [] { dns_cache.mutex.unlock(); });
+    // Hold the cache lock across fork and release it in both the parent and the child.
+    void (*const unlock)() = [] { dns_cache.mutex.unlock(); };
+    pthread_atfork([] { dns_cache.mutex.lock(); }, unlock, unlock);
 #endif
 }
 
