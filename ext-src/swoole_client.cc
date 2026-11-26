@@ -1128,15 +1128,19 @@ bool php_swoole_client_enable_ssl_encryption(Client *cli, zval *zobject) {
         php_swoole_fatal_error(E_WARNING, "SSL has been enabled");
         return false;
     }
-    cli->open_ssl = true;
+    if (cli->enable_ssl_encrypt() != SW_OK) {
+        return false;
+    }
     zval *zset = sw_zend_read_property_ex(swoole_client_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (ZVAL_IS_ARRAY(zset)) {
         php_swoole_client_check_ssl_setting(cli, zset);
         if (UNEXPECTED(EG(exception))) {
+            cli->ssl_context.reset();
+            cli->open_ssl = false;
             return false;
         }
     }
-    return cli->enable_ssl_encrypt() == SW_OK;
+    return true;
 }
 
 static PHP_METHOD(swoole_client, enableSSL) {
@@ -1160,7 +1164,12 @@ static PHP_METHOD(swoole_client, enableSSL) {
     if (!php_swoole_client_enable_ssl_encryption(cli, ZEND_THIS)) {
         RETURN_FALSE;
     }
-    RETURN_BOOL(cli->ssl_handshake() == SW_OK);
+    if (cli->ssl_handshake() < 0) {
+        zend::object_set(ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
+        php_swoole_client_free(ZEND_THIS, cli);
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_client, getPeerCert) {

@@ -253,6 +253,22 @@ int Client::enable_ssl_encrypt() {
     return SW_OK;
 }
 
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+static const std::string &Client_tls_peer_name(const Client *cli) {
+    if (!cli->ssl_context->tls_host_name.empty()) {
+        return cli->ssl_context->tls_host_name;
+    }
+    // The transport peer can be a proxy; authenticate the origin inside the tunnel.
+    if (cli->socks5_proxy) {
+        return cli->socks5_proxy->target_host;
+    }
+    if (cli->http_proxy) {
+        return cli->http_proxy->target_host;
+    }
+    return cli->server_host;
+}
+#endif
+
 int Client::ssl_handshake() const {
     if (socket->ssl_state == SW_SSL_STATE_READY) {
         return SW_ERR;
@@ -270,8 +286,13 @@ int Client::ssl_handshake() const {
             return SW_ERR;
         }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (!ssl_context->tls_host_name.empty()) {
-            SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
+        if (!ssl_context->disable_tls_host_name && (ssl_context->verify_peer || !ssl_context->tls_host_name.empty())) {
+            const auto &name = Client_tls_peer_name(this);
+            if (!name.empty() && !Address::verify_ip(AF_INET, name) && !Address::verify_ip(AF_INET6, name) &&
+                !SSL_set_tlsext_host_name(socket->ssl, name.c_str())) {
+                swoole_set_last_error(SW_ERROR_SSL_CREATE_SESSION_FAILED);
+                return SW_ERR;
+            }
         }
 #endif
     }
@@ -291,8 +312,12 @@ int Client::ssl_verify(int allow_self_signed) const {
         return SW_ERR;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_context->tls_host_name.empty() && !socket->ssl_check_host(ssl_context->tls_host_name.c_str())) {
-        return SW_ERR;
+    if (ssl_context->verify_peer || !ssl_context->tls_host_name.empty()) {
+        const auto &name = Client_tls_peer_name(this);
+        if (name.empty() || !socket->ssl_check_host(name.c_str(), true)) {
+            swoole_set_last_error(SW_ERROR_SSL_VERIFY_FAILED);
+            return SW_ERR;
+        }
     }
 #endif
     return SW_OK;

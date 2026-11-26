@@ -1752,6 +1752,19 @@ TEST(server, ssl) {
                 kill(serv->get_master_pid(), SIGTERM);
             };
 
+            for (const char *host : {TEST_HOST, "localhost"}) {
+                network::Client verified(SW_SOCK_TCP, false);
+                ASSERT_EQ(verified.enable_ssl_encrypt(), SW_OK);
+                verified.set_ssl_cafile(test::get_ssl_dir() + "/ca.crt");
+                verified.set_ssl_verify_peer(true);
+                if (strcmp(host, TEST_HOST) == 0) {
+                    EXPECT_EQ(verified.connect(host, port->port, RECV_TIMEOUT), SW_OK);
+                } else {
+                    EXPECT_EQ(verified.connect(host, port->port, RECV_TIMEOUT), SW_ERR);
+                    EXPECT_EQ(swoole_get_last_error(), SW_ERROR_SSL_VERIFY_FAILED);
+                }
+            }
+
             network::SyncClient c(SW_SOCK_TCP);
             ASSERT_TRUE(c.connect(TEST_HOST, port->port, RECV_TIMEOUT));
             ASSERT_TRUE(c.enable_ssl_encrypt());

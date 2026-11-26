@@ -194,7 +194,7 @@ class Client {
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     void set_tls_host_name(const std::string &str) const {
         ssl_context->tls_host_name = str;
-        // if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically
+        // An explicit empty name suppresses SNI. Peer verification still uses the connection target.
         ssl_context->disable_tls_host_name = ssl_context->tls_host_name.empty();
     }
 #endif
