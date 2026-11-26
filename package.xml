@@ -52,7 +52,7 @@
     <date>2026-11-17</date>
     <time>21:00:00</time>
     <version>
-        <release>6.1.13</release>
+        <release>6.1.14</release>
         <api>6.0</api>
     </version>
     <stability>
@@ -61,23 +61,24 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed file descriptor leak caused by coroutine socket descriptors not being released when closed.
-        - Fixed stale HTTP parse offset remaining in recv_with_length_protocol.
-        - Fixed the segmentation fault caused by passing an associative array to the taskWaitMulti method.
-        - Fixed the issue where sub-threads incorrectly cleared the main thread's signal handlers upon exiting.
-        - Fixed mysqlnd failing to recognize hooked Unix socket connections.
-        - Fixed the initial connection window value for HTTP/2, changing it to the standard 65535.
-        - Fixed worker busy loop caused by unhandled EPOLLERR on c-ares DNS sockets.
-        - Fixed missing validation for HTTP/2 GOAWAY frames with insufficient length.
-        - Fixed incorrect connection limit boundary calculation in BASE mode.
-        - Fixed coroutine timeout array allocated by byte count instead of element count.
-        - Fixed active ID not being restored after a timer callback throws an exception.
-        - Fixed security risk of unpacking task packet metadata without validation.
-        - Fixed residual files not being cleaned up after a task file write failure.
-        - Fixed missing length boundary limit for TLS wildcard domain name comparison.
-        - Fixed unbounded memory allocation risk during URL encoding.
-        - Fixed HTTP client failing to reject truncated responses at EOF.
-        - Fixed dangling pointer caused by not detaching the global timer before freeing it.
+        - Fix: dispatch frames only after the handshake response is sent
+        - Fix: memory leak in `http2 Server`
+        - Fix: reject coroutine server requests whose header block holds no request head
+        - Fix: bound bulk string lengths in the server request parser
+        - Test: do not require a connection close for invalid PING frames on 6.1
+        - Fix: release multipart parser state on duplicate headers and unterminated parts
+        - Fix: release request zvals on early returns in the Redis server
+        - Fix: receive fragmented packets with a custom `package_length_func`
+        - Fix: reparse fragmented requests from a clean state
+        - Fix: double free and UAF when the callback closes the connection in BASE mode
+        - Fix: send the correct PING payloads and reject PINGs of the wrong length
+        - Fix: guard against `close()` inside `package_length_func` during recv
+        - Fix: pass the buffer end to `Redis::get_number` in the Redis server parser
+        - Fix: honor `ssl peer_fingerprint` in hooked TLS streams
+        - Fix: limit the inflated message size to `package_max_length`
+        - Fix: honor stream error suppression in hooked socket writes
+        - Fix: avoid signed overflow in `default_length_func`
+        - Fix: bound-check and parse RESP numbers in `get_number`
     </notes>
     <contents>
         <dir name="/">
