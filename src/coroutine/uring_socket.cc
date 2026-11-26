@@ -378,8 +378,8 @@ ssize_t UringSocket::readv(network::IOVector *io_vector) {
             retval = ssl_readv(io_vector);
         } else {
             retval = uring_readv(io_vector->get_iterator(), io_vector->get_remain_count());
+            io_vector->update_iterator(retval);
         }
-        io_vector->update_iterator(retval);
     } while (retval < 0 && errno == EINTR);
     read_co = nullptr;
 

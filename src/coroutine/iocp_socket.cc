@@ -411,8 +411,8 @@ ssize_t IocpSocket::readv(network::IOVector *io_vector) {
             retval = ssl_readv(io_vector);
         } else {
             retval = iocp_readv(io_vector->get_iterator(), io_vector->get_remain_count());
+            io_vector->update_iterator(retval);
         }
-        io_vector->update_iterator(retval);
     } while (retval < 0 && errno == EINTR);
 
     check_return_value(retval);
@@ -431,8 +431,8 @@ ssize_t IocpSocket::writev(network::IOVector *io_vector) {
             retval = ssl_writev(io_vector);
         } else {
             retval = iocp_writev(io_vector->get_iterator(), io_vector->get_remain_count());
+            io_vector->update_iterator(retval);
         }
-        io_vector->update_iterator(retval);
     } while (retval < 0 && errno == EINTR);
 
     check_return_value(retval);

@@ -805,4 +805,68 @@ TEST(uring_socket, ssl_readv) {
         ASSERT_TRUE(sw_tg_buffer()->contains(TEST_HTTPS_EXPECT));
     });
 }
+
+TEST(uring_socket, ssl_readv_resumes_after_partial_timeout) {
+    swoole::coroutine::ChannelImpl<bool> first_chunk_sent(1);
+    swoole::coroutine::ChannelImpl<bool> resume_send(1);
+    int port = 0;
+
+    auto server = [&](void *) {
+        UringSocket listener(SW_SOCK_TCP);
+        ASSERT_TRUE(listener.enable_ssl_encrypt());
+        listener.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/server.crt");
+        listener.set_ssl_key_file(swoole::test::get_ssl_dir() + "/server.key");
+        ASSERT_TRUE(listener.bind("127.0.0.1", 0));
+        ASSERT_TRUE(listener.listen(1));
+        ASSERT_TRUE(listener.getsockname());
+        port = listener.get_port();
+        listener.set_timeout(2);
+
+        std::unique_ptr<UringSocket> peer(listener.accept());
+        ASSERT_NE(peer, nullptr);
+        ASSERT_TRUE(peer->ssl_handshake()) << peer->errMsg;
+        char ready;
+        ASSERT_EQ(peer->recv(&ready, 1), 1);
+        ASSERT_EQ(peer->send_all("abcde", 5), 5);
+        ASSERT_TRUE(first_chunk_sent.push(true));
+
+        bool received;
+        ASSERT_TRUE(resume_send.pop(&received, 2));
+        ASSERT_EQ(peer->send_all("fghijk", 6), 6);
+    };
+
+    auto client = [&](void *) {
+        ASSERT_GT(port, 0);
+        UringSocket socket(SW_SOCK_TCP);
+        ASSERT_TRUE(socket.enable_ssl_encrypt());
+        socket.set_timeout(2);
+        ASSERT_TRUE(socket.connect("127.0.0.1", port)) << socket.errMsg;
+        ASSERT_EQ(socket.send_all("!", 1), 1);
+        bool sent;
+        ASSERT_TRUE(first_chunk_sent.pop(&sent, 2));
+
+        char first[3]{};
+        char second[8]{};
+        iovec buffers[] = {{first, sizeof(first)}, {second, sizeof(second)}};
+        IOVector vector(buffers, 2);
+
+        socket.set_timeout(0.05, SW_TIMEOUT_READ);
+        ASSERT_EQ(socket.readv(&vector), 5);
+        ASSERT_EQ(vector.get_remain_count(), 1);
+        EXPECT_EQ(vector.get_index(), 1);
+        EXPECT_EQ(vector.get_offset_bytes(), 2u);
+        EXPECT_EQ(vector.get_iterator()->iov_base, second + 2);
+        EXPECT_EQ(vector.get_iterator()->iov_len, 6u);
+        EXPECT_EQ(std::string(first, sizeof(first)), "abc");
+        EXPECT_EQ(std::string(second, 2), "de");
+
+        ASSERT_TRUE(resume_send.push(true));
+        socket.set_timeout(2, SW_TIMEOUT_READ);
+        ASSERT_EQ(socket.readv(&vector), 6);
+        EXPECT_EQ(vector.get_remain_count(), 0);
+        EXPECT_EQ(std::string(second, sizeof(second)), "defghijk");
+    };
+
+    coroutine::run({server, client});
+}
 #endif
