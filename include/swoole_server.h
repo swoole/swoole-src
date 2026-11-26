@@ -2223,7 +2223,7 @@ class Server {
     /**
      * [Worker]
      */
-    void worker_start_callback(Worker *worker);
+    bool worker_start_callback(Worker *worker);
     void worker_stop_callback(Worker *worker);
     void worker_accept_event(DataHead *info);
     void worker_signal_init() const;

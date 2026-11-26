@@ -27,6 +27,7 @@
 #else
 #include <pwd.h>
 #include <grp.h>
+#include <sys/stat.h>
 #endif
 
 #if defined(__linux__)
@@ -201,44 +202,141 @@ bool swoole_is_root_user() {
 #endif
 }
 
-void swoole_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_) {
 #ifndef _WIN32
-    group *_group = nullptr;
-    passwd *_passwd = nullptr;
-    // get group info
-    if (!group_.empty()) {
-        _group = getgrnam(group_.c_str());
-        if (!_group) {
-            swoole_warning("get group [%s] info failed", group_.c_str());
+template <typename Entry>
+static std::string validate_isolation_account(const std::string &name,
+                                              const char *option,
+                                              int (*lookup)(const char *, Entry *, char *, size_t, Entry **)) {
+    if (name.empty()) {
+        return {};
+    }
+    if (name.find('\0') != std::string::npos) {
+        return std::string(option) + " must not contain null bytes";
+    }
+
+    Entry entry;
+    Entry *result = nullptr;
+    std::vector<char> buffer(SW_BUFFER_SIZE_STD);
+    int error;
+    do {
+        error = lookup(name.c_str(), &entry, buffer.data(), buffer.size(), &result);
+        if (error == ERANGE) {
+            buffer.resize(buffer.size() * 2);
         }
+    } while (error == ERANGE);
+    if (error != 0) {
+        return std::string("cannot look up ") + option + " '" + name + "': " + swoole_strerror(error);
     }
-    // get user info
-    if (!user_.empty()) {
-        _passwd = getpwnam(user_.c_str());
-        if (!_passwd) {
-            swoole_warning("get user [%s] info failed", user_.c_str());
-        }
+    if (!result) {
+        return std::string(option) + " '" + name + "' does not exist";
     }
-    // set process group
-    if (_group && setgid(_group->gr_gid) < 0) {
-        swoole_sys_warning("setgid to [%s] failed", group_.c_str());
+    return {};
+}
+
+static std::string validate_isolation_chroot(const std::string &path) {
+    if (path.empty()) {
+        return {};
     }
-    // set process user
-    if (_passwd && setuid(_passwd->pw_uid) < 0) {
-        swoole_sys_warning("setuid to [%s] failed", user_.c_str());
+    if (path.find('\0') != std::string::npos) {
+        return "chroot must not contain null bytes";
     }
-    // chroot
-    if (!chroot_.empty()) {
-        if (::chroot(chroot_.c_str()) == 0) {
-            if (chdir("/") < 0) {
-                swoole_sys_warning("chdir('/') failed");
-            }
-        } else {
-            swoole_sys_warning("chroot('%s') failed", chroot_.c_str());
-        }
+    struct stat info;
+    if (stat(path.c_str(), &info) < 0) {
+        const int error = errno;
+        return "cannot access chroot '" + path + "': " + swoole_strerror(error);
     }
+    if (!S_ISDIR(info.st_mode)) {
+        return "chroot '" + path + "' is not a directory";
+    }
+    return {};
+}
+#endif
+
+std::string swoole_validate_isolation(const std::string &group_name, const std::string &user, const std::string &root) {
+#ifndef _WIN32
+    auto error = validate_isolation_chroot(root);
+    if (!error.empty()) {
+        return error;
+    }
+    error = validate_isolation_account(user, "user", getpwnam_r);
+    if (!error.empty()) {
+        return error;
+    }
+    return validate_isolation_account(group_name, "group", getgrnam_r);
 #else
-    swoole_warning("set_isolation is not supported on Windows");
+    return {};
+#endif
+}
+
+bool swoole_set_isolation(const std::string &group_name, const std::string &user, const std::string &root) {
+    if (group_name.empty() && user.empty() && root.empty()) {
+        return true;
+    }
+#ifndef _WIN32
+    if (group_name.find('\0') != std::string::npos || user.find('\0') != std::string::npos ||
+        root.find('\0') != std::string::npos) {
+        swoole_error_log(SW_LOG_WARNING, EINVAL, "isolation settings must not contain null bytes");
+        return false;
+    }
+
+    uid_t uid = 0;
+    gid_t gid = 0;
+    if (!user.empty()) {
+        errno = 0;
+        const auto *account = getpwnam(user.c_str());
+        if (!account) {
+            const int error = errno == 0 ? ENOENT : errno;
+            swoole_error_log(SW_LOG_WARNING, error, "getpwnam('%s') failed: %s", user.c_str(), swoole_strerror(error));
+            return false;
+        }
+        uid = account->pw_uid;
+        gid = account->pw_gid;
+    }
+    if (!group_name.empty()) {
+        errno = 0;
+        const auto *group = getgrnam(group_name.c_str());
+        if (!group) {
+            const int error = errno == 0 ? ENOENT : errno;
+            swoole_error_log(
+                SW_LOG_WARNING, error, "getgrnam('%s') failed: %s", group_name.c_str(), swoole_strerror(error));
+            return false;
+        }
+        gid = group->gr_gid;
+    }
+
+    // Resolve the target user's groups before chroot, or retain only the configured group for a group-only change.
+    if (!user.empty()) {
+        if (initgroups(user.c_str(), gid) < 0) {
+            swoole_sys_warning("initgroups('%s', %u) failed", user.c_str(), static_cast<unsigned>(gid));
+            return false;
+        }
+    } else if (!group_name.empty() && setgroups(1, &gid) < 0) {
+        swoole_sys_warning("setgroups() failed");
+        return false;
+    }
+
+    if (!root.empty()) {
+        if (chroot(root.c_str()) < 0) {
+            swoole_sys_warning("chroot('%s') failed", root.c_str());
+            return false;
+        }
+        if (chdir("/") < 0) {
+            swoole_sys_warning("chdir('/') failed after chroot('%s')", root.c_str());
+            return false;
+        }
+    }
+    if ((!user.empty() || !group_name.empty()) && setgid(gid) < 0) {
+        swoole_sys_warning("setgid(%u) failed", static_cast<unsigned>(gid));
+        return false;
+    }
+    if (!user.empty() && setuid(uid) < 0) {
+        swoole_sys_warning("setuid(%u) failed", static_cast<unsigned>(uid));
+        return false;
+    }
+    return true;
+#else
+    swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "set_isolation is not supported on Windows");
+    return false;
 #endif
 }
 

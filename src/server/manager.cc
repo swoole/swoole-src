@@ -156,8 +156,9 @@ void Manager::wait(Server *_server) {
 
         _server->wait_manager_barrier();
 
-        if (_server->reload_async && swoole_is_root_user() && !_server->user_.empty()) {
-            swoole_set_isolation(_server->group_, _server->user_, _server->chroot_);
+        if (_server->reload_async && swoole_is_root_user() && !_server->user_.empty() &&
+            !swoole_set_isolation(_server->group_, _server->user_, _server->chroot_)) {
+            _exit(EXIT_FAILURE);
         }
     }
 

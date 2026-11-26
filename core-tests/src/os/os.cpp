@@ -22,6 +22,9 @@
 #include "swoole_file.h"
 #include "swoole_thread.h"
 
+#include <grp.h>
+#include <pwd.h>
+
 using namespace swoole;
 
 TEST(os, daemon) {
@@ -84,6 +87,78 @@ TEST(os, thread_id) {
     ASSERT_FALSE(tid.empty());
 }
 
+TEST(os, validate_isolation) {
+    EXPECT_TRUE(swoole_validate_isolation("", "", "").empty());
+    EXPECT_TRUE(swoole_validate_isolation("", "", "/tmp").empty());
+
+    const std::string missing = "swoole-isolation-missing-" + std::to_string(getpid());
+    EXPECT_NE(swoole_validate_isolation(missing, "", "").find(missing), std::string::npos);
+    EXPECT_NE(swoole_validate_isolation("", missing, "").find(missing), std::string::npos);
+    EXPECT_EQ(swoole_validate_isolation("", "", std::string("/tmp\0extra", 10)), "chroot must not contain null bytes");
+
+    const auto file = make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    ON_SCOPE_EXIT {
+        unlink(file.get_path().c_str());
+    };
+    EXPECT_EQ(swoole_validate_isolation("", "", file.get_path()),
+              "chroot '" + file.get_path() + "' is not a directory");
+}
+
 TEST(os, set_isolation) {
-    swoole_set_isolation("not-exists-group", "not-exists-user", "/tmp/not-exists-dir");
+    EXPECT_TRUE(swoole_set_isolation("", "", ""));
+    const std::string missing = "swoole-isolation-missing-" + std::to_string(getpid());
+    EXPECT_FALSE(swoole_set_isolation(missing, "", ""));
+    EXPECT_FALSE(swoole_set_isolation("", missing, ""));
+
+    const auto file = make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    ON_SCOPE_EXIT {
+        unlink(file.get_path().c_str());
+    };
+    EXPECT_FALSE(swoole_set_isolation("", "", file.get_path()));
+}
+
+TEST(os, set_isolation_chroot_and_drop_identity) {
+    if (!swoole_is_root_user()) {
+        GTEST_SKIP() << "requires privileges to set credentials and chroot";
+    }
+    const auto *account = getpwnam("nobody");
+    if (!account || account->pw_uid == 0) {
+        GTEST_SKIP() << "requires an unprivileged nobody account";
+    }
+    const std::string user = account->pw_name;
+    const uid_t uid = account->pw_uid;
+    const gid_t gid = account->pw_gid;
+    const auto *group = getgrgid(gid);
+    ASSERT_NE(group, nullptr);
+    const std::string group_name = group->gr_name;
+    char root[] = "/tmp/swoole-isolation.XXXXXX";
+    ASSERT_NE(mkdtemp(root), nullptr);
+    const std::string marker = std::string(root) + "/worker-root";
+    ON_SCOPE_EXIT {
+        unlink(marker.c_str());
+        rmdir(root);
+    };
+    ASSERT_EQ(chmod(root, 0755), 0);
+    const File file(marker, O_CREAT | O_WRONLY, 0644);
+    ASSERT_TRUE(file.ready());
+
+    const pid_t pid = fork();
+    ASSERT_GE(pid, 0);
+    if (pid == 0) {
+        const gid_t inherited = gid == 0 ? 1 : 0;
+        gid_t supplementary;
+        if (setgroups(1, &inherited) < 0 || !swoole_set_isolation(group_name, "", "") || geteuid() != 0 ||
+            getgid() != gid || getgroups(1, &supplementary) != 1 || supplementary != gid) {
+            _exit(EXIT_FAILURE);
+        }
+        const bool isolated = swoole_set_isolation("", user, root);
+        const bool expected_identity = getuid() == uid && geteuid() == uid && getgid() == gid && getegid() == gid;
+        _exit(isolated && expected_identity && access("worker-root", R_OK) == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+    }
+    int status;
+    ASSERT_EQ(swoole_waitpid(pid, &status, 0), pid);
+    ASSERT_TRUE(WIFEXITED(status));
+    EXPECT_EQ(WEXITSTATUS(status), EXIT_SUCCESS);
 }

@@ -36,6 +36,25 @@ using swoole::network::AsyncClient;
 
 int beforeReloadPid = 0;
 
+TEST(server, worker_start_checks_isolation_result) {
+    if (!swoole_is_root_user()) {
+        GTEST_SKIP() << "requires privileges to configure process isolation";
+    }
+    const auto file = make_tmpfile();
+    ASSERT_TRUE(file.ready());
+    ON_SCOPE_EXIT {
+        unlink(file.get_path().c_str());
+    };
+
+    Server serv(Server::MODE_BASE);
+    serv.chroot_ = file.get_path();
+    bool started = false;
+    serv.onWorkerStart = [&started](Server *, Worker *) { started = true; };
+    Worker worker{};
+    EXPECT_FALSE(serv.worker_start_callback(&worker));
+    EXPECT_FALSE(started);
+}
+
 TEST(server, schedule) {
     int ret;
     Server serv(Server::MODE_PROCESS);

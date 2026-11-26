@@ -219,9 +219,9 @@ void Server::worker_accept_event(DataHead *info) {
     }
 }
 
-void Server::worker_start_callback(Worker *worker) {
-    if (swoole_is_root_user()) {
-        swoole_set_isolation(group_, user_, chroot_);
+bool Server::worker_start_callback(Worker *worker) {
+    if (!is_thread_mode() && swoole_is_root_user() && !swoole_set_isolation(group_, user_, chroot_)) {
+        return false;
     }
 
     SW_LOOP_N(worker_num + task_worker_num) {
@@ -241,6 +241,7 @@ void Server::worker_start_callback(Worker *worker) {
     }
 
     call_worker_start_callback(worker);
+    return true;
 }
 
 void Server::worker_stop_callback(Worker *worker) {
@@ -609,7 +610,9 @@ int Server::start_event_worker(Worker *worker) {
                                   [worker](Reactor *) { worker->coroutine_num = Coroutine::count(); });
     }
 
-    worker_start_callback(worker);
+    if (!worker_start_callback(worker)) {
+        _exit(EXIT_FAILURE);
+    }
 
     // main loop
     const auto rv = reactor->wait();

@@ -621,7 +621,10 @@ void swoole_redirect_stdout(const char *file);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_is_root_user();
-void swoole_set_isolation(const std::string &group_, const std::string &user_, const std::string &chroot_);
+// Returns an empty string when the isolation settings are valid.
+std::string swoole_validate_isolation(const std::string &group, const std::string &user, const std::string &root);
+// Failure may leave the calling process partially isolated. Callers must stop startup on failure.
+bool swoole_set_isolation(const std::string &group, const std::string &user, const std::string &root);
 bool swoole_set_task_tmpdir(const std::string &dir);
 void swoole_set_process_death_signal(int signal);
 std::string swoole_get_task_tmpdir();

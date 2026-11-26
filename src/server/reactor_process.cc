@@ -262,7 +262,12 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
         return SW_ERR;
     }
 
-    serv->worker_start_callback(worker);
+    if (!serv->worker_start_callback(worker)) {
+        if (!serv->is_single_worker()) {
+            _exit(EXIT_FAILURE);
+        }
+        goto _fail;
+    }
 
     /**
      * for heartbeat check

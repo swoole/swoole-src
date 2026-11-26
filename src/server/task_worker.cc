@@ -830,7 +830,9 @@ static void TaskWorker_onStart(ProcessPool *pool, Worker *worker) {
     worker->init();
     worker->set_max_request(pool->max_request, pool->max_request_grace);
     TaskWorker_signal_init(pool);
-    serv->worker_start_callback(worker);
+    if (!serv->worker_start_callback(worker)) {
+        _exit(EXIT_FAILURE);
+    }
 }
 
 static void TaskWorker_onStop(ProcessPool *pool, Worker *worker) {

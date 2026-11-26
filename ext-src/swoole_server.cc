@@ -2240,6 +2240,25 @@ static PHP_METHOD(swoole_server, set) try {
 
     vht = Z_ARRVAL_P(zset);
 
+    std::string chroot, user, group;
+    const bool has_chroot = php_swoole_array_get_value(vht, "chroot", ztmp);
+    if (has_chroot) {
+        chroot = zend::setting::get_string(ztmp).to_std_string();
+    }
+    const bool has_user = php_swoole_array_get_value(vht, "user", ztmp);
+    if (has_user) {
+        user = zend::setting::get_string(ztmp).to_std_string();
+    }
+    const bool has_group = php_swoole_array_get_value(vht, "group", ztmp);
+    if (has_group) {
+        group = zend::setting::get_string(ztmp).to_std_string();
+    }
+    const auto isolation_error = swoole_validate_isolation(group, user, chroot);
+    if (!isolation_error.empty()) {
+        php_swoole_throw_setting_exception("%s", isolation_error.c_str());
+        RETURN_THROWS();
+    }
+
     php_swoole_set_global_option(vht);
     if (UNEXPECTED(EG(exception))) {
         RETURN_THROWS();
@@ -2253,18 +2272,6 @@ static PHP_METHOD(swoole_server, set) try {
         RETURN_THROWS();
     }
 
-    if (php_swoole_array_get_value(vht, "chroot", ztmp)) {
-        auto str_v = zend::setting::get_string(ztmp);
-        serv->chroot_ = str_v.to_std_string();
-    }
-    if (php_swoole_array_get_value(vht, "user", ztmp)) {
-        auto str_v = zend::setting::get_string(ztmp);
-        serv->user_ = str_v.to_std_string();
-    }
-    if (php_swoole_array_get_value(vht, "group", ztmp)) {
-        auto str_v = zend::setting::get_string(ztmp);
-        serv->group_ = str_v.to_std_string();
-    }
     if (php_swoole_array_get_value(vht, "daemonize", ztmp)) {
         serv->daemonize = zval_is_true(ztmp);
     }
@@ -2710,6 +2717,16 @@ static PHP_METHOD(swoole_server, set) try {
         }
     }
 #endif
+
+    if (has_chroot) {
+        serv->chroot_ = std::move(chroot);
+    }
+    if (has_user) {
+        serv->user_ = std::move(user);
+    }
+    if (has_group) {
+        serv->group_ = std::move(group);
+    }
 
     RETURN_TRUE;
 } catch (const zend::setting::ParseError &) {
