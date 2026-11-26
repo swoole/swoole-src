@@ -899,8 +899,6 @@ static PHP_METHOD(swoole_client, recv) {
     } else if (cli->open_length_check) {
         if (cli->buffer == nullptr) {
             cli->buffer = new String(SW_BUFFER_SIZE_STD);
-        } else {
-            cli->buffer->clear();
         }
         String *buffer = cli->buffer;
 
@@ -911,6 +909,32 @@ static PHP_METHOD(swoole_client, recv) {
 
         const uint32_t generation = php_swoole_client_fetch_object(ZEND_THIS)->generation;
         while (true) {
+            // A custom length header can read ahead into the next frame.
+            if (buffer->length > 0) {
+                ssize_t package_length = 0;
+                const auto status = protocol->resolve_package_length(
+                    cli->socket, buffer->str, buffer->length, &package_length, nullptr);
+                // A custom length callback may close the client and release this buffer.
+                if (php_swoole_client_fetch_object(ZEND_THIS)->generation != generation) {
+                    swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
+                    zend_update_property_long(
+                        swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);
+                    RETURN_FALSE;
+                }
+                if (status == swoole::PackageLengthStatus::MALFORMED) {
+                    buffer->clear();
+                    RETURN_EMPTY_STRING();
+                }
+                if (status != swoole::PackageLengthStatus::NEED_MORE) {
+                    buf_len = package_length;
+                    break;
+                }
+                if (buffer->length >= header_len) {
+                    buffer->clear();
+                    RETURN_EMPTY_STRING();
+                }
+            }
+
             auto retval = cli->recv(buffer->str + buffer->length, header_len - buffer->length, 0);
             if (retval < 0) {
                 php_swoole_sys_error(E_WARNING, "recv() failed");
@@ -923,47 +947,19 @@ static PHP_METHOD(swoole_client, recv) {
                 RETURN_EMPTY_STRING();
             }
             buffer->length += retval;
-            ssize_t package_length = 0;
-            auto status = protocol->resolve_package_length(
-                cli->socket, buffer->str, buffer->length, &package_length, nullptr);
-            // package_length_func closed the client: cli and its buffer are freed
-            if (php_swoole_client_fetch_object(ZEND_THIS)->generation != generation) {
-                swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
-                zend_update_property_long(
-                    swoole_client_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);
-                RETURN_FALSE;
-            }
-            buf_len = package_length;
-            if (status == swoole::PackageLengthStatus::NEED_MORE) {
-                // The header is complete but the length is still unknown; no room is left to receive more.
-                if (buffer->length >= header_len) {
-                    buf_len = -1;
-                    break;
-                }
-                continue;
-            }
-            if (status == swoole::PackageLengthStatus::MALFORMED) {
-                buf_len = -1;
-            }
-            break;
         }
 
-        // error package
-        if (buf_len < 0) {
-            RETURN_EMPTY_STRING();
-        }
-        else if (buf_len > protocol->package_max_length) {
+        if (buf_len > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                              "Package is too big. package_length=%d",
                              (int) buf_len);
+            buffer->clear();
             RETURN_EMPTY_STRING();
-        } else if (buf_len == (zend_long) buffer->length) {
-            RETURN_STRINGL(buffer->str, buffer->length);
-        } else if (buf_len < (zend_long) buffer->length) {
+        }
+        if (static_cast<size_t>(buf_len) <= buffer->length) {
             RETVAL_STRINGL(buffer->str, buf_len);
-            memmove(buffer->str, buffer->str + buf_len, buffer->length - buf_len);
-            buffer->length -= buf_len;
+            buffer->reduce(buf_len);
             return;
         }
 
@@ -971,6 +967,7 @@ static PHP_METHOD(swoole_client, recv) {
         const size_t received_len = buffer->length;
         strbuf = zend_string_alloc(buf_len, false);
         memcpy(strbuf->val, buffer->str, received_len);
+        buffer->clear();
         swoole_set_last_error(0);
         ret = cli->recv(strbuf->val + received_len, buf_len - received_len, MSG_WAITALL);
         if (ret > 0) {
@@ -1098,8 +1095,10 @@ static PHP_METHOD(swoole_client, close) {
         php_swoole_error(E_WARNING, "client socket is closed");
         RETURN_FALSE;
     }
-    // Only live connections without a shutdown direction can return to the persistent pool.
-    if (force || !cli->keep || cli->is_shutdown() || !cli->socket->check_liveness()) {
+    // A buffered length frame belongs to the current client and may still need bytes from the socket.
+    const bool buffered_length_data =
+        cli->open_length_check && !cli->open_eof_check && cli->buffer && cli->buffer->length > 0;
+    if (force || !cli->keep || cli->is_shutdown() || buffered_length_data || !cli->socket->check_liveness()) {
         ret = cli->close();
         php_swoole_client_free(ZEND_THIS, cli);
     } else {
