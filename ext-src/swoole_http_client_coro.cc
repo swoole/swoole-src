@@ -219,6 +219,7 @@ class Client {
         return sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("stats"), 0);
     }
     bool has_upload_files = false;
+    bool download_can_retry = false;
 
     std::shared_ptr<AsyncFile> download_file;  // save http response to file
     zend::String download_file_name;           // unlink the file on error
@@ -318,7 +319,7 @@ class Client {
     bool check_upload_body() const;
     void set_basic_auth(const std::string &username, const std::string &password);
     bool exec(const std::string &_path);
-    bool recv_response(double timeout = 0);
+    bool recv_response(double timeout = 0, bool can_retry_download = false);
     void recv_websocket_frame(zval *return_value, double timeout = 0);
     void add_header(const char *key, size_t key_len, const char *str, size_t length) const;
     bool upgrade(const std::string &_path);
@@ -519,6 +520,10 @@ static sw_inline bool is_informational_response(const llhttp_t *parser) {
     return sw_unlikely(parser->status_code >= 100 && parser->status_code < 200 && parser->status_code != 101);
 }
 
+static sw_inline bool is_retryable_status(unsigned status) {
+    return status == SW_HTTP_BAD_GATEWAY || status == SW_HTTP_SERVICE_UNAVAILABLE;
+}
+
 static int http_parser_on_header_field(llhttp_t *parser, const char *at, size_t length) {
     auto *http = static_cast<Client *>(parser->data);
     http->tmp_header_field_name = at;
@@ -669,6 +674,11 @@ static int http_parser_on_body(llhttp_t *parser, const char *at, size_t length) 
         http->body->append(at, length);
     }
     if (http->download_file_name.get() && http->body->length > 0) {
+        if (http->download_can_retry && is_retryable_status(parser->status_code)) {
+            // Parse and validate the response without writing a body that will be retried.
+            http->body->clear();
+            return 0;
+        }
         if (http->download_file == nullptr) {
             char *download_file_name = http->download_file_name.val();
             auto fp = std::make_shared<AsyncFile>(download_file_name, O_CREAT | O_WRONLY, 0664);
@@ -1840,15 +1850,15 @@ bool Client::exec(const std::string &_path) {
             return true;
         }
         zend::String retry_download_file;
-        zend_long retry_download_offset = download_offset;
-        if (max_retries > 0 && download_file_name.get()) {
+        const auto retry_download_offset = download_offset;
+        const bool can_retry = i < max_retries && (!stream_body.active() || stream_body.seekable);
+        if (can_retry && download_file_name.get()) {
             retry_download_file = download_file_name;
         }
-        if (recv_response() == false) {
+        if (!recv_response(0, retry_download_file.get() != nullptr)) {
             return false;
         }
-        if (max_retries > 0 &&
-            (parser.status_code == SW_HTTP_BAD_GATEWAY || parser.status_code == SW_HTTP_SERVICE_UNAVAILABLE)) {
+        if (max_retries > 0 && is_retryable_status(parser.status_code)) {
             close(true);
             if (stream_body.active()) {
                 if (!stream_body.seekable) {
@@ -1862,7 +1872,7 @@ bool Client::exec(const std::string &_path) {
                     }
                 }
             }
-            if (i < max_retries && retry_download_file.get()) {
+            if (retry_download_file.get()) {
                 zend_update_property_str(
                     swoole_http_client_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("downloadFile"), retry_download_file.get());
                 zend_update_property_long(
@@ -1875,12 +1885,16 @@ bool Client::exec(const std::string &_path) {
     return false;
 }
 
-bool Client::recv_response(double timeout) {
+bool Client::recv_response(double timeout, bool can_retry_download) {
     if (!wait_response) {
         return false;
     }
     // close() clears zsocket; timeout restoration and pending I/O still need the native socket.
     SW_CLIENT_PRESERVE_SOCKET(&zsocket);
+    download_can_retry = can_retry_download;
+    ON_SCOPE_EXIT {
+        download_can_retry = false;
+    };
     write_func_aborted = false;
     ssize_t retval = 0;
     size_t total_bytes = 0, parsed_n = 0;
