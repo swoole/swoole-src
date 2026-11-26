@@ -49,7 +49,7 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2026-11-17</date>
+    <date>2026-11-26</date>
     <time>21:00:00</time>
     <version>
         <release>6.1.14</release>
@@ -1021,6 +1021,7 @@
             <file role="test" name="tests/swoole_channel_coro/push_timeout3.phpt" />
             <file role="test" name="tests/swoole_channel_coro/push_timeout4.phpt" />
             <file role="test" name="tests/swoole_channel_coro/type.phpt" />
+            <file role="test" name="tests/swoole_client/length_func_fragmented.phpt" />
             <file role="test" name="tests/swoole_client_async/base.phpt" />
             <file role="test" name="tests/swoole_client_async/big_package_memory_leak.phpt" />
             <file role="test" name="tests/swoole_client_async/buffer_full.phpt" />
@@ -1521,6 +1522,7 @@
             <file role="test" name="tests/swoole_http2_client_coro/no-gzip.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/number.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/ping.phpt" />
+            <file role="test" name="tests/swoole_http2_client_coro/ping_payload.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/pipeline.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/post.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/recv_timeout_fragmented_frame.phpt" />
@@ -1553,6 +1555,7 @@
             <file role="test" name="tests/swoole_http2_server/nghttp2_big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/no_compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/ping.phpt" />
+            <file role="test" name="tests/swoole_http2_server/ping_payload.phpt" />
             <file role="test" name="tests/swoole_http2_server/sendfile.phpt" />
             <file role="test" name="tests/swoole_http2_server/sendfile_content_type.phpt" />
             <file role="test" name="tests/swoole_http2_server/sendfile_set_content_type.phpt" />
@@ -1857,6 +1860,7 @@
             <file role="test" name="tests/swoole_http_server_coro/invalid_settings.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/ipv6.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/keepalive.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/leading_crlf_request.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/open_frame.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/ping.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/pipeline.phpt" />
@@ -2105,9 +2109,11 @@
             <file role="test" name="tests/swoole_redis_server/big_packet.phpt" />
             <file role="test" name="tests/swoole_redis_server/empty.phpt" />
             <file role="test" name="tests/swoole_redis_server/format.phpt" />
+            <file role="test" name="tests/swoole_redis_server/fragmented_bulk_string.phpt" />
             <file role="test" name="tests/swoole_redis_server/fragmented_request.phpt" />
             <file role="test" name="tests/swoole_redis_server/getHandler.phpt" />
             <file role="test" name="tests/swoole_redis_server/large_data_map.phpt" />
+            <file role="test" name="tests/swoole_redis_server/malformed_bulk_length.phpt" />
             <file role="test" name="tests/swoole_redis_server/nested_map.phpt" />
             <file role="test" name="tests/swoole_runtime/accept.phpt" />
             <file role="test" name="tests/swoole_runtime/accept_timeout.phpt" />
@@ -2254,6 +2260,7 @@
             <file role="test" name="tests/swoole_runtime/stream_select/timeout.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_socket_pair.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_socket_server_close.phpt" />
+            <file role="test" name="tests/swoole_runtime/stream_write_suppress_errors.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_write_timeout.phpt" />
             <file role="test" name="tests/swoole_runtime/tcp-c10k.phpt" />
             <file role="test" name="tests/swoole_runtime/tcp.phpt" />
@@ -2739,14 +2746,17 @@
             <file role="test" name="tests/swoole_timer/task_worker.phpt" />
             <file role="test" name="tests/swoole_timer/task_worker_tick_1k.phpt" />
             <file role="test" name="tests/swoole_timer/verify.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/base_close_in_callback.phpt" />
             <file role="test" name="tests/swoole_websocket_server/bug_1.phpt" />
             <file role="test" name="tests/swoole_websocket_server/close_frame_flag.phpt" />
             <file role="test" name="tests/swoole_websocket_server/close_frame_full.phpt" />
             <file role="test" name="tests/swoole_websocket_server/compression.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/compression_bomb.phpt" />
             <file role="test" name="tests/swoole_websocket_server/compression_incompressible.phpt" />
             <file role="test" name="tests/swoole_websocket_server/disconnect.phpt" />
             <file role="test" name="tests/swoole_websocket_server/disconnect_with_code.phpt" />
             <file role="test" name="tests/swoole_websocket_server/dynamic_property.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/early_frame_before_handshake.phpt" />
             <file role="test" name="tests/swoole_websocket_server/empty_message.phpt" />
             <file role="test" name="tests/swoole_websocket_server/exists_and_isEstablished.phpt" />
             <file role="test" name="tests/swoole_websocket_server/fin.phpt" />
