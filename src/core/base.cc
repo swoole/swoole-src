@@ -385,6 +385,9 @@ pid_t swoole_fork(int flags) {
             sw_logger()->close();
         }
         swoole_signal_clear();
+        if (!will_exec) {
+            System::clear_signal_waiters_after_fork();
+        }
         if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_FORK)) {
             swoole_call_hook(SW_GLOBAL_HOOK_AFTER_FORK, nullptr);
         }

@@ -249,8 +249,14 @@ std::vector<std::string> System::getaddrinfo(
 
 #ifndef _WIN32
 struct SignalListener {
+    struct PreviousSignal {
+        SignalHandler handler = nullptr;
+        bool registered = false;
+    };
+
     Coroutine *co;
-    int signo;
+    int signo = -1;
+    PreviousSignal previous_signals[SW_SIGNO_MAX];
 };
 
 /**
@@ -258,6 +264,11 @@ struct SignalListener {
  * without modifying it to a thread-local variable.
  */
 static SignalListener *listeners[SW_SIGNO_MAX];
+
+void System::clear_signal_waiters_after_fork() {
+    sw_memset_zero(listeners, sizeof(listeners));
+    SwooleG.signal_async_listener_num = 0;
+}
 
 int System::wait_signal(int signal, double timeout) {
     std::vector<int> signals = {signal};
@@ -268,10 +279,7 @@ int System::wait_signal(int signal, double timeout) {
  * @error: swoole_get_last_error()
  */
 int System::wait_signal(const std::vector<int> &signals, double timeout) {
-    SignalListener listener = {
-        Coroutine::get_current_safe(),
-        -1,
-    };
+    auto *co = Coroutine::get_current_safe();
 
     if (SwooleG.signal_listener_num > 0) {
         swoole_set_last_error(EBUSY);
@@ -284,41 +292,35 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
             swoole_set_last_error(EINVAL);
             return -1;
         }
+        if (sw_unlikely(listeners[signo] != nullptr)) {
+            swoole_set_last_error(EBUSY);
+            return -1;
+        }
     }
 
     auto callback_fn = [](int signo) {
-        auto listener = listeners[signo];
-        if (listener) {
-            listeners[signo] = nullptr;
+        auto *listener = listeners[signo];
+        if (listener && listener->signo == -1) {
             listener->signo = signo;
             listener->co->resume();
         }
     };
 
-    struct PreviousSignal {
-        swoole::SignalHandler handler = nullptr;
-        bool registered = false;
+    auto register_signal = [callback_fn](int signo, SignalListener &listener) {
+        auto &previous = listener.previous_signals[signo];
+        previous.handler = swoole_signal_get_handler(signo);
+        previous.registered = true;
+        swoole_signal_set(signo, callback_fn);
     };
-    PreviousSignal previous_signals[SW_SIGNO_MAX];
-    auto register_signal = [&callback_fn, &previous_signals](int signo) {
-        auto &previous = previous_signals[signo];
-        if (!previous.registered) {
-            previous.handler = swoole_signal_get_handler(signo);
-            previous.registered = true;
-            swoole_signal_set(signo, callback_fn);
-        }
-    };
-
-    for (auto &signo : signals) {
-        /* resgiter signal */
-        listeners[signo] = &listener;
 
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, register_signal](void *) { register_signal(signo); }, nullptr);
+    // A canceled waiter can return before the main thread runs its deferred registration.
+    auto listener_owner = std::make_shared<SignalListener>();
+    auto &listener = *listener_owner;
 #else
-        register_signal(signo);
+    SignalListener listener;
 #endif
-    }
+    listener.co = co;
 
     // exit condition
     if (!sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
@@ -328,27 +330,49 @@ int System::wait_signal(const std::vector<int> &signals, double timeout) {
     }
 
     SwooleG.signal_async_listener_num++;
+    ON_SCOPE_EXIT {
+        bool owns_wait = signals.empty();
+        for (int signo : signals) {
+            if (listeners[signo] != &listener) {
+                continue;
+            }
+            owns_wait = true;
+            listeners[signo] = nullptr;
+            const auto &previous = listener.previous_signals[signo];
+            if (!previous.registered) {
+                continue;
+            }
+            auto handler = previous.handler;
+#ifdef SW_USE_THREAD_CONTEXT
+            swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler); }, nullptr);
+#else
+            swoole_signal_set(signo, handler);
+#endif
+        }
+        if (owns_wait) {
+            SwooleG.signal_async_listener_num--;
+        }
+    };
 
-    bool retval = listener.co->yield_ex(timeout);
-
-    for (auto &signo : signals) {
-        auto &previous = previous_signals[signo];
-        if (!previous.registered) {
+    for (int signo : signals) {
+        if (listeners[signo] == &listener) {
             continue;
         }
-        auto handler = previous.handler;
-        previous.registered = false;
+        listeners[signo] = &listener;
 #ifdef SW_USE_THREAD_CONTEXT
-        swoole_event_defer([signo, handler](void *) { swoole_signal_set(signo, handler); }, nullptr);
+        swoole_event_defer(
+            [signo, listener_owner, register_signal](void *) {
+                if (listeners[signo] == listener_owner.get()) {
+                    register_signal(signo, *listener_owner);
+                }
+            },
+            nullptr);
 #else
-        swoole_signal_set(signo, handler);
+        register_signal(signo, listener);
 #endif
-        listeners[signo] = nullptr;
     }
 
-    SwooleG.signal_async_listener_num--;
-
-    return retval ? listener.signo : -1;
+    return co->yield_ex(timeout) ? listener.signo : -1;
 }
 #endif
 

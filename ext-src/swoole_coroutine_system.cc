@@ -369,7 +369,8 @@ PHP_METHOD(swoole_coroutine_system, waitSignal) {
     int signo = System::wait_signal(signals, timeout);
     if (signo == -1) {
         if (swoole_get_last_error() == EBUSY) {
-            php_swoole_fatal_error(E_WARNING, "Unable to wait signal, async signal listener has been registered");
+            // Preserve EBUSY so callers can distinguish a conflicting wait from a timeout.
+            php_error_docref(nullptr, E_WARNING, "Unable to wait signal, async signal listener has been registered");
         } else if (swoole_get_last_error() == EINVAL) {
             php_swoole_fatal_error(E_WARNING, "Invalid signal in the given list");
         }

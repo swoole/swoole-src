@@ -71,6 +71,7 @@ class System {
     /* signal */
     static int wait_signal(int signal, double timeout = -1);
     static int wait_signal(const std::vector<int> &signals, double timeout = -1);
+    static void clear_signal_waiters_after_fork();
     /* event */
 
     /**

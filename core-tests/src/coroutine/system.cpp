@@ -20,6 +20,7 @@
 #include "test_coroutine.h"
 #include "swoole_file.h"
 #include "swoole_pipe.h"
+#include "swoole_signal.h"
 
 using namespace swoole;
 using namespace swoole::test;
@@ -179,6 +180,38 @@ TEST(coroutine_system, wait_signal_fail) {
         ASSERT_ERREQ(EBUSY);
         SwooleG.signal_listener_num = 0;
     });
+}
+
+TEST(coroutine_system, wait_signal_rejects_overlapping_waiters) {
+    int first = SW_ERR;
+    int second = SW_ERR;
+    test::coroutine::run([&](void *) {
+        const auto canceled = Coroutine::create([](void *) {
+            EXPECT_EQ(System::wait_signal(SIGWINCH, 1), SW_ERR);
+            EXPECT_EQ(swoole_get_last_error(), SW_ERROR_CO_CANCELED);
+        });
+        auto *waiter = Coroutine::get_by_cid(canceled);
+        ASSERT_NE(waiter, nullptr);
+        ASSERT_TRUE(waiter->cancel());
+
+        Coroutine::create([&](void *) { first = System::wait_signal(SIGWINCH, 1); });
+        const std::vector<int> overlapping = {SIGURG, SIGWINCH};
+        EXPECT_EQ(System::wait_signal(overlapping, 0.02), SW_ERR);
+        EXPECT_EQ(swoole_get_last_error(), EBUSY);
+        EXPECT_EQ(swoole_signal_get_listener_num(), 1u);
+
+        Coroutine::create([&](void *) { second = System::wait_signal(SIGURG, 1); });
+        EXPECT_EQ(swoole_signal_get_listener_num(), 2u);
+        swoole_event_defer(
+            [](void *) {
+                EXPECT_EQ(kill(getpid(), SIGWINCH), 0);
+                EXPECT_EQ(kill(getpid(), SIGURG), 0);
+            },
+            nullptr);
+    });
+    EXPECT_EQ(first, SIGWINCH);
+    EXPECT_EQ(second, SIGURG);
+    EXPECT_EQ(swoole_signal_get_listener_num(), 0u);
 }
 
 static const char *GREETING = "hello world, hello swoole";

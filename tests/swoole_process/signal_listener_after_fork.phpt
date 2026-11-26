@@ -8,6 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine;
 use Swoole\Coroutine\System;
+use Swoole\Event;
 use Swoole\Process;
 
 Process::signal(SIGUSR1, function () {});
@@ -32,6 +33,26 @@ $process = new Process(function () {
 $process->start();
 Assert::same(Process::wait()['code'], 0);
 Process::signal(SIGUSR1, null);
+
+$parentSignal = null;
+go(function () use (&$parentSignal) {
+    $parentSignal = System::waitSignal(SIGWINCH, 5);
+});
+Assert::same(Coroutine::stats()['signal_listener_num'], 1);
+
+$process = new Process(function () {
+    Co\run(function () {
+        Assert::same(Coroutine::stats()['signal_listener_num'], 0);
+        Event::defer(static fn () => Process::kill(getmypid(), SIGWINCH));
+        Assert::same(System::waitSignal(SIGWINCH, 2), SIGWINCH);
+    });
+});
+Assert::greaterThan($process->start(), 0);
+Assert::same(Process::wait()['code'], 0);
+Assert::same(Coroutine::stats()['signal_listener_num'], 1);
+Event::defer(static fn () => Process::kill(getmypid(), SIGWINCH));
+Event::wait();
+Assert::same($parentSignal, SIGWINCH);
 ?>
 --EXPECTF--
 Warning: Swoole\Coroutine\System::waitSignal(): Unable to wait signal, async signal listener has been registered in %s on line %d
