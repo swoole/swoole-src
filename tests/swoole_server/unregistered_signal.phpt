@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: unregistered signal
+swoole_server: SIGPIPE is ignored without unregistered-signal warning
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
@@ -12,18 +12,15 @@ $logFile = __DIR__ . '/unregistered-signal-' . getmypid() . '.log';
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm, $logFile) {
     try {
+        // SIGPIPE is registered as SIG_IGN in master/worker (see commit 65f63b3f1),
+        // so it is discarded by the kernel and must not log an unregistered-signal warning.
         Assert::true(Swoole\Process::kill($pid, SIGPIPE));
-        $deadline = microtime(true) + 2;
-        do {
-            clearstatcache(true, $logFile);
-            $log = is_file($logFile) ? file_get_contents($logFile) : '';
-            if (str_contains($log, '(ERRNO 721)')) {
-                break;
-            }
-            usleep(1000);
-        } while (microtime(true) < $deadline);
-        Assert::contains($log, '(ERRNO 721)');
-        echo $log, "\n";
+        usleep(100000);
+        Assert::true(posix_kill($pid, 0), 'server should survive SIGPIPE');
+        clearstatcache(true, $logFile);
+        $log = is_file($logFile) ? file_get_contents($logFile) : '';
+        Assert::false(str_contains($log, 'ERRNO 721'), 'SIGPIPE must not log an unregistered-signal warning');
+        echo "DONE\n";
     } finally {
         $pm->kill();
     }
@@ -46,4 +43,4 @@ $pm->run();
 @unlink($logFile);
 ?>
 --EXPECTF--
-[%s]	WARNING	%s (ERRNO 721): Unable to find callback function for signal Broken pipe: 13
+DONE

@@ -158,6 +158,16 @@ TEST(os_signal, nested) {
     swoole_signal_clear();
 }
 
+TEST(os_signal, unregistered_signal_warning) {
+    // A signal with no registered listener still reaches the shared dispatch path
+    // (swoole_signal_callback) from both the sigaction and signalfd backends.
+    // It must log the unregistered-signal warning (ERRNO 721) rather than be dropped silently.
+    ASSERT_EQ(swoole_signal_get_handler(SIGUSR2), nullptr);
+    swoole_clear_last_error();
+    swoole_signal_callback(SIGUSR2);
+    ASSERT_ERREQ(SW_ERROR_UNREGISTERED_SIGNAL);
+}
+
 TEST(os_signal, error) {
     swoole_sigaction_set(SIGIO, nullptr, false, false);
     swoole_signal_block_all();

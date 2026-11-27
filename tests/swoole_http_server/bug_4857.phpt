@@ -59,7 +59,7 @@ $pm->run();
 ?>
 --EXPECTF--
 %s
-array(6) {
+array(7) {
   ["server"]=>
   string(18) "swoole-http-server"
   ["date"]=>
@@ -72,6 +72,8 @@ array(6) {
   string(%d) %s
   ["content-length"]=>
   string(%d) %s
+  ["vary"]=>
+  string(15) "Accept-Encoding"
 }
 %s
 array(5) {
@@ -87,7 +89,7 @@ array(5) {
   string(7) "chunked"
 }
 %s
-array(6) {
+array(7) {
   ["server"]=>
   string(18) "swoole-http-server"
   ["date"]=>
@@ -100,5 +102,7 @@ array(6) {
   string(%d) %s
   ["content-length"]=>
   string(%d) %s
+  ["vary"]=>
+  string(15) "Accept-Encoding"
 }
 DONE
