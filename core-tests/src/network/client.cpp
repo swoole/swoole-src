@@ -2,7 +2,9 @@
 #include "test_server.h"
 #include "test_process.h"
 #include "core-tests/include/test_core.h"
+#include "swoole_async.h"
 
+#include <future>
 #include <random>
 #include <iomanip>
 #include <sstream>
@@ -186,6 +188,126 @@ TEST(client, async_tcp6) {
 
 TEST(client, async_tcp6_dns) {
     test_async_client_tcp("localhost", swoole::test::get_random_port(), SW_SOCK_TCP6);
+}
+
+static void test_async_client_dns_detach(swSocketType type, bool destroy, bool completed) {
+    const auto old_core_workers = SwooleG.aio_core_worker_num;
+    const auto old_max_workers = SwooleG.aio_worker_num;
+    SwooleG.aio_core_worker_num = SwooleG.aio_worker_num = 1;
+
+    struct State {
+        std::promise<void> entered;
+        std::promise<void> release;
+        std::promise<void> resolved;
+        std::shared_future<void> resume = release.get_future().share();
+        bool released = false;
+    } state;
+    ON_SCOPE_EXIT {
+        if (!state.released) {
+            state.release.set_value();
+        }
+        if (sw_reactor()) {
+            swoole_event_wait();
+        }
+        SwooleG.aio_core_worker_num = old_core_workers;
+        SwooleG.aio_worker_num = old_max_workers;
+    };
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+
+    // Hold the only AIO worker so no DNS result can race the close/destructor below.
+    swoole::AsyncEvent barrier{};
+    barrier.object = &state;
+    barrier.handler = [](swoole::AsyncEvent *event) {
+        auto *state = static_cast<State *>(event->object);
+        state->entered.set_value();
+        state->resume.wait();
+    };
+    ASSERT_NE(swoole::async::dispatch(&barrier), nullptr);
+    ASSERT_EQ(state.entered.get_future().wait_for(std::chrono::seconds(3)), std::future_status::ready);
+
+    int callbacks = 0;
+    auto cli = std::make_unique<Client>(type, true);
+    ASSERT_TRUE(cli->ready());
+    cli->onConnect = [&callbacks](Client *cli) {
+        ++callbacks;
+        cli->close();
+    };
+    cli->onError = [&callbacks](Client *) { ++callbacks; };
+    cli->onClose = [&callbacks](Client *) { ++callbacks; };
+    cli->onReceive = [&callbacks](Client *, const char *, size_t) { ++callbacks; };
+    ASSERT_EQ(cli->connect("localhost", 1, 1), SW_OK);
+    ASSERT_TRUE(cli->wait_dns);
+
+    // FIFO execution on one worker makes this a fence for completion of the real DNS lookup.
+    swoole::AsyncEvent fence{};
+    fence.object = &state;
+    fence.handler = [](swoole::AsyncEvent *event) { static_cast<State *>(event->object)->resolved.set_value(); };
+    ASSERT_NE(swoole::async::dispatch(&fence), nullptr);
+    if (completed) {
+        state.release.set_value();
+        state.released = true;
+        ASSERT_EQ(state.resolved.get_future().wait_for(std::chrono::seconds(3)), std::future_status::ready);
+        // The lookup has finished, but the reactor has not delivered its callback yet.
+    }
+    if (destroy) {
+        cli.reset();
+    } else {
+        ASSERT_EQ(cli->close(), SW_OK);
+    }
+    if (!state.released) {
+        state.release.set_value();
+        state.released = true;
+    }
+    ASSERT_EQ(swoole_event_wait(), SW_OK);
+    EXPECT_EQ(callbacks, 0);
+    if (cli) {
+        EXPECT_TRUE(cli->closed);
+        EXPECT_FALSE(cli->active);
+        EXPECT_FALSE(cli->wait_dns);
+        EXPECT_FALSE(cli->dns_completed);
+    }
+}
+
+TEST(client, async_dns_close_while_queued) {
+    test_async_client_dns_detach(SW_SOCK_TCP, false, false);
+    test_async_client_dns_detach(SW_SOCK_UDP, false, false);
+}
+
+TEST(client, async_dns_close_after_resolution) {
+    test_async_client_dns_detach(SW_SOCK_TCP, false, true);
+    test_async_client_dns_detach(SW_SOCK_UDP, false, true);
+}
+
+TEST(client, async_dns_destroy_while_queued) {
+    test_async_client_dns_detach(SW_SOCK_TCP, true, false);
+    test_async_client_dns_detach(SW_SOCK_UDP, true, false);
+}
+
+TEST(client, async_dns_destroy_after_resolution) {
+    test_async_client_dns_detach(SW_SOCK_TCP, true, true);
+    test_async_client_dns_detach(SW_SOCK_UDP, true, true);
+}
+
+TEST(client, async_dns_repeated_connect) {
+    ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+    ON_SCOPE_EXIT {
+        if (sw_reactor()) {
+            swoole_event_wait();
+        }
+    };
+    int callbacks = 0;
+    Client cli(SW_SOCK_TCP, true);
+    cli.onConnect = [&callbacks](Client *) { ++callbacks; };
+    cli.onError = [&callbacks](Client *) { ++callbacks; };
+    cli.onClose = [&callbacks](Client *) { ++callbacks; };
+    cli.onReceive = [](Client *, const char *, size_t) {};
+    ASSERT_EQ(cli.connect("localhost", 1, 1), SW_OK);
+    // No completion callback can consume the first request before the reactor runs.
+    EXPECT_EQ(cli.connect("localhost", 1, 1), SW_ERR);
+    EXPECT_ERREQ(EALREADY);
+    EXPECT_EQ(cli.close(), SW_OK);
+    EXPECT_EQ(swoole_event_wait(), SW_OK);
+    EXPECT_EQ(callbacks, 0);
 }
 
 TEST(client, async_tcp_dns_fail) {

@@ -44,6 +44,7 @@
 
 ### Bug fixes
 
+- Detach pending DNS requests when a native asynchronous C++ Client closes, preventing late resolver callbacks from accessing a destroyed Client or reconnecting a closed one.
 - Release each native cURL easy handle's Swoole state and private multi handle when that easy handle is destroyed, while retaining shared option allocations until the last copy is released.
 - Reject `Swoole\Server\Port::set()` after server startup before changing native configuration or the settings array. THREAD workers can still register their local `package_length_func` callback.
 

@@ -25,7 +25,13 @@
 namespace swoole {
 namespace network {
 
+struct ClientDnsRequest;
+
 class Client {
+    friend struct ClientDnsRequest;
+
+    // Shared with the AIO task until its result is delivered or discarded.
+    std::shared_ptr<ClientDnsRequest> dns_request_;
     int (*connect_)(Client *cli, const char *host, int port, double timeout, int sock_flag) = nullptr;
     ssize_t (*send_)(Client *cli, const char *data, size_t length, int flags) = nullptr;
     int (*sendfile_)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;

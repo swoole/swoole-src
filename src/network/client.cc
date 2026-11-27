@@ -46,8 +46,17 @@ static int Client_onStreamRead(Reactor *reactor, Event *event);
 static int Client_onWrite(Reactor *reactor, Event *event);
 static int Client_onError(Reactor *reactor, Event *event);
 static void Client_onTimeout(Timer *timer, TimerNode *tnode);
-static void Client_onResolveCompleted(AsyncEvent *event);
 static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData *rdata);
+
+struct ClientDnsRequest : GethostbynameRequest {
+    // Only the owner reactor accesses this pointer; the AIO thread uses the inherited DNS payload.
+    Client *client;
+
+    explicit ClientDnsRequest(Client *cli) : GethostbynameRequest(cli->server_host, cli->sock_domain_), client(cli) {}
+
+    static int dispatch(Client *cli);
+    static void on_completed(AsyncEvent *event);
+};
 
 static sw_inline void execute_onConnect(Client *cli) {
     if (cli->timer) {
@@ -394,6 +403,13 @@ int Client::close() {
     closed = true;
     auto _socket = socket;
 
+    if (dns_request_) {
+        // A running resolver cannot be interrupted. Detach before callbacks can destroy this Client.
+        dns_request_->client = nullptr;
+        dns_request_.reset();
+        wait_dns = false;
+    }
+
     if (open_ssl && ssl_context) {
         if (socket->ssl) {
             socket->ssl_close();
@@ -566,14 +582,24 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
     return ret;
 }
 
-static int Client_dns_lookup(Client *cli) {
-    AsyncEvent ev{};
-    ev.data = std::make_shared<GethostbynameRequest>(cli->server_host, cli->sock_domain_);
-    ev.object = cli;
-    ev.handler = async::handler_gethostbyname;
-    ev.callback = Client_onResolveCompleted;
+int ClientDnsRequest::dispatch(Client *cli) {
+    if (cli->closed || cli->dns_request_) {
+        swoole_set_last_error(cli->closed ? EBADF : EALREADY);
+        return SW_ERR;
+    }
 
-    return async::dispatch(&ev) == nullptr ? SW_ERR : SW_OK;
+    AsyncEvent ev{};
+    cli->dns_request_ = std::make_shared<ClientDnsRequest>(cli);
+    ev.data = cli->dns_request_;
+    ev.handler = async::handler_gethostbyname;
+    ev.callback = on_completed;
+
+    if (async::dispatch(&ev) == nullptr) {
+        cli->dns_request_->client = nullptr;
+        cli->dns_request_.reset();
+        return SW_ERR;
+    }
+    return SW_OK;
 }
 
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock) {
@@ -599,7 +625,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     }
 
     if (cli->wait_dns) {
-        return Client_dns_lookup(cli);
+        return ClientDnsRequest::dispatch(cli);
     }
 
     do {
@@ -718,7 +744,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
             swoole_warning("`onError` callback have not set");
             return SW_ERR;
         }
-        return Client_dns_lookup(cli);
+        return ClientDnsRequest::dispatch(cli);
     }
 
     cli->active = true;
@@ -992,10 +1018,16 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
     }
 }
 
-static void Client_onResolveCompleted(AsyncEvent *event) {
-    auto *req = dynamic_cast<GethostbynameRequest *>(event->data.get());
+void ClientDnsRequest::on_completed(AsyncEvent *event) {
+    auto *req = static_cast<ClientDnsRequest *>(event->data.get());
+    auto *cli = req->client;
+    if (!cli) {
+        return;
+    }
 
-    auto *cli = static_cast<Client *>(event->object);
+    // The event retains the request while this callback consumes the result.
+    req->client = nullptr;
+    cli->dns_request_.reset();
     cli->wait_dns = false;
     cli->dns_completed = true;
 
