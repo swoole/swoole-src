@@ -2234,6 +2234,8 @@ void Client::socket_dtor() {
     // The pending response is lost when the underlying socket is closed directly.
     wait_response = false;
     event_stream_handed_off = false;
+    // An unfinished WebSocket message belongs to this connection.
+    continue_frame_buffer.reset();
     delete tmp_write_buffer;
     tmp_write_buffer = socket->pop_write_buffer();
     socket = nullptr;
