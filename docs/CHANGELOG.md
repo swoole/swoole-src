@@ -23,6 +23,7 @@
 
 ### Bug fixes
 
+- Reject `Swoole\Server\Port::set()` after server startup before changing native configuration or the settings array. THREAD workers can still register their local `package_length_func` callback.
 - Reject `sendwait()` in THREAD mode and when asynchronous output is pending, preventing cross-thread Socket access and writes that overtake queued data. Use `send()` for ordered output. See [Server sending](server-sending.md).
 - Restrict THREAD server commands to master-thread calls targeting MASTER. Reject unsupported targets and cross-thread PHP command handlers before dispatch, avoiding invalid manager queues and execution in the wrong PHP VM. See [Server commands](server-commands.md).
 - In thread builds, synchronous TCP clients using `SWOOLE_KEEP` can reuse idle connections across PHP threads when the socket type, destination and explicit connection ID match. Pooled connections retain their original timeout, socket settings and framing configuration. Supply `package_length_func` again for any connection configured with that callback. Use distinct IDs for different application session states or settings. The shared pool holds at most 1,024 idle connections and uses a lower limit when the process descriptor limit is small.

@@ -311,6 +311,13 @@ static PHP_METHOD(swoole_server_port, set) try {
         RETURN_FALSE;
     }
 
+    // Worker threads may register their local callback above; published native settings stay immutable.
+    if (property->serv->is_started()) {
+        php_swoole_throw_setting_exception("server is running, unable to execute %s->set",
+                                           SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_THROWS();
+    }
+
     // backlog
     if (php_swoole_array_get_value(vht, "backlog", ztmp)) {
         zend_long v = zend::setting::get_long(ztmp);
