@@ -22,6 +22,14 @@ namespace Swoole\Coroutine {
         public function recvLine(int $length = 65536, float $timeout = 0): string|false {}
         public function recvWithBuffer(int $length = 65536, float $timeout = 0): string|false {}
         public function recvfrom(mixed &$peername, float $timeout = 0): string|false {}
+        /**
+         * Coroutine recvmsg(2). Message array is compatible with PHP sockets socket_recvmsg():
+         *  - input:  buffer_size?, controllen?
+         *  - output: name, iov, control, flags
+         * name uses Swoole peer style: ['address' => string, 'port' => int].
+         * control[] items: ['level' => int, 'type' => int, 'data' => string|array]
+         */
+        public function recvmsg(array &$message, int $flags = 0, float $timeout = 0): int|false {}
         public function sendto(string $addr, int $port, string $data): int|false {}
         public function getOption(int $level, int $opt_name): mixed {}
         public function setOption(int $level, int $opt_name, mixed $opt_value): bool {}
