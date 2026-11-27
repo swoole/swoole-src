@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <thread>
 
 using namespace swoole;
 
@@ -26,7 +27,77 @@ class ServerCommandTest : public testing::Test {
     Worker worker{};
     Worker *previous_worker = nullptr;
 };
+
+class ThreadCommandTest : public testing::Test {
+  protected:
+    void SetUp() override {
+        previous_thread_type = swoole_get_thread_type();
+        swoole_set_thread_type(Server::THREAD_MASTER);
+        ASSERT_TRUE(server.add_command(
+            "echo", Server::Command::ALL_PROCESS, [](Server *, const std::string &message) { return message; }));
+        command_pipe.reset(server.pipe_command);
+        server.set_started(true);
+    }
+
+    void TearDown() override {
+        server.set_started(false);
+        server.pipe_command = nullptr;
+        swoole_set_thread_type(previous_thread_type);
+    }
+
+    Server server{Server::MODE_THREAD};
+    std::unique_ptr<UnixSocket> command_pipe;
+    uint8_t previous_thread_type = 0;
+};
 }  // namespace
+
+TEST_F(ThreadCommandTest, master_command_executes_and_completes_on_its_owner) {
+    const auto owner = std::this_thread::get_id();
+    size_t calls = 0;
+    server.command_handlers.at(server.commands.at("echo").id) = [owner](Server *, const std::string &message) {
+        EXPECT_EQ(std::this_thread::get_id(), owner);
+        return message;
+    };
+    EXPECT_TRUE(server.command(0, Server::Command::MASTER, "echo", "message", [&](Server *, const std::string &reply) {
+        EXPECT_EQ(std::this_thread::get_id(), owner);
+        EXPECT_EQ(reply, "message");
+        calls++;
+    }));
+    EXPECT_EQ(calls, 1u);
+    EXPECT_TRUE(server.command_callbacks.empty());
+}
+
+TEST_F(ThreadCommandTest, unsupported_targets_do_not_allocate_requests) {
+    const auto initial_id = server.command_current_request_id;
+    for (const auto target : {Server::Command::MANAGER,
+                              Server::Command::EVENT_WORKER,
+                              Server::Command::TASK_WORKER,
+                              Server::Command::REACTOR_THREAD}) {
+        EXPECT_FALSE(server.command(0, target, "echo", "message", [](Server *, const std::string &) {
+            ADD_FAILURE() << "unexpected response";
+        }));
+        EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+        EXPECT_EQ(server.command_current_request_id, initial_id);
+        EXPECT_TRUE(server.command_callbacks.empty());
+    }
+}
+
+TEST_F(ThreadCommandTest, other_threads_cannot_access_the_request_registry) {
+    const auto initial_id = server.command_current_request_id;
+    std::thread caller([this] {
+        for (const auto role : {Server::THREAD_NORMAL, Server::THREAD_WORKER, Server::THREAD_REACTOR}) {
+            swoole_set_thread_type(role);
+            EXPECT_FALSE(
+                server.command(0, Server::Command::MASTER, "echo", "message", [](Server *, const std::string &) {
+                    ADD_FAILURE() << "unexpected response";
+                }));
+            EXPECT_ERREQ(SW_ERROR_SERVER_UNRELATED_THREAD);
+        }
+    });
+    caller.join();
+    EXPECT_EQ(server.command_current_request_id, initial_id);
+    EXPECT_TRUE(server.command_callbacks.empty());
+}
 
 TEST(server_command, callback_is_consumed_before_invocation) {
     Server server(Server::MODE_BASE);

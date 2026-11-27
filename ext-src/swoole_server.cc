@@ -2913,6 +2913,14 @@ static PHP_METHOD(swoole_server, addCommand) {
     Z_PARAM_ZVAL(zfn)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    // A PHP Callable belongs to the registering VM. Worker VMs do not have a local
+    // command registry yet, so never publish this Callable for another thread to execute.
+    if (serv->is_thread_mode() && accepted_process_types != Server::Command::MASTER) {
+        php_swoole_error_ex(
+            E_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "only MASTER command handlers are supported in THREAD mode");
+        RETURN_FALSE;
+    }
+
     if (accepted_process_types & Server::Command::REACTOR_THREAD) {
         php_swoole_fatal_error(E_WARNING, "only support worker/task_worker process");
         RETURN_FALSE;

@@ -23,6 +23,7 @@
 
 ### Bug fixes
 
+- Restrict THREAD server commands to master-thread calls targeting MASTER. Reject unsupported targets and cross-thread PHP command handlers before dispatch, avoiding invalid manager queues and execution in the wrong PHP VM. See [Server commands](server-commands.md).
 - In thread builds, synchronous TCP clients using `SWOOLE_KEEP` can reuse idle connections across PHP threads when the socket type, destination and explicit connection ID match. Pooled connections retain their original timeout, socket settings and framing configuration. Supply `package_length_func` again for any connection configured with that callback. Use distinct IDs for different application session states or settings. The shared pool holds at most 1,024 idle connections and uses a lower limit when the process descriptor limit is small.
 - Wait for pending Windows IOCP cancellation completions in `Swoole\Coroutine\Socket::close()` before releasing the descriptor, including listening sockets and TLS operations.
 - Fix associative task-array crashes and partial task-dispatch cleanup, building on [#6408](https://github.com/swoole/swoole-src/pull/6408) by @NathanFreeman. Swoole 6.1 and 6.2 receive compatible fixes while retaining their existing result conventions.

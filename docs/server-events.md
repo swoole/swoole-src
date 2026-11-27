@@ -5,6 +5,10 @@ This document describes the behavior on `master`, introduced in
 It applies to `Swoole\Server` and its HTTP and WebSocket subclasses in BASE,
 PROCESS and THREAD modes.
 
+The command API has separate threading restrictions. See
+[Server commands](server-commands.md) for the supported THREAD command targets
+and the ownership of PHP command callbacks.
+
 ## Top-level event loop guarantee
 
 **`onClose` and `onBufferFull` are always dispatched from the top level of the

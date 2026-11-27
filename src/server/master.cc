@@ -1426,6 +1426,21 @@ bool Server::command(WorkerId process_id,
     if (!is_started()) {
         return false;
     }
+    if (is_thread_mode()) {
+        // Keep request IDs, reply callbacks and synchronous MASTER handlers on their owner.
+        // Cross-thread targets need dedicated dispatch/reply routing before they can be enabled.
+        if (!is_master_thread()) {
+            swoole_error_log(
+                SW_LOG_NOTICE, SW_ERROR_SERVER_UNRELATED_THREAD, "command() can only be used in the master thread");
+            return false;
+        }
+        if (process_type != Command::MASTER) {
+            swoole_error_log(SW_LOG_NOTICE,
+                             SW_ERROR_OPERATION_NOT_SUPPORT,
+                             "only MASTER command targets are supported in THREAD mode");
+            return false;
+        }
+    }
     auto iter = commands.find(name);
     if (iter == commands.end()) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[%s]", name.c_str());
