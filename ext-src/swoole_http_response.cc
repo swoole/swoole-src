@@ -158,6 +158,7 @@ static PHP_METHOD(swoole_http_response, close);
 static PHP_METHOD(swoole_http_response, trailer);
 static PHP_METHOD(swoole_http_response, ping);
 static PHP_METHOD(swoole_http_response, goaway);
+static PHP_METHOD(swoole_http_response, reset);
 static PHP_METHOD(swoole_http_response, status);
 static PHP_METHOD(swoole_http_response, disconnect);
 SW_EXTERN_C_END
@@ -178,6 +179,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, trailer,                           arginfo_class_Swoole_Http_Response_trailer,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, ping,                              arginfo_class_Swoole_Http_Response_ping,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, goaway,                            arginfo_class_Swoole_Http_Response_goaway,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, reset,                             arginfo_class_Swoole_Http_Response_reset,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, write,                             arginfo_class_Swoole_Http_Response_write,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end,                               arginfo_class_Swoole_Http_Response_end,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendfile,                          arginfo_class_Swoole_Http_Response_sendfile,     ZEND_ACC_PUBLIC)
@@ -1425,6 +1427,26 @@ static PHP_METHOD(swoole_http_response, goaway) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     RETURN_BOOL(swoole_http2_server_goaway(ctx, error_code, debug_data));
+}
+
+static PHP_METHOD(swoole_http_response, reset) {
+    HttpContext *ctx = http_response_get_and_check_context(ZEND_THIS);
+    if (UNEXPECTED(!ctx)) {
+        RETURN_FALSE;
+    }
+    if (UNEXPECTED(!ctx->http2)) {
+        php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a HTTP2 connection", ctx->fd);
+        RETURN_FALSE;
+    }
+
+    zend_long error_code = SW_HTTP2_ERROR_INTERNAL_ERROR;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(error_code)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_BOOL(swoole_http2_server_reset(ctx, error_code));
 }
 
 static PHP_METHOD(swoole_http_response, upgrade) {

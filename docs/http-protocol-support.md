@@ -169,6 +169,12 @@ streams still update the HPACK decoder and consume connection receive credit,
 so they cannot desynchronize existing requests. The connection closes after
 its existing responses finish, or when a send deadline expires.
 
+`Response::reset()` sends RST_STREAM for one response and leaves the connection
+open for other streams. On an asynchronous server, it returns false and the
+response stays writable while the response's headers wait for output buffer
+space. After `goaway()`, a successful reset of the last stream closes the
+connection.
+
 A coroutine HTTP server applies its `write_timeout` setting to accepted sockets.
 One `write()`, `end()` or `sendfile()` operation shares a deadline across waiting
 for the write lock, window credit and socket capacity. The asynchronous server
