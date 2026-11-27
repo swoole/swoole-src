@@ -301,6 +301,34 @@ static void http_response_add_custom_header(String *http_buffer, const char *key
     http_buffer->append(SW_STRL("\r\n"));
 }
 
+#ifdef SW_HAVE_COMPRESSION
+static bool http_response_vary_contains_encoding(zval *value) {
+    if (ZVAL_IS_NULL(value)) {
+        return false;
+    }
+    zend::String str(value);
+    if (swoole_http_has_crlf(str.val(), str.len())) {
+        return false;
+    }
+    const char *end = str.val() + str.len();
+    for (const char *token = str.val(); token < end;) {
+        const char *comma = static_cast<const char *>(memchr(token, ',', end - token));
+        const char *token_end = comma ? comma : end;
+        while (token < token_end && (*token == ' ' || *token == '\t')) {
+            token++;
+        }
+        while (token_end > token && (token_end[-1] == ' ' || token_end[-1] == '\t')) {
+            token_end--;
+        }
+        if (SW_STRCASEEQ(token, token_end - token, "accept-encoding") || SW_STRCASEEQ(token, token_end - token, "*")) {
+            return true;
+        }
+        token = comma ? comma + 1 : end;
+    }
+    return false;
+}
+#endif
+
 void HttpContext::build_header(String *http_buffer, const char *body, size_t length) {
     assert(send_header_ == 0);
 
@@ -318,6 +346,12 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 
     // http headers
     uint32_t header_flags = 0x0;
+#ifdef SW_HAVE_COMPRESSION
+    // Identity responses need the same cache key as their compressed counterparts, even without Accept-Encoding.
+    bool vary_accept_encoding =
+        enable_compression && body && length >= compression_min_length && !send_chunked && !upgrade;
+    bool vary_contains_encoding = false;
+#endif
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, &response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     if (ZVAL_IS_ARRAY(zheader)) {
@@ -340,11 +374,12 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
 
             if (key_header > 0) {
 #ifdef SW_HAVE_COMPRESSION
-                if (key_header == HTTP_HEADER_CONTENT_TYPE && accept_compression && compression_types) {
+                if (key_header == HTTP_HEADER_CONTENT_TYPE && enable_compression && compression_types) {
                     content_type = zval_get_string(zvalue);
                 }
                 if (key_header == HTTP_HEADER_CONTENT_ENCODING && ZVAL_IS_STRING(zvalue)) {
                     accept_compression = 0;
+                    vary_accept_encoding = false;
                 }
                 // https://github.com/swoole/swoole-src/issues/4857
                 // https://github.com/swoole/swoole-src/issues/5026
@@ -372,20 +407,32 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
             if (ZVAL_IS_ARRAY(zvalue)) {
                 zval *zvalue_2;
                 SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zvalue), zvalue_2) {
+#ifdef SW_HAVE_COMPRESSION
+                    if (vary_accept_encoding && SW_STRCASEEQ(ZSTR_VAL(string_key), ZSTR_LEN(string_key), "vary")) {
+                        vary_contains_encoding |= http_response_vary_contains_encoding(zvalue_2);
+                    }
+#endif
                     http_response_add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue_2);
                 }
                 SW_HASHTABLE_FOREACH_END();
             } else {
+#ifdef SW_HAVE_COMPRESSION
+                if (vary_accept_encoding && SW_STRCASEEQ(ZSTR_VAL(string_key), ZSTR_LEN(string_key), "vary")) {
+                    vary_contains_encoding |= http_response_vary_contains_encoding(zvalue);
+                }
+#endif
                 http_response_add_custom_header(http_buffer, ZSTR_VAL(string_key), ZSTR_LEN(string_key), zvalue);
             }
         }
         ZEND_HASH_FOREACH_END();
 
 #ifdef SW_HAVE_COMPRESSION
-        if (accept_compression && compression_types) {
+        if (enable_compression && compression_types) {
             std::string str_content_type = content_type ? std::string(ZSTR_VAL(content_type), ZSTR_LEN(content_type))
                                                         : std::string(ZEND_STRL(SW_HTTP_DEFAULT_CONTENT_TYPE));
-            accept_compression = compression_types->find(str_content_type) != compression_types->end();
+            const bool compressible = compression_types->find(str_content_type) != compression_types->end();
+            accept_compression = accept_compression && compressible;
+            vary_accept_encoding = vary_accept_encoding && compressible;
         }
         // Released unconditionally: an application content-encoding can clear accept_compression
         // after content-type was captured, which would skip the refinement above.
@@ -462,6 +509,12 @@ void HttpContext::build_header(String *http_buffer, const char *body, size_t len
         }
     }
 
+#ifdef SW_HAVE_COMPRESSION
+    if (vary_accept_encoding && !vary_contains_encoding) {
+        // Multiple Vary field lines form one token list; preserve the application's fields unchanged.
+        http_buffer->append(ZEND_STRL("Vary: Accept-Encoding\r\n"));
+    }
+#endif
     http_buffer->append(ZEND_STRL("\r\n"));
     send_header_ = 1;
 }

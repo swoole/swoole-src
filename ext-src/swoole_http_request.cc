@@ -1059,30 +1059,99 @@ static int http_request_message_complete(llhttp_t *parser) {
 }
 
 #ifdef SW_HAVE_COMPRESSION
+// Parse qvalues as thousandths without floating point, locale dependence or a temporary string.
+static int http_compression_quality(const char *value, size_t length) {
+    if (length == 0 || (value[0] != '0' && value[0] != '1')) {
+        return 0;
+    }
+    const int integer = value[0] - '0';
+    if (length == 1) {
+        return integer * 1000;
+    }
+    if (value[1] != '.' || length > 5) {
+        return 0;
+    }
+    int quality = integer * 1000;
+    int scale = 100;
+    for (size_t i = 2; i < length; i++, scale /= 10) {
+        if (value[i] < '0' || value[i] > '9' || (integer == 1 && value[i] != '0')) {
+            return 0;
+        }
+        quality += (value[i] - '0') * scale;
+    }
+    return quality;
+}
+
 void HttpContext::set_compression_method(const char *accept_encoding, size_t length) {
+    struct Coding {
+        const char *name;
+        int method;
+        int quality;
+    } codings[] = {
 #ifdef SW_HAVE_BROTLI
-    if (swoole_strnpos(accept_encoding, length, ZEND_STRL("br")) >= 0) {
-        accept_compression = 1;
-        compression_method = HTTP_COMPRESS_BR;
-    } else
+        {"br", HTTP_COMPRESS_BR, -1},
 #endif
 #ifdef SW_HAVE_ZLIB
-        if (swoole_strnpos(accept_encoding, length, ZEND_STRL("gzip")) >= 0) {
-        accept_compression = 1;
-        compression_method = HTTP_COMPRESS_GZIP;
-    } else if (swoole_strnpos(accept_encoding, length, ZEND_STRL("deflate")) >= 0) {
-        accept_compression = 1;
-        compression_method = HTTP_COMPRESS_DEFLATE;
-    } else
+        {"gzip", HTTP_COMPRESS_GZIP, -1},
+        {"deflate", HTTP_COMPRESS_DEFLATE, -1},
 #endif
 #ifdef SW_HAVE_ZSTD
-        if (swoole_strnpos(accept_encoding, length, ZEND_STRL("zstd")) >= 0) {
-        accept_compression = 1;
-        compression_method = HTTP_COMPRESS_ZSTD;
-    } else
+        {"zstd", HTTP_COMPRESS_ZSTD, -1},
 #endif
-    {
-        accept_compression = 0;
+    };
+    int wildcard = 0;
+    int identity = 0;
+    const char *end = accept_encoding + length;
+    for (const char *item = accept_encoding; item < end;) {
+        const char *comma = static_cast<const char *>(memchr(item, ',', end - item));
+        const char *item_end = comma ? comma : end;
+        while (item < item_end && (*item == ' ' || *item == '\t')) {
+            item++;
+        }
+        const char *semicolon = static_cast<const char *>(memchr(item, ';', item_end - item));
+        const char *name_end = semicolon ? semicolon : item_end;
+        while (name_end > item && (name_end[-1] == ' ' || name_end[-1] == '\t')) {
+            name_end--;
+        }
+        int quality = 1000;
+        if (semicolon) {
+            const char *parameter = semicolon + 1;
+            while (parameter < item_end && (*parameter == ' ' || *parameter == '\t')) {
+                parameter++;
+            }
+            while (item_end > parameter && (item_end[-1] == ' ' || item_end[-1] == '\t')) {
+                item_end--;
+            }
+            quality = item_end - parameter >= 2 && (parameter[0] == 'q' || parameter[0] == 'Q') && parameter[1] == '='
+                          ? http_compression_quality(parameter + 2, item_end - parameter - 2)
+                          : 0;
+        }
+        if (SW_STRCASEEQ(item, name_end - item, "*")) {
+            wildcard = quality;
+        } else if (SW_STRCASEEQ(item, name_end - item, "identity")) {
+            identity = quality;
+        } else {
+            for (auto &coding : codings) {
+                if (swoole_strcaseeq(item, name_end - item, coding.name, strlen(coding.name))) {
+                    coding.quality = quality;
+                    break;
+                }
+            }
+        }
+        item = comma ? comma + 1 : end;
+    }
+
+    // Explicit exclusions override '*'. Preserve the existing server preference for equal weights.
+    int best_quality = identity;
+    accept_compression = 0;
+    compression_method = HTTP_COMPRESS_NONE;
+    for (const auto &coding : codings) {
+        const int quality = coding.quality >= 0 ? coding.quality : wildcard;
+        if (quality > best_quality) {
+            best_quality = quality;
+            accept_compression = 1;
+            compression_method = coding.method;
+        }
     }
 }
 
