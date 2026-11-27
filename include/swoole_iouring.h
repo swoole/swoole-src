@@ -69,6 +69,10 @@ class Iouring {
   public:
     ~Iouring();
 
+    // Drive one completion batch for synchronous socket close outside a coroutine. This blocks
+    // in the kernel rather than polling, and never starts a nested reactor event loop.
+    int wait_for_completion();
+
     bool is_empty_waiting_tasks() const {
         return waiting_tasks.empty();
     }

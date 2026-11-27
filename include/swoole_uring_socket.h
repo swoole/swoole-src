@@ -19,11 +19,25 @@
 
 #include "swoole_coroutine_socket.h"
 
+#include <memory>
+#include <vector>
+
 namespace swoole {
 namespace coroutine {
 class UringSocket : public Socket {
     BIO *rbio = nullptr;
     BIO *wbio = nullptr;
+
+    class IoBinding {
+        UringSocket *owner;
+        EventType events;
+
+      public:
+        IoBinding(UringSocket *socket, EventType events);
+        ~IoBinding();
+        IoBinding(const IoBinding &) = delete;
+        IoBinding &operator=(const IoBinding &) = delete;
+    };
 
     bool ssl_bio_write();
     bool ssl_bio_read();
@@ -68,6 +82,7 @@ class UringSocket : public Socket {
     bool connect(const sockaddr *addr, socklen_t addrlen) override;
     UringSocket *accept(double timeout = 0);
     bool cancel(EventType event) override;
+    bool wait_for_pending_io() override;
 
     ssize_t read(void *_buf, size_t _n) override;
     ssize_t write(const void *_buf, size_t _n) override;

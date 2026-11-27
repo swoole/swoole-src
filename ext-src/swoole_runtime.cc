@@ -737,6 +737,12 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         }
     }
 
+    // fclose() retains this stream while cancellation drains. Do not invoke PHP notification/error
+    // callbacks during that drain: they could yield again after the native I/O has already unbound.
+    if (UNEXPECTED(stream->abstract != abstract)) {
+        return didwrite;
+    }
+
     // Preserve positive partial counts so PHP can retry the unwritten remainder.
     if (didwrite < 0) {
         const bool timed_out = sock->is_timedout();
@@ -795,6 +801,10 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         sock->set_err(nr_bytes < 0 ? errno : 0);
     }
 
+    if (UNEXPECTED(stream->abstract != abstract)) {
+        return nr_bytes;
+    }
+
     if (nr_bytes > 0) {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }
@@ -818,26 +828,24 @@ static int socket_flush(php_stream *stream) {
 }
 
 static int socket_close(php_stream *stream, int close_handle) {
-    const auto *abstract = static_cast<NetStream *>(stream->abstract);
+    // Claim ownership before close can yield. Reentrant closes see nullptr and cannot free it twice.
+    std::unique_ptr<NetStream> abstract(static_cast<NetStream *>(std::exchange(stream->abstract, nullptr)));
     if (UNEXPECTED(!abstract)) {
         return FAILURE;
     }
-    // Cancellation resumes pending I/O synchronously; those calls must see the stream as closed
-    // before PHP releases either the stream or its NetStream allocation.
-    stream->abstract = nullptr;
+    // Reject new operations, but retain both NetStream and the PHP stream until cancellation
+    // has finished: existing read/write and transport calls still use them after their I/O returns.
+    bool closed = true;
     if (abstract->socket) {
         if (close_handle) {
-            abstract->socket->close();
+            closed = abstract->socket->close();
         } else {
-            // PHP preserves the CLI standard descriptors during resource shutdown so extensions
-            // can still use them in module shutdown. Release our state without closing the fd.
-            abstract->socket->cancel(SW_EVENT_WRITE);
-            abstract->socket->cancel(SW_EVENT_READ);
-            abstract->socket->move_fd();
+            // PHP preserves CLI standard descriptors during resource shutdown. The same close
+            // barrier drains I/O first; only the final descriptor release changes ownership.
+            closed = abstract->socket->close([](CoSocket *socket) { socket->move_fd(); });
         }
     }
-    delete abstract;
-    return SUCCESS;
+    return closed ? SUCCESS : FAILURE;
 }
 
 enum {
@@ -1005,18 +1013,28 @@ static inline int socket_accept(php_stream *stream, SocketImpl *sock, php_stream
 
     int error = 0;
 
+    // Native accept and the accepted socket's TLS handshake can both suspend. The transport caller
+    // retains sock, but a close of the listener can release the PHP stream during the TLS handshake.
+    // Snapshot stream settings before either wait and never use stream again if that close started.
+    const timeval stream_timeout = static_cast<const NetStream *>(stream->abstract)->stream.timeout;
+    const auto listener_closing = [sock]() { return sock->is_closed() || sock->get_socket()->close_wait; };
     // The accepted socket inherits the listener's I/O timeouts, including the timeout used for TLS.
     const double accept_timeout = timeout ? timeout->tv_sec + timeout->tv_usec / 1e6 : 0;
     std::shared_ptr<SocketImpl> clisock(sock->accept(accept_timeout));
 
-    timeval stream_timeout{};
+    if (clisock && listener_closing()) {
+        sock->set_err(ECANCELED);
+        clisock.reset();
+    }
     if (clisock != nullptr) {
-        // Snapshot the stream setting before TLS negotiation can yield.
-        stream_timeout = static_cast<const NetStream *>(stream->abstract)->stream.timeout;
         if (clisock->ssl_is_enable() && !clisock->ssl_handshake()) {
             sock->errCode = clisock->errCode;
             clisock.reset();
         }
+    }
+    if (clisock && listener_closing()) {
+        sock->set_err(ECANCELED);
+        clisock.reset();
     }
 
     if (clisock == nullptr) {

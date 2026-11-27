@@ -39,63 +39,22 @@ IocpSocket::IoBinding::IoBinding(IocpSocket *socket, EventType mask) : owner(soc
 }
 
 IocpSocket::IoBinding::~IoBinding() {
-    if (events & SW_EVENT_READ) {
-        owner->read_co = nullptr;
-    }
-    if (events & SW_EVENT_WRITE) {
-        owner->write_co = nullptr;
-    }
-    if (sw_unlikely(!owner->close_waiters.empty()) && !owner->has_bound()) {
-        owner->notify_close_waiters();
-    }
-}
-
-void IocpSocket::notify_close_waiters() {
-    std::vector<std::shared_ptr<CloseWaiter>> waiters;
-    waiters.swap(close_waiters);
-    // Resume close() after the I/O member function and its PHP caller have had
-    // a chance to leave their frames. The deferred task never dereferences this
-    // socket: a cancelled operation may itself close it before the task runs.
-    swoole_event_defer(
-        [waiters = std::move(waiters)](void *) {
-            for (const auto &waiter : waiters) {
-                if (waiter->waiting) {
-                    waiter->waiting = false;
-                    if (auto *co = Coroutine::get_by_cid(waiter->cid)) {
-                        co->resume();
-                    }
-                }
-            }
-        },
-        nullptr);
+    owner->clear_bound_co(events);
 }
 
 bool IocpSocket::wait_for_pending_io() {
-    if (!has_bound()) {
-        return true;
+    if (Coroutine::get_current() || !has_bound()) {
+        return Socket::wait_for_pending_io();
     }
-    if (auto *co = Coroutine::get_current()) {
-        auto waiter = std::make_shared<CloseWaiter>(co);
-        close_waiters.push_back(waiter);
-        // An uninterruptible wait keeps the PHP receiver and OVERLAPPED buffers
-        // alive until Windows has completed cancellation. A manual resume must
-        // not let the caller close/free a socket whose I/O is still in flight.
-        do {
-            co->yield();
-        } while (has_bound());
-        waiter->waiting = false;
-    } else {
-        // close() is also callable from a non-coroutine event callback. Process
-        // real completions rather than polling a timer or returning early.
-        while (has_bound()) {
-            if (sw_reactor() && sw_reactor()->terminated) {
-                set_err(SW_ERROR_CO_CANNOT_CANCEL);
-                return false;
-            }
-            if (!SwooleTG.iocp || SwooleTG.iocp->wait(-1) < 0) {
-                set_err(errno);
-                return false;
-            }
+    // Non-coroutine stream shutdown must pump real completion packets without starting a reactor loop.
+    while (has_bound()) {
+        if (sw_reactor() && sw_reactor()->terminated) {
+            set_err(SW_ERROR_CO_CANNOT_CANCEL);
+            return false;
+        }
+        if (!SwooleTG.iocp || SwooleTG.iocp->wait(-1) < 0) {
+            set_err(errno);
+            return false;
         }
     }
     return true;

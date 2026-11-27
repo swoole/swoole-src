@@ -52,7 +52,6 @@ static zend_object_handlers swoole_socket_coro_exception_handlers;
 struct SocketObject {
     SocketImpl *socket;
     zval zstream;
-    bool reference;
     zend_object std;
 };
 
@@ -158,7 +157,7 @@ static sw_inline SocketObject *socket_coro_fetch_object(zend_object *obj) {
  */
 static void socket_coro_free_object(zend_object *object) {
     auto *sock = socket_coro_fetch_object(object);
-    if (!sock->reference && sock->socket) {
+    if (sock->socket) {
         if (sock->socket->protocol.private_data_1) {
             auto *callback = sock->socket->protocol.private_data_1;
             sock->socket->protocol.private_data_1 = nullptr;
@@ -803,21 +802,6 @@ static void sw_inline socket_coro_init(const zval *zobject, const SocketObject *
         swoole_socket_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("type"), sock->socket->get_sock_type());
     zend_update_property_long(
         swoole_socket_coro_ce, Z_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
-}
-
-SW_API bool php_swoole_export_socket(zval *zobject, SocketImpl *_socket) {
-    zend_object *object = socket_coro_create_object(swoole_socket_coro_ce);
-    if (!object) {
-        return false;
-    }
-
-    auto *sock = socket_coro_fetch_object(object);
-    sock->reference = true;
-    sock->socket = _socket;
-
-    ZVAL_OBJ(zobject, object);
-    socket_coro_init(zobject, sock);
-    return true;
 }
 
 SW_API zend_object *php_swoole_dup_socket(swSocketFd fd, swSocketType type) {
@@ -1873,47 +1857,41 @@ static PHP_METHOD(swoole_socket_coro, shutdown) {
 }
 
 static PHP_METHOD(swoole_socket_coro, close) {
-    swoole_get_socket_coro(sock, ZEND_THIS);
-    if (sock->reference) {
-        php_swoole_error(E_WARNING, "cannot close the referenced resource");
-        RETURN_FALSE;
+    // Unlike ordinary I/O, close must join an in-progress close even if its release callback
+    // has already detached the descriptor. Let the native close barrier decide the result.
+    auto *sock = socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+    if (UNEXPECTED(!sock->socket)) {
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION, "must call constructor first");
     }
-    if (sock->socket->protocol.private_data_1) {
+    bool closed;
+    if (!Z_ISUNDEF(sock->zstream)) {
+        closed = sock->socket->close([sock](CoSocket *closing) {
+            php_stream *stream = nullptr;
+            php_stream_from_zval_no_verify(stream, &sock->zstream);
+#ifdef _WIN32
+            if (stream && SwooleTG.iocp) {
+                SwooleTG.iocp->forget_socket(closing->get_fd());
+            }
+#endif
+            // The PHP stream owns this descriptor. Detach it only after native I/O has drained,
+            // then let stream destruction release it once, inside the same close barrier.
+            closing->move_fd();
+            if (stream) {
+                php_stream_free(stream,
+                                PHP_STREAM_FREE_KEEP_RSRC | PHP_STREAM_FREE_CLOSE |
+                                    (stream->is_persistent ? PHP_STREAM_FREE_CLOSE_PERSISTENT : 0));
+            }
+            ZVAL_UNDEF(&sock->zstream);
+        });
+    } else {
+        closed = sock->socket->close();
+    }
+    if (closed && sock->socket->protocol.private_data_1) {
         sw_callable_free(sock->socket->protocol.private_data_1);
         sock->socket->protocol.private_data_1 = nullptr;
     }
-    if (!Z_ISUNDEF(sock->zstream)) {
-        php_stream *stream = nullptr;
-        php_stream_from_zval_no_verify(stream, &sock->zstream);
-        if (stream != nullptr) {
-#ifdef _WIN32
-            if (SwooleTG.iocp) {
-                SwooleTG.iocp->forget_socket(sock->socket->get_fd());
-            }
-#endif
-            /* close & destroy stream, incl. removing it from the rsrc list;
-             * resource stored in php_sock->zstream will become invalid */
-            php_stream_free(stream,
-                            PHP_STREAM_FREE_KEEP_RSRC | PHP_STREAM_FREE_CLOSE |
-                                (stream->is_persistent ? PHP_STREAM_FREE_CLOSE_PERSISTENT : 0));
-        }
-        ZVAL_UNDEF(&sock->zstream);
-        sock->socket->move_fd();
-    } else {
-        if (!sock->socket->close() && !sock->socket->is_closed()) {
-            // IOCP cancellation completes asynchronously. Keep this PHP receiver
-            // alive until the pending native I/O has drained, then release its fd.
-            // POSIX readiness backends have already unbound their coroutines here.
-            if (!sock->socket->wait_for_pending_io()) {
-                socket_coro_sync_properties(ZEND_THIS, sock);
-                RETURN_FALSE;
-            }
-            if (!sock->socket->is_closed()) {
-                sock->socket->close();
-            }
-        }
-    }
-    RETURN_TRUE;
+    socket_coro_sync_properties(ZEND_THIS, sock);
+    RETURN_BOOL(closed);
 }
 
 static PHP_METHOD(swoole_socket_coro, getsockname) {

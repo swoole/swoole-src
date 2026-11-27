@@ -30,6 +30,74 @@
 
 namespace swoole {
 namespace coroutine {
+
+struct Socket::CloseState {
+    struct Waiter {
+        long cid;
+        // Suppress a deferred notification if the caller has already left the wait.
+        bool waiting = true;
+        // Used by close waiters only: I/O unbinding alone must never set this flag.
+        bool completed = false;
+        explicit Waiter(Coroutine *co) : cid(co ? co->get_cid() : -1) {}
+    };
+    bool closing = false;
+    long owner_cid = -1;
+    // I/O waiters may resume after the last read/write unbinds. Close waiters must additionally
+    // wait for SSL cleanup, the release callback and the descriptor release performed by the owner.
+    std::vector<std::shared_ptr<Waiter>> io_waiters;
+    std::vector<std::shared_ptr<Waiter>> close_waiters;
+
+    static void resume_later(std::vector<std::shared_ptr<Waiter>> waiters) {
+        if (waiters.empty()) {
+            return;
+        }
+        // No Socket/CloseState pointer escapes: a caller can destroy the socket before this task runs.
+        swoole_event_defer(
+            [waiters = std::move(waiters)](void *) {
+                for (const auto &waiter : waiters) {
+                    if (waiter->waiting) {
+                        waiter->waiting = false;
+                        if (auto *co = Coroutine::get_by_cid(waiter->cid)) {
+                            co->resume();
+                        }
+                    }
+                }
+            },
+            nullptr);
+    }
+};
+
+void Socket::notify_io_waiters() {
+    // Called only after both bindings are clear. Move the waiters out before scheduling callbacks:
+    // resumed code can complete close() and destroy this CloseState without invalidating the task.
+    std::vector<std::shared_ptr<CloseState::Waiter>> waiters;
+    waiters.swap(close_state_->io_waiters);
+    CloseState::resume_later(std::move(waiters));
+}
+
+bool Socket::wait_for_pending_io() {
+    if (!has_bound()) {
+        return true;
+    }
+    auto *co = Coroutine::get_current();
+    if (!co) {
+        set_err(SW_ERROR_CO_CANNOT_CANCEL);
+        return false;
+    }
+    if (!close_state_) {
+        close_state_.reset(new CloseState());
+    }
+    auto waiter = std::make_shared<CloseState::Waiter>(co);
+    close_state_->io_waiters.push_back(waiter);
+    // The owner must retain its receiver, PHP stream and buffers until native completions have
+    // finished. No cancellation callback is installed; an explicit early resume rechecks the binding.
+    do {
+        co->yield();
+    } while (has_bound());
+    waiter->waiting = false;
+    return true;
+}
+
 TimeoutType Socket::timeout_type_list[4] = {SW_TIMEOUT_DNS, SW_TIMEOUT_CONNECT, SW_TIMEOUT_READ, SW_TIMEOUT_WRITE};
 
 void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
@@ -151,11 +219,11 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
         if (sw_likely(event == SW_EVENT_READ)) {
             read_co = co;
             System::sleep(0.01);
-            read_co = nullptr;
+            clear_bound_co(SW_EVENT_READ);
         } else {
             write_co = co;
             System::sleep(0.01);
-            write_co = nullptr;
+            clear_bound_co(SW_EVENT_WRITE);
         }
         return !is_closed();
     }
@@ -186,7 +254,7 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
     if (sw_likely(event == SW_EVENT_READ)) {
         read_co = co;
         read_co->yield(&cancel_fn);
-        read_co = nullptr;
+        clear_bound_co(SW_EVENT_READ);
     } else if (event == SW_EVENT_WRITE) {
         if (sw_unlikely(!zero_copy && _n > 0 && *_buf != get_write_buffer()->str)) {
             write_buffer->clear();
@@ -195,7 +263,7 @@ bool Socket::wait_event(const EventType event, const void **_buf, size_t _n) {
         }
         write_co = co;
         write_co->yield(&cancel_fn);
-        write_co = nullptr;
+        clear_bound_co(SW_EVENT_WRITE);
     } else {
         assert(0);
         return false;
@@ -636,7 +704,7 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         resolve_state_ = ResolveState::WAITING;
         ON_SCOPE_EXIT {
             resolve_state_ = ResolveState::IDLE;
-            read_co = write_co = nullptr;
+            clear_bound_co(SW_EVENT_RDWR);
         };
         std::string addr = swoole_name_resolver_lookup(connect_host, ctx);
         // A custom resolver may return an address after cancellation. Never start a connection with it.
@@ -1739,48 +1807,121 @@ bool Socket::cancel(const EventType event) {
     }
 }
 
-/**
- * @return bool
- * If true is returned, the related resources of this socket can be released
- * If false is returned, it means that other coroutines are still referencing this socket,
- * and need to wait for the coroutine bound to readable or writable event to execute close,
- * and release when all references are 0
- */
+// A close request owns the whole cancellation/release sequence. Other callers join its barrier.
 bool Socket::close() {
-    return close(nullptr);
+    return close_impl(nullptr);
 }
 
 bool Socket::close(void (*before_release)(Socket *)) {
+    return close_impl(before_release);
+}
+
+bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
+    auto *co = Coroutine::get_current();
+    // Reject self-dependency even when another close is already pending: a resolver cannot join
+    // that close while still owning the I/O binding the first caller is waiting to drain.
+    if (co && (read_co == co || write_co == co)) {
+        set_err(EDEADLK);
+        return false;
+    }
+    if (sw_unlikely(close_state_ && close_state_->closing)) {
+        auto *state = close_state_.get();
+        // A release callback must not wait for the close invocation it is currently executing.
+        if (co && co->get_cid() == state->owner_cid) {
+            set_err(is_closed() ? EBADF : EDEADLK);
+            return false;
+        }
+        auto waiter = std::make_shared<CloseState::Waiter>(co);
+        state->close_waiters.push_back(waiter);
+        // A second closer joins the release barrier, not the I/O barrier. Even if I/O has already
+        // finished, the first caller can still be suspended in its release callback.
+        if (co) {
+            do {
+                co->yield();
+            } while (!waiter->completed);
+        } else {
+            const auto owner_cid = state->owner_cid;
+            if (!wait_for_pending_io()) {
+                waiter->waiting = false;
+                return false;
+            }
+            // Completion-only pumping does not execute deferred reactor callbacks. The original
+            // close can now finish without waiting for an additional reactor dispatch pass.
+            if (!waiter->completed) {
+                if (auto *owner = Coroutine::get_by_cid(owner_cid)) {
+                    owner->resume();
+                }
+            }
+            if (!waiter->completed) {
+                waiter->waiting = false;
+                set_err(SW_ERROR_CO_CANNOT_CANCEL);
+                return false;
+            }
+        }
+        waiter->waiting = false;
+        set_err(EBADF);
+        return false;
+    }
     if (is_closed()) {
         set_err(EBADF);
         return false;
     }
-    if (sw_unlikely(has_bound())) {
-        socket->close_wait = 1;
-        cancel(SW_EVENT_WRITE);
-        cancel(SW_EVENT_READ);
-        set_err(SW_ERROR_CO_SOCKET_CLOSE_WAIT);
-        return false;
-    } else {
-        if (socket->ssl) {
-            ssl_close();
+    if (has_bound() || before_release || dtor_ || close_state_) {
+        if (!close_state_) {
+            close_state_.reset(new CloseState());
         }
-        if (!socket->removed) {
-            swoole_event_del(socket);
-        }
-        if (before_release) {
-            before_release(this);
-        }
-        // Close only this descriptor. shutdown() would affect all duplicated owners.
-        sock_fd = SW_BAD_SOCKET;
-        socket->close_fd();
-        if (dtor_ != nullptr) {
-            auto dtor = dtor_;
-            dtor_ = nullptr;
-            dtor(this);
-        }
-        return true;
+        close_state_->closing = true;
+        close_state_->owner_cid = co ? co->get_cid() : -1;
     }
+    // Publish ownership before cancellation: readiness cancellation can synchronously resume PHP
+    // code that calls close() again. Mark the socket unavailable before either direction is resumed,
+    // so partial transfers cannot submit another operation while the first close drains the old one.
+    socket->close_wait = 1;
+    auto *writer = write_co;
+    auto *reader = read_co;
+    if (writer) {
+        cancel(SW_EVENT_WRITE);
+    }
+    // DNS and TLS can bind the same coroutine to both directions. Cancel it only once: a second
+    // cancellation could otherwise interrupt a new wait that its cleanup code has just entered.
+    if (reader && reader != writer && read_co) {
+        cancel(SW_EVENT_READ);
+    }
+    if (!wait_for_pending_io()) {
+        close_state_->closing = false;
+        return false;
+    }
+    if (socket->ssl) {
+        ssl_close();
+    }
+    if (!socket->removed) {
+        swoole_event_del(socket);
+    }
+    if (before_release) {
+        before_release(this);
+    }
+    // A release callback can transfer ownership with move_fd(), e.g. to PHP stream cleanup.
+    sock_fd = SW_BAD_SOCKET;
+    socket->close_fd();
+    if (dtor_ != nullptr) {
+        // The post-release hook is part of this close as well. Another caller must still join
+        // the barrier if this hook suspends, even though is_closed() is already true.
+        auto dtor = dtor_;
+        dtor_ = nullptr;
+        dtor(this);
+    }
+    if (close_state_) {
+        auto state = std::move(close_state_);
+        // Publish completion only after the descriptor is released. Tokens outlive CloseState and
+        // the Socket itself; deferred losers resume in registration order and report EBADF.
+        // Deferring also lets the winning PHP close() return before the losing calls return.
+        for (const auto &waiter : state->close_waiters) {
+            waiter->completed = true;
+        }
+        CloseState::resume_later(std::move(state->close_waiters));
+    }
+    set_err(0);
+    return true;
 }
 
 /**

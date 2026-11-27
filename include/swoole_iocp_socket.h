@@ -26,16 +26,6 @@ class IocpSocket : public Socket {
     BIO *rbio = nullptr;
     BIO *wbio = nullptr;
 
-    struct CloseWaiter {
-        long cid;
-        bool waiting = true;
-        explicit CloseWaiter(Coroutine *co) : cid(co->get_cid()) {}
-    };
-    // Only contended PHP close() calls allocate waiters. No global scan or timer
-    // is needed, and cancellation itself keeps its existing asynchronous contract.
-    std::vector<std::shared_ptr<CloseWaiter>> close_waiters;
-    void notify_close_waiters();
-
     class IoBinding {
         IocpSocket *owner;
         EventType events;
@@ -89,7 +79,7 @@ class IocpSocket : public Socket {
         return Socket::recvfrom(_buf, _n);
     }
 
-    bool wait_for_pending_io();
+    bool wait_for_pending_io() override;
     bool connect(const sockaddr *addr, socklen_t addrlen) override;
     IocpSocket *accept(double timeout = 0);
 

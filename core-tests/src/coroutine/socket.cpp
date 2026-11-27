@@ -1502,6 +1502,7 @@ TEST(coroutine_socket, close) {
         buffer->append_random_bytes(256 * 1024, false);
 
         std::map<std::string, bool> results;
+        swoole::coroutine::ChannelImpl<bool> finished(2);
         auto _sock = pair.first;
 
         // write co
@@ -1510,8 +1511,9 @@ TEST(coroutine_socket, close) {
                 ssize_t result = _sock->write(buffer->value(), buffer->get_length());
                 if (result < 0 && _sock->errCode == ECANCELED) {
                     ASSERT_FALSE(_sock->close());
-                    ASSERT_EQ(_sock->errCode, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+                    ASSERT_EQ(_sock->errCode, EBADF);
                     results["write"] = true;
+                    finished.push(true);
                     ASSERT_EQ(_sock->write(buffer->value(), buffer->get_length()), -1);
                     ASSERT_EQ(_sock->errCode, EBADF);
                     break;
@@ -1525,22 +1527,100 @@ TEST(coroutine_socket, close) {
                 char buf[4096];
                 ssize_t result = _sock->read(buf, sizeof(buf));
                 if (result < 0 && _sock->errCode == ECANCELED) {
-                    ASSERT_TRUE(_sock->close());
+                    ASSERT_FALSE(_sock->close());
+                    ASSERT_EQ(_sock->errCode, EBADF);
                     results["read"] = true;
+                    finished.push(true);
                     break;
                 }
             }
         });
 
         System::sleep(0.1);
-        ASSERT_FALSE(_sock->close());
-        ASSERT_EQ(_sock->errCode, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+        ASSERT_TRUE(_sock->close());
         ASSERT_TRUE(_sock->is_closed());
+        for (int i = 0; i < 2; ++i) {
+            bool done = false;
+            ASSERT_TRUE(finished.pop(&done, 2));
+            ASSERT_TRUE(done);
+        }
         ASSERT_TRUE(results["write"]);
         ASSERT_TRUE(results["read"]);
         ASSERT_FALSE(_sock->close());
         ASSERT_EQ(_sock->errCode, EBADF);
     });
+}
+
+static void test_concurrent_close_barrier(bool destructor_callback) {
+    coroutine::run([&](void *) {
+        auto pair = create_socket_pair();
+        auto socket = pair.first;
+        const auto main_cid = Coroutine::get_current()->get_cid();
+        swoole::coroutine::ChannelImpl<bool> finished(2);
+        bool winner_returned = false;
+        int releases = 0;
+        const auto owner_cid = Coroutine::create([&](void *) {
+            auto release = [&](Socket *) {
+                ++releases;
+                swoole_event_defer(
+                    [main_cid](void *) {
+                        if (auto *main = Coroutine::get_by_cid(main_cid)) {
+                            main->resume();
+                        }
+                    },
+                    nullptr);
+                Coroutine::get_current()->yield();
+            };
+            if (destructor_callback) {
+                socket->set_dtor(release);
+                EXPECT_TRUE(socket->close());
+            } else {
+                EXPECT_TRUE(socket->close(release));
+            }
+            EXPECT_TRUE(socket->is_closed());
+            EXPECT_EQ(socket->errCode, 0);
+            winner_returned = true;
+        });
+        Coroutine::get_current()->yield();
+        long loser_cid = 0;
+        for (int i = 0; i < 2; ++i) {
+            const auto cid = Coroutine::create([&](void *) {
+                EXPECT_FALSE(socket->close());
+                EXPECT_EQ(socket->errCode, EBADF);
+                EXPECT_TRUE(socket->is_closed());
+                EXPECT_TRUE(winner_returned);
+                finished.push(true);
+            });
+            loser_cid = cid;
+        }
+        auto *loser = Coroutine::get_by_cid(loser_cid);
+        ASSERT_NE(loser, nullptr);
+        EXPECT_FALSE(loser->cancel());
+        loser->resume();
+        EXPECT_EQ(finished.length(), 0);
+        EXPECT_EQ(socket->is_closed(), destructor_callback);
+        EXPECT_EQ(releases, 1);
+        auto *owner = Coroutine::get_by_cid(owner_cid);
+        ASSERT_NE(owner, nullptr);
+        owner->resume();
+        EXPECT_TRUE(winner_returned);
+        for (int i = 0; i < 2; ++i) {
+            bool done = false;
+            ASSERT_TRUE(finished.pop(&done, 2));
+            EXPECT_TRUE(done);
+        }
+        EXPECT_EQ(releases, 1);
+        EXPECT_FALSE(socket->close());
+        EXPECT_EQ(socket->errCode, EBADF);
+    });
+}
+
+TEST(coroutine_socket, concurrent_close_waits_for_descriptor_release) {
+    test_concurrent_close_barrier(false);
+}
+
+TEST(coroutine_socket, concurrent_close_waits_for_post_release_callback) {
+    test_concurrent_close_barrier(true);
 }
 
 TEST(coroutine_socket, cancel) {
@@ -1570,8 +1650,11 @@ TEST(coroutine_socket, cancel) {
     });
 }
 
-static void check_socket_dns_cancellation(swoole::EventType event, bool close_socket, bool completed,
-                                          bool return_address = false, bool finish_early = false) {
+static void check_socket_dns_cancellation(swoole::EventType event,
+                                          bool close_socket,
+                                          bool completed,
+                                          bool return_address = false,
+                                          bool finish_early = false) {
     struct State {
         std::promise<void> entered;
         std::promise<void> release;
@@ -1657,14 +1740,19 @@ static void check_socket_dns_cancellation(swoole::EventType event, bool close_so
             ASSERT_EQ(state.resolved.get_future().wait_for(std::chrono::seconds(3)), std::future_status::ready);
         }
         if (close_socket) {
-            EXPECT_FALSE(socket->close());
+            EXPECT_TRUE(socket->close());
         } else {
             EXPECT_TRUE(socket->cancel(event));
         }
         EXPECT_EQ(state.returned, 1);
         EXPECT_TRUE(state.canceled);
         EXPECT_FALSE(socket->has_bound());
-        EXPECT_TRUE(socket->close());
+        if (close_socket) {
+            EXPECT_FALSE(socket->close());
+            EXPECT_EQ(socket->errCode, EBADF);
+        } else {
+            EXPECT_TRUE(socket->close());
+        }
         if (!state.released) {
             state.release.set_value();
             state.released = true;
@@ -1709,11 +1797,15 @@ TEST(coroutine_socket, close_dns_preserves_pending_cancellation) {
         SwooleTG.name_resolvers = std::move(resolvers);
     };
     coroutine::run([](void *) {
+        int cancellation_count = 0;
         swoole::NameResolver resolver{};
         resolver.type = swoole::NameResolver::TYPE_USER;
-        resolver.resolve = [](const std::string &, swoole::NameResolver::Context *, void *) {
+        resolver.resolve = [&](const std::string &, swoole::NameResolver::Context *, void *) {
             // Model a resolver whose I/O acknowledges cancellation before the completion resumes its coroutine.
-            Coroutine::CancelFunc cancel = [](Coroutine *) { return true; };
+            Coroutine::CancelFunc cancel = [&](Coroutine *) {
+                ++cancellation_count;
+                return true;
+            };
             Coroutine::get_current()->yield(&cancel);
             return std::string("127.0.0.1");
         };
@@ -1726,14 +1818,61 @@ TEST(coroutine_socket, close_dns_preserves_pending_cancellation) {
             returned = true;
         });
         ASSERT_GT(cid, 0);
-        EXPECT_FALSE(socket.close());
+        bool closed = false;
+        swoole::coroutine::ChannelImpl<bool> finished(1);
+        Coroutine::create([&](void *) {
+            EXPECT_TRUE(socket.close());
+            closed = true;
+            finished.push(true);
+        });
         EXPECT_FALSE(returned);
-        // close() tried both directions. Its second cancellation must not undo the first request.
+        EXPECT_FALSE(closed);
+        // One resolver owns both bindings; close must cancel it once and wait for its cleanup.
+        EXPECT_EQ(cancellation_count, 1);
         auto *co = Coroutine::get_by_cid(cid);
         ASSERT_NE(co, nullptr);
         co->resume();
         EXPECT_TRUE(returned);
+        bool done = false;
+        ASSERT_TRUE(finished.pop(&done, 2));
+        EXPECT_TRUE(closed);
+        EXPECT_TRUE(done);
+        EXPECT_TRUE(socket.is_closed());
+        EXPECT_FALSE(socket.close());
+        EXPECT_EQ(socket.errCode, EBADF);
+    });
+}
+
+TEST(coroutine_socket, resolver_cannot_join_close_while_owning_its_binding) {
+    auto resolvers = std::move(SwooleTG.name_resolvers);
+    SwooleTG.name_resolvers.clear();
+    ON_SCOPE_EXIT {
+        SwooleTG.name_resolvers = std::move(resolvers);
+    };
+    coroutine::run([](void *) {
+        Socket socket(SW_SOCK_TCP);
+        swoole::NameResolver resolver{};
+        resolver.type = swoole::NameResolver::TYPE_USER;
+        resolver.resolve = [&](const std::string &, swoole::NameResolver::Context *, void *) {
+            Coroutine::CancelFunc cancel = [](Coroutine *co) {
+                co->resume();
+                return true;
+            };
+            Coroutine::get_current()->yield(&cancel);
+            EXPECT_FALSE(socket.close());
+            EXPECT_EQ(socket.errCode, EDEADLK);
+            return std::string("127.0.0.1");
+        };
+        swoole_name_resolver_add(resolver);
+        bool returned = false;
+        Coroutine::create([&](void *) {
+            EXPECT_FALSE(socket.connect("self-close.test", 1));
+            EXPECT_EQ(socket.errCode, ECANCELED);
+            returned = true;
+        });
         EXPECT_TRUE(socket.close());
+        EXPECT_TRUE(socket.is_closed());
+        EXPECT_TRUE(returned);
     });
 }
 

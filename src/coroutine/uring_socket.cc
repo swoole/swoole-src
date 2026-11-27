@@ -29,14 +29,28 @@ typedef swoole::network::Socket NetSocket;
 #ifdef SW_USE_IOURING
 namespace swoole {
 namespace coroutine {
+
+UringSocket::IoBinding::IoBinding(UringSocket *socket, EventType mask) : owner(socket), events(mask) {
+    auto *co = Coroutine::get_current_safe();
+    if (events & SW_EVENT_READ) {
+        owner->read_co = co;
+    }
+    if (events & SW_EVENT_WRITE) {
+        owner->write_co = co;
+    }
+}
+
+UringSocket::IoBinding::~IoBinding() {
+    owner->clear_bound_co(events);
+}
+
 bool UringSocket::connect(const sockaddr *addr, socklen_t addrlen) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
 
-    write_co = read_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_RDWR);
     int retval = Iouring::connect(socket->get_fd(), addr, addrlen, socket->connect_timeout);
-    write_co = read_co = nullptr;
     if (retval < 0) {
         set_err(errno);
         return false;
@@ -56,9 +70,8 @@ UringSocket *UringSocket::accept(double timeout) {
         return nullptr;
     }
 
-    read_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_READ);
     network::Socket *conn = uring_accept(timeout == 0 ? socket->read_timeout : timeout);
-    read_co = nullptr;
 
     if (conn == nullptr) {
         set_err(errno);
@@ -90,6 +103,19 @@ bool UringSocket::cancel(EventType event) {
     }
     set_err(ECANCELED);
     return co->cancel();
+}
+
+bool UringSocket::wait_for_pending_io() {
+    if (Coroutine::get_current() || !has_bound()) {
+        return Socket::wait_for_pending_io();
+    }
+    while (has_bound()) {
+        if (SwooleTG.iouring->wait_for_completion() < 0) {
+            set_err(errno);
+            return false;
+        }
+    }
+    return true;
 }
 
 NetSocket *UringSocket::uring_accept(double timeout) {
@@ -137,9 +163,8 @@ ssize_t UringSocket::read(void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
-    read_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_READ);
     ssize_t retval = Iouring::read(socket->get_fd(), _buf, _n, socket->read_timeout);
-    read_co = nullptr;
     check_return_value(retval);
     return retval;
 }
@@ -148,9 +173,8 @@ ssize_t UringSocket::write(const void *_buf, size_t _n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
-    write_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_WRITE);
     ssize_t retval = Iouring::write(socket->get_fd(), _buf, _n, socket->write_timeout);
-    write_co = nullptr;
     check_return_value(retval);
     return retval;
 }
@@ -159,9 +183,8 @@ ssize_t UringSocket::recvmsg(msghdr *msg, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
-    read_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_READ);
     ssize_t retval = Iouring::recvmsg(socket->get_fd(), msg, flags, socket->read_timeout);
-    read_co = nullptr;
     check_return_value(retval);
     return retval;
 }
@@ -170,9 +193,8 @@ ssize_t UringSocket::sendmsg(const msghdr *msg, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
-    write_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_WRITE);
     ssize_t retval = Iouring::sendmsg(socket->get_fd(), msg, flags, socket->write_timeout);
-    write_co = nullptr;
     check_return_value(retval);
     return retval;
 }
@@ -181,9 +203,8 @@ ssize_t UringSocket::recvfrom(void *_buf, size_t _n, sockaddr *_addr, socklen_t 
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
-    read_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_READ);
     ssize_t retval = Iouring::recvfrom(socket->get_fd(), _buf, _n, _addr, _socklen, socket->read_timeout);
-    read_co = nullptr;
     check_return_value(retval);
     return retval;
 }
@@ -217,9 +238,8 @@ ssize_t UringSocket::sendto(const std::string &host, int port, const void *_buf,
         break;
     }
 
-    write_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_WRITE);
     retval = Iouring::sendto(socket->get_fd(), _buf, _n, 0, &addr.addr.ss, addr.len, socket->write_timeout);
-    write_co = nullptr;
 
     swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, _n, errno);
 
@@ -233,13 +253,12 @@ ssize_t UringSocket::recv(void *_buf, size_t _n) {
     }
 
     ssize_t retval;
-    read_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_READ);
     if (has_ssl()) {
         retval = ssl_recv(_buf, _n);
     } else {
         retval = uring_recv(_buf, _n);
     }
-    read_co = nullptr;
 
     check_return_value(retval);
     return retval;
@@ -251,13 +270,12 @@ ssize_t UringSocket::send(const void *_buf, size_t _n) {
     }
 
     ssize_t retval;
-    write_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_WRITE);
     if (has_ssl()) {
         retval = ssl_send(_buf, _n);
     } else {
         retval = uring_send(_buf, _n);
     }
-    write_co = nullptr;
 
     check_return_value(retval);
     return retval;
@@ -275,9 +293,8 @@ ssize_t UringSocket::recv_all(void *_buf, size_t _n) {
             if (sw_unlikely(!is_available(SW_EVENT_READ))) {
                 return -1;
             }
-            read_co = Coroutine::get_current_safe();
+            IoBinding binding(this, SW_EVENT_READ);
             const auto n = Iouring::recv(socket->get_fd(), buf, length, 0, remaining);
-            read_co = nullptr;
             check_return_value(n);
             return n;
         });
@@ -295,9 +312,8 @@ ssize_t UringSocket::send_all(const void *_buf, size_t _n) {
             if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
                 return -1;
             }
-            write_co = Coroutine::get_current_safe();
+            IoBinding binding(this, SW_EVENT_WRITE);
             const auto n = Iouring::send(socket->get_fd(), buf, length, 0, remaining);
-            write_co = nullptr;
             check_return_value(n);
             return n;
         });
@@ -351,14 +367,13 @@ bool UringSocket::sendfile(const char *filename, off_t offset, size_t length) {
 
     ssize_t retval;
 
-    write_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_WRITE);
     const bool ssl = has_ssl();
     if (ssl) {
         retval = ssl_sendfile(file, &offset, length);
     } else {
         retval = uring_sendfile(file, &offset, length);
     }
-    write_co = nullptr;
 
     const bool complete = retval >= 0 && static_cast<size_t>(retval) == length;
     if (!ssl && !complete) {
@@ -375,7 +390,7 @@ ssize_t UringSocket::readv(network::IOVector *io_vector) {
         return -1;
     }
 
-    read_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_READ);
     do {
         if (has_ssl()) {
             retval = ssl_readv(io_vector);
@@ -384,7 +399,6 @@ ssize_t UringSocket::readv(network::IOVector *io_vector) {
             io_vector->update_iterator(retval);
         }
     } while (retval < 0 && errno == EINTR);
-    read_co = nullptr;
 
     check_return_value(retval);
     return retval;
@@ -397,7 +411,7 @@ ssize_t UringSocket::writev(network::IOVector *io_vector) {
     }
 
     set_err(0);
-    write_co = Coroutine::get_current_safe();
+    IoBinding binding(this, SW_EVENT_WRITE);
     do {
         if (has_ssl()) {
             // ssl_writev() advances the iterator and preserves errors after a partial write.
@@ -408,7 +422,6 @@ ssize_t UringSocket::writev(network::IOVector *io_vector) {
             check_return_value(retval);
         }
     } while (retval < 0 && errno == EINTR);
-    write_co = nullptr;
 
     return retval;
 }
@@ -570,11 +583,7 @@ bool UringSocket::ssl_handshake() {
         return false;
     }
     // The handshake alternates reads and writes, so close() must wait for it instead of freeing SSL/BIO under it.
-    auto *co = Coroutine::get_current_safe();
-    read_co = write_co = co;
-    ON_SCOPE_EXIT {
-        read_co = write_co = nullptr;
-    };
+    IoBinding binding(this, SW_EVENT_RDWR);
     rbio = BIO_new(BIO_s_mem());
     wbio = BIO_new(BIO_s_mem());
     SSL_set_bio(socket->ssl, rbio, wbio);

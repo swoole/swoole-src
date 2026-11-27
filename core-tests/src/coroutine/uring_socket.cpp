@@ -44,6 +44,109 @@ using swoole::test::coroutine;
 using swoole::test::create_socket_pair;
 using swoole::test::get_jpg_file;
 
+// Wait before completing/canceling the read so the completion-driven wait path is always exercised.
+static void test_pending_io_waiters(bool cancel_read) {
+    coroutine::run([&](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        UringSocket reader(pair[0], SW_SOCK_UNIX_STREAM);
+        UringSocket writer(pair[1], SW_SOCK_UNIX_STREAM);
+        swoole::coroutine::ChannelImpl<bool> finished(2);
+        bool read_returned = false;
+        Coroutine::create([&](void *) {
+            char byte;
+            const auto count = reader.recv(&byte, 1);
+            if (cancel_read) {
+                EXPECT_EQ(count, -1);
+                EXPECT_EQ(reader.errCode, ECANCELED);
+            } else {
+                EXPECT_EQ(count, 1);
+                EXPECT_EQ(byte, 'x');
+            }
+            read_returned = true;
+        });
+        ASSERT_TRUE(reader.has_bound());
+        long first_waiter = 0;
+        for (int i = 0; i < 2; ++i) {
+            const auto cid = Coroutine::create([&](void *) {
+                EXPECT_TRUE(reader.wait_for_pending_io());
+                EXPECT_TRUE(read_returned);
+                EXPECT_FALSE(reader.has_bound());
+                finished.push(true);
+            });
+            if (i == 0) {
+                first_waiter = cid;
+            }
+        }
+        auto *waiter = Coroutine::get_by_cid(first_waiter);
+        ASSERT_NE(waiter, nullptr);
+        EXPECT_FALSE(waiter->cancel());
+        // A premature explicit resume must not let close release a buffer still owned by the kernel.
+        waiter->resume();
+        EXPECT_EQ(finished.length(), 0);
+        if (cancel_read) {
+            EXPECT_TRUE(reader.close());
+        } else {
+            EXPECT_EQ(writer.send("x", 1), 1);
+        }
+        for (int i = 0; i < 2; ++i) {
+            bool done = false;
+            ASSERT_TRUE(finished.pop(&done, 2));
+            EXPECT_TRUE(done);
+        }
+        EXPECT_TRUE(reader.wait_for_pending_io());
+        if (cancel_read) {
+            EXPECT_FALSE(reader.close());
+            EXPECT_EQ(reader.errCode, EBADF);
+        } else {
+            EXPECT_TRUE(reader.close());
+        }
+        EXPECT_TRUE(writer.close());
+    });
+}
+
+TEST(uring_socket, pending_io_waiters_resume_after_read_completion) {
+    test_pending_io_waiters(false);
+}
+
+TEST(uring_socket, pending_io_waiters_resume_after_read_cancellation) {
+    test_pending_io_waiters(true);
+}
+
+TEST(uring_socket, close_outside_coroutine_drains_pending_read) {
+    coroutine::run([](void *) {
+        int pair[2];
+        ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+        UringSocket reader(pair[0], SW_SOCK_UNIX_STREAM);
+        UringSocket writer(pair[1], SW_SOCK_UNIX_STREAM);
+        bool read_returned = false;
+        bool close_returned = false;
+        Coroutine::create([&](void *) {
+            char byte;
+            EXPECT_EQ(reader.recv(&byte, 1), -1);
+            EXPECT_EQ(reader.errCode, ECANCELED);
+            read_returned = true;
+        });
+        const auto main_cid = Coroutine::get_current()->get_cid();
+        swoole_event_defer(
+            [&, main_cid](void *) {
+                EXPECT_EQ(Coroutine::get_current(), nullptr);
+                EXPECT_TRUE(reader.close());
+                EXPECT_TRUE(reader.is_closed());
+                EXPECT_TRUE(read_returned);
+                close_returned = true;
+                if (auto *main = Coroutine::get_by_cid(main_cid)) {
+                    main->resume();
+                }
+            },
+            nullptr);
+        Coroutine::get_current()->yield();
+        EXPECT_TRUE(close_returned);
+        EXPECT_TRUE(read_returned);
+        EXPECT_TRUE(writer.close());
+    });
+}
+
 TEST(uring_socket, connect) {
     coroutine::run([](void *arg) {
         UringSocket sock(SW_SOCK_TCP);
@@ -927,11 +1030,12 @@ TEST(uring_socket, close_waits_for_ssl_handshake) {
 
         // The peer sends nothing, so the handshake is suspended in its first read.
         System::sleep(0.05);
-        EXPECT_FALSE(peer->close());
+        EXPECT_TRUE(peer->close());
         bool established = true;
         ASSERT_TRUE(handshake.pop(&established, 3));
         EXPECT_FALSE(established);
-        EXPECT_TRUE(peer->close());
+        EXPECT_FALSE(peer->close());
+        EXPECT_EQ(peer->errCode, EBADF);
         done.push(true);
     };
 

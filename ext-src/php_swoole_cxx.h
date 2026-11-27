@@ -133,7 +133,6 @@ SW_API bool php_swoole_is_enable_coroutine();
 SW_API zend_object *php_swoole_create_socket(enum swSocketType type);
 SW_API zend_object *php_swoole_create_socket_from_fd(swSocketFd fd, enum swSocketType type);
 SW_API zend_object *php_swoole_create_socket_from_fd(swSocketFd fd, int _domain, int _type, int _protocol);
-SW_API bool php_swoole_export_socket(zval *zobject, SocketImpl *_socket);
 SW_API zend_object *php_swoole_dup_socket(swSocketFd fd, enum swSocketType type);
 SW_API void php_swoole_init_socket_object(zval *zobject, SocketImpl *socket);
 SW_API SocketImpl *php_swoole_get_socket(const zval *zobject);

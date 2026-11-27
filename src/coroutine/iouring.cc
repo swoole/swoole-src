@@ -55,6 +55,7 @@ using swoole::coroutine::System;
 
 namespace swoole {
 struct IouringEvent {
+    // Null only for synchronous cancel requests whose caller pumps CQEs without a coroutine.
     Coroutine *coroutine;
     io_uring_sqe data;
     ssize_t result;
@@ -193,6 +194,22 @@ bool Iouring::ready() const {
     return ring_socket && reactor->exists(ring_socket);
 }
 
+int Iouring::wait_for_completion() {
+    submit(true);
+    io_uring_cqe *cqe = nullptr;
+    int result;
+    do {
+        result = io_uring_wait_cqe(&ring, &cqe);
+    } while (result == -EINTR);
+    if (result < 0) {
+        errno = -result;
+        return SW_ERR;
+    }
+    // wakeup() consumes this CQE and any other ready CQEs, then resumes their owners.
+    wakeup();
+    return SW_OK;
+}
+
 void Iouring::yield(IouringEvent *event) {
     ++task_num;
     if (event->data.opcode == IORING_OP_ASYNC_CANCEL) {
@@ -206,7 +223,10 @@ void Iouring::yield(IouringEvent *event) {
 void Iouring::resume(IouringEvent *event) {
     --task_num;
     event->completed = true;
-    event->coroutine->resume();
+    // Synchronous cancellation outside a coroutine owns its event on the caller's stack.
+    if (event->coroutine) {
+        event->coroutine->resume();
+    }
 }
 
 bool Iouring::wakeup() {
@@ -494,10 +514,32 @@ bool Iouring::cancel(IouringEvent *prev_event) {
         return true;
     }
 
-    INIT_EVENT(IORING_OP_ASYNC_CANCEL);
+    IouringEvent event{};
+    event.coroutine = Coroutine::get_current();
     prev_event->cancel_pending = true;
     io_uring_prep_cancel(&event.data, prev_event, 0);
-    const bool canceled = execute(&event) == 0;
+    bool canceled;
+    if (event.coroutine) {
+        canceled = execute(&event) == 0;
+    } else {
+        // close() may run from a non-coroutine reactor callback. Keep the cancel event on this
+        // stack until its CQE arrives, and resume PHP coroutines from the actual main context.
+        // A temporary C++ coroutine here would not own a PHP VM/Fiber context.
+        while (!dispatch(&event)) {
+            if (wait_for_completion() < 0) {
+                swoole_sys_error("failed to drain io_uring before synchronous cancellation");
+            }
+        }
+        // This path bypasses yield(), so account for its request here. resume() decrements it
+        // exactly once when the cancellation CQE is consumed, just as for coroutine-owned requests.
+        ++task_num;
+        while (!event.completed) {
+            if (wait_for_completion() < 0) {
+                swoole_sys_error("failed to complete synchronous io_uring cancellation");
+            }
+        }
+        canceled = event.result == 0;
+    }
     // A pending cancellation still identifies the target by its address.
     prev_event->cancel_succeeded = canceled;
     prev_event->cancel_pending = false;
@@ -545,8 +587,9 @@ int Iouring::sleep(double seconds) {
 }
 
 int Iouring::sleep(int tv_sec, int tv_nsec, int flags) {
-    struct __kernel_timespec ts {
-        tv_sec, tv_nsec,
+    struct __kernel_timespec ts{
+        tv_sec,
+        tv_nsec,
     };
 
     INIT_EVENT(IORING_OP_TIMEOUT);
@@ -870,8 +913,7 @@ int Iouring::fstat(int fd, struct stat *statbuf) {
 int Iouring::stat(const char *path, struct stat *statbuf) {
     struct statx statxbuf;
     INIT_EVENT(IORING_OP_FSTAT);
-    io_uring_prep_statx(
-        &event.data, AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS | STATX_BTIME, &statxbuf);
+    io_uring_prep_statx(&event.data, AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS | STATX_BTIME, &statxbuf);
 
     auto retval = execute(&event);
     if (retval == 0) {

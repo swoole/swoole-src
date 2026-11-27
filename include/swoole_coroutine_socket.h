@@ -63,14 +63,23 @@ class Socket {
     virtual bool connect(const sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     virtual bool cancel(EventType event);
+    /**
+     * Called on the socket's owning reactor thread, including from different coroutines on that thread.
+     * The first caller cancels outstanding I/O, waits for its completion, and releases the descriptor once.
+     * Other close callers wait for that same release and return false with EBADF. They never cancel I/O
+     * or invoke the release callback again. This is a coroutine barrier, not a cross-thread lock.
+     */
     bool close();
-    // Run before_release only when this call will release the descriptor.
+    // The winning caller runs before_release after I/O has drained and before releasing the fd.
+    // A callback can transfer ownership with move_fd(); concurrent closes still wait for it to finish.
     bool close(void (*before_release)(Socket *));
-    // PHP close() retains the socket object while a completion backend drains
-    // cancelled operations. Readiness backends finish cancellation synchronously.
-    bool wait_for_pending_io() {
-        return !has_bound();
+    template <typename BeforeRelease>
+    bool close(BeforeRelease before_release) {
+        return close_impl(std::move(before_release));
     }
+    // Wait only for native I/O to unbind; close() additionally waits for the descriptor-release phase.
+    // Completion backends may override non-coroutine pumping, but share the coroutine wait queue.
+    virtual bool wait_for_pending_io();
 
     bool is_connected() const {
         return connected && !is_closed();
@@ -430,7 +439,29 @@ class Socket {
 
     void ssl_close() const;
 
+  private:
+    struct CloseState;
+    // Owner-thread state; absent on the ordinary, idle close path. No atomic operations are needed.
+    // Allocated only when cancellation can suspend or a release callback can reenter close().
+    std::unique_ptr<CloseState> close_state_;
+    bool close_impl(const std::function<void(Socket *)> &before_release);
+    void notify_io_waiters();
+
   protected:
+    // Used by readiness waits, DNS cleanup and completion-backend I/O guards. Notification is deferred
+    // so clearing a binding cannot immediately free the native operation's enclosing PHP/C++ frame.
+    void clear_bound_co(EventType events) {
+        if (events & SW_EVENT_READ) {
+            read_co = nullptr;
+        }
+        if (events & SW_EVENT_WRITE) {
+            write_co = nullptr;
+        }
+        if (sw_unlikely(close_state_ != nullptr) && !has_bound()) {
+            notify_io_waiters();
+        }
+    }
+
     SocketType type;
     network::Socket *socket = nullptr;
     int sock_domain = 0;

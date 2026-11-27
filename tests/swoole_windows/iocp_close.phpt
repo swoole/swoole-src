@@ -54,13 +54,14 @@ Coroutine\run(function () {
     // Neither cancellation completion nor a deferred close has run yet.
     Assert::false($server->isClosed());
     Coroutine::create(function () use ($server, $closed) {
-        Assert::true($server->close());
-        $closed->push(true);
+        Assert::false($server->close());
+        Assert::same($server->errCode, SOCKET_EBADF);
+        $closed->push(false);
     });
     // The close barrier cannot abandon buffers still referenced by the kernel.
     Assert::false(Coroutine::cancel($closer));
     Assert::true($closed->pop(3));
-    Assert::true($closed->pop(3));
+    Assert::false($closed->pop(3));
     Assert::true($acceptDone);
     Assert::true($server->isClosed());
     Assert::false($server->close());

@@ -4,6 +4,7 @@
 
 ### Breaking changes
 
+- C++ coroutine `Socket::close()` now waits for pending I/O and descriptor release. Only the first concurrent close succeeds; other close callers wait for completion and return `false` with `EBADF`.
 - The coroutine runtime disables the following PCNTL functions while active.
   - `pcntl_signal()` can replace Swoole's signal handlers. Use `Swoole\Process::signal()` to register signal callbacks.
   - `pcntl_sigprocmask()` can unblock signals that Swoole relies on keeping blocked for signalfd delivery.
@@ -44,6 +45,7 @@
 
 ### Bug fixes
 
+- Keep hooked PHP streams alive until canceled I/O has returned before completing `fclose()`, including Windows IOCP operations.
 - Route coroutine Socket cancellation during name resolution through the resolver's active wait, suppressing late DNS callbacks and rejecting addresses returned after cancellation.
 - Stop EOF/length packet delivery when receiving is paused, even with pending WRITE events. Retain undelivered frames and process buffered asynchronous Client data after `wakeup()` without requiring further peer traffic.
 - Detach pending DNS requests when a native asynchronous C++ Client closes, preventing late resolver callbacks from accessing a destroyed Client or reconnecting a closed one.

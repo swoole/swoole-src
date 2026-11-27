@@ -540,6 +540,7 @@ TEST(coroutine_hook, socket_close) {
         buffer->append_random_bytes(256 * 1024, false);
 
         std::map<std::string, bool> results;
+        swoole::coroutine::ChannelImpl<bool> finished(2);
         auto _sock = pair.first;
         auto _fd = _sock->move_fd();
         swoole_coroutine_socket_create(_fd);
@@ -550,8 +551,9 @@ TEST(coroutine_hook, socket_close) {
                 ssize_t result = swoole_coroutine_write(_fd, buffer->value(), buffer->get_length());
                 if (result < 0 && errno == ECANCELED) {
                     ASSERT_EQ(swoole_coroutine_close(_fd), -1);
-                    ASSERT_EQ(errno, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+                    ASSERT_EQ(errno, EBADF);
                     results["write"] = true;
+                    finished.push(true);
                     break;
                 }
             }
@@ -563,16 +565,22 @@ TEST(coroutine_hook, socket_close) {
                 char buf[4096];
                 ssize_t result = swoole_coroutine_read(_fd, buf, sizeof(buf));
                 if (result < 0 && errno == ECANCELED) {
-                    ASSERT_EQ(swoole_coroutine_close(_fd), 0);
+                    ASSERT_EQ(swoole_coroutine_close(_fd), -1);
+                    ASSERT_EQ(errno, EBADF);
                     results["read"] = true;
+                    finished.push(true);
                     break;
                 }
             }
         });
 
         System::sleep(0.1);
-        ASSERT_EQ(swoole_coroutine_close(_fd), -1);
-        ASSERT_EQ(errno, SW_ERROR_CO_SOCKET_CLOSE_WAIT);
+        ASSERT_EQ(swoole_coroutine_close(_fd), 0);
+        for (int i = 0; i < 2; ++i) {
+            bool done = false;
+            ASSERT_TRUE(finished.pop(&done, 2));
+            ASSERT_TRUE(done);
+        }
         ASSERT_TRUE(results["write"]);
         ASSERT_TRUE(results["read"]);
     });
