@@ -1449,10 +1449,14 @@ ssize_t WebSocket::send_frame(const swoole::WebSocketFrameSettings &settings,
     } else {
         sw_set_bit(flags, WebSocket::FLAG_MASK);
     }
-    auto wbuf = sock->get_write_buffer();
-    wbuf->clear();
-    WebSocket::encode(wbuf, payload, payload_length, opcode, flags);
-    return sock->send(wbuf->str, wbuf->length);
+    // Keep the control frame alive across send waits without reusing an application's write buffer.
+    String frame(SW_WEBSOCKET_FRAME_HEADER_SIZE + payload_length);
+    if (!WebSocket::encode(&frame, payload, payload_length, opcode, flags)) {
+        sock->set_err(SW_ERROR_WEBSOCKET_PACK_FAILED);
+        return -1;
+    }
+    const ssize_t sent = sock->send_all(frame.str, frame.length);
+    return sent == static_cast<ssize_t>(frame.length) ? sent : -1;
 }
 
 /**
@@ -1495,8 +1499,14 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
         bool should_respond = false;
         if (opcode == WebSocket::OPCODE_PING) {
             if (!settings.open_ping_frame) {
-                WebSocket::send_frame(
-                    settings, sock, WebSocket::OPCODE_PONG, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
+                if (WebSocket::send_frame(settings,
+                                          sock,
+                                          WebSocket::OPCODE_PONG,
+                                          WebSocket::FLAG_FIN,
+                                          frame.payload,
+                                          frame.payload_length) < 0) {
+                    RETURN_FALSE;
+                }
                 continue;
             }
             should_respond = true;
@@ -1509,8 +1519,17 @@ void WebSocket::recv_frame(const WebSocketFrameSettings &settings,
         }
         if (opcode == WebSocket::OPCODE_CLOSE) {
             if (!settings.open_close_frame) {
-                WebSocket::send_frame(
+                const auto sent = WebSocket::send_frame(
                     settings, sock, WebSocket::OPCODE_CLOSE, WebSocket::FLAG_FIN, frame.payload, frame.payload_length);
+                if (settings.in_server) {
+                    // A received Close is terminal for the server, including when the reply cannot be delivered.
+                    // Return EOF so Response::recv() closes TCP before the request handler continues.
+                    continue_frame_buffer.reset();
+                    RETURN_EMPTY_STRING();
+                }
+                if (sent < 0) {
+                    RETURN_FALSE;
+                }
                 continue;
             }
             should_respond = true;

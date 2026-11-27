@@ -774,6 +774,7 @@ static int http_parser_on_message_complete(llhttp_t *parser) {
 }
 
 Client::Client(const zval *zobject, SocketType socket_type, std::string &&host, zend_long port, zend_bool ssl) {
+    websocket_settings.in_server = false;
     this->host = std::move(host);
     this->socket_type = socket_type;
     this->use_default_port = port == 0;

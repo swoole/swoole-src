@@ -682,6 +682,7 @@ void php_swoole_websocket_server_minit(int module_number) {
 
 #ifndef _WIN32
 void php_swoole_server_set_websocket_option(ListenPort *port, zend_array *vht) {
+    port->websocket_settings.in_server = true;
     WebSocket::apply_setting(port->websocket_settings, vht, true);
 }
 #endif
@@ -710,7 +711,6 @@ void WebSocket::apply_setting(WebSocketSettings &settings, zend_array *vht, bool
     if (php_swoole_array_get_value(vht, "open_websocket_pong_frame", ztmp)) {
         settings.open_pong_frame = zval_is_true(ztmp);
     }
-    settings.in_server = in_server;
 }
 
 #ifndef _WIN32

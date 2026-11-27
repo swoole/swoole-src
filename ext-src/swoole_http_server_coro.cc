@@ -91,6 +91,7 @@ class HttpServer {
         parse_cookie = true;
         parse_post = true;
         parse_files = false;
+        websocket_settings.in_server = true;
 #ifdef SW_HAVE_COMPRESSION
         compression = true;
         compression_level = SW_Z_BEST_SPEED;
