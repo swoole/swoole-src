@@ -83,7 +83,7 @@ void php_swoole_client_async_free_object(const ClientObject *client_obj) {
     delete client_obj->async;
 }
 
-static sw_inline void client_execute_callback(zval *zobject, AsyncClientCallbackType type) {
+static sw_inline void client_execute_callback(zval *zobject, AsyncClientCallbackType type, bool optional = false) {
     auto client_obj = php_swoole_client_fetch_object(zobject);
     const char *callback_name;
     zend::Callable *cb;
@@ -119,7 +119,9 @@ static sw_inline void client_execute_callback(zval *zobject, AsyncClientCallback
     }
 
     if (!cb) {
-        php_swoole_fatal_error(E_WARNING, "%s has no %s callback", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
+        if (!optional) {
+            php_swoole_fatal_error(E_WARNING, "%s has no %s callback", SW_Z_OBJCE_NAME_VAL_P(zobject), callback_name);
+        }
         return;
     }
 
@@ -128,11 +130,18 @@ static sw_inline void client_execute_callback(zval *zobject, AsyncClientCallback
     }
 }
 
+static void client_release(zval *zobject, Client *cli) {
+    php_swoole_client_free(zobject, cli);
+    // The fd is closed, do not leave a stale number that may be reused by another socket.
+    zend_update_property_long(swoole_client_async_ce, Z_OBJ_P(zobject), ZEND_STRL("sock"), -1);
+}
+
 static sw_inline void client_execute_callback_and_dtor(Client *cli, zval *zobject, AsyncClientCallbackType type) {
     // Transfer the connection's reference out of AsyncClientObject before releasing its storage.
     zval object = *zobject;
-    client_execute_callback(&object, type);
-    php_swoole_client_free(&object, cli);
+    // The onClose/onError callbacks are optional for datagram clients.
+    client_execute_callback(&object, type, true);
+    client_release(&object, cli);
     zval_ptr_dtor(&object);
 }
 
@@ -245,17 +254,22 @@ static PHP_METHOD(swoole_client_async, __construct) {
 static PHP_METHOD(swoole_client_async, __destruct) {
     SW_PREVENT_USER_DESTRUCT();
 
-    const auto cli = php_swoole_client_get_cli(ZEND_THIS);
+    auto cli = php_swoole_client_get_cli(ZEND_THIS);
     if (!cli) {
         return;
     }
     if (!cli->closed) {
         cli->close();
+        // The onClose callback releases the client, the pointer must not be used again.
+        cli = php_swoole_client_get_cli(ZEND_THIS);
+        if (!cli) {
+            return;
+        }
     }
     php_swoole_client_free(ZEND_THIS, cli);
 }
 
-static Client *php_swoole_client_async_new(zval *zobject, char *host, int host_len, int port) {
+static Client *php_swoole_client_async_new(zval *zobject, int port) {
     zval *ztype = sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TYPE), 0);
     if (ztype == nullptr || ZVAL_IS_NULL(ztype)) {
         php_swoole_fatal_error(E_ERROR, "failed to get client type");
@@ -318,34 +332,39 @@ static PHP_METHOD(swoole_client_async, connect) {
         RETURN_FALSE;
     }
 
-    auto cli = php_swoole_client_async_new(ZEND_THIS, host, host_len, port);
+    auto cli = php_swoole_client_async_new(ZEND_THIS, port);
     if (cli == nullptr) {
         RETURN_FALSE;
     }
 
+    // From here on the object owns the client, so every early return releases it through client_release().
+    client_obj->cli = cli;
+
     zval *zset = sw_zend_read_property(swoole_client_async_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
     if (zset && ZVAL_IS_ARRAY(zset)) {
         if (!php_swoole_client_check_setting(cli, zset)) {
+            client_release(ZEND_THIS, cli);
             RETURN_THROWS();
         }
     }
+    const char *missing = nullptr;
     if (!client_obj->async->onReceive) {
-        php_swoole_fatal_error(E_ERROR, "no 'onReceive' callback function");
+        missing = "onReceive";
+    } else if (cli->get_socket()->is_stream()) {
+        if (!client_obj->async->onConnect) {
+            missing = "onConnect";
+        } else if (!client_obj->async->onError) {
+            missing = "onError";
+        } else if (!client_obj->async->onClose) {
+            missing = "onClose";
+        }
+    }
+    if (missing) {
+        client_release(ZEND_THIS, cli);
+        php_swoole_fatal_error(E_ERROR, "no '%s' callback function", missing);
         RETURN_FALSE;
     }
     if (cli->get_socket()->is_stream()) {
-        if (!client_obj->async->onConnect) {
-            php_swoole_fatal_error(E_ERROR, "no 'onConnect' callback function");
-            RETURN_FALSE;
-        }
-        if (!client_obj->async->onError) {
-            php_swoole_fatal_error(E_ERROR, "no 'onError' callback function");
-            RETURN_FALSE;
-        }
-        if (!client_obj->async->onClose) {
-            php_swoole_fatal_error(E_ERROR, "no 'onClose' callback function");
-            RETURN_FALSE;
-        }
         cli->onConnect = client_onConnect;
         cli->onClose = client_onClose;
         cli->onError = client_onError;
@@ -360,9 +379,8 @@ static PHP_METHOD(swoole_client_async, connect) {
         if (client_obj->async->onConnect) {
             cli->onConnect = client_onConnect;
         }
-        if (client_obj->async->onClose) {
-            cli->onClose = client_onClose;
-        }
+        // Always installed: it releases the client and the object's reference when the user closes it.
+        cli->onClose = client_onClose;
         if (client_obj->async->onError) {
             cli->onError = client_onError;
         }
@@ -370,15 +388,16 @@ static PHP_METHOD(swoole_client_async, connect) {
     }
 
     client_obj->async->_zobject = *ZEND_THIS;
-    client_obj->cli = cli;
     cli->object = &client_obj->async->_zobject;
     zval_addref_p(ZEND_THIS);
 
     // nonblock async
     if (cli->connect(host, port, timeout, sock_flag) < 0) {
+        // If onError ran, the client has already been released; otherwise nobody was notified.
+        auto _cli = php_swoole_client_get_cli(ZEND_THIS);
         if (errno == 0) {
             const auto error = swoole_get_last_error();
-            if (error == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED) {
+            if (error == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED || _cli) {
                 php_swoole_error(E_WARNING,
                                  "connect to server[%s:%d] failed. Error: %s[%d]",
                                  host,
@@ -391,9 +410,8 @@ static PHP_METHOD(swoole_client_async, connect) {
             php_swoole_sys_error(E_WARNING, "connect to server[%s:%d] failed", host, (int) port);
             zend_update_property_long(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), errno);
         }
-        auto _cli = php_swoole_client_get_cli(ZEND_THIS);
-        if (_cli && _cli->onError == nullptr) {
-            php_swoole_client_free(ZEND_THIS, _cli);
+        if (_cli) {
+            client_release(ZEND_THIS, _cli);
             zval_delref_p(ZEND_THIS);
         }
         RETURN_FALSE;
@@ -433,49 +451,64 @@ static PHP_METHOD(swoole_client_async, on) {
     auto client_obj = php_swoole_client_fetch_object(ZEND_THIS);
     auto cb = sw_callable_create(zcallback);
     if (!cb) {
-        return;
+        RETURN_FALSE;
     }
 
     if (!client_obj->async) {
         client_obj->async = new AsyncClientObject();
     }
 
-    if (strncasecmp("connect", cb_name, cb_name_len) == 0) {
+    auto is_event = [cb_name, cb_name_len](const char *name) {
+        return cb_name_len == strlen(name) && strcasecmp(name, cb_name) == 0;
+    };
+
+    if (is_event("connect")) {
         zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onConnect"), zcallback);
         if (client_obj->async->onConnect) {
             sw_callable_free(client_obj->async->onConnect);
         }
         client_obj->async->onConnect = cb;
-    } else if (strncasecmp("receive", cb_name, cb_name_len) == 0) {
+    } else if (is_event("receive")) {
         zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onReceive"), zcallback);
         if (client_obj->async->onReceive) {
             sw_callable_free(client_obj->async->onReceive);
         }
         client_obj->async->onReceive = cb;
-    } else if (strncasecmp("close", cb_name, cb_name_len) == 0) {
+    } else if (is_event("close")) {
         zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onClose"), zcallback);
         if (client_obj->async->onClose) {
             sw_callable_free(client_obj->async->onClose);
         }
         client_obj->async->onClose = cb;
-    } else if (strncasecmp("error", cb_name, cb_name_len) == 0) {
+    } else if (is_event("error")) {
         zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onError"), zcallback);
         if (client_obj->async->onError) {
             sw_callable_free(client_obj->async->onError);
         }
         client_obj->async->onError = cb;
-    } else if (strncasecmp("bufferFull", cb_name, cb_name_len) == 0) {
+    } else if (is_event("bufferFull")) {
         zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onBufferFull"), zcallback);
         if (client_obj->async->onBufferFull) {
             sw_callable_free(client_obj->async->onBufferFull);
         }
         client_obj->async->onBufferFull = cb;
-    } else if (strncasecmp("bufferEmpty", cb_name, cb_name_len) == 0) {
+        // The core callback is normally bound by connect(), bind it here if the client is already connected.
+        if (client_obj->cli && client_obj->cli->socket && client_obj->cli->get_socket()->is_stream()) {
+            auto cli = client_obj->cli;
+            cli->onBufferFull = client_onBufferFull;
+            if (cli->buffer_high_watermark == 0) {
+                cli->buffer_high_watermark = cli->socket->buffer_size * 0.8;
+            }
+        }
+    } else if (is_event("bufferEmpty")) {
         zend_update_property(swoole_client_async_ce, Z_OBJ_P(ZEND_THIS), ZEND_STRL("onBufferEmpty"), zcallback);
         if (client_obj->async->onBufferEmpty) {
             sw_callable_free(client_obj->async->onBufferEmpty);
         }
         client_obj->async->onBufferEmpty = cb;
+        if (client_obj->cli && client_obj->cli->socket && client_obj->cli->get_socket()->is_stream()) {
+            client_obj->cli->onBufferEmpty = client_onBufferEmpty;
+        }
     } else {
         php_swoole_fatal_error(E_WARNING, "Unknown event callback type name '%s'", cb_name);
         sw_callable_free(cb);

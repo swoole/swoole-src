@@ -453,7 +453,9 @@ int Client::close() {
         if (active) {
             active = false;
             // In the `onClose` callback, the destructor may be executed and the C++ object will be released
-            onClose(this);
+            if (onClose) {
+                onClose(this);
+            }
         }
     } else {
         active = false;
