@@ -954,8 +954,11 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
         }
 #endif
 
+        build_header(http_buffer, data, length);
+
 #ifndef _WIN32
-        // The client may send frames as soon as the 101 is on the wire, so accept them from this point.
+        // Header conversions can run PHP code, so keep HANDSHAKE until encoding has finished.
+        // Publish ACTIVE immediately before sending: the peer may reply as soon as the 101 is on the wire.
         if (upgrade && response.status == SW_HTTP_SWITCHING_PROTOCOLS && !is_co_socket()) {
             auto *ws_conn = get_async_server()->get_connection_verify(fd);
             if (ws_conn && ws_conn->is_websocket_status(websocket::STATUS_HANDSHAKE)) {
@@ -963,8 +966,6 @@ void HttpContext::end(zend_string *sdata, zval *return_value) {
             }
         }
 #endif
-
-        build_header(http_buffer, data, length);
 
         if (length > 0) {
 #ifdef SW_HAVE_COMPRESSION
