@@ -605,8 +605,9 @@ static void test_process(bool single_thread = false) {
 
         // command tests
         swoole_clear_last_error();
+        // A reply for an unknown or canceled request is discarded silently.
         serv->call_command_callback(9999, TEST_STR);
-        ASSERT_ERREQ(SW_ERROR_SERVER_INVALID_COMMAND);
+        ASSERT_ERREQ(0);
 
         swoole_clear_last_error();
         serv->call_command_handler_in_master(9999, TEST_STR);

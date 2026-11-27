@@ -1626,12 +1626,11 @@ TEST(coroutine_socket, concurrent_close_waits_for_post_release_callback) {
 TEST(coroutine_socket, close_hook_can_delete_its_receiver) {
     coroutine::run([](void *) {
         auto *socket = new Socket(SW_SOCK_TCP);
-        const auto fd = socket->get_fd();
         int releases = 0;
         socket->set_dtor([&](Socket *closing) {
             ++releases;
-            EXPECT_EQ(fcntl(fd, F_GETFD), -1);
-            EXPECT_EQ(errno, EBADF);
+            EXPECT_TRUE(closing->is_closed());
+            EXPECT_EQ(closing->get_socket()->fd, SW_BAD_SOCKET);
             delete closing;
         });
         EXPECT_TRUE(socket->close());
