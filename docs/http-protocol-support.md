@@ -17,6 +17,14 @@ closure. See [WebSocket usage and boundaries](websocket.md#closing-after-applica
 recommended sequence and the distinction between business completion, accepted
 sends and connection closure.
 
+## HTTP client response decompression
+
+The coroutine HTTP client supports automatic decompression of a single content
+coding. Multiple codings, including `Content-Encoding: gzip, gzip`, are not
+supported with automatic decompression enabled. See
+[Coroutine HTTP client response bodies](http-client-response-body.md) for error
+behavior and receiving the original encoded data with `body_decompression=false`.
+
 ## Multipart form-data uploads
 
 The coroutine HTTP client can combine `setData(array)` fields with `addFile()`

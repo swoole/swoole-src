@@ -314,6 +314,7 @@ class Client {
 
   public:
 #ifdef SW_HAVE_COMPRESSION
+    bool prepare_content_decoding();
     bool decompress_response(const char *in, size_t in_len);
 #endif
     bool apply_setting(zval *zset, bool check_all = true);
@@ -574,31 +575,7 @@ static int http_parser_on_header_value(llhttp_t *parser, const char *at, size_t 
         SEPARATE_ARRAY(zcookies);
         SEPARATE_ARRAY(zset_cookie_headers);
         php_swoole_http_parse_set_cookies(at, length, zcookies, zset_cookie_headers);
-    }
-#ifdef SW_HAVE_COMPRESSION
-    else if (SW_STREQ(header_name, header_len, "content-encoding")) {
-        if (false) {
-        }
-#ifdef SW_HAVE_BROTLI
-        else if (SW_STR_ISTARTS_WITH(at, length, "br")) {
-            http->compress_method = HTTP_COMPRESS_BR;
-        }
-#endif
-#ifdef SW_HAVE_ZLIB
-        else if (SW_STR_ISTARTS_WITH(at, length, "gzip")) {
-            http->compress_method = HTTP_COMPRESS_GZIP;
-        } else if (SW_STR_ISTARTS_WITH(at, length, "deflate")) {
-            http->compress_method = HTTP_COMPRESS_DEFLATE;
-        }
-#endif
-#ifdef SW_HAVE_ZSTD
-        else if (SW_STR_ISTARTS_WITH(at, length, "zstd")) {
-            http->compress_method = HTTP_COMPRESS_ZSTD;
-        }
-#endif
-    }
-#endif
-    else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
+    } else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STR_ISTARTS_WITH(at, length, "chunked")) {
         http->chunked = true;
     }
 
@@ -655,6 +632,14 @@ static int http_parser_on_headers_complete(llhttp_t *parser) {
     if (http->method == SW_HTTP_HEAD || parser->status_code == SW_HTTP_NO_CONTENT) {
         return 1;
     }
+#ifdef SW_HAVE_COMPRESSION
+    // Validate all field lines before any body callback or download write. A 304 (like HEAD)
+    // can describe an encoded representation without carrying any content to decode.
+    if (parser->status_code != SW_HTTP_NOT_MODIFIED && parser->status_code != SW_HTTP_SWITCHING_PROTOCOLS &&
+        !http->prepare_content_decoding()) {
+        return -1;
+    }
+#endif
     return http->handoff_event_stream() ? HPE_PAUSED : 0;
 }
 
@@ -788,6 +773,81 @@ Client::Client(const zval *zobject, SocketType socket_type, std::string &&host, 
 }
 
 #ifdef SW_HAVE_COMPRESSION
+bool Client::prepare_content_decoding() {
+    if (!body_decompression) {
+        return true;
+    }
+    auto *headers =
+        sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
+    if (!ZVAL_IS_ARRAY(headers)) {
+        return true;
+    }
+    auto *encoding = zend_hash_str_find(Z_ARRVAL_P(headers), ZEND_STRL("content-encoding"));
+    if (!encoding) {
+        return true;
+    }
+
+    const char *coding = nullptr;
+    size_t coding_len = 0;
+    auto parse_field = [&](zval *field) {
+        const char *at = Z_STRVAL_P(field);
+        const char *end = at + Z_STRLEN_P(field);
+        while (at < end) {
+            const auto *comma = static_cast<const char *>(memchr(at, ',', end - at));
+            const char *token_end = comma ? comma : end;
+            while (at < token_end && (*at == ' ' || *at == '\t')) {
+                at++;
+            }
+            size_t length = swoole::http_server::rtrim_ows(at, token_end - at);
+            // Empty list elements do not represent an additional coding (RFC 9110, section 5.6.1).
+            if (length > 0) {
+                if (coding) {
+                    return false;
+                }
+                coding = at;
+                coding_len = length;
+            }
+            at = comma ? comma + 1 : end;
+        }
+        return true;
+    };
+    if (ZVAL_IS_ARRAY(encoding)) {
+        zval *field;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(encoding), field) {
+            if (!parse_field(field)) {
+                return false;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    } else if (!parse_field(encoding)) {
+        return false;
+    }
+    if (!coding) {
+        return true;
+    }
+
+    // Only a single coding is supported. Never select one layer from a list or match a name's prefix.
+    // Unknown single codings retain the existing raw-body behavior.
+#ifdef SW_HAVE_ZLIB
+    if (SW_STRCASEEQ(coding, coding_len, "gzip")) {
+        compress_method = HTTP_COMPRESS_GZIP;
+    } else if (SW_STRCASEEQ(coding, coding_len, "deflate")) {
+        compress_method = HTTP_COMPRESS_DEFLATE;
+    }
+#endif
+#ifdef SW_HAVE_BROTLI
+    if (SW_STRCASEEQ(coding, coding_len, "br")) {
+        compress_method = HTTP_COMPRESS_BR;
+    }
+#endif
+#ifdef SW_HAVE_ZSTD
+    if (SW_STRCASEEQ(coding, coding_len, "zstd")) {
+        compress_method = HTTP_COMPRESS_ZSTD;
+    }
+#endif
+    return true;
+}
+
 bool Client::decompress_response(const char *in, size_t in_len) {
     if (in_len == 0) {
         return false;
