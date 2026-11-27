@@ -181,6 +181,9 @@ static PHP_METHOD(swoole_thread_arraylist, offsetSet) {
         RETURN_THROWS();
     }
     if (!ao->list->index_offsetSet(index, zvalue)) {
+        if (UNEXPECTED(EG(exception))) {
+            RETURN_THROWS();
+        }
         zend_throw_exception(swoole_exception_ce, "out of range", -1);
     }
 }

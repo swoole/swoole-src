@@ -127,6 +127,15 @@ struct ArrayItem {
         value.serialized_object = serialized;
     }
 
+    // Zend exceptions do not unwind C++ constructors. Publish an item only after conversion succeeds.
+    static std::unique_ptr<ArrayItem> create(zval *zvalue) {
+        auto item = std::make_unique<ArrayItem>(zvalue);
+        if (UNEXPECTED(EG(exception))) {
+            return nullptr;
+        }
+        return item;
+    }
+
     void setKey(zend::String &_key) {
         key = zend_string_init(_key.val(), _key.len(), true);
     }
@@ -180,21 +189,33 @@ class ZendArray : public ThreadResource {
     void append(zval *zvalue);
     void append_serialized(zval *zvalue);
 
-    void add(const zend_string *skey, zval *zvalue) {
-        auto item = new ArrayItem(zvalue);
+    bool add(const zend_string *skey, zval *zvalue) {
+        auto item = ArrayItem::create(zvalue);
+        if (UNEXPECTED(!item)) {
+            return false;
+        }
         item->setKey(skey);
-        zend_hash_add_ptr(&ht, item->key, item);
+        if (zend_hash_add_ptr(&ht, item->key, item.get())) {
+            item.release();
+            return true;
+        }
+        return false;
     }
 
-    void add(zend::String &skey, zval *zvalue) {
-        auto item = new ArrayItem(zvalue);
-        item->setKey(skey);
-        zend_hash_add_ptr(&ht, item->key, item);
+    bool add(zend::String &skey, zval *zvalue) {
+        return add(skey.get(), zvalue);
     }
 
-    void add(zend_long index, zval *zvalue) {
-        auto item = new ArrayItem(zvalue);
-        zend_hash_index_add_ptr(&ht, index, item);
+    bool add(zend_long index, zval *zvalue) {
+        auto item = ArrayItem::create(zvalue);
+        if (UNEXPECTED(!item)) {
+            return false;
+        }
+        if (zend_hash_index_add_ptr(&ht, index, item.get())) {
+            item.release();
+            return true;
+        }
+        return false;
     }
 
     bool index_exists(zend_long index) const {
@@ -235,11 +256,14 @@ class ZendArray : public ThreadResource {
 
     void strkey_offsetSet(zval *zkey, zval *zvalue) {
         zend::String skey(zkey);
-        auto item = new ArrayItem(zvalue);
+        auto item = ArrayItem::create(zvalue);
+        if (UNEXPECTED(!item)) {
+            return;
+        }
         item->setKey(skey);
-        lock_.lock();
-        zend_hash_update_ptr(&ht, item->key, item);
-        lock_.unlock();
+        swoole::LockGuard guard(lock_);
+        zend_hash_update_ptr(&ht, item->key, item.get());
+        item.release();
     }
 
     void strkey_incr(zval *zkey, zval *zvalue, zval *return_value);
@@ -288,10 +312,13 @@ class ZendArray : public ThreadResource {
     }
 
     void intkey_offsetSet(zend_long index, zval *zvalue) {
-        auto item = new ArrayItem(zvalue);
-        lock_.lock();
-        zend_hash_index_update_ptr(&ht, index, item);
-        lock_.unlock();
+        auto item = ArrayItem::create(zvalue);
+        if (UNEXPECTED(!item)) {
+            return;
+        }
+        swoole::LockGuard guard(lock_);
+        zend_hash_index_update_ptr(&ht, index, item.get());
+        item.release();
     }
 
     bool index_offsetGet(zend_long index, zval *return_value);

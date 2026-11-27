@@ -44,10 +44,13 @@ struct Queue : ThreadResource {
     }
 
     void push(zval *zvalue) {
-        auto item = new ArrayItem(zvalue);
-        lock_.lock();
-        queue.push(item);
-        lock_.unlock();
+        auto item = ArrayItem::create(zvalue);
+        if (UNEXPECTED(!item)) {
+            return;
+        }
+        std::lock_guard<std::mutex> guard(lock_);
+        queue.push(item.get());
+        item.release();
     }
 
     void pop(zval *return_value) {
@@ -66,6 +69,9 @@ struct Queue : ThreadResource {
 
     void push_notify(zval *zvalue, bool notify_all) {
         push(zvalue);
+        if (UNEXPECTED(EG(exception))) {
+            return;
+        }
         if (notify_all) {
             cv_.notify_all();
         } else {

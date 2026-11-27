@@ -45,6 +45,7 @@
 
 ### Bug fixes
 
+- Reject recursive arrays in thread containers and arguments with `ValueError`, releasing partial conversions and preserving existing container values.
 - Keep close-barrier state alive when a Client release hook deletes its Socket, avoiding accesses to freed memory and allocator corruption.
 - Retire pending server commands on explicit coroutine cancellation and normal owner shutdown, and ignore late replies safely.
 - Settle coroutine task waits with `false` and release independent task callbacks when a received result cannot be unpacked.

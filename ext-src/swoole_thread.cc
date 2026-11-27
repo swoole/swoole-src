@@ -973,8 +973,8 @@ void ArrayItem::store(zval *zvalue) {
         break;
     }
     case IS_ARRAY: {
-        type = zend_array_is_list(Z_ARRVAL_P(zvalue)) ? IS_ARRAYLIST : IS_MAP;
         value.resource = ZendArray::from(Z_ARRVAL_P(zvalue));
+        type = value.resource ? (zend_array_is_list(Z_ARRVAL_P(zvalue)) ? IS_ARRAYLIST : IS_MAP) : IS_UNDEF;
         break;
     }
     case IS_OBJECT: {
@@ -1323,51 +1323,55 @@ void ZendArray::intkey_decr(zend_long index, zval *zvalue, zval *return_value) {
 
 void ZendArray::strkey_add(zval *zkey, zval *zvalue, zval *return_value) {
     zend::String skey(zkey);
-    lock_.lock();
+    swoole::LockGuard guard(lock_);
     if (strkey_exists(skey)) {
         RETVAL_FALSE;
     } else {
-        add(skey, zvalue);
-        RETVAL_TRUE;
+        RETVAL_BOOL(add(skey, zvalue));
     }
-    lock_.unlock();
 }
 
 void ZendArray::intkey_add(zend_long index, zval *zvalue, zval *return_value) {
-    lock_.lock();
+    swoole::LockGuard guard(lock_);
     if (intkey_exists(index)) {
         RETVAL_FALSE;
     } else {
-        add(index, zvalue);
-        RETVAL_TRUE;
+        RETVAL_BOOL(add(index, zvalue));
     }
-    lock_.unlock();
 }
 
 void ZendArray::strkey_update(zval *zkey, zval *zvalue, zval *return_value) {
     zend::String skey(zkey);
-    lock_.lock();
+    swoole::LockGuard guard(lock_);
     if (!strkey_exists(skey)) {
         RETVAL_FALSE;
     } else {
-        auto item = new ArrayItem(zvalue);
+        auto item = ArrayItem::create(zvalue);
+        if (UNEXPECTED(!item)) {
+            RETVAL_FALSE;
+            return;
+        }
         item->setKey(skey);
-        zend_hash_update_ptr(&ht, item->key, item);
+        zend_hash_update_ptr(&ht, item->key, item.get());
+        item.release();
         RETVAL_TRUE;
     }
-    lock_.unlock();
 }
 
 void ZendArray::intkey_update(zend_long index, zval *zvalue, zval *return_value) {
-    lock_.lock();
+    swoole::LockGuard guard(lock_);
     if (!intkey_exists(index)) {
         RETVAL_FALSE;
     } else {
-        auto item = new ArrayItem(zvalue);
-        zend_hash_index_update_ptr(&ht, index, item);
+        auto item = ArrayItem::create(zvalue);
+        if (UNEXPECTED(!item)) {
+            RETVAL_FALSE;
+            return;
+        }
+        zend_hash_index_update_ptr(&ht, index, item.get());
+        item.release();
         RETVAL_TRUE;
     }
-    lock_.unlock();
 }
 
 bool ZendArray::index_offsetGet(zend_long index, zval *return_value) {
@@ -1385,23 +1389,29 @@ bool ZendArray::index_offsetGet(zend_long index, zval *return_value) {
 }
 
 bool ZendArray::index_offsetSet(zend_long index, zval *zvalue) {
-    auto item = new ArrayItem(zvalue);
-    bool success = true;
-    lock_.lock();
-    if (index < -1 || index > zend_hash_num_elements(&ht)) {
-        success = false;
-        delete item;
-    } else if (index == -1 || index == zend_hash_num_elements(&ht)) {
-        zend_hash_next_index_insert_ptr(&ht, item);
-    } else {
-        zend_hash_index_update_ptr(&ht, index, item);
+    auto item = ArrayItem::create(zvalue);
+    if (UNEXPECTED(!item)) {
+        return false;
     }
-    lock_.unlock();
-    return success;
+    swoole::LockGuard guard(lock_);
+    if (index < -1 || index > zend_hash_num_elements(&ht)) {
+        return false;
+    } else if (index == -1 || index == zend_hash_num_elements(&ht)) {
+        zend_hash_next_index_insert_ptr(&ht, item.get());
+    } else {
+        zend_hash_index_update_ptr(&ht, index, item.get());
+    }
+    item.release();
+    return true;
 }
 
 void ZendArray::append(zval *zvalue) {
-    zend_hash_next_index_insert_ptr(&ht, new ArrayItem(zvalue));
+    auto item = ArrayItem::create(zvalue);
+    if (UNEXPECTED(!item)) {
+        return;
+    }
+    zend_hash_next_index_insert_ptr(&ht, item.get());
+    item.release();
 }
 
 void ZendArray::append_serialized(zval *zvalue) {
@@ -1561,10 +1571,21 @@ void ZendArray::sort(bool renumber) {
 }
 
 ZendArray *ZendArray::from(zend_array *src) {
+    // Source arrays belong to this PHP request. Track only the active conversion path:
+    // repeated references to an acyclic array must still be accepted after its first conversion ends.
+    if (UNEXPECTED(GC_IS_RECURSIVE(src))) {
+        zend_value_error("Recursive arrays are not supported");
+        return nullptr;
+    }
+    GC_TRY_PROTECT_RECURSION(src);
+    ON_SCOPE_EXIT {
+        GC_TRY_UNPROTECT_RECURSION(src);
+    };
+
     zend_string *key;
     zend_ulong index;
     zval *tmp;
-    auto *result = new ZendArray();
+    auto result = std::make_unique<ZendArray>();
     ZEND_HASH_FOREACH_KEY_VAL(src, index, key, tmp) {
         ZVAL_DEREF(tmp);
         if (key) {
@@ -1572,9 +1593,13 @@ ZendArray *ZendArray::from(zend_array *src) {
         } else {
             result->add(index, tmp);
         }
+        // Neither a PHP exception nor a failed nested conversion may publish a partial native array.
+        if (UNEXPECTED(EG(exception))) {
+            return nullptr;
+        }
     }
     ZEND_HASH_FOREACH_END();
-    return result;
+    return result.release();
 }
 
 #endif
