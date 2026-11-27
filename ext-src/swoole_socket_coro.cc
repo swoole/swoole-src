@@ -1885,8 +1885,9 @@ static void socket_coro_sockaddr_to_name(const struct sockaddr *sa, socklen_t sa
         auto *sin6 = (const struct sockaddr_in6 *) sa;
         inet_ntop(AF_INET6, &sin6->sin6_addr, ip, sizeof(ip));
         port = ntohs(sin6->sin6_port);
+    }
 #ifndef _WIN32
-    } else if (sa->sa_family == AF_UNIX && sa_len >= (socklen_t) offsetof(struct sockaddr_un, sun_path)) {
+    else if (sa->sa_family == AF_UNIX && sa_len >= (socklen_t) offsetof(struct sockaddr_un, sun_path)) {
         auto *sun = (const struct sockaddr_un *) sa;
         add_assoc_string(name, "address", sun->sun_path);
         add_assoc_long(name, "port", 0);

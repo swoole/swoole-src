@@ -6,10 +6,10 @@ swoole_socket_coro: recvmsg (PHP sockets-compatible message array)
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-use Swoole\Coroutine;
 use Swoole\Coroutine\Socket;
+use Swoole\Event;
 
-Coroutine::run(function () {
+go(function () {
     $server = new Socket(AF_INET, SOCK_DGRAM, 0);
     Assert::true($server->bind('127.0.0.1', 0));
     $sinfo = $server->getsockname();
@@ -34,6 +34,7 @@ Coroutine::run(function () {
 
     echo "OK\n";
 });
+Event::wait();
 ?>
 --EXPECT--
 OK
