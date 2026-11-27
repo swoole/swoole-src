@@ -82,6 +82,9 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
 int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
     RecvData rdata{};
 
+    if (socket->is_recv_stopped()) {
+        return SW_OK;
+    }
     if (buffer->length < package_eof_len) {
         if (sw_unlikely(buffer->length >= package_max_length)) {
             log_oversized_eof_packet(socket, buffer->length);
@@ -102,11 +105,11 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
         rdata.data = data;
         // The buffer may be released by onPackage() if it closes the connection synchronously.
         delivered_end = data + length - buffer->str;
-        if (onPackage(this, socket, &rdata) < 0) {
+        if (onPackage(this, socket, &rdata) < 0 || socket->close_wait) {
             delivery_failed = true;
             return false;
         }
-        if (socket->removed) {
+        if (socket->is_recv_stopped()) {
             return false;
         }
         return true;
@@ -115,11 +118,8 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) const {
     if (delivery_failed) {
         return SW_CLOSE;
     }
-    if (socket->removed) {
+    if (socket->is_recv_stopped()) {
         // onPackage() paused receiving: drop the delivered packets so that a resumed read does not deliver them again.
-        if (socket->recv_buffer != buffer) {
-            return SW_CLOSE;
-        }
         if (delivered_end < buffer->length) {
             buffer->reduce(delivered_end);
             buffer->offset = 0;
@@ -164,6 +164,9 @@ int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer)
     uint32_t recv_size = 0;
     ssize_t recv_n = 0;
 
+    if (socket->is_recv_stopped()) {
+        return SW_OK;
+    }
     // protocol error
     if (get_package_length_size && _package_length_size == 0) {
         return SW_ERR;
@@ -171,6 +174,9 @@ int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer)
 
     if (socket->skip_recv) {
         socket->skip_recv = 0;
+        if (socket->recv_wait && buffer->length >= static_cast<size_t>(buffer->offset)) {
+            goto _do_dispatch;
+        }
         goto _do_get_length;
     }
 
@@ -181,7 +187,7 @@ int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer)
     }
 
 _do_recv:
-    if (socket->removed) {
+    if (socket->is_recv_stopped()) {
         return SW_OK;
     }
     if (buffer->offset > 0) {
@@ -221,22 +227,23 @@ _do_recv:
         if (socket->recv_wait) {
             if (buffer->length >= (size_t) buffer->offset) {
             _do_dispatch:
+                if (socket->is_recv_stopped()) {
+                    socket->skip_recv = 1;
+                    return SW_OK;
+                }
                 rdata.info.len = buffer->offset;
                 rdata.data = buffer->str;
-                if (onPackage(this, socket, &rdata) < 0) {
+                if (onPackage(this, socket, &rdata) < 0 || socket->close_wait) {
                     return SW_ERR;
                 }
-                if (socket->removed) {
-                    // onPackage() paused or closed the connection. The packet was delivered, so a resumed read must
-                    // not see it as pending. The buffer is gone if the connection was closed synchronously.
-                    if (socket->recv_buffer == buffer) {
-                        socket->recv_wait = 0;
-                        if (buffer->length > (size_t) buffer->offset) {
-                            buffer->reduce(buffer->offset);
-                            socket->skip_recv = 1;
-                        } else {
-                            buffer->clear();
-                        }
+                if (socket->is_recv_stopped()) {
+                    // The owner is paused, not closed. Its receive buffer may be stored outside the Socket.
+                    socket->recv_wait = 0;
+                    if (buffer->length > (size_t) buffer->offset) {
+                        buffer->reduce(buffer->offset);
+                        socket->skip_recv = 1;
+                    } else {
+                        buffer->clear();
                     }
                     return SW_OK;
                 }
@@ -259,7 +266,7 @@ _do_recv:
             {
                 auto status = resolve_package_length(socket, buffer->str, buffer->length, &package_length);
                 // package_length_func closed the connection synchronously: the buffer is already released
-                if (socket->removed && socket->recv_buffer != buffer) {
+                if (socket->close_wait) {
                     return SW_OK;
                 }
                 switch (status) {
@@ -347,13 +354,20 @@ int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) co
     size_t buf_size;
     RecvData rdata{};
 
+    if (socket->is_recv_stopped()) {
+        return SW_OK;
+    }
     // Packets left in the buffer by a paused connection are parsed without waiting for new data.
     if (socket->skip_recv) {
         socket->skip_recv = 0;
         if (split_by_eof) {
-            return recv_split_by_eof(socket, buffer) == SW_CLOSE ? SW_ERR : SW_OK;
+            const int result = recv_split_by_eof(socket, buffer);
+            if (result != SW_CONTINUE) {
+                return result == SW_CLOSE ? SW_ERR : SW_OK;
+            }
+        } else {
+            return SW_OK;
         }
-        return SW_OK;
     }
 
 _recv_data:
@@ -398,17 +412,14 @@ _recv_data:
             buffer->offset = buffer->length;
             rdata.info.len = buffer->length;
             rdata.data = buffer->str;
-            if (onPackage(this, socket, &rdata) < 0) {
+            if (onPackage(this, socket, &rdata) < 0 || socket->close_wait) {
                 return SW_ERR;
             }
-            if (socket->removed) {
-                // Paused or closed by onPackage(); the packet was delivered, do not deliver it again on resume.
-                if (socket->recv_buffer == buffer) {
-                    buffer->clear();
-                }
+            buffer->clear();
+            if (socket->is_recv_stopped()) {
+                // The packet was delivered; do not deliver it again on resume.
                 return SW_OK;
             }
-            buffer->clear();
             if (socket->ssl && SSL_pending(socket->ssl) > 0) {
                 goto _recv_data;
             }

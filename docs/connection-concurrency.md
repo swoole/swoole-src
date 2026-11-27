@@ -346,6 +346,15 @@ An explicitly paused socket with no pending output is removed from polling.
 EOF and HUP can be observed once receiving resumes. Pending output keeps its
 WRITE interest.
 
+The owner publishes its receive policy in `Socket::recv_paused` when updating
+interest. EOF and length framing stop dispatching buffered packets while that
+policy is disabled, even if WRITE keeps the socket registered. A pause retains
+only the undelivered tail; `skip_recv` makes resume parse it on a deferred read
+without waiting for more peer traffic. The native asynchronous Client follows
+the same rule although it owns its receive buffer separately from the Socket.
+Before either owner releases a receive buffer during close, it sets
+`Socket::close_wait`; framing checks this before accessing the buffer again.
+
 Pause removes every read-side event, including EOF and HUP, on purpose. Keeping
 only EOF/HUP interest would depend on epoll's `EPOLLRDHUP`/`EPOLLHUP`; kqueue, poll
 and iocp have different semantics, so the reactor API exposes no such partial

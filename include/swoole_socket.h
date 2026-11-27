@@ -252,6 +252,8 @@ struct Socket {
     uchar tcp_nodelay : 1;
     uchar skip_recv : 1;
     uchar recv_wait : 1;
+    // Owner receive policy, independent of whether WRITE keeps this socket registered.
+    uchar recv_paused : 1;
     uchar event_hup : 1;
     // A positive-length stream receive observed EOF; independent of event registration and close requests.
     uchar recv_eof : 1;
@@ -502,6 +504,10 @@ struct Socket {
 
     bool isset_readable_event() const {
         return events & SW_EVENT_READ;
+    }
+
+    bool is_recv_stopped() const {
+        return recv_paused || removed;
     }
 
     bool isset_writable_event() const {

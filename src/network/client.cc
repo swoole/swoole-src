@@ -148,6 +148,7 @@ int Client::sleep() {
     }
     if (ret == SW_OK) {
         sleep_ = true;
+        socket->recv_paused = 1;
     }
     return ret;
 }
@@ -161,6 +162,24 @@ int Client::wakeup() {
     }
     if (ret == SW_OK) {
         sleep_ = false;
+        socket->recv_paused = 0;
+        if (socket->skip_recv) {
+            // Socket destruction is deferred on this reactor, after this queued read.
+            auto *conn = socket;
+            swoole_event_defer(
+                [conn](void *) {
+                    auto *cli = static_cast<Client *>(conn->object);
+                    if (!cli || cli->closed || conn->is_recv_stopped() || !conn->skip_recv) {
+                        return;
+                    }
+                    Event event{};
+                    event.fd = conn->fd;
+                    event.type = conn->fd_type;
+                    event.socket = conn;
+                    Client_onStreamRead(sw_reactor(), &event);
+                },
+                nullptr);
+        }
     }
     return ret;
 }
@@ -401,6 +420,7 @@ int Client::close() {
         return SW_ERR;
     }
     closed = true;
+    socket->close_wait = 1;
     auto _socket = socket;
 
     if (dns_request_) {
@@ -937,6 +957,10 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
             n = protocol->recv_with_length_protocol(conn, cli->buffer);
         }
 
+        // onReceive may destroy the Client and its separate receive buffer.
+        if (conn->object == nullptr) {
+            return SW_OK;
+        }
         if (n < 0) {
             if (!cli->closed) {
                 cli->close();

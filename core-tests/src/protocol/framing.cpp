@@ -147,6 +147,10 @@ class ProtocolFramingTest : public testing::Test {
         protocol.onPackage = [](const Protocol *protocol, network::Socket *socket, const RecvData *data) {
             auto *test = static_cast<ProtocolFramingTest *>(protocol->private_data_1);
             test->packets.emplace_back(data->data, data->info.len);
+            if (test->pause_on_package) {
+                socket->recv_paused = 1;
+                socket->events = SW_EVENT_WRITE;
+            }
             socket->removed = test->remove_on_package;
             return test->callback_result;
         };
@@ -192,6 +196,7 @@ class ProtocolFramingTest : public testing::Test {
     String buffer{16};
     std::vector<std::string> packets;
     bool remove_on_package = false;
+    bool pause_on_package = false;
     int callback_result = SW_OK;
 };
 }  // namespace
@@ -315,8 +320,193 @@ TEST_F(ProtocolFramingTest, split_stops_on_callback_failure_or_removal) {
     packets.clear();
     callback_result = SW_OK;
     remove_on_package = true;
-    EXPECT_EQ(protocol.recv_split_by_eof(&socket, &buffer), SW_CLOSE);
+    EXPECT_EQ(protocol.recv_split_by_eof(&socket, &buffer), SW_OK);
     EXPECT_EQ(packets, std::vector<std::string>{"a\r\n"});
+    EXPECT_EQ(buffer.to_std_string(), "b\r\n");
+}
+
+TEST_F(ProtocolFramingTest, length_pause_with_write_retains_undelivered_packets) {
+    pause_on_package = true;
+    const auto first = length_packet("first");
+    const auto second = length_packet("second");
+    buffer.append(first + second);
+    socket.skip_recv = true;
+    ASSERT_EQ(receive_length(), SW_OK);
+    EXPECT_EQ(packets, std::vector<std::string>{first});
+    EXPECT_FALSE(socket.removed);
+    EXPECT_EQ(socket.events, SW_EVENT_WRITE);
+    EXPECT_EQ(buffer.to_std_string(), second);
+    EXPECT_TRUE(socket.skip_recv);
+    EXPECT_EQ(receive_length(), SW_OK);
+    EXPECT_EQ(packets.size(), 1u);
+
+    pause_on_package = false;
+    socket.recv_paused = 0;
+    ASSERT_EQ(receive_length(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{first, second}));
+    EXPECT_EQ(buffer.length, 0u);
+    EXPECT_EQ(receive_length(), SW_OK);
+    EXPECT_EQ(packets.size(), 2u);
+}
+
+TEST_F(ProtocolFramingTest, eof_pause_with_write_retains_undelivered_packets) {
+    protocol.split_by_eof = true;
+    pause_on_package = true;
+    buffer.append("a\r\nb\r\n");
+    socket.skip_recv = true;
+    ASSERT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(packets, std::vector<std::string>{"a\r\n"});
+    EXPECT_FALSE(socket.removed);
+    EXPECT_EQ(socket.events, SW_EVENT_WRITE);
+    EXPECT_EQ(buffer.to_std_string(), "b\r\n");
+    EXPECT_TRUE(socket.skip_recv);
+    EXPECT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(packets.size(), 1u);
+
+    pause_on_package = false;
+    socket.recv_paused = 0;
+    ASSERT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{"a\r\n", "b\r\n"}));
+    EXPECT_EQ(buffer.length, 0u);
+    EXPECT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(packets.size(), 2u);
+}
+
+TEST_F(ProtocolFramingTest, length_resume_uses_packet_length_cached_before_pause) {
+    int length_calls = 0;
+    protocol.private_data_2 = &length_calls;
+    protocol.get_package_length = [](const Protocol *protocol, network::Socket *socket, PacketLength *length) {
+        ++*static_cast<int *>(protocol->private_data_2);
+        socket->recv_paused = 1;
+        return Protocol::default_length_func(protocol, socket, length);
+    };
+    const auto packet = length_packet("first");
+    buffer.append(packet);
+    socket.skip_recv = true;
+    ASSERT_EQ(receive_length(), SW_OK);
+    EXPECT_TRUE(packets.empty());
+    EXPECT_TRUE(socket.skip_recv);
+    EXPECT_EQ(length_calls, 1);
+
+    socket.recv_paused = 0;
+    ASSERT_EQ(receive_length(), SW_OK);
+    EXPECT_EQ(packets, std::vector<std::string>{packet});
+    EXPECT_EQ(length_calls, 1);
+}
+
+TEST_F(ProtocolFramingTest, eof_without_split_clears_delivered_packet_when_paused) {
+    pause_on_package = true;
+    send("a\r\n");
+    ASSERT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(buffer.length, 0u);
+    pause_on_package = false;
+    socket.recv_paused = 0;
+    send("b\r\n");
+    ASSERT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{"a\r\n", "b\r\n"}));
+}
+
+TEST_F(ProtocolFramingTest, eof_resume_reads_after_buffered_partial_packet) {
+    protocol.split_by_eof = true;
+    buffer.append("part\r");
+    socket.skip_recv = true;
+    send("\n");
+    ASSERT_EQ(receive_eof(), SW_OK);
+    EXPECT_EQ(packets, std::vector<std::string>{"part\r\n"});
+    EXPECT_EQ(buffer.length, 0u);
+}
+
+TEST_F(ProtocolFramingTest, closed_callback_may_destroy_its_separate_receive_buffer) {
+    for (int mode : {0, 1, 2}) {
+        SCOPED_TRACE(mode);
+        auto owned_buffer = std::make_unique<String>(64);
+        protocol.private_data_2 = &owned_buffer;
+        protocol.split_by_eof = mode == 1;
+        socket.close_wait = 0;
+        socket.skip_recv = mode != 2;
+        protocol.onPackage = [](const Protocol *protocol, network::Socket *socket, const RecvData *) -> int {
+            socket->close_wait = 1;
+            static_cast<std::unique_ptr<String> *>(protocol->private_data_2)->reset();
+            return SW_OK;
+        };
+        if (mode == 0) {
+            owned_buffer->append(length_packet("first") + length_packet("second"));
+        } else if (mode == 1) {
+            owned_buffer->append("a\r\nb\r\n");
+        } else {
+            send("a\r\n");
+        }
+        const int result = mode == 0 ? protocol.recv_with_length_protocol(&socket, owned_buffer.get())
+                                     : protocol.recv_with_eof_protocol(&socket, owned_buffer.get());
+        EXPECT_EQ(result, SW_ERR);
+        EXPECT_EQ(owned_buffer, nullptr);
+    }
+}
+
+TEST_F(ProtocolFramingTest, client_resumes_buffered_packets_without_peer_data) {
+    for (bool length_protocol : {false, true}) {
+        for (bool keep_write : {false, true}) {
+            SCOPED_TRACE(length_protocol ? "length" : "eof");
+            SCOPED_TRACE(keep_write);
+            ASSERT_EQ(swoole_event_init(SW_EVENTLOOP_WAIT_EXIT), SW_OK);
+            network::Client cli(SW_SOCK_UNIX_STREAM, true);
+            ON_SCOPE_EXIT {
+                cli.close();
+                if (sw_reactor()) {
+                    swoole_event_free();
+                }
+            };
+            ASSERT_TRUE(cli.ready());
+            cli.socket->close_fd();
+            cli.socket->fd = dup(fds[1]);
+            ASSERT_GE(cli.socket->fd, 0);
+            cli.active = true;
+            cli.open_eof_check = !length_protocol;
+            cli.open_length_check = length_protocol;
+            cli.protocol.get_package_length = Protocol::default_length_func;
+            cli.protocol.package_body_offset = 4;
+            cli.protocol.split_by_eof = true;
+            ASSERT_TRUE(cli.protocol.set_package_eof("\r\n", 2));
+            cli.buffer = new String(64);
+            const auto first = length_protocol ? length_packet("first") : "a\r\n";
+            const auto second = length_protocol ? length_packet("second") : "b\r\n";
+            cli.buffer->append(first + second);
+            cli.socket->skip_recv = true;
+            std::vector<std::string> received;
+            TimerNode *watchdog = nullptr;
+            cli.onClose = [](network::Client *) {};
+            cli.onReceive = [&](network::Client *client, const char *data, size_t length) {
+                received.emplace_back(data, length);
+                if (received.size() == 1) {
+                    EXPECT_EQ(client->sleep(), SW_OK);
+                } else {
+                    if (watchdog) {
+                        swoole_timer_del(watchdog);
+                        watchdog = nullptr;
+                    }
+                    client->close();
+                }
+            };
+            ASSERT_EQ(swoole_event_add(cli.socket, SW_EVENT_READ | (keep_write ? SW_EVENT_WRITE : 0)), SW_OK);
+            Event event{};
+            event.fd = cli.socket->fd;
+            event.socket = cli.socket;
+            auto *reactor = sw_reactor();
+            reactor->get_handler(cli.fd_type, SW_EVENT_READ)(reactor, &event);
+            ASSERT_FALSE(cli.closed);
+            ASSERT_EQ(received, std::vector<std::string>{first});
+            ASSERT_EQ(cli.socket->events, keep_write ? SW_EVENT_WRITE : 0);
+            watchdog = swoole_timer_add(1000L, false, [&](Timer *, TimerNode *) {
+                watchdog = nullptr;
+                ADD_FAILURE() << "buffered packet was not delivered after wakeup";
+                cli.close();
+            });
+            ASSERT_NE(watchdog, nullptr);
+            ASSERT_EQ(cli.wakeup(), SW_OK);
+            ASSERT_EQ(swoole_event_wait(), SW_OK);
+            EXPECT_EQ(received, (std::vector<std::string>{first, second}));
+        }
+    }
 }
 
 TEST_F(ProtocolFramingTest, eof_waits_for_fragments_then_reuses_buffer) {

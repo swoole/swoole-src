@@ -300,6 +300,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     if (!socket->removed && reactor->del(socket) < 0) {
         return SW_ERR;
     }
+    socket->close_wait = 1;
     ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
     const int fd = socket->fd;
     do {
@@ -414,7 +415,8 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
 int Server::update_recv_interest(Reactor *reactor, Connection *conn, bool clear_write) const {
     Socket *socket = conn->socket;
     int events = clear_write ? 0 : socket->events & ~SW_EVENT_READ;
-    if (conn->can_receive()) {
+    socket->recv_paused = !conn->can_receive();
+    if (!socket->recv_paused) {
         events |= SW_EVENT_READ;
     }
     // Registration follows policy; removed never explains why receiving stopped.
