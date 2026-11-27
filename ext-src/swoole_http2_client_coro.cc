@@ -62,6 +62,11 @@ struct Stream {
     uint32_t stream_id;
     uint8_t gzip;
     uint8_t flags;
+#ifdef SW_HAVE_ZLIB
+    // Z_STREAM_END completes one gzip member, not necessarily the HTTP response.
+    bool gzip_finished;
+    bool request_is_head;
+#endif
 
     // State of the current received header block, shared by its HEADERS and CONTINUATION frames.
     bool header_block_end_stream;
@@ -284,6 +289,9 @@ class Client {
     ReturnCode parse_frame(zval *return_value, bool pipeline_read, size_t *pending_bytes = nullptr);
     ReturnCode reject_send_window(uint32_t error, const char *reason);
     ReturnCode reject_response_buffer();
+#ifdef SW_HAVE_ZLIB
+    ReturnCode reject_compressed_response();
+#endif
     size_t remaining_response_bytes(bool upload_read) const;
     bool reserve_response_bytes(Stream *stream, size_t bytes, bool upload_read);
     void transfer_response(Stream *stream, zval *return_value, size_t *pending_bytes);
@@ -836,6 +844,15 @@ ReturnCode Client::reject_response_buffer() {
     return SW_CLOSE;
 }
 
+#ifdef SW_HAVE_ZLIB
+ReturnCode Client::reject_compressed_response() {
+    // Do not retain a decoder or deliver buffered partial content after a corrupt representation.
+    close();
+    update_error_properties(SW_ERROR_HTTP_INVALID_PROTOCOL, "invalid or incomplete HTTP/2 gzip response");
+    return SW_CLOSE;
+}
+#endif
+
 ReturnCode Client::receive_frame(
     SocketImpl *socket, double timeout, zval *return_value, bool pipeline_read, uint32_t upload) {
     if (socket != socket_ || !socket->is_connected()) {
@@ -938,7 +955,7 @@ ReturnCode Client::receive_frame(
 }
 
 #ifdef SW_HAVE_ZLIB
-static ReturnCode http2_client_decompress(z_stream *stream, String *buffer, char *body, size_t length, size_t limit);
+static ReturnCode http2_client_decompress(Stream *response, String *buffer, char *body, size_t length, size_t limit);
 #endif
 
 ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *pending_bytes) {
@@ -1217,13 +1234,12 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
                     gzip_buffer.reset(make_string(SW_HTTP2_DATA_BUFFER_SIZE));
                 }
                 const auto ret = http2_client_decompress(
-                    &stream->gzip_stream, gzip_buffer.get(), data, data_length, remaining_response_bytes(upload_read));
+                    stream, gzip_buffer.get(), data, data_length, remaining_response_bytes(upload_read));
                 if (ret == SW_CLOSE) {
                     return reject_response_buffer();
                 }
                 if (ret == SW_ERROR) {
-                    swoole_warning("decompress failed");
-                    return SW_ERROR;
+                    return reject_compressed_response();
                 }
                 data = gzip_buffer->str;
                 data_length = gzip_buffer->length;
@@ -1264,6 +1280,15 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
         type == SW_HTTP2_TYPE_CONTINUATION ? stream->header_block_end_stream : (flags & SW_HTTP2_FLAG_END_STREAM);
     pipeline_read = ((pipeline_read || (stream->flags & SW_HTTP2_STREAM_USE_PIPELINE_READ)) &&
                      (stream->flags & SW_HTTP2_STREAM_PIPELINE_RESPONSE));
+#ifdef SW_HAVE_ZLIB
+    if (end && stream->gzip && !stream->gzip_finished && !stream->request_is_head) {
+        const auto status = zend::object_get_long(&stream->zresponse, ZEND_STRL("statusCode"));
+        // These responses can advertise an encoding without carrying the encoded representation.
+        if (status != SW_HTTP_NO_CONTENT && status != SW_HTTP_NOT_MODIFIED) {
+            return reject_compressed_response();
+        }
+    }
+#endif
     if (end || pipeline_read) {
         return_response(stream, return_value, end, pending_bytes);
         return SW_READY;
@@ -1313,13 +1338,12 @@ void Client::return_response(Stream *stream, zval *return_value, bool end, size_
 }
 
 #ifdef SW_HAVE_ZLIB
-static ReturnCode http2_client_decompress(z_stream *stream, String *buffer, char *body, size_t length, size_t limit) {
+static ReturnCode http2_client_decompress(Stream *response, String *buffer, char *body, size_t length, size_t limit) {
+    auto *stream = &response->gzip_stream;
     int status = 0;
 
     stream->avail_in = length;
     stream->next_in = (Bytef *) body;
-    stream->total_in = 0;
-    stream->total_out = 0;
 
     swoole_trace_log(SW_TRACE_ZLIB,
                      SW_START_LINE "\nstatus=%d\tavail_in=%u,\tavail_out=%u,\ttotal_in=%lu,\ttotal_out=%lu\n",
@@ -1334,6 +1358,17 @@ static ReturnCode http2_client_decompress(z_stream *stream, String *buffer, char
     // Allow one byte beyond the limit to detect when the decoded body needs more space.
     const size_t capacity = limit < SIZE_MAX ? limit + 1 : SIZE_MAX;
     while (true) {
+        if (response->gzip_finished) {
+            // A following member may start in this DATA frame or a later one. Preserve unconsumed input.
+            auto *next_in = stream->next_in;
+            const auto avail_in = stream->avail_in;
+            if (inflateReset2(stream, MAX_WBITS + 16) != Z_OK) {
+                return SW_ERROR;
+            }
+            stream->next_in = next_in;
+            stream->avail_in = avail_in;
+            response->gzip_finished = false;
+        }
         const auto space = std::min({buffer->size - buffer->length, capacity - buffer->length, size_t(UINT_MAX)});
         stream->avail_out = space;
         stream->next_out = (Bytef *) (buffer->str + buffer->length);
@@ -1353,7 +1388,14 @@ static ReturnCode http2_client_decompress(z_stream *stream, String *buffer, char
         if (buffer->length > limit) {
             return SW_CLOSE;
         }
-        if (status == Z_STREAM_END || (status == Z_BUF_ERROR && stream->avail_in == 0)) {
+        if (status == Z_STREAM_END) {
+            response->gzip_finished = true;
+            if (stream->avail_in == 0) {
+                return SW_SUCCESS;
+            }
+            continue;
+        }
+        if (status == Z_BUF_ERROR && stream->avail_in == 0) {
             return SW_SUCCESS;
         }
         if (status != Z_OK) {
@@ -1879,6 +1921,11 @@ uint32_t Client::send_request(zval *zrequest) {
         flags |= SW_HTTP2_STREAM_USE_PIPELINE_READ;
     }
 
+#ifdef SW_HAVE_ZLIB
+    // Capture the method before header value conversions can run PHP code and mutate the request.
+    zval *zmethod = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_METHOD), 0);
+    const bool request_is_head = ZVAL_IS_STRING(zmethod) && SW_STREQ(Z_STRVAL_P(zmethod), Z_STRLEN_P(zmethod), "HEAD");
+#endif
     String *buffer;
     ssize_t bytes = build_header(zrequest, socket, buffer);
     if (sw_unlikely(bytes < 0)) {
@@ -1889,7 +1936,11 @@ uint32_t Client::send_request(zval *zrequest) {
     // the stream meanwhile, so only its id is used after this.
     uint32_t _stream_id = stream_id;
     bool pipeline = flags & SW_HTTP2_STREAM_PIPELINE_REQUEST;
-    Upload upload(*this, create_stream(_stream_id, flags));
+    auto *stream = create_stream(_stream_id, flags);
+#ifdef SW_HAVE_ZLIB
+    stream->request_is_head = request_is_head;
+#endif
+    Upload upload(*this, stream);
     stream_id += 2;
 
     flags = SW_HTTP2_FLAG_END_HEADERS;
