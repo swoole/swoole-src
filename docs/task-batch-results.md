@@ -86,3 +86,16 @@ This forwarding path covers asynchronous event-worker replacement in
 `SWOOLE_PROCESS`. It does not provide the missing result-delivery path for
 whole-server shutdown, where no replacement event worker reads the ordinary
 pipe. BASE/THREAD modes and blocking task waits retain their existing paths.
+
+## Unavailable results
+
+A FINISH notification whose payload cannot be unpacked (for example, a missing
+result temporary file) completes its coroutine waiter with `false` immediately.
+For a batch, only that item becomes `false`; the other results and their keys
+remain intact. This is a received result failure, not a task timeout.
+
+An independent per-task callback is not invoked with an undecodable result.
+Its registration, captured resources and worker pending-task count are released
+when the failed FINISH is handled, so it cannot keep a draining worker alive.
+Global Finish callbacks retain their existing behavior and are skipped when the
+result is unavailable.

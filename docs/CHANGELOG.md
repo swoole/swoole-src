@@ -45,6 +45,7 @@
 
 ### Bug fixes
 
+- Settle coroutine task waits with `false` and release independent task callbacks when a received result cannot be unpacked.
 - Deliver BASE shutdown close callbacks before destroying the worker reactor; graceful callbacks share the original `max_wait_time` budget.
 
 - Keep hooked PHP streams alive until canceled I/O has returned before completing `fclose()`, including Windows IOCP operations.

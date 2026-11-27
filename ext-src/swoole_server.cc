@@ -1417,14 +1417,39 @@ static int php_swoole_server_onTask(Server *serv, EventData *req) {
     return SW_OK;
 }
 
+static void php_swoole_server_complete_task_callback(Server *serv, ServerProperty *property, TaskId task_id) {
+    // Erase and settle before releasing the callable: captured PHP objects can reenter through destructors.
+    auto iterator = property->task_callbacks.find(task_id);
+    if (iterator != property->task_callbacks.end()) {
+        auto *callback = iterator->second;
+        property->task_callbacks.erase(iterator);
+        serv->complete_task();
+        sw_callable_free(callback);
+    }
+}
+
 static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     zval *zserv = php_swoole_server_zval_ptr(serv);
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     TaskId task_id = serv->get_task_id(req);
 
     zend::Variable zresult;
-    if (!php_swoole_server_task_unpack(zresult.ptr(), req)) {
-        return SW_ERR;
+    if (UNEXPECTED(!php_swoole_server_task_unpack(zresult.ptr(), req))) {
+        if (!(req->info.ext_flags & SW_TASK_COROUTINE)) {
+            if (req->info.ext_flags & SW_TASK_CALLBACK) {
+                php_swoole_server_complete_task_callback(serv, server_object->property, task_id);
+            }
+            // Preserve the existing callback contract: an undecodable result is not passed to user code.
+            return SW_ERR;
+        }
+        zval_ptr_dtor(zresult.ptr());
+        zresult.reset();
+        if (EG(exception)) {
+            return SW_ERR;
+        }
+        // FINISH was received, even though its payload is unavailable. Complete this waiter with false
+        // instead of keeping its TaskCo/map entry and PROCESS pending count alive until the timeout.
+        ZVAL_FALSE(zresult.ptr());
     }
 
     if (req->info.ext_flags & SW_TASK_COROUTINE) {
@@ -1510,15 +1535,8 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         php_swoole_error(E_WARNING, "%s->onFinish handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
     if (task_callback) {
-        // The callback can submit more tasks and rehash this map, so look up its
-        // entry again rather than retaining an iterator across user code.
-        auto callback_iterator = server_object->property->task_callbacks.find(task_id);
-        if (callback_iterator != server_object->property->task_callbacks.end()) {
-            auto *completed_callback = callback_iterator->second;
-            server_object->property->task_callbacks.erase(callback_iterator);
-            serv->complete_task();
-            sw_callable_free(completed_callback);
-        }
+        // Look up again: user code may have submitted tasks and rehashed the map.
+        php_swoole_server_complete_task_callback(serv, server_object->property, task_id);
     }
     if (serv->event_object) {
         zval_ptr_dtor(&args[1]);
