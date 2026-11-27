@@ -97,15 +97,30 @@ void Server::disable_accept() {
 void Server::call_command_callback(const int64_t request_id, const std::string &result) {
     const auto iter = command_callbacks.find(request_id);
     if (iter == command_callbacks.end()) {
-        swoole_error_log(SW_LOG_ERROR,
-                         SW_ERROR_SERVER_INVALID_COMMAND,
-                         "Invalid command result[request_id=%" PRId64 "]",
-                         request_id);
+        // Canceled commands may still execute and reply. Never resume their former waiters.
+        swoole_trace_log(SW_TRACE_SERVER, "discard expired command result[request_id=%" PRId64 "]", request_id);
         return;
     }
-    auto callback = std::move(iter->second);
+    auto callback = std::move(iter->second.callback);
     command_callbacks.erase(iter);
     callback(this, result);
+}
+
+bool Server::cancel_command(int64_t request_id) {
+    return command_callbacks.erase(request_id) != 0;
+}
+
+void Server::cancel_all_commands() {
+    // Shutdown runs on the request registry's owner. Detach all entries before invoking user code:
+    // resuming a PHP waiter can reenter Server methods, and no old reply may claim its stack again.
+    auto pending = std::exchange(command_callbacks, {});
+    for (auto &entry : pending) {
+        auto on_error = std::move(entry.second.on_error);
+        entry.second.callback = {};
+        if (on_error) {
+            on_error(this);
+        }
+    }
 }
 
 void Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Socket *sock) {
@@ -1213,6 +1228,7 @@ static bool arm_master_shutdown_timer(Reactor *reactor, std::chrono::steady_cloc
 }
 
 void Server::stop_master_thread() {
+    cancel_all_commands();
     Reactor *reactor = SwooleTG.reactor;
     reactor->set_wait_exit(true);
     for (auto port : ports) {
@@ -1423,7 +1439,21 @@ bool Server::command(WorkerId process_id,
                      const std::string &name,
                      const std::string &msg,
                      const Command::Callback &fn) {
+    return command(process_id, process_type, name, msg, fn, nullptr, {});
+}
+
+bool Server::command(WorkerId process_id,
+                     Command::ProcessType process_type,
+                     const std::string &name,
+                     const std::string &msg,
+                     const Command::Callback &fn,
+                     int64_t *out_request_id,
+                     const Command::ErrorCallback &on_error) {
     if (!is_started()) {
+        return false;
+    }
+    if (!running || (is_base_mode() && SwooleWG.shutdown)) {
+        swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
         return false;
     }
     if (is_thread_mode()) {
@@ -1477,7 +1507,10 @@ bool Server::command(WorkerId process_id,
     task.info.len = msg.length();
     task.data = msg.c_str();
 
-    command_callbacks.emplace(request_id, fn);
+    command_callbacks.emplace(request_id, Command::Request(fn, on_error));
+    if (out_request_id) {
+        *out_request_id = request_id;
+    }
     bool dispatched = false;
     ON_SCOPE_EXIT {
         if (!dispatched) {

@@ -45,6 +45,7 @@
 
 ### Bug fixes
 
+- Retire pending server commands on explicit coroutine cancellation and normal owner shutdown, and ignore late replies safely.
 - Settle coroutine task waits with `false` and release independent task callbacks when a received result cannot be unpacked.
 - Deliver BASE shutdown close callbacks before destroying the worker reactor; graceful callbacks share the original `max_wait_time` budget.
 

@@ -1004,6 +1004,13 @@ class Server {
 
     struct Command {
         typedef std::function<void(Server *, const std::string &msg)> Callback;
+        typedef std::function<void(Server *)> ErrorCallback;
+        struct Request {
+            Callback callback;
+            ErrorCallback on_error;
+            explicit Request(const Callback &callback, const ErrorCallback &on_error = {})
+                : callback(callback), on_error(on_error) {}
+        };
         typedef std::function<std::string(Server *, const std::string &msg)> Handler;
         enum ProcessType {
             MASTER = 1u << 1,
@@ -1462,7 +1469,7 @@ class Server {
 
     std::unordered_map<std::string, Command> commands;
     std::unordered_map<int, Command::Handler> command_handlers;
-    std::unordered_map<int64_t, Command::Callback> command_callbacks;
+    std::unordered_map<int64_t, Command::Request> command_callbacks;
     int command_current_id = 1;
     int64_t command_current_request_id = 1;
 
@@ -2118,6 +2125,17 @@ class Server {
                  const std::string &name,
                  const std::string &msg,
                  const Command::Callback &fn);
+    bool command(WorkerId process_id,
+                 Command::ProcessType process_type,
+                 const std::string &name,
+                 const std::string &msg,
+                 const Command::Callback &fn,
+                 int64_t *request_id,
+                 const Command::ErrorCallback &on_error);
+    // Request state belongs to the command caller's reactor/process. Cancellation only abandons the reply;
+    // it does not undo a command that may already be executing in another process.
+    bool cancel_command(int64_t request_id);
+    void cancel_all_commands();
 
     bool task(EventData *_task, int *dst_worker_id, bool blocking = false);
     bool finish(const char *data, size_t data_len, int flags = 0, const EventData *current_task = nullptr);

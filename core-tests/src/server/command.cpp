@@ -13,6 +13,8 @@ class ServerCommandTest : public testing::Test {
   protected:
     void SetUp() override {
         previous_worker = SwooleWG.worker;
+        previous_shutdown = SwooleWG.shutdown;
+        SwooleWG.shutdown = false;
         SwooleWG.worker = &worker;
         ASSERT_TRUE(server.add_command(
             "echo", Server::Command::ALL_PROCESS, [](Server *, const std::string &message) { return message; }));
@@ -21,11 +23,13 @@ class ServerCommandTest : public testing::Test {
     void TearDown() override {
         server.set_started(false);
         SwooleWG.worker = previous_worker;
+        SwooleWG.shutdown = previous_shutdown;
     }
 
     Server server{Server::MODE_BASE};
     Worker worker{};
     Worker *previous_worker = nullptr;
+    bool previous_shutdown = false;
 };
 
 class ThreadCommandTest : public testing::Test {
@@ -234,4 +238,68 @@ TEST(server_command, handler_copy_failure_rolls_back_registration) {
     EXPECT_TRUE(server.command_handlers.empty());
     fail = false;
     EXPECT_TRUE(server.add_command("echo", Server::Command::MASTER, handler));
+}
+
+TEST(server_command, cancel_retires_reply_and_releases_its_resources_once) {
+    Server server(Server::MODE_BASE);
+    auto owner = std::make_shared<int>(42);
+    std::weak_ptr<int> lifetime = owner;
+    server.command_callbacks.emplace(7, [owner](Server *, const std::string &) { ADD_FAILURE(); });
+    owner.reset();
+    EXPECT_TRUE(server.cancel_command(7));
+    EXPECT_TRUE(lifetime.expired());
+    EXPECT_FALSE(server.cancel_command(7));
+    server.call_command_callback(7, "late reply");
+    EXPECT_TRUE(server.command_callbacks.empty());
+}
+
+TEST(server_command, shutdown_detaches_requests_before_failure_callbacks) {
+    Server server(Server::MODE_BASE);
+    int failed = 0;
+    for (int64_t id : {7, 8}) {
+        server.command_callbacks.emplace(id,
+                                         Server::Command::Request([](Server *, const std::string &) { ADD_FAILURE(); },
+                                                                  [&](Server *server) {
+                                                                      EXPECT_TRUE(server->command_callbacks.empty());
+                                                                      EXPECT_FALSE(server->cancel_command(7));
+                                                                      server->call_command_callback(8, "late reply");
+                                                                      server->cancel_all_commands();
+                                                                      ++failed;
+                                                                  }));
+    }
+    server.cancel_all_commands();
+    EXPECT_EQ(failed, 2);
+    server.cancel_all_commands();
+    EXPECT_EQ(failed, 2);
+}
+
+TEST_F(ServerCommandTest, reports_the_registered_request_id) {
+    int64_t request_id = -1;
+    bool completed = false;
+    EXPECT_TRUE(server.command(
+        0,
+        Server::Command::MASTER,
+        "echo",
+        "message",
+        [&](Server *, const std::string &) {
+            EXPECT_GE(request_id, 0);
+            EXPECT_EQ(server.command_callbacks.count(request_id), 0u);
+            completed = true;
+        },
+        &request_id,
+        [](Server *) { ADD_FAILURE(); }));
+    EXPECT_TRUE(completed);
+}
+
+TEST_F(ServerCommandTest, stopped_owner_cannot_register_more_commands) {
+    server.running = false;
+    EXPECT_FALSE(server.command(
+        0, Server::Command::MASTER, "echo", "message", [](Server *, const std::string &) { ADD_FAILURE(); }));
+    EXPECT_ERREQ(SW_ERROR_WRONG_OPERATION);
+    EXPECT_TRUE(server.command_callbacks.empty());
+    server.running = true;
+    SwooleWG.shutdown = true;
+    EXPECT_FALSE(server.command(
+        0, Server::Command::MASTER, "echo", "message", [](Server *, const std::string &) { ADD_FAILURE(); }));
+    EXPECT_TRUE(server.command_callbacks.empty());
 }

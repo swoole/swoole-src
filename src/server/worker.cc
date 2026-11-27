@@ -389,6 +389,10 @@ bool Server::kill_worker(int worker_id) {
 
 void Server::stop_async_worker(Worker *worker) {
     worker->shutdown();
+    if (is_base_mode()) {
+        // BASE worker 0 owns the command reply registry; settle it while its PHP VM/reactor is still alive.
+        cancel_all_commands();
+    }
     if (worker->type == SW_EVENT_WORKER) {
         reset_worker_counter(worker);
     }

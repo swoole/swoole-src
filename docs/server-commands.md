@@ -40,3 +40,25 @@ another thread, and a reply cannot resume a coroutine on another thread.
 
 These restrictions do not change PROCESS or BASE command behavior. THREAD
 worker messaging and reload/shutdown APIs remain separate facilities.
+
+## Waiting, cancellation and shutdown
+
+`command()` is an administration API. It keeps its existing five-parameter
+signature and waits indefinitely for a reply; it has no implicit deadline.
+A target exiting or a lost reply does not automatically fail or retry a command.
+
+`Coroutine::cancel()` and normal shutdown of the caller's server/BASE worker
+return `false` with `SWOOLE_ERROR_CO_CANCELED`. New commands are rejected once
+the caller is stopping. A forced terminal exit still takes precedence over
+resuming PHP code.
+
+Cancellation removes the reply registration before the PHP call returns.
+A late response is discarded without accessing its former coroutine. Canceling
+the wait does not stop or roll back the target handler: it may already have
+performed side effects, so commands are never automatically retried.
+
+Native C++ callers keep the existing success callback signature and overload.
+They may use the extended overload to obtain a request ID, abandon its reply
+with `cancel_command(id)`, and supply an error callback for owner shutdown.
+Registration, reply handling and cancellation must all run on the command
+caller's owner thread/process.

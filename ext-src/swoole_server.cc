@@ -3797,8 +3797,17 @@ static PHP_METHOD(swoole_server, command) {
     }
 
     auto co = Coroutine::get_current_safe();
-    bool donot_yield = false;
-    Server::Command::Callback fn = [co, return_value, json_decode, &donot_yield](Server *serv, const std::string &msg) {
+    bool completed = false;
+    bool waiting = false;
+    int error = 0;
+    int64_t request_id = -1;
+    ON_SCOPE_EXIT {
+        // Cancellation must retire the borrowed PHP frame before it can return to user code.
+        // A reply has already erased its own entry before invoking the success callback.
+        serv->cancel_command(request_id);
+    };
+    Server::Command::Callback fn = [co, return_value, json_decode, &completed, &waiting](Server *,
+                                                                                         const std::string &msg) {
         if (json_decode) {
             if (php_json_decode(return_value, msg.c_str(), (int) msg.length(), true, 0) == FAILURE) {
                 RETVAL_FALSE;
@@ -3806,11 +3815,19 @@ static PHP_METHOD(swoole_server, command) {
         } else {
             ZVAL_STRINGL(return_value, msg.c_str(), msg.length());
         }
-
-        if (co->is_suspending()) {
+        completed = true;
+        if (waiting) {
             co->resume();
-        } else {
-            donot_yield = true;
+        }
+    };
+    Server::Command::ErrorCallback on_error = [co, return_value, &completed, &waiting, &error](Server *) {
+        RETVAL_FALSE;
+        error = SW_ERROR_CO_CANCELED;
+        completed = true;
+        // A local MASTER handler can yield inside command(). It is not waiting for a reply yet;
+        // shutdown must not resume that handler's unrelated I/O wait early.
+        if (waiting) {
+            co->resume();
         }
     };
 
@@ -3818,13 +3835,22 @@ static PHP_METHOD(swoole_server, command) {
                        (Server::Command::ProcessType) process_type,
                        std::string(name, l_name),
                        std::string(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s)),
-                       fn)) {
+                       fn,
+                       &request_id,
+                       on_error)) {
         smart_str_free(&buf);
         RETURN_FALSE;
     }
     smart_str_free(&buf);
-    if (!donot_yield) {
-        co->yield();
+    if (!completed) {
+        waiting = true;
+        // Admin commands intentionally have no deadline; only explicit cancellation interrupts this wait.
+        if (!co->yield_ex()) {
+            RETURN_FALSE;
+        }
+    }
+    if (error) {
+        swoole_set_last_error(error);
     }
 }
 
