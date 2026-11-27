@@ -45,6 +45,7 @@
 
 ### Bug fixes
 
+- Replenish HTTP/2 client connection receive credit for discarded DATA, including padding, without updating closed-stream windows.
 - Preserve HTTP/2 client HPACK and CONTINUATION state when discarding closed-stream headers and declining server push.
 - Reject recursive arrays in thread containers and arguments with `ValueError`, releasing partial conversions and preserving existing container values.
 - Keep close-barrier state alive when a Client release hook deletes its Socket, avoiding accesses to freed memory and allocator corruption.

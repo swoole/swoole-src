@@ -293,6 +293,7 @@ class Client {
     void finish_request(const Upload &upload);
     ReturnCode reset_stream(uint32_t id, uint32_t error, zval *return_value = nullptr, size_t *pending_bytes = nullptr);
     bool send_setting();
+    bool replenish_connection_window(uint32_t length);
     ReturnCode parse_header(Stream *stream, int flags, char *in, size_t inlen, bool upload_read);
     ReturnCode parse_frame(zval *return_value, bool pipeline_read, size_t *pending_bytes = nullptr);
     ReturnCode reject_connection(uint32_t error, const char *reason);
@@ -1205,6 +1206,22 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
     }
 
     Stream *stream = get_stream(_stream_id);
+    if (type == SW_HTTP2_TYPE_DATA) {
+        if (!stream && !is_known_stream_id(_stream_id)) {
+            return reject_connection(SW_HTTP2_ERROR_PROTOCOL_ERROR, "DATA on an idle stream");
+        }
+        if (length > local_window_size) {
+            return reject_connection(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "response DATA exceeded connection window");
+        }
+        if ((flags & SW_HTTP2_FLAG_PADDED) && (length < 1 || (uint8_t) buf[0] >= length)) {
+            return reject_connection(SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid DATA frame padding");
+        }
+        if (!stream || stream->response_ended) {
+            // A reset does not undo DATA already in flight. Its full payload, including padding,
+            // still consumes connection credit, but must not grant new credit to this closed stream.
+            return replenish_connection_window(length) ? SW_CONTINUE : SW_ERROR;
+        }
+    }
     if (type == SW_HTTP2_TYPE_HEADERS || type == SW_HTTP2_TYPE_CONTINUATION) {
         if (!stream && !is_known_stream_id(_stream_id)) {
             return reject_connection(SW_HTTP2_ERROR_PROTOCOL_ERROR, "HEADERS on an idle stream");
@@ -1258,7 +1275,7 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
         if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {
             stream->flags |= SW_HTTP2_STREAM_PIPELINE_RESPONSE;
         }
-        if (length > local_window_size || length > stream->local_window_size) {
+        if (length > stream->local_window_size) {
             close();
             update_error_properties(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "response DATA exceeded receive window");
             return SW_CLOSE;
@@ -1266,11 +1283,6 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
         char *data = buf;
         ssize_t data_length = length;
         if (flags & SW_HTTP2_FLAG_PADDED) {
-            if (length < 1 || (uint8_t) buf[0] >= length) {
-                close();
-                update_error_properties(SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid DATA frame padding");
-                return SW_CLOSE;
-            }
             data_length -= 1 + (uint8_t) buf[0];
             data++;
         }
@@ -1304,15 +1316,9 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
         }
         // The padding counts against the flow-control windows too
         if (length > 0) {
-            local_window_size -= length;
             stream->local_window_size -= length;
-            uint32_t connection_target =
-                std::max(local_settings.init_window_size, uint32_t(SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE));
-            if (local_window_size <= connection_target / 2) {
-                if (!send_window_update(0, connection_target - local_window_size)) {
-                    return SW_ERROR;
-                }
-                local_window_size = connection_target;
+            if (!replenish_connection_window(length)) {
+                return SW_ERROR;
             }
             if (stream->local_window_size <= (local_settings.init_window_size / 2)) {
                 if (!send_window_update(_stream_id, local_settings.init_window_size - stream->local_window_size)) {
@@ -1342,6 +1348,19 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
     }
 
     return SW_CONTINUE;
+}
+
+bool Client::replenish_connection_window(uint32_t length) {
+    // parse_frame() validates the connection window before calling this, for live and discarded DATA alike.
+    local_window_size -= length;
+    const uint32_t target = std::max(local_settings.init_window_size, uint32_t(SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE));
+    if (local_window_size <= target / 2) {
+        if (!send_window_update(0, target - local_window_size)) {
+            return false;
+        }
+        local_window_size = target;
+    }
+    return true;
 }
 
 void Client::transfer_response(Stream *stream, zval *return_value, size_t *pending_bytes) {
