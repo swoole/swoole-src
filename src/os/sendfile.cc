@@ -16,6 +16,47 @@
 
 #include "swoole_socket.h"
 
+#include <limits>
+
+namespace swoole {
+namespace detail {
+
+// Adapt BSD's status-plus-byte-count result to the byte-count contract used by the socket layer.
+// The native adapter initializes its in/out length on every call. The callback also lets core tests
+// exercise interrupted syscalls without depending on signal timing.
+ssize_t sendfile_with_retry(
+    int out_fd, int in_fd, off_t *offset, size_t size, int (*sendfile)(int, int, off_t, size_t, off_t *)) {
+    // BSD interprets zero as "to EOF", whereas this wrapper's size is an explicit byte budget.
+    if (size == 0) {
+        return 0;
+    }
+    size = std::min(size, static_cast<size_t>(std::numeric_limits<ssize_t>::max()));
+    while (true) {
+        off_t sent_bytes = 0;
+        const int result = sendfile(out_fd, in_fd, *offset, size, &sent_bytes);
+        const int error = errno;
+        if (result < 0 && error != EINTR && error != EAGAIN) {
+            // In particular, Darwin may leave its input length untouched after an early error.
+            return -1;
+        }
+        if (sent_bytes > 0) {
+            *offset += sent_bytes;
+            return sent_bytes;
+        }
+        if (result == 0) {
+            return 0;
+        }
+        if (error != EINTR) {
+            return -1;
+        }
+        // No progress: retry the unchanged range. Positive progress is returned to the caller, which owns
+        // the remaining byte budget and readiness/timeout handling.
+    }
+}
+
+}  // namespace detail
+}  // namespace swoole
+
 #ifdef _WIN32
 // Windows: use TransmitFile for zero-copy sendfile
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
@@ -50,61 +91,26 @@ ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
 #include <sys/sendfile.h>
 
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
-	return sendfile(out_fd, in_fd, offset, size);
+    return sendfile(out_fd, in_fd, offset, size);
 }
 #elif defined(HAVE_SENDFILE) && defined(HAVE_KQUEUE)
-#include <sys/socket.h>
-#include <sys/uio.h>
-
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
-    ssize_t ret;
-
+    const auto native_sendfile = [](int out_fd, int in_fd, off_t begin, size_t count, off_t *sent_bytes) {
 #ifdef __MACH__
-    struct sf_hdtr hdtr;
-    hdtr.headers = nullptr;
-    hdtr.hdr_cnt = 0;
-    hdtr.trailers = nullptr;
-    hdtr.trl_cnt = 0;
+        *sent_bytes = static_cast<off_t>(count);
+        return ::sendfile(in_fd, out_fd, begin, sent_bytes, nullptr, 0);
 #else
-    off_t sent_bytes;
+        return ::sendfile(in_fd, out_fd, begin, count, nullptr, sent_bytes, 0);
 #endif
-
-_do_sendfile:
-#ifdef __MACH__
-    ret = sendfile(in_fd, out_fd, *offset, (off_t *) &size, &hdtr, 0);
-#else
-    ret = sendfile(in_fd, out_fd, *offset, size, 0, &sent_bytes, 0);
-#endif
-
-    // sent_bytes = (off_t)size;
+    };
+    const auto ret = swoole::detail::sendfile_with_retry(out_fd, in_fd, offset, size, native_sendfile);
+    const int error = errno;
     swoole_trace(
         "send file, ret: %zd, out_fd:%d, in_fd:%d, offset:%jd, size:%zu", ret, out_fd, in_fd, (intmax_t) *offset, size);
-
-#ifdef __MACH__
-    *offset += size;
-#else
-    *offset += sent_bytes;
-#endif
-
-    if (ret == -1) {
-        if (errno == EINTR) {
-            goto _do_sendfile;
-        } else {
-            return ret;
-        }
-    } else if (ret == 0) {
-#ifdef __MACH__
-        return size;
-#else
-        return sent_bytes;
-#endif
-    } else {
-        swoole_sys_warning("sendfile failed");
-        return SW_ERR;
-    }
-    return SW_OK;
+    errno = error;
+    return ret;
 }
-#elif !defined(HAVE_SENDFILE)
+#else
 ssize_t swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     char buf[SW_BUFFER_SIZE_BIG];
     size_t readn = size > sizeof(buf) ? sizeof(buf) : size;
