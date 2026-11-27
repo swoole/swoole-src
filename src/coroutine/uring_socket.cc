@@ -519,29 +519,30 @@ bool UringSocket::ssl_bio_prepare() {
 }
 
 bool UringSocket::ssl_bio_perform(int rc, const char *fn) {
+    // Capture the error before draining the BIO, which can yield to another TLS operation.
+    const int error = SSL_get_error(socket->ssl, rc);
+    const int system_error = error == SSL_ERROR_SYSCALL ? sw_errno() : 0;
+    const auto err_code = error == SSL_ERROR_SSL ? ERR_get_error() : 0;
     if (!ssl_bio_prepare()) {
         return false;
     }
 
-    int error = SSL_get_error(socket->ssl, rc);
     if (error == SSL_ERROR_WANT_WRITE) {
-        if (!ssl_bio_write()) {
-            goto _error;
-        }
         return true;
     } else if (error == SSL_ERROR_WANT_READ) {
-        if (!ssl_bio_read()) {
-            goto _error;
+        if (ssl_bio_read()) {
+            return true;
         }
-        return true;
+        check_return_value(-1);
+        return false;
     } else if (error == SSL_ERROR_ZERO_RETURN) {
         swoole_debug("%s(fd=%d) return zero value", fn, socket->get_fd());
         set_err(SW_ERROR_SSL_RESET);
-        goto _error;
+        return false;
     } else if (error == SSL_ERROR_SYSCALL) {
-        goto _error;
+        set_err(system_error ? system_error : SW_ERROR_SSL_RESET);
+        return false;
     } else {
-        ulong_t err_code = ERR_get_error();
         if (err_code) {
             char error_buf[512];
             ERR_error_string_n(err_code, error_buf, sizeof(error_buf));
@@ -559,9 +560,6 @@ bool UringSocket::ssl_bio_perform(int rc, const char *fn) {
         }
         return false;
     }
-_error:
-    check_return_value(-1);
-    return false;
 }
 
 bool UringSocket::ssl_handshake() {
@@ -588,6 +586,7 @@ bool UringSocket::ssl_handshake() {
     }
 
     while (true) {
+        ERR_clear_error();
         auto rs = SSL_do_handshake(socket->ssl);
         if (rs == 1) {
             break;
@@ -630,12 +629,10 @@ ssize_t UringSocket::ssl_writev(network::IOVector *io_vector) {
 
 ssize_t UringSocket::ssl_recv(void *_buf, size_t _n) {
     while (true) {
+        ERR_clear_error();
         int n = SSL_read(socket->ssl, _buf, _n);
-        if (!ssl_bio_prepare()) {
-            return -1;
-        }
         if (n > 0) {
-            return n;
+            return ssl_bio_prepare() ? n : -1;
         }
         if (!ssl_bio_perform(n, "ssl_recv")) {
             return -1;
@@ -645,12 +642,10 @@ ssize_t UringSocket::ssl_recv(void *_buf, size_t _n) {
 
 ssize_t UringSocket::ssl_send(const void *_buf, size_t _n) {
     while (true) {
+        ERR_clear_error();
         int n = SSL_write(socket->ssl, _buf, _n);
-        if (!ssl_bio_prepare()) {
-            return -1;
-        }
         if (n > 0) {
-            return n;
+            return ssl_bio_prepare() ? n : -1;
         }
         if (!ssl_bio_perform(n, "ssl_send")) {
             return -1;

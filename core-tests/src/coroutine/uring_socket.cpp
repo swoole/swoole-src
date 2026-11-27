@@ -20,6 +20,7 @@
 #include "swoole_file.h"
 
 #include <arpa/inet.h>
+#include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <sys/file.h>
 #include <sys/socket.h>
@@ -804,6 +805,65 @@ TEST(uring_socket, ssl_readv) {
 
         ASSERT_TRUE(sw_tg_buffer()->contains(TEST_HTTPS_EXPECT));
     });
+}
+
+TEST(uring_socket, ssl_classifies_want_read_before_flushing_bio) {
+    struct ResumeState {
+        UringSocket *socket;
+        bool injected = false;
+    };
+
+    // TLS operations in other coroutines share this thread's OpenSSL error queue.
+    Coroutine::set_on_resume([](void *arg) {
+        auto *state = static_cast<ResumeState *>(arg);
+        if (!state->injected && state->socket->has_ssl()) {
+            ERR_put_error(ERR_LIB_SSL, 0, SSL_R_CERTIFICATE_VERIFY_FAILED, __FILE__, __LINE__);
+            state->injected = true;
+        }
+    });
+    ON_SCOPE_EXIT {
+        Coroutine::set_on_resume(nullptr);
+        ERR_clear_error();
+    };
+
+    int port = 0;
+    auto server = [&](void *) {
+        UringSocket listener(SW_SOCK_TCP);
+        ASSERT_TRUE(listener.enable_ssl_encrypt());
+        listener.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/server.crt");
+        listener.set_ssl_key_file(swoole::test::get_ssl_dir() + "/server.key");
+        ASSERT_TRUE(listener.bind("127.0.0.1", 0));
+        ASSERT_TRUE(listener.listen(1));
+        ASSERT_TRUE(listener.getsockname());
+        port = listener.get_port();
+        listener.set_timeout(2);
+
+        std::unique_ptr<UringSocket> peer(listener.accept());
+        ASSERT_NE(peer, nullptr);
+        ASSERT_TRUE(peer->ssl_handshake()) << peer->errMsg;
+        EXPECT_EQ(peer->send_all("ok", 2), 2);
+    };
+
+    auto client = [&](void *) {
+        ASSERT_GT(port, 0);
+        UringSocket socket(SW_SOCK_TCP);
+        ASSERT_TRUE(socket.enable_ssl_encrypt());
+        socket.set_timeout(2);
+        ResumeState state{&socket};
+        auto *co = Coroutine::get_current_safe();
+        co->set_task(&state);
+        ON_SCOPE_EXIT {
+            co->set_task(nullptr);
+        };
+
+        ASSERT_TRUE(socket.connect("127.0.0.1", port)) << socket.errMsg;
+        EXPECT_TRUE(state.injected);
+        char reply[2];
+        ASSERT_EQ(socket.recv_all(reply, sizeof(reply)), sizeof(reply));
+        EXPECT_EQ(std::string(reply, sizeof(reply)), "ok");
+    };
+
+    coroutine::run({server, client});
 }
 
 #ifdef TLS1_3_VERSION
