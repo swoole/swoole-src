@@ -2685,7 +2685,7 @@ static void swoole_curl_free_obj(zend_object *object) {
         handle->multi->remove_handle(handle);
     }
 
-    /* cURL destructors should be invoked only by last curl handle */
+    /* Shared option allocations must remain alive until the last copy is released. */
     if (--(*ch->clone) == 0) {
         zend_llist_clean(&ch->to_free->post);
         zend_llist_clean(&ch->to_free->stream);
@@ -2697,8 +2697,10 @@ static void swoole_curl_free_obj(zend_object *object) {
 #endif
         efree(ch->to_free);
         efree(ch->clone);
-        swoole::curl::destroy_handle(ch->cp);
     }
+
+    /* Each easy handle owns its Swoole state, including its easy_multi. */
+    swoole::curl::destroy_handle(ch->cp);
 
     if (ch->cp) {
         curl_easy_cleanup(ch->cp);

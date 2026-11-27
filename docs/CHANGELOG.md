@@ -23,7 +23,6 @@
 
 ### Bug fixes
 
-- Reject `Swoole\Server\Port::set()` after server startup before changing native configuration or the settings array. THREAD workers can still register their local `package_length_func` callback.
 - Reject `sendwait()` in THREAD mode and when asynchronous output is pending, preventing cross-thread Socket access and writes that overtake queued data. Use `send()` for ordered output. See [Server sending](server-sending.md).
 - Restrict THREAD server commands to master-thread calls targeting MASTER. Reject unsupported targets and cross-thread PHP command handlers before dispatch, avoiding invalid manager queues and execution in the wrong PHP VM. See [Server commands](server-commands.md).
 - In thread builds, synchronous TCP clients using `SWOOLE_KEEP` can reuse idle connections across PHP threads when the socket type, destination and explicit connection ID match. Pooled connections retain their original timeout, socket settings and framing configuration. Supply `package_length_func` again for any connection configured with that callback. Use distinct IDs for different application session states or settings. The shared pool holds at most 1,024 idle connections and uses a lower limit when the process descriptor limit is small.
@@ -40,6 +39,13 @@
 - Add the opt-in `http2_cancel_on_stream_reset` server option. A peer HTTP/2 reset interrupts the active request coroutine with `Swoole\Coroutine\CanceledException`. Its reason is an associative array with `session_id`, `stream_id`, the HTTP/2 error `code`, and a `message` of `HTTP2 Stream Reset`. Catch the exception in the PHP request handler. An uncaught exception is fatal and terminates the worker process. A reset received while the request is queued skips its callback.
 - Add static-file ETag validators and conditional request handling, including strong If-Range matching and precondition precedence, consistently across HTTP/1 and HTTP/2.
 - Retain an opened static file through response completion and share it across ranges. Find configured index files directly instead of enumerating the directory.
+
+## 6.1.1 (unreleased)
+
+### Bug fixes
+
+- Release each native cURL easy handle's Swoole state and private multi handle when that easy handle is destroyed, while retaining shared option allocations until the last copy is released.
+- Reject `Swoole\Server\Port::set()` after server startup before changing native configuration or the settings array. THREAD workers can still register their local `package_length_func` callback.
 
 ## 2024-12-16 v6.0.0
 # ✨ New Feature:
