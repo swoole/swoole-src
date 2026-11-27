@@ -1908,7 +1908,20 @@ uint32_t Client::send_request(zval *zrequest) {
                    Z_OBJCE_P(zrequest), Z_OBJ_P(zrequest), SW_ZSTR_KNOWN(SW_ZEND_STR_USE_PIPELINE_READ), true, &ztmp);
     bool is_data_empty = Z_TYPE_P(zdata) == IS_STRING ? Z_STRLEN_P(zdata) == 0 : !zval_is_true(zdata);
 
-    if (ZVAL_IS_ARRAY(zdata)) {
+    smart_str formstr_s = {};
+    ON_SCOPE_EXIT {
+        smart_str_free(&formstr_s);
+    };
+    const bool is_form_data = ZVAL_IS_ARRAY(zdata);
+    if (is_form_data) {
+        size_t length = 0;
+        php_swoole_http_build_query(zdata, &length, &formstr_s);
+        if (UNEXPECTED(EG(exception))) {
+            return 0;
+        }
+        // A nonempty PHP array can encode to an empty form (for example ['field' => null]).
+        // Decide END_STREAM before changing HPACK state or publishing a request stream.
+        is_data_empty = length == 0;
         add_assoc_stringl_ex(
             zheaders, ZEND_STRL("content-type"), (char *) ZEND_STRL("application/x-www-form-urlencoded"));
     }
@@ -1966,16 +1979,12 @@ uint32_t Client::send_request(zval *zrequest) {
     if (!is_data_empty) {
         char *p;
         size_t len;
-        smart_str formstr_s = {};
         zend::String str_zpost_data;
 
         int flag = pipeline ? 0 : SW_HTTP2_FLAG_END_STREAM;
-        if (ZVAL_IS_ARRAY(zdata)) {
-            p = php_swoole_http_build_query(zdata, &len, &formstr_s);
-            if (p == nullptr) {
-                php_swoole_error(E_WARNING, "http_build_query failed");
-                return 0;
-            }
+        if (is_form_data) {
+            p = ZSTR_VAL(formstr_s.s);
+            len = ZSTR_LEN(formstr_s.s);
         } else {
             str_zpost_data = zdata;
             p = str_zpost_data.val();
@@ -1986,7 +1995,6 @@ uint32_t Client::send_request(zval *zrequest) {
             "[" SW_ECHO_GREEN ", END, STREAM#%d] length=%zu", Http2::get_type(SW_HTTP2_TYPE_DATA), _stream_id, len);
 
         bool sent = send_data(upload, p, len, flag);
-        smart_str_free(&formstr_s);
         if (!sent) {
             if (upload.completed_by_peer) {
                 return _stream_id;
@@ -2029,11 +2037,13 @@ bool Client::write_data(uint32_t _stream_id, zval *zdata, bool end) {
 
     bool sent;
     if (ZVAL_IS_ARRAY(zdata)) {
-        size_t len;
+        size_t len = 0;
         smart_str formstr_s = {};
+        ON_SCOPE_EXIT {
+            smart_str_free(&formstr_s);
+        };
         char *formstr = php_swoole_http_build_query(zdata, &len, &formstr_s);
-        if (formstr == nullptr) {
-            php_swoole_error(E_WARNING, "http_build_query failed");
+        if (UNEXPECTED(EG(exception))) {
             return false;
         }
         swoole_trace_log(SW_TRACE_HTTP2,
@@ -2042,8 +2052,7 @@ bool Client::write_data(uint32_t _stream_id, zval *zdata, bool end) {
                          end ? " END," : "",
                          stream_id,
                          len);
-        sent = send_data(upload, formstr, len, flag);
-        smart_str_free(&formstr_s);
+        sent = send_data(upload, formstr ? formstr : "", len, flag);
     } else {
         zend::String data(zdata);
         swoole_trace_log(SW_TRACE_HTTP2,
