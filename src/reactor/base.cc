@@ -129,21 +129,7 @@ Reactor::Reactor(int max_event, Type _type) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, this);
     }
 
-    set_end_callback(PRIORITY_DEFER_TASK, [](Reactor *reactor) {
-        std::unique_ptr<CallbackManager> cm(std::exchange(reactor->defer_tasks, nullptr));
-        if (cm) {
-            ON_SCOPE_EXIT {
-                if (!cm->empty()) {
-                    if (reactor->defer_tasks) {
-                        reactor->defer_tasks->prepend(*cm);
-                    } else {
-                        reactor->defer_tasks = cm.release();
-                    }
-                }
-            };
-            cm->execute();
-        }
-    });
+    set_end_callback(PRIORITY_DEFER_TASK, [](Reactor *reactor) { reactor->execute_defer_tasks(); });
 
     set_exit_condition(EXIT_CONDITION_DEFER_TASK,
                        [](Reactor *reactor, size_t &event_num) -> bool { return reactor->defer_tasks == nullptr; });
@@ -483,6 +469,23 @@ void Reactor::execute_begin_callback() const {
     if (future_task.callback) {
         future_task.callback(future_task.data);
     }
+}
+
+void Reactor::execute_defer_tasks() {
+    std::unique_ptr<CallbackManager> tasks(std::exchange(defer_tasks, nullptr));
+    if (!tasks) {
+        return;
+    }
+    ON_SCOPE_EXIT {
+        if (!tasks->empty()) {
+            if (defer_tasks) {
+                defer_tasks->prepend(*tasks);
+            } else {
+                defer_tasks = tasks.release();
+            }
+        }
+    };
+    tasks->execute();
 }
 
 void Reactor::discard_defer_tasks() {

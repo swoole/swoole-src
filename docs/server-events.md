@@ -82,3 +82,15 @@ disabled, the callback runs directly at that dispatch point.
 
 `onBufferFull` and `onBufferEmpty` callbacks run without an automatically created
 coroutine. Deferring these events does not change their coroutine behavior.
+
+## BASE shutdown
+
+Before destroying a BASE worker's reactor, the server dispatches the final batch
+of deferred close callbacks for its remaining connections. These callbacks still
+run outside Receive/Connect callbacks and before WorkerStop.
+
+With `reload_async` enabled, asynchronous work started by those callbacks may
+finish within the worker's original `max_wait_time` budget. Immediate shutdown
+does not wait for suspended callbacks. An expired deadline or terminal reactor
+stop takes precedence over callback delivery; shutdown never grants a fresh
+waiting period to close callbacks.

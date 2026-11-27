@@ -257,6 +257,7 @@ class Reactor {
     void add_destroy_callback(const Callback &cb, void *data = nullptr);
     void execute_begin_callback() const;
     void execute_end_callbacks(bool _timed_out = false);
+    void execute_defer_tasks();
     // A nonnegative timeout bounds the entire drain, rather than each individual poll.
     void drain_write_buffer(network::Socket *socket, int timeout_msec = -1);
 

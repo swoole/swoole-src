@@ -60,6 +60,65 @@ TEST(server, master_shutdown_deadline) {
     EXPECT_LT(elapsed, std::chrono::seconds(5));
 }
 
+static void test_base_shutdown_close_callbacks(bool graceful, bool exceed_deadline) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+    serv.reload_async = graceful;
+    serv.max_wait_time = 1;
+    auto *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ASSERT_NE(port, nullptr);
+    ASSERT_EQ(serv.create(), SW_OK);
+    std::thread client;
+    size_t closes = 0;
+    size_t completed = 0;
+    serv.onWorkerStart = [&](Server *, Worker *) {
+        client = std::thread([&] {
+            swoole_signal_block_all();
+            network::SyncClient socket(SW_SOCK_TCP);
+            ASSERT_TRUE(socket.connect(TEST_HOST, port->port));
+            ASSERT_EQ(socket.send(SW_STRL("shutdown")), 8);
+            char buffer[1];
+            EXPECT_LE(socket.recv(buffer, sizeof(buffer)), 0);
+        });
+    };
+    serv.onReceive = [](Server *server, RecvData *) {
+        EXPECT_TRUE(server->shutdown());
+        return SW_OK;
+    };
+    serv.onClose = [&](Server *, DataHead *) {
+        // Model the PHP binding's deferred active-close notification.
+        swoole_event_defer(
+            [&](void *) {
+                ++closes;
+                if (graceful) {
+                    swoole_timer_after(exceed_deadline ? 60000 : 10, [&](TIMER_PARAMS) { ++completed; });
+                }
+            },
+            nullptr);
+    };
+    serv.onWorkerStop = [&](Server *, Worker *) { EXPECT_EQ(closes, 1u); };
+    const auto started = std::chrono::steady_clock::now();
+    EXPECT_EQ(serv.start(), SW_OK);
+    if (client.joinable()) {
+        client.join();
+    }
+    EXPECT_EQ(closes, 1u);
+    EXPECT_EQ(completed, graceful && !exceed_deadline ? 1u : 0u);
+    EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::seconds(5));
+}
+
+TEST(server, base_shutdown_dispatches_deferred_close) {
+    test_base_shutdown_close_callbacks(false, false);
+}
+
+TEST(server, base_shutdown_drains_deferred_close) {
+    test_base_shutdown_close_callbacks(true, false);
+}
+
+TEST(server, base_shutdown_close_obeys_exit_deadline) {
+    test_base_shutdown_close_callbacks(true, true);
+}
+
 TEST(server, worker_start_checks_isolation_result) {
     if (!swoole_is_root_user()) {
         GTEST_SKIP() << "requires privileges to configure process isolation";

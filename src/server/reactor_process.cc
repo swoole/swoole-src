@@ -287,6 +287,21 @@ int Server::reactor_process_main_loop(ProcessPool *pool, Worker *worker) {
      */
     serv->foreach_connection_on_reactor(reactor, [serv](Connection *conn) { serv->close(conn->session_id, true); });
 
+    // BASE owns its connections in this worker. Active closes above enqueue PHP onClose callbacks after
+    // wait() has returned, so dispatch the final batch here, outside every user callback, before destruction.
+    // Immediate shutdown only delivers the batch; graceful shutdown also drains work started by onClose.
+    // Keep the original worker exit budget: an expired or terminal shutdown must never restart the loop.
+    if (retval >= 0 && !reactor->terminated && reactor->defer_tasks && serv->get_worker_exit_timeout_msec() > 0) {
+        reactor->execute_defer_tasks();
+        const int remaining = serv->get_worker_exit_timeout_msec();
+        if (serv->reload_async && !reactor->terminated && remaining > 0 && !reactor->if_exit()) {
+            if (reactor->timeout_msec < 0 || reactor->timeout_msec > remaining) {
+                reactor->timeout_msec = remaining;
+            }
+            reactor->wait();
+        }
+    }
+
     /**
      * call internal serv hooks
      */

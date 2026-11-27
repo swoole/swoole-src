@@ -45,6 +45,8 @@
 
 ### Bug fixes
 
+- Deliver BASE shutdown close callbacks before destroying the worker reactor; graceful callbacks share the original `max_wait_time` budget.
+
 - Keep hooked PHP streams alive until canceled I/O has returned before completing `fclose()`, including Windows IOCP operations.
 - Route coroutine Socket cancellation during name resolution through the resolver's active wait, suppressing late DNS callbacks and rejecting addresses returned after cancellation.
 - Stop EOF/length packet delivery when receiving is paused, even with pending WRITE events. Retain undelivered frames and process buffered asynchronous Client data after `wakeup()` without requiring further peer traffic.
