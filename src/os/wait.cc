@@ -126,6 +126,12 @@ pid_t System::waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout) 
 #if SW_USE_IOURING
     return iouring_waitpid(_pid, _stat_loc, _options, timeout);
 #endif
+    // Only one coroutine can own a PID's exit status. Reject overlap before waitpid can reap it.
+    if (_pid > 0 && waitpid_map.find(_pid) != waitpid_map.end()) {
+        errno = EBUSY;
+        swoole_set_last_error(EBUSY);
+        return -1;
+    }
     if (_pid < 0) {
         if (!child_processes.empty()) {
             auto i = child_processes.begin();
@@ -164,7 +170,7 @@ pid_t System::waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout) 
     if (_pid < 0) {
         wait_list.push_back(&task);
     } else {
-        waitpid_map[_pid] = &task;
+        waitpid_map.emplace(_pid, &task);
     }
 
     task.co->yield_ex(timeout);
@@ -178,7 +184,10 @@ pid_t System::waitpid(pid_t _pid, int *_stat_loc, int _options, double timeout) 
             wait_list.remove(&task);
         }
     } else {
-        waitpid_map.erase(_pid);
+        const auto iter = waitpid_map.find(_pid);
+        if (iter != waitpid_map.end() && iter->second == &task) {
+            waitpid_map.erase(iter);
+        }
     }
 
     /* clear and assign result */

@@ -474,3 +474,64 @@ TEST(coroutine_system, write_file_fail) {
         ASSERT_EQ(errno, ENOENT);
     });
 }
+
+#if !SW_USE_IOURING && !defined(_WIN32)
+TEST(coroutine_system, waitpid_rejects_overlapping_waiters) {
+    UnixSocket pipe(true, SOCK_STREAM);
+    ASSERT_TRUE(pipe.ready());
+    auto pid = spawn_exec([&] {
+        char byte;
+        pipe.read(&byte, 1);
+    });
+
+    test::coroutine::run([&](void *) {
+        swoole::coroutine::Channel completed(1);
+        pid_t waited = 0;
+        int status = -1;
+        Coroutine::create([&](void *) {
+            waited = System::waitpid(pid, &status, 0, 1);
+            completed.push(&status);
+        });
+
+        int duplicate_status = -1;
+        EXPECT_EQ(System::waitpid(pid, &duplicate_status, 0, 0.01), -1);
+        EXPECT_EQ(errno, EBUSY);
+        EXPECT_ERREQ(EBUSY);
+        EXPECT_EQ(duplicate_status, -1);
+        EXPECT_EQ(pipe.write("x", 1), 1);
+        EXPECT_EQ(completed.pop(2), &status);
+        EXPECT_EQ(waited, pid);
+        EXPECT_TRUE(WIFEXITED(status));
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+    });
+}
+#endif
+
+#if !SW_USE_IOURING && !defined(_WIN32)
+TEST(coroutine_system, waitpid_releases_owner_after_timeout_and_cancel) {
+    UnixSocket pipe(true, SOCK_STREAM);
+    ASSERT_TRUE(pipe.ready());
+    auto pid = spawn_exec([&] {
+        char byte;
+        pipe.read(&byte, 1);
+    });
+
+    test::coroutine::run([&](void *) {
+        int status = -1;
+        EXPECT_EQ(System::waitpid(pid, &status, 0, 0.01), -1);
+        EXPECT_EQ(errno, ETIMEDOUT);
+        pid_t canceled = 0;
+        const auto cid = Coroutine::create([&](void *) { canceled = System::waitpid(pid, &status, 0, 1); });
+        auto *co = Coroutine::get_by_cid(cid);
+        EXPECT_NE(co, nullptr);
+        if (co) {
+            EXPECT_TRUE(co->cancel());
+        }
+        EXPECT_EQ(canceled, -1);
+        EXPECT_EQ(pipe.write("x", 1), 1);
+        EXPECT_EQ(System::waitpid(pid, &status, 0, 1), pid);
+        EXPECT_TRUE(WIFEXITED(status));
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+    });
+}
+#endif
