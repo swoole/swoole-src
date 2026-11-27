@@ -109,6 +109,8 @@ class Client {
     uint32_t stream_id = 0;       // the next send stream id
     uint32_t last_stream_id = 0;  // the last received stream id
     uint32_t continuation_stream_id = 0;
+    // All promised streams are declined; this upper bound distinguishes closed IDs from idle ones.
+    uint32_t last_promised_stream_id = 0;
 
     Http2::Settings local_settings = {};
     Http2::Settings remote_settings = {};
@@ -262,9 +264,15 @@ class Client {
     bool buffered_pipeline_data = false;
     bool preserve_disconnect_error = false;
     bool drain_timed_out = false;
+    bool settings_acknowledged = false;
+    // A continued PUSH_PROMISE uses its parent stream ID, but none of its fields belong to that response.
+    bool discard_header_block = false;
 
     bool is_draining() const {
         return peer_last_stream_id != UINT32_MAX;
+    }
+    bool is_known_stream_id(uint32_t id) const {
+        return id != 0 && ((id & 1) ? id < stream_id : id <= last_promised_stream_id);
     }
     bool can_open_stream() const {
         if (sw_unlikely(is_draining())) {
@@ -287,7 +295,7 @@ class Client {
     bool send_setting();
     ReturnCode parse_header(Stream *stream, int flags, char *in, size_t inlen, bool upload_read);
     ReturnCode parse_frame(zval *return_value, bool pipeline_read, size_t *pending_bytes = nullptr);
-    ReturnCode reject_send_window(uint32_t error, const char *reason);
+    ReturnCode reject_connection(uint32_t error, const char *reason);
     ReturnCode reject_response_buffer();
 #ifdef SW_HAVE_ZLIB
     ReturnCode reject_compressed_response();
@@ -624,6 +632,9 @@ bool Client::connect() {
 
     stream_id = 1;
     continuation_stream_id = 0;
+    last_promised_stream_id = 0;
+    settings_acknowledged = false;
+    discard_header_block = false;
     // [init]: we must set default value, server is not always send all the settings
     Http2::init_settings(&remote_settings);
     // The peer's initial limit is unlimited until it advertises MAX_CONCURRENT_STREAMS.
@@ -800,7 +811,7 @@ static double http2_client_now() {
     return swoole::time<std::chrono::microseconds>(true) / 1000000.0;
 }
 
-ReturnCode Client::reject_send_window(uint32_t error, const char *reason) {
+ReturnCode Client::reject_connection(uint32_t error, const char *reason) {
     auto *socket = socket_;
     // Try GOAWAY without interrupting a partially written frame or blocking on a stalled peer.
     if (!socket->has_bound(SW_EVENT_WRITE)) {
@@ -988,6 +999,10 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
     switch (type) {
     case SW_HTTP2_TYPE_SETTINGS: {
         if (flags & SW_HTTP2_FLAG_ACK) {
+            if (length != 0) {
+                return reject_connection(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid SETTINGS acknowledgement");
+            }
+            settings_acknowledged = true;
             swoole_http2_frame_trace_log("ACK");
             return SW_CONTINUE;
         }
@@ -1012,12 +1027,12 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
                 break;
             case SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE: {
                 if (value > INT32_MAX) {
-                    return reject_send_window(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "invalid initial send window");
+                    return reject_connection(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "invalid initial send window");
                 }
                 const int64_t delta = int64_t(value) - remote_settings.init_window_size;
                 for (const auto &entry : streams) {
                     if (entry.second->remote_window_size + delta > INT32_MAX) {
-                        return reject_send_window(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "stream send window overflow");
+                        return reject_connection(SW_HTTP2_ERROR_FLOW_CONTROL_ERROR, "stream send window overflow");
                     }
                 }
                 for (const auto &entry : streams) {
@@ -1083,9 +1098,8 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
             SW_TRACE_HTTP2, "[" SW_ECHO_YELLOW "] stream_id=%u, size=%u", "WINDOW_UPDATE", _stream_id, value);
         if (_stream_id == 0) {
             if (value == 0 || int64_t(remote_window_size) + value > INT32_MAX) {
-                return reject_send_window(
-                    value == 0 ? SW_HTTP2_ERROR_PROTOCOL_ERROR : SW_HTTP2_ERROR_FLOW_CONTROL_ERROR,
-                    "invalid connection WINDOW_UPDATE");
+                return reject_connection(value == 0 ? SW_HTTP2_ERROR_PROTOCOL_ERROR : SW_HTTP2_ERROR_FLOW_CONTROL_ERROR,
+                                         "invalid connection WINDOW_UPDATE");
             }
             remote_window_size += value;
         } else if (auto *stream = get_stream(_stream_id)) {
@@ -1150,18 +1164,40 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
         swoole_http2_frame_trace_log("error_code=%u", error);
         return reset_stream(_stream_id, error, return_value, pending_bytes);
     }
-    /**
-     * TODO not support push_promise
-     */
     case SW_HTTP2_TYPE_PUSH_PROMISE: {
-#ifdef SW_DEBUG
-        uint32_t promise_stream_id = ntohl(*(uint32_t *) (buf)) & 0x7fffffff;
-        swoole_http2_frame_trace_log("promise_stream_id=%d", promise_stream_id);
-#endif
-        // auto promise_stream = create_stream(promise_stream_id, false);
-        // RETVAL_ZVAL(promise_stream->response_object, 0, 0);
-        // return SW_READY;
-        return SW_CONTINUE;
+        // Before the peer acknowledges ENABLE_PUSH=0, a promise can already be in flight. Decode
+        // its field block to preserve the shared HPACK context, then decline the promised stream.
+        if ((settings_acknowledged && !local_settings.enable_push) || !(_stream_id & 1) ||
+            !is_known_stream_id(_stream_id)) {
+            return reject_connection(SW_HTTP2_ERROR_PROTOCOL_ERROR, "unexpected PUSH_PROMISE");
+        }
+        if (flags & SW_HTTP2_FLAG_PADDED) {
+            if (length < 1 || (uint8_t) buf[0] >= length) {
+                return reject_connection(SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid PUSH_PROMISE padding");
+            }
+            length -= 1 + (uint8_t) buf[0];
+            buf++;
+        }
+        if (length < sizeof(uint32_t)) {
+            return reject_connection(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid PUSH_PROMISE length");
+        }
+        uint32_t promised_id;
+        memcpy(&promised_id, buf, sizeof(promised_id));
+        promised_id = ntohl(promised_id) & 0x7fffffff;
+        if (promised_id == 0 || (promised_id & 1) || promised_id <= last_promised_stream_id) {
+            return reject_connection(SW_HTTP2_ERROR_PROTOCOL_ERROR, "invalid promised stream ID");
+        }
+        last_promised_stream_id = promised_id;
+        auto ret = parse_header(nullptr, flags, buf + sizeof(promised_id), length - sizeof(promised_id), upload_read);
+        if (ret != SW_SUCCESS) {
+            return ret;
+        }
+        discard_header_block = !(flags & SW_HTTP2_FLAG_END_HEADERS);
+        continuation_stream_id = discard_header_block ? _stream_id : 0;
+        const uint32_t error = htonl(SW_HTTP2_ERROR_CANCEL);
+        Http2::set_frame_header(frame, SW_HTTP2_TYPE_RST_STREAM, sizeof(error), 0, promised_id);
+        memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE, &error, sizeof(error));
+        return send(frame, SW_HTTP2_FRAME_HEADER_SIZE + sizeof(error)) ? SW_CONTINUE : SW_ERROR;
     }
     default: {
         swoole_http2_frame_trace_log("");
@@ -1169,19 +1205,21 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
     }
 
     Stream *stream = get_stream(_stream_id);
-    // The stream is not found or has closed
-    if (stream == nullptr) {
-        swoole_notice("http2 stream#%d belongs to an unknown type or it never registered", _stream_id);
-        return SW_CONTINUE;
-    }
-    if (stream->response_ended) {
-        return SW_CONTINUE;
-    }
     if (type == SW_HTTP2_TYPE_HEADERS || type == SW_HTTP2_TYPE_CONTINUATION) {
+        if (!stream && !is_known_stream_id(_stream_id)) {
+            return reject_connection(SW_HTTP2_ERROR_PROTOCOL_ERROR, "HEADERS on an idle stream");
+        }
         if (type == SW_HTTP2_TYPE_HEADERS) {
-            stream->header_block_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
-            // CONTINUATION frames carry the rest of this field section, so they keep its classification
-            stream->header_block_is_trailers = stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED;
+            discard_header_block = !stream || stream->response_ended;
+        }
+        if (discard_header_block || (stream && stream->response_ended)) {
+            stream = nullptr;
+        }
+        if (type == SW_HTTP2_TYPE_HEADERS) {
+            if (stream) {
+                stream->header_block_end_stream = flags & SW_HTTP2_FLAG_END_STREAM;
+                stream->header_block_is_trailers = stream->flags & SW_HTTP2_STREAM_RESPONSE_HEADERS_RECEIVED;
+            }
             if (flags & SW_HTTP2_FLAG_PADDED) {
                 if (length < 1 || (uint8_t) buf[0] >= length) {
                     close();
@@ -1210,6 +1248,12 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
             return SW_CONTINUE;
         }
         continuation_stream_id = 0;
+        discard_header_block = false;
+        if (!stream) {
+            return SW_CONTINUE;
+        }
+    } else if (!stream || stream->response_ended) {
+        return SW_CONTINUE;
     } else if (type == SW_HTTP2_TYPE_DATA) {
         if (!(flags & SW_HTTP2_FLAG_END_STREAM)) {
             stream->flags |= SW_HTTP2_STREAM_PIPELINE_RESPONSE;
@@ -1517,14 +1561,20 @@ bool Client::send_setting() {
 void php_swoole_http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);
 
 ReturnCode Client::parse_header(Stream *stream, int flags, char *in, size_t inlen, bool upload_read) {
-    zval *zresponse = &stream->zresponse;
-
-    zval *zheaders =
-        sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("headers"), 0);
-    zval *zcookies =
-        sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("cookies"), 0);
-    zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(
-        swoole_http2_response_ce, zresponse, ZEND_STRL("set_cookie_headers"), 0);
+    // A null stream still consumes the whole field block; HPACK state belongs to the connection.
+    zval *zresponse = nullptr;
+    zval *zheaders = nullptr;
+    zval *zcookies = nullptr;
+    zval *zset_cookie_headers = nullptr;
+    if (stream) {
+        zresponse = &stream->zresponse;
+        zheaders =
+            sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("headers"), 0);
+        zcookies =
+            sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("cookies"), 0);
+        zset_cookie_headers = sw_zend_read_and_convert_property_array(
+            swoole_http2_response_ce, zresponse, ZEND_STRL("set_cookie_headers"), 0);
+    }
 
     /* RFC 7540 sec 8.1: the initial response HEADERS frame carries the :status pseudo-header;
      * any later HEADERS frame on the same stream is a trailers frame and, per sec 8.1.2, MUST
@@ -1543,13 +1593,13 @@ ReturnCode Client::parse_header(Stream *stream, int flags, char *in, size_t inle
             inflater, &nv, &inflate_flags, (uchar *) in, inlen, (flags & SW_HTTP2_FLAG_END_HEADERS) != 0);
         if (rv < 0) {
             nghttp2_error(rv, "nghttp2_hd_inflate_hd failed");
-            return SW_ERROR;
+            return reject_connection(SW_HTTP2_ERROR_COMPRESSION_ERROR, "invalid HPACK field block");
         }
 
         in += (size_t) rv;
         inlen -= (size_t) rv;
 
-        if (inflate_flags & NGHTTP2_HD_INFLATE_EMIT) {
+        if ((inflate_flags & NGHTTP2_HD_INFLATE_EMIT) && stream) {
             // Include per-field overhead so small, decoded headers count toward the buffering limit too.
             if (!reserve_response_bytes(stream, nv.namelen + nv.valuelen + 32, upload_read)) {
                 return reject_response_buffer();
