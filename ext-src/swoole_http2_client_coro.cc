@@ -638,6 +638,8 @@ bool Client::connect() {
     discard_header_block = false;
     // [init]: we must set default value, server is not always send all the settings
     Http2::init_settings(&remote_settings);
+    // Local configuration does not change the peer's protocol-defined initial HPACK capacity.
+    remote_settings.header_table_size = SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE;
     // The peer's initial limit is unlimited until it advertises MAX_CONCURRENT_STREAMS.
     remote_settings.max_concurrent_streams = UINT32_MAX;
     remote_settings.init_window_size = SW_HTTP2_DEFAULT_INIT_WINDOW_SIZE;
@@ -650,6 +652,16 @@ bool Client::connect() {
         nghttp2_error(ret, "nghttp2_hd_inflate_new2() failed");
         close();
         return false;
+    }
+    // Allow an enlarged table as soon as our SETTINGS is sent: the peer may use it before its ACK arrives.
+    // A smaller limit must wait for the ACK, since header blocks using the old capacity can be in flight.
+    if (local_settings.header_table_size > SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE) {
+        ret = nghttp2_hd_inflate_change_table_size(inflater, local_settings.header_table_size);
+        if (ret != 0) {
+            nghttp2_error(ret, "nghttp2_hd_inflate_change_table_size() failed");
+            close();
+            return false;
+        }
     }
     ret = nghttp2_hd_deflate_new2(&deflater, local_settings.header_table_size, php_nghttp2_mem());
     if (ret != 0) {
@@ -1002,6 +1014,15 @@ ReturnCode Client::parse_frame(zval *return_value, bool pipeline_read, size_t *p
         if (flags & SW_HTTP2_FLAG_ACK) {
             if (length != 0) {
                 return reject_connection(SW_HTTP2_ERROR_FRAME_SIZE_ERROR, "invalid SETTINGS acknowledgement");
+            }
+            if (!settings_acknowledged) {
+                // The ACK orders subsequent header blocks after the peer has applied our receive limit.
+                // CONTINUATION validation above ensures that no HPACK block is currently being decoded.
+                int ret = nghttp2_hd_inflate_change_table_size(inflater, local_settings.header_table_size);
+                if (ret != 0) {
+                    return reject_connection(SW_HTTP2_ERROR_INTERNAL_ERROR,
+                                             "failed to configure HPACK receive capacity");
+                }
             }
             settings_acknowledged = true;
             swoole_http2_frame_trace_log("ACK");
