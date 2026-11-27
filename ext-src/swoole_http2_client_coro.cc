@@ -666,6 +666,9 @@ bool Client::close() const {
         update_error_properties(EBADF, strerror(EBADF));
         return false;
     }
+    // Retain the PHP Socket until the close barrier and error-property updates have completed.
+    zend::Variable socket_guard;
+    ZVAL_COPY(socket_guard.ptr(), &zsocket);
     zend_update_property_bool(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_socket->close()) {
         update_error_properties(_socket->errCode, _socket->errMsg);

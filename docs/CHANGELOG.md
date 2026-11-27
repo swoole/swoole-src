@@ -45,6 +45,7 @@
 
 ### Bug fixes
 
+- Keep close-barrier state alive when a Client release hook deletes its Socket, avoiding accesses to freed memory and allocator corruption.
 - Retire pending server commands on explicit coroutine cancellation and normal owner shutdown, and ignore late replies safely.
 - Settle coroutine task waits with `false` and release independent task callbacks when a received result cannot be unpacked.
 - Deliver BASE shutdown close callbacks before destroying the worker reactor; graceful callbacks share the original `max_wait_time` budget.

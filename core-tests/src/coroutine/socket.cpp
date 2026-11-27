@@ -1623,6 +1623,52 @@ TEST(coroutine_socket, concurrent_close_waits_for_post_release_callback) {
     test_concurrent_close_barrier(true);
 }
 
+TEST(coroutine_socket, close_hook_can_delete_its_receiver) {
+    coroutine::run([](void *) {
+        auto *socket = new Socket(SW_SOCK_TCP);
+        const auto fd = socket->get_fd();
+        int releases = 0;
+        socket->set_dtor([&](Socket *closing) {
+            ++releases;
+            EXPECT_EQ(fcntl(fd, F_GETFD), -1);
+            EXPECT_EQ(errno, EBADF);
+            delete closing;
+        });
+        EXPECT_TRUE(socket->close());
+        // The receiver was deleted inside its hook. close() may only complete using independent state.
+        EXPECT_EQ(releases, 1);
+    });
+}
+
+TEST(coroutine_socket, deferred_close_waiter_can_outlive_its_receiver) {
+    coroutine::run([](void *) {
+        auto owner = std::unique_ptr<Socket>(new Socket(SW_SOCK_TCP));
+        auto *socket = owner.get();
+        const auto main_cid = Coroutine::get_current()->get_cid();
+        bool winner_returned = false;
+        swoole::coroutine::ChannelImpl<bool> finished(1);
+        const auto winner_cid = Coroutine::create([&](void *) {
+            EXPECT_TRUE(socket->close([&](Socket *) {
+                swoole_event_defer([main_cid](void *) { Coroutine::get_by_cid(main_cid)->resume(); }, nullptr);
+                Coroutine::get_current()->yield();
+            }));
+            owner.reset();
+            winner_returned = true;
+        });
+        Coroutine::get_current()->yield();
+        Coroutine::create([&](void *) {
+            EXPECT_FALSE(socket->close());
+            EXPECT_TRUE(winner_returned);
+            EXPECT_EQ(swoole_get_last_error(), EBADF);
+            finished.push(true);
+        });
+        Coroutine::get_by_cid(winner_cid)->resume();
+        bool done = false;
+        ASSERT_TRUE(finished.pop(&done, 2));
+        EXPECT_TRUE(done);
+    });
+}
+
 TEST(coroutine_socket, cancel) {
     coroutine::run([&](void *arg) {
         auto pair = create_socket_pair();

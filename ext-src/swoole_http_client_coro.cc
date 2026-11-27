@@ -2344,6 +2344,8 @@ bool Client::close(const bool should_be_reset) {
         return true;
     }
 
+    // socket_dtor() drops zsocket, but other close callers can still be returning through this frame.
+    zend::Variable socket_guard(&zsocket);
     zend_update_property_bool(Z_OBJCE_P(zobject), Z_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_socket->close()) {
         php_swoole_socket_set_error_properties(zobject, _socket);

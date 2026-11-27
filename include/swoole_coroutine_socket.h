@@ -443,7 +443,8 @@ class Socket {
     struct CloseState;
     // Owner-thread state; absent on the ordinary, idle close path. No atomic operations are needed.
     // Allocated only when cancellation can suspend or a release callback can reenter close().
-    std::unique_ptr<CloseState> close_state_;
+    // A release hook can delete the Socket itself. Active close calls retain this state independently.
+    std::shared_ptr<CloseState> close_state_;
     bool close_impl(const std::function<void(Socket *)> &before_release);
     void notify_io_waiters();
 

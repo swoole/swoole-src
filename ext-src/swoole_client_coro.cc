@@ -100,6 +100,7 @@ static SocketImpl *client_coro_get_socket(const zval *zobject) {
 static void client_coro_free_object(zend_object *object) {
     ClientCoroObject *client = client_coro_fetch_object(object);
     if (client->socket) {
+        zend::Variable socket_guard(&client->zsocket);
         client->socket->close();
     }
     zend_object_std_dtor(&client->std);
@@ -576,6 +577,8 @@ static PHP_METHOD(swoole_client_coro, getpeername) {
 
 static PHP_METHOD(swoole_client_coro, close) {
     CLIENT_CORO_GET_SOCKET_SAFE(_socket);
+    // The release hook clears the Client's Socket reference; retain it through the close barrier.
+    zend::Variable socket_guard(&client_coro_get_client(ZEND_THIS)->zsocket);
     zend_update_property_bool(Z_OBJCE_P(ZEND_THIS), Z_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 0);
     if (!_socket->close()) {
         php_swoole_socket_set_error_properties(ZEND_THIS, _socket);

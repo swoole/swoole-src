@@ -41,6 +41,7 @@ struct Socket::CloseState {
         explicit Waiter(Coroutine *co) : cid(co ? co->get_cid() : -1) {}
     };
     bool closing = false;
+    bool socket_destroyed = false;
     long owner_cid = -1;
     // I/O waiters may resume after the last read/write unbinds. Close waiters must additionally
     // wait for SSL cleanup, the release callback and the descriptor release performed by the owner.
@@ -85,7 +86,7 @@ bool Socket::wait_for_pending_io() {
         return false;
     }
     if (!close_state_) {
-        close_state_.reset(new CloseState());
+        close_state_ = std::make_shared<CloseState>();
     }
     auto waiter = std::make_shared<CloseState::Waiter>(co);
     close_state_->io_waiters.push_back(waiter);
@@ -1825,7 +1826,7 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
         return false;
     }
     if (sw_unlikely(close_state_ && close_state_->closing)) {
-        auto *state = close_state_.get();
+        auto state = close_state_;
         // A release callback must not wait for the close invocation it is currently executing.
         if (co && co->get_cid() == state->owner_cid) {
             set_err(is_closed() ? EBADF : EDEADLK);
@@ -1859,7 +1860,12 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
             }
         }
         waiter->waiting = false;
-        set_err(EBADF);
+        if (!state->socket_destroyed) {
+            set_err(EBADF);
+        } else {
+            // The winning caller can release its receiver before deferred losers resume.
+            swoole_set_last_error(EBADF);
+        }
         return false;
     }
     if (is_closed()) {
@@ -1868,7 +1874,7 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
     }
     if (has_bound() || before_release || dtor_ || close_state_) {
         if (!close_state_) {
-            close_state_.reset(new CloseState());
+            close_state_ = std::make_shared<CloseState>();
         }
         close_state_->closing = true;
         close_state_->owner_cid = co ? co->get_cid() : -1;
@@ -1903,24 +1909,23 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
     // A release callback can transfer ownership with move_fd(), e.g. to PHP stream cleanup.
     sock_fd = SW_BAD_SOCKET;
     socket->close_fd();
-    if (dtor_ != nullptr) {
-        // The post-release hook is part of this close as well. Another caller must still join
-        // the barrier if this hook suspends, even though is_closed() is already true.
-        auto dtor = dtor_;
-        dtor_ = nullptr;
+    // Keep state alive across the hook: PHP Client cleanup can release the last Socket object,
+    // deleting this receiver before the hook returns. Nothing below may unconditionally access this.
+    auto state = close_state_;
+    auto dtor = std::exchange(dtor_, {});
+    if (dtor) {
         dtor(this);
     }
-    if (close_state_) {
-        auto state = std::move(close_state_);
-        // Publish completion only after the descriptor is released. Tokens outlive CloseState and
-        // the Socket itself; deferred losers resume in registration order and report EBADF.
-        // Deferring also lets the winning PHP close() return before the losing calls return.
+    if (state) {
+        state->closing = false;
         for (const auto &waiter : state->close_waiters) {
             waiter->completed = true;
         }
         CloseState::resume_later(std::move(state->close_waiters));
     }
-    set_err(0);
+    if (!state || !state->socket_destroyed) {
+        set_err(0);
+    }
     return true;
 }
 
@@ -1932,6 +1937,9 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
  * 3. called close() and it returns false, but it will not be accessed anywhere else
  */
 Socket::~Socket() {
+    if (close_state_) {
+        close_state_->socket_destroyed = true;
+    }
 #ifdef SW_DEBUG
     if (SwooleG.running) {
         SW_ASSERT(!has_bound() && socket->removed);
