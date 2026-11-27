@@ -9,6 +9,14 @@ previously released versions.
 | `master` | Silently discarded | Exposed separately through `Request::$trailer` |
 | `6.1`, `6.2` | Silently discarded | Silently discarded; no `Request::$trailer` property is added |
 
+## WebSocket application completion
+
+If the peer must finish processing messages before disconnecting, exchange an
+application completion request and acknowledgement before initiating WebSocket
+closure. See [WebSocket usage and boundaries](websocket.md#closing-after-application-work-completes) for the
+recommended sequence and the distinction between business completion, accepted
+sends and connection closure.
+
 ## Multipart form-data uploads
 
 The coroutine HTTP client can combine `setData(array)` fields with `addFile()`
