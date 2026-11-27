@@ -45,7 +45,9 @@ Coroutine\run(function () {
     $port = $socket->getsockname()['port'];
     Coroutine::create(function () use ($socket) {
         Assert::false($socket->accept(1));
-        Assert::true($socket->close());
+        // The main coroutine closed first; a second close reports EBADF.
+        Assert::false($socket->close());
+        Assert::eq($socket->errCode, SOCKET_EBADF);
     });
     Assert::true($socket->close());
     Assert::true($socket->isClosed());

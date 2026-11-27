@@ -21,7 +21,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::assert(!$http->get('/'));
         echo "CLOSED\n";
         Assert::same($http->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET);
-        Assert::same($http->errCode, SOCKET_ECANCELED);
+        Assert::same($http->errCode, SOCKET_EBADF);
         Assert::assert(empty($http->body));
     });
     Swoole\Event::wait();
@@ -43,5 +43,5 @@ $pm->run();
 --EXPECT--
 GET
 CLOSE
-CLOSED
 DONE
+CLOSED

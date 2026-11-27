@@ -26,10 +26,13 @@ $pm->parentFunc = function () use ($pm) {
                         break;
                     }
                 }
-                Assert::true($client->close());
+                // The main coroutine closed first; the close barrier makes any
+                // subsequent close fail with EBADF.
+                Assert::false($client->close());
+                Assert::eq($client->errCode, SOCKET_EBADF);
             });
-            Assert::false($client->close());
-            Assert::eq($client->errCode, SWOOLE_ERROR_CO_SOCKET_CLOSE_WAIT);
+            Assert::true($client->close());
+            Assert::eq($client->errCode, SOCKET_ECANCELED);
         }
         echo "DONE\n";
     });
