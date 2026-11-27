@@ -744,24 +744,16 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
 
             swoole_trace_log(SW_TRACE_CARES, "[cares callback] status=%d, timeouts=%d", status, timeouts);
 
-            if (timeouts > 0) {
-                ctx->error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
-                goto _resume;
-            }
-
+            // Earlier attempts can time out even when the final lookup succeeds.
             if (status != ARES_SUCCESS) {
                 ctx->error = status;
-                goto _resume;
-            }
-
-            if (hostent->h_addr_list) {
+            } else if (hostent->h_addr_list) {
                 char **paddr = hostent->h_addr_list;
                 while (*paddr != nullptr) {
                     ctx->result.emplace_back(parse_ip_address(*paddr, hostent->h_addrtype));
                     paddr++;
                 }
             }
-        _resume:
             if (ctx->co && ctx->co->is_suspending()) {
                 auto _cancelled = ctx->defer_task_cancelled;
                 swoole_event_defer(

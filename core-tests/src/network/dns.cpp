@@ -273,6 +273,71 @@ TEST(dns, ipv6_server_lookup) {
     });
 }
 
+#if defined(SW_USE_CARES) && ARES_VERSION >= 0x010b00
+TEST(dns, cares_delivers_success_after_retry) {
+    const auto original_server = swoole_get_dns_server();
+    const auto original_tries = SwooleG.dns_tries;
+    ON_SCOPE_EXIT {
+        SwooleG.dns_server = original_server;
+        SwooleG.dns_tries = original_tries;
+    };
+    SwooleG.dns_tries = 2;
+
+    test::coroutine::run([](void *) {
+        Socket server(SW_SOCK_UDP);
+        ASSERT_TRUE(server.bind("127.0.0.1", 0));
+        ASSERT_TRUE(server.getsockname());
+        server.set_timeout(1);
+        swoole_set_dns_server("127.0.0.1:" + std::to_string(server.get_port()));
+
+        auto result = std::make_shared<swoole::coroutine::ChannelImpl<std::vector<std::string>>>(1);
+        const auto cid = Coroutine::create([result](void *) {
+            // Disable the outer coroutine deadline so c-ares can retry on its own timeout.
+            result->push(swoole::coroutine::dns_lookup_impl_with_cares("resolver.test.", AF_INET, 0));
+        });
+        ON_SCOPE_EXIT {
+            if (auto *lookup = Coroutine::get_by_cid(cid)) {
+                lookup->cancel();
+            }
+        };
+
+        char packet[512];
+        sockaddr_in peer{};
+        socklen_t peer_len = sizeof(peer);
+        constexpr size_t question_end = 12 + sizeof("\x08resolver\x04test") + 4;
+        ASSERT_GE(server.recvfrom(packet, sizeof(packet), reinterpret_cast<sockaddr *>(&peer), &peer_len),
+                  static_cast<ssize_t>(question_end));
+        packet[0] ^= 1;
+        packet[2] = static_cast<char>(0x81);
+        packet[3] = static_cast<char>(0x80);
+        packet[11] = 0;
+
+        // Wake the resolver with an unrelated reply so it processes its timeout before sending the next query.
+        server.set_timeout(0.35);
+        char retry[512];
+        ssize_t received = -1;
+        for (int i = 0; i < 8 && received < 0; i++) {
+            ASSERT_EQ(server.sendto("127.0.0.1", ntohs(peer.sin_port), packet, question_end), question_end);
+            received = server.recvfrom(retry, sizeof(retry), reinterpret_cast<sockaddr *>(&peer), &peer_len);
+        }
+        ASSERT_GE(received, static_cast<ssize_t>(question_end));
+
+        retry[2] = static_cast<char>(0x81);
+        retry[3] = static_cast<char>(0x80);
+        retry[7] = 1;
+        retry[11] = 0;
+        const unsigned char answer[] = {0xc0, 12, 0, 1, 0, 1, 0, 0, 0, 1, 0, 4, 192, 0, 2, 10};
+        memcpy(retry + question_end, answer, sizeof(answer));
+        ASSERT_EQ(server.sendto("127.0.0.1", ntohs(peer.sin_port), retry, question_end + sizeof(answer)),
+                  question_end + sizeof(answer));
+
+        std::vector<std::string> addresses;
+        ASSERT_TRUE(result->pop(&addresses, 1));
+        EXPECT_EQ(addresses, (std::vector<std::string>{"192.0.2.10"}));
+    });
+}
+#endif
+
 TEST(dns, getaddrinfo_result_limit) {
     GetaddrinfoRequest req("localhost", AF_UNSPEC, SOCK_STREAM, 0, "http");
     ASSERT_EQ(network::getaddrinfo(&req), 0);
