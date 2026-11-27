@@ -636,7 +636,8 @@ bool IocpSocket::ssl_handshake() {
         }
     }
 
-    return ssl_finish_handshake();
+    // OpenSSL can finish locally while the final handshake records are still queued in wbio.
+    return ssl_bio_prepare() && ssl_finish_handshake();
 }
 
 ssize_t IocpSocket::ssl_readv(network::IOVector *io_vector) {

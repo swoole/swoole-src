@@ -93,6 +93,7 @@ jobs:
             'tests\swoole_process\process_manager_readiness.phpt',
             'tests\swoole_process\process_manager_timeout.phpt',
             'tests\swoole_socket_coro\sendfile_range.phpt',
+            'tests\swoole_socket_coro\ssl_handshake_without_application_data.phpt',
             'tests\swoole_windows\atomic_compat.phpt',
             'tests\swoole_windows\bootstrap.phpt',
             'tests\swoole_windows\iocp_cancel.phpt',

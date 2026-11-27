@@ -806,6 +806,88 @@ TEST(uring_socket, ssl_readv) {
     });
 }
 
+#ifdef TLS1_3_VERSION
+TEST(uring_socket, tls13_handshake_without_application_data) {
+    swoole::coroutine::ChannelImpl<bool> handshake(1);
+    int port = 0;
+
+    auto server = [&](void *) {
+        UringSocket listener(SW_SOCK_TCP);
+        ASSERT_TRUE(listener.enable_ssl_encrypt());
+        listener.set_ssl_protocols(SW_SSL_TLSv1_3);
+        listener.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/server.crt");
+        listener.set_ssl_key_file(swoole::test::get_ssl_dir() + "/server.key");
+        ASSERT_TRUE(listener.bind("127.0.0.1", 0));
+        ASSERT_TRUE(listener.listen(1));
+        ASSERT_TRUE(listener.getsockname());
+        port = listener.get_port();
+        listener.set_timeout(2);
+
+        std::unique_ptr<UringSocket> peer(listener.accept());
+        ASSERT_NE(peer, nullptr);
+        ASSERT_TRUE(handshake.push(peer->ssl_handshake()));
+    };
+
+    auto client = [&](void *) {
+        ASSERT_GT(port, 0);
+        UringSocket socket(SW_SOCK_TCP);
+        ASSERT_TRUE(socket.enable_ssl_encrypt());
+        socket.set_ssl_protocols(SW_SSL_TLSv1_3);
+        socket.set_timeout(2);
+        ASSERT_TRUE(socket.connect("127.0.0.1", port)) << socket.errMsg;
+
+        bool established = false;
+        ASSERT_TRUE(handshake.pop(&established, 3));
+        EXPECT_TRUE(established);
+    };
+
+    coroutine::run({server, client});
+}
+#endif
+
+TEST(uring_socket, close_waits_for_ssl_handshake) {
+    swoole::coroutine::ChannelImpl<bool> handshake(1);
+    swoole::coroutine::ChannelImpl<bool> done(1);
+    int port = 0;
+
+    auto server = [&](void *) {
+        UringSocket listener(SW_SOCK_TCP);
+        ASSERT_TRUE(listener.enable_ssl_encrypt());
+        listener.set_ssl_cert_file(swoole::test::get_ssl_dir() + "/server.crt");
+        listener.set_ssl_key_file(swoole::test::get_ssl_dir() + "/server.key");
+        ASSERT_TRUE(listener.bind("127.0.0.1", 0));
+        ASSERT_TRUE(listener.listen(1));
+        ASSERT_TRUE(listener.getsockname());
+        port = listener.get_port();
+        listener.set_timeout(2);
+
+        std::unique_ptr<UringSocket> peer(listener.accept());
+        ASSERT_NE(peer, nullptr);
+        Coroutine::create([&](void *) { handshake.push(peer->ssl_handshake()); });
+
+        // The peer sends nothing, so the handshake is suspended in its first read.
+        System::sleep(0.05);
+        EXPECT_FALSE(peer->close());
+        bool established = true;
+        ASSERT_TRUE(handshake.pop(&established, 3));
+        EXPECT_FALSE(established);
+        EXPECT_TRUE(peer->close());
+        done.push(true);
+    };
+
+    auto client = [&](void *) {
+        ASSERT_GT(port, 0);
+        UringSocket socket(SW_SOCK_TCP);
+        socket.set_timeout(2);
+        ASSERT_TRUE(socket.connect("127.0.0.1", port)) << socket.errMsg;
+
+        bool finished = false;
+        ASSERT_TRUE(done.pop(&finished, 3));
+    };
+
+    coroutine::run({server, client});
+}
+
 TEST(uring_socket, ssl_readv_resumes_after_partial_timeout) {
     swoole::coroutine::ChannelImpl<bool> first_chunk_sent(1);
     swoole::coroutine::ChannelImpl<bool> resume_send(1);

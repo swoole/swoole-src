@@ -568,6 +568,12 @@ bool UringSocket::ssl_handshake() {
     if (!ssl_prepare_handshake()) {
         return false;
     }
+    // The handshake alternates reads and writes, so close() must wait for it instead of freeing SSL/BIO under it.
+    auto *co = Coroutine::get_current_safe();
+    read_co = write_co = co;
+    ON_SCOPE_EXIT {
+        read_co = write_co = nullptr;
+    };
     rbio = BIO_new(BIO_s_mem());
     wbio = BIO_new(BIO_s_mem());
     SSL_set_bio(socket->ssl, rbio, wbio);
@@ -593,7 +599,8 @@ bool UringSocket::ssl_handshake() {
         }
     }
 
-    return ssl_finish_handshake();
+    // OpenSSL can finish locally while the final handshake records are still queued in wbio.
+    return ssl_bio_prepare() && ssl_finish_handshake();
 }
 
 ssize_t UringSocket::ssl_readv(network::IOVector *io_vector) {
