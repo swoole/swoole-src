@@ -163,6 +163,34 @@ class ConnectionState : public testing::Test {
 };
 }  // namespace
 
+TEST(server, sendwait_rejects_thread_mode_before_accessing_connections) {
+    Server server(Server::MODE_THREAD);
+    // A rejected mode must not inspect the connection table, even before it has been allocated.
+    EXPECT_FALSE(server.sendwait(1, "blocked", 7));
+    EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+}
+
+TEST_F(ConnectionState, sendwait_does_not_overtake_queued_output) {
+    auto *conn = connect();
+    ASSERT_NE(conn, nullptr);
+    conn->socket->out_buffer = new Buffer(SW_SEND_BUFFER_SIZE);
+    conn->socket->out_buffer->append("queued", 6);
+    EXPECT_FALSE(server->sendwait(conn->session_id, "later", 5));
+    EXPECT_ERREQ(SW_ERROR_OPERATION_NOT_SUPPORT);
+    EXPECT_EQ(conn->socket->out_buffer->length(), 6u);
+    char byte;
+    EXPECT_EQ(::recv(peers.back()->fd, &byte, 1, MSG_DONTWAIT), -1);
+    EXPECT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
+
+    // An allocated but empty buffer must not prevent a subsequent synchronous write.
+    conn->socket->out_buffer->pop();
+    ASSERT_TRUE(server->sendwait(conn->session_id, "later", 5));
+    ASSERT_EQ(peers.back()->wait_event(1000, SW_EVENT_READ), SW_OK);
+    char reply[5];
+    ASSERT_EQ(peers.back()->recv_sync(reply, sizeof(reply), MSG_WAITALL), sizeof(reply));
+    EXPECT_EQ(std::string(reply, sizeof(reply)), "later");
+}
+
 TEST_F(ConnectionState, paused_timeout_waits_for_one_worker_close) {
     auto *conn = connect();
     ASSERT_NE(conn, nullptr);

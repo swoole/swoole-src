@@ -9,6 +9,9 @@ The command API has separate threading restrictions. See
 [Server commands](server-commands.md) for the supported THREAD command targets
 and the ownership of PHP command callbacks.
 
+See [Server sending](server-sending.md) for `send()` routing and the restrictions
+on synchronous `sendwait()` calls.
+
 ## Top-level event loop guarantee
 
 **`onClose` and `onBufferFull` are always dispatched from the top level of the

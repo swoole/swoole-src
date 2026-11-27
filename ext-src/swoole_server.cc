@@ -4088,6 +4088,13 @@ static PHP_METHOD(swoole_server, sendwait) {
         RETURN_FALSE;
     }
 
+    if (serv->is_thread_mode()) {
+        php_swoole_error_ex(E_WARNING,
+                            SW_ERROR_OPERATION_NOT_SUPPORT,
+                            "sendwait() is not supported in THREAD mode; use send() instead");
+        RETURN_FALSE;
+    }
+
     if (serv->is_process_mode() || serv->is_task_worker()) {
         php_swoole_fatal_error(E_WARNING, "can only be used with base mode and must be within worker process");
         RETURN_FALSE;

@@ -1982,15 +1982,28 @@ bool Server::sendfile(
 }
 
 /**
- * [Worker] Returns the number of bytes sent
+ * BASE worker only. Writes directly to the transport, so pending asynchronous output
+ * must be drained first. THREAD callers must use send(), which routes to the owner.
  */
 bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) const {
+    if (is_thread_mode()) {
+        swoole_error_log(
+            SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "sendwait() is not supported in THREAD mode; use send()");
+        return false;
+    }
     Connection *conn = get_connection_verify(session_id);
     if (!conn) {
         swoole_error_log(SW_LOG_TRACE,
                          SW_ERROR_SESSION_NOT_EXIST,
                          "send %d byte failed, because session#%ld is not exists",
                          length,
+                         session_id);
+        return false;
+    }
+    if (!Buffer::empty(conn->socket->out_buffer)) {
+        swoole_error_log(SW_LOG_NOTICE,
+                         SW_ERROR_OPERATION_NOT_SUPPORT,
+                         "sendwait() cannot bypass queued output, session#%ld; use send()",
                          session_id);
         return false;
     }
