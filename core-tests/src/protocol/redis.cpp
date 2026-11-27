@@ -253,6 +253,7 @@ class RedisProtocolTest : public testing::Test {
         ASSERT_TRUE(socket.set_nonblock());
         conn.fd = fds[1];
         conn.socket = &socket;
+        socket.recv_buffer = &buffer;
         protocol.package_max_length = 256;
         protocol.private_data_1 = this;
         protocol.onPackage = [](const Protocol *protocol, network::Socket *socket, const RecvData *data) {
@@ -261,11 +262,15 @@ class RedisProtocolTest : public testing::Test {
             if (test->remove_on_package) {
                 socket->removed = true;
             }
+            if (test->pause_on_package) {
+                test->conn.recv_paused = true;
+            }
             return test->callback_result;
         };
     }
 
     void TearDown() override {
+        socket.recv_buffer = nullptr;
         sw_free(conn.object);
         for (int fd : fds) {
             if (fd >= 0) {
@@ -292,6 +297,7 @@ class RedisProtocolTest : public testing::Test {
     std::vector<std::string> packets;
     int callback_result = SW_OK;
     bool remove_on_package = false;
+    bool pause_on_package = false;
 };
 }  // namespace
 
@@ -405,5 +411,79 @@ TEST_F(RedisProtocolTest, callback_may_remove_socket) {
     ASSERT_EQ(packets.size(), 1u);
     EXPECT_EQ(packets[0], packet);
     EXPECT_TRUE(socket.removed);
+}
+
+TEST_F(RedisProtocolTest, splits_pipeline_and_retains_incomplete_numeric_line) {
+    const std::string first = "*1\r\n$4\r\nPING\r\n";
+    const std::string second = "*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n";
+    buffer.reserve(256);
+    send(first + second.substr(0, 13));
+    ASSERT_EQ(receive(), SW_OK);
+    ASSERT_EQ(packets, std::vector<std::string>{first});
+    EXPECT_EQ(buffer.to_std_string(), second.substr(0, 13));
+    send(second.substr(13) + first);
+    ASSERT_EQ(receive(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{first, second, first}));
+    EXPECT_EQ(buffer.length, 0u);
+}
+
+TEST_F(RedisProtocolTest, fragmented_pipeline_accepts_every_split_position) {
+    const std::string first = "*1\r\n$4\r\nPING\r\n";
+    const std::string second = "*2\r\n$4\r\nECHO\r\n$4\r\na\r\nb\r\n";
+    buffer.reserve(256);
+    for (size_t split = 1; split < second.size(); split++) {
+        SCOPED_TRACE(split);
+        packets.clear();
+        send(first + second.substr(0, split));
+        ASSERT_EQ(receive(), SW_OK);
+        ASSERT_EQ(packets, std::vector<std::string>{first});
+        send(second.substr(split));
+        ASSERT_EQ(receive(), SW_OK);
+        EXPECT_EQ(packets, (std::vector<std::string>{first, second}));
+    }
+}
+
+TEST_F(RedisProtocolTest, resumed_pipeline_does_not_redeliver_the_first_command) {
+    const std::string packet = "*1\r\n$4\r\nPING\r\n";
+    buffer.reserve(256);
+    remove_on_package = true;
+    send(packet + packet);
+    ASSERT_EQ(receive(), SW_OK);
+    ASSERT_EQ(packets.size(), 1u);
+    EXPECT_TRUE(socket.skip_recv);
+    EXPECT_EQ(buffer.to_std_string(), packet);
+    remove_on_package = false;
+    socket.removed = false;
+    ASSERT_EQ(receive(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{packet, packet}));
+    EXPECT_EQ(buffer.length, 0u);
+    EXPECT_FALSE(socket.skip_recv);
+}
+
+TEST_F(RedisProtocolTest, package_limit_applies_to_each_command_in_pipeline) {
+    const std::string packet = "*1\r\n$4\r\nPING\r\n";
+    buffer.reserve(256);
+    protocol.package_max_length = packet.size();
+    send(packet + packet + packet);
+    ASSERT_EQ(receive(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{packet, packet, packet}));
+}
+
+TEST_F(RedisProtocolTest, pause_with_write_interest_retains_pending_commands) {
+    const std::string packet = "*1\r\n$4\r\nPING\r\n";
+    buffer.reserve(256);
+    pause_on_package = true;
+    send(packet + packet);
+    ASSERT_EQ(receive(), SW_OK);
+    ASSERT_EQ(packets.size(), 1u);
+    EXPECT_TRUE(socket.skip_recv);
+    EXPECT_FALSE(socket.removed);
+    EXPECT_EQ(buffer.to_std_string(), packet);
+
+    pause_on_package = false;
+    conn.recv_paused = false;
+    ASSERT_EQ(receive(), SW_OK);
+    EXPECT_EQ(packets, (std::vector<std::string>{packet, packet}));
+    EXPECT_EQ(buffer.length, 0u);
 }
 #endif

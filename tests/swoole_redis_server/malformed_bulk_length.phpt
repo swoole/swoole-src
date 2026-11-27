@@ -13,7 +13,7 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $payloads = [
         "*1\r\n\$-2\r\n\r\n",
-        "*1\r\n\$4\r\nPING\r\n\$x\r\n",
+        "*2\r\n\$4\r\nPING\r\n\$x\r\n",
     ];
     foreach ($payloads as $payload) {
         $client = new Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
@@ -34,6 +34,7 @@ $pm->parentFunc = function () use ($pm) {
 
 $pm->childFunc = function () use ($pm) {
     $server = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server->set(['log_file' => '/dev/null']);
     $server->setHandler('ECHO', function ($fd, $data) use ($server) {
         $server->send($fd, Server::format(Server::STRING, $data[0] ?? ''));
     });
