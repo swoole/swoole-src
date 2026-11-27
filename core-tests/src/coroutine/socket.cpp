@@ -20,7 +20,9 @@
 #include "test_process.h"
 #include "test_coroutine.h"
 #include "test_server.h"
+#include "swoole_async.h"
 
+#include <future>
 #include <stdexcept>
 
 using swoole::Coroutine;
@@ -1565,6 +1567,173 @@ TEST(coroutine_socket, cancel) {
         System::sleep(0.1);
         pair.first->cancel(SW_EVENT_READ);
         ASSERT_TRUE(results["read"]);
+    });
+}
+
+static void check_socket_dns_cancellation(swoole::EventType event, bool close_socket, bool completed,
+                                          bool return_address = false, bool finish_early = false) {
+    struct State {
+        std::promise<void> entered;
+        std::promise<void> release;
+        std::promise<void> resolved;
+        std::shared_future<void> resume = release.get_future().share();
+        long cid = -1;
+        int returned = 0;
+        int finished = 0;
+        bool canceled = false;
+        bool released = false;
+        bool finish_early = false;
+    } state;
+    state.finish_early = finish_early;
+    const auto core_workers = SwooleG.aio_core_worker_num;
+    const auto max_workers = SwooleG.aio_worker_num;
+    auto resolvers = std::move(SwooleTG.name_resolvers);
+    SwooleTG.name_resolvers.clear();
+    SwooleG.aio_core_worker_num = SwooleG.aio_worker_num = 1;
+    ON_SCOPE_EXIT {
+        SwooleTG.name_resolvers = std::move(resolvers);
+        SwooleG.aio_core_worker_num = core_workers;
+        SwooleG.aio_worker_num = max_workers;
+    };
+    std::unique_ptr<Socket> socket;
+    coroutine::run([&](void *) {
+        ON_SCOPE_EXIT {
+            if (!state.released) {
+                state.release.set_value();
+            }
+        };
+        // A custom resolver forces the real thread-pool DNS path even in c-ares builds.
+        swoole::NameResolver resolver{};
+        resolver.type = swoole::NameResolver::TYPE_USER;
+        resolver.resolve = [&](const std::string &, swoole::NameResolver::Context *ctx, void *) {
+            ctx->final_ = true;
+            auto result = swoole::coroutine::gethostbyname_impl_with_async("localhost", ctx->type, 5);
+            state.canceled = Coroutine::get_current()->is_canceled();
+            return return_address ? std::string("127.0.0.1") : result;
+        };
+        swoole_name_resolver_add(resolver);
+        swoole::AsyncEvent barrier{};
+        barrier.object = &state;
+        barrier.handler = [](swoole::AsyncEvent *event) {
+            auto *state = static_cast<State *>(event->object);
+            state->entered.set_value();
+            state->resume.wait();
+        };
+        ASSERT_NE(swoole::async::dispatch(&barrier), nullptr);
+        ASSERT_EQ(state.entered.get_future().wait_for(std::chrono::seconds(3)), std::future_status::ready);
+        socket = std::make_unique<Socket>(SW_SOCK_TCP);
+        state.cid = Coroutine::create([&](void *) {
+            EXPECT_FALSE(socket->connect("socket-cancel.test", 1));
+            EXPECT_EQ(socket->errCode, ECANCELED);
+            EXPECT_FALSE(socket->is_connected());
+            ++state.returned;
+            if (!finish_early) {
+                // A late DNS callback must not wake this unrelated wait.
+                Coroutine::get_current()->yield();
+            }
+            ++state.finished;
+        });
+        ASSERT_GT(state.cid, 0);
+        EXPECT_TRUE(socket->has_bound(SW_EVENT_READ));
+        EXPECT_TRUE(socket->has_bound(SW_EVENT_WRITE));
+        swoole::AsyncEvent fence{};
+        fence.object = &state;
+        fence.handler = [](swoole::AsyncEvent *event) { static_cast<State *>(event->object)->resolved.set_value(); };
+        fence.callback = [](swoole::AsyncEvent *event) {
+            auto *state = static_cast<State *>(event->object);
+            EXPECT_EQ(state->finished, state->finish_early ? 1 : 0);
+            auto *co = Coroutine::get_by_cid(state->cid);
+            if (state->finish_early) {
+                EXPECT_EQ(co, nullptr);
+            } else if (co) {
+                co->resume();
+            }
+        };
+        ASSERT_NE(swoole::async::dispatch(&fence), nullptr);
+        if (completed) {
+            state.release.set_value();
+            state.released = true;
+            // Single-worker FIFO makes this a fence for DNS completion, before reactor delivery.
+            ASSERT_EQ(state.resolved.get_future().wait_for(std::chrono::seconds(3)), std::future_status::ready);
+        }
+        if (close_socket) {
+            EXPECT_FALSE(socket->close());
+        } else {
+            EXPECT_TRUE(socket->cancel(event));
+        }
+        EXPECT_EQ(state.returned, 1);
+        EXPECT_TRUE(state.canceled);
+        EXPECT_FALSE(socket->has_bound());
+        EXPECT_TRUE(socket->close());
+        if (!state.released) {
+            state.release.set_value();
+            state.released = true;
+        }
+    });
+    EXPECT_EQ(state.returned, 1);
+    EXPECT_EQ(state.finished, 1);
+}
+
+TEST(coroutine_socket, cancel_dns_read_while_pending) {
+    check_socket_dns_cancellation(SW_EVENT_READ, false, false);
+}
+
+TEST(coroutine_socket, cancel_dns_write_while_pending) {
+    check_socket_dns_cancellation(SW_EVENT_WRITE, false, false);
+}
+
+TEST(coroutine_socket, cancel_dns_after_resolution) {
+    check_socket_dns_cancellation(SW_EVENT_READ, false, true);
+}
+
+TEST(coroutine_socket, close_during_dns) {
+    check_socket_dns_cancellation(SW_EVENT_READ, true, false);
+}
+
+TEST(coroutine_socket, close_after_dns_resolution) {
+    check_socket_dns_cancellation(SW_EVENT_READ, true, true);
+}
+
+TEST(coroutine_socket, canceled_dns_resolver_cannot_return_success) {
+    check_socket_dns_cancellation(SW_EVENT_READ, false, false, true);
+}
+
+TEST(coroutine_socket, canceled_dns_coroutine_may_end_before_result) {
+    check_socket_dns_cancellation(SW_EVENT_READ, false, false, false, true);
+}
+
+TEST(coroutine_socket, close_dns_preserves_pending_cancellation) {
+    auto resolvers = std::move(SwooleTG.name_resolvers);
+    SwooleTG.name_resolvers.clear();
+    ON_SCOPE_EXIT {
+        SwooleTG.name_resolvers = std::move(resolvers);
+    };
+    coroutine::run([](void *) {
+        swoole::NameResolver resolver{};
+        resolver.type = swoole::NameResolver::TYPE_USER;
+        resolver.resolve = [](const std::string &, swoole::NameResolver::Context *, void *) {
+            // Model a resolver whose I/O acknowledges cancellation before the completion resumes its coroutine.
+            Coroutine::CancelFunc cancel = [](Coroutine *) { return true; };
+            Coroutine::get_current()->yield(&cancel);
+            return std::string("127.0.0.1");
+        };
+        swoole_name_resolver_add(resolver);
+        Socket socket(SW_SOCK_TCP);
+        bool returned = false;
+        auto cid = Coroutine::create([&](void *) {
+            EXPECT_FALSE(socket.connect("pending-cancel.test", 1));
+            EXPECT_EQ(socket.errCode, ECANCELED);
+            returned = true;
+        });
+        ASSERT_GT(cid, 0);
+        EXPECT_FALSE(socket.close());
+        EXPECT_FALSE(returned);
+        // close() tried both directions. Its second cancellation must not undo the first request.
+        auto *co = Coroutine::get_by_cid(cid);
+        ASSERT_NE(co, nullptr);
+        co->resume();
+        EXPECT_TRUE(returned);
+        EXPECT_TRUE(socket.close());
     });
 }
 

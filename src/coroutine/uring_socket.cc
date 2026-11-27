@@ -77,6 +77,9 @@ UringSocket *UringSocket::accept(double timeout) {
 }
 
 bool UringSocket::cancel(EventType event) {
+    if (sw_unlikely(resolve_state_ != ResolveState::IDLE)) {
+        return Socket::cancel(event);
+    }
     Coroutine *co = get_bound_co(event);
     if (!co) {
         return false;

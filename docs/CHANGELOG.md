@@ -44,6 +44,7 @@
 
 ### Bug fixes
 
+- Route coroutine Socket cancellation during name resolution through the resolver's active wait, suppressing late DNS callbacks and rejecting addresses returned after cancellation.
 - Stop EOF/length packet delivery when receiving is paused, even with pending WRITE events. Retain undelivered frames and process buffered asynchronous Client data after `wakeup()` without requiring further peer traffic.
 - Detach pending DNS requests when a native asynchronous C++ Client closes, preventing late resolver callbacks from accessing a destroyed Client or reconnecting a closed one.
 - Release each native cURL easy handle's Swoole state and private multi handle when that easy handle is destroyed, while retaining shared option allocations until the last copy is released.

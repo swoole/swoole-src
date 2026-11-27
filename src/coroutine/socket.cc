@@ -633,10 +633,17 @@ bool Socket::connect(const std::string &_host, int _port, int flags) {
         });
         /* locked like wait_event */
         read_co = write_co = Coroutine::get_current_safe();
+        resolve_state_ = ResolveState::WAITING;
         ON_SCOPE_EXIT {
+            resolve_state_ = ResolveState::IDLE;
             read_co = write_co = nullptr;
         };
         std::string addr = swoole_name_resolver_lookup(connect_host, ctx);
+        // A custom resolver may return an address after cancellation. Never start a connection with it.
+        if (resolve_state_ == ResolveState::CANCELED) {
+            set_err(ECANCELED);
+            return false;
+        }
         if (addr.empty()) {
             set_err(swoole_get_last_error());
             return false;
@@ -1705,6 +1712,17 @@ void Socket::ssl_close() const {
 
 bool Socket::cancel(const EventType event) {
     if (!has_bound(event)) {
+        return false;
+    }
+    if (sw_unlikely(resolve_state_ != ResolveState::IDLE) && (event == SW_EVENT_READ || event == SW_EVENT_WRITE)) {
+        set_err(ECANCELED);
+        const auto previous_state = resolve_state_;
+        resolve_state_ = ResolveState::CANCELED;
+        // Let the resolver's current wait mark its task canceled and suppress late completion callbacks.
+        if (get_bound_co(event)->cancel()) {
+            return true;
+        }
+        resolve_state_ = previous_state;
         return false;
     }
     if (event == SW_EVENT_READ) {

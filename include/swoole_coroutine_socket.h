@@ -473,6 +473,10 @@ class Socket {
 
     bool zero_copy = false;
 
+    // DNS owns its actual wait; read_co/write_co only reserve this Socket during resolution.
+    enum class ResolveState : uint8_t { IDLE, WAITING, CANCELED };
+    ResolveState resolve_state_ = ResolveState::IDLE;
+
     NameResolver::Context *resolve_context_ = nullptr;
     std::function<void(Socket *)> dtor_;
 
