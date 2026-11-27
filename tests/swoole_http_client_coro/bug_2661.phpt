@@ -1,40 +1,86 @@
 --TEST--
-swoole_http_client_coro: #2611 bound error with dns resolve and cross close
+swoole_http_client_coro: #2661 reject overlapping requests during name resolution and allow cross close
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/Assert.php';
 
-$pm             = new ProcessManager();
-$pm->parentFunc = function () use ($pm) {
-    Swoole\Coroutine\run(function () use ($pm) {
-        $client = new Swoole\Coroutine\Http\Client('localhost', $pm->getFreePort());
-        for ($i = 0; $i < 2; $i++) {
-            go(function () use ($client) {
-                $client->get('/');
-                $client->close();
-            });
+use Swoole\Coroutine;
+use Swoole\Coroutine\Channel;
+use Swoole\Coroutine\Http\Client;
+use Swoole\Coroutine\Http\Server;
+use Swoole\NameResolver;
+use Swoole\NameResolver\Cluster;
+use SwooleTest\Assert;
+
+Assert::setThrowException(true);
+Coroutine\run(function () {
+    $server = new Server('127.0.0.1', 0);
+    $server->handle('/', fn ($request, $response) => $response->end('OK'));
+    Coroutine::create(fn () => $server->start());
+
+    $resolver = new class extends NameResolver {
+        public int $lookups = 0;
+
+        public function __construct()
+        {
         }
-    });
-};
-$pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
-    $server->set(['worker_num' => 1, 'log_file' => '/dev/null']);
-    $server->on('WorkerStart', function () use ($pm) {
-        $pm->wakeup();
-    });
-    $server->on('Request', function ($request, $response) {
-        Co::sleep(1);
-        $response->end('OK');
-    });
-    $server->start();
-};
-$pm->childFirst();
-$pm->run();
+
+        public function join(string $name, string $ip, int $port, array $options = []): bool
+        {
+            return true;
+        }
+
+        public function leave(string $name, string $ip, int $port): bool
+        {
+            return true;
+        }
+
+        public function getCluster(string $name): ?Cluster
+        {
+            return null;
+        }
+
+        public function lookup(string $name): string
+        {
+            if (++$this->lookups === 1) {
+                // Suspend the first lookup until close interrupts it.
+                Coroutine::sleep(5);
+                return '';
+            }
+            return '127.0.0.1';
+        }
+    };
+    Assert::true(swoole_name_resolver_add($resolver));
+    $client = new Client('overlap.test', $server->port);
+    $client->set(['timeout' => 2]);
+    $done = new Channel(1);
+    $request = Coroutine::create(fn () => $done->push([$client->get('/first')]));
+    try {
+        Assert::same($resolver->lookups, 1);
+        Assert::false($client->get('/overlapping'));
+        Assert::same($client->errCode, SOCKET_EBUSY);
+        Assert::same($resolver->lookups, 1);
+
+        $client->close();
+        Assert::same($done->pop(2), [false]);
+        Assert::false($client->connected);
+
+        Assert::true($client->get('/after-close'));
+        Assert::same($client->body, 'OK');
+    } finally {
+        if (Coroutine::exists($request)) {
+            Coroutine::cancel($request);
+        }
+        $client->close();
+        swoole_name_resolver_remove($resolver);
+        $server->shutdown();
+    }
+});
+echo "DONE\n";
 ?>
---EXPECTF--
-Fatal error: Uncaught Swoole\Error: Socket#%d has already been bound to another coroutine#%d, %r(?:reading|writing|reading or writing)%r of the same socket in coroutine#%d at the same time is not allowed in %s:%d
-%A
+--EXPECT--
+DONE
