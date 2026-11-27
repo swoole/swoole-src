@@ -45,6 +45,7 @@
 
 ### Bug fixes
 
+- Make the fallback Barrier reusable across generations on macOS/BSD and other platforms without pthread barriers, preserving thread and process-shared synchronization.
 - Apply the HTTP/2 client's advertised HPACK receive capacity, delaying reductions until SETTINGS acknowledgement and resetting peer defaults on reconnect.
 - Replenish HTTP/2 client connection receive credit for discarded DATA, including padding, without updating closed-stream windows.
 - Preserve HTTP/2 client HPACK and CONTINUATION state when discarding closed-stream headers and declining server push.
