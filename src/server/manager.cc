@@ -132,7 +132,7 @@ void Manager::init(Server *_server) {
     }
     swoole_event_free();
 
-    swoole_signal_set(SIGHUP, nullptr);
+    swoole_signal_set(SIGHUP, SIG_IGN);
     swoole_signal_set(SIGCHLD, signal_handler);   // child process exit
     swoole_signal_set(SIGTERM, signal_handler);   // shutdown
     swoole_signal_set(SIGIO, signal_handler);     // read message

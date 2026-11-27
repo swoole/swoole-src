@@ -1126,8 +1126,8 @@ static void test_recv_timeout(Client &c) {
         }
     });
 
-    swoole_signal_set(
-        SIGIO, [](int) { swoole::test::counter_incr(0); }, 0, 1);
+    swoole_sigaction_set(
+        SIGIO, [](int) { swoole::test::counter_incr(0); }, false, true);
 
     auto buf = sw_tg_buffer();
     while (true) {

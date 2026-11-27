@@ -484,8 +484,13 @@ static PHP_METHOD(swoole_process, signal) {
         RETURN_FALSE;
     }
 
-    if (signo < 0 || signo >= SW_SIGNO_MAX) {
+    if (signo <= 0 || signo >= SW_SIGNO_MAX) {
         php_swoole_fatal_error(E_WARNING, "invalid signal number [" ZEND_LONG_FMT "]", signo);
+        RETURN_FALSE;
+    }
+
+    if (signo == SIGKILL || signo == SIGSTOP) {
+        php_swoole_fatal_error(E_WARNING, "signal [" ZEND_LONG_FMT "] cannot be caught or ignored", signo);
         RETURN_FALSE;
     }
 
@@ -512,6 +517,18 @@ static PHP_METHOD(swoole_process, signal) {
                 swoole_signal_set(signo, nullptr);
                 sw_callable_free(fci_cache);
             }
+            RETURN_TRUE;
+        } else if (handler == SIG_IGN) {
+            // The signal was ignored by Process::signal($signo, SIG_IGN), restore its original action.
+#ifdef SW_USE_THREAD_CONTEXT
+            if (swoole_event_is_available()) {
+                swoole_event_defer([signo](void *) { swoole_signal_set(signo, nullptr); }, nullptr);
+            } else {
+                swoole_signal_set(signo, nullptr);
+            }
+#else
+            swoole_signal_set(signo, nullptr);
+#endif
             RETURN_TRUE;
         } else {
             php_swoole_error(E_WARNING, "unable to find the callback of signal [" ZEND_LONG_FMT "]", signo);

@@ -159,7 +159,7 @@ TEST(os_signal, nested) {
 }
 
 TEST(os_signal, error) {
-    swoole_signal_set(SIGIO, nullptr, 0, 0);
+    swoole_sigaction_set(SIGIO, nullptr, false, false);
     swoole_signal_block_all();
     swoole_signal_block_all();  // no effect
     swoole_signal_unblock_all();

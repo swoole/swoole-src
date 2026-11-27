@@ -64,6 +64,30 @@ typedef swoole::SignalHandler swSignalHandler;
 #ifdef HAVE_SIGNALFD
 void swoole_signalfd_init();
 #endif
+/**
+ * Signal APIs come in two layers. Do not mix them for the same signal.
+ *
+ * swoole_sigaction_set(): the low-level layer, a thin wrapper around sigaction(2).
+ *   - It is exported only for backward compatibility. It will no longer be a public API in the next version,
+ *     do not use it outside of Swoole.
+ *   - Installs `func` into the kernel immediately and returns the previous kernel handler (nullptr on failure).
+ *   - `func == nullptr` means SIG_IGN, `func == (SignalHandler) -1` means SIG_DFL.
+ *   - `restart` sets SA_RESTART, `mask` blocks all signals while the handler runs.
+ *   - Keeps no registry: it does not record the origin action, does not use signalfd/kqueue and does not
+ *     touch signal_listener_num. Installing SIG_IGN/SIG_DFL only drops the registry entry of that signal.
+ *   - `func` runs in signal context, so it must be async-signal-safe.
+ *
+ * swoole_signal_set(): the managed layer used by Server, ProcessPool, Process::signal() and System::waitSignal().
+ *   - Records `func` in the registry and saves the original sigaction on first registration, so that
+ *     `func == nullptr` unregisters the signal and restores that original action.
+ *   - Picks the backend: signalfd (or kqueue) when a reactor is available, so `func` runs in the event loop;
+ *     otherwise sigaction through swoole_sigaction_set(), where `safety` decides whether `func` runs
+ *     in signal context (false) or is deferred to swoole_signal_dispatch() (true).
+ *   - To ignore a signal, pass SIG_IGN explicitly. nullptr is not "ignore": for a signal that was never
+ *     registered it creates an entry without a handler, and each delivery logs an unregistered-signal warning.
+ *   - Cleared as a whole by swoole_signal_clear().
+ */
+SW_API swSignalHandler swoole_sigaction_set(int signo, swSignalHandler func, bool restart, bool mask);
 
 /**
  * The synchronous blocking IO mode is unsafe for executing PHP code within signal callback functions,
@@ -77,7 +101,6 @@ void swoole_signalfd_init();
  */
 SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, bool safety = false);
 SW_API bool swoole_signal_isset(int signo);
-SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func, int restart, int mask);
 SW_API swSignalHandler swoole_signal_get_handler(int signo);
 SW_API uint32_t swoole_signal_get_listener_num();
 

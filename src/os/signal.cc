@@ -121,15 +121,13 @@ void swoole_signal_unblock_all() {
 }
 
 /**
- * set new signal handler and return origin signal handler
+ * Low-level wrapper of sigaction(). It bypasses the registry, signalfd and kqueue backends,
+ * see the comment of swoole_sigaction_set() in swoole_signal.h. Returns the previous kernel handler.
  */
-SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int mask) {
-    // ignore
+SignalHandler swoole_sigaction_set(int signo, SignalHandler func, bool restart, bool mask) {
     if (func == nullptr) {
         func = SIG_IGN;
-    }
-    // clear
-    else if ((long) func == -1) {
+    } else if ((long) func == -1) {
         func = SIG_DFL;
     }
 
@@ -166,9 +164,15 @@ SW_API bool swoole_signal_isset(int signo) {
 }
 
 /**
- * set new signal handler and return origin signal handler
+ * Managed registration, see the comment of swoole_signal_set() in swoole_signal.h.
+ * `handler == nullptr` unregisters a registered signal and restores its original action;
+ * use SIG_IGN to ignore a signal. Returns the previous handler of the used backend.
  */
 SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
+    if (signo <= 0 || signo >= SW_SIGNO_MAX || signo == SIGKILL || signo == SIGSTOP) {
+        swoole_set_last_error(EINVAL);
+        return nullptr;
+    }
 #ifdef HAVE_SIGNALFD
     if (SwooleG.enable_signalfd && swoole_event_is_available()) {
         return swoole_signalfd_set(signo, handler);
@@ -192,10 +196,19 @@ SignalHandler swoole_signal_set(int signo, SignalHandler handler, bool safety) {
         sigaction(signo, nullptr, &origin_actions[signo]);
     }
 
+    // The entry must exist before the handler is installed, or a signal arriving right away finds no callback.
     signals[signo].handler = handler;
     signals[signo].activated = true;
     signals[signo].signo = signo;
-    return swoole_signal_set(signo, safety ? signal_handler_safety : signal_handler_simple, 0, 1);
+    if (handler == SIG_IGN) {
+        // Let the kernel discard it, so the process is not woken and no handler runs in signal context.
+        // swoole_sigaction_set() is not used here because it drops the entry for SIG_IGN.
+        struct sigaction act{}, oact{};
+        act.sa_handler = SIG_IGN;
+        sigemptyset(&act.sa_mask);
+        return sigaction(signo, &act, &oact) < 0 ? nullptr : oact.sa_handler;
+    }
+    return swoole_sigaction_set(signo, safety ? signal_handler_safety : signal_handler_simple, false, true);
 }
 
 static void signal_handler_safety(int signo) {
@@ -272,7 +285,7 @@ void swoole_signal_clear() {
         // handlers installed through sigaction while no reactor was available are not part of the signalfd
         SW_LOOP_N(SW_SIGNO_MAX) {
             if (signals[i].activated && !sigismember(&signalfd_mask, i)) {
-                swoole_signal_set(signals[i].signo, reinterpret_cast<SignalHandler>(-1), 1, 0);
+                swoole_sigaction_set(signals[i].signo, reinterpret_cast<SignalHandler>(-1), true, false);
             }
         }
         swoole_signalfd_clear();
@@ -289,7 +302,7 @@ void swoole_signal_clear() {
 
     SW_LOOP_N(SW_SIGNO_MAX) {
         if (signals[i].activated) {
-            swoole_signal_set(signals[i].signo, reinterpret_cast<SignalHandler>(-1), 1, 0);
+            swoole_sigaction_set(signals[i].signo, reinterpret_cast<SignalHandler>(-1), true, false);
         }
     }
     sw_memset_zero(signals, sizeof(signals));
@@ -336,7 +349,7 @@ SignalGuard::SignalGuard(const std::vector<int> &signal_numbers, SignalHandler h
         signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].activated = true;
-        swoole_signal_set(signo, signal_handler_simple, 0, 1);
+        swoole_sigaction_set(signo, signal_handler_simple, false, true);
 
 #ifdef HAVE_SIGNALFD
         saved.signalfd = sigismember(&signalfd_mask, signo);

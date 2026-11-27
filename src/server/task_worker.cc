@@ -792,10 +792,10 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
     if (serv->is_thread_mode()) {
         return;
     }
-    swoole_signal_set(SIGHUP, nullptr);
-    swoole_signal_set(SIGPIPE, nullptr);
-    swoole_signal_set(SIGUSR1, nullptr);
-    swoole_signal_set(SIGUSR2, nullptr);
+    swoole_signal_set(SIGHUP, SIG_IGN);
+    swoole_signal_set(SIGPIPE, SIG_IGN);
+    swoole_signal_set(SIGUSR1, SIG_IGN);
+    swoole_signal_set(SIGUSR2, SIG_IGN);
     swoole_signal_set(SIGTERM, Server::worker_signal_handler);
     // Synchronous workers have no reactor: reopen logs at worker_end_callback(),
     // never from a signal interrupting Logger::put(), malloc() or stdio.

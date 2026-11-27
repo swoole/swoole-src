@@ -2011,8 +2011,8 @@ bool Server::send_pipe_message(WorkerId worker_id, const char *data, size_t len)
 }
 
 void Server::init_signal_handler() const {
-    swoole_signal_set(SIGPIPE, nullptr);
-    swoole_signal_set(SIGHUP, nullptr);
+    swoole_signal_set(SIGPIPE, SIG_IGN);
+    swoole_signal_set(SIGHUP, SIG_IGN);
     if (is_process_mode()) {
         swoole_signal_set(SIGCHLD, master_signal_handler);
     } else {

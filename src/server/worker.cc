@@ -39,10 +39,10 @@ void Server::worker_signal_init() const {
     if (is_thread_mode()) {
         return;
     }
-    swoole_signal_set(SIGHUP, nullptr);
+    swoole_signal_set(SIGHUP, SIG_IGN);
     swoole_signal_set(SIGPIPE, SIG_IGN);
-    swoole_signal_set(SIGUSR1, nullptr);
-    swoole_signal_set(SIGUSR2, nullptr);
+    swoole_signal_set(SIGUSR1, SIG_IGN);
+    swoole_signal_set(SIGUSR2, SIG_IGN);
     swoole_signal_set(SIGTERM, worker_signal_handler);
     swoole_signal_set(SIGWINCH, worker_signal_handler);
 #ifdef SIGRTMIN
