@@ -2278,6 +2278,12 @@ static PHP_METHOD(swoole_socket_coro, import) {
 
     php_stream_from_zval(stream, zstream);
 
+    // Socket reads bypass PHP's stream buffer. Refuse the transfer before casting can discard it.
+    if (stream->writepos > stream->readpos) {
+        php_swoole_error_ex(E_WARNING, EBUSY, "cannot import a stream with unread buffered data");
+        RETURN_FALSE;
+    }
+
     swSocketType type = SW_SOCK_TCP;
     swSocketFd socket_fd;
 
