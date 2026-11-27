@@ -1285,6 +1285,26 @@ void Client::prepare_multipart_body(MultipartBody &body) {
     if (!ZVAL_IS_NULL(fields)) {
         body.fields = fields;
     }
+    if (ZVAL_IS_ARRAY(fields)) {
+        // User conversions can yield, mutate the request, or produce different values on each call.
+        // Retain one string snapshot for both Content-Length and every send/retry of this request.
+        zend::Variable normalized;
+        array_init_size(normalized.ptr(), zend_hash_num_elements(Z_ARRVAL_P(fields)));
+        zend_string *key;
+        zval *value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL(body.fields.value), key, value) {
+            if (!key || ZVAL_IS_NULL(value)) {
+                continue;
+            }
+            zend::String str(value);
+            if (UNEXPECTED(EG(exception))) {
+                return;
+            }
+            add_assoc_str_ex(normalized.ptr(), ZSTR_VAL(key), ZSTR_LEN(key), zend_string_copy(str.get()));
+        }
+        ZEND_HASH_FOREACH_END();
+        std::swap(body.fields.value, normalized.value);
+    }
 }
 
 bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body) {
@@ -1369,6 +1389,9 @@ bool Client::send_request(StreamBody &stream_body, MultipartBody &multipart_body
         sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_UPLOAD_FILES), 0);
     if (!stream_body.active() && !multipart_body.active()) {
         prepare_multipart_body(multipart_body);
+        if (UNEXPECTED(EG(exception))) {
+            return false;
+        }
     }
     if (multipart_body.active()) {
         zupload_files = multipart_body.files.ptr();
@@ -1854,7 +1877,7 @@ bool Client::exec(const std::string &_path) {
     StreamBody stream_body;
     MultipartBody multipart_body;
     prepare_multipart_body(multipart_body);
-    if (!prepare_stream_body(stream_body)) {
+    if (UNEXPECTED(EG(exception)) || !prepare_stream_body(stream_body)) {
         reset_download();
         return false;
     }
