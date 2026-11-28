@@ -1,6 +1,27 @@
 # Swoole Changelog
 
-## 6.3.0 (unreleased)
+## 6.3.1 (unreleased)
+
+### Bug fixes
+
+- Make the fallback Barrier reusable across generations on macOS/BSD and other platforms without pthread barriers, preserving thread and process-shared synchronization.
+- Apply the HTTP/2 client's advertised HPACK receive capacity, delaying reductions until SETTINGS acknowledgement and resetting peer defaults on reconnect.
+- Replenish HTTP/2 client connection receive credit for discarded DATA, including padding, without updating closed-stream windows.
+- Preserve HTTP/2 client HPACK and CONTINUATION state when discarding closed-stream headers and declining server push.
+- Reject recursive arrays in thread containers and arguments with `ValueError`, releasing partial conversions and preserving existing container values.
+- Keep close-barrier state alive when a Client release hook deletes its Socket, avoiding accesses to freed memory and allocator corruption.
+- Retire pending server commands on explicit coroutine cancellation and normal owner shutdown, and ignore late replies safely.
+- Settle coroutine task waits with `false` and release independent task callbacks when a received result cannot be unpacked.
+- Deliver BASE shutdown close callbacks before destroying the worker reactor; graceful callbacks share the original `max_wait_time` budget.
+
+- Keep hooked PHP streams alive until canceled I/O has returned before completing `fclose()`, including Windows IOCP operations.
+- Route coroutine Socket cancellation during name resolution through the resolver's active wait, suppressing late DNS callbacks and rejecting addresses returned after cancellation.
+- Stop EOF/length packet delivery when receiving is paused, even with pending WRITE events. Retain undelivered frames and process buffered asynchronous Client data after `wakeup()` without requiring further peer traffic.
+- Detach pending DNS requests when a native asynchronous C++ Client closes, preventing late resolver callbacks from accessing a destroyed Client or reconnecting a closed one.
+- Release each native cURL easy handle's Swoole state and private multi handle when that easy handle is destroyed, while retaining shared option allocations until the last copy is released.
+- Reject `Swoole\Server\Port::set()` after server startup before changing native configuration or the settings array. THREAD workers can still register their local `package_length_func` callback.
+
+## 6.3.0 (2026-11-25)
 
 ### Breaking changes
 
@@ -40,27 +61,6 @@
 - Add the opt-in `http2_cancel_on_stream_reset` server option. A peer HTTP/2 reset interrupts the active request coroutine with `Swoole\Coroutine\CanceledException`. Its reason is an associative array with `session_id`, `stream_id`, the HTTP/2 error `code`, and a `message` of `HTTP2 Stream Reset`. Catch the exception in the PHP request handler. An uncaught exception is fatal and terminates the worker process. A reset received while the request is queued skips its callback.
 - Add static-file ETag validators and conditional request handling, including strong If-Range matching and precondition precedence, consistently across HTTP/1 and HTTP/2.
 - Retain an opened static file through response completion and share it across ranges. Find configured index files directly instead of enumerating the directory.
-
-## 6.1.1 (unreleased)
-
-### Bug fixes
-
-- Make the fallback Barrier reusable across generations on macOS/BSD and other platforms without pthread barriers, preserving thread and process-shared synchronization.
-- Apply the HTTP/2 client's advertised HPACK receive capacity, delaying reductions until SETTINGS acknowledgement and resetting peer defaults on reconnect.
-- Replenish HTTP/2 client connection receive credit for discarded DATA, including padding, without updating closed-stream windows.
-- Preserve HTTP/2 client HPACK and CONTINUATION state when discarding closed-stream headers and declining server push.
-- Reject recursive arrays in thread containers and arguments with `ValueError`, releasing partial conversions and preserving existing container values.
-- Keep close-barrier state alive when a Client release hook deletes its Socket, avoiding accesses to freed memory and allocator corruption.
-- Retire pending server commands on explicit coroutine cancellation and normal owner shutdown, and ignore late replies safely.
-- Settle coroutine task waits with `false` and release independent task callbacks when a received result cannot be unpacked.
-- Deliver BASE shutdown close callbacks before destroying the worker reactor; graceful callbacks share the original `max_wait_time` budget.
-
-- Keep hooked PHP streams alive until canceled I/O has returned before completing `fclose()`, including Windows IOCP operations.
-- Route coroutine Socket cancellation during name resolution through the resolver's active wait, suppressing late DNS callbacks and rejecting addresses returned after cancellation.
-- Stop EOF/length packet delivery when receiving is paused, even with pending WRITE events. Retain undelivered frames and process buffered asynchronous Client data after `wakeup()` without requiring further peer traffic.
-- Detach pending DNS requests when a native asynchronous C++ Client closes, preventing late resolver callbacks from accessing a destroyed Client or reconnecting a closed one.
-- Release each native cURL easy handle's Swoole state and private multi handle when that easy handle is destroyed, while retaining shared option allocations until the last copy is released.
-- Reject `Swoole\Server\Port::set()` after server startup before changing native configuration or the settings array. THREAD workers can still register their local `package_length_func` callback.
 
 ## 2024-12-16 v6.0.0
 # ✨ New Feature:
