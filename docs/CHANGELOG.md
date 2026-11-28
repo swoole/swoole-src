@@ -4,6 +4,7 @@
 
 ### Bug fixes
 
+- Wake concurrent coroutine Socket close callers when the owner's I/O drain fails, preserving the failed attempt's error across retries. Prevent non-coroutine closes from prematurely resuming suspended release callbacks.
 - Fix PHP 8.5 builds with MSVC in C++14 mode by avoiding C++20 designated initializers when registering shutdown functions (#6452).
 - Keep THREAD reloads sequential across manager timers and unrelated worker exits, and avoid reloading replacements of targets that exited independently during the round.
 - Make worker retirement idempotent and prevent draining workers' callbacks from overwriting a replacement's shared status and counters after asynchronous reload.

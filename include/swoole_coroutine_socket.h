@@ -68,6 +68,9 @@ class Socket {
      * The first caller cancels outstanding I/O, waits for its completion, and releases the descriptor once.
      * Other close callers wait for that same release and return false with EBADF. They never cancel I/O
      * or invoke the release callback again. This is a coroutine barrier, not a cross-thread lock.
+     * If the owner's I/O drain fails, its joiners receive that error. New I/O remains disabled until
+     * a later close finishes releasing the socket. A non-coroutine caller cannot join a suspended
+     * release callback; it returns SW_ERROR_CO_CANNOT_CANCEL without interrupting that callback.
      */
     bool close();
     // The winning caller runs before_release after I/O has drained and before releasing the fd.

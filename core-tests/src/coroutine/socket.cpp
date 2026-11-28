@@ -1623,6 +1623,184 @@ TEST(coroutine_socket, concurrent_close_waits_for_post_release_callback) {
     test_concurrent_close_barrier(true);
 }
 
+static void test_failed_close_wakes_joiners(bool retry_before_notification) {
+    auto resolvers = std::move(SwooleTG.name_resolvers);
+    SwooleTG.name_resolvers.clear();
+    ON_SCOPE_EXIT {
+        SwooleTG.name_resolvers = std::move(resolvers);
+    };
+    std::unique_ptr<Socket> socket;
+    int joined = 0;
+    bool lookup_finished = false;
+    coroutine::run([&](void *) {
+        socket = std::make_unique<Socket>(SW_SOCK_TCP);
+        swoole::NameResolver resolver{};
+        resolver.type = swoole::NameResolver::TYPE_USER;
+        resolver.resolve = [&](const std::string &, swoole::NameResolver::Context *ctx, void *) {
+            ctx->final_ = true;
+            EXPECT_FALSE(Coroutine::get_current()->yield_ex());
+            EXPECT_TRUE(Coroutine::get_current()->is_canceled());
+            // Cancellation may run PHP cleanup that starts concurrent closes before the resolver
+            // releases its I/O binding. Keep that binding alive until the test explicitly resumes it.
+            for (int i = 0; i < 2; ++i) {
+                Coroutine::create([&](void *) {
+                    EXPECT_FALSE(socket->close());
+                    EXPECT_EQ(socket->errCode, SW_ERROR_CO_CANNOT_CANCEL);
+                    ++joined;
+                });
+            }
+            Coroutine::get_current()->yield();
+            return std::string("127.0.0.1");
+        };
+        swoole_name_resolver_add(resolver);
+        const auto lookup_cid = Coroutine::create([&](void *) {
+            EXPECT_FALSE(socket->connect("close-failure.test", 1));
+            EXPECT_EQ(socket->errCode, ECANCELED);
+            lookup_finished = true;
+        });
+        swoole_event_defer(
+            [&, lookup_cid](void *) {
+                EXPECT_EQ(Coroutine::get_current(), nullptr);
+                EXPECT_FALSE(socket->close());
+                EXPECT_EQ(socket->errCode, SW_ERROR_CO_CANNOT_CANCEL);
+                EXPECT_FALSE(socket->is_closed());
+                EXPECT_TRUE(socket->has_bound());
+                EXPECT_EQ(joined, 0);
+                EXPECT_TRUE(socket->get_socket()->close_wait);
+                if (retry_before_notification) {
+                    Coroutine::get_by_cid(lookup_cid)->resume();
+                    EXPECT_TRUE(lookup_finished);
+                    EXPECT_TRUE(socket->close());
+                }
+                swoole_event_defer(
+                    [&, lookup_cid](void *) {
+                        // A failed attempt must wake every joiner, even while I/O remains bound.
+                        // If a retry already succeeded, its EBADF must not replace the first error.
+                        EXPECT_EQ(joined, 2);
+                        if (!retry_before_notification) {
+                            EXPECT_TRUE(socket->has_bound());
+                            Coroutine::get_by_cid(lookup_cid)->resume();
+                            EXPECT_TRUE(lookup_finished);
+                            EXPECT_TRUE(socket->close());
+                        }
+                        EXPECT_TRUE(socket->is_closed());
+                    },
+                    nullptr);
+            },
+            nullptr);
+    });
+    EXPECT_EQ(joined, 2);
+    EXPECT_TRUE(lookup_finished);
+}
+
+TEST(coroutine_socket, failed_close_wakes_joiners_before_io_drains) {
+    test_failed_close_wakes_joiners(false);
+}
+
+TEST(coroutine_socket, failed_close_keeps_joiner_errors_across_retry) {
+    test_failed_close_wakes_joiners(true);
+}
+
+static void test_non_coroutine_close_preserves_hook_wait(bool destructor_callback) {
+    auto socket = std::make_unique<Socket>(SW_SOCK_TCP);
+    bool release_allowed = false;
+    bool owner_returned = false;
+    int releases = 0;
+    long owner_cid = -1;
+    coroutine::run([&](void *) {
+        owner_cid = Coroutine::create([&](void *) {
+            auto release = [&](Socket *) {
+                ++releases;
+                Coroutine::get_current()->yield();
+                EXPECT_TRUE(release_allowed);
+            };
+            if (destructor_callback) {
+                socket->set_dtor(release);
+                EXPECT_TRUE(socket->close());
+            } else {
+                EXPECT_TRUE(socket->close(release));
+            }
+            owner_returned = true;
+        });
+        swoole_event_defer(
+            [&](void *) {
+                EXPECT_EQ(Coroutine::get_current(), nullptr);
+                EXPECT_FALSE(socket->close());
+                EXPECT_EQ(socket->errCode, SW_ERROR_CO_CANNOT_CANCEL);
+                EXPECT_FALSE(owner_returned);
+                EXPECT_EQ(socket->is_closed(), destructor_callback);
+                EXPECT_EQ(releases, 1);
+                release_allowed = true;
+                if (auto *owner = Coroutine::get_by_cid(owner_cid)) {
+                    owner->resume();
+                }
+                EXPECT_TRUE(owner_returned);
+                EXPECT_TRUE(socket->is_closed());
+            },
+            nullptr);
+    });
+    EXPECT_EQ(releases, 1);
+    EXPECT_TRUE(owner_returned);
+}
+
+TEST(coroutine_socket, non_coroutine_close_preserves_before_release_wait) {
+    test_non_coroutine_close_preserves_hook_wait(false);
+}
+
+TEST(coroutine_socket, non_coroutine_close_preserves_post_release_wait) {
+    test_non_coroutine_close_preserves_hook_wait(true);
+}
+
+TEST(coroutine_socket, non_coroutine_close_resumes_io_waiter) {
+    auto resolvers = std::move(SwooleTG.name_resolvers);
+    SwooleTG.name_resolvers.clear();
+    ON_SCOPE_EXIT {
+        SwooleTG.name_resolvers = std::move(resolvers);
+    };
+    std::unique_ptr<Socket> socket;
+    bool owner_returned = false;
+    bool lookup_finished = false;
+    coroutine::run([&](void *) {
+        socket = std::make_unique<Socket>(SW_SOCK_TCP);
+        swoole::NameResolver resolver{};
+        resolver.type = swoole::NameResolver::TYPE_USER;
+        resolver.resolve = [](const std::string &, swoole::NameResolver::Context *ctx, void *) {
+            ctx->final_ = true;
+            EXPECT_FALSE(Coroutine::get_current()->yield_ex());
+            Coroutine::get_current()->yield();
+            return std::string("127.0.0.1");
+        };
+        swoole_name_resolver_add(resolver);
+        const auto lookup_cid = Coroutine::create([&](void *) {
+            EXPECT_FALSE(socket->connect("close-io-waiter.test", 1));
+            EXPECT_EQ(socket->errCode, ECANCELED);
+            lookup_finished = true;
+        });
+        Coroutine::create([&](void *) {
+            EXPECT_TRUE(socket->close());
+            EXPECT_TRUE(lookup_finished);
+            owner_returned = true;
+        });
+        EXPECT_FALSE(owner_returned);
+        swoole_event_defer(
+            [&, lookup_cid](void *) {
+                EXPECT_EQ(Coroutine::get_current(), nullptr);
+                Coroutine::get_by_cid(lookup_cid)->resume();
+                EXPECT_TRUE(lookup_finished);
+                EXPECT_FALSE(socket->has_bound());
+                EXPECT_FALSE(owner_returned);
+                // Completion pumping can drain I/O without executing its deferred notifications.
+                // A non-coroutine joiner must still be able to finish this specific owner wait.
+                EXPECT_FALSE(socket->close());
+                EXPECT_EQ(socket->errCode, EBADF);
+                EXPECT_TRUE(owner_returned);
+                EXPECT_TRUE(socket->is_closed());
+            },
+            nullptr);
+    });
+    EXPECT_TRUE(owner_returned);
+}
+
 TEST(coroutine_socket, close_hook_can_delete_its_receiver) {
     coroutine::run([](void *) {
         auto *socket = new Socket(SW_SOCK_TCP);

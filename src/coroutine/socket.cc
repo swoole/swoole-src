@@ -36,17 +36,32 @@ struct Socket::CloseState {
         long cid;
         // Suppress a deferred notification if the caller has already left the wait.
         bool waiting = true;
-        // Used by close waiters only: I/O unbinding alone must never set this flag.
+        // Used by close waiters only: the owner's attempt has finished, successfully or otherwise.
+        // I/O unbinding alone must never complete a close waiter.
         bool completed = false;
+        int error = 0;
         explicit Waiter(Coroutine *co) : cid(co ? co->get_cid() : -1) {}
     };
     bool closing = false;
+    // Only this suspension may be resumed after a non-coroutine caller pumps native completions.
+    // Release callbacks can also suspend, but their waits belong to the callback itself.
+    bool owner_waiting_for_io = false;
     bool socket_destroyed = false;
     long owner_cid = -1;
     // I/O waiters may resume after the last read/write unbinds. Close waiters must additionally
     // wait for SSL cleanup, the release callback and the descriptor release performed by the owner.
     std::vector<std::shared_ptr<Waiter>> io_waiters;
     std::vector<std::shared_ptr<Waiter>> close_waiters;
+
+    void finish(int error) {
+        closing = false;
+        for (const auto &waiter : close_waiters) {
+            // Keep the result on each waiter: a retry can finish before this notification runs.
+            waiter->error = error;
+            waiter->completed = true;
+        }
+        resume_later(std::move(close_waiters));
+    }
 
     static void resume_later(std::vector<std::shared_ptr<Waiter>> waiters) {
         if (waiters.empty()) {
@@ -1846,9 +1861,9 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
                 waiter->waiting = false;
                 return false;
             }
-            // Completion-only pumping does not execute deferred reactor callbacks. The original
-            // close can now finish without waiting for an additional reactor dispatch pass.
-            if (!waiter->completed) {
+            // Completion-only pumping does not execute deferred reactor callbacks. Resume the
+            // owner only if it is waiting for that I/O notification, never an unrelated hook wait.
+            if (!waiter->completed && state->owner_waiting_for_io) {
                 if (auto *owner = Coroutine::get_by_cid(owner_cid)) {
                     owner->resume();
                 }
@@ -1861,10 +1876,10 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
         }
         waiter->waiting = false;
         if (!state->socket_destroyed) {
-            set_err(EBADF);
+            set_err(waiter->error);
         } else {
             // The winning caller can release its receiver before deferred losers resume.
-            swoole_set_last_error(EBADF);
+            swoole_set_last_error(waiter->error);
         }
         return false;
     }
@@ -1893,8 +1908,19 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
     if (reader && reader != writer && read_co) {
         cancel(SW_EVENT_READ);
     }
-    if (!wait_for_pending_io()) {
-        close_state_->closing = false;
+    auto state = close_state_;
+    if (state) {
+        state->owner_waiting_for_io = true;
+    }
+    const bool drained = wait_for_pending_io();
+    if (state) {
+        state->owner_waiting_for_io = false;
+    }
+    if (!drained) {
+        // Complete this attempt even on failure so its joiners cannot remain suspended forever.
+        // Keep close_wait set: cancellation may already have started, and pending I/O still owns
+        // its buffers. A later close may retry the drain, but new I/O must remain rejected.
+        state->finish(errCode);
         return false;
     }
     if (socket->ssl) {
@@ -1911,17 +1937,12 @@ bool Socket::close_impl(const std::function<void(Socket *)> &before_release) {
     socket->close_fd();
     // Keep state alive across the hook: PHP Client cleanup can release the last Socket object,
     // deleting this receiver before the hook returns. Nothing below may unconditionally access this.
-    auto state = close_state_;
     auto dtor = std::exchange(dtor_, {});
     if (dtor) {
         dtor(this);
     }
     if (state) {
-        state->closing = false;
-        for (const auto &waiter : state->close_waiters) {
-            waiter->completed = true;
-        }
-        CloseState::resume_later(std::move(state->close_waiters));
+        state->finish(EBADF);
     }
     if (!state || !state->socket_destroyed) {
         set_err(0);
