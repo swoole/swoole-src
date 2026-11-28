@@ -36,18 +36,21 @@ try {
             $thread->join();
         } catch (Swoole\Exception $exception) {
             $failed++;
+            Assert::same(Thread::activeCount(), 1);
         }
     }
 } finally {
     Assert::true(posix_setrlimit(POSIX_RLIMIT_NPROC, $soft, $hard));
 }
 Assert::same($failed, 4);
+Assert::same(Thread::activeCount(), 1);
 Assert::same(count(scandir('/proc/self/fd')), $before);
 
 // A normal start must still transfer ownership and expose the argument in the new thread.
 $thread = new Thread(__FILE__, $socket);
 Assert::true($thread->join());
 Assert::same($thread->getExitStatus(), 0);
+Assert::same(Thread::activeCount(), 1);
 fclose($socket);
 echo "DONE\n";
 ?>

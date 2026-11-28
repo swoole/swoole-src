@@ -2246,6 +2246,10 @@ class Server {
     void worker_accept_event(DataHead *info);
     void worker_signal_init() const;
 
+    // Creator (master for manager, manager for workers): create the native thread. Bindings can
+    // reserve request-lifecycle state here, before the new thread can run or creation can fail.
+    std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_create;
+    // Created worker/manager thread, after native role initialization: run its PHP request or C++ loop.
     std::function<void(std::shared_ptr<Thread>, const WorkerFn &fn)> worker_thread_start;
 
     /**

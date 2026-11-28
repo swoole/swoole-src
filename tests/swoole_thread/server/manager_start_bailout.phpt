@@ -39,6 +39,7 @@ $serv->on('BeforeShutdown', function () {
 $serv->on('Shutdown', function () {
     global $exited;
     Assert::same($exited->get(), 1);
+    Assert::same(Thread::activeCount(), 1);
     echo "DONE\n";
 });
 $serv->on('Receive', function () {});

@@ -779,6 +779,65 @@ TEST(server, thread_manager_timer_does_not_block_queue_producer) {
         "");
 }
 
+TEST(server, thread_creation_callback_runs_in_creator) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = serv.task_worker_num = 1;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    Worker user_worker{};
+    ASSERT_GE(serv.add_worker(&user_worker), 0);
+
+    const auto main_id = std::this_thread::get_id();
+    std::atomic<int> created{0};
+    std::atomic<int> ready{0};
+    std::atomic<bool> manager_started{false};
+    std::atomic<bool> stopping{false};
+    const auto native_create = serv.worker_thread_create;
+    serv.worker_thread_create = [&, native_create](std::shared_ptr<Thread> thread, const WorkerFn &fn) {
+        const int index = created.fetch_add(1);
+        if (index == 0) {
+            // The master creates the manager; all other initial/replacement creation belongs to the manager.
+            EXPECT_EQ(std::this_thread::get_id(), main_id);
+        } else {
+            EXPECT_NE(std::this_thread::get_id(), main_id);
+            EXPECT_EQ(swoole_get_worker_type(), SW_MANAGER);
+        }
+        // A PHP binding reserves its count here, before entering the native creation implementation.
+        native_create(std::move(thread), fn);
+    };
+    serv.onWorkerStart = [&](Server *, Worker *) { ready.fetch_add(1); };
+    serv.onUserWorkerStart = [&](Server *, Worker *) {
+        ready.fetch_add(1);
+        while (!stopping.load()) {
+            usleep(1000);
+        }
+    };
+    serv.onManagerStart = [&](Server *) {
+        EXPECT_EQ(created.load(), 4);
+        manager_started.store(true);
+    };
+    serv.onStart = [&](Server *server) {
+        const auto deadline = microtime() + 5;
+        swoole_timer_add(10L, true, [&, server, deadline](Timer *timer, TimerNode *node) {
+            if (ready.load() >= 3 && manager_started.load()) {
+                timer->remove(node);
+                EXPECT_TRUE(server->shutdown());
+            } else if (microtime() >= deadline) {
+                ADD_FAILURE() << "thread creation callbacks did not start every worker";
+                timer->remove(node);
+                server->shutdown();
+            }
+        });
+    };
+    serv.onBeforeShutdown = [&](Server *) { stopping.store(true); };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_GE(created.load(), 4);
+    EXPECT_GE(ready.load(), 3);
+    EXPECT_TRUE(manager_started.load());
+}
+
 TEST(server, thread) {
     Server serv(Server::MODE_THREAD);
     serv.worker_num = 2;

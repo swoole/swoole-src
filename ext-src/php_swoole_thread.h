@@ -36,6 +36,9 @@ extern zend_class_entry *swoole_thread_lock_ce;
 extern zend_class_entry *swoole_thread_map_ce;
 extern zend_class_entry *swoole_thread_queue_ce;
 
+// Creator thread: reserve a PHP thread count before native creation, rolling it back if creation fails.
+void php_swoole_thread_create(std::shared_ptr<swoole::Thread> thread, const std::function<void()> &fn);
+// Created thread: start its PHP request; cleanup releases the count reserved by thread_create().
 void php_swoole_thread_start(std::shared_ptr<swoole::Thread> thread, zend_string *file, ZendArray *argv);
 void php_swoole_thread_bailout();
 

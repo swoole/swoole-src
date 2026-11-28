@@ -78,6 +78,7 @@ static thread_local JMP_BUF *thread_bailout = nullptr;
 static thread_local php_socket_t s_in_fd = SOCK_ERR;
 static thread_local php_socket_t s_out_fd = SOCK_ERR;
 static thread_local php_socket_t s_err_fd = SOCK_ERR;
+// Includes PHP threads reserved for creation, running requests and request/TSRM cleanup.
 static std::atomic<size_t> thread_num(1);
 
 #ifdef _WIN32
@@ -323,7 +324,7 @@ static PHP_METHOD(swoole_thread, __construct) {
     }
 
     try {
-        pt->thread->start([file, argv, pt = thread_fetch_object(ZEND_THIS)->pt, internal_entry]() {
+        php_swoole_thread_create(pt->thread, [file, argv, pt = thread_fetch_object(ZEND_THIS)->pt, internal_entry]() {
             thread_start(pt->thread, file, argv, internal_entry, PHP_VERSION_ID >= 80400 ? &pt->result : nullptr);
         });
     } catch (const std::exception &e) {
@@ -715,7 +716,8 @@ static void thread_execute_internal_entry(zend_string *entry, zval *retval) {
 
 static void thread_start(
     std::shared_ptr<Thread> thread, zend_string *entry, ZendArray *argv, bool internal_entry, std::string *result) {
-    thread_num.fetch_add(1);
+    // The creator already reserved this request before starting the native thread. Runtime Hook
+    // changes and main-request shutdown must see it even while this entry is waiting to be scheduled.
     thread->enter();
     ts_resource(0);
 #if defined(COMPILE_DL_SWOOLE) && defined(ZTS)
@@ -825,7 +827,20 @@ _startup_error:
     thread->exit(exit_status);
 }
 
-// Server thread bootstraps retain their explicit script-entry semantics.
+void php_swoole_thread_create(std::shared_ptr<Thread> thread, const std::function<void()> &fn) {
+    // Publish before std::thread construction: the creator can return before its child runs at all.
+    // Successful creation transfers responsibility for the decrement to thread_start()'s cleanup,
+    // including PHP startup failure, exit() and fatal errors. Only creation failure rolls back here.
+    thread_num.fetch_add(1);
+    try {
+        thread->start(fn);
+    } catch (...) {
+        thread_num.fetch_sub(1);
+        throw;
+    }
+}
+
+// Server thread bootstraps retain their explicit script-entry semantics and consume a reserved count.
 void php_swoole_thread_start(std::shared_ptr<Thread> thread, zend_string *file, ZendArray *argv) {
     thread_start(thread, file, argv, false, nullptr);
 }

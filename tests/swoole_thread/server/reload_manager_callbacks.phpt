@@ -70,6 +70,7 @@ $serv->on('AfterReload', function ($server) {
 $serv->on('Receive', function () {});
 $serv->on('Task', function () {});
 $serv->on('Shutdown', function () {
+    Assert::same(Thread::activeCount(), 1);
     echo "DONE\n";
 });
 $serv->addProcess(new Swoole\Process(function () {

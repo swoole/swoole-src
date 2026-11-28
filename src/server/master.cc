@@ -959,6 +959,7 @@ Server::Server(Mode _mode) {
     message_bus.set_id_generator(msg_id_generator);
 
 #ifdef SW_THREAD
+    worker_thread_create = [](std::shared_ptr<Thread> thread, const WorkerFn &fn) { thread->start(fn); };
     worker_thread_start = [](std::shared_ptr<Thread>, const WorkerFn &fn) { fn(); };
 #endif
 

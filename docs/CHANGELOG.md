@@ -4,6 +4,7 @@
 
 ### Bug fixes
 
+- Count PHP threads before native creation and roll back failed starts, closing the startup window in Runtime Hook and main-request shutdown guards for ordinary threads and THREAD server workers/managers.
 - Align Table `count()`, `incr()` and `decr()` argument metadata with their existing parameter parsing, avoiding DEBUG-build arginfo/zpp failures while retaining value conversion behavior.
 - Atomically acquire and recover shared Table row locks using the owner PID, preventing competing recovery winners and retaining ownership when clearing a locked row. Cache the PID privately and refresh it after fork instead of calling `getpid()` for every row lock.
 - Make the fallback Barrier reusable across generations on macOS/BSD and other platforms without pthread barriers, preserving thread and process-shared synchronization.

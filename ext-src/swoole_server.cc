@@ -3070,6 +3070,9 @@ static PHP_METHOD(swoole_server, start) {
             }
         }
 
+        // This callback runs in the creator, unlike the PHP-request callback below, so the count is
+        // visible before native creation for manager, event, task and user threads, including reloads.
+        serv->worker_thread_create = php_swoole_thread_create;
         serv->worker_thread_start = [bootstrap, thread_argv](std::shared_ptr<Thread> thread, const WorkerFn &fn) {
             worker_thread_fn = fn;
             zend_string *bootstrap_copy = zend_string_dup(bootstrap, true);

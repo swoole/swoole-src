@@ -32,6 +32,7 @@ try {
         }
         Assert::true($ready->pop(5));
         Assert::true($thread->isAlive());
+        Assert::same(Swoole\Thread::activeCount(), 2);
         try {
             $thread->getResult();
             Assert::true(false);

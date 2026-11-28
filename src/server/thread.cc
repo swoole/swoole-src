@@ -152,7 +152,7 @@ void ThreadFactory::destroy_message_bus() {
 }
 
 void ThreadFactory::spawn_event_worker(WorkerId i) {
-    threads_[i]->start([this, i]() {
+    server_->worker_thread_create(threads_[i], [this, i]() {
         at_thread_enter(i, SW_EVENT_WORKER);
 
         Worker *worker = server_->get_worker(i);
@@ -182,7 +182,7 @@ void ThreadFactory::spawn_event_worker(WorkerId i) {
 }
 
 void ThreadFactory::spawn_task_worker(WorkerId i) {
-    threads_[i]->start([this, i]() {
+    server_->worker_thread_create(threads_[i], [this, i]() {
         at_thread_enter(i, SW_TASK_WORKER);
 
         create_message_bus();
@@ -208,7 +208,7 @@ void ThreadFactory::spawn_task_worker(WorkerId i) {
 }
 
 void ThreadFactory::spawn_user_worker(WorkerId i) {
-    threads_[i]->start([this, i]() {
+    server_->worker_thread_create(threads_[i], [this, i]() {
         at_thread_enter(i, SW_USER_WORKER);
 
         create_message_bus();
@@ -224,7 +224,7 @@ void ThreadFactory::spawn_user_worker(WorkerId i) {
 }
 
 void ThreadFactory::spawn_manager_thread(WorkerId i) {
-    threads_[i]->start([this, i]() {
+    server_->worker_thread_create(threads_[i], [this, i]() {
         at_thread_enter(i, SW_MANAGER);
 
         swoole_timer_create(true);
