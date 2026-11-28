@@ -21,6 +21,10 @@ class TestCurlManager extends CurlManager
 
     protected function runCliServer($port)
     {
+        if (!$this->serverAvailable) {
+            // Exhaust the real readiness loop without spending the normal startup budget.
+            $this->cliServerStartupTimeout = 0.1;
+        }
         $process = parent::runCliServer($port);
         $this->serverPid = $process->pid;
 

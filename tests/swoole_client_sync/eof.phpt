@@ -67,7 +67,8 @@ $pm->childFunc = function () use ($pm, $port) {
         //慢速发送
         for ($i = 0; $i < 100; $i++) {
             $serv->send($fd, str_repeat('A', rand(1000, 2000)));
-            usleep(rand(10000, 50000));
+            // Preserve the original minimum pause between fragments.
+            usleep(10000);
             $serv->send($fd, str_repeat('A', rand(2000, 4000)) . "\r\n\r\n");
         }
         //大包

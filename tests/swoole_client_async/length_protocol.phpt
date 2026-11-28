@@ -89,7 +89,8 @@ $pm->childFunc = function () use ($pm) {
             $data = str_repeat('A', rand(3000, 6000));
             $n = rand(1000, 2000);
             $serv->send($fd, pack('N', strlen($data)) . substr($data, 0, $n));
-            usleep(rand(10000, 50000));
+            // Preserve the original minimum pause between fragments.
+            usleep(10000);
             $serv->send($fd, substr($data, $n));
         }
         //大包

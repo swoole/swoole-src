@@ -42,6 +42,11 @@ Coroutine\run(function () {
         Assert::false($meta['eof']);
 
         Assert::same($sent->pop(1), 4);
+        // A successful UDP send does not imply immediate receive readiness on macOS.
+        // Wait explicitly before testing that PEEK preserves the already available datagram.
+        $read = [$receiver];
+        $write = $except = null;
+        Assert::same(stream_select($read, $write, $except, 1), 1);
         Assert::same(stream_socket_recvfrom($receiver, 16, STREAM_PEEK), 'ping');
         Assert::same(stream_socket_recvfrom($receiver, 16, STREAM_PEEK, $peer), 'ping');
         Assert::same($peer, $source);

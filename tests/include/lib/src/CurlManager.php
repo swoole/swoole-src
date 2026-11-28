@@ -12,6 +12,7 @@ class CurlManager
 {
     protected $port;
     protected $nativeCurl = false;
+    protected $cliServerStartupTimeout = 5.0;
 
     function __construct() {
         $this->nativeCurl = defined('SWOOLE_HOOK_NATIVE_CURL');
@@ -37,11 +38,16 @@ class CurlManager
             throw new RuntimeException('Unable to start the PHP CLI server process');
         }
 
-        $i = 0;
-        while ($i++ < 500) {
-            usleep(10000);
-            if (@file_get_contents($this->getUrlBase() . '/')) {
+        // Count elapsed time, including probes and scheduler delays, rather than retry attempts.
+        $deadline = hrtime(true) + (int) ($this->cliServerStartupTimeout * 1e9);
+        while (($remaining = ($deadline - hrtime(true)) / 1e9) > 0) {
+            $context = stream_context_create(['http' => ['timeout' => $remaining]]);
+            if (@file_get_contents($this->getUrlBase() . '/', false, $context)) {
                 return $proc;
+            }
+            $remaining = (int) (($deadline - hrtime(true)) / 1000);
+            if ($remaining > 0) {
+                usleep(min(10000, $remaining));
             }
         }
 
