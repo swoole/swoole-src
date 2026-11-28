@@ -903,6 +903,9 @@ struct ThreadReloadTask {
     uint16_t start_worker_id;
     uint16_t worker_num;
     uint16_t next_worker_id;
+    // Manager-thread state: a cursor is not an acknowledgement. Keep one stop request in flight
+    // until that worker has been joined and its replacement has been created.
+    int32_t current_worker_id = -1;
     std::unordered_set<WorkerId> completed_workers;
 
     bool is_completed() const {
@@ -918,7 +921,13 @@ struct ThreadReloadTask {
     }
 
     bool mark_completed(WorkerId worker_id) {
-        return contains(worker_id) && completed_workers.emplace(worker_id).second;
+        if (!contains(worker_id) || !completed_workers.emplace(worker_id).second) {
+            return false;
+        }
+        if (current_worker_id == static_cast<int32_t>(worker_id)) {
+            current_worker_id = -1;
+        }
+        return true;
     }
 
     ThreadReloadTask(Server *_server, bool only_reload_taskworker);
@@ -942,7 +951,7 @@ class ThreadFactory : public BaseFactory {
     void create_message_bus() const;
     void destroy_message_bus();
     void do_reload();
-    void finish_reload_worker(Worker *worker);
+    void finish_reload_worker(WorkerId worker_id);
     void push_to_wait_queue(Worker *worker);
     void shutdown_workers();
 

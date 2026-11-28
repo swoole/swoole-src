@@ -1198,6 +1198,147 @@ TEST(server, task_thread) {
     test::wait_all_child_processes();
 }
 
+static void test_thread_reload_waits_for_current_worker(bool task_only) {
+    Server serv(Server::MODE_THREAD);
+    serv.worker_num = task_only ? 1 : 3;
+    serv.task_worker_num = task_only ? 3 : 0;
+    serv.task_enable_coroutine = task_only;
+    serv.reload_async = true;
+    const WorkerId first = task_only ? 1 : 0;
+    ASSERT_NE(serv.add_port(SW_SOCK_TCP, TEST_HOST, 0), nullptr);
+    Worker user_worker{};
+    ASSERT_GE(serv.add_worker(&user_worker), 0);
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    std::atomic<int> starts[4]{};
+    std::atomic<int> stops[3]{};
+    std::atomic<int> user_starts{0};
+    std::atomic<int> before{0};
+    std::atomic<int> after{0};
+    std::atomic<bool> release[2]{};
+    std::atomic<bool> release_user{false};
+    std::atomic<bool> stopping{false};
+    std::mutex mutex;
+    std::condition_variable cv;
+    serv.onWorkerStart = [&](Server *, Worker *worker) { starts[worker->id].fetch_add(1); };
+    serv.onWorkerStop = [&](Server *, Worker *worker) {
+        if (worker->id < first) {
+            return;
+        }
+        const auto index = worker->id - first;
+        if (stops[index].fetch_add(1) == 0 && index < 2) {
+            std::unique_lock<std::mutex> lock(mutex);
+            cv.wait(lock, [&] { return release[index].load() || stopping.load(); });
+        }
+    };
+    serv.onUserWorkerStart = [&](Server *, Worker *) {
+        const bool initial = user_starts.fetch_add(1) == 0;
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [&] { return stopping.load() || (initial && release_user.load()); });
+    };
+    serv.onBeforeReload = [&](Server *) { before.fetch_add(1); };
+    serv.onAfterReload = [&](Server *) {
+        EXPECT_TRUE(release[1].load());
+        EXPECT_EQ(before.load(), 1);
+        after.fetch_add(1);
+    };
+    serv.onManagerStart = [&](Server *server) {
+        swoole_timer_add(5L, true, [&, server, phase = 0, ticks = 0](TIMER_PARAMS) mutable {
+            switch (phase) {
+            case 0:
+                for (uint32_t i = 0; i < server->get_core_worker_num(); ++i) {
+                    if (!starts[i].load()) {
+                        return;
+                    }
+                }
+                if (!user_starts.load()) {
+                    return;
+                }
+                EXPECT_TRUE(server->reload(task_only));
+                phase = 1;
+                break;
+            case 1:
+                if (stops[0].load()) {
+                    // Both an unrelated user exit and a future target's independent replacement
+                    // wake the manager while the first reload target remains blocked in WorkerStop.
+                    do {
+                        std::lock_guard<std::mutex> lock(mutex);
+                        release_user.store(true);
+                    } while (0);
+                    cv.notify_all();
+                    EXPECT_TRUE(server->kill_worker(first + 2));
+                    phase = 2;
+                }
+                break;
+            case 2:
+                if (user_starts.load() >= 2 && starts[first + 2].load() >= 2 && ++ticks == 5) {
+                    EXPECT_EQ(stops[1].load(), 0);
+                    EXPECT_EQ(after.load(), 0);
+                    do {
+                        std::lock_guard<std::mutex> lock(mutex);
+                        release[0].store(true);
+                    } while (0);
+                    cv.notify_all();
+                    ticks = 0;
+                    phase = 3;
+                }
+                break;
+            case 3:
+                if (stops[1].load() && ++ticks == 5) {
+                    EXPECT_EQ(stops[2].load(), 1);
+                    EXPECT_EQ(starts[first + 2].load(), 2);
+                    EXPECT_EQ(after.load(), 0);
+                    do {
+                        std::lock_guard<std::mutex> lock(mutex);
+                        release[1].store(true);
+                    } while (0);
+                    cv.notify_all();
+                    phase = 4;
+                }
+                break;
+            default:
+                break;
+            }
+        });
+    };
+    serv.onStart = [&](Server *server) {
+        const auto deadline = microtime() + 8;
+        swoole_timer_add(5L, true, [&, server, deadline](Timer *timer, TimerNode *node) {
+            if (after.load() && starts[first].load() >= 2 && starts[first + 1].load() >= 2) {
+                timer->remove(node);
+                EXPECT_TRUE(server->shutdown());
+            } else if (microtime() >= deadline) {
+                ADD_FAILURE() << "sequential thread reload did not finish";
+                timer->remove(node);
+                server->shutdown();
+            }
+        });
+    };
+    serv.onBeforeShutdown = [&](Server *) {
+        do {
+            std::lock_guard<std::mutex> lock(mutex);
+            stopping.store(true);
+        } while (0);
+        cv.notify_all();
+    };
+    serv.onReceive = [](Server *, RecvData *) { return SW_OK; };
+    serv.onTask = [](Server *, EventData *) { return SW_OK; };
+    ASSERT_EQ(serv.start(), SW_OK);
+    EXPECT_EQ(before.load(), 1);
+    EXPECT_EQ(after.load(), 1);
+    for (uint32_t i = 0; i < serv.get_core_worker_num(); ++i) {
+        EXPECT_EQ(starts[i].load(), i < first ? 1 : 2);
+    }
+}
+
+TEST(server, reload_thread_workers_sequential) {
+    test_thread_reload_waits_for_current_worker(false);
+}
+
+TEST(server, reload_thread_tasks_sequential) {
+    test_thread_reload_waits_for_current_worker(true);
+}
+
 TEST(server, reload_thread) {
     DEBUG() << "new server\n";
     Server serv(Server::MODE_THREAD);

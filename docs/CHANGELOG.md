@@ -4,6 +4,7 @@
 
 ### Bug fixes
 
+- Keep THREAD reloads sequential across manager timers and unrelated worker exits, and avoid reloading replacements of targets that exited independently during the round.
 - Make worker retirement idempotent and prevent draining workers' callbacks from overwriting a replacement's shared status and counters after asynchronous reload.
 - Count PHP threads before native creation and roll back failed starts, closing the startup window in Runtime Hook and main-request shutdown guards for ordinary threads and THREAD server workers/managers.
 - Align Table `count()`, `incr()` and `decr()` argument metadata with their existing parameter parsing, avoiding DEBUG-build arginfo/zpp failures while retaining value conversion behavior.

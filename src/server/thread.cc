@@ -310,7 +310,10 @@ void ThreadFactory::wait() {
                              exited_worker->id,
                              exited_worker->status);
 
-            auto thread = threads_[exited_worker->id];
+            // The slot can be updated by its replacement as soon as spawn returns. Retain the
+            // exiting ID locally; every exit notification is consumed and joined here before reuse.
+            const WorkerId worker_id = exited_worker->id;
+            auto thread = threads_[worker_id];
             int status_code = thread->get_exit_status();
             if (status_code != 0) {
                 ExitStatus exit_status(exited_worker->pid, status_code << 8);
@@ -327,19 +330,19 @@ void ThreadFactory::wait() {
 
             switch (exited_worker->type) {
             case SW_EVENT_WORKER:
-                spawn_event_worker(exited_worker->id);
+                spawn_event_worker(worker_id);
                 break;
             case SW_TASK_WORKER:
-                spawn_task_worker(exited_worker->id);
+                spawn_task_worker(worker_id);
                 break;
             case SW_USER_WORKER:
-                spawn_user_worker(exited_worker->id);
+                spawn_user_worker(worker_id);
                 break;
             default:
                 abort();
                 break;
             }
-            finish_reload_worker(exited_worker);
+            finish_reload_worker(worker_id);
         }
 
         if (sw_timer()) {
@@ -389,9 +392,22 @@ void ThreadFactory::do_reload() {
         }
     }
 
+    // Timers and unrelated worker exits also enter this method. Only completion of the current
+    // target may release this gate; waking the manager must not stop another worker prematurely.
+    if (reload_task->current_worker_id >= 0) {
+        return;
+    }
+
     while (reload_task->has_next()) {
         auto worker_id = reload_task->next_worker_id++;
+        // A future target may have exited independently and already been replaced during this round.
+        // Its replacement is not another reload target, matching the process manager's PID snapshot.
+        if (reload_task->completed_workers.count(worker_id)) {
+            continue;
+        }
         if (server_->kill_worker(worker_id)) {
+            // This manager alone consumes exit notifications, so completion cannot overtake this write.
+            reload_task->current_worker_id = worker_id;
             break;
         }
         reload_task->mark_completed(worker_id);
@@ -405,12 +421,11 @@ void ThreadFactory::do_reload() {
     }
 }
 
-void ThreadFactory::finish_reload_worker(Worker *worker) {
-    if (!reload_task || !reload_task->contains(worker->id)) {
+void ThreadFactory::finish_reload_worker(WorkerId worker_id) {
+    if (!reload_task || !reload_task->mark_completed(worker_id)) {
         return;
     }
 
-    reload_task->mark_completed(worker->id);
     if (reload_task->is_completed()) {
         reload_task.reset();
         sw_atomic_store_release(&reloading, 0);
