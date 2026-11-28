@@ -414,9 +414,10 @@ static int TaskWorker_onTask(ProcessPool *pool, Worker *worker, EventData *task)
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         serv->onPipeMessage(serv, task);
     } else if (task->info.type == SW_SERVER_EVENT_SHUTDOWN) {
-        worker->shutdown();
         if (swoole_event_is_available()) {
             serv->stop_async_worker(worker);
+        } else {
+            worker->shutdown();
         }
         return SW_OK;
     } else if (task->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {

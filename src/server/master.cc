@@ -1628,7 +1628,7 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) const
             sw_atomic_long_fetch_add(&port->gs->total_send_bytes, length);
         }
         if (sw_worker()) {
-            sw_worker()->response_count++;
+            sw_worker()->add_response_count();
         }
         return true;
     }

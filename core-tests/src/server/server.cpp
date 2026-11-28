@@ -36,6 +36,204 @@ using swoole::network::AsyncClient;
 
 int beforeReloadPid = 0;
 
+class WorkerSlotState : public testing::Test {
+  protected:
+    WorkerGlobal saved_worker{};
+    Reactor *saved_reactor = nullptr;
+    std::unique_ptr<Server> server;
+    std::unique_ptr<Reactor> reactor;
+    Worker worker{};
+
+    void SetUp() override {
+        saved_worker = SwooleWG;
+        saved_reactor = SwooleTG.reactor;
+        SwooleWG = {};
+        server.reset(new Server(Server::MODE_PROCESS));
+        server->worker_num = 1;
+        // Isolate publication from IPC setup: retirement must protect the slot even if the reactor
+        // has stopped, while its current callback has not returned yet.
+        server->reload_async = false;
+        worker.id = 0;
+        worker.type = SW_EVENT_WORKER;
+        worker.pid = getpid();
+        worker.concurrency = 2;
+        server->increment_concurrency();
+        server->increment_concurrency();
+        SwooleWG.id = worker.id;
+        SwooleWG.pid = worker.pid;
+        SwooleWG.type = SW_EVENT_WORKER;
+        SwooleWG.worker = &worker;
+        reactor.reset(new Reactor());
+        ASSERT_TRUE(reactor->ready());
+        reactor->ptr = server.get();
+        SwooleTG.reactor = reactor.get();
+    }
+
+    void TearDown() override {
+        SwooleWG = saved_worker;
+        SwooleTG.reactor = saved_reactor;
+        reactor.reset();
+        server.reset();
+    }
+
+    void publish_replacement(Worker *slot) {
+        slot->pid = getpid();
+        slot->status = SW_WORKER_BUSY;
+        slot->concurrency = 3;
+        slot->request_count = 101;
+        slot->response_count = 102;
+        slot->dispatch_count = 103;
+        slot->coroutine_num = 104;
+        for (int i = 0; i < 3; ++i) {
+            server->increment_concurrency();
+        }
+    }
+
+    void expect_replacement(const Worker *slot) {
+        EXPECT_EQ(slot->status, SW_WORKER_BUSY);
+        EXPECT_EQ(slot->concurrency, 3);
+        EXPECT_EQ(slot->request_count, 101);
+        EXPECT_EQ(slot->response_count, 102);
+        EXPECT_EQ(slot->dispatch_count, 103);
+        EXPECT_EQ(slot->coroutine_num, 104);
+        EXPECT_EQ(server->get_concurrency(), 3);
+    }
+};
+
+TEST_F(WorkerSlotState, shutdown_event_keeps_exit_status) {
+    DataHead event{};
+    event.type = SW_SERVER_EVENT_SHUTDOWN;
+    server->worker_accept_event(&event);
+    EXPECT_TRUE(worker.is_shutdown());
+    EXPECT_EQ(worker.status, SW_WORKER_EXIT);
+}
+
+TEST_F(WorkerSlotState, repeated_shutdown_preserves_replacement_counters) {
+    server->stop_async_worker(&worker);
+    const auto exit_time = SwooleWG.exit_time_msec;
+    publish_replacement(&worker);
+    server->stop_async_worker(&worker);
+    worker.shutdown();
+    expect_replacement(&worker);
+    EXPECT_EQ(SwooleWG.exit_time_msec, exit_time);
+}
+
+TEST_F(WorkerSlotState, callback_completion_preserves_replacement_request_count) {
+    server->message_bus.alloc_buffer();
+    server->onPacket = [&](Server *, RecvData *) {
+        server->stop_async_worker(&worker);
+        publish_replacement(&worker);
+        return SW_OK;
+    };
+    DataHead event{};
+    event.type = SW_SERVER_EVENT_RECV_DGRAM;
+    server->worker_accept_event(&event);
+    expect_replacement(&worker);
+    // Completed work still contributes to the server total, but not the replacement's per-worker count.
+    EXPECT_EQ(server->get_request_count(), 1);
+}
+
+#ifndef _WIN32
+TEST_F(WorkerSlotState, old_process_cannot_publish_after_slot_handoff) {
+    std::unique_ptr<Worker, decltype(&sw_shm_free)> slot(static_cast<Worker *>(sw_shm_calloc(1, sizeof(Worker))),
+                                                         sw_shm_free);
+    ASSERT_NE(slot, nullptr);
+    *slot = worker;
+    int ready[2];
+    int resume[2];
+    ASSERT_EQ(pipe(ready), 0);
+    ASSERT_EQ(pipe(resume), 0);
+    const pid_t child = fork();
+    ASSERT_GE(child, 0);
+    if (child == 0) {
+        signal(SIGALRM, [](int) { _exit(124); });
+        sigset_t mask;
+        sigemptyset(&mask);
+        sigaddset(&mask, SIGALRM);
+        pthread_sigmask(SIG_UNBLOCK, &mask, nullptr);
+        alarm(5);
+        close(ready[0]);
+        close(resume[1]);
+        slot->pid = getpid();
+        SwooleWG.pid = slot->pid;
+        SwooleWG.worker = slot.get();
+        // This callback retains its original shared pointer across retirement and slot reuse.
+        server->onBufferFull = [&](Server *, DataHead *) {
+            server->stop_async_worker(slot.get());
+            if (write(ready[1], "R", 1) != 1) {
+                _exit(2);
+            }
+            char value;
+            if (read(resume[0], &value, 1) != 1) {
+                _exit(3);
+            }
+            server->stop_async_worker(slot.get());
+        };
+        DataHead event{};
+        event.type = SW_SERVER_EVENT_BUFFER_FULL;
+        server->worker_accept_event(&event);
+        // WorkerStop can clear the current pointer; previously captured pointers must remain retired.
+        SwooleWG.worker = nullptr;
+        slot->set_status_to_idle();
+        slot->add_request_count();
+        slot->add_response_count();
+        slot->set_coroutine_num(999);
+        slot->shutdown();
+        expect_replacement(slot.get());
+        _exit(::testing::Test::HasFailure() ? 1 : 0);
+    }
+    close(ready[1]);
+    close(resume[0]);
+    ON_SCOPE_EXIT {
+        close(ready[0]);
+        close(resume[1]);
+    };
+    char value;
+    const auto received = read(ready[0], &value, 1);
+    if (received == 1) {
+        EXPECT_EQ(server->get_concurrency(), 0);
+        publish_replacement(slot.get());
+        EXPECT_EQ(write(resume[1], "R", 1), 1);
+    }
+    int status;
+    ASSERT_EQ(waitpid(child, &status, 0), child);
+    ASSERT_EQ(received, 1);
+    ASSERT_TRUE(WIFEXITED(status));
+    EXPECT_EQ(WEXITSTATUS(status), 0);
+    expect_replacement(slot.get());
+}
+#endif
+
+TEST_F(WorkerSlotState, initialization_starts_a_fresh_local_generation) {
+    worker.shutdown();
+    worker.init();
+    EXPECT_FALSE(worker.is_shutdown());
+    EXPECT_EQ(worker.status, SW_WORKER_IDLE);
+    worker.set_status_to_busy();
+    worker.add_request_count();
+    worker.add_response_count();
+    worker.set_coroutine_num(9);
+    EXPECT_EQ(worker.status, SW_WORKER_BUSY);
+    EXPECT_EQ(worker.request_count, 1);
+    EXPECT_EQ(worker.response_count, 1);
+    EXPECT_EQ(worker.coroutine_num, 9);
+}
+
+TEST_F(WorkerSlotState, retirement_only_suppresses_the_retired_slot) {
+    worker.shutdown();
+    Worker other{};
+    // Same numeric ID, but this unbound object is not the relinquished shared slot.
+    other.id = worker.id;
+    other.set_status_to_busy();
+    other.add_request_count();
+    other.add_response_count();
+    other.set_coroutine_num(7);
+    EXPECT_EQ(other.status, SW_WORKER_BUSY);
+    EXPECT_EQ(other.request_count, 1);
+    EXPECT_EQ(other.response_count, 1);
+    EXPECT_EQ(other.coroutine_num, 7);
+}
+
 TEST(server, master_shutdown_deadline) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = serv.reactor_num = 1;

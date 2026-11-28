@@ -1176,12 +1176,13 @@ void ProcessPool::destroy() {
 }
 
 void Worker::init() {
-    start_time = ::time(nullptr);
-    request_count = 0;
-    set_status_to_idle();
+    SwooleWG.retired_worker = nullptr;
     SwooleWG.running = true;
     SwooleWG.shutdown = false;
     SwooleWG.exit_time_msec = 0;
+    start_time = ::time(nullptr);
+    request_count = 0;
+    set_status_to_idle();
 }
 
 void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
@@ -1192,14 +1193,20 @@ void Worker::set_max_request(uint32_t max_request, uint32_t max_request_grace) {
 }
 
 bool Worker::has_exceeded_max_request() const {
-    return SwooleWG.max_request > 0 && request_count >= SwooleWG.max_request;
+    return SwooleWG.max_request > 0 && !is_retired_current_worker() && request_count >= SwooleWG.max_request;
 }
 
 void Worker::shutdown() {
+    if (sw_unlikely(is_retired_current_worker())) {
+        return;
+    }
     if (!SwooleWG.shutdown) {
         SwooleWG.exit_time_msec = time<std::chrono::milliseconds>(true);
     }
     status = SW_WORKER_EXIT;
+    if (this == SwooleWG.worker) {
+        SwooleWG.retired_worker = this;
+    }
     SwooleWG.shutdown = true;
 }
 

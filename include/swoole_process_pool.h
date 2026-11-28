@@ -140,6 +140,9 @@ struct WorkerGlobal {
      * necessitating careful handling of the state.
      */
     Worker *worker;
+    // The exact shared slot relinquished by this process/thread. Identity only: retain it when
+    // worker is cleared at WorkerStop, so callbacks holding the old pointer cannot publish again.
+    Worker *retired_worker;
     /**
      *  worker_copy is a copy of worker,
      *  but it must be local memory and only used within the current process or thread.
@@ -203,9 +206,7 @@ struct Worker {
     bool is_shutdown();
     static bool is_running();
 
-    void set_status(swWorkerStatus _status) {
-        status = _status;
-    }
+    void set_status(swWorkerStatus _status);
 
     void set_status_to_idle() {
         set_status(SW_WORKER_IDLE);
@@ -215,9 +216,9 @@ struct Worker {
         set_status(SW_WORKER_BUSY);
     }
 
-    void add_request_count() {
-        request_count++;
-    }
+    void add_request_count();
+    void add_response_count();
+    void set_coroutine_num(size_t count);
 
     bool is_busy() const {
         return status == SW_WORKER_BUSY;
@@ -226,6 +227,9 @@ struct Worker {
     bool is_idle() const {
         return status == SW_WORKER_IDLE;
     }
+
+  private:
+    bool is_retired_current_worker() const;
 };
 
 struct StreamInfo {
@@ -487,4 +491,34 @@ extern SW_THREAD_LOCAL swoole::WorkerGlobal SwooleWG;
 
 static inline swoole::Worker *sw_worker() {
     return SwooleWG.worker;
+}
+
+inline bool swoole::Worker::is_retired_current_worker() const {
+    // A shared slot's PID can already belong to a replacement; worker itself may already be null.
+    // Match the exact locally retained slot, not a PID/ID also used by unbound Worker objects.
+    return this == SwooleWG.retired_worker;
+}
+
+inline void swoole::Worker::set_status(swWorkerStatus value) {
+    if (sw_likely(!is_retired_current_worker())) {
+        status = value;
+    }
+}
+
+inline void swoole::Worker::add_request_count() {
+    if (sw_likely(!is_retired_current_worker())) {
+        request_count++;
+    }
+}
+
+inline void swoole::Worker::add_response_count() {
+    if (sw_likely(!is_retired_current_worker())) {
+        response_count++;
+    }
+}
+
+inline void swoole::Worker::set_coroutine_num(size_t count) {
+    if (sw_likely(!is_retired_current_worker())) {
+        coroutine_num = count;
+    }
 }

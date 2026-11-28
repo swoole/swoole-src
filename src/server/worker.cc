@@ -388,15 +388,21 @@ bool Server::kill_worker(int worker_id) {
 }
 
 void Server::stop_async_worker(Worker *worker) {
+    // Retirement is local and precedes the replacement notification. Do not touch a shared
+    // slot again on repeated signals, queued SHUTDOWN events or late callback completions.
+    if (sw_unlikely(worker->is_shutdown())) {
+        return;
+    }
     worker->shutdown();
+    // This is the retiring generation's final shared-counter reset. Do it before resuming
+    // command waiters or notifying the manager; later per-worker publication is suppressed.
+    if (worker->type == SW_EVENT_WORKER) {
+        reset_worker_counter(worker);
+    }
     if (is_base_mode()) {
         // BASE worker 0 owns the command reply registry; settle it while its PHP VM/reactor is still alive.
         cancel_all_commands();
     }
-    if (worker->type == SW_EVENT_WORKER) {
-        reset_worker_counter(worker);
-    }
-
     // forced termination
     Reactor *reactor = sw_reactor();
     if (reload_async == 0) {
@@ -611,7 +617,7 @@ int Server::start_event_worker(Worker *worker) {
 
     if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
         reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,
-                                  [worker](Reactor *) { worker->coroutine_num = Coroutine::count(); });
+                                  [worker](Reactor *) { worker->set_coroutine_num(Coroutine::count()); });
     }
 
     if (!worker_start_callback(worker)) {
