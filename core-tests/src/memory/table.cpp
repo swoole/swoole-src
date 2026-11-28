@@ -24,6 +24,8 @@ using namespace swoole;
 
 #include <exception>
 #include <map>
+#include <atomic>
+#include <chrono>
 
 struct exception_t : public std::exception {
     int code;
@@ -697,6 +699,239 @@ TEST(table, lock_race) {
 
     test::wait_all_child_processes();
 }
+
+#ifndef _WIN32
+static void table_row_watchdog() {
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGALRM);
+    pthread_sigmask(SIG_UNBLOCK, &mask, nullptr);
+    signal(SIGALRM, [](int) { _exit(124); });
+    alarm(15);
+}
+
+static void test_table_row_recovery(bool foreign_holder) {
+    table_row_watchdog();
+    std::unique_ptr<TableRow, decltype(&sw_shm_free)> row(static_cast<TableRow *>(sw_shm_calloc(1, sizeof(TableRow))),
+                                                          sw_shm_free);
+    ASSERT_NE(row, nullptr);
+    int fds[2];
+    ASSERT_EQ(pipe(fds), 0);
+    pid_t owner = fork();
+    ASSERT_GE(owner, 0);
+    if (owner == 0) {
+        table_row_watchdog();
+        close(fds[0]);
+        if (foreign_holder && setsid() < 0) {
+            _exit(1);
+        }
+        row->lock();
+        if (write(fds[1], "R", 1) != 1) {
+            _exit(2);
+        }
+        close(fds[1]);
+        if (foreign_holder) {
+            // Simulate a stale PID now belonging to another process group. Do not touch row data again.
+            while (true) {
+                pause();
+            }
+        }
+        _exit(0);
+    }
+    close(fds[1]);
+    ON_SCOPE_EXIT {
+        close(fds[0]);
+        if (owner > 0) {
+            kill(owner, SIGKILL);
+            waitpid(owner, nullptr, 0);
+        }
+    };
+    char ready;
+    ASSERT_EQ(read(fds[0], &ready, 1), 1);
+    if (!foreign_holder) {
+        int status;
+        ASSERT_EQ(waitpid(owner, &status, 0), owner);
+        owner = 0;
+        ASSERT_TRUE(WIFEXITED(status));
+        ASSERT_EQ(WEXITSTATUS(status), 0);
+    }
+
+    std::unique_ptr<FILE, decltype(&fclose)> log(tmpfile(), fclose);
+    ASSERT_NE(log, nullptr);
+    setvbuf(log.get(), nullptr, _IONBF, 0);
+    sw_logger()->set_stream(log.get());
+    swoole_set_log_level(SW_LOG_WARNING);
+    ON_SCOPE_EXIT {
+        sw_logger()->set_stream(stdout);
+    };
+    // Stall the first recovery warning. Other contenders can inspect the owner while that recovery
+    // is paused, exposing both competing recoveries and the old lock-before-owner publication gap.
+    flockfile(log.get());
+    const int count = 8;
+    std::atomic<int> ready_count{0}, entered{0}, inside{0};
+    std::atomic<bool> start{false}, release{false}, overlap{false};
+    std::vector<std::thread> contenders;
+    for (int i = 0; i < count; ++i) {
+        contenders.emplace_back([&] {
+            ready_count.fetch_add(1);
+            while (!start.load()) {
+                std::this_thread::yield();
+            }
+            row->lock();
+            if (inside.fetch_add(1) != 0) {
+                overlap.store(true);
+            }
+            entered.fetch_add(1);
+            while (!release.load()) {
+                std::this_thread::yield();
+            }
+            inside.fetch_sub(1);
+            row->unlock();
+        });
+    }
+    while (ready_count.load() != count) {
+        std::this_thread::yield();
+    }
+    start.store(true);
+    std::this_thread::sleep_for(std::chrono::milliseconds(foreign_holder ? SW_TABLE_FORCE_UNLOCK_TIME + 250 : 100));
+    funlockfile(log.get());
+    while (entered.load() == 0) {
+        std::this_thread::yield();
+    }
+    // The first successful contender deliberately keeps the lock; no second one may return yet.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    const int before_unlock = entered.load();
+    release.store(true);
+    for (auto &contender : contenders) {
+        contender.join();
+    }
+    if (before_unlock != 1 || overlap.load()) {
+        fprintf(
+            stderr, "contenders admitted before unlock: %d, overlapping owners: %d\n", before_unlock, overlap.load());
+    }
+    EXPECT_EQ(before_unlock, 1);
+    EXPECT_FALSE(overlap.load());
+    EXPECT_EQ(entered.load(), count);
+}
+
+TEST(table, row_lock_dead_owner_has_one_recovery_winner) {
+    ASSERT_EXIT(
+        {
+            test_table_row_recovery(false);
+            _exit(::testing::Test::HasFailure() ? 1 : 0);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+}
+
+TEST(table, row_lock_foreign_owner_has_one_recovery_winner) {
+    ASSERT_EXIT(
+        {
+            test_table_row_recovery(true);
+            _exit(::testing::Test::HasFailure() ? 1 : 0);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+}
+
+TEST(table, row_lock_can_recover_after_clear) {
+    ASSERT_EXIT(
+        {
+            table_row_watchdog();
+            auto *row = static_cast<TableRow *>(sw_shm_calloc(1, sizeof(TableRow)));
+            if (!row) {
+                _exit(1);
+            }
+            const pid_t child = fork();
+            if (child < 0) {
+                _exit(2);
+            }
+            if (child == 0) {
+                row->lock();
+                row->clear();
+                _exit(0);
+            }
+            int status;
+            if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+                _exit(3);
+            }
+            row->lock();
+            row->unlock();
+            sw_shm_free(row);
+            _exit(0);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+}
+
+TEST(table, row_lock_does_not_evict_a_slow_live_owner) {
+    ASSERT_EXIT(
+        {
+            table_row_watchdog();
+            auto *row = static_cast<TableRow *>(sw_shm_calloc(1, sizeof(TableRow)));
+            if (!row) {
+                _exit(1);
+            }
+            int notification[2];
+            int release[2];
+            if (pipe(notification) != 0 || pipe(release) != 0) {
+                _exit(2);
+            }
+            const pid_t owner = fork();
+            if (owner < 0) {
+                _exit(3);
+            }
+            if (owner == 0) {
+                table_row_watchdog();
+                close(notification[0]);
+                close(release[1]);
+                row->lock();
+                if (write(notification[1], "R", 1) != 1) {
+                    _exit(4);
+                }
+                char value;
+                if (read(release[0], &value, 1) != 1) {
+                    _exit(5);
+                }
+                row->unlock();
+                _exit(0);
+            }
+            close(notification[1]);
+            close(release[0]);
+            char value;
+            if (read(notification[0], &value, 1) != 1) {
+                _exit(6);
+            }
+            std::atomic<bool> ready{false};
+            std::atomic<bool> entered{false};
+            std::thread contender([&] {
+                ready.store(true);
+                row->lock();
+                entered.store(true);
+                row->unlock();
+            });
+            while (!ready.load()) {
+                std::this_thread::yield();
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(SW_TABLE_FORCE_UNLOCK_TIME + 100));
+            const bool evicted = entered.load();
+            if (write(release[1], "R", 1) != 1) {
+                _exit(7);
+            }
+            contender.join();
+            int status;
+            if (waitpid(owner, &status, 0) != owner || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+                _exit(8);
+            }
+            close(notification[0]);
+            close(release[1]);
+            sw_shm_free(row);
+            _exit(!evicted && entered.load() ? 0 : 1);
+        },
+        ::testing::ExitedWithCode(0),
+        "");
+}
+#endif
 
 TEST(table, exhaustion) {
     table_t table(4, 1.0);

@@ -308,6 +308,37 @@ void Table::destroy() {
     sw_mem_pool()->free(this);
 }
 
+namespace {
+class TableProcessIdCache {
+    static pid_t pid_;
+
+    static void refresh() {
+        pid_ = getpid();
+    }
+
+  public:
+    TableProcessIdCache() {
+        refresh();
+#ifndef _WIN32
+        // This also covers raw fork()/pcntl_fork(), not only Swoole's fork wrapper. The child
+        // has one surviving thread; the parent's read-only cache is unchanged, so no atomic is needed.
+        if (pthread_atfork(nullptr, nullptr, refresh) != 0) {
+            // Never retain a parent's PID if the child refresh hook could not be registered.
+            pid_ = 0;
+        }
+#endif
+    }
+
+    pid_t get() const {
+        return sw_unlikely(pid_ == 0) ? getpid() : pid_;
+    }
+};
+
+pid_t TableProcessIdCache::pid_ = 0;
+// Initialize once when the library is loaded, avoiding a function-local static guard on every row lock.
+const TableProcessIdCache table_process_id;
+}  // namespace
+
 static bool holder_is_foreign(pid_t pid) {
 #ifdef _WIN32
     return false;
@@ -322,13 +353,16 @@ static bool holder_is_foreign(pid_t pid) {
 
 void TableRow::lock() {
     sw_atomic_t *lock = &lock_;
+    const uint32_t pid = static_cast<uint32_t>(table_process_id.get());
     uint32_t i, n;
     long t = 0;
 
+    // Keep the uncontended path to one CAS, including on platforms with conservative atomic loads.
+    if (sw_atomic_cmp_set(lock, 0, pid)) {
+        return;
+    }
     while (true) {
-        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-        _success:
-            lock_pid = getpid();
+        if (sw_atomic_load_acquire(lock) == 0 && sw_atomic_cmp_set(lock, 0, pid)) {
             return;
         }
         if (SW_CPU_NUM > 1) {
@@ -336,39 +370,41 @@ void TableRow::lock() {
                 for (i = 0; i < n; i++) {
                     sw_atomic_cpu_pause();
                 }
-                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-                    goto _success;
+                if (sw_atomic_load_acquire(lock) == 0 && sw_atomic_cmp_set(lock, 0, pid)) {
+                    return;
                 }
             }
         }
-        /**
-         * The process occupied by the resource no longer exists,
-         * indicating that OOM occurred during the locking process,
-         * forced to unlock
-         */
-        if (sw_kill(lock_pid, 0) < 0 && errno == ESRCH) {
-            *lock = 1;
-            swoole_warning("lock process[%d] not exists, force unlock", lock_pid);
-            goto _success;
+        const uint32_t owner = sw_atomic_load_acquire(lock);
+        if (owner == 0) {
+            continue;
         }
-        /**
-         * Mark time
-         */
-        if (t == 0) {
-            t = swoole::time<std::chrono::milliseconds>(true);
-        }
-        /**
-         * After SW_TABLE_FORCE_UNLOCK_TIME the holder is only evicted when its pid has been reused by a
-         * process outside our process group. A live holder that is merely slow or stopped must keep the
-         * lock, otherwise two writers would modify the same bucket concurrently.
-         */
-        else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME) {
-            if (holder_is_foreign(lock_pid)) {
-                *lock = 1;
-                swoole_warning("lock pid[%d] belongs to another process group, force unlock", lock_pid);
-                goto _success;
+        // Threads in this process share a PID. Their owner is necessarily alive, so skip the
+        // process probes and recovery clock when contending with another thread in this process.
+        if (owner != pid) {
+            if (sw_kill(static_cast<pid_t>(owner), 0) < 0 && errno == ESRCH) {
+                // Publish our PID in the same CAS that takes ownership. Another recovery winner or
+                // a normal unlock/relock invalidates this snapshot, so it must be retried from scratch.
+                if (sw_atomic_cmp_set(lock, owner, pid)) {
+                    swoole_warning("lock process[%d] not exists, force unlock", static_cast<pid_t>(owner));
+                    return;
+                }
+                continue;
             }
-            t = swoole::time<std::chrono::milliseconds>(true);
+            if (t == 0) {
+                t = swoole::time<std::chrono::milliseconds>(true);
+            }
+            // After the grace period, preserve the existing PID-reuse check. A merely slow or stopped
+            // live holder in our process group must never be evicted. Both recovery paths match the
+            // same atomically observed owner rather than overwriting a lock that may have changed.
+            else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME) {
+                if (holder_is_foreign(static_cast<pid_t>(owner)) && sw_atomic_cmp_set(lock, owner, pid)) {
+                    swoole_warning("lock pid[%d] belongs to another process group, force unlock",
+                                   static_cast<pid_t>(owner));
+                    return;
+                }
+                t = swoole::time<std::chrono::milliseconds>(true);
+            }
         }
         std::this_thread::yield();
     }

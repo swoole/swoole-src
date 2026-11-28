@@ -24,7 +24,7 @@
 #include <vector>
 #include <unordered_map>
 
-//#define SW_TABLE_DEBUG   0
+// #define SW_TABLE_DEBUG   0
 #define SW_TABLE_FORCE_UNLOCK_TIME 2000  // milliseconds
 #define SW_TABLE_USE_PHP_HASH
 #define SW_TABLE_MAX_ROW_SIZE 0x80000000
@@ -50,8 +50,9 @@ struct TableValue {
 using TableValues = std::vector<TableValue>;
 
 struct TableRow {
+    // Zero means unlocked; otherwise this atomic word is the owning process's PID. Publishing
+    // ownership together with acquisition lets recovery CAS the exact owner it found abandoned.
     sw_atomic_t lock_;
-    pid_t lock_pid;
     /**
      * 1:used, 0:empty
      */
@@ -74,7 +75,9 @@ struct TableRow {
     }
 
     void clear() {
-        sw_memset_zero((char *) &lock_pid, sizeof(TableRow) - offsetof(TableRow, lock_pid));
+        // Row contents can be cleared while the bucket is locked. Keep ownership until unlock(),
+        // including when the process exits between clearing the row and releasing its lock.
+        sw_memset_zero((char *) &active, sizeof(TableRow) - offsetof(TableRow, active));
     }
 
     void set_value(const TableColumn *col, const void *value, size_t vlen);
