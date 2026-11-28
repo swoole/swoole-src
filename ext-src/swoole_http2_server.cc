@@ -265,6 +265,53 @@ class Http2WriteLock {
     }
 };
 
+// The async server's header blocks share the connection's HPACK encoder, so the client must receive them in encoding
+// order. A block that waits for output buffer space holds the connection's turn until it is sent. Blocks encoded
+// meanwhile wait for the turn and try to send as soon as it is handed over.
+class Http2::HeaderTurn {
+    const std::shared_ptr<Http2Session> &session_;
+    bool held_ = false;
+
+  public:
+    explicit HeaderTurn(const std::shared_ptr<Http2Session> &session) : session_(session) {}
+
+    bool busy() const {
+        return session_->write_lock && session_->write_lock->is_full();
+    }
+
+    bool take(HttpContext *ctx) {
+        if (!session_->write_lock) {
+            session_->write_lock = std::make_unique<swoole::coroutine::Channel>(1);
+        }
+        double remaining = ctx->http2_write_deadline - http2_server_now();
+        if (remaining <= 0) {
+            return http2_server_write_timed_out(session_);
+        }
+        if (!session_->write_lock->push(nullptr, remaining)) {
+            auto error = session_->write_lock->get_error();
+            if (error == swoole::coroutine::Channel::ERROR_TIMEOUT) {
+                return http2_server_write_timed_out(session_);
+            }
+            swoole_set_last_error(error == swoole::coroutine::Channel::ERROR_CANCELED ? SW_ERROR_CO_CANCELED
+                                                                                      : SW_ERROR_SESSION_CLOSED);
+            return false;
+        }
+        held_ = true;
+        // The block holding the turn before us failed and the connection is closing
+        if (session_->terminating) {
+            swoole_set_last_error(SW_ERROR_SESSION_CLOSED);
+            return false;
+        }
+        return true;
+    }
+
+    ~HeaderTurn() {
+        if (held_) {
+            session_->write_lock->pop();
+        }
+    }
+};
+
 Http2Stream::Stream(const Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
     ctx->copy(client->default_ctx);
@@ -923,17 +970,19 @@ bool swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, zend_str
     return rv;
 }
 
-bool Http2Stream::send_header_block(const String *frame) const {
+bool Http2Stream::send_header_block(const String *frame, const std::shared_ptr<Http2Session> &session) const {
 #ifndef _WIN32
     // Preserve encoded header order and the operation's deadline on every async send-yield path.
     if (!ctx->is_co_socket()) {
-        if (send_frame(frame->str, frame->length, false)) {
+        // Released after the close below, so no block waiting for the turn is sent after this one is lost
+        Http2::HeaderTurn turn(session);
+        if (send_frame(frame->str, frame->length, &turn)) {
             return true;
         }
         // Encoding has already changed the connection's HPACK state.
         ctx->end_ = 1;
-        auto session = http2_sessions.find(ctx->fd);
-        if (session != http2_sessions.end() && !session->second->terminating) {
+        if (!session->terminating) {
+            session->terminating = true;
             ctx->get_async_server()->close(ctx->fd, true);
         }
         return false;
@@ -984,7 +1033,7 @@ bool Http2Stream::send_header(const String *body, bool end_stream, const std::sh
         http2::set_frame_header(http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, id);
     }
 
-    if (!lock.flush() || !send_header_block(http_buffer)) {
+    if (!lock.flush() || !send_header_block(http_buffer, session)) {
         ctx->send_header_ = 0;
         return false;
     }
@@ -1004,7 +1053,7 @@ bool Http2Stream::send_end_stream_data_frame(const std::shared_ptr<Http2Session>
     }
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, 0, SW_HTTP2_FLAG_END_STREAM, id);
-    return send_frame(frame_header, sizeof(frame_header), true);
+    return send_frame(frame_header, sizeof(frame_header), nullptr);
 }
 
 static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &session, Http2Stream *stream) {
@@ -1015,7 +1064,7 @@ static bool http2_server_check_stream(const std::shared_ptr<Http2Session> &sessi
     return false;
 }
 
-bool Http2Stream::send_frame(const char *frame, size_t length, bool data_frame) const {
+bool Http2Stream::send_frame(const char *frame, size_t length, Http2::HeaderTurn *turn) const {
 #ifndef _WIN32
     if (!ctx->is_co_socket()) {
         if (sw_unlikely(ctx->http2_write_deadline > 0 && http2_server_now() >= ctx->http2_write_deadline)) {
@@ -1027,10 +1076,18 @@ bool Http2Stream::send_frame(const char *frame, size_t length, bool data_frame) 
             return false;
         }
         auto *serv = ctx->get_async_server();
-        if (serv->send(ctx->fd, frame, length)) {
-            return true;
+        // An earlier header block is waiting, so this one must not be sent first
+        const bool queued = turn && turn->busy();
+        if (!queued) {
+            if (serv->send(ctx->fd, frame, length)) {
+                return true;
+            }
+            if (swoole_get_last_error() != SW_ERROR_OUTPUT_SEND_YIELD) {
+                return false;
+            }
         }
-        if (swoole_get_last_error() != SW_ERROR_OUTPUT_SEND_YIELD || !swoole_coroutine_is_in()) {
+        if (!swoole_coroutine_is_in()) {
+            swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
             return false;
         }
 
@@ -1041,18 +1098,32 @@ bool Http2Stream::send_frame(const char *frame, size_t length, bool data_frame) 
         auto session = iter->second;
         // Another writer can reuse the context's buffer while we are suspended.
         zend::String pending(frame, length);
-        auto *header_task = data_frame ? nullptr : static_cast<swoole::PHPContext *>(Coroutine::get_current_task());
+        auto *header_task = turn ? static_cast<swoole::PHPContext *>(Coroutine::get_current_task()) : nullptr;
         const bool was_header_pending = header_task && std::exchange(header_task->http2_header_send_pending, true);
         ON_SCOPE_EXIT {
             if (header_task) {
                 header_task->http2_header_send_pending = was_header_pending;
             }
         };
+        if (turn) {
+            if (!turn->take(ctx)) {
+                return false;
+            }
+            if (queued) {
+                if (serv->send(ctx->fd, pending.val(), pending.len())) {
+                    return true;
+                }
+                if (swoole_get_last_error() != SW_ERROR_OUTPUT_SEND_YIELD) {
+                    return false;
+                }
+            }
+        }
         SW_LOOP {
-            if (!http2_server_wait_send_buffer(ctx, session)) {
+            // A failed header block may have closed the connection while we waited
+            if (!http2_server_wait_send_buffer(ctx, session) || session->terminating) {
                 break;
             }
-            if (data_frame && session->get_stream(id).get() != this) {
+            if (!turn && session->get_stream(id).get() != this) {
                 swoole_set_last_error(SW_ERROR_HTTP2_STREAM_NOT_FOUND);
                 return false;
             }
@@ -1178,7 +1249,7 @@ bool Http2Stream::send_body(
             http_buffer->clear();
             http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
             http_buffer->append(p, send_n);
-            if (!send_frame(http_buffer->str, http_buffer->length, true)) {
+            if (!send_frame(http_buffer->str, http_buffer->length, nullptr)) {
                 return false;
             }
         } else {
@@ -1220,7 +1291,7 @@ bool Http2Stream::send_trailer(const std::shared_ptr<Http2Session> &session) con
 
     http2::set_frame_header(
         http_buffer->str, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
-    return lock.flush() && send_header_block(http_buffer);
+    return lock.flush() && send_header_block(http_buffer, session);
 }
 
 // Resolve user Stringable values on the synchronous caller's stack. The background writer must not invoke
@@ -2362,7 +2433,17 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
 }
 
 void php_swoole_http2_server_onClose(Server *serv, SessionId session_id) {
+    auto iter = http2_sessions.find(session_id);
+    if (iter == http2_sessions.end()) {
+        return;
+    }
+    auto session = iter->second;
     swoole_http2_server_session_free(session_id);
+    // Header blocks waiting for the turn return now instead of at their deadline
+    session->terminating = true;
+    if (session->write_lock) {
+        session->write_lock->close();
+    }
 }
 #endif
 
