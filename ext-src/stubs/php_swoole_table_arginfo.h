@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 62c49ea2bccd88e927bd3434d65569b6a62215a3 */
+ * Stub hash: 5f2ce47a44f40c44379603fe77f648f1cffe7290 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Table___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, table_size, IS_LONG, 0)
@@ -54,19 +54,21 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Table_incr, 0, 2, MAY_BE_FALSE|MAY_BE_DOUBLE|MAY_BE_LONG)
 	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, column, IS_STRING, 0)
-	ZEND_ARG_TYPE_MASK(0, incrby, MAY_BE_LONG|MAY_BE_DOUBLE, "1")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, incrby, IS_MIXED, 0, "1")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Table_decr arginfo_class_Swoole_Table_incr
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_count, 0, 0, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, mode, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Table_destroy arginfo_class_Swoole_Table_create
 
-#define arginfo_class_Swoole_Table_getSize arginfo_class_Swoole_Table_count
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_getSize, 0, 0, IS_LONG, 0)
+ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Table_getMemorySize arginfo_class_Swoole_Table_count
+#define arginfo_class_Swoole_Table_getMemorySize arginfo_class_Swoole_Table_getSize
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Table_stats, 0, 0, MAY_BE_FALSE|MAY_BE_ARRAY)
 ZEND_END_ARG_INFO()

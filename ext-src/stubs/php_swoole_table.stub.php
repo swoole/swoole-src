@@ -13,9 +13,9 @@ namespace Swoole {
         public function del(string $key): bool {}
         public function cmpdel(string $key, array $expected): bool {}
         public function exists(string $key): bool {}
-        public function incr(string $key, string $column, int|float $incrby = 1): false|float|int {}
-        public function decr(string $key, string $column, int|float $incrby = 1): false|float|int {}
-        public function count(): int {}
+        public function incr(string $key, string $column, mixed $incrby = 1): false|float|int {}
+        public function decr(string $key, string $column, mixed $incrby = 1): false|float|int {}
+        public function count(int $mode = 0): int {}
         public function destroy(): bool {}
         public function getSize(): int {}
         public function getMemorySize(): int {}
